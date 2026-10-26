@@ -1,0 +1,15 @@
+# Working on `packages/ui/`
+
+The design system package. `src/tokens.css` holds every value; components use
+role tokens only. The rules are in `.claude/skills/gurukul-design/SKILL.md` and
+the recipes in its `references/components.md` — update the recipe in the same
+PR as the component.
+
+- Components are real elements with keyboard support and an accessible name.
+- Each component has tests for every variant and state, at 100% coverage.
+- `test/tokens.test.ts` fails if a role listed in `src/tokens.ts` is missing
+  from `tokens.css`. Add new roles to both.
+
+```bash
+npm run coverage -w @gurukul/ui
+```

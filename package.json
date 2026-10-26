@@ -1,0 +1,67 @@
+{
+  "name": "gurukul",
+  "private": true,
+  "description": "NonStop Gurukul — the open-source learning platform behind NonStop Academy. Monorepo root.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "firebase/functions",
+    "firebase/rules"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "coverage": "npm run coverage --workspaces --if-present",
+    "test:rules": "npm run test:rules -w firebase/rules",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run validate:navigation && npm run test:tooling && npm run coverage && npm run build",
+    "emulators": "npm run build -w @gurukul/functions && firebase emulators:start --project demo-gurukul",
+    "prepare": "husky",
+    "changelog:new": "sh scripts/changelog-new.sh",
+    "validate:navigation": "npm run -s validate:navigation -w @gurukul/web --",
+    "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "firebase-tools": "^15.34.1",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  },
+  "type": "module",
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css,html}": [
+      "prettier --write"
+    ]
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6",
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "^1.14.6"
+    },
+    "@opentelemetry/core": "^2.8.0",
+    "uuid": "^11.1.1"
+  }
+}

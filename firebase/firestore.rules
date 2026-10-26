@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Gurukul Firestore rules.
+//
+// Default deny. Every collection opens explicitly, in its own match block, with
+// tests in firebase/rules/test/ for both the allowed and the denied case.
+// The full role model (Shishya, Acharya, Kulapati) lands with milestone M1;
+// see .plan/03-auth-and-roles.md.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only verified NonStop io accounts, signed in with Google, count as signed in. A personal
+    // Gmail can create an Auth user but can read or write nothing; so can an email/password
+    // account, whatever its address says. The domain is compared lower-cased, as the functions'
+    // isAllowedEmail does.
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@nonstopio[.]com$');
+    }
+
+    function isKulapati() {
+      return signedIn() && request.auth.token.kulapati == true;
+    }
+
+    // A signed-in person may read their own profile. Writes go through the
+    // Admin SDK (Cloud Functions) until M1 opens the profile fields.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

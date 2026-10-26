@@ -1,0 +1,53 @@
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.g-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.g-btn--primary {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+.g-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.g-btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.g-btn--secondary:hover:not(:disabled) {
+  background: var(--g-gray-25);
+}
+.g-btn--ghost {
+  background: transparent;
+  color: var(--accent);
+}
+.g-btn--ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.g-btn--chrome {
+  background: var(--chrome-accent);
+  color: var(--chrome-accent-on);
+}
+.g-btn__icon {
+  display: inline-flex;
+}

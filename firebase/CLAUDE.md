@@ -1,0 +1,22 @@
+# Working on `firebase/`
+
+| Path                     | Owns                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `firestore.rules`        | The access gate for every collection                                              |
+| `firestore.indexes.json` | Composite indexes, deployed with rules                                            |
+| `rules/`                 | Rules tests (`@firebase/rules-unit-testing`) run inside `firebase emulators:exec` |
+| `functions/`             | Cloud Functions, 2nd gen, Node 22, ESM, region `asia-south1`                      |
+
+Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`.
+
+- Tests use the `demo-gurukul` project id, so the emulator never touches the
+  real project.
+- Functions keep business logic in pure modules (`src/*.ts`) with unit tests;
+  the trigger wrapper only wires inputs to them. 100% coverage applies.
+- Functions are deployed by CI from M2 onwards; until then the codebase builds
+  and tests but is not deployed.
+
+```bash
+npm run test:rules                      # from the repo root, needs Java 21
+npm run coverage -w @gurukul/functions
+```

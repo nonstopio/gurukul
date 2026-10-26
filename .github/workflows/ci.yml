@@ -1,0 +1,124 @@
+name: CI
+
+# Every pull request and every push to `main`. Branch protection requires the `ci` job at the
+# bottom (it passes only when every other job passed) and `PR title / pr-title` (pr-title.yml).
+# A successful run on `main` is what triggers the production deploy (deploy.yml).
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One run per branch per event; a new push cancels the stale run. The event is
+# part of the group so a merge push never cancels its own pull_request run.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, format, typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      # Every route classified, every search destination real (apps/web/src/navigation).
+      - run: npm run validate:navigation
+      # The Claude Code hooks (.claude/hooks) and the repo scripts (scripts/, apps/web/scripts) are
+      # code too. The hooks fail open, so a broken one is silent; these tests are what notices.
+      - name: Hook and script tests
+        run: npm run test:tooling
+
+  # Every workspace enforces 100% lines, branches, functions and statements in
+  # its vitest config. Lowering a threshold or excluding a file is not allowed;
+  # see .claude/rules/coverage.md.
+  test:
+    name: Unit tests (100% coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: |
+            apps/*/coverage/
+            packages/*/coverage/
+            firebase/functions/coverage/
+          retention-days: 7
+
+  # Security rules are the real access gate, so they are tested against the
+  # Firestore emulator on every change. The emulator needs Java.
+  rules:
+    name: Firestore rules (emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: npm run test:rules
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  ci:
+    name: ci
+    if: always()
+    needs: [quality, test, rules, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to pass
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | grep -Eq '"(failure|cancelled)"' && exit 1 || exit 0

@@ -1,0 +1,3 @@
+# Conventional Commits with a required area scope: commitlint.config.mjs says which.
+# The writing-commit-messages skill explains how to write one that passes.
+npx --no-install commitlint --edit "$1"

@@ -1,0 +1,93 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg);
+}
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-12) clamp(var(--space-5), 6vw, var(--space-16));
+  background: var(--chrome);
+  color: var(--chrome-text);
+}
+.shell__logo {
+  height: 32px;
+  width: auto;
+}
+.shell__kicker {
+  margin: 0;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chrome-accent);
+}
+.shell__title {
+  margin: 0;
+  max-width: 14ch;
+  font: 500 clamp(var(--text-3xl), 5vw, var(--text-5xl)) / var(--leading-tight) var(--font-display);
+  color: var(--chrome-text-strong);
+}
+.shell__body {
+  margin: 0;
+  max-width: 48ch;
+  font-size: var(--text-lg);
+  line-height: var(--leading-body);
+}
+.shell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+}
+.shell__link {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--chrome-accent);
+}
+.app-bar {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 10;
+}
+.search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: 500 var(--text-sm) var(--font-ui);
+  cursor: pointer;
+}
+.search-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.search-trigger kbd {
+  font: 500 var(--text-xs) var(--font-mono);
+  color: var(--text-subtle);
+}
+.notfound {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-5);
+  line-height: var(--leading-body);
+}
+.notfound__title {
+  font: 500 var(--text-3xl) / var(--leading-tight) var(--font-display);
+}

@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
+package-lock.json linguist-generated=true -diff

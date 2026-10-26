@@ -1,0 +1,2 @@
+# The checks that run before a push. One line here; the logic and its reasons are in the script.
+sh scripts/pre-push.sh
