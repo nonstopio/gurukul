@@ -1,0 +1,70 @@
+# ---------------------------------------------------------------------------
+# Gurukul is open source. Anything that identifies a person, holds a secret or
+# belongs to one machine stays out of git. When in doubt, ignore it and say why.
+# ---------------------------------------------------------------------------
+
+# Dependencies and build output
+node_modules/
+dist/
+# Functions compile here; anchored so a source folder called lib/ is not ignored
+/firebase/functions/lib/
+*.tsbuildinfo
+.vite/
+.turbo/
+.cache/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Secrets: never commit these. CI reads them from GitHub Actions secrets.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+service-account*.json
+*-service-account*.json
+*firebase-adminsdk*.json
+gha-creds-*.json
+
+# Firebase CLI and emulators (local state and exported data can hold real users)
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+database-debug.log
+ui-debug.log
+pubsub-debug.log
+emulator-data/
+.runtimeconfig.json
+firebase/functions/.secret.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and editor files, per machine
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Claude Code: local permissions and scratch, per machine
+.claude/settings.local.json
+.playwright-mcp/
+
+# Plan evidence: screenshots and scratch captured while working on a plan.
+# The plan documents themselves (.plan/*.md) are committed for review.
+.plan/evidence/
+.plan/scratch/
+
+# Generated at build time from git tags (apps/web/scripts/changelog-releases.ts)
+apps/web/src/changelog/releases.generated.json
