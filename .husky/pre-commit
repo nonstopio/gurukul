@@ -1,0 +1,17 @@
+# Runs on every `git commit`. Fast checks on what is staged; the slow ones are in pre-push.
+#
+# Skipped during a rebase, merge or cherry-pick: those replay commits that were already checked.
+# `git rev-parse --git-path` rather than a literal `.git/...`, because in a worktree `.git` is a
+# file and the literal paths never exist.
+if [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ] \
+  || [ -f "$(git rev-parse --git-path MERGE_HEAD)" ] || [ -f "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ]; then
+  echo "Skipping pre-commit during rebase, merge or cherry-pick"
+  exit 0
+fi
+
+# 1. Changelog entry names: YYYY-MM-DD-HHMMSS-slug.ts, India time, date equal to its `date:`
+#    field, a day+time no other entry uses. The page sorts on the file name.
+sh scripts/check-changelog-names.sh || exit 1
+
+# 2. Lint and format only the staged files (config: "lint-staged" in package.json).
+npx --no-install lint-staged || exit 1

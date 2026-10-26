@@ -1,0 +1,53 @@
+name: Preview
+
+# A Firebase Hosting preview channel (7-day expiry) for each pull request from THIS repository.
+# Static files only: previews never deploy rules, indexes or functions.
+#
+# Skipped for forks and for Dependabot: neither can read Actions secrets.
+#
+# Secret: FIREBASE_SERVICE_ACCOUNT_PREVIEW, a repository secret holding a service account with
+# Firebase Hosting Admin ONLY. Any branch can run this workflow's own copy, so the key it gets must
+# not be able to change rules or data; the production key lives in the `production` environment.
+on:
+  pull_request:
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # released entries show their release on the preview's changelog
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @gurukul/web
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PREVIEW }}
+          projectId: nonstop-gurukul
+          expires: 7d

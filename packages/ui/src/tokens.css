@@ -1,0 +1,168 @@
+/*
+ * Gurukul design tokens.
+ *
+ * Two layers:
+ *   1. Scale   (--g-*)  raw palette steps. Never used by components directly.
+ *   2. Roles   (--bg, --text, --accent ...)  what components consume.
+ *
+ * Rules and reasons live in .claude/skills/gurukul-design/SKILL.md.
+ * When this file and the skill disagree, this file is right and the skill is stale.
+ */
+
+:root {
+  /* ---- Scale: NonStop green (from nonstopio.com: #08A66A, #24D39A) ---- */
+  --g-green-50: #e9f7f0;
+  --g-green-100: #d3f0e2;
+  --g-green-200: #9ed9bf;
+  --g-green-400: #24d39a; /* mint: accent on dark chrome only */
+  --g-green-300: #5fe0b6;
+  --g-green-500: #08a66a; /* brand: decoration, progress, charts. Fails 4.5:1 as text on white */
+  --g-green-700: #05764c; /* text and fills with white text (5.4:1) */
+  --g-green-800: #035c3b;
+  --g-green-900: #054f34;
+
+  /* ---- Scale: ink (the dark chrome) ---- */
+  --g-ink-950: #061316;
+  --g-ink-900: #0b211b;
+  --g-ink-850: #0b2a20;
+  --g-ink-800: #0e3b2c;
+  --g-ink-700: #10291f;
+  --g-ink-600: #2a4842;
+  --g-ink-300: #7f9a92;
+  --g-ink-200: #9fb5ae;
+  --g-ink-100: #c7d3cf;
+  --g-ink-50: #e7efec;
+
+  /* ---- Scale: neutrals (light app surfaces) ---- */
+  --g-gray-25: #fcfcfd;
+  --g-gray-50: #f6f7f5;
+  --g-gray-100: #f2f4f7;
+  --g-gray-200: #e4e7ec;
+  --g-gray-300: #d0d5dd;
+  --g-gray-400: #98a2b3;
+  --g-gray-500: #667085;
+  --g-gray-600: #475467;
+  --g-gray-700: #344054;
+  --g-gray-900: #101828;
+
+  /* ---- Scale: paper and gold (certificate and ceremony surfaces) ---- */
+  --g-paper: #fbf8f1;
+  --g-gold-400: #b39553;
+  --g-gold-700: #7a6431;
+
+  /* ---- Roles: ground and text ---- */
+  --bg: var(--g-gray-50);
+  --surface: #ffffff;
+  --surface-sunken: var(--g-gray-100);
+  --text: var(--g-gray-900);
+  --text-body: var(--g-gray-700);
+  --text-muted: var(--g-gray-600);
+  --text-subtle: var(--g-gray-500); /* captions; 4.8:1 on white, do not go lighter */
+  --border: var(--g-gray-200);
+  --border-strong: var(--g-gray-300);
+
+  /* ---- Roles: accent (one hue) ---- */
+  --accent: var(--g-green-700);
+  --accent-hover: var(--g-green-800);
+  --accent-on: #ffffff;
+  --accent-soft: var(--g-green-50);
+  --accent-soft-text: var(--g-green-900);
+  --accent-decor: var(--g-green-500);
+
+  /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
+  --chrome: var(--g-ink-950);
+  --chrome-raised: var(--g-ink-900);
+  --chrome-hover: var(--g-ink-700);
+  --chrome-active: var(--g-ink-800);
+  --chrome-line: var(--g-ink-600);
+  --chrome-text: var(--g-ink-100);
+  --chrome-text-strong: #ffffff;
+  --chrome-label: var(--g-ink-300);
+  --chrome-accent: var(--g-green-400);
+  --chrome-accent-on: var(--g-ink-950);
+  --cover-forest: var(--g-ink-850);
+
+  /* ---- Roles: state (only for real state, always paired with words) ---- */
+  --success: var(--g-green-700);
+  --success-soft: var(--g-green-50);
+  --warning: #93370d;
+  --warning-soft: #fef3e7;
+  --warning-line: #f6d9a8;
+  --danger: #b42318;
+  --danger-soft: #fef3f2;
+  --info: #1d4ed8;
+  --info-soft: #e8eef9;
+
+  /* ---- Roles: ceremony ---- */
+  --paper: var(--g-paper);
+  --gold: var(--g-gold-400);
+  --gold-text: var(--g-gold-700);
+
+  /* ---- Roles: code ---- */
+  --code-bg: #0a1714;
+  --code-header: #10241f;
+  --code-text: #dce7e3;
+  --code-keyword: var(--g-green-400);
+  --code-string: #9cc7ff;
+  --code-comment: #8fa8a0;
+  --code-warn: #f5a35c;
+
+  /* ---- Type ---- */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.875rem; /* 14 */
+  --text-md: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: 1.375rem; /* 22 */
+  --text-2xl: 1.75rem; /* 28 */
+  --text-3xl: 2.25rem; /* 36 */
+  --text-4xl: 3rem; /* 48 */
+  --text-5xl: 4rem; /* 64 */
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-body: 1.6;
+  --tracking-label: 0.08em;
+
+  /* ---- Space (4px grid) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- Shape ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px; /* buttons, inputs, nav items */
+  --radius-lg: 14px; /* code wells, blocks */
+  --radius-xl: 16px; /* cards */
+  --radius-pill: 999px; /* chips, progress bars */
+  --control-height: 44px; /* minimum touch target */
+
+  /* ---- Elevation: hairlines first; shadow only for things that float ---- */
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-float: 0 30px 80px rgb(0 0 0 / 0.45);
+  --focus-ring: 0 0 0 3px var(--g-green-100), 0 0 0 4px var(--g-green-700);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+  }
+}

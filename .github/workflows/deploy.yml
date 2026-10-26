@@ -1,0 +1,82 @@
+name: Deploy
+
+# Production: Hosting, Firestore rules and indexes, then a `release-*` tag.
+#
+# Runs only AFTER the CI workflow has passed on a push to `main` (workflow_run), never alongside
+# it, so code that failed or skipped its tests cannot ship — not even through an admin bypass or a
+# direct push. A manual run (workflow_dispatch) is accepted on `main` only. PR previews are a
+# separate workflow, preview.yml, with a separate key.
+#
+# Cloud Functions join this workflow in milestone M2 (.plan/12-milestones.md).
+#
+# Releases: every production deploy is a release named release-YYYY.MM.DD-HHMM (UTC). The build
+# files every changelog entry not yet in a tag under that name (GURUKUL_RELEASE), and the tag is
+# pushed only after the deploy succeeds, so a failed deploy never claims to have shipped anything.
+# The changelog reads releases from tags, which is why the job fetches full history.
+#
+# Secret: FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL, stored in the `production` ENVIRONMENT (not
+# the repository), with that environment limited to the `main` branch. A service account with
+# Firebase Hosting Admin, Firebase Rules Admin and Cloud Datastore Index Admin.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time; a queued one waits rather than racing the tag.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: write # push the release tag
+    env:
+      # The commit CI tested (workflow_run), or main's head for a manual run.
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0 # the changelog derives releases from tags
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Name this release
+        id: release
+        run: echo "id=release-$(date -u +%Y.%m.%d-%H%M)" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - name: Build, filing new changelog entries under this release
+        run: npm run build -w @gurukul/web
+        env:
+          GURUKUL_RELEASE: ${{ steps.release.outputs.id }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL }}
+      - name: Deploy Hosting, Firestore rules and indexes
+        run: npx firebase deploy --only hosting,firestore --project nonstop-gurukul --non-interactive
+      - name: Tag the release (only after a successful deploy)
+        env:
+          RELEASE_ID: ${{ steps.release.outputs.id }}
+        run: |
+          git tag "$RELEASE_ID" "$SHA"
+          git push origin "$RELEASE_ID"

@@ -1,0 +1,55 @@
+name: PR title
+
+# Squash merges make the PR title the commit on `main`, so it must be a Conventional Commit with a
+# scope from the list. The lists match commitlint.config.mjs, which checks every local commit;
+# change both together (and the table in .claude/skills/writing-commit-messages/reference.md).
+#
+# Its own workflow so that editing the title re-runs it: `edited` is not a default activity type.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          scopes: |
+            web
+            ui
+            functions
+            rules
+            changelog
+            search
+            ci
+            plan
+            claude
+            deps
+            repo
+          requireScope: true
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The description "{subject}" must not start with a capital letter: "fix(web): resume opens the last lesson".

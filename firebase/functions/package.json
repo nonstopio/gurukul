@@ -1,0 +1,22 @@
+{
+  "name": "@gurukul/functions",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gurukul Cloud Functions (2nd gen): grading, invite claiming, certificates, role grants.",
+  "type": "module",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  }
+}

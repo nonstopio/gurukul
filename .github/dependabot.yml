@@ -1,0 +1,23 @@
+version: 2
+# Commit messages must pass commitlint and the PR title check: `type(scope): description` with a
+# scope from the list in commitlint.config.mjs. So the prefix carries the scope explicitly;
+# `include: scope` would produce `chore(deps-dev)`, which is not on the list.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      dev-tooling:
+        dependency-type: development
+      runtime:
+        dependency-type: production
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci(deps)
