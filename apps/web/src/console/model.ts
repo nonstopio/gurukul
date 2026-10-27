@@ -181,3 +181,49 @@ export function rowsFromAssignments(
     } satisfies LearnerRow;
   });
 }
+
+/** Plain-English names for the audit actions the functions write. */
+const AUDIT_LABELS: Record<string, string> = {
+  assign: 'Assigned courses',
+  'reminders.send': 'Sent reminders',
+  'roles.set': 'Changed a role',
+  'roles.bootstrap': 'Granted the first Kulapati role',
+  'cooldown.reset': 'Opened a Pariksha retake',
+  'certificate.revoke': 'Revoked a certificate',
+  'certificate.restore': 'Restored a certificate',
+  'course.create': 'Created a course',
+  'course.publish': 'Published a course',
+  'course.rollback': 'Rolled a course back',
+  'course.archive': 'Archived or restored a course',
+};
+
+/** The audit action in words; an action this build does not know is shown as written. */
+export const auditLabel = (action: string): string => AUDIT_LABELS[action] ?? action;
+
+/** One CSV cell. A leading `=`, `+`, `-` or `@` would run as a formula in a spreadsheet, so it is defused. */
+function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+const isoDay = (d: Date | null): string => (d ? d.toISOString().slice(0, 10) : '');
+
+/** Every assignment as a CSV, newest first as loaded: who, which course, where it stands. */
+export function assignmentsCsv(
+  assignments: readonly AssignmentFull[],
+  courseTitles: ReadonlyMap<string, string>,
+): string {
+  const lines = [['Email', 'Course', 'Status', 'Mandatory', 'Assigned', 'Due', 'Signed in']];
+  for (const a of assignments) {
+    lines.push([
+      a.email,
+      courseTitles.get(a.courseId) ?? a.courseId,
+      a.status,
+      a.mandatory ? 'yes' : 'no',
+      isoDay(a.assignedAt),
+      isoDay(a.dueAt),
+      a.uid === null ? 'no' : 'yes',
+    ]);
+  }
+  return lines.map((row) => row.map(csvCell).join(',')).join('\n') + '\n';
+}

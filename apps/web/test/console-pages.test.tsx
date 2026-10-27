@@ -27,6 +27,7 @@ describe('console access', () => {
       '/kulapati/learners',
       '/kulapati/assign',
       '/kulapati/roles',
+      '/kulapati/audit',
       '/kulapati/courses/git',
     ]) {
       const { unmount } = await openApp(path);
@@ -89,6 +90,55 @@ describe('Overview', () => {
     await openApp('/kulapati', { ...kulapati });
     expect(await screen.findByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+});
+
+describe('Overview CSV export', () => {
+  it('saves every assignment as a CSV file', async () => {
+    const create = vi.fn(() => 'blob:csv');
+    const revoke = vi.fn();
+    Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const c = fakeConsole({ assignments: [asg('a@nonstopio.com')] });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revoke).toHaveBeenCalledWith('blob:csv');
+    click.mockRestore();
+  });
+
+  it('disables the export while nobody is assigned', async () => {
+    await openApp('/kulapati', { ...kulapati });
+    const button = await screen.findByRole('button', { name: 'Export CSV' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('Audit log', () => {
+  it('lists the newest actions with who did them', async () => {
+    const c = fakeConsole({
+      audit: [
+        {
+          id: 'a1',
+          action: 'roles.set',
+          by: 'boss@nonstopio.com',
+          target: 'u2',
+          at: new Date('2026-03-01T10:00:00Z'),
+        },
+        { id: 'a2', action: 'odd.thing', by: 'u9', target: null, at: null },
+      ],
+    });
+    const { container } = await openApp('/kulapati/audit', { ...kulapati, console: c });
+    expect(await screen.findByText('Changed a role')).toBeTruthy();
+    expect(screen.getByText('boss@nonstopio.com')).toBeTruthy();
+    expect(screen.getByText('odd.thing')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says so when nothing has been recorded', async () => {
+    await openApp('/kulapati/audit', { ...kulapati });
+    expect(await screen.findByText('Nothing recorded yet')).toBeTruthy();
   });
 });
 

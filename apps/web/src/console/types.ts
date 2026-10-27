@@ -22,6 +22,15 @@ export interface AssignmentFull {
   status: 'assigned' | 'started' | 'completed';
 }
 
+/** One entry of the audit trail. `by` is the doer's email when their profile is known, else the uid. */
+export interface AuditRow {
+  id: string;
+  action: string;
+  by: string;
+  target: string | null;
+  at: Date | null;
+}
+
 export interface UserPage {
   rows: UserRow[];
   /** Pass back to get the next page; null on the last one. */
@@ -55,6 +64,8 @@ export interface ConsoleData {
     courseIds: string[],
   ): Promise<{ signedIn: Set<string>; assigned: Set<string> }>;
   teams(): Promise<string[]>;
+  /** The newest audit entries (capped), with each doer's email resolved. */
+  auditLog(): Promise<AuditRow[]>;
 }
 
 export interface AssignRequest {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
+  assignmentsCsv,
+  auditLabel,
   averageDays,
   buildLearnerRows,
   filterByRole,
@@ -213,5 +215,50 @@ describe('rowsFromAssignments', () => {
       invitedAt: null,
     });
     expect(rowsFromAssignments([], now)).toEqual([]);
+  });
+});
+
+describe('auditLabel', () => {
+  it('words known actions and shows unknown ones as written', () => {
+    expect(auditLabel('roles.set')).toBe('Changed a role');
+    expect(auditLabel('something.new')).toBe('something.new');
+  });
+});
+
+describe('assignmentsCsv', () => {
+  const a = (over: Partial<AssignmentFull>): AssignmentFull => ({
+    id: 'x',
+    email: 'a@nonstopio.com',
+    uid: 'u1',
+    courseId: 'git',
+    dueAt: new Date('2026-04-02T10:00:00Z'),
+    assignedAt: new Date('2026-03-01T00:00:00Z'),
+    mandatory: true,
+    status: 'started',
+    ...over,
+  });
+
+  it('writes a header and one row per assignment with course titles', () => {
+    const csv = assignmentsCsv([a({})], new Map([['git', 'Git, the NonStop Way']]));
+    expect(csv).toBe(
+      'Email,Course,Status,Mandatory,Assigned,Due,Signed in\n' +
+        'a@nonstopio.com,"Git, the NonStop Way",started,yes,2026-03-01,2026-04-02,yes\n',
+    );
+  });
+
+  it('falls back to the course id, leaves missing dates empty and marks pending invites', () => {
+    const csv = assignmentsCsv(
+      [a({ uid: null, dueAt: null, assignedAt: null, mandatory: false, courseId: 'sql' })],
+      new Map(),
+    );
+    expect(csv.split('\n')[1]).toBe('a@nonstopio.com,sql,started,no,,,no');
+  });
+
+  it('defuses spreadsheet formulas and escapes quotes', () => {
+    const csv = assignmentsCsv(
+      [a({ email: '=cmd@nonstopio.com' })],
+      new Map([['git', 'The "best" course']]),
+    );
+    expect(csv.split('\n')[1]).toContain('\'=cmd@nonstopio.com,"The ""best"" course"');
   });
 });

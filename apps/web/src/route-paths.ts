@@ -19,6 +19,7 @@ export const ROUTE_PATHS = [
   '/kulapati/learners',
   '/kulapati/assign',
   '/kulapati/roles',
+  '/kulapati/audit',
   '/kulapati/courses/:courseId',
   '/studio',
   '/studio/courses/:courseId',

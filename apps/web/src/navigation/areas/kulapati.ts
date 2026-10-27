@@ -35,6 +35,13 @@ export const navigation = {
       description: 'Who is an Acharya or a Kulapati',
       keywords: ['permissions', 'grant', 'acharya', 'admin'],
     },
+    {
+      id: 'kulapati-audit',
+      path: '/kulapati/audit',
+      label: 'Audit log',
+      description: 'Who assigned, granted, revoked or published what, and when',
+      keywords: ['history', 'trail', 'log', 'activity', 'changes'],
+    },
   ],
   unlisted: {
     '/kulapati/courses/:courseId': { context: 'needs a course id; reached from the overview' },
