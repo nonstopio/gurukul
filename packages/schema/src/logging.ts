@@ -150,7 +150,8 @@ const EMAIL = /[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,24}/g;
  * library) — not a licence to log prose.
  */
 export function maskLine(text: string, options: MaskOptions = {}): string {
-  const pair = /([A-Za-z_][\w.-]*)(=|":\s*")([^\s,;"&}]+)/g;
+  // The key length is bounded so scanning a long run of word characters stays linear.
+  const pair = /([A-Za-z_][\w.-]{0,63})(=|":\s*")([^\s,;"&}]+)/g;
   const swept = text.replace(pair, (whole, key: string, sep: string, value: string) => {
     const rule = ruleFor(key, options);
     return rule ? `${key}${sep}${maskValue(value, rule.type)}` : whole;

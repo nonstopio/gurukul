@@ -224,6 +224,10 @@ describe('Pariksha screen', () => {
     const d = fakeData({ courses: [courseWith()], deferProgress: true });
     await openApp(PATH, { data: d });
     await waitFor(() => expect(d.data.getCourse).toHaveBeenCalled());
+    // Let the course finish loading, so the page has rendered with the progress still pending.
+    await act(async () => {
+      await vi.mocked(d.data.getCourse).mock.results[0]?.value;
+    });
     expect(screen.queryByText(/Question 1/)).toBeNull();
     act(() => d.emitProgress(null));
     expect(await screen.findByText('Locked for now')).toBeTruthy();
