@@ -271,6 +271,21 @@ describe('lesson editor: blocks', () => {
     expect(video.className).toContain('g-block--selected');
   });
 
+  it('selects a block focused the moment it appears, before React runs its effects', async () => {
+    // A MutationObserver fires as soon as the block is in the page: earlier than a plain effect
+    // would attach the focus listener, which is how CI once missed this focus.
+    const seen = new MutationObserver(() => {
+      const field = document.querySelector<HTMLElement>('[aria-label="Video block"] input');
+      if (!field) return;
+      seen.disconnect();
+      fireEvent.focusIn(field);
+    });
+    seen.observe(document.body, { childList: true, subtree: true });
+    await open();
+    const video = await screen.findByRole('group', { name: 'Video block' });
+    await waitFor(() => expect(video.className).toContain('g-block--selected'));
+  });
+
   it('shows the publish problem for a block inside its frame', async () => {
     await open();
     const image = (await screen.findByRole('group', { name: 'Image block' })) as HTMLElement;
