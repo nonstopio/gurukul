@@ -1,3 +1,6 @@
+import { ApiException } from '@gurukul/schema';
+import { invalid, missing } from './validation.js';
+
 /**
  * Gurukul roles. Stored as Firebase Auth custom claims and mirrored on
  * users/{uid}.roles. Security rules read the claims; the UI reads the mirror.
@@ -29,21 +32,23 @@ export function isAllowedEmail(email: string | undefined, domain = 'nonstopio.co
 export interface RoleChange {
   acharya?: boolean;
   kulapati?: boolean;
+  /** The courses this person may edit as an Acharya; replaces the previous list. At most 50. */
+  grantedCourseIds?: string[];
 }
 
 export interface RolePlan {
   claims: Required<RoleClaims>;
   roles: Role[];
+  /** Present when the change sets the course grants (de-duplicated). */
+  grantedCourseIds?: string[];
 }
 
-export class RoleError extends Error {
-  constructor(
-    readonly code: 'permission-denied' | 'invalid-argument' | 'failed-precondition',
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export const MAX_GRANTED_COURSES = 50;
+
+const isCourseIdList = (v: unknown): v is string[] =>
+  Array.isArray(v) &&
+  v.length <= MAX_GRANTED_COURSES &&
+  v.every((id) => typeof id === 'string' && id !== '' && !id.includes('/'));
 
 /**
  * Decides a role change. Only a Kulapati on a NonStop account may grant or revoke, and a Kulapati
@@ -57,21 +62,44 @@ export function planRoleChange(
   change: RoleChange,
 ): RolePlan {
   if (!isAllowedEmail(caller.email) || caller.claims?.kulapati !== true) {
-    throw new RoleError('permission-denied', 'Only a Kulapati can change roles.');
+    throw new ApiException('AUTH_2001', ['setRoles']);
+  }
+  for (const field of ['acharya', 'kulapati'] as const) {
+    if (change[field] !== undefined && typeof change[field] !== 'boolean') {
+      throw invalid(field, 'must be true or false');
+    }
+  }
+  if (change.grantedCourseIds !== undefined && !isCourseIdList(change.grantedCourseIds)) {
+    throw invalid('grantedCourseIds', `must be at most ${MAX_GRANTED_COURSES} course ids`);
   }
   if (
-    (change.acharya !== undefined && typeof change.acharya !== 'boolean') ||
-    (change.kulapati !== undefined && typeof change.kulapati !== 'boolean') ||
-    (change.acharya === undefined && change.kulapati === undefined)
+    change.acharya === undefined &&
+    change.kulapati === undefined &&
+    change.grantedCourseIds === undefined
   ) {
-    throw new RoleError('invalid-argument', 'Give acharya and/or kulapati as true or false.');
+    throw missing('acharya, kulapati or grantedCourseIds');
   }
-  if (caller.uid === targetUid && change.kulapati === false) {
-    throw new RoleError('failed-precondition', 'You cannot remove your own Kulapati role.');
-  }
+  if (caller.uid === targetUid && change.kulapati === false) throw new ApiException('USR_1001');
   const claims = {
     acharya: change.acharya ?? current?.acharya === true,
     kulapati: change.kulapati ?? current?.kulapati === true,
   };
-  return { claims, roles: rolesFromClaims(claims) };
+  return {
+    claims,
+    roles: rolesFromClaims(claims),
+    ...(change.grantedCourseIds === undefined
+      ? {}
+      : { grantedCourseIds: [...new Set(change.grantedCourseIds)] }),
+  };
+}
+
+/** Which course grants are new and which were taken away. */
+export function diffGrants(
+  previous: readonly string[],
+  next: readonly string[],
+): { added: string[]; removed: string[] } {
+  return {
+    added: next.filter((id) => !previous.includes(id)),
+    removed: previous.filter((id) => !next.includes(id)),
+  };
 }

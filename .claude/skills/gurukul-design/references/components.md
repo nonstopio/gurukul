@@ -1,7 +1,7 @@
 # Gurukul component recipes
 
 Each recipe lists the tokens it uses, its states and its accessibility contract.
-"Shipped" means it exists in `packages/ui`; the rest are specifications for later milestones.
+"Shipped" means it exists in `packages/ui`.
 
 ## Button — shipped
 
@@ -114,11 +114,96 @@ Left/Right move and wrap, Home/End jump, focus follows. Tab 44px, 14/600 `--text
 `--accent` with a 2px `--accent` underline; focus `--focus-ring`. Controlled with `value`, otherwise
 internal state seeded by `defaultValue`.
 
-## Table
+## DataTable and Pagination — shipped
 
-Header row 12px/600 `--text-muted` on `--g-gray-25`-derived role; rows 14px,
-1px `--border` separators; numbers right-aligned; whole table inside an
-`overflow-x: auto` box. Row selection uses checkboxes with labels.
+```tsx
+<DataTable
+  caption="Learners"
+  columns={[
+    { id: 'name', header: 'Learner', cell: (p) => p.name },
+    { id: 'n', header: 'Courses', cell: (p) => p.n, align: 'end' },
+  ]}
+  rows={page}
+  rowKey={(p) => p.id}
+  selectable
+  selected={keys}
+  onSelectionChange={setKeys}
+  rowLabel={(p) => p.name}
+  onRowClick={openDrawer}
+  empty={<EmptyState title="No learners yet">…</EmptyState>}
+  footer={<Pagination page={1} pageSize={25} total={148} onPageChange={setPage} />}
+/>
+```
+
+Generic over the row type; no sorting. A `<table>` with a visually hidden `<caption>` (`caption` is required,
+it is the table's name) in a `--radius-xl` hairline card. Header row 12px/600 `--text-muted` on
+`--surface-sunken`, sticky inside the scroll box (give `maxHeight` for a vertical scroll); rows 14px,
+1px `--border` separators; `align: 'end'` right-aligns numbers (tabular figures). The table is 640px wide
+at least and scrolls horizontally inside its card on a phone.
+
+Selection is controlled (`selected` is a list of row keys). The header checkbox is "Select all rows on
+this page": it adds or removes only the rows passed in, keeps keys from other pages, shows
+`indeterminate` when some are selected and is disabled with no rows. Each row checkbox is named
+"Select {rowLabel(row)}" (falls back to the key). Selected rows sit on `--accent-soft`. With `onRowClick`
+a row is a mouse target and an Enter shortcut (`tabIndex=0`, focus ring inside the row); keep a real link
+or button in the row too, and the checkbox never triggers it. `empty` replaces the body when `rows` is
+empty. `footer` goes under a hairline.
+
+`<Pagination page pageSize total onPageChange label? />` is the footer: `<nav>` with a live "Showing 1–25
+of 148" and secondary Previous / Next buttons (disabled at the ends). Pages start at 1.
+
+## EmailChipInput — shipped
+
+`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? />`. A labelled text
+input in a bordered box; emails become removable chips. Typing a comma, space, semicolon or newline,
+pressing Enter, pasting, or leaving the field commits what is typed: split on those separators,
+lower-cased, duplicates dropped. Backspace on an empty input removes the last chip. `value` and
+`onChange` are controlled; `splitEmails(text)` is exported for CSV and "whole team" flows.
+
+The caller supplies `classify(email) => { status, reason? }` and writes the legend (point
+`describedBy` at it). Each chip says its status in words: `signedIn` `--accent-soft` "· signed in",
+`new` dashed `--border-strong` "· new", `alreadyAssigned` `--surface-sunken` "· already assigned",
+`rejected` `--danger-soft` with `--danger-line` and "· {reason}" (default "rejected"). The remove button
+is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. The list is named
+"{label}: added emails". Focus ring on the box.
+
+## StepCard (Stepper.Step) — shipped
+
+`<StepCard number title headingAs="h2|h3|h4">children</StepCard>`; `Stepper.Step` is the same component.
+A `<section aria-labelledby>` card (`--surface`, hairline, `--radius-xl`) with a 32px `--accent` number
+badge (decorative) and the title in Fraunces `--text-xl`. The heading carries a visually hidden "Step N:"
+so the number is spoken. Stack several for a form; the sticky summary is the caller's layout.
+
+## Dialog — shipped
+
+`<Dialog open onClose title size="md|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
+(`role="dialog" aria-modal="true" aria-labelledby` the Fraunces `h2` title). On open focus moves to the
+first focusable thing in the body (the close button if there is none); Tab and Shift+Tab wrap inside;
+Escape and the backdrop (a real button, ink at 55%) close; page scroll is locked and restored; focus
+returns to the opener on close. A 44px close button sits in the header. `md` is a centred panel, max
+560px, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
+`--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
+The caller owns `open`. One dialog at a time.
+
+## BarChart — shipped
+
+`<BarChart data={[{label, value}]} title unit? labelHeader? />`. SVG (viewBox 640x260, scales to its
+container), no chart library. Light `--border` gridlines at five steps up to a rounded-up maximum
+(`niceMax`), y labels and x labels 11px `--text-muted`; bars `--accent-line` (the green-200 role), the last
+bar `--accent` with its value printed above it. `role="img"` with an `aria-label` summarising the chart
+(count, first, last, highest) and a visually hidden `<table>` (caption = `title`, columns `labelHeader`
+and `unit`) with every value. Empty `data` renders nothing: show an EmptyState instead.
+
+## FunnelBar — shipped
+
+`<FunnelBar rows={[{label, value}]} label highlight? highlightLabel? />` and the pure
+`largestDrop(values): number | null`. A `<ul>` named by `label`; each row is label (up to 190px) · 26px bar
+(`--accent-line`, on `--surface-sunken`, relative to the largest value, decorative) · count at the right.
+`highlight` is a row index: that row's bar turns `--warning-line`, its count `--warning`, and a
+"Largest drop" pill (`--warning-soft`, `highlightLabel` to reword) says so in words. Pass
+`highlight={largestDrop(rows.map(r => r.value))}`: it returns the index of the step with the biggest drop
+from the step before (first one on a tie), or `null` for fewer than two steps or no drop at all. Write the
+callout sentence from the same numbers, never by hand. On a phone the bar drops under the label.
 
 ## Callout — shipped
 

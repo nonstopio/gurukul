@@ -4,7 +4,12 @@ import { RequireRole } from './auth/RequireRole';
 import { RequireSession } from './auth/RequireSession';
 import { CertificatePage, CertificatesPage, CompletePage, VerifyPage } from './certificates/pages';
 import { ChangelogPage } from './changelog/ChangelogPage';
-import { ConsolePage, StudioPage } from './ConsolePage';
+import { AssignPage } from './console/AssignPage';
+import { CourseAnalyticsPage } from './console/CourseAnalyticsPage';
+import { LearnersPage } from './console/LearnersPage';
+import { OverviewPage } from './console/OverviewPage';
+import { RolesPage } from './console/RolesPage';
+import { StudioPage } from './ConsolePage';
 import { CoursePage } from './CoursePage';
 import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
@@ -35,7 +40,27 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/verify/:id': <VerifyPage />,
   '/kulapati': (
     <RequireRole any={['kulapati']}>
-      <ConsolePage />
+      <OverviewPage />
+    </RequireRole>
+  ),
+  '/kulapati/learners': (
+    <RequireRole any={['kulapati']}>
+      <LearnersPage />
+    </RequireRole>
+  ),
+  '/kulapati/assign': (
+    <RequireRole any={['kulapati']}>
+      <AssignPage />
+    </RequireRole>
+  ),
+  '/kulapati/roles': (
+    <RequireRole any={['kulapati']}>
+      <RolesPage />
+    </RequireRole>
+  ),
+  '/kulapati/courses/:courseId': (
+    <RequireRole any={['kulapati']}>
+      <CourseAnalyticsPage />
     </RequireRole>
   ),
   '/studio': (

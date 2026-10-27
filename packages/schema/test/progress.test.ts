@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  attemptSchema,
   isItemDone,
   itemStates,
   itemsOf,
@@ -129,5 +130,19 @@ describe('resumeItemId', () => {
     expect(
       resumeItemId({ parvas: [], rules: course.rules }, { ...none, lastItemId: null }),
     ).toBeNull();
+  });
+});
+
+describe('attemptSchema', () => {
+  const base = { uid: 'u', courseId: 'git', parikshaId: 'pk', score: 0.5 };
+
+  it('defaults results for attempts recorded before they were stored', () => {
+    expect(attemptSchema.parse(base).results).toEqual([]);
+    const results = [{ questionId: 'q1', correct: true }];
+    expect(attemptSchema.parse({ ...base, results, extra: 1 }).results).toEqual(results);
+  });
+
+  it('rejects a score outside 0..1', () => {
+    expect(attemptSchema.safeParse({ ...base, score: 2 }).success).toBe(false);
   });
 });

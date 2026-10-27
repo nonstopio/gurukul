@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CallError, handleSetRoles } from '../src/handlers.js';
-import { RoleError } from '../src/roles.js';
+import { handleSetRoles } from '../src/handlers.js';
 import { applyRoleChange, grantKulapati } from '../src/set-roles.js';
 import type { RoleAdmin } from '../src/set-roles.js';
 
@@ -10,6 +9,8 @@ const admin = (
   getClaims: vi.fn().mockResolvedValue(claims),
   setClaims: vi.fn().mockResolvedValue(undefined),
   revokeTokens: vi.fn().mockResolvedValue(undefined),
+  getGrantedCourseIds: vi.fn().mockResolvedValue([]),
+  applyCourseGrants: vi.fn().mockResolvedValue(undefined),
   mirrorRoles: vi.fn().mockResolvedValue(undefined),
   audit: vi.fn().mockResolvedValue(undefined),
 });
@@ -31,13 +32,38 @@ describe('applyRoleChange', () => {
     });
   });
 
+  it('syncs Acharya course grants: profile list, acharyaIds of added and removed courses', async () => {
+    const a = admin();
+    a.getGrantedCourseIds = vi.fn().mockResolvedValue(['git', 'sql']);
+    a.applyCourseGrants = vi.fn().mockResolvedValue(undefined);
+    await applyRoleChange(a, kulapati, 'u', { grantedCourseIds: ['sql', 'go'] });
+    expect(a.applyCourseGrants).toHaveBeenCalledWith('u', ['sql', 'go'], {
+      added: ['go'],
+      removed: ['git'],
+    });
+    expect(a.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { acharya: false, kulapati: false, grantedCourseIds: ['sql', 'go'] },
+      }),
+    );
+  });
+
+  it('does not touch grants when the change does not carry them', async () => {
+    const a = admin();
+    a.getGrantedCourseIds = vi.fn();
+    a.applyCourseGrants = vi.fn();
+    await applyRoleChange(a, kulapati, 'u', { acharya: true });
+    expect(a.getGrantedCourseIds).not.toHaveBeenCalled();
+    expect(a.applyCourseGrants).not.toHaveBeenCalled();
+  });
+
   it('writes nothing when the change is refused', async () => {
     const a = admin();
     await expect(
       applyRoleChange(a, { uid: 'x', email: 'x@nonstopio.com', claims: undefined }, 'u', {
         acharya: true,
       }),
-    ).rejects.toBeInstanceOf(RoleError);
+    ).rejects.toMatchObject({ code: 'AUTH_2001' });
     expect(a.setClaims).not.toHaveBeenCalled();
     expect(a.audit).not.toHaveBeenCalled();
   });
@@ -88,25 +114,23 @@ describe('handleSetRoles', () => {
 
   it('refuses signed-out callers and a missing uid, including a missing body', async () => {
     await expect(handleSetRoles(request({ auth: undefined }), admin())).rejects.toMatchObject({
-      code: 'unauthenticated',
+      code: 'AUTH_1001',
     });
     await expect(
       handleSetRoles(request({ data: { acharya: true } }), admin()),
-    ).rejects.toMatchObject({
-      code: 'invalid-argument',
+    ).rejects.toMatchObject({ code: 'VAL_1001', details: { field: 'uid' } });
+    await expect(handleSetRoles(request({ data: { uid: '' } }), admin())).rejects.toMatchObject({
+      code: 'VAL_1002',
     });
-    await expect(handleSetRoles(request({ data: { uid: '' } }), admin())).rejects.toBeInstanceOf(
-      CallError,
-    );
-    await expect(handleSetRoles(request({ data: undefined }), admin())).rejects.toBeInstanceOf(
-      CallError,
-    );
+    await expect(handleSetRoles(request({ data: undefined }), admin())).rejects.toMatchObject({
+      code: 'VAL_1001',
+    });
   });
 
-  it('maps a refused change to its code and rethrows anything else', async () => {
+  it('lets a refused change surface as its ApiException and rethrows anything else', async () => {
     const notKulapati = request({ auth: { uid: 'x', token: { email: 'x@nonstopio.com' } } });
     await expect(handleSetRoles(notKulapati, admin())).rejects.toMatchObject({
-      code: 'permission-denied',
+      code: 'AUTH_2001',
     });
     const broken = admin();
     broken.getClaims = vi.fn().mockRejectedValue(new Error('boom'));

@@ -1,0 +1,97 @@
+.g-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4);
+}
+.g-dialog-layer--drawer {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+.g-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(6 19 22 / 0.55);
+  cursor: default;
+}
+.g-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+  font-family: var(--font-ui);
+}
+.g-dialog--drawer {
+  max-width: 480px;
+  height: 100%;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+  animation: g-dialog-slide var(--dur-slow) var(--ease);
+}
+@keyframes g-dialog-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.g-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.g-dialog__title {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+  color: var(--text);
+}
+.g-dialog__close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.g-dialog__close:hover {
+  background: var(--surface-sunken);
+}
+.g-dialog__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  color: var(--text-body);
+  font-size: var(--text-sm);
+}
+.g-dialog__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}

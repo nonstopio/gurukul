@@ -20,6 +20,7 @@ import { percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
 import { Loaded } from './learn/ui';
 import { BlockView } from './player/blocks';
+import { log } from './log';
 
 const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
@@ -172,7 +173,8 @@ function Player({
       goTo(
         next ? itemPath(course.id, next) : finished ? `/courses/${course.id}/complete` : undefined,
       );
-    } catch {
+    } catch (e) {
+      log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
       toast.show('Could not save your progress. Try again.', { tone: 'danger' });
     } finally {
       setSaving(false);

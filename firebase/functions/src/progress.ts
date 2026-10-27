@@ -1,6 +1,9 @@
 import { migrateCourse, progressPercent, progressSchema } from '@gurukul/schema';
 import type { Progress } from '@gurukul/schema';
+import { emptyDelta, isEmptyDelta, planProgressStats } from './analytics.js';
+import type { ProgressStatsDelta } from './analytics.js';
 import type { CertificateGrant } from './certificates.js';
+import { log } from './logging/log.js';
 
 /** Where progress triggers read courses and write derived fields. `stores.ts` adapts Firestore. */
 export interface ProgressStore {
@@ -8,14 +11,17 @@ export interface ProgressStore {
   course(courseId: string): Promise<unknown | undefined>;
   /** Writes the derived fields; `completed` stamps `completedAt` with the server time. */
   writeDerived(progressId: string, derived: { percent: number; completed: boolean }): Promise<void>;
-  /** Increments the `org` and `course_{id}` counters Sanjaya reads. */
-  bumpStats(courseId: string, delta: { started: number; completed: number }): Promise<void>;
-  /** Moves this learner's assignment (if any) for the course to `status`. */
+  /** Adds the delta to the `stats/org` and `stats/course_{id}` counters Sanjaya reads. */
+  bumpStats(courseId: string, delta: ProgressStatsDelta): Promise<void>;
+  /**
+   * Moves this learner's assignments for the course to `status`; returns how many actually
+   * changed (one already at `status` is left alone and not counted).
+   */
   setAssignmentStatus(
     uid: string,
     courseId: string,
     status: 'started' | 'completed',
-  ): Promise<void>;
+  ): Promise<number>;
   /**
    * Issues the learner's certificate in ONE transaction: re-reads the progress document, does
    * nothing if `certificateId` is already set, else takes the next sequence number, writes
@@ -27,7 +33,7 @@ export interface ProgressStore {
 /**
  * Reacts to a write on `progress/{id}`: computes the percent from the CURRENT published course
  * (the client never writes it), stamps `completedAt` at 100%, and keeps the stats counters and the
- * assignment status in step. It writes only when something derived changed, so its own write
+ * assignment status in step (see `analytics.ts` for what a write counts). It writes only when something derived changed, so its own write
  * re-triggers it exactly once and then stops.
  */
 export async function handleProgressWrite(
@@ -35,6 +41,7 @@ export async function handleProgressWrite(
   progressId: string,
   beforeRaw: unknown,
   afterRaw: unknown,
+  at: Date,
 ): Promise<'ignored' | 'unchanged' | 'updated'> {
   if (afterRaw === undefined) return 'ignored';
   const after = progressSchema.safeParse(afterRaw);
@@ -43,19 +50,22 @@ export async function handleProgressWrite(
   const was: Progress | undefined = before?.success ? before.data : undefined;
   const now = after.data;
 
-  const started = was === undefined;
-  const justCompleted = now.completedAt !== null && was?.completedAt == null;
-  if (started || justCompleted) {
-    await store.bumpStats(now.courseId, {
-      started: started ? 1 : 0,
-      completed: justCompleted ? 1 : 0,
-    });
-    await store.setAssignmentStatus(now.uid, now.courseId, justCompleted ? 'completed' : 'started');
-  }
-
   const raw = await store.course(now.courseId);
   if (raw === undefined) return 'ignored';
   const course = migrateCourse(raw);
+
+  log.debug('Progress changed', { uid: now.uid, courseId: now.courseId, percent: now.percent });
+  const delta = planProgressStats(course, was, now, at);
+  if (delta.started === 1 || delta.completed === 1) {
+    const moved = await store.setAssignmentStatus(
+      now.uid,
+      now.courseId,
+      delta.completed === 1 ? 'completed' : 'started',
+    );
+    if (delta.completed === 1) delta.assignmentsCompleted = moved;
+  }
+  if (!isEmptyDelta(delta)) await store.bumpStats(now.courseId, delta);
+
   const percent = progressPercent(course, now);
   const completed = percent === 100 && now.completedAt === null;
   let updated = false;
@@ -72,7 +82,15 @@ export async function handleProgressWrite(
       signatoryName: course.certificate.signatoryName,
       signatoryRole: course.certificate.signatoryRole,
     });
-    updated ||= issued !== null;
+    if (issued !== null) {
+      log.info('Certificate issued', {
+        credentialId: issued,
+        courseId: now.courseId,
+        uid: now.uid,
+      });
+      await store.bumpStats(now.courseId, { ...emptyDelta(delta.week), certified: 1 });
+      updated = true;
+    }
   }
   return updated ? 'updated' : 'unchanged';
 }

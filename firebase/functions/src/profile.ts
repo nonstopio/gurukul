@@ -1,3 +1,4 @@
+import { log } from './logging/log.js';
 import { isAllowedEmail } from './roles.js';
 
 /** What the Auth `onCreate` trigger gives us about the new account. */
@@ -48,6 +49,7 @@ export async function handleUserCreated(
   user: NewUser,
 ): Promise<{ created: boolean; claimed: number }> {
   if (!user.email || user.emailVerified !== true || !isAllowedEmail(user.email)) {
+    log.debug('Sign-up ignored', { uid: user.uid, reason: 'not a verified NonStop account' });
     return { created: false, claimed: 0 };
   }
   const profile = buildProfile({ ...user, email: user.email });

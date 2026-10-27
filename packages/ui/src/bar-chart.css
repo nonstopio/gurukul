@@ -1,0 +1,35 @@
+.g-chart {
+  margin: 0;
+  font-family: var(--font-ui);
+}
+.g-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.g-chart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.g-chart__bar {
+  fill: var(--accent-line);
+}
+.g-chart__bar--last {
+  fill: var(--accent);
+}
+.g-chart__tick,
+.g-chart__x {
+  fill: var(--text-muted);
+  font: 400 11px var(--font-ui);
+}
+.g-chart__value {
+  fill: var(--accent);
+  font: 600 13px var(--font-ui);
+}
+.g-chart__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

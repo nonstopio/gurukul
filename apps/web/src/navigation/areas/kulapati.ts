@@ -10,9 +10,33 @@ export const navigation = {
     {
       id: 'kulapati-overview',
       path: '/kulapati',
-      label: 'Console',
-      description: 'Learners, assignments and roles',
-      keywords: ['admin', 'learners', 'assign', 'roles'],
+      label: 'Overview',
+      description: 'Sanjaya: activity, completion and the course funnel',
+      keywords: ['admin', 'console', 'analytics', 'sanjaya', 'dashboard'],
+    },
+    {
+      id: 'kulapati-learners',
+      path: '/kulapati/learners',
+      label: 'Learners',
+      description: 'Everyone who signed in, plus pending invites',
+      keywords: ['people', 'invites', 'overdue', 'reminder', 'progress'],
+    },
+    {
+      id: 'kulapati-assign',
+      path: '/kulapati/assign',
+      label: 'Assign courses',
+      description: 'Give courses to people, teams or a pasted list of emails',
+      keywords: ['assign', 'invite', 'csv', 'deadline', 'due date'],
+    },
+    {
+      id: 'kulapati-roles',
+      path: '/kulapati/roles',
+      label: 'Roles & access',
+      description: 'Who is an Acharya or a Kulapati',
+      keywords: ['permissions', 'grant', 'acharya', 'admin'],
     },
   ],
+  unlisted: {
+    '/kulapati/courses/:courseId': { context: 'needs a course id; reached from the overview' },
+  },
 } satisfies AreaNavigation;

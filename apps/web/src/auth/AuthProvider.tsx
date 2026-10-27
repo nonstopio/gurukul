@@ -3,6 +3,7 @@ import type { Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthService, AuthUser } from './service';
+import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
 
@@ -100,7 +101,8 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
         setError(null);
         try {
           await service.signIn();
-        } catch {
+        } catch (e) {
+          log.error('Sign-in failed', e);
           setError('Sign-in did not finish. Try again.');
         }
       },

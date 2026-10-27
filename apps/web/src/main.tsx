@@ -5,6 +5,8 @@ import '@gurukul/ui/tokens.css';
 import './styles.css';
 import { App } from './App';
 import { firebaseAuthService } from './auth/service';
+import { firebaseConsoleData } from './console/firebase';
+import { firebaseConsoleService } from './console/service';
 import { firebaseLearnerData } from './data/firebase';
 import { initFirebase } from './firebase';
 import { firebaseParikshaService } from './pariksha/service';
@@ -25,6 +27,10 @@ export function mount(element: HTMLElement | null, env = import.meta.env as Fire
         service={service}
         data={data}
         pariksha={firebaseParikshaService(firebase.functions)}
+        console={{
+          data: firebaseConsoleData(firebase.db),
+          service: firebaseConsoleService(firebase.functions),
+        }}
         router={createBrowserRouter(appRoutes())}
       />
     </StrictMode>,

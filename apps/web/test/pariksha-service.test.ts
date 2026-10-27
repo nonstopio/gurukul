@@ -1,23 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ApiException, apiFail, apiOk } from '@gurukul/schema';
 
-const callables = vi.hoisted(() => ({
-  fns: {} as Record<string, ReturnType<typeof vi.fn>>,
-}));
+const callables = vi.hoisted(() => {
+  const all: Record<string, ReturnType<typeof vi.fn>> = {};
+  return { fn: (name: string) => (all[name] ??= vi.fn()) };
+});
 vi.mock('firebase/functions', () => ({
   httpsCallable: (_f: unknown, name: string) => {
-    callables.fns[name] = vi.fn();
-    return callables.fns[name];
+    return callables.fn(name);
   },
 }));
 
+import { ApiClientError } from '../src/api';
 import { CooldownError, firebaseParikshaService } from '../src/pariksha/service';
 
 const service = firebaseParikshaService({} as never);
+const req = { courseId: 'g', parikshaId: 'p', questionIds: [], answers: {} };
+const cooldown = (details: Record<string, unknown>) => ({
+  code: 'functions/resource-exhausted',
+  details: apiFail([new ApiException('PRK_4001', ['soon'], details)], 'trace'),
+});
 
 describe('firebaseParikshaService', () => {
-  it('returns the data of checkAnswer and gradeAttempt', async () => {
-    callables.fns.checkAnswer?.mockResolvedValue({ data: { correct: true } });
-    callables.fns.gradeAttempt?.mockResolvedValue({ data: { score: 1 } });
+  it('unwraps the envelope data of checkAnswer and gradeAttempt', async () => {
+    callables.fn('checkAnswer').mockResolvedValue({ data: apiOk({ correct: true }) });
+    callables.fn('gradeAttempt').mockResolvedValue({ data: apiOk({ score: 1 }) });
     expect(
       await service.checkAnswer({
         courseId: 'g',
@@ -26,28 +33,40 @@ describe('firebaseParikshaService', () => {
         selected: ['a'],
       }),
     ).toEqual({ correct: true });
-    expect(
-      await service.gradeAttempt({ courseId: 'g', parikshaId: 'p', questionIds: [], answers: {} }),
-    ).toEqual({ score: 1 });
+    expect(await service.gradeAttempt(req)).toEqual({ score: 1 });
   });
 
-  it('turns a too-early retake into a CooldownError, with or without the time', async () => {
-    const req = { courseId: 'g', parikshaId: 'p', questionIds: [], answers: {} };
-    callables.fns.gradeAttempt?.mockRejectedValueOnce({
-      code: 'functions/resource-exhausted',
-      details: { nextAttemptAt: 99 },
-    });
+  it('turns a PRK_4001 failure into a CooldownError, with or without the time', async () => {
+    callables.fn('gradeAttempt').mockRejectedValueOnce(cooldown({ nextAttemptAt: 99 }));
     await expect(service.gradeAttempt(req)).rejects.toMatchObject({ nextAttemptAt: 99 });
-    callables.fns.gradeAttempt?.mockRejectedValueOnce({ code: 'functions/resource-exhausted' });
+    callables.fn('gradeAttempt').mockRejectedValueOnce(cooldown({}));
     const err = await service.gradeAttempt(req).catch((e) => e);
     expect(err).toBeInstanceOf(CooldownError);
     expect(err.nextAttemptAt).toBeNull();
   });
 
-  it('rethrows any other failure untouched', async () => {
-    callables.fns.gradeAttempt?.mockRejectedValueOnce(new Error('boom'));
-    await expect(
-      service.gradeAttempt({ courseId: 'g', parikshaId: 'p', questionIds: [], answers: {} }),
-    ).rejects.toThrow('boom');
+  it('rethrows any other envelope failure as the ApiClientError', async () => {
+    callables.fn('gradeAttempt').mockRejectedValueOnce({
+      details: apiFail([new ApiException('PRK_2002', ['g'])], 'trace'),
+    });
+    const err = await service.gradeAttempt(req).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiClientError);
+    expect(err).toMatchObject({ code: 'PRK_2002', status: 400, retryable: false });
+  });
+
+  it('gives garbage details, a non-envelope success and an offline error a catalog error', async () => {
+    callables.fn('gradeAttempt').mockRejectedValueOnce({ code: 'functions/internal', details: 1 });
+    expect(await service.gradeAttempt(req).catch((e) => e)).toMatchObject({
+      code: 'GEN_5000',
+      unexpected: true,
+    });
+    callables.fn('gradeAttempt').mockResolvedValueOnce({ data: { score: 1 } });
+    expect(await service.gradeAttempt(req).catch((e) => e)).toMatchObject({ code: 'GEN_5000' });
+    callables.fn('checkAnswer').mockRejectedValueOnce({ code: 'functions/unavailable' });
+    expect(
+      await service
+        .checkAnswer({ courseId: 'g', parikshaId: 'p', questionId: 'q', selected: [] })
+        .catch((e) => e),
+    ).toMatchObject({ code: 'GEN_5003', status: 503, retryable: true });
   });
 });

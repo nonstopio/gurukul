@@ -3,6 +3,8 @@ import { RouterProvider } from 'react-router';
 import type { DataRouter } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import type { AuthService } from './auth/service';
+import { ConsoleProvider } from './console/ConsoleProvider';
+import type { ConsoleData, ConsoleService } from './console/types';
 import { DataProvider } from './data/DataProvider';
 import type { LearnerData } from './data/types';
 import { ParikshaProvider } from './pariksha/ParikshaProvider';
@@ -15,6 +17,8 @@ export interface AppProps {
   data: LearnerData;
   /** Server-side grading (callable functions); tests pass a fake. */
   pariksha: ParikshaService;
+  /** The Kulapati console's reads and callable functions; tests pass fakes. */
+  console: { data: ConsoleData; service: ConsoleService };
   /** The data router: `createBrowserRouter(appRoutes())` in production, a memory router in tests. */
   router: DataRouter;
 }
@@ -23,14 +27,16 @@ export interface AppProps {
  * Providers around the router. Sign-in is enforced inside the route tree (`RequireSession`), so a
  * few pages — certificate verification — can stay public.
  */
-export function App({ service, data, pariksha, router }: AppProps) {
+export function App({ service, data, pariksha, console: consoleApi, router }: AppProps) {
   return (
     <AuthProvider service={service}>
       <DataProvider data={data}>
         <ParikshaProvider service={pariksha}>
-          <ToastProvider>
-            <RouterProvider router={router} />
-          </ToastProvider>
+          <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </ConsoleProvider>
         </ParikshaProvider>
       </DataProvider>
     </AuthProvider>

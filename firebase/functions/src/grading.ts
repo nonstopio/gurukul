@@ -1,16 +1,7 @@
-import { itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
+import { ApiException, itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
 import type { Course, Pariksha, ParikshaResult, Question } from '@gurukul/schema';
-
-/** A failure the handler turns into a `CallError` with the same code. */
-export class GradeError extends Error {
-  constructor(
-    readonly code: 'invalid-argument' | 'not-found' | 'failed-precondition' | 'resource-exhausted',
-    message: string,
-    readonly details?: { nextAttemptAt: number },
-  ) {
-    super(message);
-  }
-}
+import { log } from './logging/log.js';
+import { badField } from './validation.js';
 
 /** What a learner's best/passed/attempts become after one more attempt. */
 export interface ParikshaUpdate {
@@ -30,6 +21,8 @@ export interface AttemptRecord {
   passed: boolean;
   answers: Record<string, string[]>;
   questionIds: string[];
+  /** Right or wrong per question; the analytics trigger reads it for first-try rates. */
+  results: { questionId: string; correct: boolean }[];
   courseVersion: number;
 }
 
@@ -91,17 +84,18 @@ async function load(
   parikshaId: string,
 ): Promise<{ course: Course; pariksha: Pariksha }> {
   const raw = await store.getCourse(courseId);
-  let course: Course | undefined;
+  if (raw === undefined) throw new ApiException('CRS_2001', [courseId]);
+  let course: Course;
   try {
-    course = raw === undefined ? undefined : migrateCourse(raw);
+    course = migrateCourse(raw);
   } catch {
-    throw new GradeError('failed-precondition', 'This course cannot be read.');
+    throw new ApiException('CRS_3001', [courseId]);
   }
-  if (course?.status !== 'published') throw new GradeError('not-found', 'No such course.');
+  if (course.status !== 'published') throw new ApiException('CRS_1001', [courseId]);
   const pariksha = itemsOf(course).find(
     (i): i is Pariksha => i.type === 'pariksha' && i.id === parikshaId,
   );
-  if (!pariksha) throw new GradeError('invalid-argument', 'No such Pariksha in this course.');
+  if (!pariksha) throw new ApiException('PRK_2001', [parikshaId, courseId]);
   return { course, pariksha };
 }
 
@@ -113,7 +107,7 @@ async function loadKey(
   const all = (await store.getAnswers(courseId)) as
     Record<string, Record<string, unknown> | undefined> | undefined;
   const key = all?.[parikshaId];
-  if (!key) throw new GradeError('failed-precondition', 'This Pariksha has no answer key yet.');
+  if (!key) throw new ApiException('PRK_3001', ['Pariksha', parikshaId]);
   return key;
 }
 
@@ -121,7 +115,7 @@ async function loadKey(
 function keyOf(key: Record<string, unknown>, questionId: string): string[] {
   const ids = key[questionId];
   if (!isStringArray(ids)) {
-    throw new GradeError('failed-precondition', 'This question has no answer key yet.');
+    throw new ApiException('PRK_3001', ['question', questionId]);
   }
   return ids;
 }
@@ -135,26 +129,18 @@ export async function checkAnswer(
   data: { courseId?: unknown; parikshaId?: unknown; questionId?: unknown; selected?: unknown },
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
   const { courseId, parikshaId, questionId, selected } = data;
-  if (
-    !isNonEmptyString(courseId) ||
-    !isNonEmptyString(parikshaId) ||
-    !isNonEmptyString(questionId) ||
-    !isStringArray(selected)
-  ) {
-    throw new GradeError(
-      'invalid-argument',
-      'courseId, parikshaId, questionId and selected are required.',
-    );
-  }
+  if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
+  if (!isNonEmptyString(parikshaId))
+    throw badField('parikshaId', parikshaId, 'must be a Pariksha id');
+  if (!isNonEmptyString(questionId))
+    throw badField('questionId', questionId, 'must be a question id');
+  if (!isStringArray(selected))
+    throw badField('selected', selected, 'must be a list of option ids');
+  log.debug('Checking an answer', { courseId, parikshaId, questionId });
   const { pariksha } = await load(store, courseId, parikshaId);
-  if (pariksha.revealAnswers !== 'each') {
-    throw new GradeError(
-      'failed-precondition',
-      'This Pariksha does not reveal answers one by one.',
-    );
-  }
+  if (pariksha.revealAnswers !== 'each') throw new ApiException('PRK_1001', [parikshaId]);
   const question = pariksha.questions.find((q) => q.id === questionId);
-  if (!question) throw new GradeError('invalid-argument', 'No such question in this Pariksha.');
+  if (!question) throw new ApiException('VAL_1003', ['question', questionId]);
   const correctOptionIds = keyOf(await loadKey(store, courseId, parikshaId), questionId);
   return {
     correct: isCorrect(question.kind, selected, correctOptionIds),
@@ -166,23 +152,18 @@ export async function checkAnswer(
 /** The learner's Pariksha result so far; throws when they have not started or are cooling down. */
 export function checkCooldown(
   progressRaw: unknown,
+  courseId: string,
   parikshaId: string,
   cooldownMinutes: number,
   now: number,
 ): ParikshaResult | undefined {
   const progress = progressSchema.safeParse(progressRaw);
-  if (!progress.success) {
-    throw new GradeError('failed-precondition', 'Start the course before taking a Pariksha.');
-  }
+  if (!progress.success) throw new ApiException('PRK_2002', [courseId]);
   const previous = progress.data.pariksha[parikshaId];
   if (previous) {
     const next = previous.lastAttemptAt.toMillis() + cooldownMinutes * 60_000;
     if (now < next) {
-      throw new GradeError(
-        'resource-exhausted',
-        `Try again after ${new Date(next).toISOString()}.`,
-        { nextAttemptAt: next },
-      );
+      throw new ApiException('PRK_4001', [new Date(next).toISOString()], { nextAttemptAt: next });
     }
   }
   return previous;
@@ -209,21 +190,22 @@ export async function gradeAttempt(
   now: number,
 ): Promise<AttemptResult> {
   const { courseId, parikshaId, questionIds, answers } = data;
+  if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
+  if (!isNonEmptyString(parikshaId))
+    throw badField('parikshaId', parikshaId, 'must be a Pariksha id');
+  if (!isStringArray(questionIds)) {
+    throw badField('questionIds', questionIds, 'must be a list of question ids');
+  }
   if (
-    !isNonEmptyString(courseId) ||
-    !isNonEmptyString(parikshaId) ||
-    !isStringArray(questionIds) ||
     typeof answers !== 'object' ||
     answers === null ||
     Array.isArray(answers) ||
     !Object.values(answers).every(isStringArray)
   ) {
-    throw new GradeError(
-      'invalid-argument',
-      'courseId, parikshaId, questionIds and answers are required.',
-    );
+    throw badField('answers', answers, 'must map question ids to lists of option ids');
   }
   const given = answers as Record<string, string[]>;
+  log.debug('Grading started', { uid, courseId, parikshaId, questionCount: questionIds.length });
   const { course, pariksha } = await load(store, courseId, parikshaId);
 
   const shown = Math.min(pariksha.questionsShown, pariksha.questions.length);
@@ -234,12 +216,12 @@ export async function gradeAttempt(
     !questionIds.every((id) => known.has(id)) ||
     !Object.keys(given).every((id) => questionIds.includes(id))
   ) {
-    throw new GradeError('invalid-argument', 'The questions submitted are not this Pariksha’s.');
+    throw new ApiException('PRK_1002', ['the questions are not this Pariksha’s draw']);
   }
 
   // Cheap rejection first: a learner cooling down costs one progress read, not the answer key.
   const progress = await store.getProgress(uid, courseId);
-  checkCooldown(progress, parikshaId, pariksha.cooldownMinutes, now);
+  checkCooldown(progress, courseId, parikshaId, pariksha.cooldownMinutes, now);
 
   const key = await loadKey(store, courseId, parikshaId);
   const byId = new Map(pariksha.questions.map((q) => [q.id, q]));
@@ -268,12 +250,18 @@ export async function gradeAttempt(
       passed,
       answers: given,
       questionIds,
+      results: graded.map((g) => ({ questionId: g.question.id, correct: g.correct })),
       courseVersion: course.version,
     },
     (raw) =>
-      nextResult(checkCooldown(raw, parikshaId, pariksha.cooldownMinutes, now), score, passed),
+      nextResult(
+        checkCooldown(raw, courseId, parikshaId, pariksha.cooldownMinutes, now),
+        score,
+        passed,
+      ),
   );
 
+  log.info('Attempt graded', { uid, attemptId, courseId, parikshaId, passed, correctCount, total });
   const reveal =
     pariksha.revealAnswers === 'each' || (pariksha.revealAnswers === 'onPass' && passed);
   return {

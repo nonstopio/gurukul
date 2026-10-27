@@ -1,6 +1,7 @@
-import { certificateSchema, courseCode, credentialId } from '@gurukul/schema';
-import { isAllowedEmail } from './roles.js';
-import type { RoleClaims } from './roles.js';
+import { ApiException, certificateSchema, courseCode, credentialId } from '@gurukul/schema';
+import { requireKulapati } from './errors.js';
+import type { Caller } from './errors.js';
+import { badField } from './validation.js';
 
 /** What the progress trigger hands the store when a learner has finished a certificate course. */
 export interface CertificateGrant {
@@ -69,15 +70,6 @@ export function planCertificate(
   };
 }
 
-export class CertificateError extends Error {
-  constructor(
-    readonly code: 'permission-denied' | 'invalid-argument' | 'not-found',
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 /** The Admin SDK calls `revokeCertificate` needs. */
 export interface CertificateAdmin {
   /** Sets `revoked` on the certificate; false when there is no such certificate. */
@@ -93,23 +85,15 @@ export interface CertificateAdmin {
 /** Revokes (or restores) a certificate. Only a Kulapati on a NonStop account may; it stays verifiable as revoked. */
 export async function revokeCertificate(
   admin: CertificateAdmin,
-  caller: { uid: string; email?: string | undefined; claims: RoleClaims | undefined },
+  caller: Caller,
   data: { id?: unknown; revoked?: unknown },
 ): Promise<{ id: string; revoked: boolean }> {
-  if (!isAllowedEmail(caller.email) || caller.claims?.kulapati !== true) {
-    throw new CertificateError('permission-denied', 'Only a Kulapati can revoke certificates.');
-  }
+  requireKulapati(caller, 'revokeCertificate');
   const id = certificateSchema.shape.id.safeParse(data.id);
+  if (!id.success) throw badField('id', data.id, 'must be a certificate id like NSG-GIT-26-0001');
   const revoked = data.revoked ?? true;
-  if (!id.success || typeof revoked !== 'boolean') {
-    throw new CertificateError(
-      'invalid-argument',
-      'Give a certificate id and revoked as true or false.',
-    );
-  }
-  if (!(await admin.setRevoked(id.data, revoked))) {
-    throw new CertificateError('not-found', 'No such certificate.');
-  }
+  if (typeof revoked !== 'boolean') throw badField('revoked', revoked, 'must be true or false');
+  if (!(await admin.setRevoked(id.data, revoked))) throw new ApiException('CRT_2001', [id.data]);
   await admin.audit({
     action: revoked ? 'certificate.revoke' : 'certificate.restore',
     by: caller.uid,

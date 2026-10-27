@@ -71,6 +71,16 @@
             "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/navigation-nudge.mjs\"",
             "timeout": 30,
             "statusMessage": "Checking global search metadata"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/logging-nudge.mjs\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/api-response-nudge.mjs\"",
+            "timeout": 10
           }
         ]
       }

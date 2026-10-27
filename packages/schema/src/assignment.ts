@@ -11,6 +11,8 @@ export const assignmentSchema = z.object({
   mandatory: z.boolean(),
   reminder: z.enum(['weekly', 'beforeDue', 'none']),
   status: z.enum(['assigned', 'started', 'completed']),
+  /** When the last reminder email was queued; the 24h cap reads it. Absent until the first one. */
+  lastRemindedAt: timestamp.nullable().optional(),
 });
 export type Assignment = z.infer<typeof assignmentSchema>;
 

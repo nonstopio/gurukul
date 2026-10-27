@@ -1,5 +1,5 @@
-import { httpsCallable } from 'firebase/functions';
 import type { Functions } from 'firebase/functions';
+import { ApiClientError, callApi } from '../api';
 
 export interface CheckAnswerResult {
   correct: boolean;
@@ -58,19 +58,20 @@ export interface ParikshaService {
 }
 
 export function firebaseParikshaService(functions: Functions): ParikshaService {
-  const check = httpsCallable<CheckAnswerRequest, CheckAnswerResult>(functions, 'checkAnswer');
-  const grade = httpsCallable<GradeAttemptRequest, AttemptResult>(functions, 'gradeAttempt');
   return {
-    async checkAnswer(request) {
-      return (await check(request)).data;
-    },
+    checkAnswer: (request) =>
+      callApi<CheckAnswerRequest, CheckAnswerResult>(functions, 'checkAnswer', request),
     async gradeAttempt(request) {
       try {
-        return (await grade(request)).data;
+        return await callApi<GradeAttemptRequest, AttemptResult>(
+          functions,
+          'gradeAttempt',
+          request,
+        );
       } catch (e) {
-        const err = e as { code?: string; details?: { nextAttemptAt?: number } };
-        if (err.code === 'functions/resource-exhausted') {
-          throw new CooldownError(err.details?.nextAttemptAt ?? null);
+        if (e instanceof ApiClientError && e.code === 'PRK_4001') {
+          const at = e.details.nextAttemptAt;
+          throw new CooldownError(typeof at === 'number' ? at : null);
         }
         throw e;
       }

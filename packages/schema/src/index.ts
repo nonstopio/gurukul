@@ -5,3 +5,7 @@ export * from './assignment';
 export * from './certificate';
 export * from './user';
 export * from './migrations';
+export * from './assign';
+export * from './stats';
+export * from './api';
+export * from './logging';

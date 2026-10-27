@@ -81,16 +81,17 @@ Load all three from one Google Fonts `css2` link with `display=swap`.
 
 `packages/ui` ships the shared pieces; screens compose them. Current:
 
-| Component                                                       | Status       |
-| --------------------------------------------------------------- | ------------ |
-| `Button` / `buttonClass` (primary, secondary, ghost, chrome)    | shipped      |
-| `CommandPalette` (global search dialog: combobox + listbox)     | shipped      |
-| Chip, ProgressBar, ProgressRing, Card, NavItem, Sidebar, TopBar | shipped      |
-| Tabs, Field (input/select/textarea + label), Toggle, Callout    | shipped      |
-| EmptyState, Skeleton, Toast, Breadcrumb                         | shipped      |
-| CodeBlock, VideoBlock, QuizOption, ResultRow                    | shipped      |
-| Seal, Certificate, StatCard                                     | shipped      |
-| Table                                                           | planned (M4) |
+| Component                                                       | Status  |
+| --------------------------------------------------------------- | ------- |
+| `Button` / `buttonClass` (primary, secondary, ghost, chrome)    | shipped |
+| `CommandPalette` (global search dialog: combobox + listbox)     | shipped |
+| Chip, ProgressBar, ProgressRing, Card, NavItem, Sidebar, TopBar | shipped |
+| Tabs, Field (input/select/textarea + label), Toggle, Callout    | shipped |
+| EmptyState, Skeleton, Toast, Breadcrumb                         | shipped |
+| CodeBlock, VideoBlock, QuizOption, ResultRow                    | shipped |
+| Seal, Certificate, StatCard                                     | shipped |
+| DataTable, Pagination, EmailChipInput, StepCard (Stepper.Step)  | shipped |
+| Dialog (modal and drawer), BarChart, FunnelBar                  | shipped |
 
 Recipes, states and accessibility notes: `references/components.md`.
 

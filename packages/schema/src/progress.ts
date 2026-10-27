@@ -25,6 +25,16 @@ export const progressSchema = z.object({
 });
 export type Progress = z.infer<typeof progressSchema>;
 
+/** `progress/{id}/attempts/{aid}`, written by `gradeAttempt`. `results` is absent on older attempts. */
+export const attemptSchema = z.object({
+  uid: z.string().min(1),
+  courseId: z.string().min(1),
+  parikshaId: z.string().min(1),
+  score: z.number().min(0).max(1),
+  results: z.array(z.object({ questionId: z.string(), correct: z.boolean() })).default([]),
+});
+export type Attempt = z.infer<typeof attemptSchema>;
+
 /** The document id of one learner's progress in one course. */
 export const progressId = (uid: string, courseId: string): string => `${uid}_${courseId}`;
 

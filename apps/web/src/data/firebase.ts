@@ -25,7 +25,7 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 export const COURSE_LIMIT = 100;
 const ASSIGNMENT_LIMIT = 100;
 
-function toProgress(data: Record<string, unknown>): ProgressRow {
+export function toProgress(data: Record<string, unknown>): ProgressRow {
   return {
     courseId: data.courseId as string,
     courseVersion: (data.courseVersion as number | undefined) ?? 0,
@@ -53,7 +53,7 @@ function toProgress(data: Record<string, unknown>): ProgressRow {
 
 const CERTIFICATE_LIMIT = 50;
 
-function toCertificate(id: string, d: Record<string, unknown>): CertificateRow {
+export function toCertificate(id: string, d: Record<string, unknown>): CertificateRow {
   return {
     id,
     uid: d.uid as string,

@@ -7,13 +7,20 @@ import { groupByArea, titleFor } from '../src/Shell';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
+import { fakeConsole } from './fake-console';
 import { fakePariksha } from './fake-pariksha';
 
 async function open(path: string, claims: { acharya?: boolean; kulapati?: boolean } = {}) {
   const f = fakeAuth(claims);
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
   const view = render(
-    <App service={f.service} data={fakeData().data} pariksha={fakePariksha()} router={router} />,
+    <App
+      service={f.service}
+      data={fakeData().data}
+      pariksha={fakePariksha()}
+      console={fakeConsole()}
+      router={router}
+    />,
   );
   const roles = ['shishya', ...Object.keys(claims)];
   await act(async () => {
@@ -32,6 +39,7 @@ describe('App gate', () => {
         service={f.service}
         data={fakeData().data}
         pariksha={fakePariksha()}
+        console={fakeConsole()}
         router={createMemoryRouter(appRoutes())}
       />,
     );
@@ -49,6 +57,7 @@ describe('App gate', () => {
         service={f.service}
         data={fakeData().data}
         pariksha={fakePariksha()}
+        console={fakeConsole()}
         router={createMemoryRouter(appRoutes())}
       />,
     );
@@ -66,7 +75,7 @@ describe('signed-in shell', () => {
       'page',
     );
     expect(within(nav).getByRole('link', { name: 'Changelog' })).toBeTruthy();
-    expect(within(nav).queryByRole('link', { name: 'Console' })).toBeNull();
+    expect(within(nav).queryByRole('link', { name: 'Overview' })).toBeNull();
     expect(document.title).toBe('Gurukul · NonStop Academy');
   });
 
@@ -74,7 +83,13 @@ describe('signed-in shell', () => {
     const f = fakeAuth();
     const router = createMemoryRouter(appRoutes(), { initialEntries: ['/'] });
     render(
-      <App service={f.service} data={fakeData().data} pariksha={fakePariksha()} router={router} />,
+      <App
+        service={f.service}
+        data={fakeData().data}
+        pariksha={fakePariksha()}
+        console={fakeConsole()}
+        router={router}
+      />,
     );
     await act(async () => {
       f.emitUser({ ...NONSTOP, displayName: null });
@@ -87,16 +102,16 @@ describe('signed-in shell', () => {
 
   it('shows a Kulapati the console and the studio in the sidebar', async () => {
     await open('/kulapati', { kulapati: true });
-    await waitFor(() => screen.getByRole('link', { name: 'Console' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Kulapati console' })).toBeTruthy();
+    await waitFor(() => screen.getByRole('link', { name: 'Overview' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Studio' })).toBeTruthy();
-    expect(document.title).toBe('Console · Gurukul');
+    expect(document.title).toBe('Overview · Gurukul');
   });
 
   it('lets an Acharya into the studio but not the console link', async () => {
     await open('/studio', { acharya: true });
     await waitFor(() => screen.getByRole('heading', { level: 1, name: 'Vyasa Studio' }));
-    expect(screen.queryByRole('link', { name: 'Console' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Overview' })).toBeNull();
   });
 
   it('shows not-allowed, not a redirect, to a Shishya at the console', async () => {
@@ -168,6 +183,7 @@ describe('accessibility', () => {
         service={f.service}
         data={fakeData().data}
         pariksha={fakePariksha()}
+        console={fakeConsole()}
         router={createMemoryRouter(appRoutes())}
       />,
     );

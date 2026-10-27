@@ -16,6 +16,10 @@ export const ROUTE_PATHS = [
   '/certificates/:id',
   '/verify/:id',
   '/kulapati',
+  '/kulapati/learners',
+  '/kulapati/assign',
+  '/kulapati/roles',
+  '/kulapati/courses/:courseId',
   '/studio',
 ] as const;
 

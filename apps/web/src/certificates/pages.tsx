@@ -17,6 +17,7 @@ import type { CertificateRow, ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { linkedInUrl, longDate } from '../pariksha/model';
+import { log } from '../log';
 
 /** The public address that proves a certificate is real. */
 export function verifyUrl(id: string, origin: string = window.location.origin): string {
@@ -60,6 +61,7 @@ export function CertificatePage() {
       await navigator.clipboard.writeText(verifyUrl(id));
       toast.show('Link copied');
     } catch {
+      log.warn('Copy link failed', { credentialId: id });
       toast.show('Could not copy the link.', { tone: 'danger' });
     }
   };
@@ -189,6 +191,7 @@ export function CompletePage() {
       await navigator.clipboard.writeText(verifyUrl(id));
       toast.show('Link copied');
     } catch {
+      log.warn('Copy link failed', { credentialId: id });
       toast.show('Could not copy the link.', { tone: 'danger' });
     }
   };
@@ -220,7 +223,7 @@ export function CompletePage() {
             <>
               <p className="article__kicker">Siddhi · Course complete</p>
               <h1 className="page__title">{course.title}, done.</h1>
-              <dl className="stats">
+              <div className="stats">
                 <StatCard label="Completed on" value={longDate(progress.completedAt)} />
                 {average !== null ? (
                   <StatCard label="Pariksha average" value={`${average}%`} />
@@ -229,7 +232,7 @@ export function CompletePage() {
                   label="Lessons"
                   value={String(itemsOf(course).filter((i) => i.type === 'lesson').length)}
                 />
-              </dl>
+              </div>
               {course.rules.certificate ? (
                 progress.certificateId ? (
                   <Card className="continue">

@@ -21,6 +21,7 @@ import { cooldownRemaining, formatWait, pickQuestions } from './model';
 import { useParikshaService } from './ParikshaProvider';
 import { CooldownError } from './service';
 import type { CheckAnswerResult } from './service';
+import { log } from '../log';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 type Letter = (typeof LETTERS)[number];
@@ -137,7 +138,8 @@ function Questions({
         selected: picked,
       });
       setFeedback({ ...feedback, [question.id]: verdict });
-    } catch {
+    } catch (e) {
+      log.error('Checking an answer failed', e, { ...base, questionId: question.id });
       toast.show('Could not check your answer. Try again.', { tone: 'danger' });
     } finally {
       setBusy(false);
@@ -156,6 +158,7 @@ function Questions({
         state: { result: attempt, questions, answers: selected },
       });
     } catch (e) {
+      log.error('Submitting an attempt failed', e, base);
       toast.show(
         e instanceof CooldownError
           ? 'A retake is not open yet. Check back soon.'

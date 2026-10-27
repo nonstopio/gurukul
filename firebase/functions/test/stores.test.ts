@@ -102,18 +102,88 @@ describe('firestoreProgressStore', () => {
     expect(update).toHaveBeenNthCalledWith(2, { percent: 100, completedAt: 'NOW' });
   });
 
-  it('bumps the org and course counters in one batch', async () => {
-    const f = fakeDb();
-    await firestoreProgressStore(f.db).bumpStats('git', { started: 1, completed: 0 });
-    expect(f.commit).toHaveBeenCalledOnce();
+  it('adds the delta to the course and org counters in one transaction', async () => {
+    const set = vi.fn();
+    const tx = {
+      get: vi.fn().mockResolvedValue({ get: () => [2, 1] }),
+      set,
+    };
+    const db = {
+      doc: vi.fn((p: string) => p),
+      runTransaction: vi.fn((fn: (t: unknown) => unknown) => fn(tx)),
+    } as never;
+    await firestoreProgressStore(db).bumpStats('git', {
+      started: 1,
+      completed: 1,
+      certified: 1,
+      finishDays: 2.5,
+      parvasDone: [1, 3],
+      lessons: 4,
+      week: '2026-W44',
+      assignmentsCompleted: 1,
+    });
+    expect(set).toHaveBeenCalledWith(
+      'stats/course_git',
+      {
+        started: '+1',
+        completed: '+1',
+        certified: '+1',
+        finishDaysSum: '+2.5',
+        parvaCompletions: [2, 2, 0, 1],
+      },
+      { merge: true },
+    );
+    expect(set).toHaveBeenCalledWith(
+      'stats/org',
+      {
+        started: '+1',
+        completed: '+1',
+        assignmentsCompleted: '+1',
+        weekly: { '2026-W44': '+4' },
+      },
+      { merge: true },
+    );
   });
 
-  it('sets the status of the learner’s assignments, if there are any', async () => {
-    const f = fakeDb([{ ref: 'r1' }]);
-    await firestoreProgressStore(f.db).setAssignmentStatus('u', 'git', 'started');
+  it('starts parvaCompletions from nothing when the course has no stats yet', async () => {
+    const set = vi.fn();
+    const tx = { get: vi.fn().mockResolvedValue({ get: () => undefined }), set };
+    const db = {
+      doc: vi.fn((p: string) => p),
+      runTransaction: vi.fn((fn: (t: unknown) => unknown) => fn(tx)),
+    } as never;
+    await firestoreProgressStore(db).bumpStats('git', {
+      started: 1,
+      completed: 0,
+      certified: 0,
+      finishDays: 0,
+      parvasDone: [],
+      lessons: 0,
+      week: '2026-W44',
+      assignmentsCompleted: 0,
+    });
+    expect(set).toHaveBeenCalledWith(
+      'stats/course_git',
+      expect.objectContaining({ parvaCompletions: [] }),
+      { merge: true },
+    );
+  });
+
+  it('moves the learner’s assignments to the status and counts only those that changed', async () => {
+    const doc = (ref: string, status: string) => ({ ref, get: () => status });
+    const f = fakeDb([doc('r1', 'assigned'), doc('r2', 'started')] as never);
+    expect(await firestoreProgressStore(f.db).setAssignmentStatus('u', 'git', 'started')).toBe(1);
+    expect(f.update).toHaveBeenCalledOnce();
     expect(f.update).toHaveBeenCalledWith('r1', { status: 'started' });
+    const same = fakeDb([doc('r2', 'started')] as never);
+    expect(await firestoreProgressStore(same.db).setAssignmentStatus('u', 'git', 'started')).toBe(
+      0,
+    );
+    expect(same.commit).not.toHaveBeenCalled();
     const none = fakeDb();
-    await firestoreProgressStore(none.db).setAssignmentStatus('u', 'git', 'started');
+    expect(await firestoreProgressStore(none.db).setAssignmentStatus('u', 'git', 'started')).toBe(
+      0,
+    );
     expect(none.commit).not.toHaveBeenCalled();
   });
 });

@@ -133,6 +133,27 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Sanjaya's counters, kept by triggers and the daily roll-up. `org` and every course's funnel
+    // are for Kulapatis; `course_{id}` is also readable by that course's Acharya. Never learners;
+    // never written from a client.
+    match /stats/{scope} {
+      allow read: if isKulapati()
+        || (scope.matches('course_.+') && isAcharyaOf(scope.replace('^course_', '')));
+      allow write: if false;
+    }
+
+    // The audit trail of Kulapati actions (roles, assignments, certificates, resets). Read-only
+    // for Kulapatis; entries are written by functions.
+    match /audit/{entryId} {
+      allow read: if isKulapati();
+      allow write: if false;
+    }
+
+    // The email outbox the functions queue into. Nothing in a browser may touch it.
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
+
     // Organisation settings: the allowed domain, the teams list, reminder settings.
     match /config/{doc} {
       allow read: if signedIn();

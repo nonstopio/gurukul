@@ -54,3 +54,15 @@ export { Certificate, nameFontSize, printCertificateClass } from './Certificate'
 export type { CertificateProps } from './Certificate';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
+export { DataTable, Pagination } from './DataTable';
+export type { DataTableColumn, DataTableProps, PaginationProps } from './DataTable';
+export { EmailChipInput, splitEmails } from './EmailChipInput';
+export type { EmailChipInputProps, EmailClassification, EmailStatus } from './EmailChipInput';
+export { StepCard, Stepper } from './Stepper';
+export type { StepCardProps } from './Stepper';
+export { Dialog } from './Dialog';
+export type { DialogProps } from './Dialog';
+export { BarChart, niceMax } from './BarChart';
+export type { BarChartDatum, BarChartProps } from './BarChart';
+export { FunnelBar, largestDrop } from './FunnelBar';
+export type { FunnelBarProps, FunnelRow } from './FunnelBar';

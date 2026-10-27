@@ -31,7 +31,8 @@ const grade = (s: GradingStore, data: object = {}) =>
     },
     NOW,
   );
-const rejects = (p: Promise<unknown>, code: string) => expect(p).rejects.toMatchObject({ code });
+const rejects = (p: Promise<unknown>, code: string, details: object = {}) =>
+  expect(p).rejects.toMatchObject({ name: 'ApiException', code, details });
 
 describe('isCorrect', () => {
   it('needs exactly the one key id for single, true/false and code-output questions', () => {
@@ -74,43 +75,44 @@ describe('checkAnswer', () => {
 
   it('rejects malformed requests', async () => {
     for (const bad of [
-      { ...data, courseId: '' },
-      { ...data, parikshaId: 1 },
-      { ...data, questionId: undefined },
-      { ...data, selected: 'a' },
-      { ...data, selected: [1] },
-    ]) {
-      await rejects(checkAnswer(store(), bad), 'invalid-argument');
+      [{ ...data, courseId: '' }, 'VAL_1002', 'courseId'],
+      [{ ...data, parikshaId: 1 }, 'VAL_1002', 'parikshaId'],
+      [{ ...data, questionId: undefined }, 'VAL_1001', 'questionId'],
+      [{ ...data, selected: 'a' }, 'VAL_1002', 'selected'],
+      [{ ...data, selected: [1] }, 'VAL_1002', 'selected'],
+      [{ ...data, selected: undefined }, 'VAL_1001', 'selected'],
+    ] as const) {
+      await rejects(checkAnswer(store(), bad[0]), bad[1], { field: bad[2] });
     }
   });
 
   it('rejects unknown, unpublished and unreadable courses', async () => {
     await rejects(
       checkAnswer(store({ getCourse: vi.fn().mockResolvedValue(undefined) }), data),
-      'not-found',
+      'CRS_2001',
     );
     await rejects(
       checkAnswer(
         store({ getCourse: vi.fn().mockResolvedValue(course({}, { status: 'draft' })) }),
         data,
       ),
-      'not-found',
+      'CRS_1001',
     );
     await rejects(
       checkAnswer(store({ getCourse: vi.fn().mockResolvedValue({ broken: true }) }), data),
-      'failed-precondition',
+      'CRS_3001',
     );
   });
 
   it('rejects unknown Pariksha and question ids', async () => {
-    await rejects(checkAnswer(store(), { ...data, parikshaId: 'nope' }), 'invalid-argument');
-    await rejects(checkAnswer(store(), { ...data, questionId: 'nope' }), 'invalid-argument');
+    await rejects(checkAnswer(store(), { ...data, parikshaId: 'nope' }), 'PRK_2001');
+    await rejects(checkAnswer(store(), { ...data, questionId: 'nope' }), 'VAL_1003');
   });
 
   it('refuses unless answers are revealed after each one, without reading the key', async () => {
     for (const revealAnswers of ['onPass', 'never']) {
       const s = store({ getCourse: vi.fn().mockResolvedValue(course({ revealAnswers })) });
-      await rejects(checkAnswer(s, data), 'failed-precondition');
+      await rejects(checkAnswer(s, data), 'PRK_1001');
       expect(s.getAnswers).not.toHaveBeenCalled();
     }
   });
@@ -118,36 +120,40 @@ describe('checkAnswer', () => {
   it('fails cleanly when the answer key is missing', async () => {
     await rejects(
       checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue(undefined) }), data),
-      'failed-precondition',
+      'PRK_3001',
     );
     await rejects(
       checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: {} }) }), data),
-      'failed-precondition',
+      'PRK_3001',
     );
     await rejects(
       checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: { q1: 'a' } }) }), data),
-      'failed-precondition',
+      'PRK_3001',
     );
   });
 });
 
 describe('checkCooldown and nextResult', () => {
   it('needs a started course', () => {
-    expect(() => checkCooldown(undefined, 'pk', 10, NOW)).toThrow(/Start the course/);
-    expect(() => checkCooldown({ junk: 1 }, 'pk', 10, NOW)).toThrow(/Start the course/);
+    for (const raw of [undefined, { junk: 1 }]) {
+      expect(() => checkCooldown(raw, 'git-basics', 'pk', 10, NOW)).toThrowError(
+        expect.objectContaining({ code: 'PRK_2002' }),
+      );
+    }
   });
 
   it('allows a first attempt and one after the cooldown, and refuses one inside it', () => {
-    expect(checkCooldown(progress(), 'pk', 10, NOW)).toBeUndefined();
+    expect(checkCooldown(progress(), 'git-basics', 'pk', 10, NOW)).toBeUndefined();
     const prev = { best: 0.5, passed: false, attempts: 1, lastAttemptAt: ts(NOW - 10 * 60_000) };
-    expect(checkCooldown(progress(prev), 'pk', 10, NOW)).toMatchObject({ best: 0.5 });
+    expect(checkCooldown(progress(prev), 'git-basics', 'pk', 10, NOW)).toMatchObject({ best: 0.5 });
     const recent = { ...prev, lastAttemptAt: ts(NOW - 60_000) };
     try {
-      checkCooldown(progress(recent), 'pk', 10, NOW);
+      checkCooldown(progress(recent), 'git-basics', 'pk', 10, NOW);
       expect.unreachable();
     } catch (e) {
       expect(e).toMatchObject({
-        code: 'resource-exhausted',
+        code: 'PRK_4001',
+        params: [new Date(NOW + 9 * 60_000).toISOString()],
         details: { nextAttemptAt: NOW + 9 * 60_000 },
       });
     }
@@ -193,6 +199,10 @@ describe('gradeAttempt', () => {
         passed: true,
         answers: { q1: ['a'], q2: ['b', 'a'] },
         questionIds: ['q1', 'q2'],
+        results: [
+          { questionId: 'q1', correct: true },
+          { questionId: 'q2', correct: true },
+        ],
         courseVersion: 3,
       },
       expect.any(Function),
@@ -229,22 +239,24 @@ describe('gradeAttempt', () => {
   });
 
   it('rejects malformed requests', async () => {
-    for (const bad of [
-      { courseId: 1 },
-      { parikshaId: '' },
-      { questionIds: 'q1' },
-      { answers: null },
-      { answers: 'x' },
-      { answers: [] },
-      { answers: { q1: 'a' } },
-    ]) {
-      await rejects(grade(store(), bad), 'invalid-argument');
+    for (const [bad, code, field] of [
+      [{ courseId: 1 }, 'VAL_1002', 'courseId'],
+      [{ parikshaId: '' }, 'VAL_1002', 'parikshaId'],
+      [{ parikshaId: undefined }, 'VAL_1001', 'parikshaId'],
+      [{ questionIds: 'q1' }, 'VAL_1002', 'questionIds'],
+      [{ answers: null }, 'VAL_1002', 'answers'],
+      [{ answers: 'x' }, 'VAL_1002', 'answers'],
+      [{ answers: [] }, 'VAL_1002', 'answers'],
+      [{ answers: { q1: 'a' } }, 'VAL_1002', 'answers'],
+      [{ answers: undefined }, 'VAL_1001', 'answers'],
+    ] as const) {
+      await rejects(grade(store(), bad), code, { field });
     }
   });
 
   it('rejects unknown courses and Parikshas', async () => {
-    await rejects(grade(store({ getCourse: vi.fn().mockResolvedValue(undefined) })), 'not-found');
-    await rejects(grade(store(), { parikshaId: 'nope' }), 'invalid-argument');
+    await rejects(grade(store({ getCourse: vi.fn().mockResolvedValue(undefined) })), 'CRS_2001');
+    await rejects(grade(store(), { parikshaId: 'nope' }), 'PRK_2001');
   });
 
   it('rejects a question list that is not the Pariksha’s', async () => {
@@ -255,23 +267,23 @@ describe('gradeAttempt', () => {
       { questionIds: ['q1', 'zzz'], answers: {} },
       { answers: { q3: ['c'] } },
     ]) {
-      await rejects(grade(store(), bad), 'invalid-argument');
+      await rejects(grade(store(), bad), 'PRK_1002');
     }
   });
 
   it('needs a progress document and respects the cooldown before reading the answer key', async () => {
     const none = store({ getProgress: vi.fn().mockResolvedValue(undefined) });
-    await rejects(grade(none), 'failed-precondition');
+    await rejects(grade(none), 'PRK_2002');
     const prev = { best: 0.5, passed: false, attempts: 1, lastAttemptAt: ts(NOW - 1000) };
     const cooling = store({ getProgress: vi.fn().mockResolvedValue(progress(prev)) });
-    await rejects(grade(cooling), 'resource-exhausted');
+    await rejects(grade(cooling), 'PRK_4001');
     expect(cooling.getAnswers).not.toHaveBeenCalled();
     expect(cooling.recordAttempt).not.toHaveBeenCalled();
   });
 
   it('fails when the key lacks a question', async () => {
     const s = store({ getAnswers: vi.fn().mockResolvedValue({ pk: { q1: ['a'] } }) });
-    await rejects(grade(s), 'failed-precondition');
+    await rejects(grade(s), 'PRK_3001');
   });
 
   it('re-checks the cooldown inside the transaction', async () => {
@@ -282,6 +294,6 @@ describe('gradeAttempt', () => {
         update: decide(recent),
       })),
     });
-    await rejects(grade(s), 'resource-exhausted');
+    await rejects(grade(s), 'PRK_4001');
   });
 });

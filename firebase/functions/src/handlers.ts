@@ -1,58 +1,21 @@
-import { CertificateError, revokeCertificate } from './certificates.js';
+import { ApiException } from '@gurukul/schema';
+import { revokeCertificate } from './certificates.js';
 import type { CertificateAdmin } from './certificates.js';
-import { checkAnswer, gradeAttempt, GradeError } from './grading.js';
+import { assignCourses } from './assign.js';
+import type { AssignResult, AssignStore } from './assign.js';
+import { resetCooldown } from './cooldown.js';
+import type { CooldownAdmin } from './cooldown.js';
+import type { Caller } from './errors.js';
+import type { Mailer } from './mail.js';
+import { remindLearners } from './remind.js';
+import type { ReminderStore } from './remind.js';
+import { checkAnswer, gradeAttempt } from './grading.js';
 import type { AttemptResult, GradingStore } from './grading.js';
-import { isAllowedEmail, RoleError } from './roles.js';
+import { isAllowedEmail } from './roles.js';
 import type { RoleChange, RoleClaims } from './roles.js';
 import { applyRoleChange } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
-
-/** The slice of a callable request `setRoles` reads. */
-export interface CallableRequest {
-  auth?: { uid: string; token: RoleClaims & { email?: string } } | undefined;
-  data?: ({ uid?: unknown } & RoleChange) | undefined;
-}
-
-/** A failure the wrapper turns into an `HttpsError` with the same code. */
-export class CallError extends Error {
-  constructor(
-    readonly code:
-      | 'unauthenticated'
-      | 'invalid-argument'
-      | 'not-found'
-      | 'resource-exhausted'
-      | RoleError['code'],
-    message: string,
-    readonly details?: { nextAttemptAt: number },
-  ) {
-    super(message);
-  }
-}
-
-/** The `setRoles` callable's body: validate the request, then apply the change. */
-export async function handleSetRoles(
-  request: CallableRequest,
-  admin: RoleAdmin,
-): Promise<{ roles: string[] }> {
-  if (!request.auth) throw new CallError('unauthenticated', 'Sign in first.');
-  const { uid, ...change } = request.data ?? {};
-  if (typeof uid !== 'string' || uid === '') {
-    throw new CallError('invalid-argument', 'uid is required.');
-  }
-  const { token } = request.auth;
-  try {
-    const plan = await applyRoleChange(
-      admin,
-      { uid: request.auth.uid, email: token.email, claims: token },
-      uid,
-      change,
-    );
-    return { roles: plan.roles };
-  } catch (e) {
-    if (e instanceof RoleError) throw new CallError(e.code, e.message);
-    throw e;
-  }
-}
+import { badField } from './validation.js';
 
 /** The slice of a callable request the Pariksha and certificate callables read. */
 export interface AuthedRequest {
@@ -69,29 +32,40 @@ export interface AuthedRequest {
   data?: unknown;
 }
 
+const asObject = (data: unknown): Record<string, unknown> =>
+  typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
+
+/** `setRoles`: Kulapati-only; validates the request, then applies the change. */
+export async function handleSetRoles(
+  request: AuthedRequest,
+  admin: RoleAdmin,
+): Promise<{ roles: string[] }> {
+  if (!request.auth) throw new ApiException('AUTH_1001');
+  const { uid, ...change } = asObject(request.data);
+  if (typeof uid !== 'string' || uid === '') throw badField('uid', uid, 'must be a person’s uid');
+  const { token } = request.auth;
+  const plan = await applyRoleChange(
+    admin,
+    { uid: request.auth.uid, email: token.email, claims: token },
+    uid,
+    change as RoleChange,
+  );
+  return { roles: plan.roles };
+}
+
 /** The caller of a learner callable: a verified NonStop account signed in with Google. */
 function requireLearner(request: AuthedRequest): string {
-  if (!request.auth) throw new CallError('unauthenticated', 'Sign in first.');
+  if (!request.auth) throw new ApiException('AUTH_1001');
   const { uid, token } = request.auth;
   if (
     !isAllowedEmail(token.email) ||
     token.email_verified !== true ||
     token.firebase?.sign_in_provider !== 'google.com'
   ) {
-    throw new CallError('permission-denied', 'Sign in with your NonStop io Google account.');
+    throw new ApiException('AUTH_1002');
   }
   return uid;
 }
-
-/** Turns a domain error into the `CallError` the wrapper maps to an `HttpsError`. */
-function asCallError(e: unknown): unknown {
-  if (e instanceof GradeError) return new CallError(e.code, e.message, e.details);
-  if (e instanceof CertificateError) return new CallError(e.code, e.message);
-  return e;
-}
-
-const asObject = (data: unknown): Record<string, unknown> =>
-  typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
 
 /** `checkAnswer`: right or wrong for one question of a Pariksha that reveals after each answer. */
 export async function handleCheckAnswer(
@@ -99,11 +73,7 @@ export async function handleCheckAnswer(
   store: GradingStore,
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
   requireLearner(request);
-  try {
-    return await checkAnswer(store, asObject(request.data));
-  } catch (e) {
-    throw asCallError(e);
-  }
+  return checkAnswer(store, asObject(request.data));
 }
 
 /** `gradeAttempt`: scores and records one Pariksha attempt. */
@@ -113,11 +83,7 @@ export async function handleGradeAttempt(
   now: () => number,
 ): Promise<AttemptResult> {
   const uid = requireLearner(request);
-  try {
-    return await gradeAttempt(store, uid, asObject(request.data), now());
-  } catch (e) {
-    throw asCallError(e);
-  }
+  return gradeAttempt(store, uid, asObject(request.data), now());
 }
 
 /** `revokeCertificate`: Kulapati-only; revokes (or restores) a certificate and audits it. */
@@ -125,15 +91,45 @@ export async function handleRevokeCertificate(
   request: AuthedRequest,
   admin: CertificateAdmin,
 ): Promise<{ id: string; revoked: boolean }> {
-  if (!request.auth) throw new CallError('unauthenticated', 'Sign in first.');
+  if (!request.auth) throw new ApiException('AUTH_1001');
   const { token } = request.auth;
-  try {
-    return await revokeCertificate(
-      admin,
-      { uid: request.auth.uid, email: token.email, claims: token },
-      asObject(request.data),
-    );
-  } catch (e) {
-    throw asCallError(e);
-  }
+  return revokeCertificate(
+    admin,
+    { uid: request.auth.uid, email: token.email, claims: token },
+    asObject(request.data),
+  );
+}
+
+/** The caller of a console callable; whether they are a Kulapati is decided by the operation. */
+function requireCaller(request: AuthedRequest): Caller {
+  if (!request.auth) throw new ApiException('AUTH_1001');
+  return { uid: request.auth.uid, email: request.auth.token.email, claims: request.auth.token };
+}
+
+/** `assignCourses`: Kulapati-only; assigns courses to people by email, optionally emailing them. */
+export async function handleAssignCourses(
+  request: AuthedRequest,
+  deps: { store: AssignStore; mailer: Mailer },
+): Promise<AssignResult> {
+  const caller = requireCaller(request);
+  return assignCourses(deps, caller, asObject(request.data));
+}
+
+/** `resetCooldown`: Kulapati-only; opens a retake for one learner. */
+export async function handleResetCooldown(
+  request: AuthedRequest,
+  admin: CooldownAdmin,
+): Promise<{ ok: true }> {
+  const caller = requireCaller(request);
+  return resetCooldown(admin, caller, asObject(request.data));
+}
+
+/** `remindLearners`: Kulapati-only; queues reminders for unfinished assignments. */
+export async function handleRemindLearners(
+  request: AuthedRequest,
+  deps: { store: ReminderStore; mailer: Mailer },
+  now: () => number,
+): Promise<{ sent: number; skipped: number }> {
+  const caller = requireCaller(request);
+  return remindLearners(deps, caller, asObject(request.data), now());
 }

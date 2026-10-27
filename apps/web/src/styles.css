@@ -558,3 +558,121 @@ a.items__row:hover {
     display: block;
   }
 }
+
+/* ---- Kulapati console (M4) ---- */
+.console {
+  max-width: 1200px;
+}
+.plain-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.plain-table th,
+.plain-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: var(--text-sm);
+}
+.plain-table thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+.role-card {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.role-card h2 {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+}
+.role-card__count {
+  margin: var(--space-3) 0 0;
+  font: 500 var(--text-2xl) / 1 var(--font-display);
+}
+.hardest {
+  display: grid;
+  gap: var(--space-3);
+}
+.hardest__low {
+  color: var(--danger);
+  font-weight: 600;
+}
+.hardest__mid {
+  color: var(--warning);
+  font-weight: 600;
+}
+.bulk-bar {
+  position: sticky;
+  bottom: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--chrome);
+  color: var(--chrome-text);
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+}
+.course-choice {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.dialog-fieldset {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+}
+.assign {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.assign__steps {
+  display: grid;
+  gap: var(--space-5);
+}
+.assign__summary {
+  position: sticky;
+  top: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.assign__big {
+  margin: 0;
+  font: 500 var(--text-4xl) / 1 var(--font-display);
+}
+@media (max-width: 900px) {
+  .assign {
+    grid-template-columns: 1fr;
+  }
+  .assign__summary {
+    position: static;
+  }
+}

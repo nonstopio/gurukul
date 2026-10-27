@@ -47,7 +47,7 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** a learner earns a verifiable Git certificate; answer keys never reach the browser (asserted by a test).
 
-## M4 · Kulapati console (~2 weeks)
+## M4 · Kulapati console (~2 weeks) — built; email sending waits on open question 4
 
 - Learners table (with pending invites), filters, pagination, bulk actions.
 - Assign flow: search, paste, CSV, team; client-side preview; `assignCourses`.

@@ -4,23 +4,35 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
-import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as v1 from 'firebase-functions/v1';
+import { apiCallable } from './api/callable.js';
+import { handleAttemptCreated, runDailyRollup } from './analytics.js';
 import {
-  CallError,
+  handleAssignCourses,
   handleCheckAnswer,
   handleGradeAttempt,
+  handleRemindLearners,
+  handleResetCooldown,
   handleRevokeCertificate,
   handleSetRoles,
 } from './handlers.js';
+import { runLogged } from './logging/trigger.js';
+import { runDailyReminders } from './remind.js';
 import { handleProgressWrite } from './progress.js';
 import { handleUserCreated } from './profile.js';
 import {
   firebaseRoleAdmin,
+  firestoreAssignStore,
+  firestoreAttemptStatsStore,
   firestoreCertificateAdmin,
+  firestoreCooldownAdmin,
   firestoreGradingStore,
+  firestoreMailer,
   firestoreProgressStore,
+  firestoreReminderStore,
+  firestoreRollupStore,
   firestoreUserStore,
 } from './stores.js';
 
@@ -32,56 +44,117 @@ export const onUserCreated = v1
   .region('asia-south1')
   .auth.user()
   .onCreate(async (user) => {
-    await handleUserCreated(firestoreUserStore(getFirestore()), user);
+    await runLogged(
+      { done: 'Sign-up handled', failed: 'Sign-up failed' },
+      { uid: user.uid },
+      () => handleUserCreated(firestoreUserStore(getFirestore()), user),
+      (r) => ({ fields: { created: r.created, count: r.claimed } }),
+    );
   });
 
 /** Derived progress fields (percent, completedAt), stats counters and assignment status. */
 export const onProgressWritten = onDocumentWritten('progress/{progressId}', async (event) => {
-  await handleProgressWrite(
-    firestoreProgressStore(getFirestore()),
-    event.params.progressId,
-    event.data?.before.data(),
-    event.data?.after.data(),
+  await runLogged(
+    { done: 'Progress write handled', failed: 'Progress write failed' },
+    { progressId: event.params.progressId },
+    () =>
+      handleProgressWrite(
+        firestoreProgressStore(getFirestore()),
+        event.params.progressId,
+        event.data?.before.data(),
+        event.data?.after.data(),
+        new Date(),
+      ),
+    (outcome) => ({ level: outcome === 'updated' ? 'info' : 'debug', fields: { outcome } }),
   );
 });
 
-const toHttpsError = (e: unknown): unknown =>
-  e instanceof CallError ? new HttpsError(e.code, e.message, e.details) : e;
+/** Score sums and first-try question counters for Sanjaya, from each graded attempt. */
+export const onAttemptCreated = onDocumentCreated(
+  'progress/{progressId}/attempts/{attemptId}',
+  async (event) => {
+    await runLogged(
+      { done: 'Attempt counted', failed: 'Attempt counting failed' },
+      { attemptId: event.params.attemptId },
+      () => handleAttemptCreated(firestoreAttemptStatsStore(getFirestore()), event.data?.data()),
+      (outcome) => ({ fields: { outcome } }),
+    );
+  },
+);
+
+/** 03:00 UTC daily: recompute the org counters from source, fixing any drift. */
+export const dailyRollup = onSchedule(
+  { schedule: 'every day 03:00', timeZone: 'Etc/UTC', region: 'asia-south1' },
+  async () => {
+    await runLogged(
+      { done: 'Daily roll-up finished', failed: 'Daily roll-up failed' },
+      {},
+      () => runDailyRollup(firestoreRollupStore(getFirestore()), Date.now()),
+      (counts) => ({ fields: { ...counts } }),
+    );
+  },
+);
+
+/** 04:00 UTC daily: weekly and before-due reminders, when `config/org.reminders.enabled`. */
+export const dailyReminders = onSchedule(
+  { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1' },
+  async () => {
+    const db = getFirestore();
+    await runLogged(
+      { done: 'Daily reminders finished', failed: 'Daily reminders failed' },
+      {},
+      () =>
+        runDailyReminders(
+          { store: firestoreReminderStore(db), mailer: firestoreMailer(db) },
+          Date.now(),
+        ),
+      ({ sent, skipped }) => ({ fields: { count: sent, skipped } }),
+    );
+  },
+);
 
 /** Kulapati-only: grant or revoke `acharya` / `kulapati` for one person. */
-export const setRoles = onCall(async (request) => {
-  try {
-    return await handleSetRoles(request, firebaseRoleAdmin(getAuth(), getFirestore()));
-  } catch (e) {
-    throw toHttpsError(e);
-  }
-});
+export const setRoles = apiCallable((request) =>
+  handleSetRoles(request, firebaseRoleAdmin(getAuth(), getFirestore())),
+);
 
 /** Pariksha check-as-you-go: right or wrong for one question, when the author allows it. */
-export const checkAnswer = onCall(async (request) => {
-  try {
-    return await handleCheckAnswer(request, firestoreGradingStore(getFirestore()));
-  } catch (e) {
-    throw toHttpsError(e);
-  }
-});
+export const checkAnswer = apiCallable((request) =>
+  handleCheckAnswer(request, firestoreGradingStore(getFirestore())),
+);
 
 /** Scores and records one Pariksha attempt; the answer key never leaves the server. */
-export const gradeAttempt = onCall(async (request) => {
-  try {
-    return await handleGradeAttempt(request, firestoreGradingStore(getFirestore()), Date.now);
-  } catch (e) {
-    throw toHttpsError(e);
-  }
-});
+export const gradeAttempt = apiCallable((request) =>
+  handleGradeAttempt(request, firestoreGradingStore(getFirestore()), Date.now),
+);
 
 /** Kulapati-only: revoke (or restore) a certificate. */
-export const revokeCertificate = onCall(async (request) => {
-  try {
-    return await handleRevokeCertificate(request, firestoreCertificateAdmin(getFirestore()));
-  } catch (e) {
-    throw toHttpsError(e);
-  }
+export const revokeCertificate = apiCallable((request) =>
+  handleRevokeCertificate(request, firestoreCertificateAdmin(getFirestore())),
+);
+
+/** Kulapati-only: assign courses to people by email (optionally emailing them). */
+export const assignCourses = apiCallable((request) => {
+  const db = getFirestore();
+  return handleAssignCourses(request, {
+    store: firestoreAssignStore(db),
+    mailer: firestoreMailer(db),
+  });
+});
+
+/** Kulapati-only: open a Pariksha retake for one learner. */
+export const resetCooldown = apiCallable((request) =>
+  handleResetCooldown(request, firestoreCooldownAdmin(getFirestore())),
+);
+
+/** Kulapati-only: queue reminders for unfinished assignments. */
+export const remindLearners = apiCallable((request) => {
+  const db = getFirestore();
+  return handleRemindLearners(
+    request,
+    { store: firestoreReminderStore(db), mailer: firestoreMailer(db) },
+    Date.now,
+  );
 });
 
 export { isAllowedEmail, rolesFromClaims } from './roles.js';

@@ -109,7 +109,7 @@ describe('revokeCertificate', () => {
       { uid: 'x', email: undefined, claims: { kulapati: true } },
     ]) {
       await expect(revokeCertificate(a, caller, { id: 'NSG-GIT-26-0001' })).rejects.toMatchObject({
-        code: 'permission-denied',
+        code: 'AUTH_2001',
       });
     }
     expect(a.setRevoked).not.toHaveBeenCalled();
@@ -117,14 +117,20 @@ describe('revokeCertificate', () => {
 
   it('rejects a bad id or flag, and an unknown certificate', async () => {
     await expect(revokeCertificate(admin(), kulapati, { id: 'nope' })).rejects.toMatchObject({
-      code: 'invalid-argument',
+      code: 'VAL_1002',
+      details: { field: 'id' },
+    });
+    await expect(revokeCertificate(admin(), kulapati, {})).rejects.toMatchObject({
+      code: 'VAL_1001',
+      details: { field: 'id' },
     });
     await expect(
       revokeCertificate(admin(), kulapati, { id: 'NSG-GIT-26-0001', revoked: 'yes' }),
-    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    ).rejects.toMatchObject({ code: 'VAL_1002', details: { field: 'revoked' } });
     const a = admin(false);
     await expect(revokeCertificate(a, kulapati, { id: 'NSG-GIT-26-0001' })).rejects.toMatchObject({
-      code: 'not-found',
+      code: 'CRT_2001',
+      params: ['NSG-GIT-26-0001'],
     });
     expect(a.audit).not.toHaveBeenCalled();
   });

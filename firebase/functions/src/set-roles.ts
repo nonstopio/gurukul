@@ -1,5 +1,6 @@
-import { planRoleChange, rolesFromClaims } from './roles.js';
+import { diffGrants, planRoleChange, rolesFromClaims } from './roles.js';
 import type { RoleChange, RoleClaims, RolePlan } from './roles.js';
+import { log } from './logging/log.js';
 
 /** The Admin SDK calls `setRoles` needs, so the decision logic can be tested without Firebase. */
 export interface RoleAdmin {
@@ -7,11 +8,23 @@ export interface RoleAdmin {
   setClaims(uid: string, claims: RoleClaims): Promise<void>;
   revokeTokens(uid: string): Promise<void>;
   mirrorRoles(uid: string, plan: RolePlan): Promise<void>;
+  /** `users/{uid}.grantedCourseIds`, or an empty list when there is none. */
+  getGrantedCourseIds(uid: string): Promise<string[]>;
+  /**
+   * Stores the new list on the profile and, in one batch, adds the uid to `acharyaIds` of each
+   * added course and removes it from each removed one. Course documents that do not exist are
+   * skipped, never created.
+   */
+  applyCourseGrants(
+    uid: string,
+    grantedCourseIds: string[],
+    change: { added: string[]; removed: string[] },
+  ): Promise<void>;
   audit(entry: {
     action: string;
     by: string;
     target: string;
-    detail: RolePlan['claims'];
+    detail: RolePlan['claims'] & { grantedCourseIds?: string[] };
   }): Promise<void>;
 }
 
@@ -25,16 +38,29 @@ export async function applyRoleChange(
   targetUid: string,
   change: RoleChange,
 ): Promise<RolePlan> {
+  log.debug('Applying a role change', { uid: targetUid, by: caller.uid });
   const plan = planRoleChange(caller, targetUid, await admin.getClaims(targetUid), change);
   await admin.setClaims(targetUid, plan.claims);
   await admin.mirrorRoles(targetUid, plan);
+  if (plan.grantedCourseIds !== undefined) {
+    const previous = await admin.getGrantedCourseIds(targetUid);
+    await admin.applyCourseGrants(
+      targetUid,
+      plan.grantedCourseIds,
+      diffGrants(previous, plan.grantedCourseIds),
+    );
+  }
   await admin.revokeTokens(targetUid);
   await admin.audit({
     action: 'roles.set',
     by: caller.uid,
     target: targetUid,
-    detail: plan.claims,
+    detail: {
+      ...plan.claims,
+      ...(plan.grantedCourseIds === undefined ? {} : { grantedCourseIds: plan.grantedCourseIds }),
+    },
   });
+  log.info('Roles changed', { uid: targetUid, by: caller.uid, count: plan.roles.length });
   return plan;
 }
 

@@ -1,16 +1,3 @@
-/** Kulapati console landing. The learners table and assign flow arrive with M4. */
-export function ConsolePage() {
-  return (
-    <main className="page">
-      <h1 className="page__title">Kulapati console</h1>
-      <section className="page__empty" aria-labelledby="console-empty">
-        <h2 id="console-empty">Learners and assignments</h2>
-        <p>Assigning courses and managing roles arrives next.</p>
-      </section>
-    </main>
-  );
-}
-
 /** Vyasa Studio landing. The course editor arrives with M5. */
 export function StudioPage() {
   return (
