@@ -1,6 +1,12 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { AuthProvider, DENIED_MESSAGE, useSession, useUser } from '../src/auth/AuthProvider';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  AuthProvider,
+  RETRY_MESSAGE,
+  deniedMessage,
+  useSession,
+  useUser,
+} from '../src/auth/AuthProvider';
 import { RequireRole } from '../src/auth/RequireRole';
 import { NONSTOP, fakeAuth } from './fake-auth';
 
@@ -9,7 +15,9 @@ function Probe() {
   return (
     <div>
       <p data-testid="out">{`${s.status}|${s.roles.join(',')}|${s.error ?? ''}`}</p>
+      <p data-testid="wrong">{String(s.wrongAccount)}</p>
       <button onClick={() => void s.signIn()}>in</button>
+      <button onClick={() => void s.signIn({ chooseAccount: true })}>other</button>
       <button onClick={() => void s.signOut()}>out</button>
     </div>
   );
@@ -79,9 +87,36 @@ describe('AuthProvider', () => {
   ])('signs %j straight back out with a message', (user) => {
     const f = setup();
     act(() => f.emitUser(user));
-    expect(out()).toBe(`denied|shishya|${DENIED_MESSAGE}`);
+    expect(out()).toBe(`denied|shishya|${deniedMessage(user.email)}`);
+    expect(screen.getByTestId('wrong').textContent).toBe('true');
     expect(f.service.signOut).toHaveBeenCalled();
     expect(f.service.watchProfile).not.toHaveBeenCalled();
+  });
+
+  it('names the refused address, and says only the hint when there is none', () => {
+    expect(deniedMessage('priya@gmail.com')).toMatch(/^You signed in as priya@gmail.com\. /);
+    expect(deniedMessage(null)).toMatch(/^Gurukul is for NonStop io accounts/);
+  });
+
+  it('passes the account-picker choice through and clears the refusal on a good account', async () => {
+    const f = setup();
+    act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
+    await act(async () => screen.getByText('other').click());
+    expect(f.service.signIn).toHaveBeenCalledWith({ chooseAccount: true });
+    act(() => f.emitUser(NONSTOP));
+    expect(screen.getByTestId('wrong').textContent).toBe('false');
+  });
+
+  it('finishes a redirect sign-in on load, and reports one that failed', async () => {
+    const f = fakeAuth();
+    f.service.finishRedirect = vi.fn().mockRejectedValue(new Error('auth/network-request-failed'));
+    render(
+      <AuthProvider service={f.service}>
+        <Probe />
+      </AuthProvider>,
+    );
+    act(() => f.emitUser(null));
+    await waitFor(() => expect(out()).toBe(`signedOut|shishya|${RETRY_MESSAGE}`));
   });
 
   it('signs out through the service and drops the profile watch on sign-out', async () => {
@@ -98,7 +133,7 @@ describe('AuthProvider', () => {
     f.service.signIn = (() => Promise.reject(new Error('popup closed'))) as never;
     act(() => f.emitUser(null));
     await act(async () => screen.getByText('in').click());
-    expect(out()).toBe('signedOut|shishya|Sign-in did not finish. Try again.');
+    expect(out()).toBe(`signedOut|shishya|${RETRY_MESSAGE}`);
     f.service.signIn = (() => Promise.resolve()) as never;
     await act(async () => screen.getByText('in').click());
     expect(out()).toBe('signedOut|shishya|');

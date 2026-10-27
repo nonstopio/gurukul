@@ -2,7 +2,7 @@ import { isAllowedEmail, rolesFromClaims } from '@gurukul/schema';
 import type { Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthService, AuthUser } from './service';
+import type { AuthService, AuthUser, SignInOptions } from './service';
 import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
@@ -11,9 +11,11 @@ export interface Session {
   status: SessionStatus;
   user: AuthUser | null;
   roles: Role[];
-  /** Why a non-NonStop account was signed back out. */
+  /** Why sign-in failed, or why a non-NonStop account was signed back out. */
   error: string | null;
-  signIn(): Promise<void>;
+  /** The last account Google returned was not a NonStop io one: offer to choose another. */
+  wrongAccount: boolean;
+  signIn(options?: SignInOptions): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -33,8 +35,15 @@ export function useUser(): AuthUser {
   return user;
 }
 
-export const DENIED_MESSAGE =
-  'Gurukul is for NonStop io accounts. Sign in with your @nonstopio.com Google account.';
+const ACCOUNT_HINT =
+  'Gurukul is for NonStop io accounts: choose your @nonstopio.com Google account.';
+
+/** Names the account Google returned, so someone signed in to several can see which one it used. */
+export function deniedMessage(email: string | null): string {
+  return email ? `You signed in as ${email}. ${ACCOUNT_HINT}` : ACCOUNT_HINT;
+}
+
+export const RETRY_MESSAGE = 'Sign-in did not finish. Try again.';
 
 /**
  * Owns sign-in state. A non-NonStop account is signed straight back out with a message (the rules
@@ -47,7 +56,15 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [user, setUser] = useState<AuthUser | null>(null);
   const [roles, setRoles] = useState<Role[]>(['shishya']);
   const [error, setError] = useState<string | null>(null);
+  const [wrongAccount, setWrongAccount] = useState(false);
   const stopProfile = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    service.finishRedirect().catch((e: unknown) => {
+      log.error('Sign-in redirect failed', e);
+      setError(RETRY_MESSAGE);
+    });
+  }, [service]);
 
   useEffect(() => {
     const stop = service.onUser((u) => {
@@ -61,12 +78,14 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       }
       if (!u.emailVerified || !isAllowedEmail(u.email)) {
         setUser(null);
-        setError(DENIED_MESSAGE);
+        setError(deniedMessage(u.email));
+        setWrongAccount(true);
         setStatus('denied');
         void service.signOut();
         return;
       }
       setError(null);
+      setWrongAccount(false);
       setUser(u);
       let current = rolesFromClaims({});
       void service.claims(u, false).then((c) => {
@@ -97,18 +116,19 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       user,
       roles,
       error,
-      signIn: async () => {
+      wrongAccount,
+      signIn: async (options) => {
         setError(null);
         try {
-          await service.signIn();
+          await service.signIn(options);
         } catch (e) {
           log.error('Sign-in failed', e);
-          setError('Sign-in did not finish. Try again.');
+          setError(RETRY_MESSAGE);
         }
       },
       signOut: () => service.signOut(),
     }),
-    [status, user, roles, error, service],
+    [status, user, roles, error, wrongAccount, service],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -66,7 +66,14 @@ describe('App gate', () => {
       />,
     );
     act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
-    expect(screen.getByText(/@nonstopio.com/).getAttribute('role')).toBe('alert');
+    act(() => f.emitUser(null));
+    const alert = screen.getByText(/priya@gmail.com/);
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(alert.textContent).toMatch(/@nonstopio.com/);
+    expect(document.activeElement).toBe(alert);
+    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Try another account' }));
+    expect(f.service.signIn).toHaveBeenCalledWith({ chooseAccount: true });
   });
 });
 

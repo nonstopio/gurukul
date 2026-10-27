@@ -64,7 +64,14 @@ and `apps/web/.env.local`.
 1. Upgrade `nonstop-gurukul` to Blaze; create the $1 budget and alerts.
 2. Create Firestore in `asia-south1`, production mode.
 3. Enable Auth → Google provider; add the Hosting domain to authorised domains.
-4. Register a Web app; copy its config into GitHub variables.
+4. Register a Web app; copy its config into GitHub variables. Set
+   `VITE_FIREBASE_AUTH_DOMAIN` to the Hosting domain (`nonstop-gurukul.web.app`),
+   not `nonstop-gurukul.firebaseapp.com`, and add
+   `https://nonstop-gurukul.web.app/__/auth/handler` to the Google OAuth client's
+   authorised redirect URIs (Google Cloud console → Credentials). iPhones and
+   iPads sign in by redirect, and Safari drops a redirect whose handler lives on
+   another domain. Preview channels keep the production auth domain, so on iOS
+   sign-in is tested on production, not on previews.
 5. Create the production deploy service account (Hosting Admin, Rules Admin,
    Datastore Index Admin; from M2 also Cloud Functions Admin, Service Account
    User, Artifact Registry Writer). Create a GitHub environment `production`

@@ -17,90 +17,89 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations                   | 7    | 0    | 0       | 0          |
-| Sign-in, roles and shell      | 6    | 5    | 0       | 0          |
+| Sign-in, roles and shell      | 7    | 4    | 0       | 0          |
 | Learner experience            | 6    | 10   | 0       | 0          |
 | Parikshas and certificates    | 5    | 4    | 1       | 0          |
 | Kulapati console and Sanjaya  | 9    | 14   | 2       | 0          |
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
-| Platform, CI and operations   | 5    | 9    | 2       | 4          |
+| Platform, CI and operations   | 5    | 9    | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 49   | 61   | 6       | 6          |
+| **Total**                     | 50   | 60   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `AUTH-07` — sign-in works on mobile Safari and fails politely
-2. `LRN-07` — offline reading and queued completions
-3. `LRN-09` — `video90` and `requireVideoWatch` are real
-4. `KUL-15` — reminders: one per person per day, mandatory only
-5. `OPS-09` — progress rule checks what learners append
-6. `OPS-05` — rules coverage gate
-7. `OPS-12` — CI aggregator treats a skipped job as a failure
-8. `OPS-13` — dependency and docs hygiene
-9. `OPS-08` — envelope tests for every callable
-10. `OPS-10` — close the ESLint loopholes around callables
-11. `GIT-03` — placeholder videos stop embedding a dead player
-12. `GIT-06` — seed matches the course outline
-13. `PRK-06` — Pariksha answers survive a reload
-14. `PRK-07` — Result page survives a reload
-15. `SHL-01` — skip link, focus on route change, retry on load errors
-16. `SHL-02` — focused shell for lesson, Pariksha and result
-17. `KUL-10` — Learners table: pending invites and filters that combine
-18. `KUL-11` — people search by name
-19. `KUL-12` — learner drawer completeness
-20. `KUL-16` — org settings: teams and reminders
-21. `KUL-17` — learners pick their team
-22. `STU-07` — Acharyas see every course
-23. `STU-06` — Acharya names on courses
-24. `LRN-14` — Retired and "New lessons added" states
-25. `PRK-09` — revocation date on certificates
-26. `KUL-18` — org Pariksha KPIs and a true overdue count
-27. `KUL-21` — daily roll-up repairs course counters
-28. `SRC-02` — learner navigation area
-29. `SRC-03` — courses and lessons in search
-30. `SRC-04` — people in search for Kulapatis
-31. `SRC-05` — draft courses in search for Acharyas
-32. `STU-11` — preview uses the real learner screens
-33. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-34. `STU-08` — "Draft vN · saved just now"
-35. `STU-10` — learner counts in the publish dialog and on course cards
-36. `STU-12` — publishing an archived course
-37. `STU-13` — structure editor polish
-38. `LRN-12` — course overview to the handoff
-39. `LRN-13` — Home to the handoff
-40. `LRN-11` — outline rail grouped by parva
-41. `LRN-10` — split layout
-42. `LRN-15` — block renderer polish
-43. `LRN-16` — check blocks reveal the right option
-44. `LRN-17` — keyboard shortcuts dialog
-45. `PRK-08` — completion screen to the handoff
-46. `AUTH-08` — sign-in screen to the handoff
-47. `SHL-03` — handoff breakpoints and the menu button
-48. `KUL-13` — bulk role change and select all
-49. `KUL-14` — Assign screen finish
-50. `KUL-19` — Needs attention, pending-invite strip, overview filters
-51. `KUL-20` — course analytics finish
-52. `KUL-22` — Roles screen polish
-53. `KUL-23` — audit log view finish
-54. `DS-05` — axe on the remaining page tests
-55. `DS-04` — shared icon set
-56. `DS-03` — `/__ui` component gallery
-57. `STU-15` — lesson editor extras
-58. `STU-16` — CodeMirror for markdown and code
-59. `OPS-11` — deeper e2e journeys
-60. `OPS-06` — Lighthouse on the preview URL
-61. `OPS-14` — trigger tests against the emulators
-62. `KUL-24` — email delivery (blocked: question 4)
-63. `KUL-25` — Acharyas see their learners (blocked: question 7)
-64. `PRK-10` — tell a learner their certificate was revoked (blocked)
-65. `OPS-18` — custom domain (blocked: question 6)
-66. `OPS-19` — licence holder (blocked: question 10)
-67. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `LRN-07` — offline reading and queued completions
+2. `LRN-09` — `video90` and `requireVideoWatch` are real
+3. `KUL-15` — reminders: one per person per day, mandatory only
+4. `OPS-09` — progress rule checks what learners append
+5. `OPS-05` — rules coverage gate
+6. `OPS-12` — CI aggregator treats a skipped job as a failure
+7. `OPS-13` — dependency and docs hygiene
+8. `OPS-08` — envelope tests for every callable
+9. `OPS-10` — close the ESLint loopholes around callables
+10. `GIT-03` — placeholder videos stop embedding a dead player
+11. `GIT-06` — seed matches the course outline
+12. `PRK-06` — Pariksha answers survive a reload
+13. `PRK-07` — Result page survives a reload
+14. `SHL-01` — skip link, focus on route change, retry on load errors
+15. `SHL-02` — focused shell for lesson, Pariksha and result
+16. `KUL-10` — Learners table: pending invites and filters that combine
+17. `KUL-11` — people search by name
+18. `KUL-12` — learner drawer completeness
+19. `KUL-16` — org settings: teams and reminders
+20. `KUL-17` — learners pick their team
+21. `STU-07` — Acharyas see every course
+22. `STU-06` — Acharya names on courses
+23. `LRN-14` — Retired and "New lessons added" states
+24. `PRK-09` — revocation date on certificates
+25. `KUL-18` — org Pariksha KPIs and a true overdue count
+26. `KUL-21` — daily roll-up repairs course counters
+27. `SRC-02` — learner navigation area
+28. `SRC-03` — courses and lessons in search
+29. `SRC-04` — people in search for Kulapatis
+30. `SRC-05` — draft courses in search for Acharyas
+31. `STU-11` — preview uses the real learner screens
+32. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+33. `STU-08` — "Draft vN · saved just now"
+34. `STU-10` — learner counts in the publish dialog and on course cards
+35. `STU-12` — publishing an archived course
+36. `STU-13` — structure editor polish
+37. `LRN-12` — course overview to the handoff
+38. `LRN-13` — Home to the handoff
+39. `LRN-11` — outline rail grouped by parva
+40. `LRN-10` — split layout
+41. `LRN-15` — block renderer polish
+42. `LRN-16` — check blocks reveal the right option
+43. `LRN-17` — keyboard shortcuts dialog
+44. `PRK-08` — completion screen to the handoff
+45. `AUTH-08` — sign-in screen to the handoff
+46. `SHL-03` — handoff breakpoints and the menu button
+47. `KUL-13` — bulk role change and select all
+48. `KUL-14` — Assign screen finish
+49. `KUL-19` — Needs attention, pending-invite strip, overview filters
+50. `KUL-20` — course analytics finish
+51. `KUL-22` — Roles screen polish
+52. `KUL-23` — audit log view finish
+53. `DS-05` — axe on the remaining page tests
+54. `DS-04` — shared icon set
+55. `DS-03` — `/__ui` component gallery
+56. `STU-15` — lesson editor extras
+57. `STU-16` — CodeMirror for markdown and code
+58. `OPS-11` — deeper e2e journeys
+59. `OPS-06` — Lighthouse on the preview URL
+60. `OPS-14` — trigger tests against the emulators
+61. `KUL-24` — email delivery (blocked: question 4)
+62. `KUL-25` — Acharyas see their learners (blocked: question 7)
+63. `PRK-10` — tell a learner their certificate was revoked (blocked)
+64. `OPS-18` — custom domain (blocked: question 6)
+65. `OPS-19` — licence holder (blocked: question 10)
+66. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -128,7 +127,7 @@ Plan: `03-auth-and-roles.md`, `design-handoff/00-shared-patterns.md`, `design-ha
 | `AUTH-04` | `onUserCreated`: profile and invite claiming                             | done   | —       | `firebase/functions/src/profile.ts`                                                                                                                                                           |
 | `AUTH-05` | `setRoles`, token refresh on mirror change, no self-removal, bootstrap   | done   | —       | `firebase/functions/src/set-roles.ts`, `roles.ts`, `scripts/grant-kulapati.mjs`                                                                                                              |
 | `AUTH-06` | App shell: sidebar generated from navigation metadata, TopBar            | done   | —       | `apps/web/src/Shell.tsx`                                                                                                                                                                      |
-| `AUTH-07` | Sign-in works on mobile Safari and fails politely                        | todo   | —       | Redirect flow (`signInWithRedirect` + `getRedirectResult`) on iOS; a closed popup shows nothing; the wrong-domain message names the address, offers "Try another account" (`prompt: select_account`) and takes focus |
+| `AUTH-07` | Sign-in works on mobile Safari and fails politely                        | done   | —       | `apps/web/src/auth/service.ts` (`prefersRedirect`, `finishRedirect`, cancel and blocked-popup handling), `AuthProvider.tsx` (`deniedMessage`, `wrongAccount`), `SignInPage.tsx`; auth domain switch is `OPS-21` |
 | `AUTH-08` | Sign-in screen to the handoff                                            | todo   | —       | Two-pane hero, benefits, invite callout, footnote (`design-handoff/01-learner.md` §01). Today: one column, logo, title, button                                                               |
 | `SHL-01`  | Skip link, focus on route change, retry on load errors                   | todo   | —       | "Skip to content"; focus the `h1` and announce the page (`aria-live`) on navigation; a Retry button on the load-error callout (`apps/web/src/learn/ui.tsx`). `00-shared-patterns.md` Accessibility |
 | `SHL-02`  | Focused shell for lesson, Pariksha and result                            | todo   | —       | Those routes leave `<Shell>` for a TopBar-only layout; one `h1` per page (lesson page has two today); "44% · 10 / 22" caption                                                                 |
@@ -278,6 +277,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-18` | Custom domain                                                              | blocked    | —        | Question 6. Also the hard-coded site URL in emails (`firebase/functions/src/mail.ts`)                                                                      |
 | `OPS-19` | Licence holder                                                             | blocked    | —        | Question 10: confirm the legal entity in `LICENSE`                                                                                                          |
 | `OPS-20` | Launch: assign Git to everyone                                             | maintainer | `GIT-02` | M6 exit                                                                                                                                                     |
+| `OPS-21` | Auth domain for the iOS redirect                                           | maintainer | —        | `VITE_FIREBASE_AUTH_DOMAIN` = `nonstop-gurukul.web.app` (GitHub variable) and its `/__/auth/handler` in the OAuth client's redirect URIs (`11` checklist step 4) |
 
 ## First course: Git
 
