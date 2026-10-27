@@ -167,9 +167,9 @@ describe('lesson editor: blocks', () => {
       const { studio } = await open(courseWith([]));
       await screen.findByLabelText('Lesson title');
       fireEvent.click(screen.getByRole('button', { name: label }));
-      const group = screen.getByRole('group', { name: `${label} block` });
-      expect(group.contains(document.activeElement)).toBe(true);
-      expect(group.className).toContain('g-block--selected');
+      const group = await screen.findByRole('group', { name: `${label} block` });
+      await waitFor(() => expect(group.contains(document.activeElement)).toBe(true));
+      await waitFor(() => expect(group.className).toContain('g-block--selected'));
       await saveNow();
       const [added] = savedLesson(studio).blocks;
       expect(added?.id).toMatch(/^b-[0-9a-f]{8}$/);
@@ -263,7 +263,7 @@ describe('lesson editor: blocks', () => {
     const title = await screen.findByLabelText('Lesson title');
     const video = screen.getByRole('group', { name: 'Video block' });
     fireEvent.focusIn(within(video).getByLabelText('Video link'));
-    expect(video.className).toContain('g-block--selected');
+    await waitFor(() => expect(video.className).toContain('g-block--selected'));
     expect(screen.getByRole('group', { name: 'Text block' }).className).not.toContain(
       'g-block--selected',
     );

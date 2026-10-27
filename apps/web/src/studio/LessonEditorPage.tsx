@@ -15,6 +15,7 @@ import { BlockEditor } from './blocks/BlockEditor';
 import { BlockPalette } from './blocks/BlockPalette';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DraftGate } from './DraftGate';
+import { focusBlock } from './focusBlock';
 import { EditorBar, PreviewLink } from './EditorBar';
 import {
   BLOCK_LABELS,
@@ -78,9 +79,7 @@ function LessonEditor({
   useEffect(() => {
     const id = focusAfterRender.current;
     if (id === null) return;
-    focusAfterRender.current = null;
-    const field = document.querySelector(`[data-block-id="${id}"] :is(textarea, input, select)`);
-    (field as HTMLElement).focus();
+    focusAfterRender.current = focusBlock(id);
   });
 
   // Focus anywhere inside a block selects it.
