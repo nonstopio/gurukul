@@ -7,7 +7,10 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 
 - Acharyas see every course; they can edit only those whose `acharyaIds`
   include them (others show "View only — Acharya: …").
-- Any Acharya can create a new course (they become its first Acharya).
+- Any Acharya can create a new course (they become its first Acharya). The New course dialog
+  asks for a title and a slug (suggested from the title); `createCourse` refuses a taken slug.
+  The slug is the course id, so it is **fixed at creation**: it is not editable afterwards,
+  because progress, assignments and certificates point at it.
 - Kulapatis can edit, publish and archive everything.
 
 ## Drafts and publishing
@@ -29,7 +32,7 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
   `Alt+↑/↓` as well as drag).
 - Add parva, add lesson, add Pariksha, rename inline, delete with confirmation
   (deleting a published lesson warns with how many learners completed it: one count query when the dialog opens).
-- Right panel: title, slug (locked after first publish), summary, level, pass
+- Right panel: title, summary, level, pass
   mark, cover theme, learning rules toggles, Acharyas with access.
 
 ## Lesson editor
