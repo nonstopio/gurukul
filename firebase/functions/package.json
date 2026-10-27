@@ -21,7 +21,6 @@
     "firebase-functions": "^7.4.0"
   },
   "devDependencies": {
-    "@gurukul/schema": "*",
     "esbuild": "^0.28.2"
   }
 }
