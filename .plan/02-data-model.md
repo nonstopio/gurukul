@@ -169,5 +169,16 @@ the certificate, the course and the date — no email.
 ## Migrations
 
 `packages/schema/src/migrations/` holds pure functions `v1→v2`, each with
-tests. Functions migrate a course when publishing; the player migrates on read
-as a fallback, so an old document never crashes the app.
+tests, registered in `steps.ts` under the version they upgrade from.
+`upgradeCourse` runs them; two readers sit on top:
+
+- `migrateCourse` is strict: upgrade, then validate the full shape, throwing on
+  anything that does not fit. Functions use it (grading, progress), and
+  `publishCourse` and `rollbackCourse` upgrade a draft or snapshot before
+  validating and writing it, so the live document is always current.
+- `readCourse` is the player's fallback, so one document never breaks the app:
+  it upgrades an older course, reads a newer one as far as this app understands
+  it, turns any block it cannot parse into `{ type: 'unsupported', id }` (the
+  player shows "This content needs a newer version of the app."), and returns
+  `null` for a course it cannot read at all. The catalogue and Studio's course
+  list skip a `null` course with a warning instead of failing the list.

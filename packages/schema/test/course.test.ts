@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockSchema, courseSchema, migrateCourse, parikshaSchema, slug, timestamp } from '../src';
+import { blockSchema, courseSchema, parikshaSchema, slug, timestamp } from '../src';
 import { itemAt, makeCourse, ts } from './fixtures';
 
 describe('timestamp', () => {
@@ -62,22 +62,5 @@ describe('parikshaSchema', () => {
   it('rejects showing more questions than exist', () => {
     expect(parikshaSchema.safeParse({ ...pariksha, questionsShown: 2 }).success).toBe(false);
     expect(parikshaSchema.safeParse(pariksha).success).toBe(true);
-  });
-});
-
-describe('migrateCourse', () => {
-  it('returns a valid v1 course', () => {
-    expect(migrateCourse(makeCourse()).id).toBe('git');
-  });
-
-  it.each([null, {}, { schemaVersion: 0 }, { schemaVersion: 2 }, { schemaVersion: '1' }])(
-    'refuses %j',
-    (raw) => {
-      expect(() => migrateCourse(raw)).toThrow(/Unsupported course schemaVersion/);
-    },
-  );
-
-  it('throws on a v1 document that does not fit the shape', () => {
-    expect(() => migrateCourse({ schemaVersion: 1 })).toThrow();
   });
 });

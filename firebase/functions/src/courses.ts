@@ -5,6 +5,7 @@ import {
   estimateMinutes,
   itemsOf,
   slug,
+  upgradeCourse,
   validateForPublish,
 } from '@gurukul/schema';
 import type { AnswerKeys, Course, PublishIssue } from '@gurukul/schema';
@@ -192,13 +193,15 @@ export async function publishCourse(
   const version = await store.release(courseId, caller.uid, null, ({ live, draft }) => {
     const current = requireEditor(caller, live, courseId, 'publishCourse');
     if (draft === undefined) throw new ApiException('CRS_2001', [courseId]);
-    const issues: PublishIssue[] = validateForPublish(draft.course, draft.answers);
+    // A draft saved at an older schemaVersion is brought up to date before it is judged or published.
+    const upgraded = upgradeCourse(draft.course) as Course;
+    const issues: PublishIssue[] = validateForPublish(upgraded, draft.answers);
     if (issues.length > 0) {
       log.warn('Publish refused', { courseId, count: issues.length });
       throw new ApiException('CRS_1003', [courseId], { issues });
     }
     const next = current.version + 1;
-    const course = released(draft.course, current, courseId, next);
+    const course = released(upgraded, current, courseId, next);
     return { version: next, course, answers: restrictAnswers(course, draft.answers) };
   });
   await store.audit({
@@ -227,13 +230,15 @@ export async function rollbackCourse(
     const current = requireEditor(caller, live, courseId, 'rollbackCourse');
     if (snapshot === undefined) throw new ApiException('CRS_2002', [courseId, String(from)]);
     const next = current.version + 1;
+    // An old snapshot is republished in today's shape, and the draft resets to that same shape.
+    const restored = upgradeCourse(snapshot.course) as Course;
     return {
       version: next,
-      course: released(snapshot.course, current, courseId, next),
+      course: released(restored, current, courseId, next),
       answers: snapshot.answers,
       resetDraft: {
         rev: (draft?.rev ?? 0) + 1,
-        course: snapshot.course,
+        course: restored,
         answers: snapshot.answers,
       },
     };

@@ -121,6 +121,15 @@ describe('listCourses', () => {
     expect(store.queries[0]).toContainEqual({ where: ['status', 'in', ['published', 'archived']] });
     expect(store.queries[1]).toContainEqual({ where: ['acharyaIds', 'array-contains', 'u1'] });
   });
+
+  it('skips a live course it cannot read instead of failing the whole list', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    store.queue = [[d('broken', { ...live('broken'), schemaVersion: 0 }), d('git', live('git'))]];
+    const rows = await data.listCourses('k1', true);
+    expect(rows.map((r) => r.live.id)).toEqual(['git']);
+    expect(warn).toHaveBeenCalledWith('Unreadable course skipped', { courseId: 'broken' });
+    warn.mockRestore();
+  });
 });
 
 describe('drafts', () => {
