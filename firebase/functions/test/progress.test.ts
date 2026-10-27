@@ -49,11 +49,12 @@ const progress = (over: object = {}) => ({
   certificateId: null,
   ...over,
 });
-const store = (c: unknown = course): ProgressStore => ({
+const store = (c: unknown = course, issued: string | null = 'NSG-GIT-26-0001'): ProgressStore => ({
   course: vi.fn().mockResolvedValue(c === null ? undefined : c),
   writeDerived: vi.fn().mockResolvedValue(undefined),
   bumpStats: vi.fn().mockResolvedValue(undefined),
   setAssignmentStatus: vi.fn().mockResolvedValue(undefined),
+  issueCertificate: vi.fn().mockResolvedValue(issued),
 });
 
 describe('handleProgressWrite', () => {
@@ -98,7 +99,12 @@ describe('handleProgressWrite', () => {
     expect(s.writeDerived).toHaveBeenCalledWith('u_git', { percent: 100, completed: true });
 
     const s2 = store();
-    const stamped = progress({ completedItemIds: ['l1', 'l2'], percent: 100, completedAt: ts(5) });
+    const stamped = progress({
+      completedItemIds: ['l1', 'l2'],
+      percent: 100,
+      completedAt: ts(5),
+      certificateId: 'NSG-GIT-26-0001',
+    });
     expect(await handleProgressWrite(s2, 'u_git', done, stamped)).toBe('unchanged');
     expect(s2.bumpStats).toHaveBeenCalledWith('git', { started: 0, completed: 1 });
     expect(s2.setAssignmentStatus).toHaveBeenCalledWith('u', 'git', 'completed');
@@ -106,12 +112,59 @@ describe('handleProgressWrite', () => {
 
   it('does nothing further when the percent is already right and completion was already counted', async () => {
     const s = store();
-    const stamped = progress({ completedItemIds: ['l1', 'l2'], percent: 100, completedAt: ts(5) });
+    const stamped = progress({
+      completedItemIds: ['l1', 'l2'],
+      percent: 100,
+      completedAt: ts(5),
+      certificateId: 'NSG-GIT-26-0001',
+    });
     expect(await handleProgressWrite(s, 'u_git', stamped, stamped)).toBe('unchanged');
     expect(s.bumpStats).not.toHaveBeenCalled();
   });
 
   it('ignores progress for a course that no longer exists', async () => {
     expect(await handleProgressWrite(store(null), 'u_git', progress(), progress())).toBe('ignored');
+  });
+
+  describe('certificates', () => {
+    const done = progress({ completedItemIds: ['l1', 'l2'], percent: 100, completedAt: ts(5) });
+
+    it('issues a certificate once the course is complete and says so', async () => {
+      const s = store();
+      expect(await handleProgressWrite(s, 'u_git', done, done)).toBe('updated');
+      expect(s.issueCertificate).toHaveBeenCalledWith('u_git', {
+        uid: 'u',
+        courseId: 'git',
+        courseTitle: 'Git',
+        courseVersion: 1,
+        signatoryName: 'A',
+        signatoryRole: 'K',
+      });
+      expect(s.writeDerived).not.toHaveBeenCalled();
+    });
+
+    it('issues in the same pass that stamps completion', async () => {
+      const s = store();
+      const before = progress({ completedItemIds: ['l1'], percent: 50 });
+      const after = progress({ completedItemIds: ['l1', 'l2'], percent: 50 });
+      expect(await handleProgressWrite(s, 'u_git', before, after)).toBe('updated');
+      expect(s.writeDerived).toHaveBeenCalledWith('u_git', { percent: 100, completed: true });
+      expect(s.issueCertificate).toHaveBeenCalledOnce();
+    });
+
+    it('stays quiet when another run already issued it', async () => {
+      const s = store(course, null);
+      expect(await handleProgressWrite(s, 'u_git', done, done)).toBe('unchanged');
+    });
+
+    it('does not issue below 100%, twice, or for a course without certificates', async () => {
+      const half = store();
+      await handleProgressWrite(half, 'u_git', progress(), progress({ completedItemIds: ['l1'] }));
+      const had = store();
+      await handleProgressWrite(had, 'u_git', done, { ...done, certificateId: 'NSG-GIT-26-0001' });
+      const off = store({ ...course, rules: { ...course.rules, certificate: false } });
+      await handleProgressWrite(off, 'u_git', done, done);
+      for (const s of [half, had, off]) expect(s.issueCertificate).not.toHaveBeenCalled();
+    });
   });
 });

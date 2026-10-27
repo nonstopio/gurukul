@@ -16,10 +16,27 @@ export interface ProgressRow {
   lastItemId: string | null;
   lastActiveAt: Date | null;
   completedItemIds: string[];
-  pariksha: Record<string, { best: number; passed: boolean; attempts: number }>;
+  pariksha: Record<
+    string,
+    { best: number; passed: boolean; attempts: number; lastAttemptAt: Date | null }
+  >;
   percent: number;
   completedAt: Date | null;
   certificateId: string | null;
+}
+
+/** An issued certificate. Public by design (verification), so it carries no email. */
+export interface CertificateRow {
+  id: string;
+  uid: string;
+  learnerName: string;
+  courseId: string;
+  courseTitle: string;
+  courseVersion: number;
+  issuedAt: Date;
+  signatoryName: string;
+  signatoryRole: string;
+  revoked: boolean;
 }
 
 /**
@@ -39,6 +56,10 @@ export interface LearnerData {
     courseId: string,
     cb: (progress: ProgressRow | null) => void,
   ): () => void;
+  /** One certificate by id; readable without signing in. */
+  getCertificate(id: string): Promise<CertificateRow | null>;
+  /** My certificates, newest first. */
+  myCertificates(uid: string): Promise<CertificateRow[]>;
   /** Creates the progress document (self-enrolment or first open). A no-op if it exists. */
   startCourse(uid: string, course: Pick<Course, 'id' | 'version'>): Promise<void>;
   /** Appends a lesson to `completedItemIds` (a set union, so two tabs cannot lose each other's work). */

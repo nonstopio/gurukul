@@ -1,5 +1,6 @@
 import { migrateCourse, progressPercent, progressSchema } from '@gurukul/schema';
 import type { Progress } from '@gurukul/schema';
+import type { CertificateGrant } from './certificates.js';
 
 /** Where progress triggers read courses and write derived fields. `stores.ts` adapts Firestore. */
 export interface ProgressStore {
@@ -15,6 +16,12 @@ export interface ProgressStore {
     courseId: string,
     status: 'started' | 'completed',
   ): Promise<void>;
+  /**
+   * Issues the learner's certificate in ONE transaction: re-reads the progress document, does
+   * nothing if `certificateId` is already set, else takes the next sequence number, writes
+   * `certificates/{id}` and sets `progress.certificateId`. Returns the new id, or null if one existed.
+   */
+  issueCertificate(progressId: string, grant: CertificateGrant): Promise<string | null>;
 }
 
 /**
@@ -48,9 +55,24 @@ export async function handleProgressWrite(
 
   const raw = await store.course(now.courseId);
   if (raw === undefined) return 'ignored';
-  const percent = progressPercent(migrateCourse(raw), now);
+  const course = migrateCourse(raw);
+  const percent = progressPercent(course, now);
   const completed = percent === 100 && now.completedAt === null;
-  if (percent === now.percent && !completed) return 'unchanged';
-  await store.writeDerived(progressId, { percent, completed });
-  return 'updated';
+  let updated = false;
+  if (percent !== now.percent || completed) {
+    await store.writeDerived(progressId, { percent, completed });
+    updated = true;
+  }
+  if (percent === 100 && course.rules.certificate && now.certificateId === null) {
+    const issued = await store.issueCertificate(progressId, {
+      uid: now.uid,
+      courseId: now.courseId,
+      courseTitle: course.title,
+      courseVersion: course.version,
+      signatoryName: course.certificate.signatoryName,
+      signatoryRole: course.certificate.signatoryRole,
+    });
+    updated ||= issued !== null;
+  }
+  return updated ? 'updated' : 'unchanged';
 }

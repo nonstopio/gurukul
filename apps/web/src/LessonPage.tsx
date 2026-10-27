@@ -12,11 +12,12 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
-import { useSession } from './auth/AuthProvider';
+import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { percentFor } from './learn/model';
+import { itemPath } from './pariksha/model';
 import { Loaded } from './learn/ui';
 import { BlockView } from './player/blocks';
 
@@ -50,8 +51,7 @@ function useReachedEnd(ref: React.RefObject<HTMLElement | null>, key: string): b
 export function LessonPage() {
   const { courseId = '', itemId = '' } = useParams();
   const data = useLearnerData();
-  const { user } = useSession();
-  const uid = user?.uid ?? '';
+  const uid = useUser().uid;
   const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
   const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
@@ -105,8 +105,8 @@ function Player({
   const prev = items[index - 1];
   const next = items[index + 1];
   const goTo = useCallback(
-    (id: string | undefined) => {
-      void navigate(id ? `/courses/${course.id}/learn/${id}` : `/courses/${course.id}`);
+    (target: string | undefined) => {
+      void navigate(target ?? `/courses/${course.id}`);
     },
     [navigate, course.id],
   );
@@ -114,19 +114,19 @@ function Player({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
-      if (e.key === 'j' && next && states[next.id] !== 'locked') goTo(next.id);
-      if (e.key === 'k' && prev) goTo(prev.id);
+      if (e.key === 'j' && next && states[next.id] !== 'locked') goTo(itemPath(course.id, next));
+      if (e.key === 'k' && prev) goTo(itemPath(course.id, prev));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [next, prev, states, goTo]);
+  }, [next, prev, states, goTo, course.id]);
 
   useEffect(() => {
     if (!known)
       toast.show('That lesson is not in this course any more. Taking you to where you left off.');
   }, [known, toast]);
 
-  if (!known) {
+  if (!known || !item) {
     const resume = resumeItemId(course, state);
     return (
       <Navigate
@@ -143,17 +143,13 @@ function Player({
     </Link>
   );
 
-  if (!item || item.type === 'pariksha' || s === 'locked') {
+  if (s === 'locked') {
     return (
       <>
         <TopBar title={course.title} back={back} />
         <main className="page">
-          <Callout tone="note" title={s === 'locked' ? 'Locked for now' : 'Pariksha'}>
-            <p>
-              {s === 'locked'
-                ? 'Finish the earlier items, and pass any Pariksha before this one, to open it.'
-                : 'Parikshas open from the outline once they are available.'}
-            </p>
+          <Callout tone="note" title="Locked for now">
+            <p>Finish the earlier items, and pass any Pariksha before this one, to open it.</p>
           </Callout>
           <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
             Back to the outline
@@ -162,6 +158,7 @@ function Player({
       </>
     );
   }
+  if (item.type === 'pariksha') return <Navigate to={itemPath(course.id, item)} replace />;
 
   const lesson: Lesson = item;
   const done = s === 'done';
@@ -171,7 +168,10 @@ function Player({
     setSaving(true);
     try {
       if (!done) await data.completeItem(uid, course.id, lesson.id);
-      goTo(next?.id);
+      const finished = items.every((i) => i.id === lesson.id || states[i.id] === 'done');
+      goTo(
+        next ? itemPath(course.id, next) : finished ? `/courses/${course.id}/complete` : undefined,
+      );
     } catch {
       toast.show('Could not save your progress. Try again.', { tone: 'danger' });
     } finally {
@@ -191,7 +191,7 @@ function Player({
           <ol>
             {items.map((i) => (
               <li key={i.id}>
-                {states[i.id] === 'locked' || i.type === 'pariksha' ? (
+                {states[i.id] === 'locked' ? (
                   <span aria-disabled="true">{i.title}</span>
                 ) : (
                   <Link
@@ -224,10 +224,7 @@ function Player({
           ) : null}
           <footer className="article__footer">
             {prev ? (
-              <Link
-                className={buttonClass('secondary')}
-                to={`/courses/${course.id}/learn/${prev.id}`}
-              >
+              <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
                 Previous
               </Link>
             ) : null}

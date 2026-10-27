@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { AuthProvider, DENIED_MESSAGE, useSession } from '../src/auth/AuthProvider';
+import { AuthProvider, DENIED_MESSAGE, useSession, useUser } from '../src/auth/AuthProvider';
 import { RequireRole } from '../src/auth/RequireRole';
 import { NONSTOP, fakeAuth } from './fake-auth';
 
@@ -102,6 +102,24 @@ describe('AuthProvider', () => {
     f.service.signIn = (() => Promise.resolve()) as never;
     await act(async () => screen.getByText('in').click());
     expect(out()).toBe('signedOut|shishya|');
+  });
+
+  it('useUser throws unless somebody is signed in', () => {
+    function NeedsUser() {
+      useUser();
+      return null;
+    }
+    const f = fakeAuth();
+    const spy = console.error;
+    console.error = () => {};
+    expect(() =>
+      render(
+        <AuthProvider service={f.service}>
+          <NeedsUser />
+        </AuthProvider>,
+      ),
+    ).toThrow(/needs a signed-in user/);
+    console.error = spy;
   });
 
   it('throws a clear error outside the provider', () => {

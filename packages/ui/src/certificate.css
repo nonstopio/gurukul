@@ -1,0 +1,186 @@
+/* Designed at 1123x794 CSS px (A4 landscape at 96dpi), scaled to the container's width. */
+.g-cert {
+  container-type: inline-size;
+  width: 100%;
+  aspect-ratio: 1123 / 794;
+  overflow: hidden;
+}
+.g-cert__sheet {
+  box-sizing: border-box;
+  width: 1123px;
+  height: 794px;
+  padding: 22px;
+  background: var(--cover-forest);
+  transform: scale(calc(100cqw / 1123px));
+  transform-origin: top left;
+  color: var(--text-body);
+}
+.g-cert__inner {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 36px 64px 40px;
+  background: var(--paper);
+  outline: 1px solid var(--gold);
+  outline-offset: -18px;
+  text-align: center;
+}
+.g-cert__corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--gold);
+}
+.g-cert__corner--tl {
+  top: 26px;
+  left: 26px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.g-cert__corner--tr {
+  top: 26px;
+  right: 26px;
+  border-left: 0;
+  border-bottom: 0;
+}
+.g-cert__corner--bl {
+  bottom: 26px;
+  left: 26px;
+  border-right: 0;
+  border-top: 0;
+}
+.g-cert__corner--br {
+  right: 26px;
+  bottom: 26px;
+  border-left: 0;
+  border-top: 0;
+}
+.g-cert__revoked {
+  position: absolute;
+  top: 150px;
+  right: 18px;
+  left: 18px;
+  margin: 0;
+  padding: 10px 0;
+  background: var(--danger-soft);
+  border-block: 2px solid var(--danger);
+  color: var(--danger);
+  font: 700 22px / 1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.g-cert__badge {
+  margin: 0 0 20px;
+  padding: 10px 22px;
+  background: var(--cover-forest);
+  border-radius: 14px;
+  color: var(--paper);
+  font: italic 500 22px / 1 var(--font-display);
+}
+.g-cert__title {
+  margin: 0 0 22px;
+  color: var(--gold-text);
+  font: 600 13px / 1 var(--font-ui);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+}
+.g-cert__line {
+  margin: 0;
+  font: italic 400 19px / 1.4 var(--font-display);
+}
+.g-cert__name {
+  margin: 8px 0 12px;
+  max-width: 100%;
+  color: var(--cover-forest);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.g-cert__course {
+  margin: 10px 0 0;
+  color: var(--cover-forest);
+  font: 500 38px / 1.2 var(--font-display);
+}
+.g-cert__footer {
+  display: grid;
+  grid-template-columns: 1fr 132px 1fr;
+  align-items: end;
+  gap: 40px;
+  width: 100%;
+  margin-top: auto;
+}
+.g-cert__signature {
+  text-align: left;
+}
+.g-cert__sign-rule {
+  display: block;
+  width: 220px;
+  border-top: 1px solid var(--cover-forest);
+}
+.g-cert__sign-name {
+  margin: 8px 0 0;
+  color: var(--cover-forest);
+  font: 500 19px / 1.2 var(--font-display);
+}
+.g-cert__sign-role {
+  margin: 2px 0 0;
+  font: 400 13px / 1.3 var(--font-ui);
+}
+.g-cert__meta {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  text-align: left;
+  font: 400 13px / 1.3 var(--font-ui);
+}
+.g-cert__meta dt {
+  display: inline;
+  color: var(--gold-text);
+  font-weight: 600;
+}
+.g-cert__meta dt::after {
+  content: ': ';
+}
+.g-cert__meta dd {
+  display: inline;
+  margin: 0;
+}
+.g-cert__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .g-cert-print,
+  .g-cert-print * {
+    visibility: visible;
+  }
+  .g-cert-print {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 1123px;
+    height: 794px;
+    container-type: normal;
+    overflow: visible;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .g-cert-print .g-cert__sheet {
+    transform: none;
+  }
+}

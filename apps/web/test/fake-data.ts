@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
-import type { AssignmentRow, LearnerData, ProgressRow } from '../src/data/types';
+import type { AssignmentRow, CertificateRow, LearnerData, ProgressRow } from '../src/data/types';
 
 export const progressRow = (over: Partial<ProgressRow> = {}): ProgressRow => ({
   courseId: 'git',
@@ -12,6 +12,20 @@ export const progressRow = (over: Partial<ProgressRow> = {}): ProgressRow => ({
   percent: 0,
   completedAt: null,
   certificateId: null,
+  ...over,
+});
+
+export const certificateRow = (over: Partial<CertificateRow> = {}): CertificateRow => ({
+  id: 'NSG-GIT-26-0001',
+  uid: 'u1',
+  learnerName: 'Priya Kulkarni',
+  courseId: 'git',
+  courseTitle: 'Git, the NonStop Way',
+  courseVersion: 1,
+  issuedAt: new Date('2026-11-09T00:00:00Z'),
+  signatoryName: 'The Kulapati',
+  signatoryRole: 'NonStop Academy',
+  revoked: false,
   ...over,
 });
 
@@ -87,6 +101,9 @@ export function fakeData(
     assignments?: AssignmentRow[];
     progress?: ProgressRow[];
     watched?: ProgressRow | null;
+    certificates?: CertificateRow[];
+    /** Do not emit the progress document until `emitProgress` is called. */
+    deferProgress?: boolean;
   } = {},
 ) {
   const courses = init.courses ?? [makeCourse()];
@@ -98,9 +115,13 @@ export function fakeData(
     myProgress: vi.fn().mockResolvedValue(init.progress ?? []),
     watchProgress: vi.fn((_uid, _course, cb) => {
       watchers.push(cb);
-      cb(init.watched === undefined ? null : init.watched);
+      if (!init.deferProgress) cb(init.watched === undefined ? null : init.watched);
       return () => {};
     }),
+    getCertificate: vi.fn(
+      async (id: string) => (init.certificates ?? []).find((c) => c.id === id) ?? null,
+    ),
+    myCertificates: vi.fn().mockResolvedValue(init.certificates ?? []),
     startCourse: vi.fn().mockResolvedValue(undefined),
     completeItem: vi.fn().mockResolvedValue(undefined),
     setLastItem: vi.fn().mockResolvedValue(undefined),

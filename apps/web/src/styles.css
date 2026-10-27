@@ -448,3 +448,113 @@ a.items__row:hover {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* ---- Parikshas and certificates (M3) ---- */
+.segments {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.segments li {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+.segments .segments__done {
+  background: var(--accent-decor);
+}
+.segments .segments__now {
+  background: var(--text);
+}
+.exam {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 760px;
+}
+.exam__question {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: clamp(var(--space-5), 4vw, var(--space-10));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.exam__prompt {
+  padding: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+}
+.exam__code {
+  margin: 0;
+  padding: var(--space-4);
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  background: var(--code-bg);
+  color: var(--code-text);
+  font: var(--text-sm) / 1.7 var(--font-mono);
+}
+.exam__feedback {
+  margin: 0;
+  color: var(--text-body);
+}
+.exam__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.exam__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+.score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: center;
+  padding: var(--space-6);
+}
+.score__wait {
+  color: var(--text-muted);
+}
+.review {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+}
+.cert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.cert-page,
+.verify {
+  max-width: 1160px;
+}
+@media print {
+  .g-sidebar,
+  .g-topbar,
+  .app__bar,
+  .cert-actions {
+    display: none;
+  }
+  .app {
+    display: block;
+  }
+}

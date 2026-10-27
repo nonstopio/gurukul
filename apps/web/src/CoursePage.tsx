@@ -3,11 +3,12 @@ import type { Course, ItemState } from '@gurukul/schema';
 import { Breadcrumb, Card, Chip, EmptyState, ProgressRing, buttonClass } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { useSession } from './auth/AuthProvider';
+import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { countItems, percentFor } from './learn/model';
+import { itemPath } from './pariksha/model';
 import { Loaded } from './learn/ui';
 
 const NO_PROGRESS = { completedItemIds: [], pariksha: {}, lastItemId: null };
@@ -23,8 +24,7 @@ const STATE_LABEL: Record<ItemState, string> = {
 export function CoursePage() {
   const { courseId = '' } = useParams();
   const data = useLearnerData();
-  const { user } = useSession();
-  const uid = user?.uid ?? '';
+  const uid = useUser().uid;
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
@@ -125,15 +125,12 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
                       );
                       return (
                         <li key={item.id}>
-                          {s === 'locked' || item.type === 'pariksha' ? (
+                          {s === 'locked' ? (
                             <span className="items__row" aria-disabled="true">
                               {label}
                             </span>
                           ) : (
-                            <Link
-                              className="items__row"
-                              to={`/courses/${course.id}/learn/${item.id}`}
-                            >
+                            <Link className="items__row" to={itemPath(course.id, item)}>
                               {label}
                             </Link>
                           )}

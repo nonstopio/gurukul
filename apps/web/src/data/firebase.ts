@@ -16,7 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
-import type { AssignmentRow, LearnerData, ProgressRow } from './types';
+import type { AssignmentRow, CertificateRow, LearnerData, ProgressRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
@@ -32,10 +32,39 @@ function toProgress(data: Record<string, unknown>): ProgressRow {
     lastItemId: (data.lastItemId as string | null | undefined) ?? null,
     lastActiveAt: date(data.lastActiveAt as Ts),
     completedItemIds: (data.completedItemIds as string[] | undefined) ?? [],
-    pariksha: (data.pariksha as ProgressRow['pariksha'] | undefined) ?? {},
+    pariksha: Object.fromEntries(
+      Object.entries(
+        (data.pariksha as Record<string, Record<string, unknown>> | undefined) ?? {},
+      ).map(([id, r]) => [
+        id,
+        {
+          best: (r.best as number | undefined) ?? 0,
+          passed: r.passed === true,
+          attempts: (r.attempts as number | undefined) ?? 0,
+          lastAttemptAt: date(r.lastAttemptAt as Ts),
+        },
+      ]),
+    ),
     percent: (data.percent as number | undefined) ?? 0,
     completedAt: date(data.completedAt as Ts),
     certificateId: (data.certificateId as string | null | undefined) ?? null,
+  };
+}
+
+const CERTIFICATE_LIMIT = 50;
+
+function toCertificate(id: string, d: Record<string, unknown>): CertificateRow {
+  return {
+    id,
+    uid: d.uid as string,
+    learnerName: d.learnerName as string,
+    courseId: d.courseId as string,
+    courseTitle: d.courseTitle as string,
+    courseVersion: (d.courseVersion as number | undefined) ?? 0,
+    issuedAt: date(d.issuedAt as Ts) ?? new Date(0),
+    signatoryName: (d.signatoryName as string | undefined) ?? '',
+    signatoryRole: (d.signatoryRole as string | undefined) ?? '',
+    revoked: d.revoked === true,
   };
 }
 
@@ -81,6 +110,21 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
       return onSnapshot(doc(db, 'progress', progressId(uid, courseId)), (snap) =>
         cb(snap.exists() ? toProgress(snap.data()) : null),
       );
+    },
+    async getCertificate(id) {
+      const snap = await getDoc(doc(db, 'certificates', id));
+      return snap.exists() ? toCertificate(snap.id, snap.data()) : null;
+    },
+    async myCertificates(uid) {
+      const snap = await getDocs(
+        query(
+          collection(db, 'certificates'),
+          where('uid', '==', uid),
+          orderBy('issuedAt', 'desc'),
+          limit(CERTIFICATE_LIMIT),
+        ),
+      );
+      return snap.docs.map((d) => toCertificate(d.id, d.data()));
     },
     async startCourse(uid, course) {
       const ref = doc(db, 'progress', progressId(uid, course.id));

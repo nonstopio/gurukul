@@ -20,3 +20,8 @@ export function credentialId(courseCode: string, year: number, sequence: number)
   const code = courseCode.replace(/[^a-z0-9]/gi, '').toUpperCase();
   return `NSG-${code}-${String(year % 100).padStart(2, '0')}-${String(sequence).padStart(4, '0')}`;
 }
+
+/** The course code on a credential id: the first hyphen-separated token of the course id, upper-cased (`git-basics` is `GIT`). */
+export function courseCode(courseId: string): string {
+  return courseId.replace(/-.*$/s, '').toUpperCase();
+}

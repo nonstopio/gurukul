@@ -25,6 +25,13 @@ export function useSession(): Session {
   return session;
 }
 
+/** The signed-in person. Only used inside `RequireSession`, so a missing user is a bug, not a state. */
+export function useUser(): AuthUser {
+  const { user } = useSession();
+  if (!user) throw new Error('useUser needs a signed-in user');
+  return user;
+}
+
 export const DENIED_MESSAGE =
   'Gurukul is for NonStop io accounts. Sign in with your @nonstopio.com Google account.';
 

@@ -1,7 +1,7 @@
 import { Card, Chip, EmptyState, Select, Toggle } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
-import { useSession } from './auth/AuthProvider';
+import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import { countItems } from './learn/model';
@@ -12,8 +12,7 @@ const LEVELS = { foundation: 'Foundation', intermediate: 'Intermediate', advance
 /** Every published course, filterable by level and "assigned to me". Self-enrolment: all are open. */
 export function CoursesPage() {
   const data = useLearnerData();
-  const { user } = useSession();
-  const uid = user?.uid ?? '';
+  const uid = useUser().uid;
   const [level, setLevel] = useState('');
   const [mine, setMine] = useState(false);
   const load = useCallback(async () => {

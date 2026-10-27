@@ -7,11 +7,14 @@ import { groupByArea, titleFor } from '../src/Shell';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
+import { fakePariksha } from './fake-pariksha';
 
 async function open(path: string, claims: { acharya?: boolean; kulapati?: boolean } = {}) {
   const f = fakeAuth(claims);
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
-  const view = render(<App service={f.service} data={fakeData().data} router={router} />);
+  const view = render(
+    <App service={f.service} data={fakeData().data} pariksha={fakePariksha()} router={router} />,
+  );
   const roles = ['shishya', ...Object.keys(claims)];
   await act(async () => {
     f.emitUser(NONSTOP);
@@ -25,9 +28,14 @@ describe('App gate', () => {
   it('shows a loading state, then the sign-in page when signed out', () => {
     const f = fakeAuth();
     render(
-      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
+      <App
+        service={f.service}
+        data={fakeData().data}
+        pariksha={fakePariksha()}
+        router={createMemoryRouter(appRoutes())}
+      />,
     );
-    expect(screen.getByRole('status').textContent).toContain('Loading');
+    expect(screen.getByText(/Loading Gurukul/)).toBeTruthy();
     act(() => f.emitUser(null));
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome to Gurukul.' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
@@ -37,10 +45,15 @@ describe('App gate', () => {
   it('tells a personal account why it was refused, in an alert', () => {
     const f = fakeAuth();
     render(
-      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
+      <App
+        service={f.service}
+        data={fakeData().data}
+        pariksha={fakePariksha()}
+        router={createMemoryRouter(appRoutes())}
+      />,
     );
     act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
-    expect(screen.getByRole('alert').textContent).toContain('@nonstopio.com');
+    expect(screen.getByText(/@nonstopio.com/).getAttribute('role')).toBe('alert');
   });
 });
 
@@ -60,7 +73,9 @@ describe('signed-in shell', () => {
   it('falls back to a friendly name without a display name', async () => {
     const f = fakeAuth();
     const router = createMemoryRouter(appRoutes(), { initialEntries: ['/'] });
-    render(<App service={f.service} data={fakeData().data} router={router} />);
+    render(
+      <App service={f.service} data={fakeData().data} pariksha={fakePariksha()} router={router} />,
+    );
     await act(async () => {
       f.emitUser({ ...NONSTOP, displayName: null });
       await Promise.resolve();
@@ -149,7 +164,12 @@ describe('accessibility', () => {
   it('has none on the sign-in page', async () => {
     const f = fakeAuth();
     const { container } = render(
-      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
+      <App
+        service={f.service}
+        data={fakeData().data}
+        pariksha={fakePariksha()}
+        router={createMemoryRouter(appRoutes())}
+      />,
     );
     act(() => f.emitUser(null));
     expect(await axeViolations(container)).toEqual([]);

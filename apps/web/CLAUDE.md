@@ -15,6 +15,7 @@ Read the root `CLAUDE.md` and `.claude/skills/gurukul-design/SKILL.md` first.
 | `src/data/`                                                               | `LearnerData` port + `firebaseLearnerData` (bounded queries), `DataProvider`, `useAsync`                                            |
 | `src/learn/`, `src/player/`                                               | Pure learner view-model helpers; one renderer per block type (`blocks.tsx`)                                                         |
 | `src/HomePage.tsx`, `CoursesPage.tsx`, `CoursePage.tsx`, `LessonPage.tsx` | Home, catalogue, course overview, lesson player                                                                                     |
+| `src/pariksha/`, `src/certificates/`                                      | Pariksha, result, completion, certificate and public verify screens; the `ParikshaService` port over the grading callables          |
 | `src/changelog/`                                                          | The changelog — see its `CLAUDE.md`                                                                                                 |
 | `src/navigation/`                                                         | Global search — see its `CLAUDE.md`                                                                                                 |
 | `src/styles.css`                                                          | Page-level styles only; components live in `packages/ui`                                                                            |

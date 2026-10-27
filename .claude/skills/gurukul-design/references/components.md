@@ -222,8 +222,29 @@ chevron separators are `aria-hidden` SVG. The last item is the current page: pla
 `Link` can be used), or muted text when they have neither. 44px targets, links `--accent`, current
 `--text` 600, separators `--text-subtle`, focus `--focus-ring`.
 
-## Certificate
+## Seal, Certificate, StatCard — shipped
 
-Fixed 1123×794 (A4 landscape). Forest frame, `--paper` sheet, `--gold` hairline,
-corner ornaments, learner name in Fraunces italic, seal in forest + gold with
-the Gurukul monogram. Printed and exported as PDF client-side.
+`<Seal label="Seal of NonStop Gurukul" ringText="NONSTOP GURUKUL · CERTIFIED · " centerText="G" size={132} />`.
+SVG with `role="img"` and the required `label`. `--cover-forest` disc, two `--gold` rings, `ringText` on a
+circle path (`textPath`, spread over the whole circle, so end it with a separator), `centerText` in Fraunces
+italic. Path id comes from `useId`, so several seals can share a page.
+
+`<Certificate learnerName courseTitle issuedOn credentialId verifyUrl signatoryName signatoryRole revoked? organisation? />`.
+Designed at 1123x794 (A4 landscape) and scaled to its container's width in CSS only
+(`container-type: inline-size`, `scale(calc(100cqw / 1123px))`); the container needs a width, the height
+follows. Spec in `.plan/design-handoff/01-learner.md` section 08: 22px `--cover-forest` frame, `--paper` sheet,
+18px inset, 1px `--gold` hairline, four corner ornaments, "Gurukul" badge as text (no PNG), title 13px/600
+0.42em `--gold-text`, Fraunces italic lines, course Fraunces 500 38px, footer with signature, 132px Seal,
+organisation, date, credential id and verify URL (plain text so it survives print). All real, selectable text.
+`organisation` defaults to "NonStop Gurukul" and feeds the seal. `revoked` adds a band reading "Revoked:
+this certificate is no longer valid" (danger colour plus words); the certificate stays readable.
+`nameFontSize(name)` (exported, pure): 66px up to 28 characters, then `floor(66*28/length)`, minimum 44px.
+
+**Print pattern.** `Certificate` always carries `printCertificateClass` (`g-cert-print`). In `@media print`
+(`@page { size: A4 landscape; margin: 0 }`) everything under `body` is `visibility: hidden` except the
+element with that class, which is fixed at top-left, 1123x794, unscaled. So the page needs no print code of
+its own: render one Certificate and call `window.print()`. Put `print:`-style `display: none` on the app
+chrome (sidebar, top bar) as well, since `visibility` keeps its space and could spill onto a second page.
+
+`<StatCard label value sub? />`. A one-entry `<dl>`: `dt` label (12px caps, `--text-muted`), `dd` value
+(Fraunces 500 36px, `--text`), optional `dd` sub line. Hairline card like Card. Put several in a grid.

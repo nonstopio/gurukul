@@ -13,6 +13,7 @@ vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, name: string) => ({ collection: name }),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   getDoc: async (ref: { path: string }) => ({
+    id: ref.path.split('/').pop(),
     exists: () => store.docs.has(ref.path),
     data: () => store.docs.get(ref.path),
   }),
@@ -82,7 +83,7 @@ describe('firebaseLearnerData', () => {
           lastItemId: 'l2',
           lastActiveAt: ts(7),
           completedItemIds: ['l1'],
-          pariksha: { q: { best: 1, passed: true, attempts: 1 } },
+          pariksha: { q: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(3) }, r: {} },
           percent: 40,
           completedAt: ts(9),
           certificateId: 'NSG-GIT-26-0001',
@@ -117,6 +118,45 @@ describe('firebaseLearnerData', () => {
     store.snapCb?.({ exists: () => true, data: () => ({ courseId: 'git' }) });
     expect(cb).toHaveBeenNthCalledWith(1, null);
     expect(cb.mock.calls[1]?.[0]).toMatchObject({ courseId: 'git' });
+  });
+
+  it('reads one certificate, or null, and lists mine with defaults filled', async () => {
+    store.docs.set('certificates/NSG-GIT-26-0001', {});
+    const raw = {
+      uid: 'u',
+      learnerName: 'Priya',
+      courseId: 'git',
+      courseTitle: 'Git',
+      courseVersion: 2,
+      issuedAt: ts(5),
+      signatoryName: 'K',
+      signatoryRole: 'R',
+      revoked: true,
+    };
+    store.docs.set('certificates/X', raw);
+    expect(await data.getCertificate('nope')).toBeNull();
+    expect(await data.getCertificate('X')).toMatchObject({
+      id: 'X',
+      learnerName: 'Priya',
+      revoked: true,
+      issuedAt: new Date(5),
+    });
+    store.queryDocs = [
+      {
+        id: 'Y',
+        data: () => ({ uid: 'u', learnerName: 'P', courseId: 'git', courseTitle: 'Git' }),
+      },
+    ];
+    expect(await data.myCertificates('u')).toEqual([
+      expect.objectContaining({
+        id: 'Y',
+        courseVersion: 0,
+        issuedAt: new Date(0),
+        signatoryName: '',
+        signatoryRole: '',
+        revoked: false,
+      }),
+    ]);
   });
 
   it('creates progress once, and never overwrites an existing document', async () => {

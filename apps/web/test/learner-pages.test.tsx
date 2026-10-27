@@ -5,11 +5,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../src/auth/AuthProvider';
 import { DataProvider } from '../src/data/DataProvider';
 import type { AssignmentRow } from '../src/data/types';
+import { ParikshaProvider } from '../src/pariksha/ParikshaProvider';
 import { appRoutes } from '../src/routes';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
+import { fakePariksha } from './fake-pariksha';
 
 async function open(path: string, data = fakeData()) {
   const f = fakeAuth();
@@ -17,9 +19,11 @@ async function open(path: string, data = fakeData()) {
   const view = render(
     <AuthProvider service={f.service}>
       <DataProvider data={data.data}>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
+        <ParikshaProvider service={fakePariksha()}>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </ParikshaProvider>
       </DataProvider>
     </AuthProvider>,
   );
@@ -258,12 +262,12 @@ describe('Lesson player', () => {
     expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l1');
   });
 
-  it('finishes the course on the last lesson and goes back to the overview', async () => {
+  it('finishes the course on the last lesson and opens the completion screen', async () => {
     const course = makeCourse({ parvas: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
     const d = fakeData({ courses: [course], watched: started({ lastItemId: 'only' }) });
     const { router } = await open('/courses/git/learn/only', d);
     fireEvent.click(await screen.findByRole('button', { name: 'Finish course' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/complete'));
   });
 
   it('lets a finished lesson be revisited without saving again', async () => {
@@ -373,16 +377,16 @@ describe('Lesson player', () => {
     expect(await screen.findByText('This lesson is empty.')).toBeTruthy();
   });
 
-  it('explains a locked lesson and a Pariksha instead of rendering them', async () => {
+  it('explains a locked lesson, and sends a Pariksha to its own screen', async () => {
     const d = fakeData({ watched: started({ completedItemIds: ['l1', 'l2'] }) });
     const { unmount } = await open('/courses/git/learn/l4', d);
     expect(await screen.findByText('Locked for now')).toBeTruthy();
     unmount();
-    await open(
+    const { router } = await open(
       '/courses/git/learn/q1',
       fakeData({ watched: started({ completedItemIds: ['l1', 'l2', 'l3'] }) }),
     );
-    expect(await screen.findByText(/open from the outline/)).toBeTruthy();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1'));
   });
 
   it('redirects a deleted lesson to the resume point, with a toast', async () => {

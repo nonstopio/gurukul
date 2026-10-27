@@ -38,7 +38,7 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** a learner can take every Git lesson end to end and resume on another device.
 
-## M3 · Parikshas and certificates (~1.5 weeks)
+## M3 · Parikshas and certificates (~1.5 weeks) — built
 
 - `checkAnswer`, `gradeAttempt` with cooldowns; Pariksha and Result screens.
 - Sequential unlocking.

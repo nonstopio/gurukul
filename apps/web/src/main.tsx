@@ -7,6 +7,7 @@ import { App } from './App';
 import { firebaseAuthService } from './auth/service';
 import { firebaseLearnerData } from './data/firebase';
 import { initFirebase } from './firebase';
+import { firebaseParikshaService } from './pariksha/service';
 import type { FirebaseEnv } from './firebase';
 import { appRoutes } from './routes';
 
@@ -20,7 +21,12 @@ export function mount(element: HTMLElement | null, env = import.meta.env as Fire
   const data = firebaseLearnerData(firebase.db);
   createRoot(element).render(
     <StrictMode>
-      <App service={service} data={data} router={createBrowserRouter(appRoutes())} />
+      <App
+        service={service}
+        data={data}
+        pariksha={firebaseParikshaService(firebase.functions)}
+        router={createBrowserRouter(appRoutes())}
+      />
     </StrictMode>,
   );
 }

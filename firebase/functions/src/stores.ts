@@ -1,6 +1,10 @@
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { progressId as progressDocId } from '@gurukul/schema';
+import { planCertificate } from './certificates.js';
+import type { CertificateAdmin } from './certificates.js';
+import type { GradingStore } from './grading.js';
 import type { UserStore } from './profile.js';
 import type { ProgressStore } from './progress.js';
 import type { RoleClaims } from './roles.js';
@@ -82,6 +86,76 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
       const batch = db.batch();
       for (const d of snap.docs) batch.update(d.ref, { status });
       await batch.commit();
+    },
+    async issueCertificate(progressId, grant) {
+      return db.runTransaction(async (tx) => {
+        const progressRef = db.doc(`progress/${progressId}`);
+        const counterRef = db.doc('counters/certificates');
+        const [progress, user, counter] = await Promise.all([
+          tx.get(progressRef),
+          tx.get(db.doc(`users/${grant.uid}`)),
+          tx.get(counterRef),
+        ]);
+        if (!progress.exists || progress.get('certificateId') != null) return null;
+        const plan = planCertificate(grant, user.data(), counter.data(), new Date());
+        const { id } = plan.certificate;
+        tx.set(counterRef, { [plan.year]: plan.sequence }, { merge: true });
+        tx.set(db.doc(`certificates/${id}`), {
+          ...plan.certificate,
+          issuedAt: FieldValue.serverTimestamp(),
+        });
+        tx.update(progressRef, { certificateId: id });
+        return id;
+      });
+    },
+  };
+}
+
+/** `GradingStore` over the Admin SDK. Kept thin: the decisions live in `grading.ts`. */
+export function firestoreGradingStore(db: Firestore): GradingStore {
+  return {
+    async getCourse(courseId) {
+      return (await db.doc(`courses/${courseId}`).get()).data();
+    },
+    async getAnswers(courseId) {
+      return (await db.doc(`courses/${courseId}/private/answers`).get()).data();
+    },
+    async getProgress(uid, courseId) {
+      return (await db.doc(`progress/${progressDocId(uid, courseId)}`).get()).data();
+    },
+    async recordAttempt(attempt, decide) {
+      return db.runTransaction(async (tx) => {
+        const progressRef = db.doc(`progress/${progressDocId(attempt.uid, attempt.courseId)}`);
+        const update = decide((await tx.get(progressRef)).data());
+        const attemptRef = progressRef.collection('attempts').doc();
+        tx.set(attemptRef, { ...attempt, createdAt: FieldValue.serverTimestamp() });
+        tx.set(
+          progressRef,
+          {
+            pariksha: {
+              [attempt.parikshaId]: { ...update, lastAttemptAt: FieldValue.serverTimestamp() },
+            },
+            lastActiveAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+        return { attemptId: attemptRef.id, update };
+      });
+    },
+  };
+}
+
+/** `CertificateAdmin` over the Admin SDK. */
+export function firestoreCertificateAdmin(db: Firestore): CertificateAdmin {
+  return {
+    async setRevoked(id, revoked) {
+      const ref = db.doc(`certificates/${id}`);
+      if (!(await ref.get()).exists) return false;
+      await ref.update({ revoked });
+      return true;
+    },
+    async audit(entry) {
+      await db.collection('audit').add({ ...entry, at: FieldValue.serverTimestamp() });
     },
   };
 }

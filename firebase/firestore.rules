@@ -106,6 +106,31 @@ service cloud.firestore {
         && request.resource.data.courseVersion is int;
 
       allow delete: if false;
+
+      // One graded attempt, written by gradeAttempt (Admin SDK) with the learner's uid and the
+      // course id on it, so reading costs no extra lookup. The learner, a Kulapati or the course's
+      // Acharya read it.
+      match /attempts/{attemptId} {
+        allow read: if signedIn()
+          && (resource.data.uid == request.auth.uid
+              || isKulapati()
+              || isAcharyaOf(resource.data.courseId));
+        allow write: if false;
+      }
+    }
+
+    // A certificate is public so anyone can verify it by id, signed in or not: the page shows the
+    // name, course, date and status, never an email. Listing is for the owner and Kulapatis (a
+    // learner's "my certificates"). Only the progress trigger issues and revokeCertificate edits.
+    match /certificates/{certificateId} {
+      allow get: if true;
+      allow list: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
+      allow write: if false;
+    }
+
+    // The certificate sequence counter. Functions only.
+    match /counters/{doc} {
+      allow read, write: if false;
     }
 
     // Organisation settings: the allowed domain, the teams list, reminder settings.

@@ -1,12 +1,16 @@
 import type { ReactElement } from 'react';
 import type { RouteObject } from 'react-router';
 import { RequireRole } from './auth/RequireRole';
+import { RequireSession } from './auth/RequireSession';
+import { CertificatePage, CertificatesPage, CompletePage, VerifyPage } from './certificates/pages';
 import { ChangelogPage } from './changelog/ChangelogPage';
 import { ConsolePage, StudioPage } from './ConsolePage';
 import { CoursePage } from './CoursePage';
 import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
 import { LessonPage } from './LessonPage';
+import { ParikshaPage } from './pariksha/ParikshaPage';
+import { ResultPage } from './pariksha/ResultPage';
 import { NotFoundPage } from './NotFoundPage';
 import type { RoutePath } from './route-paths';
 import { Shell } from './Shell';
@@ -23,6 +27,12 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/courses': <CoursesPage />,
   '/courses/:courseId': <CoursePage />,
   '/courses/:courseId/learn/:itemId': <LessonPage />,
+  '/courses/:courseId/pariksha/:parikshaId': <ParikshaPage />,
+  '/courses/:courseId/pariksha/:parikshaId/result': <ResultPage />,
+  '/courses/:courseId/complete': <CompletePage />,
+  '/certificates': <CertificatesPage />,
+  '/certificates/:id': <CertificatePage />,
+  '/verify/:id': <VerifyPage />,
   '/kulapati': (
     <RequireRole any={['kulapati']}>
       <ConsolePage />
@@ -35,14 +45,28 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   ),
 };
 
-/** The data-router route objects: the shell around every screen, plus the not-found fallback. */
+/** Pages anyone can open, signed in or not: certificate verification, which employers use. */
+const PUBLIC: readonly RoutePath[] = ['/verify/:id'];
+
+/**
+ * The data-router route objects: public pages, then everything behind sign-in inside the shell,
+ * plus the not-found fallback.
+ */
 export function appRoutes(): RouteObject[] {
+  const entries = Object.entries(ROUTES) as [RoutePath, ReactElement][];
+  const route = ([path, element]: [RoutePath, ReactElement]) => ({ path, element });
   return [
+    ...entries.filter(([path]) => PUBLIC.includes(path)).map(route),
     {
-      element: <Shell />,
+      element: <RequireSession />,
       children: [
-        ...Object.entries(ROUTES).map(([path, element]) => ({ path, element })),
-        { path: '*', element: <NotFoundPage /> },
+        {
+          element: <Shell />,
+          children: [
+            ...entries.filter(([path]) => !PUBLIC.includes(path)).map(route),
+            { path: '*', element: <NotFoundPage /> },
+          ],
+        },
       ],
     },
   ];

@@ -6,6 +6,10 @@ vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({ kind: 'auth' })),
   connectAuthEmulator: vi.fn(() => calls.push('auth-emulator')),
 }));
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({ kind: 'functions' })),
+  connectFunctionsEmulator: vi.fn(() => calls.push('functions-emulator')),
+}));
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(() => ({ kind: 'db' })),
   connectFirestoreEmulator: vi.fn(() => calls.push('db-emulator')),
@@ -49,6 +53,6 @@ describe('initFirebase', () => {
 
   it('connects the Auth and Firestore emulators when asked', () => {
     initFirebase({ VITE_USE_EMULATORS: 'true' });
-    expect(calls).toEqual(['auth-emulator', 'db-emulator']);
+    expect(calls).toEqual(['auth-emulator', 'db-emulator', 'functions-emulator']);
   });
 });

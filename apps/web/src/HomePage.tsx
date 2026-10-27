@@ -2,7 +2,7 @@ import { Card, Chip, EmptyState, ProgressBar, buttonClass } from '@gurukul/ui';
 import { resumeItemId } from '@gurukul/schema';
 import { useCallback } from 'react';
 import { Link } from 'react-router';
-import { useSession } from './auth/AuthProvider';
+import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import { continueCourse, dueLabel, firstName, orderAssigned, percentFor } from './learn/model';
@@ -11,9 +11,9 @@ import { Loaded } from './learn/ui';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
-  const { user } = useSession();
+  const user = useUser();
   const data = useLearnerData();
-  const uid = user?.uid ?? '';
+  const uid = user.uid;
   const load = useCallback(async () => {
     const [assignments, progress, courses] = await Promise.all([
       data.myAssignments(uid),
@@ -29,7 +29,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
     return { assigned: orderAssigned(assigned), courses, progress };
   }, [data, uid]);
   const result = useAsync(load);
-  const name = firstName(user?.displayName);
+  const name = firstName(user.displayName);
 
   return (
     <main className="page">

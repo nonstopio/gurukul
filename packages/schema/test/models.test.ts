@@ -4,6 +4,7 @@ import {
   assignmentId,
   assignmentSchema,
   certificateSchema,
+  courseCode,
   credentialId,
   isAllowedEmail,
   normalizeEmail,
@@ -70,6 +71,12 @@ describe('document shapes', () => {
     expect(assignmentSchema.safeParse({ ...base, reminder: 'daily' }).success).toBe(false);
     expect(normalizeEmail('  A@NonStopIO.com ')).toBe('a@nonstopio.com');
     expect(assignmentId('git', 'abc')).toBe('git__abc');
+  });
+
+  it('derives the course code from the first token of the course id', () => {
+    expect(courseCode('git-basics')).toBe('GIT');
+    expect(courseCode('security')).toBe('SECURITY');
+    expect(courseCode('react-19-intro')).toBe('REACT');
   });
 
   it('validates certificates and builds credential ids', () => {

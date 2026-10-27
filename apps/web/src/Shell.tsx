@@ -2,7 +2,7 @@ import { NavItem, Sidebar, SidebarGroup, Button } from '@gurukul/ui';
 import { useEffect, useMemo } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
-import { useSession } from './auth/AuthProvider';
+import { useSession, useUser } from './auth/AuthProvider';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import type { AreaNavigation, Destination } from './navigation';
@@ -27,7 +27,8 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
  * to the session's roles), the search trigger, and the routed page.
  */
 export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
-  const { user, roles, signOut } = useSession();
+  const { roles, signOut } = useSession();
+  const user = useUser();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const groups = useMemo(() => groupByArea(destinationsFor(areas, roles)), [areas, roles]);
@@ -43,7 +44,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           brand={<span className="app__brand">Gurukul</span>}
           footer={
             <div className="app__user">
-              <span>{user?.displayName ?? user?.email}</span>
+              <span>{user.displayName ?? user.email}</span>
               <Button variant="chrome" onClick={() => void signOut()}>
                 Sign out
               </Button>
