@@ -29,6 +29,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   first Kulapati once with `npm run grant-kulapati -- you@nonstopio.com` (admin credential, never CI).
 - Functions keep business logic in pure modules (`src/*.ts`) with unit tests;
   the trigger wrapper only wires inputs to them. 100% coverage applies.
+- Never list an `@gurukul/*` workspace package in `functions/package.json` (any field): Cloud Build installs that
+  file from the public npm registry, gets a 404 and every function fails to build. The esbuild bundle carries
+  that code; `scripts/test/functions-package.test.mjs` guards it.
 - Functions are bundled with esbuild (`npm run build -w @gurukul/functions` → `lib/index.js`, `@gurukul/schema`
   and zod inlined, firebase-* external) and deployed by `deploy.yml` with Hosting and rules.
 - `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status, and

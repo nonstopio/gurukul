@@ -79,7 +79,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL }}
       - name: Deploy Hosting, Firestore rules and indexes, and Functions
-        run: npx firebase deploy --only hosting,firestore,functions --project nonstop-gurukul --non-interactive
+        # --force lets the first deploy set the container-image cleanup policy (otherwise it fails with
+        # "could not set up cleanup policy") and removes functions deleted from the source.
+        run: npx firebase deploy --only hosting,firestore,functions --project nonstop-gurukul --non-interactive --force
       - name: Tag the release (only after a successful deploy)
         env:
           RELEASE_ID: ${{ steps.release.outputs.id }}
