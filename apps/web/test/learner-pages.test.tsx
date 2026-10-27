@@ -310,22 +310,58 @@ describe('Lesson player', () => {
     ).toBeTruthy();
   });
 
-  it('waits for the "watched" toggle on a video lesson', async () => {
-    const course = makeCourse({
-      parvas: [
-        { id: 'p', title: 'P', items: [lesson('v', { completeWhen: 'video90' }), lesson('w')] },
-      ],
+  describe('video lessons', () => {
+    const drive = {
+      type: 'video' as const,
+      id: 'vid',
+      provider: 'drive' as const,
+      url: 'https://drive.google.com/file/d/f1/view',
+      captions: false,
+    };
+    const openWith = (items: object[], requireVideoWatch = false) =>
+      open(
+        '/courses/git/learn/v',
+        fakeData({
+          courses: [
+            makeCourse({
+              parvas: [{ id: 'p', title: 'P', items: items as never }],
+              rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch },
+            }),
+          ],
+          watched: started({ lastItemId: 'v' }),
+        }),
+      );
+    const markComplete = async () =>
+      (await screen.findByRole('button', { name: 'Mark complete' })) as HTMLButtonElement;
+
+    it('waits for the video on a video90 lesson, and says why', async () => {
+      await openWith([lesson('v', { completeWhen: 'video90', blocks: [drive] }), lesson('w')]);
+      const button = await markComplete();
+      expect(button.disabled).toBe(true);
+      const why = 'Watch 90% of the video to mark this lesson complete.';
+      expect(button.title).toBe(why);
+      expect(
+        document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toBe(why);
+      fireEvent.click(screen.getByRole('switch', { name: 'I have watched the video' }));
+      expect(button.disabled).toBe(false);
+      expect(button.title).toBe('');
+      expect(screen.queryByText(why)).toBeNull();
     });
-    await open(
-      '/courses/git/learn/v',
-      fakeData({ courses: [course], watched: started({ lastItemId: 'v' }) }),
-    );
-    const button = (await screen.findByRole('button', {
-      name: 'Mark complete',
-    })) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    fireEvent.click(screen.getByRole('switch', { name: 'I have watched the video' }));
-    expect(button.disabled).toBe(false);
+
+    it('waits for the video on any lesson when the course requires watching', async () => {
+      await openWith([lesson('v', { blocks: [drive] }), lesson('w')], true);
+      expect((await markComplete()).disabled).toBe(true);
+    });
+
+    it('does not wait when nothing asks for it, or there is no video', async () => {
+      const first = await openWith([lesson('v', { blocks: [drive] }), lesson('w')]);
+      expect((await markComplete()).disabled).toBe(false);
+      expect(screen.queryByRole('switch')).toBeNull();
+      first.unmount();
+      await openWith([lesson('v', { completeWhen: 'video90' }), lesson('w')]);
+      expect((await markComplete()).disabled).toBe(false);
+    });
   });
 
   describe('scrolled lessons', () => {

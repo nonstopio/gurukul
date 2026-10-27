@@ -389,6 +389,15 @@ a.items__row:hover {
   margin: 0;
   font: 500 var(--text-3xl) / var(--leading-tight) var(--font-display);
 }
+.article__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.tracked-video {
+  display: grid;
+  gap: var(--space-3);
+}
 .article__footer {
   display: flex;
   flex-wrap: wrap;

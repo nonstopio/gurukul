@@ -3,6 +3,7 @@ import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 import { isEmbedAllowed, videoEmbedUrl } from '@gurukul/schema';
+import { TrackedVideo } from './TrackedVideo';
 
 /** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
 export function Prose({ md }: { md: string }) {
@@ -60,11 +61,19 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
 
 /**
  * One renderer for every block type. A block this app cannot read (`readCourse` made it
- * `unsupported`), or a type it does not know, renders a visible notice.
+ * `unsupported`), or a type it does not know, renders a visible notice. With `onWatched`, a video
+ * tracks how much of it has been played and reports when it counts as watched.
  */
-export function BlockView({ block }: { block: Block | UnsupportedBlock }) {
+export function BlockView({
+  block,
+  onWatched,
+}: {
+  block: Block | UnsupportedBlock;
+  onWatched?: (blockId: string, watched: boolean) => void;
+}) {
   switch (block.type) {
     case 'video': {
+      if (onWatched) return <TrackedVideo block={block} onWatched={onWatched} />;
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
         <VideoBlock src={src} title="Lesson video" href={block.url} />

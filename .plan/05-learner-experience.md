@@ -56,4 +56,5 @@ Google Drive, CodeSandbox, StackBlitz).
 | Course archived after assignment | Shown as "Retired"; progress and certificate kept |
 | Course gets new lessons after completion | Certificate kept; course shows "New lessons added" |
 | Video blocked by network | Fallback link to open the video in a new tab |
+| Video must be watched (`video90`, or `rules.requireVideoWatch` and the lesson has a video) | YouTube (IFrame API) and Loom (player.js) count the seconds actually played; "Mark complete" enables at 90%, seeking ahead does not count. Drive has no player API, and a player that has not answered 15 s after loading is treated the same: the learner confirms with "I have watched the video". Watch progress is not saved; reopening the lesson starts again |
 | Two tabs open | Progress is a set union, so both tabs' completions survive |

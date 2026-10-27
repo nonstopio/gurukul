@@ -47,7 +47,7 @@ type Course = {
     sequential: boolean;         // parvas unlock in order
     passMark: number;            // 0..1, default 0.7
     certificate: boolean;
-    requireVideoWatch: boolean;  // mark-complete enables at 90% watched
+    requireVideoWatch: boolean;  // every lesson with a video: mark-complete enables at 90% watched
   };
   certificate: { title: string; signatoryName: string; signatoryRole: string };
   parvas: Parva[];

@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode, Ref } from 'react';
 import { cx } from './cx';
 import './video-block.css';
 
@@ -13,6 +13,8 @@ export interface VideoBlockProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   caption?: ReactNode;
   /** Fallback link text. Default: "Open the video in a new tab". */
   linkLabel?: string;
+  /** The player frame, for a caller that talks to the provider's player API. */
+  frameRef?: Ref<HTMLIFrameElement>;
 }
 
 /** A 16:9 embedded video with a caption and an always-visible link to open it elsewhere. */
@@ -22,6 +24,7 @@ export function VideoBlock({
   href,
   caption,
   linkLabel = 'Open the video in a new tab',
+  frameRef,
   className,
   ...rest
 }: VideoBlockProps) {
@@ -29,6 +32,7 @@ export function VideoBlock({
     <figure className={cx('g-video', className)} {...rest}>
       <div className="g-video__frame">
         <iframe
+          ref={frameRef}
           className="g-video__iframe"
           src={src}
           title={title}

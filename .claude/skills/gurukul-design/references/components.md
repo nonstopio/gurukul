@@ -259,8 +259,9 @@ horizontally and never wraps.
 
 ## VideoBlock — shipped
 
-`<VideoBlock src title href caption? linkLabel? />`. Presentational: the caller picks the provider and builds
-the embed `src` (for example `youtube-nocookie`); the component only frames it. A `<figure>` with a 16:9
+`<VideoBlock src title href caption? linkLabel? frameRef? />`. Presentational: the caller picks the provider and builds
+the embed `src` (for example `youtube-nocookie`); the component only frames it. `frameRef` hands the `<iframe>`
+to a caller that talks to the provider's player API (the lesson player's watch tracking). A `<figure>` with a 16:9
 frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>` (13px `--text-muted`) and an
 always-visible 44px link "Open the video in a new tab" (`href`, `target="_blank"`, `rel="noopener noreferrer"`)
 for when the embed is blocked.
