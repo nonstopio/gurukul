@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { checkAnswer, checkCooldown, gradeAttempt, isCorrect, nextResult } from '../src/grading.js';
+import {
+  checkAnswer,
+  checkCooldown,
+  checkUnlocked,
+  gradeAttempt,
+  isCorrect,
+  nextResult,
+} from '../src/grading.js';
 import type { GradingStore } from '../src/grading.js';
-import { answerKey, course, progress, ts } from './fixtures.js';
+import { migrateCourse } from '@gurukul/schema';
+import { answerKey, course, pariksha, progress, ts } from './fixtures.js';
 
 const NOW = 1_000_000_000_000;
 
@@ -62,15 +70,17 @@ describe('checkAnswer', () => {
   const data = { courseId: 'git-basics', parikshaId: 'pk', questionId: 'q1', selected: ['a'] };
 
   it('says right or wrong and gives the key and the explanation', async () => {
-    expect(await checkAnswer(store(), data)).toEqual({
+    expect(await checkAnswer(store(), 'u', data)).toEqual({
       correct: true,
       correctOptionIds: ['a'],
       explanation: 'why q1',
     });
-    expect(await checkAnswer(store(), { ...data, selected: ['b'] })).toMatchObject({
+    expect(await checkAnswer(store(), 'u', { ...data, selected: ['b'] })).toMatchObject({
       correct: false,
     });
-    expect(await checkAnswer(store(), { ...data, selected: [] })).toMatchObject({ correct: false });
+    expect(await checkAnswer(store(), 'u', { ...data, selected: [] })).toMatchObject({
+      correct: false,
+    });
   });
 
   it('rejects malformed requests', async () => {
@@ -82,54 +92,120 @@ describe('checkAnswer', () => {
       [{ ...data, selected: [1] }, 'VAL_1002', 'selected'],
       [{ ...data, selected: undefined }, 'VAL_1001', 'selected'],
     ] as const) {
-      await rejects(checkAnswer(store(), bad[0]), bad[1], { field: bad[2] });
+      await rejects(checkAnswer(store(), 'u', bad[0]), bad[1], { field: bad[2] });
     }
   });
 
   it('rejects unknown, unpublished and unreadable courses', async () => {
     await rejects(
-      checkAnswer(store({ getCourse: vi.fn().mockResolvedValue(undefined) }), data),
+      checkAnswer(store({ getCourse: vi.fn().mockResolvedValue(undefined) }), 'u', data),
       'CRS_2001',
     );
     await rejects(
       checkAnswer(
         store({ getCourse: vi.fn().mockResolvedValue(course({}, { status: 'draft' })) }),
+        'u',
         data,
       ),
       'CRS_1001',
     );
     await rejects(
-      checkAnswer(store({ getCourse: vi.fn().mockResolvedValue({ broken: true }) }), data),
+      checkAnswer(store({ getCourse: vi.fn().mockResolvedValue({ broken: true }) }), 'u', data),
       'CRS_3001',
     );
   });
 
   it('rejects unknown Pariksha and question ids', async () => {
-    await rejects(checkAnswer(store(), { ...data, parikshaId: 'nope' }), 'PRK_2001');
-    await rejects(checkAnswer(store(), { ...data, questionId: 'nope' }), 'VAL_1003');
+    await rejects(checkAnswer(store(), 'u', { ...data, parikshaId: 'nope' }), 'PRK_2001');
+    await rejects(checkAnswer(store(), 'u', { ...data, questionId: 'nope' }), 'VAL_1003');
   });
 
   it('refuses unless answers are revealed after each one, without reading the key', async () => {
     for (const revealAnswers of ['onPass', 'never']) {
       const s = store({ getCourse: vi.fn().mockResolvedValue(course({ revealAnswers })) });
-      await rejects(checkAnswer(s, data), 'PRK_1001');
+      await rejects(checkAnswer(s, 'u', data), 'PRK_1001');
       expect(s.getAnswers).not.toHaveBeenCalled();
     }
   });
 
   it('fails cleanly when the answer key is missing', async () => {
     await rejects(
-      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue(undefined) }), data),
+      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue(undefined) }), 'u', data),
       'PRK_3001',
     );
     await rejects(
-      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: {} }) }), data),
+      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: {} }) }), 'u', data),
       'PRK_3001',
     );
     await rejects(
-      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: { q1: 'a' } }) }), data),
+      checkAnswer(store({ getAnswers: vi.fn().mockResolvedValue({ pk: { q1: 'a' } }) }), 'u', data),
       'PRK_3001',
     );
+  });
+});
+
+/** A sequential course whose Pariksha `pk` sits in a second parva, behind a lesson-only first one. */
+const lockedCourse = () =>
+  course(
+    {},
+    {
+      rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
+      parvas: [
+        {
+          id: 'p0',
+          title: 'First',
+          items: [
+            {
+              type: 'lesson',
+              id: 'l0',
+              title: 'Start',
+              minutes: 5,
+              layout: 'stacked',
+              completeWhen: 'manual',
+              blocks: [],
+            },
+          ],
+        },
+        { id: 'p1', title: 'P', items: [pariksha()] },
+      ],
+    },
+  );
+
+describe('checkUnlocked', () => {
+  it('refuses a Pariksha the outline shows as locked, and allows it once the parva before is passed', () => {
+    expect(() => checkUnlocked(migrateCourse(lockedCourse()), progress(), 'pk')).toThrow(
+      expect.objectContaining({ code: 'PRK_1003', params: ['pk'] }),
+    );
+    expect(() =>
+      checkUnlocked(
+        migrateCourse(lockedCourse()),
+        progress(undefined, { completedItemIds: ['l0'] }),
+        'pk',
+      ),
+    ).not.toThrow();
+  });
+
+  it('treats missing or unreadable progress as nothing done', () => {
+    expect(() => checkUnlocked(migrateCourse(lockedCourse()), undefined, 'pk')).toThrow(
+      expect.objectContaining({ code: 'PRK_1003' }),
+    );
+    expect(() => checkUnlocked(migrateCourse(course()), undefined, 'pk')).not.toThrow();
+  });
+
+  it('keeps checkAnswer and gradeAttempt off a locked Pariksha without reading the key', async () => {
+    const s = store({ getCourse: vi.fn().mockResolvedValue(lockedCourse()) });
+    await rejects(
+      checkAnswer(s, 'u', {
+        courseId: 'git-basics',
+        parikshaId: 'pk',
+        questionId: 'q1',
+        selected: ['a'],
+      }),
+      'PRK_1003',
+    );
+    await rejects(grade(s), 'PRK_1003');
+    expect(s.getAnswers).not.toHaveBeenCalled();
+    expect(s.recordAttempt).not.toHaveBeenCalled();
   });
 });
 

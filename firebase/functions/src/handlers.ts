@@ -76,8 +76,8 @@ export async function handleCheckAnswer(
   request: AuthedRequest,
   store: GradingStore,
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
-  requireLearner(request);
-  return checkAnswer(store, asObject(request.data));
+  const uid = requireLearner(request);
+  return checkAnswer(store, uid, asObject(request.data));
 }
 
 /** `gradeAttempt`: scores and records one Pariksha attempt. */
