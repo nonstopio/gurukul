@@ -44,12 +44,19 @@ import {
   firestoreUserStore,
 } from './stores.js';
 
-setGlobalOptions({ region: 'asia-south1', maxInstances: 5 });
+/** The cost guard (plan 11): no function scales past this many instances. */
+const MAX_INSTANCES = 5;
+
+setGlobalOptions({ region: 'asia-south1', maxInstances: MAX_INSTANCES });
 initializeApp();
 
-/** First sign-in: profile + claim invites. (v1 API: 2nd gen has no plain Auth `onCreate`.) */
+/**
+ * First sign-in: profile + claim invites. (v1 API: 2nd gen has no plain Auth `onCreate`.)
+ * `setGlobalOptions` is v2-only, so region and the instance cap are set here as well.
+ */
 export const onUserCreated = v1
   .region('asia-south1')
+  .runWith({ maxInstances: MAX_INSTANCES })
   .auth.user()
   .onCreate(async (user) => {
     await runLogged(

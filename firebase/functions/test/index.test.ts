@@ -3,6 +3,9 @@ import * as logger from 'firebase-functions/logger';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const captured: {
+  globalOptions?: unknown;
+  v1Region?: string;
+  v1Options?: unknown;
   onCreate?: (u: unknown) => unknown;
   onWritten?: (e: unknown) => unknown;
   onAttempt?: (e: unknown) => unknown;
@@ -31,7 +34,11 @@ vi.mock('@google-cloud/firestore', () => ({ default: { v1: { FirestoreAdminClien
 vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn() }));
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: vi.fn(), FieldValue: {} }));
-vi.mock('firebase-functions/v2', () => ({ setGlobalOptions: vi.fn() }));
+vi.mock('firebase-functions/v2', () => ({
+  setGlobalOptions: (options: unknown) => {
+    captured.globalOptions = options;
+  },
+}));
 vi.mock('firebase-functions/v2/scheduler', () => ({
   onSchedule: (options: { schedule: string }, fn: () => unknown) => {
     captured.schedules[options.schedule] = { options, fn };
@@ -55,16 +62,24 @@ const apiCallable = vi.fn((handler: (r: unknown) => unknown) => {
 });
 vi.mock('../src/api/callable.js', () => ({ apiCallable }));
 vi.mock('firebase-functions/v1', () => ({
-  region: () => ({
-    auth: {
-      user: () => ({
-        onCreate: (fn: (u: unknown) => unknown) => {
-          captured.onCreate = fn;
-          return fn;
-        },
-      }),
-    },
-  }),
+  region: (region: string) => {
+    captured.v1Region = region;
+    return {
+      runWith: (options: unknown) => {
+        captured.v1Options = options;
+        return {
+          auth: {
+            user: () => ({
+              onCreate: (fn: (u: unknown) => unknown) => {
+                captured.onCreate = fn;
+                return fn;
+              },
+            }),
+          },
+        };
+      },
+    };
+  },
 }));
 vi.mock('../src/profile.js', () => ({ handleUserCreated }));
 vi.mock('../src/progress.js', () => ({ handleProgressWrite }));
@@ -89,6 +104,13 @@ vi.mock('../src/handlers.js', async (orig) => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe('index', () => {
+  it('caps every function at five instances in asia-south1, the v1 sign-up trigger included', async () => {
+    await import('../src/index.js');
+    expect(captured.globalOptions).toEqual({ region: 'asia-south1', maxInstances: 5 });
+    expect(captured.v1Region).toBe('asia-south1');
+    expect(captured.v1Options).toEqual({ maxInstances: 5 });
+  });
+
   it('wires onUserCreated to the profile handler', async () => {
     await import('../src/index.js');
     await captured.onCreate?.({ uid: 'u' });
