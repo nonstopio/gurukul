@@ -131,6 +131,11 @@ describe('BlockView', () => {
     expect(screen.getByRole('note').textContent).toContain('newer version');
   });
 
+  it('shows the same notice for a block the course reader could not read', () => {
+    show({ type: 'unsupported', id: 'u' });
+    expect(screen.getByRole('note').textContent).toContain('newer version');
+  });
+
   it('has no axe violations for a lesson of mixed blocks', async () => {
     const { container } = render(
       <>

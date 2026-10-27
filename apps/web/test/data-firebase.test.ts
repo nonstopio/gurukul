@@ -59,6 +59,31 @@ describe('firebaseLearnerData', () => {
     expect(await data.getCourse('nope')).toBeNull();
   });
 
+  it('skips a course it cannot read, so the rest of the catalogue still loads', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    store.queryDocs = [
+      { id: 'broken', data: () => ({ ...course(), id: 'broken', title: '' }) },
+      { id: 'git', data: () => course() },
+    ];
+    expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+    store.docs.set('courses/broken', { schemaVersion: 'one' });
+    expect(await data.getCourse('broken')).toBeNull();
+    expect(warn).toHaveBeenCalledWith('Unreadable course skipped', { courseId: 'broken' });
+    warn.mockRestore();
+  });
+
+  it('opens a course whose lesson holds a block this app does not know', async () => {
+    const lessonOf = (c: { parvas: { items: { type: string }[] }[] } | null) =>
+      c?.parvas[0]?.items.find((i) => i.type === 'lesson') as { blocks: unknown[] } | undefined;
+    const c = course();
+    const lesson = lessonOf(c);
+    if (lesson) lesson.blocks = [{ type: 'poll', id: 'b-poll' }];
+    store.docs.set('courses/git', c);
+    expect(lessonOf(await data.getCourse('git'))?.blocks).toEqual([
+      { type: 'unsupported', id: 'b-poll' },
+    ]);
+  });
+
   it('maps assignments to plain rows', async () => {
     store.queryDocs = [
       {

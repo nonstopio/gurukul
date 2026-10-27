@@ -1,4 +1,4 @@
-import { migrateCourse } from '@gurukul/schema';
+import { migrateCourse, readCourse } from '@gurukul/schema';
 import type { AnswerKeys, Course } from '@gurukul/schema';
 import {
   addDoc,
@@ -16,6 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
+import { log } from '../log';
 import { DraftConflictError } from './errors';
 import type { BankQuestion, DraftDoc, StudioCourse, StudioData, VersionRow } from './types';
 
@@ -82,7 +83,12 @@ export function firebaseStudioData(db: Firestore): StudioData {
             getDocs(query(base, where('acharyaIds', 'array-contains', uid), limit(COURSE_LIMIT))),
           ]);
       const live = new Map<string, Course>();
-      for (const snap of snaps) for (const d of snap.docs) live.set(d.id, migrateCourse(d.data()));
+      for (const snap of snaps)
+        for (const d of snap.docs) {
+          const course = readCourse(d.data());
+          if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
+          else live.set(d.id, course);
+        }
       return Promise.all(
         [...live.values()].map(async (course): Promise<StudioCourse> => {
           const editable = kulapati || course.acharyaIds.includes(uid);

@@ -52,8 +52,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   (Acharya or Kulapati; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
   source draft with its answers; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
   Acharya or Kulapati; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
-  `acharyaIds` always win; publish is gated by `validateForPublish` and fails `CRS_1003` with `details.issues`;
-  rollback republishes a snapshot as a new version and resets the draft), `archiveCourse` (Kulapati-only).
+  `acharyaIds` always win; both run `upgradeCourse` on the stored course first; publish is gated by
+  `validateForPublish` and fails `CRS_1003` with `details.issues`; rollback republishes a snapshot as a new
+  version and resets the draft), `archiveCourse` (Kulapati-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for acharya/kulapati claims; clients never create or delete drafts.
 - Email is an outbox only: the `Mailer` port's adapter writes `mail/{autoId}` as `{ to, message: { subject, text } }` (the Trigger Email extension's shape, clients

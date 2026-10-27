@@ -18,7 +18,18 @@ import type {
   ReleaseState,
   VersionData,
 } from '../src/courses.js';
+import type * as Schema from '@gurukul/schema';
 import { answerKey, course } from './fixtures.js';
+
+// Calls through; a test swaps in one upgrade to see publish and rollback use what it returns.
+const upgrade = vi.hoisted(() => ({ fn: vi.fn<(raw: unknown) => unknown>() }));
+vi.mock('@gurukul/schema', async (actual) => {
+  const schema = await actual<typeof Schema>();
+  upgrade.fn.mockImplementation((raw) => schema.upgradeCourse(raw));
+  return { ...schema, upgradeCourse: upgrade.fn };
+});
+const upgradeOnce = (title: string) =>
+  upgrade.fn.mockImplementationOnce((raw) => ({ ...(raw as object), title }));
 
 const envelope = apiResponseSchema(z.unknown());
 const parses = (e: ApiException) => envelope.parse(apiFail([e], 'trace'));
@@ -218,6 +229,14 @@ describe('publishCourse', () => {
     ]);
   });
 
+  it('upgrades a draft saved at an older schemaVersion before validating and publishing it', async () => {
+    upgradeOnce('Upgraded title');
+    const f = fake();
+    await publishCourse(f.store, asha, { courseId: 'git-basics' });
+    expect(upgrade.fn).toHaveBeenCalledWith(expect.objectContaining({ title: 'Draft title' }));
+    expect(f.plans[0]?.plan.course.title).toBe('Upgraded title');
+  });
+
   it('lets a Kulapati publish any course', async () => {
     await expect(publishCourse(fake().store, ajay, { courseId: 'c' })).resolves.toEqual({
       version: 3,
@@ -282,6 +301,15 @@ describe('rollbackCourse', () => {
         detail: { restoredVersion: 1, version: 3 },
       },
     ]);
+  });
+
+  it('republishes an old snapshot in the current shape and resets the draft to it', async () => {
+    upgradeOnce('Upgraded old title');
+    const f = fake({ snapshot });
+    await rollbackCourse(f.store, asha, { courseId: 'git-basics', version: 1 });
+    const plan = f.plans[0]?.plan;
+    expect(plan?.course.title).toBe('Upgraded old title');
+    expect(plan?.resetDraft?.course.title).toBe('Upgraded old title');
   });
 
   it('starts the draft at rev 1 when there was none', async () => {

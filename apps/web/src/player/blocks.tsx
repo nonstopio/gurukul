@@ -1,5 +1,5 @@
 import { Callout, CodeBlock, QuizOption, VideoBlock, Button } from '@gurukul/ui';
-import type { Block } from '@gurukul/schema';
+import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 import { isEmbedAllowed, videoEmbedUrl } from '@gurukul/schema';
@@ -58,8 +58,11 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
   );
 }
 
-/** One renderer for every block type. A type this app does not know renders a visible notice. */
-export function BlockView({ block }: { block: Block }) {
+/**
+ * One renderer for every block type. A block this app cannot read (`readCourse` made it
+ * `unsupported`), or a type it does not know, renders a visible notice.
+ */
+export function BlockView({ block }: { block: Block | UnsupportedBlock }) {
   switch (block.type) {
     case 'video': {
       const src = videoEmbedUrl(block.provider, block.url);

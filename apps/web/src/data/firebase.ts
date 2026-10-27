@@ -1,4 +1,4 @@
-import { migrateCourse, progressId } from '@gurukul/schema';
+import { progressId, readCourse } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import {
   arrayUnion,
@@ -16,6 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
+import { log } from '../log';
 import type { AssignmentRow, CertificateRow, LearnerData, ProgressRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
@@ -68,6 +69,13 @@ export function toCertificate(id: string, d: Record<string, unknown>): Certifica
   };
 }
 
+/** A course this app can show, or `null` (logged) for one it cannot read, so the rest still load. */
+function readable(courseId: string, raw: unknown): Course | null {
+  const course = readCourse(raw);
+  if (course === null) log.warn('Unreadable course skipped', { courseId });
+  return course;
+}
+
 export function firebaseLearnerData(db: Firestore): LearnerData {
   return {
     async listCourses() {
@@ -79,11 +87,11 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
           limit(COURSE_LIMIT),
         ),
       );
-      return snap.docs.map((d) => migrateCourse(d.data()));
+      return snap.docs.flatMap((d) => readable(d.id, d.data()) ?? []);
     },
     async getCourse(courseId) {
       const snap = await getDoc(doc(db, 'courses', courseId));
-      return snap.exists() ? (migrateCourse(snap.data()) as Course) : null;
+      return snap.exists() ? readable(snap.id, snap.data()) : null;
     },
     async myAssignments(uid) {
       const snap = await getDocs(
