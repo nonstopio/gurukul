@@ -9,7 +9,7 @@ import {
   Select,
   buttonClass,
 } from '@gurukul/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BlockEditor } from './blocks/BlockEditor';
 import { BlockPalette } from './blocks/BlockPalette';
@@ -82,8 +82,9 @@ function LessonEditor({
     focusAfterRender.current = focusBlock(id);
   });
 
-  // Focus anywhere inside a block selects it.
-  useEffect(() => {
+  // Focus anywhere inside a block selects it. A layout effect, so the listener is in place before
+  // the blocks can be seen or focused; a plain effect can run after the first focus and miss it.
+  useLayoutEffect(() => {
     const onFocusIn = (e: FocusEvent) => {
       const block = (e.target as HTMLElement).closest<HTMLElement>('[data-block-id]');
       if (block) setSelected(block.dataset.blockId as string);
