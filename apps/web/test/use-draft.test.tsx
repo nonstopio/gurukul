@@ -125,7 +125,11 @@ describe('useDraft', () => {
   it('stays dirty when edits arrive while a save is in flight', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
     let finish: (rev: number) => void = () => {};
-    studio.data.saveDraft = vi.fn(() => new Promise<number>((r) => (finish = r)));
+    // Later saves (the flush when the test unmounts) settle, as real ones do.
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
+      .mockResolvedValue(3);
     const { result } = setup(studio);
     await waitFor(() => expect(result.current.status).toBe('ready'));
     act(() => result.current.update(rename('D')));
@@ -192,6 +196,56 @@ describe('useDraft', () => {
     expect(dirty.defaultPrevented).toBe(true);
     unmount();
     await waitFor(() => expect(studio.data.saveDraft).toHaveBeenCalledTimes(1));
+  });
+
+  it('waits for a save in flight before the next page loads the draft', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
+    let finish: (rev: number) => void = () => undefined;
+    let fail: (e: Error) => void = () => undefined;
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
+      .mockImplementationOnce(() => new Promise<number>((_, r) => (fail = r)));
+    const first = setup(studio);
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    act(() => first.result.current.update(rename('Q')));
+    first.unmount();
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+    const calls = vi.mocked(studio.data.getDraft).mock.calls.length;
+    const second = setup(studio);
+    await act(async () => undefined);
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls);
+    // A newer save on the same course replaces the first in the registry.
+    await waitFor(() => expect(second.result.current.status).toBe('loading'));
+    await act(async () => finish(5));
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls + 1);
+    act(() => second.result.current.update(rename('R')));
+    second.unmount();
+    await act(async () => fail(new Error('down')));
+    const third = setup(studio);
+    await waitFor(() => expect(third.result.current.status).toBe('ready'));
+  });
+
+  it('keeps the newest save registered when an older one settles first', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
+    const done: ((rev: number) => void)[] = [];
+    studio.data.saveDraft = vi.fn(() => new Promise<number>((r) => done.push(r)));
+    const a = setup(studio);
+    const b = setup(studio);
+    await waitFor(() => expect(a.result.current.status).toBe('ready'));
+    await waitFor(() => expect(b.result.current.status).toBe('ready'));
+    act(() => a.result.current.update(rename('A')));
+    act(() => b.result.current.update(rename('B')));
+    act(() => void a.result.current.saveNow());
+    act(() => void b.result.current.saveNow());
+    await act(async () => done[0]?.(5));
+    const calls = vi.mocked(studio.data.getDraft).mock.calls.length;
+    const c = setup(studio);
+    await act(async () => undefined);
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls);
+    await act(async () => done[1]?.(6));
+    await waitFor(() => expect(c.result.current.status).toBe('ready'));
   });
 
   it('does not flush on unmount when nothing is unsaved', async () => {
