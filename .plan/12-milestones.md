@@ -65,11 +65,15 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** an Acharya builds and publishes a second course without engineering help.
 
+**Status:** built (drafts, editors, Pariksha builder, versions, rollback, preview, question bank). Verified by unit tests; not yet used by a real Acharya.
+
 ## M6 · Hardening and launch (~1 week)
 
 - Playwright e2e for the three journeys; axe scans; Lighthouse CI.
 - Rules coverage gate; budget and alerts verified; backups (scheduled Firestore export — needs a Storage bucket, so decide or skip).
 - Docs: user guide for Kulapatis and Acharyas.
 - Launch: assign Git to everyone.
+
+**Status:** e2e, axe, Lighthouse CI, weekly backup function and docs are built. Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.
 
 **Total:** about 10 weeks of focused work.

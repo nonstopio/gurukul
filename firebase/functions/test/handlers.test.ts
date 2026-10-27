@@ -6,7 +6,12 @@ import {
   handleCheckAnswer,
   handleGradeAttempt,
   handleRevokeCertificate,
+  handleArchiveCourse,
+  handleCreateCourse,
+  handlePublishCourse,
+  handleRollbackCourse,
 } from '../src/handlers.js';
+import type { CourseStore } from '../src/courses.js';
 import type { AuthedRequest } from '../src/handlers.js';
 import type { GradingStore } from '../src/grading.js';
 import { answerKey, course, progress, ts } from './fixtures.js';
@@ -257,5 +262,57 @@ describe('console callables', () => {
     await expect(handleRemindLearners(learnerReq, deps, () => 5)).rejects.toMatchObject({
       code: 'AUTH_2001',
     });
+  });
+});
+
+describe('Studio callables', () => {
+  const live = { version: 1, status: 'published', acharyaIds: ['u'] };
+  const studio = (): CourseStore => ({
+    getLive: vi.fn().mockResolvedValue(live),
+    getDraft: vi.fn().mockResolvedValue(undefined),
+    create: vi.fn().mockResolvedValue(true),
+    release: vi.fn().mockResolvedValue(2),
+    setStatus: vi.fn().mockResolvedValue(undefined),
+    audit: vi.fn().mockResolvedValue(undefined),
+  });
+  const token = {
+    email: 'u@nonstopio.com',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+    acharya: true,
+    kulapati: true,
+  };
+  const as = (data: unknown) => learner({ auth: { uid: 'u', token }, data });
+  const calls = [
+    (r: AuthedRequest) => handleCreateCourse(r, studio()),
+    (r: AuthedRequest) => handlePublishCourse(r, studio()),
+    (r: AuthedRequest) => handleRollbackCourse(r, studio()),
+    (r: AuthedRequest) => handleArchiveCourse(r, studio()),
+  ];
+
+  it.each(calls.map((c, i) => [i, c] as const))(
+    'callable %i needs a verified NonStop sign-in',
+    async (_i, call) => {
+      await expect(call(learner({ auth: undefined }))).rejects.toMatchObject({ code: 'AUTH_1001' });
+      const bad = { ...token, email_verified: false };
+      await expect(call(learner({ auth: { uid: 'u', token: bad } }))).rejects.toMatchObject({
+        code: 'AUTH_1002',
+      });
+    },
+  );
+
+  it('runs each operation as the caller', async () => {
+    const s = studio();
+    expect(
+      await handleCreateCourse(as({ title: 'T', slug: 't', level: 'foundation', theme: 'sky' }), s),
+    ).toEqual({ courseId: 't' });
+    expect(await handlePublishCourse(as({ courseId: 'c' }), s)).toEqual({ version: 2 });
+    expect(await handleRollbackCourse(as({ courseId: 'c', version: 1 }), s)).toEqual({
+      version: 2,
+    });
+    expect(await handleArchiveCourse(as({ courseId: 'c', archived: true }), s)).toEqual({
+      status: 'archived',
+    });
+    await expect(handlePublishCourse(as(undefined), s)).rejects.toMatchObject({ code: 'VAL_1001' });
   });
 });

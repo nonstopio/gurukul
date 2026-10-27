@@ -92,7 +92,9 @@ describe('progress/{uid_courseId} read', () => {
     await assertSucceeds(getDoc(doc(as('asha', { acharya: true }), 'progress/priya_git')));
   });
   it("denies another learner, another course's Acharya and signed-out readers", async () => {
+    await assertSucceeds(getDoc(doc(as('rohan'), 'progress/rohan_git')));
     await assertFails(getDoc(doc(as('rohan'), 'progress/priya_git')));
+    await assertFails(getDoc(doc(as('rohan'), 'progress/priya_unborn')));
     await assertFails(getDoc(doc(as('rohan', { acharya: true }), 'progress/priya_git')));
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'progress/priya_git')));
   });

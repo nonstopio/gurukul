@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../src/console/firebase', () => ({ firebaseConsoleData: vi.fn(() => ({})) }));
 vi.mock('../src/console/service', () => ({ firebaseConsoleService: vi.fn(() => ({})) }));
 vi.mock('../src/pariksha/service', () => ({ firebaseParikshaService: vi.fn(() => ({})) }));
+vi.mock('../src/studio/firebase', () => ({ firebaseStudioData: vi.fn(() => ({})) }));
+vi.mock('../src/studio/service', () => ({ firebaseStudioService: vi.fn(() => ({})) }));
 vi.mock('../src/data/firebase', () => ({ firebaseLearnerData: vi.fn(() => ({})) }));
 vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ auth: {}, db: {} })) }));
 vi.mock('../src/auth/service', () => ({

@@ -1,0 +1,15 @@
+{
+  "name": "@gurukul/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gurukul end-to-end tests: Playwright against the built app and the Firebase emulators.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

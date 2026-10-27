@@ -61,20 +61,64 @@ service cloud.firestore {
             || (request.auth.token.acharya == true && request.auth.uid in resource.data.acharyaIds));
       allow write: if false;
 
+      // The Studio's working copy: course plus answer keys (an Acharya needs them to edit). Saved
+      // by the author with a rev check, one step at a time. Created and deleted by functions only.
+      match /drafts/{draftId} {
+        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow update: if (isKulapati() || isAcharyaOf(courseId))
+          && request.resource.data.keys().hasOnly(['rev', 'updatedAt', 'updatedBy', 'course', 'answers'])
+          && request.resource.data.rev is int
+          && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.course is map
+          && request.resource.data.course.id == courseId
+          && request.resource.data.course.parvas is list
+          && request.resource.data.course.parvas.size() <= 30
+          && request.resource.data.answers is map;
+        allow create, delete: if false;
+      }
+
+      // One snapshot per publish, so any version can be rolled back to. Written by functions only.
+      match /versions/{version} {
+        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow write: if false;
+      }
+
       // Pariksha answer keys never reach a browser. Grading runs in a function (Admin SDK).
       match /private/{doc} {
         allow read, write: if false;
       }
     }
 
+    // The shared question bank: any Acharya or Kulapati reads and adds; the creator or a Kulapati
+    // removes. Entries are never edited. Learners have no access.
+    match /questionBank/{entryId} {
+      allow read: if signedIn() && (request.auth.token.acharya == true || request.auth.token.kulapati == true);
+      allow create: if signedIn()
+        && (request.auth.token.acharya == true || request.auth.token.kulapati == true)
+        && request.resource.data.keys().hasOnly(['question', 'answers', 'tags', 'createdBy', 'createdAt'])
+        && request.resource.data.question is map
+        && request.resource.data.answers is list
+        && request.resource.data.tags is list
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow delete: if isKulapati()
+        || (signedIn() && request.auth.token.acharya == true && resource.data.createdBy == request.auth.uid);
+      allow update: if false;
+    }
+
     // One learner's state in one course, `{uid}_{courseId}`. The learner creates it (starting or
     // self-enrolling in a published course) and may only append completed lesson ids and move the
     // resume point; percent, Pariksha results and certificates are written by functions.
     match /progress/{progressId} {
+      // A learner may read their own id before the document exists (the player listens first).
       allow read: if signedIn()
-        && (resource.data.uid == request.auth.uid
-            || isKulapati()
-            || isAcharyaOf(resource.data.courseId));
+        && (progressId.matches(request.auth.uid + '_.*')
+            || (resource != null
+                && (resource.data.uid == request.auth.uid
+                    || isKulapati()
+                    || isAcharyaOf(resource.data.courseId))));
 
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['uid', 'courseId', 'courseVersion', 'startedAt',

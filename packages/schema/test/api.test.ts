@@ -42,6 +42,23 @@ describe('the error catalog', () => {
   });
 });
 
+describe('the course codes', () => {
+  it('raises each new CRS code with its status, message and params', () => {
+    const cases = [
+      ['CRS_1002', 409, "A course with id 'git' already exists."],
+      ['CRS_1003', 400, "Course 'git' failed the publish checks; see details.issues."],
+      ['CRS_2002', 404, "Course 'git' has no version 4."],
+    ] as const;
+    for (const [code, status, dev] of cases) {
+      const res = apiFail([new ApiException(code, ['git', '4'], { issues: [] })], 't');
+      expect(res.status).toBe(status);
+      expect(res.errors[0]?.developerMessage).toBe(dev);
+      expect(res.errors[0]?.retryable).toBe(false);
+      expect(apiResponseSchema(z.unknown()).parse(res).errors[0]?.code).toBe(code);
+    }
+  });
+});
+
 describe('formatMessage', () => {
   it('fills placeholders in order, marks missing ones and ignores extras', () => {
     expect(formatMessage("Unknown %s '%s'.", ['question', 'k9'])).toBe("Unknown question 'k9'.");

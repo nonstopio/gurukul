@@ -4,6 +4,8 @@ import type { CertificateAdmin } from './certificates.js';
 import { assignCourses } from './assign.js';
 import type { AssignResult, AssignStore } from './assign.js';
 import { resetCooldown } from './cooldown.js';
+import { archiveCourse, createCourse, publishCourse, rollbackCourse } from './courses.js';
+import type { CourseStore } from './courses.js';
 import type { CooldownAdmin } from './cooldown.js';
 import type { Caller } from './errors.js';
 import type { Mailer } from './mail.js';
@@ -53,8 +55,8 @@ export async function handleSetRoles(
   return { roles: plan.roles };
 }
 
-/** The caller of a learner callable: a verified NonStop account signed in with Google. */
-function requireLearner(request: AuthedRequest): string {
+/** The caller of a Studio or learner callable: a verified NonStop account signed in with Google. */
+function requireVerified(request: AuthedRequest): Caller {
   if (!request.auth) throw new ApiException('AUTH_1001');
   const { uid, token } = request.auth;
   if (
@@ -64,8 +66,10 @@ function requireLearner(request: AuthedRequest): string {
   ) {
     throw new ApiException('AUTH_1002');
   }
-  return uid;
+  return { uid, email: token.email, claims: token };
 }
+
+const requireLearner = (request: AuthedRequest): string => requireVerified(request).uid;
 
 /** `checkAnswer`: right or wrong for one question of a Pariksha that reveals after each answer. */
 export async function handleCheckAnswer(
@@ -132,4 +136,36 @@ export async function handleRemindLearners(
 ): Promise<{ sent: number; skipped: number }> {
   const caller = requireCaller(request);
   return remindLearners(deps, caller, asObject(request.data), now());
+}
+
+/** `createCourse`: an Acharya or Kulapati starts a course, blank or copied from another draft. */
+export async function handleCreateCourse(
+  request: AuthedRequest,
+  store: CourseStore,
+): Promise<{ courseId: string }> {
+  return createCourse(store, requireVerified(request), asObject(request.data));
+}
+
+/** `publishCourse`: validates the draft and makes it the live version. */
+export async function handlePublishCourse(
+  request: AuthedRequest,
+  store: CourseStore,
+): Promise<{ version: number }> {
+  return publishCourse(store, requireVerified(request), asObject(request.data));
+}
+
+/** `rollbackCourse`: republishes an old version as a new one. */
+export async function handleRollbackCourse(
+  request: AuthedRequest,
+  store: CourseStore,
+): Promise<{ version: number }> {
+  return rollbackCourse(store, requireVerified(request), asObject(request.data));
+}
+
+/** `archiveCourse`: Kulapati-only; retires or restores a course. */
+export async function handleArchiveCourse(
+  request: AuthedRequest,
+  store: CourseStore,
+): Promise<{ status: 'published' | 'archived' }> {
+  return archiveCourse(store, requireVerified(request), asObject(request.data));
 }

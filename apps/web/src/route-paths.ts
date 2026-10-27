@@ -21,6 +21,12 @@ export const ROUTE_PATHS = [
   '/kulapati/roles',
   '/kulapati/courses/:courseId',
   '/studio',
+  '/studio/courses/:courseId',
+  '/studio/courses/:courseId/lessons/:lessonId',
+  '/studio/courses/:courseId/pariksha/:parikshaId',
+  '/studio/courses/:courseId/preview/:itemId',
+  '/studio/bank',
+  '/studio/media',
 ] as const;
 
 export type RoutePath = (typeof ROUTE_PATHS)[number];

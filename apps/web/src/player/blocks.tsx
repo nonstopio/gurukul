@@ -2,7 +2,7 @@ import { Callout, CodeBlock, QuizOption, VideoBlock, Button } from '@gurukul/ui'
 import type { Block } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
-import { isEmbedAllowed, videoEmbedUrl } from '../learn/model';
+import { isEmbedAllowed, videoEmbedUrl } from '@gurukul/schema';
 
 /** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
 export function Prose({ md }: { md: string }) {

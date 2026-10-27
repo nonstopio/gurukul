@@ -92,6 +92,7 @@ Load all three from one Google Fonts `css2` link with `display=swap`.
 | Seal, Certificate, StatCard                                     | shipped |
 | DataTable, Pagination, EmailChipInput, StepCard (Stepper.Step)  | shipped |
 | Dialog (modal and drawer), BarChart, FunnelBar                  | shipped |
+| DragList, BlockFrame, LayoutPicker, ColourSwatch, TypeTile      | shipped |
 
 Recipes, states and accessibility notes: `references/components.md`.
 

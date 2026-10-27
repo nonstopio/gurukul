@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   firebaseRoleAdmin,
+  firestoreBackupPort,
   firestoreAssignStore,
   firestoreAttemptStatsStore,
   firestoreCooldownAdmin,
+  firestoreCourseStore,
   firestoreMailer,
   firestoreReminderStore,
   firestoreRollupStore,
@@ -422,5 +424,140 @@ describe('firestoreRollupStore', () => {
     await store.writeOrgCounts(counts);
     expect(doc).toHaveBeenCalledWith('stats/org');
     expect(set).toHaveBeenCalledWith(counts, { merge: true });
+  });
+});
+
+describe('firestoreCourseStore', () => {
+  /** A db whose documents are plain objects with the few methods the adapter uses. */
+  function dbWith(docs: Record<string, object | undefined>) {
+    const tx = {
+      get: vi.fn(async (ref: { path: string }) => ({
+        exists: docs[ref.path] !== undefined,
+        data: () => docs[ref.path],
+      })),
+      set: vi.fn(),
+    };
+    const refOf = (path: string): object => ({
+      path,
+      get: async () => ({ exists: docs[path] !== undefined, data: () => docs[path] }),
+      update: updates,
+      collection: (name: string) => ({ doc: (id: string) => refOf(`${path}/${name}/${id}`) }),
+    });
+    const updates = vi.fn().mockResolvedValue(undefined);
+    const add = vi.fn().mockResolvedValue(undefined);
+    const db = {
+      doc: refOf,
+      collection: vi.fn().mockReturnValue({ add }),
+      runTransaction: (fn: (t: typeof tx) => unknown) => fn(tx),
+    } as never;
+    return { db, tx, updates, add };
+  }
+  const live = { version: 2, status: 'published', acharyaIds: ['asha'] };
+  const draft = { rev: 4, course: { id: 'c' }, answers: { pk: { q: ['a'] } } };
+  const plan = {
+    version: 3,
+    course: { id: 'c', title: 'T' },
+    answers: { pk: { q: ['a'] } },
+  } as never;
+
+  it('reads the live course and the draft, with undefined for missing ones', async () => {
+    const { db } = dbWith({ 'courses/c': live, 'courses/c/drafts/current': draft });
+    const store = firestoreCourseStore(db);
+    expect(await store.getLive('c')).toEqual(live);
+    expect(await store.getLive('x')).toBeUndefined();
+    expect(await store.getDraft('c')).toEqual(draft);
+    expect(await store.getDraft('x')).toBeUndefined();
+  });
+
+  it('creates the course, its first draft and the grant, unless the id is taken', async () => {
+    const input = {
+      courseId: 'c',
+      uid: 'asha',
+      course: { id: 'c' },
+      draft: { course: { id: 'c', title: 'T' }, answers: {} },
+    } as never;
+    const fresh = dbWith({});
+    expect(await firestoreCourseStore(fresh.db).create(input)).toBe(true);
+    expect(fresh.tx.set).toHaveBeenCalledWith(expect.objectContaining({ path: 'courses/c' }), {
+      id: 'c',
+    });
+    expect(fresh.tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'courses/c/drafts/current' }),
+      { rev: 1, updatedAt: 'NOW', updatedBy: 'asha', course: { id: 'c', title: 'T' }, answers: {} },
+    );
+    expect(fresh.tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'users/asha' }),
+      { grantedCourseIds: 'union:c' },
+      { merge: true },
+    );
+    const taken = dbWith({ 'courses/c': live });
+    expect(await firestoreCourseStore(taken.db).create(input)).toBe(false);
+    expect(taken.tx.set).not.toHaveBeenCalled();
+  });
+
+  it('publishes: writes the live course, the answers and the version snapshot', async () => {
+    const { db, tx } = dbWith({ 'courses/c': live, 'courses/c/drafts/current': draft });
+    const decide = vi.fn().mockReturnValue(plan);
+    expect(await firestoreCourseStore(db).release('c', 'asha', null, decide)).toBe(3);
+    expect(decide).toHaveBeenCalledWith({ live, draft, snapshot: undefined });
+    const published = { id: 'c', title: 'T', publishedAt: 'NOW' };
+    expect(tx.set).toHaveBeenCalledWith(expect.objectContaining({ path: 'courses/c' }), published);
+    expect(tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'courses/c/private/answers' }),
+      { pk: { q: ['a'] } },
+    );
+    expect(tx.set).toHaveBeenCalledWith(expect.objectContaining({ path: 'courses/c/versions/3' }), {
+      version: 3,
+      publishedAt: 'NOW',
+      publishedBy: 'asha',
+      course: published,
+      answers: { pk: { q: ['a'] } },
+    });
+    expect(tx.set).toHaveBeenCalledTimes(3);
+  });
+
+  it('rolls back: loads the snapshot and resets the draft', async () => {
+    const snapshot = { version: 1, course: { id: 'c' }, answers: {} };
+    const { db, tx } = dbWith({ 'courses/c': live, 'courses/c/versions/1': snapshot });
+    const reset = { rev: 5, course: { id: 'c' }, answers: {} };
+    const decide = vi.fn().mockReturnValue({ ...(plan as object), resetDraft: reset });
+    await firestoreCourseStore(db).release('c', 'asha', 1, decide);
+    expect(decide).toHaveBeenCalledWith({ live, draft: undefined, snapshot });
+    expect(tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'courses/c/drafts/current' }),
+      { ...reset, updatedAt: 'NOW', updatedBy: 'asha' },
+    );
+  });
+
+  it('passes an undefined live course to decide when there is none', async () => {
+    const { db } = dbWith({});
+    const decide = vi.fn().mockReturnValue(plan);
+    await firestoreCourseStore(db).release('c', 'asha', null, decide);
+    expect(decide).toHaveBeenCalledWith({ live: undefined, draft: undefined, snapshot: undefined });
+  });
+
+  it('sets the status and audits with a server timestamp', async () => {
+    const { db, updates, add } = dbWith({});
+    const store = firestoreCourseStore(db);
+    await store.setStatus('c', 'archived');
+    expect(updates).toHaveBeenCalledWith({ status: 'archived' });
+    await store.audit({ action: 'course.archive', by: 'k', detail: {} });
+    expect(add).toHaveBeenCalledWith(expect.objectContaining({ at: 'NOW' }));
+  });
+});
+
+describe('firestoreBackupPort', () => {
+  it('exports every collection of the default database to the prefix', async () => {
+    const admin = {
+      getProjectId: vi.fn().mockResolvedValue('demo-gurukul'),
+      databasePath: vi.fn((p: string, d: string) => `projects/${p}/databases/${d}`),
+      exportDocuments: vi.fn().mockResolvedValue([{}]),
+    };
+    await firestoreBackupPort(admin as never).exportTo('gs://b/backups/2026-11-01');
+    expect(admin.exportDocuments).toHaveBeenCalledWith({
+      name: 'projects/demo-gurukul/databases/(default)',
+      outputUriPrefix: 'gs://b/backups/2026-11-01',
+      collectionIds: [],
+    });
   });
 });

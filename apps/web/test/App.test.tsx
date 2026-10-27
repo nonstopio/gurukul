@@ -8,6 +8,7 @@ import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
 import { fakeConsole } from './fake-console';
+import { fakeStudio } from './fake-studio';
 import { fakePariksha } from './fake-pariksha';
 
 async function open(path: string, claims: { acharya?: boolean; kulapati?: boolean } = {}) {
@@ -19,6 +20,7 @@ async function open(path: string, claims: { acharya?: boolean; kulapati?: boolea
       data={fakeData().data}
       pariksha={fakePariksha()}
       console={fakeConsole()}
+      studio={fakeStudio()}
       router={router}
     />,
   );
@@ -40,6 +42,7 @@ describe('App gate', () => {
         data={fakeData().data}
         pariksha={fakePariksha()}
         console={fakeConsole()}
+        studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
       />,
     );
@@ -58,6 +61,7 @@ describe('App gate', () => {
         data={fakeData().data}
         pariksha={fakePariksha()}
         console={fakeConsole()}
+        studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
       />,
     );
@@ -88,6 +92,7 @@ describe('signed-in shell', () => {
         data={fakeData().data}
         pariksha={fakePariksha()}
         console={fakeConsole()}
+        studio={fakeStudio()}
         router={router}
       />,
     );
@@ -103,14 +108,14 @@ describe('signed-in shell', () => {
   it('shows a Kulapati the console and the studio in the sidebar', async () => {
     await open('/kulapati', { kulapati: true });
     await waitFor(() => screen.getByRole('link', { name: 'Overview' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Studio' })).toBeTruthy();
     expect(document.title).toBe('Overview · Gurukul');
   });
 
   it('lets an Acharya into the studio but not the console link', async () => {
     await open('/studio', { acharya: true });
-    await waitFor(() => screen.getByRole('heading', { level: 1, name: 'Vyasa Studio' }));
+    await waitFor(() => screen.getByRole('heading', { level: 1, name: 'Courses' }));
     expect(screen.queryByRole('link', { name: 'Overview' })).toBeNull();
   });
 
@@ -121,7 +126,7 @@ describe('signed-in shell', () => {
 
   it('shows the changelog and a not-found page', async () => {
     const { unmount } = await open('/changelog');
-    expect(screen.getByRole('heading', { level: 1, name: 'Changelog' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Changelog' })).toBeTruthy();
     expect(document.title).toBe('Changelog · Gurukul');
     unmount();
     await open('/nowhere');
@@ -184,6 +189,7 @@ describe('accessibility', () => {
         data={fakeData().data}
         pariksha={fakePariksha()}
         console={fakeConsole()}
+        studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
       />,
     );

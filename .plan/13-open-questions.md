@@ -15,5 +15,5 @@ Each has a recommendation. Answer inline or in the review.
 | 9 | Self-enrolment in unassigned courses? | Yes, all published courses are open to every NonStopian | M2 |
 | 10 | Licence holder line: "NonStop io Technologies" correct legal name? | Confirm exact legal entity for `LICENSE` | before going public |
 | 11 | Staging project for previews instead of sharing production data? | Not for v1; add if previews cause trouble | — |
-| 12 | Firestore backups need a Storage bucket (small cost). Do we want them? | Yes, weekly export with 4-week retention, well under $0.10/month | M6 |
+| 12 | Firestore backups need a Storage bucket (small cost). Do we want them? | **Resolved as recommended:** yes, weekly export with 4-week retention, well under $0.10/month. Built as `weeklyBackup`; see `docs/operations.md` | M6 |
 | 13 | Release versioning: semantic-release tags and CHANGELOG like eklavya? | Yes from M2, CHANGELOG only (no npm publish) | M2 |

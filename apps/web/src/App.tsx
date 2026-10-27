@@ -8,6 +8,8 @@ import type { ConsoleData, ConsoleService } from './console/types';
 import { DataProvider } from './data/DataProvider';
 import type { LearnerData } from './data/types';
 import { ParikshaProvider } from './pariksha/ParikshaProvider';
+import { StudioProvider } from './studio/StudioProvider';
+import type { StudioData, StudioService } from './studio/types';
 import type { ParikshaService } from './pariksha/service';
 
 export interface AppProps {
@@ -19,6 +21,8 @@ export interface AppProps {
   pariksha: ParikshaService;
   /** The Kulapati console's reads and callable functions; tests pass fakes. */
   console: { data: ConsoleData; service: ConsoleService };
+  /** The Vyasa Studio's reads, drafts and callable functions; tests pass fakes. */
+  studio: { data: StudioData; service: StudioService };
   /** The data router: `createBrowserRouter(appRoutes())` in production, a memory router in tests. */
   router: DataRouter;
 }
@@ -27,15 +31,17 @@ export interface AppProps {
  * Providers around the router. Sign-in is enforced inside the route tree (`RequireSession`), so a
  * few pages — certificate verification — can stay public.
  */
-export function App({ service, data, pariksha, console: consoleApi, router }: AppProps) {
+export function App({ service, data, pariksha, console: consoleApi, studio, router }: AppProps) {
   return (
     <AuthProvider service={service}>
       <DataProvider data={data}>
         <ParikshaProvider service={pariksha}>
           <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
-            <ToastProvider>
-              <RouterProvider router={router} />
-            </ToastProvider>
+            <StudioProvider data={studio.data} service={studio.service}>
+              <ToastProvider>
+                <RouterProvider router={router} />
+              </ToastProvider>
+            </StudioProvider>
           </ConsoleProvider>
         </ParikshaProvider>
       </DataProvider>

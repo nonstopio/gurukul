@@ -333,3 +333,35 @@ chrome (sidebar, top bar) as well, since `visibility` keeps its space and could 
 
 `<StatCard label value sub? />`. A one-entry `<dl>`: `dt` label (12px caps, `--text-muted`), `dd` value
 (Fraunces 500 36px, `--text`), optional `dd` sub line. Hairline card like Card. Put several in a grid.
+
+## DragList, BlockFrame, LayoutPicker, ColourSwatch, TypeTile — shipped
+
+`<DragList items itemKey renderItem onMove label itemLabel>`. An `<ol>` of `<li>`; `renderItem(item, { index, handle, dragging })`
+gets a real grip `<button>` (`handle`) that the caller places. The grip is named "Move {itemLabel}" and is
+`aria-pressed` while lifted. Keyboard: Space or Enter lifts, ArrowUp/ArrowDown move (clamped), Space or Enter
+drops, Escape cancels, `Alt+Arrow` on the grip moves one place without lifting, losing focus drops.
+**`onMove(from, to)` semantics:** from the keyboard it fires live on every arrow press (so the caller reorders
+`items` at once; Escape fires it once more to restore the start position); from a pointer it fires once, on
+drop. Pointer: press the grip and travel 4px to start a drag; a 2px `--accent` line shows the drop slot (none
+when it would not change anything); `pointercancel` or Escape abandons it. Pointer capture is used when the
+browser has it. Moves are announced in a visually hidden `role="status"` region ("Picked up…", "Moved Merging
+to position 3 of 5", "Dropped…", "Cancelled"). Give every item a stable `itemKey` so the grip keeps focus when
+its row moves. Transitions use `--dur-*`, which are 0 under `prefers-reduced-motion`. `moveItem(list, from, to)`
+(exported, pure) returns a reordered copy, `to` clamped.
+
+`<BlockFrame label handle? controls? onDuplicate? onDelete? selected? error?>`. A `role="group"` named
+"{label} block". `--surface`, 1px `--border`, `--radius-lg`. Header: handle, `label` as a 12px caps micro label,
+`controls`, then 44px icon buttons "Duplicate {label} block" and "Delete {label} block", each only when its
+handler is given. `selected`: `--accent-decor` border, 2px. `error`: `--danger` border and, under the header, a
+`role="alert"` line with an icon on `--danger-soft`.
+
+`<LayoutPicker value="stacked|split|article" onChange label>`. A `role="group"` of three tile `<button aria-pressed>`
+with a mini SVG diagram and the name (Stacked, Split, Article). Pressed: `--accent-soft` ground, `--accent`
+border 2px.
+
+`<ColourSwatch value="forest|sand|sky|stone" onChange label>`. A `role="radiogroup"` of four real radios inside
+labels, each a 44px swatch (`--cover-forest|sand|sky|stone`) with its name beneath. Checked: `--accent` ring plus
+a check icon, never colour alone. Focus draws the ring on the swatch. The cover roles live in `tokens.css` and `tokens.ts`.
+
+`<TypeTile kind="reading|video|code|pariksha">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
+hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Pariksha `--warning-soft`.

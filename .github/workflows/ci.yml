@@ -109,11 +109,67 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # The JavaScript a first visit downloads stays under 320 KB gzip (.plan/10-testing-and-ci.md).
+      - run: npm run check:bundle
+
+  # Accessibility, performance and best practice of the sign-in page, on the built app.
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @gurukul/web
+      - name: Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.json
+
+  # The three journeys (learner, Kulapati, Acharya) in a real browser, against the built app and the
+  # Auth, Firestore and Functions emulators (e2e/). Needs Java for the Firestore emulator and
+  # Chromium for Playwright. The Playwright config builds the functions and the app and starts the
+  # emulators itself.
+  e2e:
+    name: End to end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
 
   ci:
     name: ci
     if: always()
-    needs: [quality, test, rules, build]
+    needs: [quality, test, rules, build, lighthouse, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

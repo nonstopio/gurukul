@@ -78,6 +78,10 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `assignCourses` | Kulapati | `{ summary: AssignSummary, assigned: number, notified: number }` |
 | `resetCooldown` | Kulapati | `{ ok: true }` |
 | `remindLearners` | Kulapati | `{ sent: number, skipped: number }` |
+| `createCourse` | Acharya, Kulapati | `{ courseId: string }` (`CRS_1002` when the slug is taken) |
+| `publishCourse` | Course Acharya, Kulapati | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems) |
+| `rollbackCourse` | Course Acharya, Kulapati | `{ version: number }`, the new version (`CRS_2002` for an unknown snapshot) |
+| `archiveCourse` | Kulapati | `{ status: 'published' \| 'archived' }` |
 
 A cooldown refusal (`PRK_4001`) carries `details: { nextAttemptAt: <epoch ms> }` and the ISO time as
 its developer-message parameter.

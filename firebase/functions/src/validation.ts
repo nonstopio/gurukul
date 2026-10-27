@@ -15,3 +15,11 @@ export const badField = (field: string, value: unknown, reason: string): ApiExce
 /** `VAL_1004`: a list has too few or too many items. */
 export const badCount = (field: string, range: string): ApiException =>
   new ApiException('VAL_1004', [field, range], { field });
+
+const isId = (v: unknown): v is string => typeof v === 'string' && v !== '' && !v.includes('/');
+
+/** A document id: a non-empty string without "/". Anything else is `VAL_1001` or `VAL_1002`. */
+export function idField(field: string, value: unknown): string {
+  if (!isId(value)) throw badField(field, value, 'must be a non-empty id without "/"');
+  return value;
+}

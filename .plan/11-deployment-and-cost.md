@@ -30,6 +30,13 @@ Note: Functions deploys also use Cloud Build and Artifact Registry; their free
 tiers cover this volume, but stale container images should be cleaned up
 (`firebase functions:artifacts:setpolicy` after first deploy).
 
+**Backups.** `weeklyBackup` exports Firestore every Sunday 02:00 UTC to the Cloud Storage bucket
+named in `BACKUP_BUCKET`, under `backups/YYYY-MM-DD`; a bucket lifecycle rule deletes objects after
+28 days, so at most four exports exist. At under 50 MB of data that is a few hundred MB of storage at
+most, well under $0.10/month (the Firestore export itself reads each document once per week). IAM:
+the functions' service account needs `roles/datastore.importExportAdmin` and write access to the
+bucket (`roles/storage.objectAdmin`). Setup and restore: `docs/operations.md`.
+
 **Guards:** a $1 monthly budget with alerts at 50%, 90% and 100% to the
 maintainers; `maxInstances` on every function; no unbounded listeners (see
 `.claude/rules/firebase-cost.md`).

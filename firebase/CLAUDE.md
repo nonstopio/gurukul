@@ -45,6 +45,14 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200, at most one reminder per assignment per 24h via `lastRemindedAt`), and
   `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds`, existing courses only).
+- Vyasa Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`
+  (Acharya or Kulapati; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
+  source draft with its answers; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
+  Acharya or Kulapati; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
+  `acharyaIds` always win; publish is gated by `validateForPublish` and fails `CRS_1003` with `details.issues`;
+  rollback republishes a snapshot as a new version and resets the draft), `archiveCourse` (Kulapati-only).
+  Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
+  is read-only, `questionBank/**` is for acharya/kulapati claims; clients never create or delete drafts.
 - Email is an outbox only: the `Mailer` port's adapter writes `mail/{autoId}` (`state: 'pending'`, clients
   cannot read it) and calls nothing external. The real sender (Gmail API, `.plan/13-open-questions.md` #4)
   needs credentials and is a later integration: it will consume `mail` and flip `state`.
@@ -53,7 +61,11 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   first-try question counts from the attempt's stored `results`. Schedules (daily, UTC, asia-south1):
   `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries;
   `dailyReminders` 04:00 sends weekly/before-due reminders when `config/org.reminders.enabled`.
-  Never schedule more often than daily.
+  Never schedule more often than daily. `weeklyBackup` (Sunday 02:00 UTC, `backup.ts`) starts a Firestore
+  export to `gs://$BACKUP_BUCKET/backups/YYYY-MM-DD` through the `BackupPort` (`firestoreBackupPort`, the
+  Firestore Admin client) and warns, without throwing, when `BACKUP_BUCKET` is unset. It never deletes:
+  four-week retention is a lifecycle rule on the bucket (`docs/operations.md`). It needs
+  `roles/datastore.importExportAdmin` and write access to the bucket.
 
 ```bash
 npm run test:rules                      # from the repo root, needs Java 21

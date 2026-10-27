@@ -25,6 +25,11 @@
   --g-red-200: #f9c7c2;
   --g-blue-200: #bcd0f3;
 
+  /* ---- Scale: cover grounds (course cover themes; forest is an ink step) ---- */
+  --g-sand-300: #e3d5b4;
+  --g-sky-300: #bcd6e8;
+  --g-stone-300: #cfcfc6;
+
   /* ---- Scale: ink (the dark chrome) ---- */
   --g-ink-950: #061316;
   --g-ink-900: #0b211b;
@@ -86,6 +91,9 @@
   --chrome-accent: var(--g-green-400);
   --chrome-accent-on: var(--g-ink-950);
   --cover-forest: var(--g-ink-850);
+  --cover-sand: var(--g-sand-300);
+  --cover-sky: var(--g-sky-300);
+  --cover-stone: var(--g-stone-300);
 
   /* ---- Roles: state (only for real state, always paired with words) ---- */
   --success: var(--g-green-700);

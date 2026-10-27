@@ -17,10 +17,17 @@ const handleProgressWrite = vi.fn().mockResolvedValue('updated');
 const handleAssignCourses = vi.fn();
 const handleResetCooldown = vi.fn();
 const handleRemindLearners = vi.fn();
+const handleCreateCourse = vi.fn();
+const handlePublishCourse = vi.fn();
+const handleRollbackCourse = vi.fn();
+const handleArchiveCourse = vi.fn();
 const handleAttemptCreated = vi.fn().mockResolvedValue('counted');
 const runDailyRollup = vi.fn().mockResolvedValue({});
 const runDailyReminders = vi.fn().mockResolvedValue({});
+const runWeeklyBackup = vi.fn().mockResolvedValue('exported');
+const FirestoreAdminClient = vi.fn();
 
+vi.mock('@google-cloud/firestore', () => ({ default: { v1: { FirestoreAdminClient } } }));
 vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn() }));
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: vi.fn(), FieldValue: {} }));
@@ -63,6 +70,7 @@ vi.mock('../src/profile.js', () => ({ handleUserCreated }));
 vi.mock('../src/progress.js', () => ({ handleProgressWrite }));
 vi.mock('../src/analytics.js', () => ({ handleAttemptCreated, runDailyRollup }));
 vi.mock('../src/remind.js', () => ({ runDailyReminders }));
+vi.mock('../src/backup.js', () => ({ runWeeklyBackup }));
 vi.mock('../src/handlers.js', async (orig) => ({
   ...(await orig<typeof Handlers>()),
   handleSetRoles,
@@ -72,6 +80,10 @@ vi.mock('../src/handlers.js', async (orig) => ({
   handleAssignCourses,
   handleResetCooldown,
   handleRemindLearners,
+  handleCreateCourse,
+  handlePublishCourse,
+  handleRollbackCourse,
+  handleArchiveCourse,
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -133,6 +145,21 @@ describe('index', () => {
     );
   });
 
+  it('schedules the backup for Sunday 02:00 UTC and hands it the bucket from the environment', async () => {
+    vi.stubEnv('BACKUP_BUCKET', 'my-bucket');
+    await import('../src/index.js');
+    const backup = captured.schedules['every sunday 02:00'];
+    expect(backup?.options).toMatchObject({ timeZone: 'Etc/UTC', region: 'asia-south1' });
+    await backup?.fn();
+    expect(runWeeklyBackup).toHaveBeenCalledWith(
+      { exportTo: expect.any(Function) },
+      'my-bucket',
+      expect.any(Date),
+    );
+    expect(FirestoreAdminClient).toHaveBeenCalledTimes(1);
+    vi.unstubAllEnvs();
+  });
+
   it('logs one summary per trigger run: info when something changed, debug when not', async () => {
     vi.stubEnv('LOG_LEVEL', 'debug');
     await import('../src/index.js');
@@ -169,6 +196,17 @@ describe('index', () => {
       'Daily roll-up finished',
       expect.objectContaining({ usersTotal: 9 }),
     );
+    runWeeklyBackup.mockResolvedValueOnce('skipped');
+    await captured.schedules['every sunday 02:00']?.fn();
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Weekly backup finished',
+      expect.objectContaining({ status: 'skipped' }),
+    );
+    await captured.schedules['every sunday 02:00']?.fn();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Weekly backup finished',
+      expect.objectContaining({ status: 'exported' }),
+    );
     vi.unstubAllEnvs();
   });
 
@@ -198,6 +236,10 @@ describe('index', () => {
       'assignCourses',
       'resetCooldown',
       'remindLearners',
+      'createCourse',
+      'publishCourse',
+      'rollbackCourse',
+      'archiveCourse',
     ] as const;
     expect(created).toHaveLength(callables.length);
     for (const name of callables) expect(created).toContain(mod[name]);
@@ -213,6 +255,10 @@ describe('index', () => {
       [mod.assignCourses, handleAssignCourses, []],
       [mod.resetCooldown, handleResetCooldown, []],
       [mod.remindLearners, handleRemindLearners, [Date.now]],
+      [mod.createCourse, handleCreateCourse, []],
+      [mod.publishCourse, handlePublishCourse, []],
+      [mod.rollbackCourse, handleRollbackCourse, []],
+      [mod.archiveCourse, handleArchiveCourse, []],
     ] as const;
     for (const [fn, handler, extra] of wired) {
       const call = fn as unknown as (r: unknown) => Promise<unknown>;

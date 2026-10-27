@@ -6,10 +6,8 @@ import {
   countItems,
   dueLabel,
   firstName,
-  isEmbedAllowed,
   orderAssigned,
   percentFor,
-  videoEmbedUrl,
 } from '../src/learn/model';
 
 const course = (id: string, title = id): Course =>
@@ -125,52 +123,5 @@ describe('dueLabel and firstName', () => {
     expect(firstName('')).toBe('');
     expect(firstName(null)).toBe('');
     expect(firstName(undefined)).toBe('');
-  });
-});
-
-describe('embeds', () => {
-  it('allows only listed https hosts', () => {
-    expect(isEmbedAllowed('https://www.loom.com/embed/abc')).toBe(true);
-    expect(isEmbedAllowed('https://stackblitz.com/edit/x')).toBe(true);
-    expect(isEmbedAllowed('http://www.loom.com/embed/abc')).toBe(false);
-    expect(isEmbedAllowed('https://evil.example/x')).toBe(false);
-    expect(isEmbedAllowed('not a url')).toBe(false);
-  });
-
-  it.each([
-    [
-      'youtube',
-      'https://www.youtube.com/watch?v=abc123',
-      'https://www.youtube-nocookie.com/embed/abc123',
-    ],
-    ['youtube', 'https://youtu.be/abc123', 'https://www.youtube-nocookie.com/embed/abc123'],
-    [
-      'youtube',
-      'https://www.youtube.com/embed/abc123',
-      'https://www.youtube-nocookie.com/embed/abc123',
-    ],
-    ['loom', 'https://www.loom.com/share/abc123', 'https://www.loom.com/embed/abc123'],
-    ['loom', 'https://www.loom.com/embed/abc123', 'https://www.loom.com/embed/abc123'],
-    [
-      'drive',
-      'https://drive.google.com/file/d/abc123/view',
-      'https://drive.google.com/file/d/abc123/preview',
-    ],
-  ] as const)('turns a %s link into an embed URL', (provider, url, out) => {
-    expect(videoEmbedUrl(provider, url)).toBe(out);
-  });
-
-  it.each([
-    ['youtube', 'nonsense'],
-    ['youtube', 'http://www.youtube.com/watch?v=abc123'],
-    ['youtube', 'https://www.youtube.com/watch'],
-    ['youtube', 'https://www.youtube.com/watch?v=a'],
-    ['youtube', 'https://evil.example/watch?v=abc123'],
-    ['loom', 'https://www.loom.com/other/abc'],
-    ['loom', 'https://evil.example/share/abc'],
-    ['drive', 'https://drive.google.com/open?id=abc'],
-    ['drive', 'https://evil.example/file/d/abc/view'],
-  ] as const)('refuses %s link %s', (provider, url) => {
-    expect(videoEmbedUrl(provider, url)).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ import type { ParikshaService } from '../src/pariksha/service';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeConsole } from './fake-console';
 import { fakeData } from './fake-data';
+import { fakeStudio } from './fake-studio';
 import { fakePariksha } from './fake-pariksha';
 
 /** Renders the whole app at `path`, signed in as a Shishya (or signed out). */
@@ -15,6 +16,7 @@ export async function openApp(
     data?: ReturnType<typeof fakeData>;
     pariksha?: ParikshaService;
     console?: ReturnType<typeof fakeConsole>;
+    studio?: ReturnType<typeof fakeStudio>;
     signedIn?: boolean;
     roles?: Array<'acharya' | 'kulapati'>;
   } = {},
@@ -31,6 +33,7 @@ export async function openApp(
       data={data.data}
       pariksha={pariksha}
       console={consoleApi}
+      studio={opts.studio ?? fakeStudio()}
       router={router}
     />,
   );
@@ -43,5 +46,5 @@ export async function openApp(
       f.emitProfile({ roles: ['shishya', ...(opts.roles ?? [])], displayName: 'P', team: null }),
     );
   }
-  return { ...view, router, data, pariksha, console: consoleApi };
+  return { ...view, router, data, pariksha, console: consoleApi, studio: opts.studio };
 }

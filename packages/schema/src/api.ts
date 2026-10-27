@@ -160,6 +160,22 @@ export const ERROR_CODES = {
     userMessage: 'That course is not available yet.',
     developerMessage: "Course '%s' is not published.",
   },
+  CRS_1002: {
+    title: 'Course id already taken',
+    category: 'COURSE',
+    retryable: false,
+    status: 409,
+    userMessage: 'A course with that address already exists. Choose another.',
+    developerMessage: "A course with id '%s' already exists.",
+  },
+  CRS_1003: {
+    title: 'Course has problems to fix',
+    category: 'COURSE',
+    retryable: false,
+    status: 400,
+    userMessage: 'This course has problems to fix before it can be published.',
+    developerMessage: "Course '%s' failed the publish checks; see details.issues.",
+  },
   CRS_2001: {
     title: 'Course not found',
     category: 'COURSE',
@@ -167,6 +183,14 @@ export const ERROR_CODES = {
     status: 404,
     userMessage: 'That course could not be found.',
     developerMessage: "No course '%s' exists.",
+  },
+  CRS_2002: {
+    title: 'Version not found',
+    category: 'COURSE',
+    retryable: false,
+    status: 404,
+    userMessage: 'That version of the course could not be found.',
+    developerMessage: "Course '%s' has no version %s.",
   },
   CRS_3001: {
     title: 'Course data is invalid',

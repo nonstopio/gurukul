@@ -1,8 +1,9 @@
 import { NavItem, Sidebar, SidebarGroup, Button } from '@gurukul/ui';
-import { useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
+import { PageLoading } from './learn/ui';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import type { AreaNavigation, Destination } from './navigation';
@@ -70,7 +71,9 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           <div className="app__bar">
             <SearchTrigger />
           </div>
-          <Outlet />
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </GlobalSearchProvider>

@@ -1,5 +1,6 @@
 // Cloud Functions entry point. Each export is a thin wrapper: the decisions live in pure modules
 // (profile.ts, roles.ts, set-roles.ts) with unit tests; stores.ts adapts them to the Admin SDK.
+import firestore from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -9,13 +10,18 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as v1 from 'firebase-functions/v1';
 import { apiCallable } from './api/callable.js';
 import { handleAttemptCreated, runDailyRollup } from './analytics.js';
+import { runWeeklyBackup } from './backup.js';
 import {
+  handleArchiveCourse,
   handleAssignCourses,
   handleCheckAnswer,
+  handleCreateCourse,
   handleGradeAttempt,
+  handlePublishCourse,
   handleRemindLearners,
   handleResetCooldown,
   handleRevokeCertificate,
+  handleRollbackCourse,
   handleSetRoles,
 } from './handlers.js';
 import { runLogged } from './logging/trigger.js';
@@ -24,10 +30,12 @@ import { handleProgressWrite } from './progress.js';
 import { handleUserCreated } from './profile.js';
 import {
   firebaseRoleAdmin,
+  firestoreBackupPort,
   firestoreAssignStore,
   firestoreAttemptStatsStore,
   firestoreCertificateAdmin,
   firestoreCooldownAdmin,
+  firestoreCourseStore,
   firestoreGradingStore,
   firestoreMailer,
   firestoreProgressStore,
@@ -113,6 +121,27 @@ export const dailyReminders = onSchedule(
   },
 );
 
+/** 02:00 UTC every Sunday: starts a Firestore export to `BACKUP_BUCKET`; retention is the bucket's. */
+export const weeklyBackup = onSchedule(
+  { schedule: 'every sunday 02:00', timeZone: 'Etc/UTC', region: 'asia-south1' },
+  async () => {
+    await runLogged(
+      { done: 'Weekly backup finished', failed: 'Weekly backup failed' },
+      {},
+      () =>
+        runWeeklyBackup(
+          firestoreBackupPort(new firestore.v1.FirestoreAdminClient()),
+          process.env.BACKUP_BUCKET,
+          new Date(),
+        ),
+      (outcome) => ({
+        level: outcome === 'exported' ? 'info' : 'debug',
+        fields: { status: outcome },
+      }),
+    );
+  },
+);
+
 /** Kulapati-only: grant or revoke `acharya` / `kulapati` for one person. */
 export const setRoles = apiCallable((request) =>
   handleSetRoles(request, firebaseRoleAdmin(getAuth(), getFirestore())),
@@ -156,6 +185,26 @@ export const remindLearners = apiCallable((request) => {
     Date.now,
   );
 });
+
+/** Vyasa Studio: an Acharya or Kulapati starts a course, blank or copied from another draft. */
+export const createCourse = apiCallable((request) =>
+  handleCreateCourse(request, firestoreCourseStore(getFirestore())),
+);
+
+/** Vyasa Studio: validates the draft and makes it the live version. */
+export const publishCourse = apiCallable((request) =>
+  handlePublishCourse(request, firestoreCourseStore(getFirestore())),
+);
+
+/** Vyasa Studio: republishes an old version as a new one and resets the draft to it. */
+export const rollbackCourse = apiCallable((request) =>
+  handleRollbackCourse(request, firestoreCourseStore(getFirestore())),
+);
+
+/** Kulapati-only: retire a course or restore it to published. */
+export const archiveCourse = apiCallable((request) =>
+  handleArchiveCourse(request, firestoreCourseStore(getFirestore())),
+);
 
 export { isAllowedEmail, rolesFromClaims } from './roles.js';
 export type { Role, RoleClaims } from './roles.js';

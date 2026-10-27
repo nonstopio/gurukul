@@ -86,3 +86,18 @@ export function itemAt(course: Course, index: number) {
   if (!item) throw new Error(`no item at ${index}`);
   return item;
 }
+
+/** The nth parva; throws rather than returning undefined. */
+export function parvaAt(course: Course, index: number) {
+  const parva = course.parvas[index];
+  if (!parva) throw new Error(`no parva at ${index}`);
+  return parva;
+}
+
+/** The nth question of a Pariksha item; throws rather than returning undefined. */
+export function firstQuestion(course: Course, itemIndex: number) {
+  const item = itemAt(course, itemIndex);
+  const q = item.type === 'pariksha' ? item.questions[0] : undefined;
+  if (!q) throw new Error('no question');
+  return q;
+}

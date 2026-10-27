@@ -5,9 +5,11 @@ import { progressId as progressDocId } from '@gurukul/schema';
 import { addParvaCompletions } from './analytics.js';
 import type { AttemptStatsStore, RollupStore } from './analytics.js';
 import type { AssignStore } from './assign.js';
+import type { BackupPort } from './backup.js';
 import { planCertificate } from './certificates.js';
 import type { CertificateAdmin } from './certificates.js';
 import type { CooldownAdmin } from './cooldown.js';
+import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
 import type { Mailer } from './mail.js';
@@ -439,6 +441,107 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
       count(db.collection('assignments').where('status', '==', 'completed')),
     async writeOrgCounts(counts) {
       await db.doc('stats/org').set(counts, { merge: true });
+    },
+  };
+}
+
+/** The part of the Firestore Admin client the backup uses (a `v1.FirestoreAdminClient`). */
+export interface FirestoreAdmin {
+  getProjectId(): Promise<string>;
+  databasePath(project: string, database: string): string;
+  exportDocuments(request: {
+    name: string;
+    outputUriPrefix: string;
+    collectionIds: string[];
+  }): Promise<unknown>;
+}
+
+/**
+ * `BackupPort` over the Firestore Admin API: asks for an export of every collection in the project's
+ * default database. It returns once the long-running export is accepted, not when it finishes.
+ */
+export function firestoreBackupPort(admin: FirestoreAdmin): BackupPort {
+  return {
+    async exportTo(uriPrefix) {
+      const projectId = await admin.getProjectId();
+      await admin.exportDocuments({
+        name: admin.databasePath(projectId, '(default)'),
+        outputUriPrefix: uriPrefix,
+        collectionIds: [],
+      });
+    },
+  };
+}
+
+/** `CourseStore` over the Admin SDK. Kept thin: the decisions live in `courses.ts`. */
+export function firestoreCourseStore(db: Firestore): CourseStore {
+  return {
+    async getLive(courseId) {
+      const snap = await db.doc(`courses/${courseId}`).get();
+      return snap.exists ? (snap.data() as LiveCourse) : undefined;
+    },
+    async getDraft(courseId) {
+      return (await db.doc(`courses/${courseId}/drafts/current`).get()).data() as
+        DraftData | undefined;
+    },
+    async create({ courseId, uid, course, draft }) {
+      return db.runTransaction(async (tx) => {
+        const ref = db.doc(`courses/${courseId}`);
+        if ((await tx.get(ref)).exists) return false;
+        tx.set(ref, course);
+        tx.set(ref.collection('drafts').doc('current'), {
+          rev: 1,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+          ...draft,
+        });
+        tx.set(
+          db.doc(`users/${uid}`),
+          { grantedCourseIds: FieldValue.arrayUnion(courseId) },
+          { merge: true },
+        );
+        return true;
+      });
+    },
+    async release(courseId, uid, loadVersion, decide) {
+      return db.runTransaction(async (tx) => {
+        const ref = db.doc(`courses/${courseId}`);
+        const draftRef = ref.collection('drafts').doc('current');
+        const [live, draft, snapshot] = await Promise.all([
+          tx.get(ref),
+          tx.get(draftRef),
+          loadVersion === null
+            ? undefined
+            : tx.get(ref.collection('versions').doc(`${loadVersion}`)),
+        ]);
+        const plan = decide({
+          live: live.exists ? (live.data() as LiveCourse) : undefined,
+          draft: draft.data() as DraftData | undefined,
+          snapshot: snapshot?.data() as VersionData | undefined,
+        });
+        const now = FieldValue.serverTimestamp();
+        const { version, course, answers } = plan;
+        const published = { ...course, publishedAt: now };
+        tx.set(ref, published);
+        tx.set(ref.collection('private').doc('answers'), answers);
+        tx.set(ref.collection('versions').doc(`${version}`), {
+          version,
+          publishedAt: now,
+          publishedBy: uid,
+          course: published,
+          answers,
+        });
+        if (plan.resetDraft) {
+          tx.set(draftRef, { ...plan.resetDraft, updatedAt: now, updatedBy: uid });
+        }
+        return version;
+      });
+    },
+    async setStatus(courseId, status) {
+      await db.doc(`courses/${courseId}`).update({ status });
+    },
+    async audit(entry) {
+      await writeAudit(db, entry);
     },
   };
 }

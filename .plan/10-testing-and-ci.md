@@ -16,8 +16,8 @@ unreachable race. See `.claude/rules/coverage.md`.
 | Routes and data hooks | Vitest with the Firestore emulator or typed fakes | `apps/web/test` | `test` job |
 | Cloud Functions | Vitest; pure modules directly, triggers via `firebase-functions-test` against emulators | `firebase/functions/test` | `test` + `rules` jobs |
 | Security rules | `@firebase/rules-unit-testing` | `firebase/rules/test` | `rules` job |
-| End to end (M6) | Playwright against emulators + built app | `e2e/` | `e2e` job |
-| Accessibility | axe-core per component and page; Playwright axe per route (M6) | as above | as above |
+| End to end (built) | Playwright against emulators + built app | `e2e/` | `e2e` job |
+| Accessibility | axe-core per component and page; Playwright axe on Home, the course page, the Kulapati overview and the Studio course list (built) | as above | as above |
 
 Rules coverage: every `allow` has an allowed and a denied test. From M2, a
 script reads the emulator's rules coverage report and fails if any rule
@@ -32,7 +32,9 @@ expression was never evaluated.
 | `quality` | `npm ci`, lint (TS strict, react-hooks, jsx-a11y), Prettier check, typecheck, navigation validator, hook and script tests (`npm run test:tooling`) |
 | `test` | `npm run coverage` in every workspace at 100%; uploads coverage |
 | `rules` | Java 21 + Firestore emulator, rules tests |
-| `build` | App and functions build |
+| `build` | App and functions build, then the bundle-size budget |
+| `lighthouse` | Lighthouse CI on the built sign-in page |
+| `e2e` | Java 21 + Playwright (Chromium) against the built app and the Auth, Firestore and Functions emulators: the learner, Kulapati and Acharya journeys plus an axe scan of four pages (`e2e/`, run with `npm run e2e`; see `docs/operations.md`) |
 | `ci` | Passes only if all the above passed; branch protection requires it |
 
 Other workflows:
@@ -45,8 +47,7 @@ Other workflows:
 | `codeql.yml` | CodeQL on PRs, `main` and weekly |
 | Dependabot | npm and actions, weekly, grouped, `chore(deps)` / `ci(deps)` titles |
 
-Added later: `e2e` job (M6), bundle-size budget check (M3: initial JS < 250 KB
-gzip), Lighthouse CI on the preview URL (M6).
+Added later: bundle-size budget check (M3: initial JS < 320 KB gzip, enforced by `npm run check:bundle`: the Firebase SDK is about half of it; pages load on demand, and deferring Firestore until after sign-in is the next saving). Still to come: Lighthouse CI on the preview URL (M6) rather than the built page.
 
 ## Branch protection (to set on GitHub)
 

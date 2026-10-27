@@ -10,6 +10,8 @@ import { firebaseConsoleService } from './console/service';
 import { firebaseLearnerData } from './data/firebase';
 import { initFirebase } from './firebase';
 import { firebaseParikshaService } from './pariksha/service';
+import { firebaseStudioData } from './studio/firebase';
+import { firebaseStudioService } from './studio/service';
 import type { FirebaseEnv } from './firebase';
 import { appRoutes } from './routes';
 
@@ -27,6 +29,10 @@ export function mount(element: HTMLElement | null, env = import.meta.env as Fire
         service={service}
         data={data}
         pariksha={firebaseParikshaService(firebase.functions)}
+        studio={{
+          data: firebaseStudioData(firebase.db),
+          service: firebaseStudioService(firebase.functions),
+        }}
         console={{
           data: firebaseConsoleData(firebase.db),
           service: firebaseConsoleService(firebase.functions),

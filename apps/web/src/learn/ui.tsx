@@ -30,3 +30,12 @@ export function Loaded<T>({
   }
   return <>{children(loadable.value)}</>;
 }
+
+/** What a lazily loaded page shows while its code downloads. */
+export function PageLoading() {
+  return (
+    <main className="notfound" aria-busy="true">
+      <p>Loading…</p>
+    </main>
+  );
+}
