@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { ApiException, assignmentId, classifyEmails, summarize } from '@gurukul/schema';
 import type { AssignSummary, ClassifiedEmail, Reminder } from '@gurukul/schema';
 import { requireKulapati } from './errors.js';
@@ -43,7 +43,13 @@ export interface AssignResult {
 export const MAX_COURSES = 20;
 export const MAX_EMAILS = 1000;
 
-export const sha256Hex = (text: string): string => createHash('sha256').update(text).digest('hex');
+/**
+ * A stable, non-reversible key for an email, used only inside an assignment document id. It is an
+ * identifier, not a credential, so a keyed hash (the fixed key is domain separation, not a secret)
+ * is the right tool and a slow password hash would only cost time.
+ */
+export const emailKey = (email: string): string =>
+  createHmac('sha256', 'gurukul-assignment-id').update(email).digest('hex');
 
 interface AssignRequest {
   courseIds: string[];
@@ -122,7 +128,7 @@ export async function assignCourses(
   const perCourse: Record<string, number> = {};
   const newByEmail = new Map<string, { id: string; title: string }[]>();
   for (const courseId of req.courseIds) {
-    const ids = new Map(valid.map((email) => [assignmentId(courseId, sha256Hex(email)), email]));
+    const ids = new Map(valid.map((email) => [assignmentId(courseId, emailKey(email)), email]));
     const existing = await store.existingAssignmentIds([...ids.keys()]);
     const assigned = new Set([...ids].filter(([id]) => existing.has(id)).map(([, email]) => email));
     const classified: ClassifiedEmail[] = classifyEmails(valid, { signedIn, assigned });
@@ -134,7 +140,7 @@ export async function assignCourses(
     perCourse[courseId] = fresh.length;
     for (const { email } of fresh) {
       docs.push({
-        id: assignmentId(courseId, sha256Hex(email)),
+        id: assignmentId(courseId, emailKey(email)),
         email,
         uid: users.get(email) ?? null,
         courseId,

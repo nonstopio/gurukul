@@ -41,7 +41,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   and writes an `audit` entry. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 
 - Kulapati console callables (all Kulapati-only, each writes an `audit` entry): `assignCourses`
-  (1-20 published courses x 1-1000 emails; ids `{courseId}__{sha256(email)}`, created never overwritten, bumps
+  (1-20 published courses x 1-1000 emails; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps
   `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200, at most one reminder per assignment per 24h via `lastRemindedAt`), and
   `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds`, existing courses only).
