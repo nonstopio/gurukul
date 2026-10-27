@@ -24,7 +24,7 @@
     "test:rules": "npm run test:rules -w firebase/rules",
     "e2e": "npm run test -w @gurukul/e2e",
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run validate:navigation && npm run test:tooling && npm run coverage && npm run build",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run validate:navigation && npm run test:tooling && npm run coverage && npm run build && npm run check:bundle",
     "emulators": "npm run build -w @gurukul/functions && firebase emulators:start --project demo-gurukul",
     "prepare": "husky",
     "changelog:new": "sh scripts/changelog-new.sh",
