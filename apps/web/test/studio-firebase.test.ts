@@ -18,6 +18,10 @@ vi.mock('firebase/firestore', () => ({
     store.writes.push(['delete', ref.path]);
   },
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  getCountFromServer: async (q: { parts: unknown[] }) => {
+    store.queries.push(q.parts);
+    return { data: () => ({ count: 7 }) };
+  },
   getDoc: async (ref: { path: string }) => ({
     exists: () => store.docs.has(ref.path),
     data: () => store.docs.get(ref.path),
@@ -215,5 +219,13 @@ describe('question bank', () => {
     ]);
     await data.removeFromBank('b1');
     expect(store.writes[1]).toEqual(['delete', 'questionBank/b1']);
+  });
+
+  it('counts the learners who completed a lesson with one count query', async () => {
+    expect(await data.completedCount('git', 'l1')).toBe(7);
+    expect(store.queries.at(-1)).toContainEqual({ where: ['courseId', '==', 'git'] });
+    expect(store.queries.at(-1)).toContainEqual({
+      where: ['completedItemIds', 'array-contains', 'l1'],
+    });
   });
 });

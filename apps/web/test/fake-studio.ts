@@ -39,6 +39,7 @@ export function fakeStudio(
     questionBank: vi.fn().mockResolvedValue(init.bank ?? []),
     addToBank: vi.fn().mockResolvedValue('bank-1'),
     removeFromBank: vi.fn().mockResolvedValue(undefined),
+    completedCount: vi.fn().mockResolvedValue(0),
   };
   const service: StudioService = {
     createCourse: vi.fn().mockResolvedValue({ courseId: 'new-course' }),

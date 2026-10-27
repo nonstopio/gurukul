@@ -1,5 +1,5 @@
 import { Button, Callout, Card, Chip, Dialog, DragList, TypeTile } from '@gurukul/ui';
-import { diffCourses } from '@gurukul/schema';
+import { diffCourses, itemsOf } from '@gurukul/schema';
 import type { Course, CourseDiff, Item } from '@gurukul/schema';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -14,11 +14,20 @@ import {
   moveParva,
   renameParva,
 } from './courseEdit';
+import { log } from '../log';
 import { newId } from './ids';
 import { itemEditorPath, itemKind, itemMeta, nameOf } from './studioModel';
+import { useStudio } from './StudioProvider';
 import type { Working } from './types';
 
-type Confirm = { kind: 'parva' | 'item'; id: string; title: string; count: number } | null;
+type Confirm = {
+  kind: 'parva' | 'item';
+  id: string;
+  title: string;
+  count: number;
+  /** Learners who completed this lesson; null until the count arrives, or when it does not apply. */
+  learners: number | null;
+} | null;
 
 /** The course outline: parvas you can reorder, and the lessons and Parikshas inside them. */
 export function StructureTab({
@@ -33,8 +42,19 @@ export function StructureTab({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const { data } = useStudio();
   const diff = useMemo(() => diffCourses(live, course), [live, course]);
   const version = live?.version ?? 0;
+
+  /** A lesson that learners can already have completed: ask how many, once, when the dialog opens. */
+  const askDelete = (item: Item) => {
+    setConfirm({ kind: 'item', id: item.id, title: item.title, count: 0, learners: null });
+    if (item.type !== 'lesson' || !live || !itemsOf(live).some((i) => i.id === item.id)) return;
+    data
+      .completedCount(course.id, item.id)
+      .then((learners) => setConfirm((c) => (c?.id === item.id ? { ...c, learners } : c)))
+      .catch(() => log.warn('Counting lesson completions failed', { courseId: course.id }));
+  };
 
   const remove = ({ kind, id }: NonNullable<Confirm>) => {
     update((w) => (kind === 'parva' ? deleteParva(w, id) : deleteItem(w, id)));
@@ -114,6 +134,7 @@ export function StructureTab({
                         id: parva.id,
                         title: parva.title,
                         count: parva.items.length,
+                        learners: null,
                       })
                     }
                   >
@@ -142,9 +163,7 @@ export function StructureTab({
                             onMoveTo={(target) =>
                               update((w) => moveItemToParva(w, item.id, target))
                             }
-                            onDelete={() =>
-                              setConfirm({ kind: 'item', id: item.id, title: item.title, count: 0 })
-                            }
+                            onDelete={() => askDelete(item)}
                           />
                         )}
                       />
@@ -189,7 +208,10 @@ export function StructureTab({
             {confirm.kind === 'parva' && confirm.count > 0
               ? ` and its ${confirm.count} ${confirm.count === 1 ? 'item' : 'items'} will be removed from the draft.`
               : ' will be removed from the draft.'}{' '}
-            Learners who completed it keep their progress record.
+            {confirm.learners !== null && confirm.learners > 0
+              ? `${confirm.learners} ${confirm.learners === 1 ? 'learner has' : 'learners have'} completed it; they `
+              : 'Learners who completed it '}
+            keep their progress record.
           </p>
         </Dialog>
       ) : null}

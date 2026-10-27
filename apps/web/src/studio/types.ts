@@ -52,6 +52,8 @@ export interface StudioData {
   questionBank(): Promise<BankQuestion[]>;
   addToBank(entry: Omit<BankQuestion, 'id' | 'createdBy'>, uid: string): Promise<string>;
   removeFromBank(id: string): Promise<void>;
+  /** How many learners have completed this lesson (one count query; Kulapati and the course's Acharyas may run it). */
+  completedCount(courseId: string, lessonId: string): Promise<number>;
 }
 
 export interface CreateCourseRequest {
