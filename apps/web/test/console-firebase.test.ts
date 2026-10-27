@@ -198,4 +198,23 @@ describe('progress, certificates and known emails', () => {
       assigned: new Set(),
     });
   });
+
+  it('reads the newest audit entries and resolves each doer to an email once', async () => {
+    store.docs.set('users/boss', { email: 'boss@nonstopio.com' });
+    store.queue = [
+      [
+        d('a1', { action: 'assign', by: 'boss', target: 'git', at: ts(9) }),
+        d('a2', { action: 'roles.set', by: 'boss' }),
+        d('a3', { action: 'course.publish', by: 'gone', at: ts(1) }),
+      ],
+    ];
+    const rows = await data.auditLog();
+    expect(store.queries[0]).toContainEqual({ orderBy: ['at', 'desc'] });
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
+    expect(rows.map((r) => [r.by, r.target, r.at?.getTime() ?? null])).toEqual([
+      ['boss@nonstopio.com', 'git', 9],
+      ['boss@nonstopio.com', null, null],
+      ['gone', null, 1],
+    ]);
+  });
 });

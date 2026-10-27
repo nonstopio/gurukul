@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { toCertificate, toProgress } from '../data/firebase';
-import type { AssignmentFull, ConsoleData, UserRow } from './types';
+import type { AssignmentFull, AuditRow, ConsoleData, UserRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
@@ -21,6 +21,7 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 /** Firestore allows at most 30 values in an `in` filter. */
 const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
+const AUDIT_LIMIT = 100;
 
 const chunks = <T>(list: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
@@ -156,6 +157,30 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async teams() {
       const snap = await getDoc(doc(db, 'config', 'org'));
       return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async auditLog() {
+      const snap = await getDocs(
+        query(collection(db, 'audit'), orderBy('at', 'desc'), limit(AUDIT_LIMIT)),
+      );
+      const uids = [...new Set(snap.docs.map((d) => d.data().by as string))];
+      const emails = new Map(
+        await Promise.all(
+          uids.map(async (uid) => {
+            const user = await getDoc(doc(db, 'users', uid));
+            return [uid, user.exists() ? (user.data().email as string) : uid] as const;
+          }),
+        ),
+      );
+      return snap.docs.map((d): AuditRow => {
+        const a = d.data();
+        return {
+          id: d.id,
+          action: a.action as string,
+          by: emails.get(a.by as string) as string,
+          target: (a.target as string | undefined) ?? null,
+          at: date(a.at as Ts),
+        };
+      });
     },
   };
 }

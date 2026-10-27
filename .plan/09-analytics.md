@@ -29,8 +29,8 @@ A dashboard view is then ~3–10 document reads.
 
 ## Exports
 
-"Export CSV" builds the file client-side from a paginated query of
-assignments joined with progress (Kulapati only). It is the one heavy read and
+"Export CSV" (on the overview) builds the file client-side from the newest 500 assignments the
+page already loaded (Kulapati only), so it adds no reads. It is the one heavy read and
 is user-initiated.
 
 ## Privacy

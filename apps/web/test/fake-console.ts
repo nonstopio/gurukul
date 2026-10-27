@@ -1,7 +1,13 @@
 import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import type { CourseStats, OrgStats } from '@gurukul/schema';
-import type { ConsoleData, ConsoleService, AssignmentFull, UserRow } from '../src/console/types';
+import type {
+  ConsoleData,
+  ConsoleService,
+  AssignmentFull,
+  AuditRow,
+  UserRow,
+} from '../src/console/types';
 
 export const userRow = (n: number, over: Partial<UserRow> = {}): UserRow => ({
   uid: `u${n}`,
@@ -24,6 +30,7 @@ export function fakeConsole(
     count?: number;
     team?: UserRow[];
     found?: UserRow[];
+    audit?: AuditRow[];
   } = {},
 ) {
   const users = init.users ?? [];
@@ -40,6 +47,7 @@ export function fakeConsole(
     usersWithRole: vi.fn(async (role: string) => users.filter((u) => u.roles.includes(role))),
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
+    auditLog: vi.fn().mockResolvedValue(init.audit ?? []),
   };
   const service: ConsoleService = {
     assignCourses: vi.fn().mockResolvedValue({

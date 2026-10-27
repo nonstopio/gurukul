@@ -1,12 +1,22 @@
 import { itemsOf } from '@gurukul/schema';
-import { BarChart, EmptyState, StatCard, buttonClass } from '@gurukul/ui';
+import { BarChart, Button, EmptyState, StatCard, buttonClass } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { isOverdue, pct, weeklySeries } from './model';
+import { assignmentsCsv, isOverdue, pct, weeklySeries } from './model';
+
+/** Hands the browser a file to save; nothing leaves the page. */
+function downloadCsv(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 /** Sanjaya: the numbers a Kulapati checks first. Every figure comes from a counter document. */
 export function OverviewPage() {
@@ -40,6 +50,9 @@ export function OverviewPage() {
         <Link className={buttonClass('secondary')} to="/kulapati/roles">
           Roles & access
         </Link>
+        <Link className={buttonClass('secondary')} to="/kulapati/audit">
+          Audit log
+        </Link>
       </div>
       <Loaded loadable={result}>
         {({ org, assignments, rows }) => {
@@ -48,6 +61,7 @@ export function OverviewPage() {
             .size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
+          const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
           const done = pct(org.assignmentsCompleted, org.assignmentsTotal);
           return (
             <>
@@ -92,6 +106,15 @@ export function OverviewPage() {
 
               <section aria-labelledby="funnel-title" className="home-section">
                 <h2 id="funnel-title">Courses</h2>
+                <Button
+                  variant="secondary"
+                  disabled={assignments.length === 0}
+                  onClick={() =>
+                    downloadCsv('assignments.csv', assignmentsCsv(assignments, titles))
+                  }
+                >
+                  Export CSV
+                </Button>
                 {rows.length === 0 ? (
                   <EmptyState title="No courses yet">
                     Published courses appear here with their funnel.

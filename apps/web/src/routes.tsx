@@ -28,6 +28,7 @@ const CompletePage = lazyPage(() => import('./certificates/pages'), 'CompletePag
 const VerifyPage = lazyPage(() => import('./certificates/pages'), 'VerifyPage');
 const ChangelogPage = lazyPage(() => import('./changelog/ChangelogPage'), 'ChangelogPage');
 const AssignPage = lazyPage(() => import('./console/AssignPage'), 'AssignPage');
+const AuditPage = lazyPage(() => import('./console/AuditPage'), 'AuditPage');
 const CourseAnalyticsPage = lazyPage(
   () => import('./console/CourseAnalyticsPage'),
   'CourseAnalyticsPage',
@@ -85,6 +86,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/kulapati/roles': (
     <RequireRole any={['kulapati']}>
       <RolesPage />
+    </RequireRole>
+  ),
+  '/kulapati/audit': (
+    <RequireRole any={['kulapati']}>
+      <AuditPage />
     </RequireRole>
   ),
   '/kulapati/courses/:courseId': (
