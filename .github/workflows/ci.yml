@@ -109,7 +109,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      # The JavaScript a first visit downloads stays under 320 KB gzip (.plan/10-testing-and-ci.md).
+      # The JavaScript a first visit downloads stays under 340 KB gzip (.plan/10-testing-and-ci.md).
       - run: npm run check:bundle
 
   # Accessibility, performance and best practice of the sign-in page, on the built app.
