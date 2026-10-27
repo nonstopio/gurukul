@@ -8,12 +8,15 @@ Browser (React SPA on Firebase Hosting)
   ├─ Firestore (direct reads/writes, guarded by firestore.rules)
   └─ Callable Cloud Functions (grading, publishing, assignment, roles)
                      │
-Cloud Functions (2nd gen, asia-south1, Node 22)
-  ├─ (optional) Auth blocking trigger: beforeUserCreated → domain check
-  ├─ Auth trigger: onUserCreated (v1 API)       → profile + claim invites
-  ├─ Callables: gradeAttempt, publishCourse, assignCourses, setRoles, sendReminder
-  ├─ Firestore triggers: progress → stats counters, certificate issue
-  └─ Scheduled (daily): due-date reminders, stats roll-up
+Cloud Functions (2nd gen, asia-south1, Node 22; firebase/functions/src/index.ts)
+  ├─ Auth trigger: onUserCreated (v1 API)      → profile + claim invites
+  ├─ Callables: setRoles, checkAnswer, gradeAttempt, revokeCertificate,
+  │             assignCourses, resetCooldown, remindLearners,
+  │             createCourse, publishCourse, rollbackCourse, archiveCourse
+  ├─ Firestore triggers: onProgressWritten (percent, completion, certificate,
+  │             stats, assignment status), onAttemptCreated (Sanjaya counters)
+  └─ Scheduled: dailyRollup (03:00 UTC), dailyReminders (04:00 UTC),
+                weeklyBackup (Sunday 02:00 UTC)
 ```
 
 The browser reads course documents and its own progress directly — fast and
@@ -33,22 +36,33 @@ assignments, publishing) goes through a function using the Admin SDK.
 npm workspaces, one lockfile. `@gurukul/schema` is the contract shared by the
 app and the functions, so a shape is defined exactly once.
 
-## App structure (apps/web, from M1)
+## App structure (apps/web)
+
+Folders are by area, not by layer. Routes live in `routes.tsx` (paths in `route-paths.ts`).
 
 ```
 src/
-  main.tsx, App.tsx          boot + router
+  main.tsx, App.tsx          boot + data router (createBrowserRouter)
   firebase.ts                init from VITE_FIREBASE_*; emulator switch
-  auth/                      AuthProvider, useSession (user + roles from claims), RequireRole
-  data/                      typed Firestore access, one module per collection
-  routes/
-    learn/                   Home, Catalog, CourseOverview, LessonPlayer, Pariksha, Result, Complete
-    certificates/            CertificateView, VerifyPage (public)
-    kulapati/                Overview, Learners, Assign, Roles, CourseAnalytics
-    studio/                  Courses, CourseEditor, LessonEditor, ParikshaBuilder
-  player/                    block renderers (one per block type) + layout shells
-  editor/                    block editors (one per block type)
+  routes.tsx, route-paths.ts the route table and its paths
+  Shell.tsx                  app shell; HomePage, CoursesPage, CoursePage, LessonPage at the top level
+  api/                       the only way the browser calls a function (ApiResponse envelope)
+  auth/                      AuthProvider, SignInPage, RequireSession, RequireRole, NotAllowedPage
+  data/                      DataProvider: typed Firestore access for the learner pages
+  learn/                     learner models and shared learner UI
+  player/                    block renderers (one per block type)
+  pariksha/                  ParikshaPage, ResultPage and their provider
+  certificates/              certificate view and the public verify page
+  console/                   Kulapati console: Overview, Learners, Assign, Roles, Audit, CourseAnalytics
+  studio/                    Vyasa Studio: course list, course and lesson editors, Pariksha builder,
+                             question bank, media, preview, versions; block and question editors
+  changelog/, navigation/    /changelog and global search (15-changelog-and-search.md)
+  log.ts                     the one log helper (17-logging.md)
 ```
+
+Each area's pages get their data from a React provider (`DataProvider`, `ConsoleProvider`,
+`StudioProvider`, `ParikshaProvider`) over a plain service interface, so tests pass a fake service
+instead of Firebase.
 
 Routing: React Router (data router). Role-gated route groups render a "not
 allowed" page rather than redirecting silently. The public `/verify/:id` page

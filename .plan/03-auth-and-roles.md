@@ -65,5 +65,6 @@ Every line gets an allow and a deny test (`10-testing-and-ci.md`).
 
 ## Open questions
 
-- Use Identity Platform blocking functions, or rules-only domain lock? (Recommend rules-only for v1.)
+- ~~Use Identity Platform blocking functions, or rules-only domain lock?~~ Resolved: rules-only, as
+  built (`13-open-questions.md` question 3).
 - Should Acharyas see learner names in their course analytics, or only aggregates?

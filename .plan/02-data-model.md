@@ -9,8 +9,8 @@ contract; the schema package is the executable one. They change together.
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
 | `users/{uid}` | Profile and role mirror | self, Kulapati | self: `displayName`, `team` only |
-| `courses/{courseId}` | **The published course object** | any signed-in user (published only) | never (published by function) |
-| `courses/{courseId}/drafts/current` | The draft being edited | Acharyas granted the course, Kulapati | same |
+| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); its Acharyas and Kulapatis in any status | never (published by function) |
+| `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Acharyas granted the course, Kulapati | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Acharyas, Kulapati | never |
 | `courses/{courseId}/private/answers` | Pariksha answer keys | never | never |
 | `assignments/{assignmentId}` | Who must take what, by when | the assignee (by uid), Kulapati | never (function) |
@@ -21,6 +21,8 @@ contract; the schema package is the executable one. They change together.
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Kulapati | never (function) |
 | `questionBank/{id}` (M5) | Reusable Pariksha questions, answers included | Acharyas, Kulapati | Acharyas, Kulapati |
 | `config/org` | Allowed domain, teams list, reminder settings | signed-in | Kulapati |
+| `counters/certificates` | The certificate id sequence | never | never (function) |
+| `mail/{autoId}` | Outgoing email queue, in the shape the "Trigger Email from Firestore" extension reads; nothing sends until a sender is installed (`firebase/functions/src/mail.ts`) | never | never (function) |
 
 ## The course object
 

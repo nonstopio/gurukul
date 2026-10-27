@@ -75,6 +75,6 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 - Docs: user guide for Kulapatis and Acharyas.
 - Launch: assign Git to everyone.
 
-**Status:** e2e, axe, Lighthouse CI, weekly backup function and docs are built. Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.
+**Status:** e2e, axe, Lighthouse CI on the built sign-in page, weekly backup function and docs are built. Still to build: Lighthouse on the preview URL and the rules coverage gate (tracker `OPS-06`, `OPS-05`). Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.
 
 **Total:** about 10 weeks of focused work.

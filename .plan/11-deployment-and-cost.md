@@ -28,7 +28,8 @@ roles depend on. Blaze keeps the same free quotas and bills only above them.
 
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
 tiers cover this volume, but stale container images should be cleaned up
-(`firebase functions:artifacts:setpolicy` after first deploy).
+(`firebase functions:artifacts:setpolicy` after first deploy). Not automated: it is step 9 of
+the first-time setup checklist below, and is not yet done.
 
 **Backups.** `weeklyBackup` exports Firestore every Sunday 02:00 UTC to the Cloud Storage bucket
 named in `BACKUP_BUCKET`, under `backups/YYYY-MM-DD`; a bucket lifecycle rule deletes objects after
@@ -73,3 +74,6 @@ and `apps/web/.env.local`.
    its key as the repository secret `FIREBASE_SERVICE_ACCOUNT_PREVIEW`.
 7. Protect `main`: require the `ci` and `pr-title` checks (see `10-testing-and-ci.md`).
 8. Run the Kulapati bootstrap script for the first admin.
+9. After the first functions deploy, set the cleanup policy for stale function images:
+   `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
+   (a one-off console command, not a deploy).
