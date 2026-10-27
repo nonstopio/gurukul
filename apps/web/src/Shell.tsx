@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { PageLoading } from './learn/ui';
+import { OfflineBanner } from './OfflineBanner';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import type { AreaNavigation, Destination } from './navigation';
@@ -71,6 +72,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           <div className="app__bar">
             <SearchTrigger />
           </div>
+          <OfflineBanner />
           <Suspense fallback={<PageLoading />}>
             <Outlet />
           </Suspense>

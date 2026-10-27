@@ -89,7 +89,6 @@ function Player({
   const item = items[index];
   const state = progress ?? EMPTY;
   const states = itemStates(course, state);
-  const [saving, setSaving] = useState(false);
   const [watched, setWatched] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const atEnd = useReachedEnd(endRef, itemId);
@@ -165,20 +164,21 @@ function Player({
   const done = s === 'done';
   const gate =
     lesson.completeWhen === 'video90' ? watched : lesson.completeWhen === 'scrolled' ? atEnd : true;
-  const complete = async () => {
-    setSaving(true);
-    try {
-      if (!done) await data.completeItem(uid, course.id, lesson.id);
-      const finished = items.every((i) => i.id === lesson.id || states[i.id] === 'done');
-      goTo(
-        next ? itemPath(course.id, next) : finished ? `/courses/${course.id}/complete` : undefined,
-      );
-    } catch (e) {
-      log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
-      toast.show('Could not save your progress. Try again.', { tone: 'danger' });
-    } finally {
-      setSaving(false);
+  // The write lands in the local cache at once and syncs when it can, so moving on never waits
+  // for the server: offline, it would wait until the connection came back.
+  const complete = () => {
+    if (!done) {
+      data.completeItem(uid, course.id, lesson.id).catch((e: unknown) => {
+        log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
+        toast.show(`Could not save your progress on "${lesson.title}". Open it and try again.`, {
+          tone: 'danger',
+        });
+      });
     }
+    const finished = items.every((i) => i.id === lesson.id || states[i.id] === 'done');
+    goTo(
+      next ? itemPath(course.id, next) : finished ? `/courses/${course.id}/complete` : undefined,
+    );
   };
 
   return (
@@ -230,7 +230,7 @@ function Player({
                 Previous
               </Link>
             ) : null}
-            <Button disabled={saving || (!done && !gate)} onClick={() => void complete()}>
+            <Button disabled={!done && !gate} onClick={complete}>
               {done
                 ? next
                   ? 'Next'

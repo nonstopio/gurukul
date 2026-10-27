@@ -18,7 +18,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations                   | 7    | 0    | 0       | 0          |
 | Sign-in, roles and shell      | 7    | 4    | 0       | 0          |
-| Learner experience            | 6    | 10   | 0       | 0          |
+| Learner experience            | 7    | 9    | 0       | 0          |
 | Parikshas and certificates    | 5    | 4    | 1       | 0          |
 | Kulapati console and Sanjaya  | 9    | 14   | 2       | 0          |
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
@@ -27,79 +27,78 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations   | 5    | 9    | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 50   | 60   | 6       | 7          |
+| **Total**                     | 51   | 59   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `LRN-07` — offline reading and queued completions
-2. `LRN-09` — `video90` and `requireVideoWatch` are real
-3. `KUL-15` — reminders: one per person per day, mandatory only
-4. `OPS-09` — progress rule checks what learners append
-5. `OPS-05` — rules coverage gate
-6. `OPS-12` — CI aggregator treats a skipped job as a failure
-7. `OPS-13` — dependency and docs hygiene
-8. `OPS-08` — envelope tests for every callable
-9. `OPS-10` — close the ESLint loopholes around callables
-10. `GIT-03` — placeholder videos stop embedding a dead player
-11. `GIT-06` — seed matches the course outline
-12. `PRK-06` — Pariksha answers survive a reload
-13. `PRK-07` — Result page survives a reload
-14. `SHL-01` — skip link, focus on route change, retry on load errors
-15. `SHL-02` — focused shell for lesson, Pariksha and result
-16. `KUL-10` — Learners table: pending invites and filters that combine
-17. `KUL-11` — people search by name
-18. `KUL-12` — learner drawer completeness
-19. `KUL-16` — org settings: teams and reminders
-20. `KUL-17` — learners pick their team
-21. `STU-07` — Acharyas see every course
-22. `STU-06` — Acharya names on courses
-23. `LRN-14` — Retired and "New lessons added" states
-24. `PRK-09` — revocation date on certificates
-25. `KUL-18` — org Pariksha KPIs and a true overdue count
-26. `KUL-21` — daily roll-up repairs course counters
-27. `SRC-02` — learner navigation area
-28. `SRC-03` — courses and lessons in search
-29. `SRC-04` — people in search for Kulapatis
-30. `SRC-05` — draft courses in search for Acharyas
-31. `STU-11` — preview uses the real learner screens
-32. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-33. `STU-08` — "Draft vN · saved just now"
-34. `STU-10` — learner counts in the publish dialog and on course cards
-35. `STU-12` — publishing an archived course
-36. `STU-13` — structure editor polish
-37. `LRN-12` — course overview to the handoff
-38. `LRN-13` — Home to the handoff
-39. `LRN-11` — outline rail grouped by parva
-40. `LRN-10` — split layout
-41. `LRN-15` — block renderer polish
-42. `LRN-16` — check blocks reveal the right option
-43. `LRN-17` — keyboard shortcuts dialog
-44. `PRK-08` — completion screen to the handoff
-45. `AUTH-08` — sign-in screen to the handoff
-46. `SHL-03` — handoff breakpoints and the menu button
-47. `KUL-13` — bulk role change and select all
-48. `KUL-14` — Assign screen finish
-49. `KUL-19` — Needs attention, pending-invite strip, overview filters
-50. `KUL-20` — course analytics finish
-51. `KUL-22` — Roles screen polish
-52. `KUL-23` — audit log view finish
-53. `DS-05` — axe on the remaining page tests
-54. `DS-04` — shared icon set
-55. `DS-03` — `/__ui` component gallery
-56. `STU-15` — lesson editor extras
-57. `STU-16` — CodeMirror for markdown and code
-58. `OPS-11` — deeper e2e journeys
-59. `OPS-06` — Lighthouse on the preview URL
-60. `OPS-14` — trigger tests against the emulators
-61. `KUL-24` — email delivery (blocked: question 4)
-62. `KUL-25` — Acharyas see their learners (blocked: question 7)
-63. `PRK-10` — tell a learner their certificate was revoked (blocked)
-64. `OPS-18` — custom domain (blocked: question 6)
-65. `OPS-19` — licence holder (blocked: question 10)
-66. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `LRN-09` — `video90` and `requireVideoWatch` are real
+2. `KUL-15` — reminders: one per person per day, mandatory only
+3. `OPS-09` — progress rule checks what learners append
+4. `OPS-05` — rules coverage gate
+5. `OPS-12` — CI aggregator treats a skipped job as a failure
+6. `OPS-13` — dependency and docs hygiene
+7. `OPS-08` — envelope tests for every callable
+8. `OPS-10` — close the ESLint loopholes around callables
+9. `GIT-03` — placeholder videos stop embedding a dead player
+10. `GIT-06` — seed matches the course outline
+11. `PRK-06` — Pariksha answers survive a reload
+12. `PRK-07` — Result page survives a reload
+13. `SHL-01` — skip link, focus on route change, retry on load errors
+14. `SHL-02` — focused shell for lesson, Pariksha and result
+15. `KUL-10` — Learners table: pending invites and filters that combine
+16. `KUL-11` — people search by name
+17. `KUL-12` — learner drawer completeness
+18. `KUL-16` — org settings: teams and reminders
+19. `KUL-17` — learners pick their team
+20. `STU-07` — Acharyas see every course
+21. `STU-06` — Acharya names on courses
+22. `LRN-14` — Retired and "New lessons added" states
+23. `PRK-09` — revocation date on certificates
+24. `KUL-18` — org Pariksha KPIs and a true overdue count
+25. `KUL-21` — daily roll-up repairs course counters
+26. `SRC-02` — learner navigation area
+27. `SRC-03` — courses and lessons in search
+28. `SRC-04` — people in search for Kulapatis
+29. `SRC-05` — draft courses in search for Acharyas
+30. `STU-11` — preview uses the real learner screens
+31. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+32. `STU-08` — "Draft vN · saved just now"
+33. `STU-10` — learner counts in the publish dialog and on course cards
+34. `STU-12` — publishing an archived course
+35. `STU-13` — structure editor polish
+36. `LRN-12` — course overview to the handoff
+37. `LRN-13` — Home to the handoff
+38. `LRN-11` — outline rail grouped by parva
+39. `LRN-10` — split layout
+40. `LRN-15` — block renderer polish
+41. `LRN-16` — check blocks reveal the right option
+42. `LRN-17` — keyboard shortcuts dialog
+43. `PRK-08` — completion screen to the handoff
+44. `AUTH-08` — sign-in screen to the handoff
+45. `SHL-03` — handoff breakpoints and the menu button
+46. `KUL-13` — bulk role change and select all
+47. `KUL-14` — Assign screen finish
+48. `KUL-19` — Needs attention, pending-invite strip, overview filters
+49. `KUL-20` — course analytics finish
+50. `KUL-22` — Roles screen polish
+51. `KUL-23` — audit log view finish
+52. `DS-05` — axe on the remaining page tests
+53. `DS-04` — shared icon set
+54. `DS-03` — `/__ui` component gallery
+55. `STU-15` — lesson editor extras
+56. `STU-16` — CodeMirror for markdown and code
+57. `OPS-11` — deeper e2e journeys
+58. `OPS-06` — Lighthouse on the preview URL
+59. `OPS-14` — trigger tests against the emulators
+60. `KUL-24` — email delivery (blocked: question 4)
+61. `KUL-25` — Acharyas see their learners (blocked: question 7)
+62. `PRK-10` — tell a learner their certificate was revoked (blocked)
+63. `OPS-18` — custom domain (blocked: question 6)
+64. `OPS-19` — licence holder (blocked: question 10)
+65. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -145,7 +144,7 @@ Plan: `05-learner-experience.md`, `design-handoff/01-learner.md` §02–§04, M2
 | `LRN-04` | Lesson player: eight block renderers, safe markdown, embed allow-list, mark complete, J/K, deleted-item resume | done | — | `apps/web/src/LessonPage.tsx`, `player/blocks.tsx`, `packages/schema/src/media.ts`                                                                                                                     |
 | `LRN-05` | Progress: set-union completions, shared percent helper, progress trigger | done   | —        | `apps/web/src/data/firebase.ts`, `firebase/functions/src/progress.ts`                                                                                                                                             |
 | `LRN-06` | One unreadable course or unknown block no longer breaks the app | done | — | `packages/schema/src/migrations/` (`steps.ts` registry, `upgradeCourse`, strict `migrateCourse`, tolerant `readCourse` with `UnsupportedBlock`); `apps/web/src/data/firebase.ts` and `apps/web/src/studio/firebase.ts` skip an unreadable course; `firebase/functions/src/courses.ts` publish and rollback upgrade first |
-| `LRN-07` | Offline reading and queued completions                                   | todo   | —        | `persistentLocalCache` in `apps/web/src/firebase.ts`; Mark complete does not wait for the server; the shared offline banner (`05` Progress and resume, `00-shared-patterns.md` Shared states)                  |
+| `LRN-07` | Offline reading and queued completions                                   | done   | —        | `apps/web/src/firebase.ts` (persistent multi-tab cache), `LessonPage.tsx` (Mark complete does not wait), `OfflineBanner.tsx` in `Shell.tsx` |
 | `LRN-09` | `video90` and `requireVideoWatch` are real                               | todo   | —        | Today `video90` is a self-attest checkbox and `rules.requireVideoWatch` is read only by Studio. Watch progress from the YouTube IFrame API and Loom events; disabled-button tooltip                              |
 | `LRN-10` | Split layout                                                             | todo   | —        | No `.article--split` CSS, so split renders as stacked. Sticky 55% video at ≥1100px                                                                                                                                |
 | `LRN-11` | Outline rail grouped by parva                                            | todo   | —        | Collapse all but the current parva, state icons; "PARVA n · LESSON x OF y" kicker with type and duration chips (`kindLabel`, `minutes`); footer labels with item titles                                          |
