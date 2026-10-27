@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { DraftConflictError } from '../src/studio/errors';
 import type { DraftDoc, Working } from '../src/studio/types';
 import { StudioProvider, useStudio } from '../src/studio/StudioProvider';
-import { AUTOSAVE_MS, useDraft } from '../src/studio/useDraft';
+import { AUTOSAVE_MS, SAVE_WAIT_MS, useDraft } from '../src/studio/useDraft';
 import { makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 
@@ -246,6 +246,22 @@ describe('useDraft', () => {
     expect(studio.data.getDraft).toHaveBeenCalledTimes(calls);
     await act(async () => done[1]?.(6));
     await waitFor(() => expect(c.result.current.status).toBe('ready'));
+  });
+
+  it('stops waiting for a save that never settles', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
+    studio.data.saveDraft = vi.fn(() => new Promise<number>(() => undefined));
+    const first = setup(studio);
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    act(() => first.result.current.update(rename('S')));
+    first.unmount();
+    const second = setup(studio);
+    await act(async () => undefined);
+    expect(second.result.current.status).toBe('loading');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS);
+    });
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
   });
 
   it('does not flush on unmount when nothing is unsaved', async () => {

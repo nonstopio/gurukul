@@ -12,13 +12,28 @@ export interface ClassifiedEmail {
 
 export const normalizeEmailText = (email: string): string => email.trim().toLowerCase();
 
-const SIMPLE_EMAIL = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()"]+$/;
+const MAX_EMAIL_LENGTH = 254;
+// Labels cannot contain a dot, so the pieces never overlap and matching stays linear.
+const EMAIL_SHAPE = /^[^\s@,;<>()"]+@[^\s@,;<>()".]+(?:\.[^\s@,;<>()".]+)+$/;
+const SIMPLE_EMAIL = {
+  test: (text: string): boolean => text.length <= MAX_EMAIL_LENGTH && EMAIL_SHAPE.test(text),
+};
+
+const QUOTES = `"'<>`;
+/** Trims quote and angle-bracket characters from both ends without a backtracking regex. */
+function stripWrapping(piece: string): string {
+  let start = 0;
+  let end = piece.length;
+  while (start < end && QUOTES.includes(piece.charAt(start))) start++;
+  while (end > start && QUOTES.includes(piece.charAt(end - 1))) end--;
+  return piece.slice(start, end);
+}
 
 /** Splits pasted text on commas, semicolons, spaces and new lines; empty pieces are dropped. */
 export function parseEmailList(text: string): string[] {
   return text
     .split(/[\s,;]+/)
-    .map((piece) => piece.replace(/^["'<]+|["'>]+$/g, ''))
+    .map(stripWrapping)
     .filter((piece) => piece !== '');
 }
 

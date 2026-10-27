@@ -141,7 +141,7 @@ type Assignment = {
 };
 ```
 
-Id: `{courseId}__{sha1(email)}` so assigning the same course to the same email
+Id: `{courseId}__{sha256(email)}` so assigning the same course to the same email
 twice is idempotent (the bulk screen reports it as "already assigned").
 
 ## Certificates

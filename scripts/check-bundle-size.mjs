@@ -8,7 +8,7 @@ import { gzipSync } from 'node:zlib';
 
 export function initialScripts(html) {
   const found = [];
-  for (const m of html.matchAll(/<(?:script|link)\b[^>]*>/g)) {
+  for (const m of html.matchAll(/<(?:script|link)\b[^>]*>/gi)) {
     const tag = m[0];
     const isScript = tag.startsWith('<script') && /type="module"/.test(tag);
     const isPreload = tag.startsWith('<link') && /rel="modulepreload"/.test(tag);

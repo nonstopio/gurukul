@@ -19,7 +19,7 @@ export type Assignment = z.infer<typeof assignmentSchema>;
 /** Assignments are keyed by lower-cased email so people can be assigned before first sign-in. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
-/** `{courseId}__{sha1(email)}`: assigning the same course to the same email twice is idempotent. */
+/** `{courseId}__{sha256(email)}`: assigning the same course to the same email twice is idempotent. */
 export function assignmentId(courseId: string, emailSha1: string): string {
   return `${courseId}__${emailSha1}`;
 }

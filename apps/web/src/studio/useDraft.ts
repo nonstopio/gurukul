@@ -31,6 +31,20 @@ export interface DraftApi {
  */
 const inflight = new Map<string, Promise<unknown>>();
 
+/** The longest a page waits for an earlier save: a stalled network must not block loading. */
+export const SAVE_WAIT_MS = 3000;
+const waitFor = (courseId: string, pending: Promise<unknown>): Promise<unknown> =>
+  Promise.race([
+    pending,
+    new Promise((resolve) =>
+      setTimeout(() => {
+        // Give up on it for good, so later pages do not wait on a save that never answers.
+        inflight.delete(courseId);
+        resolve(undefined);
+      }, SAVE_WAIT_MS),
+    ),
+  ]);
+
 /**
  * The editing session for one course's draft: loads it, applies edits locally, autosaves a second
  * after the last one with an optimistic `rev` check, flushes when the page closes, and warns the
@@ -63,7 +77,10 @@ export function useDraft(courseId: string): DraftApi {
   useEffect(() => {
     let live = true;
     const pending = inflight.get(courseId);
-    (pending ? pending.then(() => data.getDraft(courseId)) : data.getDraft(courseId)).then(
+    (pending
+      ? waitFor(courseId, pending).then(() => data.getDraft(courseId))
+      : data.getDraft(courseId)
+    ).then(
       (doc: DraftDoc | null) => {
         if (!live) return;
         if (!doc) {

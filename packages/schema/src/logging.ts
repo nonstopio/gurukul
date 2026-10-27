@@ -141,7 +141,8 @@ export function maskFields(fields: unknown, options: MaskOptions = {}, depth = 0
   return out;
 }
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+// Every part is length-bounded (RFC 5321 limits) and labels exclude dots, so matching cannot go polynomial.
+const EMAIL = /[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,24}/g;
 
 /**
  * Masks a rendered line of text: `key=value` and `"key":"value"` pairs by key, then any bare email

@@ -43,7 +43,7 @@ export interface AssignResult {
 export const MAX_COURSES = 20;
 export const MAX_EMAILS = 1000;
 
-export const sha1Hex = (text: string): string => createHash('sha1').update(text).digest('hex');
+export const sha256Hex = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 interface AssignRequest {
   courseIds: string[];
@@ -122,7 +122,7 @@ export async function assignCourses(
   const perCourse: Record<string, number> = {};
   const newByEmail = new Map<string, { id: string; title: string }[]>();
   for (const courseId of req.courseIds) {
-    const ids = new Map(valid.map((email) => [assignmentId(courseId, sha1Hex(email)), email]));
+    const ids = new Map(valid.map((email) => [assignmentId(courseId, sha256Hex(email)), email]));
     const existing = await store.existingAssignmentIds([...ids.keys()]);
     const assigned = new Set([...ids].filter(([id]) => existing.has(id)).map(([, email]) => email));
     const classified: ClassifiedEmail[] = classifyEmails(valid, { signedIn, assigned });
@@ -134,7 +134,7 @@ export async function assignCourses(
     perCourse[courseId] = fresh.length;
     for (const { email } of fresh) {
       docs.push({
-        id: assignmentId(courseId, sha1Hex(email)),
+        id: assignmentId(courseId, sha256Hex(email)),
         email,
         uid: users.get(email) ?? null,
         courseId,

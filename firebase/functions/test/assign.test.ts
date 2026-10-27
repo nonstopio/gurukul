@@ -1,11 +1,11 @@
 import { assignmentId } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
-import { assignCourses, parseAssignRequest, sha1Hex } from '../src/assign.js';
+import { assignCourses, parseAssignRequest, sha256Hex } from '../src/assign.js';
 import type { AssignStore } from '../src/assign.js';
 
 const kulapati = { uid: 'k', email: 'k@nonstopio.com', claims: { kulapati: true } };
 const published = (title: string) => ({ status: 'published', title });
-const id = (course: string, email: string) => assignmentId(course, sha1Hex(email));
+const id = (course: string, email: string) => assignmentId(course, sha256Hex(email));
 
 function setup(over: Partial<AssignStore> = {}) {
   const store: AssignStore = {
@@ -203,8 +203,10 @@ describe('parseAssignRequest', () => {
   });
 });
 
-describe('sha1Hex', () => {
-  it('is the hex sha1 of the text', () => {
-    expect(sha1Hex('abc')).toBe('a9993e364706816aba3e25717850c26c9cd0d89d');
+describe('sha256Hex', () => {
+  it('is the hex sha256 of the text', () => {
+    expect(sha256Hex('abc')).toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    );
   });
 });
