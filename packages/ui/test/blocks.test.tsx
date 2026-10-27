@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Breadcrumb, CodeBlock, QuizOption, ResultRow, VideoBlock, parseHighlight } from '../src';
 import { axeViolations } from './axe';
@@ -142,6 +143,12 @@ describe('VideoBlock', () => {
     const { container } = render(<VideoBlock src="s" title="t" href="h" linkLabel="Watch" />);
     expect(container.querySelector('figcaption')).toBeNull();
     expect(screen.getByRole('link', { name: 'Watch' })).toBeTruthy();
+  });
+
+  it('hands the player frame to a caller that tracks it', () => {
+    const frameRef = createRef<HTMLIFrameElement>();
+    render(<VideoBlock src="s" title="t" href="h" frameRef={frameRef} />);
+    expect(frameRef.current).toBe(screen.getByTitle('t'));
   });
 });
 

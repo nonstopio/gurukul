@@ -4,7 +4,6 @@ import {
   Button,
   Callout,
   ProgressBar,
-  Toggle,
   TopBar,
   buttonClass,
   topBarBackClass,
@@ -20,6 +19,7 @@ import { percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
 import { Loaded } from './learn/ui';
 import { BlockView } from './player/blocks';
+import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
 
 const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
@@ -89,7 +89,13 @@ function Player({
   const item = items[index];
   const state = progress ?? EMPTY;
   const states = itemStates(course, state);
-  const [watched, setWatched] = useState(false);
+  // Which of this lesson's videos count as watched, keyed `lessonId/blockId` so that moving to
+  // another lesson starts from nothing.
+  const [watched, setWatched] = useState<Record<string, boolean>>({});
+  const onWatched = useCallback(
+    (blockId: string, ok: boolean) => setWatched((w) => ({ ...w, [`${itemId}/${blockId}`]: ok })),
+    [itemId],
+  );
   const endRef = useRef<HTMLDivElement>(null);
   const atEnd = useReachedEnd(endRef, itemId);
   const known = index >= 0;
@@ -162,8 +168,15 @@ function Player({
 
   const lesson: Lesson = item;
   const done = s === 'done';
-  const gate =
-    lesson.completeWhen === 'video90' ? watched : lesson.completeWhen === 'scrolled' ? atEnd : true;
+  const watching = needsWatching(lesson, course.rules.requireVideoWatch);
+  const videosDone = videosOf(lesson).every((v) => watched[`${lesson.id}/${v.id}`]);
+  const waitingFor = done
+    ? null
+    : watching && !videosDone
+      ? 'Watch 90% of the video to mark this lesson complete.'
+      : lesson.completeWhen === 'scrolled' && !atEnd
+        ? 'Read to the end to mark this lesson complete.'
+        : null;
   // The write lands in the local cache at once and syncs when it can, so moving on never waits
   // for the server: offline, it would wait until the connection came back.
   const complete = () => {
@@ -214,15 +227,13 @@ function Player({
           <h1 className="article__title">{lesson.title}</h1>
           {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
           {lesson.blocks.map((b) => (
-            <BlockView key={b.id} block={b} />
+            <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
           ))}
           <div ref={endRef} aria-hidden="true" />
-          {lesson.completeWhen === 'video90' && !done ? (
-            <Toggle
-              label="I have watched the video"
-              checked={watched}
-              onChange={(e) => setWatched(e.target.checked)}
-            />
+          {waitingFor ? (
+            <p id="complete-hint" className="article__hint">
+              {waitingFor}
+            </p>
           ) : null}
           <footer className="article__footer">
             {prev ? (
@@ -230,7 +241,11 @@ function Player({
                 Previous
               </Link>
             ) : null}
-            <Button disabled={!done && !gate} onClick={complete}>
+            <Button
+              disabled={!!waitingFor}
+              onClick={complete}
+              {...(waitingFor ? { title: waitingFor, 'aria-describedby': 'complete-hint' } : {})}
+            >
               {done
                 ? next
                   ? 'Next'
