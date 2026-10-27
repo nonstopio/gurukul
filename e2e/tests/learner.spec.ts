@@ -43,12 +43,14 @@ test.describe('Learner', () => {
     await expect(progress).not.toHaveAttribute('aria-valuenow', '0');
   });
 
-  test('refuses a personal Gmail account with the NonStop-only message', async ({ page }) => {
+  test('refuses a personal Gmail account by name and offers another account', async ({ page }) => {
     await page.goto('/');
     await signInWithGoogle(page, { email: 'someone@gmail.com', name: 'Some One' });
-    await expect(page.getByRole('alert').filter({ hasText: 'Gurukul is for' })).toHaveText(
-      'Gurukul is for NonStop io accounts. Sign in with your @nonstopio.com Google account.',
+    const alert = page.getByRole('alert').filter({ hasText: 'Gurukul is for' });
+    await expect(alert).toHaveText(
+      'You signed in as someone@gmail.com. Gurukul is for NonStop io accounts: choose your @nonstopio.com Google account.',
     );
-    await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible();
+    await expect(alert).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Try another account' })).toBeVisible();
   });
 });
