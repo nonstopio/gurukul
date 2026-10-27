@@ -15,6 +15,7 @@ vi.mock('../src/auth/service', () => ({
       return () => {};
     },
     signIn: vi.fn(),
+    finishRedirect: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn(),
     claims: vi.fn(),
     watchProfile: vi.fn(),

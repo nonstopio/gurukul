@@ -19,6 +19,7 @@ export function fakeAuth(claims: { acharya?: boolean; kulapati?: boolean } = {})
       return vi.fn();
     }),
     signIn: vi.fn().mockResolvedValue(undefined),
+    finishRedirect: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn().mockResolvedValue(undefined),
     claims: vi.fn().mockResolvedValue(claims),
     watchProfile: vi.fn((_uid, cb) => {

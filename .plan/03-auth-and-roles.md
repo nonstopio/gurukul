@@ -2,7 +2,13 @@
 
 ## Sign-in
 
-- Firebase Auth, Google provider only, popup flow (redirect on mobile Safari).
+- Firebase Auth, Google provider only, popup flow. iPhones and iPads (every iOS
+  browser is Safari underneath) use the redirect flow, and so does any browser
+  that blocks the popup. Closing the popup is not an error and shows nothing.
+  The redirect needs the auth domain to be the Hosting domain (`11-deployment-and-cost.md`).
+- A refused account is named in the message ("You signed in as …"), which takes
+  focus, and the button becomes "Try another account" (`prompt: select_account`),
+  so someone signed in to a personal and a NonStop account can switch.
 - `hd: 'nonstopio.com'` is passed as a custom parameter so Google shows
   NonStop accounts first. It is a hint, not a guard.
 - **The guard is in security rules:** every rule that opens data requires

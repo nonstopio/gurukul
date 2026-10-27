@@ -1,4 +1,11 @@
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  getRedirectResult,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { Firebase } from '../firebase';
 
@@ -18,20 +25,53 @@ export interface ProfileMirror {
   team: string | null;
 }
 
+export interface SignInOptions {
+  chooseAccount?: boolean;
+}
+
+/**
+ * iPhone and iPad (every iOS browser is Safari underneath) block or lose the sign-in popup, so they
+ * sign in by redirect. iPadOS reports itself as a Mac; touch points tell them apart.
+ */
+export function prefersRedirect(nav: Pick<Navigator, 'userAgent' | 'maxTouchPoints'>): boolean {
+  return (
+    /iPhone|iPad|iPod/.test(nav.userAgent) ||
+    (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1)
+  );
+}
+
+/** The person closed or replaced the popup: nothing went wrong, so nothing is shown. */
+const CANCELLED = new Set([
+  'auth/popup-closed-by-user',
+  'auth/cancelled-popup-request',
+  'auth/user-cancelled',
+]);
+
+const codeOf = (e: unknown) => (e as { code?: unknown } | null)?.code;
+
 /**
  * Everything the session needs from Firebase, as a port: the provider takes one, so tests pass a
  * fake and the real app passes `firebaseAuthService`.
  */
 export interface AuthService {
   onUser(cb: (user: AuthUser | null) => void): () => void;
-  signIn(): Promise<void>;
+  /**
+   * Starts Google sign-in. Resolves quietly when the person closes the popup; `chooseAccount`
+   * makes Google show its account picker instead of reusing the account it remembers.
+   */
+  signIn(options?: SignInOptions): Promise<void>;
+  /** Finishes a redirect sign-in begun on the previous page load; resolves when there was none. */
+  finishRedirect(): Promise<void>;
   signOut(): Promise<void>;
   /** Role claims from the ID token; `refresh` forces a new token so fresh claims apply. */
   claims(user: AuthUser, refresh: boolean): Promise<{ acharya?: boolean; kulapati?: boolean }>;
   watchProfile(uid: string, cb: (p: ProfileMirror | null) => void): () => void;
 }
 
-export function firebaseAuthService({ auth, db }: Pick<Firebase, 'auth' | 'db'>): AuthService {
+export function firebaseAuthService(
+  { auth, db }: Pick<Firebase, 'auth' | 'db'>,
+  nav: Pick<Navigator, 'userAgent' | 'maxTouchPoints'> = navigator,
+): AuthService {
   return {
     onUser: (cb) =>
       onAuthStateChanged(auth, (u) =>
@@ -45,10 +85,24 @@ export function firebaseAuthService({ auth, db }: Pick<Firebase, 'auth' | 'db'>)
           },
         ),
       ),
-    async signIn() {
+    async signIn(options = {}) {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ hd: 'nonstopio.com' });
-      await signInWithPopup(auth, provider);
+      provider.setCustomParameters({
+        hd: 'nonstopio.com',
+        ...(options.chooseAccount ? { prompt: 'select_account' } : {}),
+      });
+      if (prefersRedirect(nav)) return signInWithRedirect(auth, provider);
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        if (CANCELLED.has(codeOf(e) as string)) return;
+        // A blocked popup still gets the person signed in, by leaving the page and coming back.
+        if (codeOf(e) === 'auth/popup-blocked') return signInWithRedirect(auth, provider);
+        throw e;
+      }
+    },
+    async finishRedirect() {
+      await getRedirectResult(auth);
     },
     signOut: () => signOut(auth),
     async claims(_user, refresh) {
