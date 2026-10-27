@@ -20,12 +20,12 @@ repository. Read the nearest nested `CLAUDE.md` before editing `apps/`,
 | `firebase/rules/`                                    | Rules tests against the Firestore emulator                                                                                                                                                                                                                                                                                                   |
 | `firebase/functions/`                                | Cloud Functions (2nd gen): invite claiming, grading, certificates, role grants                                                                                                                                                                                                                                                               |
 | `.claude/rules/`                                     | Path-scoped rules: coverage, Firestore rules, course object, design, cost, open source, changelog entries, navigation, Claude config, API responses, logging                                                                                                                                                                                 |
-| `.claude/skills/`                                    | `gurukul-design` (read before any UI change), `writing-changelog-entries`, `updating-claude-md` (CLAUDE.md, rules and skills), `writing-commit-messages`, `writing-logs`                                                                                                                                                                     |
+| `.claude/skills/`                                    | `gurukul-design` (read before any UI change), `writing-changelog-entries`, `updating-claude-md` (CLAUDE.md, rules and skills), `writing-commit-messages`, `writing-logs`, `pick-up-next` (one tracker item, one PR)                                                                                                                          |
 | `.claude/hooks/`                                     | Node hooks, tested in `hooks/test/`: `claude-md-nudge` (names the CLAUDE.md, rules and skills governing an edited file), `changelog-nudge`, `navigation-nudge`, `api-response-nudge`, `logging-nudge`, `prod-guard` (asks before firebase CLI against production), `secret-write-guard` (asks before writing a secret into this public repo) |
 | `.claude/settings.json`                              | Hook registration, permission denies, and the `ponytail` and `firebase` plugins (enabled for every contributor by the maintainer's choice)                                                                                                                                                                                                   |
 | `.husky/`, `commitlint.config.mjs`                   | Git hooks: `pre-commit` (changelog names, lint-staged), `commit-msg` (commitlint), `pre-push` (`scripts/pre-push.sh`). Installed by `npm ci`                                                                                                                                                                                                 |
-| `scripts/`                                           | `changelog-new.sh`, `check-changelog-names.sh`, `pre-push.sh`, `pushed-files.sh`; tested in `scripts/test/`                                                                                                                                                                                                                                  |
-| `.plan/`                                             | The reviewed product and engineering plan. Code follows the plan; change the plan first                                                                                                                                                                                                                                                      |
+| `scripts/`                                           | `changelog-new.sh`, `check-changelog-names.sh`, `pre-push.sh`, `pushed-files.sh`, `tracker.mjs` (`.plan/tracker.md` status and check); tested in `scripts/test/`                                                                                                                                                                             |
+| `.plan/`                                             | The reviewed product and engineering plan. Code follows the plan; change the plan first. `tracker.md` is its status, item by item                                                                                                                                                                                                            |
 | `.github/`                                           | CI, PR title, preview and production deploy, CodeQL, Dependabot, PR and issue templates                                                                                                                                                                                                                                                      |
 
 ## The plan comes first
@@ -34,6 +34,10 @@ repository. Read the nearest nested `CLAUDE.md` before editing `apps/`,
 that alters scope, the course object, roles or cost assumptions updates the
 relevant `.plan/*.md` in the same PR. Do not build what the plan does not
 describe; propose a plan change instead.
+
+`.plan/tracker.md` says what is done and what is left. A PR that finishes, splits or blocks an item
+updates its row in the same PR; `npm run -s tracker -- --check` keeps the file consistent. With no
+other task, take the next item with the `pick-up-next` skill.
 
 ## Changelog — an entry with every change someone would notice
 
@@ -124,6 +128,7 @@ npm run check                # what CI runs, minus the emulator job
 npm run test:rules           # Firestore rules against the emulator
 npm run changelog:new -- "…" # a correctly named changelog entry
 npm run validate:navigation  # every route classified for global search
+npm run tracker              # plan status per section and the next item to pick up
 npm run test:tooling           # tests for the Claude hooks and repo scripts
 ```
 
