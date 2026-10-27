@@ -13,7 +13,7 @@ design handoff (`design-handoff/`).
 
 **Exit:** CI green on `main`; maintainer approves the plan.
 
-## M1 · Sign-in, shell and schema (~1 week)
+## M1 · Sign-in, shell and schema (~1 week) — done
 
 - `packages/schema`: Course, Progress, Assignment, Certificate, User schemas;
   progress-percent and item-state helpers; tests.

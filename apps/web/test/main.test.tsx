@@ -1,13 +1,27 @@
 import { act } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ auth: {}, db: {} })) }));
+vi.mock('../src/auth/service', () => ({
+  firebaseAuthService: vi.fn(() => ({
+    onUser: (cb: (u: null) => void) => {
+      cb(null);
+      return () => {};
+    },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    claims: vi.fn(),
+    watchProfile: vi.fn(),
+  })),
+}));
 
 describe('main', () => {
-  it('mounts the app into #root on load', async () => {
+  it('mounts the app into #root on load, showing sign-in to a signed-out visitor', async () => {
     document.body.innerHTML = '<div id="root"></div>';
     await act(async () => {
       await import('../src/main');
     });
-    expect(document.querySelector('#root h1')?.textContent).toBe('Gurukul is being built.');
+    expect(document.querySelector('#root h1')?.textContent).toBe('Welcome to Gurukul.');
   });
 
   it('fails loudly when #root is missing', async () => {

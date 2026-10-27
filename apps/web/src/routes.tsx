@@ -1,24 +1,43 @@
 import type { ReactElement } from 'react';
+import type { RouteObject } from 'react-router';
+import { RequireRole } from './auth/RequireRole';
 import { ChangelogPage } from './changelog/ChangelogPage';
+import { ConsolePage, StudioPage } from './ConsolePage';
 import { HomePage } from './HomePage';
+import { NotFoundPage } from './NotFoundPage';
 import type { RoutePath } from './route-paths';
+import { Shell } from './Shell';
 
 /**
  * The route table: one screen per path in `route-paths.ts`. Every path must also be classified in
  * an area's navigation (`navigation/areas/*.ts`), as a page search offers or as unlisted with a
- * reason — `npm run validate:navigation` fails otherwise. React Router replaces this map in M1.
+ * reason — `npm run validate:navigation` fails otherwise. Role gating here is convenience; rules
+ * are the enforcement.
  */
 export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/': <HomePage />,
   '/changelog': <ChangelogPage />,
+  '/kulapati': (
+    <RequireRole any={['kulapati']}>
+      <ConsolePage />
+    </RequireRole>
+  ),
+  '/studio': (
+    <RequireRole any={['acharya', 'kulapati']}>
+      <StudioPage />
+    </RequireRole>
+  ),
 };
 
-/** `/changelog/` and `/changelog` are the same page. */
-export function normalizePath(path: string): string {
-  return path.replace(/\/+$/, '') || '/';
-}
-
-/** The screen for a path, or undefined when nothing serves it. */
-export function screenFor(path: string): ReactElement | undefined {
-  return (ROUTES as Record<string, ReactElement>)[normalizePath(path)];
+/** The data-router route objects: the shell around every screen, plus the not-found fallback. */
+export function appRoutes(): RouteObject[] {
+  return [
+    {
+      element: <Shell />,
+      children: [
+        ...Object.entries(ROUTES).map(([path, element]) => ({ path, element })),
+        { path: '*', element: <NotFoundPage /> },
+      ],
+    },
+  ];
 }

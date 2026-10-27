@@ -4,8 +4,7 @@ rules_version = '2';
 //
 // Default deny. Every collection opens explicitly, in its own match block, with
 // tests in firebase/rules/test/ for both the allowed and the denied case.
-// The full role model (Shishya, Acharya, Kulapati) lands with milestone M1;
-// see .plan/03-auth-and-roles.md.
+// Roles are custom claims; see .plan/03-auth-and-roles.md.
 service cloud.firestore {
   match /databases/{database}/documents {
     // Only verified NonStop io accounts, signed in with Google, count as signed in. A personal
@@ -23,11 +22,31 @@ service cloud.firestore {
       return signedIn() && request.auth.token.kulapati == true;
     }
 
-    // A signed-in person may read their own profile. Writes go through the
-    // Admin SDK (Cloud Functions) until M1 opens the profile fields.
+    // A person reads their own profile (a Kulapati reads any) and may change only their display
+    // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'team'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 120
+        && (request.resource.data.team == null
+            || (request.resource.data.team is string && request.resource.data.team.size() <= 80));
+      allow create, delete: if false;
+    }
+
+    // Assignments are keyed by email and stamped with the uid at first sign-in. The assignee
+    // reads their own; a Kulapati reads all. Writes go through the assignCourses function.
+    match /assignments/{assignmentId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
       allow write: if false;
+    }
+
+    // Organisation settings: the allowed domain, the teams list, reminder settings.
+    match /config/{doc} {
+      allow read: if signedIn();
+      allow write: if isKulapati();
     }
 
     match /{document=**} {

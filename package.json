@@ -1,7 +1,7 @@
 {
   "name": "gurukul",
   "private": true,
-  "description": "NonStop Gurukul — the open-source learning platform behind NonStop Academy. Monorepo root.",
+  "description": "NonStop Gurukul \u2014 the open-source learning platform behind NonStop Academy. Monorepo root.",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -26,7 +26,8 @@
     "prepare": "husky",
     "changelog:new": "sh scripts/changelog-new.sh",
     "validate:navigation": "npm run -s validate:navigation -w @gurukul/web --",
-    "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\""
+    "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\"",
+    "grant-kulapati": "npm run build -w @gurukul/functions && node scripts/grant-kulapati.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",

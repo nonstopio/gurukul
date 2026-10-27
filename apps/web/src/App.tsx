@@ -1,41 +1,34 @@
-import { useEffect } from 'react';
-import { AREAS } from './navigation';
-import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
-import type { AreaNavigation } from './navigation/types';
-import { NotFoundPage } from './NotFoundPage';
-import { normalizePath, screenFor } from './routes';
+import { RouterProvider } from 'react-router';
+import type { DataRouter } from 'react-router';
+import { AuthProvider, useSession } from './auth/AuthProvider';
+import { SignInPage } from './auth/SignInPage';
+import type { AuthService } from './auth/service';
 
 export interface AppProps {
-  /** The current path. Defaults to the address bar; tests pass their own. */
-  path?: string;
-  /** How to go somewhere. Defaults to a full page load until React Router arrives in M1. */
-  navigate?: (path: string) => void;
+  /** Firebase Auth + the profile watch; tests pass a fake. */
+  service: AuthService;
+  /** The data router: `createBrowserRouter(appRoutes())` in production, a memory router in tests. */
+  router: DataRouter;
 }
 
-/** A full page load: the honest navigation until React Router arrives in M1. */
-export function goTo(path: string): void {
-  window.location.assign(path);
+/** Everything behind sign-in: loading, the sign-in page, or the routed app. */
+function Gate({ router }: { router: DataRouter }) {
+  const { status } = useSession();
+  if (status === 'loading') {
+    return (
+      <main className="notfound" aria-busy="true">
+        <p role="status">Loading Gurukul…</p>
+      </main>
+    );
+  }
+  if (status !== 'ready') return <SignInPage />;
+  return <RouterProvider router={router} />;
 }
 
-/** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
-export function titleFor(path: string, areas: readonly AreaNavigation[] = AREAS): string {
-  const target = normalizePath(path);
-  const page = areas.flatMap((a) => a.pages).find((p) => p.path === target);
-  if (!screenFor(path)) return 'Page not found · Gurukul';
-  return page && page.path !== '/' ? `${page.label} · Gurukul` : 'Gurukul · NonStop Academy';
-}
-
-export function App({ path = window.location.pathname, navigate = goTo }: AppProps) {
-  const page = screenFor(path) ?? <NotFoundPage />;
-  useEffect(() => {
-    document.title = titleFor(path);
-  }, [path]);
+export function App({ service, router }: AppProps) {
   return (
-    <GlobalSearchProvider navigate={navigate}>
-      <header className="app-bar">
-        <SearchTrigger />
-      </header>
-      {page}
-    </GlobalSearchProvider>
+    <AuthProvider service={service}>
+      <Gate router={router} />
+    </AuthProvider>
   );
 }

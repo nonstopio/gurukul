@@ -21,6 +21,10 @@
   --g-green-800: #035c3b;
   --g-green-900: #054f34;
 
+  /* ---- Scale: state lines (hairlines around soft state grounds) ---- */
+  --g-red-200: #f9c7c2;
+  --g-blue-200: #bcd0f3;
+
   /* ---- Scale: ink (the dark chrome) ---- */
   --g-ink-950: #061316;
   --g-ink-900: #0b211b;
@@ -68,6 +72,7 @@
   --accent-soft: var(--g-green-50);
   --accent-soft-text: var(--g-green-900);
   --accent-decor: var(--g-green-500);
+  --accent-line: var(--g-green-200);
 
   /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
   --chrome: var(--g-ink-950);
@@ -90,8 +95,10 @@
   --warning-line: #f6d9a8;
   --danger: #b42318;
   --danger-soft: #fef3f2;
+  --danger-line: var(--g-red-200);
   --info: #1d4ed8;
   --info-soft: #e8eef9;
+  --info-line: var(--g-blue-200);
 
   /* ---- Roles: ceremony ---- */
   --paper: var(--g-paper);

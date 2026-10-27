@@ -7,6 +7,8 @@ PR as the component.
 
 - Components are real elements with keyboard support and an accessible name.
 - Each component has tests for every variant and state, at 100% coverage.
+- One component per `src/<Name>.tsx` with its own `src/<name>.css`, exported with its prop types from
+  `src/index.ts`; tests in `test/`, each with an axe check.
 - `test/tokens.test.ts` fails if a role listed in `src/tokens.ts` is missing
   from `tokens.css`. Add new roles to both.
 

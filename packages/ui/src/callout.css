@@ -1,0 +1,47 @@
+.g-callout {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+  color: var(--text-body);
+}
+.g-callout--note {
+  background: var(--info-soft);
+  border-color: var(--info-line);
+}
+.g-callout--note .g-callout__icon,
+.g-callout--note .g-callout__title {
+  color: var(--info);
+}
+.g-callout--tip {
+  background: var(--warning-soft);
+  border-color: var(--warning-line);
+}
+.g-callout--tip .g-callout__icon,
+.g-callout--tip .g-callout__title {
+  color: var(--warning);
+}
+.g-callout--warning {
+  background: var(--danger-soft);
+  border-color: var(--danger-line);
+}
+.g-callout--warning .g-callout__icon,
+.g-callout--warning .g-callout__title {
+  color: var(--danger);
+}
+.g-callout__icon {
+  flex: none;
+  margin-top: 2px;
+}
+.g-callout__body {
+  min-width: 0;
+}
+.g-callout__body > :last-child {
+  margin-bottom: 0;
+}
+.g-callout__title {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+}

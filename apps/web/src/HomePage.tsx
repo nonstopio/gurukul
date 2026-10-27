@@ -1,32 +1,16 @@
-import { buttonClass } from '@gurukul/ui';
+import { useSession } from './auth/AuthProvider';
 
-/**
- * Placeholder home. The real routes (learner, Kulapati console, Vyasa Studio) arrive with the
- * milestones in .plan/12-milestones.md.
- */
+/** Learner Home. Empty until courses are assigned or published (M2 fills it). */
 export function HomePage() {
+  const { user } = useSession();
+  const name = user?.displayName?.split(' ')[0] ?? 'there';
   return (
-    <main className="shell">
-      <img
-        className="shell__logo"
-        src="/nonstop-logo.png"
-        alt="NonStop io"
-        width="110"
-        height="32"
-      />
-      <p className="shell__kicker">NonStop Academy</p>
-      <h1 className="shell__title">Gurukul is being built.</h1>
-      <p className="shell__body">
-        Courses, Parikshas and certificates for every NonStopian. Follow along on GitHub.
-      </p>
-      <div className="shell__actions">
-        <a className={buttonClass('chrome')} href="https://github.com/nonstopio/gurukul">
-          View the repository
-        </a>
-        <a className="shell__link" href="/changelog">
-          What has changed
-        </a>
-      </div>
+    <main className="page">
+      <h1 className="page__title">Welcome, {name}.</h1>
+      <section className="page__empty" aria-labelledby="home-empty">
+        <h2 id="home-empty">Nothing to learn yet</h2>
+        <p>Courses assigned to you will appear here.</p>
+      </section>
     </main>
   );
 }
