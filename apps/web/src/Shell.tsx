@@ -66,9 +66,9 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           ))}
         </Sidebar>
         <div className="app__content">
-          <header className="app__bar">
+          <div className="app__bar">
             <SearchTrigger />
-          </header>
+          </div>
           <Outlet />
         </div>
       </div>

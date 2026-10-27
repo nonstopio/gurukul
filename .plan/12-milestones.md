@@ -28,7 +28,7 @@ design handoff (`design-handoff/`).
 **Exit:** a NonStop account signs in and lands on an empty Home; a Gmail
 account is refused; a Kulapati sees the console nav; rules tests cover every rule.
 
-## M2 · Learner core (~2 weeks)
+## M2 · Learner core (~2 weeks) — built; Pariksha items stay locked until M3
 
 - Seed script: the Git course (from `14-first-course-git.md`) into the emulator and production.
 - Home, Catalogue, Course overview, Lesson player with all block renderers and

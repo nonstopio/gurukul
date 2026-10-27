@@ -138,7 +138,7 @@ describe('users/{uid}', () => {
 describe('everything else', () => {
   it('is closed by default', async () => {
     const db = nonstop('ajay', { kulapati: true });
-    await assertFails(getDoc(doc(db, 'courses/git')));
-    await assertFails(setDoc(doc(db, 'courses/git'), { title: 'Git' }));
+    await assertFails(getDoc(doc(db, 'unknown/thing')));
+    await assertFails(setDoc(doc(db, 'unknown/thing'), { title: 'Git' }));
   });
 });

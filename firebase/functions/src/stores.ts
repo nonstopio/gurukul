@@ -2,6 +2,7 @@ import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { UserStore } from './profile.js';
+import type { ProgressStore } from './progress.js';
 import type { RoleClaims } from './roles.js';
 import type { RoleAdmin } from './set-roles.js';
 
@@ -45,6 +46,42 @@ export function firebaseRoleAdmin(auth: Auth, db: Firestore): RoleAdmin {
     },
     async audit(entry) {
       await db.collection('audit').add({ ...entry, at: FieldValue.serverTimestamp() });
+    },
+  };
+}
+
+/** `ProgressStore` over the Admin SDK. */
+export function firestoreProgressStore(db: Firestore): ProgressStore {
+  return {
+    async course(courseId) {
+      const snap = await db.doc(`courses/${courseId}`).get();
+      return snap.exists ? snap.data() : undefined;
+    },
+    async writeDerived(progressId, { percent, completed }) {
+      await db
+        .doc(`progress/${progressId}`)
+        .update({ percent, ...(completed ? { completedAt: FieldValue.serverTimestamp() } : {}) });
+    },
+    async bumpStats(courseId, { started, completed }) {
+      const counters = {
+        started: FieldValue.increment(started),
+        completed: FieldValue.increment(completed),
+      };
+      const batch = db.batch();
+      batch.set(db.doc('stats/org'), counters, { merge: true });
+      batch.set(db.doc(`stats/course_${courseId}`), counters, { merge: true });
+      await batch.commit();
+    },
+    async setAssignmentStatus(uid, courseId, status) {
+      const snap = await db
+        .collection('assignments')
+        .where('uid', '==', uid)
+        .where('courseId', '==', courseId)
+        .get();
+      if (snap.empty) return;
+      const batch = db.batch();
+      for (const d of snap.docs) batch.update(d.ref, { status });
+      await batch.commit();
     },
   };
 }

@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../src/data/firebase', () => ({ firebaseLearnerData: vi.fn(() => ({})) }));
 vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ auth: {}, db: {} })) }));
 vi.mock('../src/auth/service', () => ({
   firebaseAuthService: vi.fn(() => ({

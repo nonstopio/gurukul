@@ -67,6 +67,7 @@ jobs:
             apps/*/coverage/
             packages/*/coverage/
             firebase/functions/coverage/
+            firebase/seed/coverage/
           retention-days: 7
 
   # Security rules are the real access gate, so they are tested against the

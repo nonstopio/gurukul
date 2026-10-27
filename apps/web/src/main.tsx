@@ -5,6 +5,7 @@ import '@gurukul/ui/tokens.css';
 import './styles.css';
 import { App } from './App';
 import { firebaseAuthService } from './auth/service';
+import { firebaseLearnerData } from './data/firebase';
 import { initFirebase } from './firebase';
 import type { FirebaseEnv } from './firebase';
 import { appRoutes } from './routes';
@@ -14,10 +15,12 @@ export function mount(element: HTMLElement | null, env = import.meta.env as Fire
   if (!element) {
     throw new Error('Gurukul: #root element is missing from index.html');
   }
-  const service = firebaseAuthService(initFirebase(env));
+  const firebase = initFirebase(env);
+  const service = firebaseAuthService(firebase);
+  const data = firebaseLearnerData(firebase.db);
   createRoot(element).render(
     <StrictMode>
-      <App service={service} router={createBrowserRouter(appRoutes())} />
+      <App service={service} data={data} router={createBrowserRouter(appRoutes())} />
     </StrictMode>,
   );
 }

@@ -5,6 +5,7 @@ import {
   itemsOf,
   progressId,
   progressPercent,
+  resumeItemId,
   type ProgressState,
 } from '../src';
 import { itemAt, makeCourse, ts } from './fixtures';
@@ -48,8 +49,22 @@ describe('progress helpers', () => {
 
 describe('itemStates', () => {
   const course = makeCourse();
+  const twoParvas = (sequential: boolean, blocksNext = true) => {
+    const c = makeCourse({
+      rules: { sequential, passMark: 0.7, certificate: true, requireVideoWatch: false },
+    });
+    const p = itemAt(c, 1);
+    if (p.type === 'pariksha') p.blocksNext = blocksNext;
+    const [first] = c.parvas;
+    c.parvas.push({
+      id: 'p2',
+      title: 'Next',
+      items: [{ ...itemAt(c, 0), id: 'n1' }],
+    });
+    return { c, first };
+  };
 
-  it('marks the first unfinished item current and the Pariksha blocking what follows', () => {
+  it('marks the first unfinished item current and locks what a blocking Pariksha guards', () => {
     expect(itemStates(course, none)).toEqual({
       l1: 'current',
       q1: 'todo',
@@ -73,22 +88,46 @@ describe('itemStates', () => {
     });
   });
 
-  it('never locks when the course is not sequential', () => {
-    const open = makeCourse({
-      rules: { sequential: false, passMark: 0.7, certificate: true, requireVideoWatch: false },
-    });
-    expect(itemStates(open, { ...none, completedItemIds: ['l1'] })).toEqual({
-      l1: 'done',
-      q1: 'current',
-      l2: 'todo',
-      l3: 'todo',
-    });
+  it('does not lock behind a Pariksha that does not block', () => {
+    const { c } = twoParvas(false, false);
+    expect(itemStates(c, { ...none, completedItemIds: ['l1'] }).l2).toBe('todo');
   });
 
-  it('does not lock behind a Pariksha that does not block', () => {
-    const c = makeCourse();
-    const p = itemAt(c, 1);
-    if (p.type === 'pariksha') p.blocksNext = false;
-    expect(itemStates(c, { ...none, completedItemIds: ['l1'] }).l2).toBe('todo');
+  it('locks the next parva until the previous one is finished, only when sequential', () => {
+    const all = { completedItemIds: ['l1', 'l2'], pariksha: { q1: passed } };
+    const seq = twoParvas(true).c;
+    expect(itemStates(seq, none).n1).toBe('locked');
+    expect(itemStates(seq, all).n1).toBe('locked');
+    expect(itemStates(seq, { ...all, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('current');
+    expect(itemStates(twoParvas(false).c, none).n1).toBe('todo');
+  });
+
+  it('keeps a finished item done even inside a locked parva', () => {
+    const seq = twoParvas(true).c;
+    expect(itemStates(seq, { ...none, completedItemIds: ['n1'] }).n1).toBe('done');
+  });
+});
+
+describe('resumeItemId', () => {
+  const course = makeCourse();
+  it('opens the saved item when it still exists', () => {
+    expect(resumeItemId(course, { ...none, lastItemId: 'l3' })).toBe('l3');
+  });
+  it('falls back to the first unfinished item when it was deleted or never set', () => {
+    expect(resumeItemId(course, { ...none, lastItemId: 'gone' })).toBe('l1');
+    expect(resumeItemId(course, { ...none, lastItemId: null, completedItemIds: ['l1'] })).toBe(
+      'q1',
+    );
+  });
+  it('falls back to the first item when everything is done, and to null for an empty course', () => {
+    const all = {
+      completedItemIds: ['l1', 'l2', 'l3'],
+      pariksha: { q1: passed },
+      lastItemId: null,
+    };
+    expect(resumeItemId(course, all)).toBe('l1');
+    expect(
+      resumeItemId({ parvas: [], rules: course.rules }, { ...none, lastItemId: null }),
+    ).toBeNull();
   });
 });

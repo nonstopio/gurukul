@@ -15,8 +15,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`.
   first Kulapati once with `npm run grant-kulapati -- you@nonstopio.com` (admin credential, never CI).
 - Functions keep business logic in pure modules (`src/*.ts`) with unit tests;
   the trigger wrapper only wires inputs to them. 100% coverage applies.
-- Functions are deployed by CI from M2 onwards; until then the codebase builds
-  and tests but is not deployed.
+- Functions are bundled with esbuild (`npm run build -w @gurukul/functions` → `lib/index.js`, `@gurukul/schema`
+  and zod inlined, firebase-* external) and deployed by `deploy.yml` with Hosting and rules.
+- `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status.
 
 ```bash
 npm run test:rules                      # from the repo root, needs Java 21

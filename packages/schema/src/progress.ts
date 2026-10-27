@@ -29,7 +29,10 @@ export type Progress = z.infer<typeof progressSchema>;
 export const progressId = (uid: string, courseId: string): string => `${uid}_${courseId}`;
 
 /** What a learner has done, as far as the percent and item states are concerned. */
-export type ProgressState = Pick<Progress, 'completedItemIds' | 'pariksha'>;
+export interface ProgressState {
+  completedItemIds: readonly string[];
+  pariksha: Readonly<Record<string, Pick<ParikshaResult, 'passed'>>>;
+}
 
 export type ItemState = 'done' | 'current' | 'locked' | 'todo';
 
@@ -57,33 +60,48 @@ export function progressPercent(course: Pick<Course, 'parvas'>, state: ProgressS
 }
 
 /**
- * State of each item for the outline rail. With `sequential`, an item after an unfinished
- * Pariksha that blocks the next one is locked; everything else is done, current (the first
- * unfinished item) or todo.
+ * State of each item for the outline rail: done, current (the first unfinished item that is not
+ * locked), todo, or locked. Two things lock: in a `sequential` course a parva stays locked until
+ * every item of the previous parva is done; and an unfinished Pariksha that `blocksNext` locks
+ * everything after it. A locked item that is already done stays done.
  */
 export function itemStates(
   course: Pick<Course, 'parvas' | 'rules'>,
   state: ProgressState,
 ): Record<string, ItemState> {
   const out: Record<string, ItemState> = {};
-  let blocked = false;
   let currentTaken = false;
-  for (const item of itemsOf(course)) {
-    if (isItemDone(item, state)) {
-      out[item.id] = 'done';
-      continue;
-    }
-    if (blocked) {
-      out[item.id] = 'locked';
-      continue;
-    }
-    if (!currentTaken) {
-      out[item.id] = 'current';
+  let previousParvaDone = true;
+  for (const parva of course.parvas) {
+    const parvaLocked = course.rules.sequential && !previousParvaDone;
+    let blocked = false;
+    for (const item of parva.items) {
+      if (isItemDone(item, state)) {
+        out[item.id] = 'done';
+        continue;
+      }
+      if (parvaLocked || blocked) {
+        out[item.id] = 'locked';
+        continue;
+      }
+      out[item.id] = currentTaken ? 'todo' : 'current';
       currentTaken = true;
-    } else {
-      out[item.id] = 'todo';
+      if (item.type === 'pariksha' && item.blocksNext) blocked = true;
     }
-    if (course.rules.sequential && item.type === 'pariksha' && item.blocksNext) blocked = true;
+    previousParvaDone = parva.items.every((i) => isItemDone(i, state));
   }
   return out;
+}
+
+/** The item to open when a learner presses Resume: the saved one if it still exists, else the first unfinished. */
+export function resumeItemId(
+  course: Pick<Course, 'parvas' | 'rules'>,
+  state: ProgressState & { lastItemId: string | null },
+): string | null {
+  const items = itemsOf(course);
+  if (state.lastItemId !== null && items.some((i) => i.id === state.lastItemId)) {
+    return state.lastItemId;
+  }
+  const states = itemStates(course, state);
+  return items.find((i) => states[i.id] === 'current')?.id ?? items[0]?.id ?? null;
 }

@@ -6,11 +6,12 @@ import { appRoutes } from '../src/routes';
 import { groupByArea, titleFor } from '../src/Shell';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
+import { fakeData } from './fake-data';
 
 async function open(path: string, claims: { acharya?: boolean; kulapati?: boolean } = {}) {
   const f = fakeAuth(claims);
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
-  const view = render(<App service={f.service} router={router} />);
+  const view = render(<App service={f.service} data={fakeData().data} router={router} />);
   const roles = ['shishya', ...Object.keys(claims)];
   await act(async () => {
     f.emitUser(NONSTOP);
@@ -23,7 +24,9 @@ async function open(path: string, claims: { acharya?: boolean; kulapati?: boolea
 describe('App gate', () => {
   it('shows a loading state, then the sign-in page when signed out', () => {
     const f = fakeAuth();
-    render(<App service={f.service} router={createMemoryRouter(appRoutes())} />);
+    render(
+      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
+    );
     expect(screen.getByRole('status').textContent).toContain('Loading');
     act(() => f.emitUser(null));
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome to Gurukul.' })).toBeTruthy();
@@ -33,7 +36,9 @@ describe('App gate', () => {
 
   it('tells a personal account why it was refused, in an alert', () => {
     const f = fakeAuth();
-    render(<App service={f.service} router={createMemoryRouter(appRoutes())} />);
+    render(
+      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
+    );
     act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
     expect(screen.getByRole('alert').textContent).toContain('@nonstopio.com');
   });
@@ -42,7 +47,7 @@ describe('App gate', () => {
 describe('signed-in shell', () => {
   it('lands on an empty Home and offers only what a Shishya may open', async () => {
     await open('/');
-    expect(screen.getByRole('heading', { level: 1, name: 'Welcome, Priya.' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Namaste, Priya' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBe(
       'page',
@@ -55,13 +60,13 @@ describe('signed-in shell', () => {
   it('falls back to a friendly name without a display name', async () => {
     const f = fakeAuth();
     const router = createMemoryRouter(appRoutes(), { initialEntries: ['/'] });
-    render(<App service={f.service} router={router} />);
+    render(<App service={f.service} data={fakeData().data} router={router} />);
     await act(async () => {
       f.emitUser({ ...NONSTOP, displayName: null });
       await Promise.resolve();
     });
     act(() => f.emitProfile({ roles: ['shishya'], displayName: '', team: null }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Welcome, there.' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Namaste' })).toBeTruthy();
     expect(screen.getByText('priya@nonstopio.com')).toBeTruthy();
   });
 
@@ -144,7 +149,7 @@ describe('accessibility', () => {
   it('has none on the sign-in page', async () => {
     const f = fakeAuth();
     const { container } = render(
-      <App service={f.service} router={createMemoryRouter(appRoutes())} />,
+      <App service={f.service} data={fakeData().data} router={createMemoryRouter(appRoutes())} />,
     );
     act(() => f.emitUser(null));
     expect(await axeViolations(container)).toEqual([]);

@@ -3,7 +3,10 @@ import type { RouteObject } from 'react-router';
 import { RequireRole } from './auth/RequireRole';
 import { ChangelogPage } from './changelog/ChangelogPage';
 import { ConsolePage, StudioPage } from './ConsolePage';
+import { CoursePage } from './CoursePage';
+import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
+import { LessonPage } from './LessonPage';
 import { NotFoundPage } from './NotFoundPage';
 import type { RoutePath } from './route-paths';
 import { Shell } from './Shell';
@@ -17,6 +20,9 @@ import { Shell } from './Shell';
 export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/': <HomePage />,
   '/changelog': <ChangelogPage />,
+  '/courses': <CoursesPage />,
+  '/courses/:courseId': <CoursePage />,
+  '/courses/:courseId/learn/:itemId': <LessonPage />,
   '/kulapati': (
     <RequireRole any={['kulapati']}>
       <ConsolePage />

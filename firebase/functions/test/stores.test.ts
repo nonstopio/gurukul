@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firebaseRoleAdmin, firestoreUserStore } from '../src/stores.js';
+import { firebaseRoleAdmin, firestoreProgressStore, firestoreUserStore } from '../src/stores.js';
 
-vi.mock('firebase-admin/firestore', () => ({ FieldValue: { serverTimestamp: () => 'NOW' } }));
+vi.mock('firebase-admin/firestore', () => ({
+  FieldValue: { serverTimestamp: () => 'NOW', increment: (n: number) => `+${n}` },
+}));
 
 function fakeDb(docs: { ref: string }[] = []) {
   const set = vi.fn().mockResolvedValue(undefined);
@@ -15,7 +17,7 @@ function fakeDb(docs: { ref: string }[] = []) {
   const db = {
     doc: vi.fn().mockReturnValue({ set }),
     collection: vi.fn().mockReturnValue({ where, add }),
-    batch: vi.fn().mockReturnValue({ update, commit }),
+    batch: vi.fn().mockReturnValue({ update, set, commit }),
   };
   return { db: db as never, set, add, update, commit, where };
 }
@@ -69,5 +71,43 @@ describe('firebaseRoleAdmin', () => {
     expect(auth.revokeRefreshTokens).toHaveBeenCalledWith('u');
     expect(f.set).toHaveBeenCalledWith({ roles: ['shishya', 'kulapati'] }, { merge: true });
     expect(f.add).toHaveBeenCalledWith(expect.objectContaining({ action: 'a', at: 'NOW' }));
+  });
+});
+
+describe('firestoreProgressStore', () => {
+  it('reads a course, returning undefined when it is missing', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ exists: true, data: () => ({ id: 'git' }) })
+      .mockResolvedValueOnce({ exists: false });
+    const db = { doc: vi.fn().mockReturnValue({ get }) } as never;
+    const store = firestoreProgressStore(db);
+    expect(await store.course('git')).toEqual({ id: 'git' });
+    expect(await store.course('nope')).toBeUndefined();
+  });
+
+  it('writes derived fields, stamping completedAt only on completion', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const db = { doc: vi.fn().mockReturnValue({ update }) } as never;
+    const store = firestoreProgressStore(db);
+    await store.writeDerived('u_git', { percent: 50, completed: false });
+    await store.writeDerived('u_git', { percent: 100, completed: true });
+    expect(update).toHaveBeenNthCalledWith(1, { percent: 50 });
+    expect(update).toHaveBeenNthCalledWith(2, { percent: 100, completedAt: 'NOW' });
+  });
+
+  it('bumps the org and course counters in one batch', async () => {
+    const f = fakeDb();
+    await firestoreProgressStore(f.db).bumpStats('git', { started: 1, completed: 0 });
+    expect(f.commit).toHaveBeenCalledOnce();
+  });
+
+  it('sets the status of the learner’s assignments, if there are any', async () => {
+    const f = fakeDb([{ ref: 'r1' }]);
+    await firestoreProgressStore(f.db).setAssignmentStatus('u', 'git', 'started');
+    expect(f.update).toHaveBeenCalledWith('r1', { status: 'started' });
+    const none = fakeDb();
+    await firestoreProgressStore(none.db).setAssignmentStatus('u', 'git', 'started');
+    expect(none.commit).not.toHaveBeenCalled();
   });
 });

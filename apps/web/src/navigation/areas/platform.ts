@@ -17,6 +17,13 @@ export const navigation = {
       keywords: ['start', 'gurukul', 'academy'],
     },
     {
+      id: 'catalogue',
+      path: '/courses',
+      label: 'Catalogue',
+      description: 'Every published course, open to you',
+      keywords: ['courses', 'browse', 'learn', 'git'],
+    },
+    {
       id: 'changelog',
       path: '/changelog',
       label: 'Changelog',
@@ -24,4 +31,10 @@ export const navigation = {
       keywords: ['what changed', 'release notes', 'releases', 'updates', 'new'],
     },
   ],
+  unlisted: {
+    '/courses/:courseId': { context: 'needs a course id; reached from the catalogue or Home' },
+    '/courses/:courseId/learn/:itemId': {
+      context: 'needs a course and a lesson id; reached from the outline',
+    },
+  },
 } satisfies AreaNavigation;

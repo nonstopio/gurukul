@@ -1,13 +1,11 @@
 name: Deploy
 
-# Production: Hosting, Firestore rules and indexes, then a `release-*` tag.
+# Production: Hosting, Firestore rules and indexes, Cloud Functions, then a `release-*` tag.
 #
 # Runs only AFTER the CI workflow has passed on a push to `main` (workflow_run), never alongside
 # it, so code that failed or skipped its tests cannot ship — not even through an admin bypass or a
 # direct push. A manual run (workflow_dispatch) is accepted on `main` only. PR previews are a
 # separate workflow, preview.yml, with a separate key.
-#
-# Cloud Functions join this workflow in milestone M2 (.plan/12-milestones.md).
 #
 # Releases: every production deploy is a release named release-YYYY.MM.DD-HHMM (UTC). The build
 # files every changelog entry not yet in a tag under that name (GURUKUL_RELEASE), and the tag is
@@ -16,7 +14,8 @@ name: Deploy
 #
 # Secret: FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL, stored in the `production` ENVIRONMENT (not
 # the repository), with that environment limited to the `main` branch. A service account with
-# Firebase Hosting Admin, Firebase Rules Admin and Cloud Datastore Index Admin.
+# Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin and, for Functions,
+# Cloud Functions Admin, Cloud Build Editor, Artifact Registry Writer and Service Account User.
 on:
   workflow_run:
     workflows: [CI]
@@ -72,8 +71,8 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL }}
-      - name: Deploy Hosting, Firestore rules and indexes
-        run: npx firebase deploy --only hosting,firestore --project nonstop-gurukul --non-interactive
+      - name: Deploy Hosting, Firestore rules and indexes, and Functions
+        run: npx firebase deploy --only hosting,firestore,functions --project nonstop-gurukul --non-interactive
       - name: Tag the release (only after a successful deploy)
         env:
           RELEASE_ID: ${{ steps.release.outputs.id }}

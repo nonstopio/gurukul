@@ -1,14 +1,25 @@
 import type * as Handlers from '../src/handlers.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const captured: { onCall?: (r: unknown) => unknown; onCreate?: (u: unknown) => unknown } = {};
+const captured: {
+  onCall?: (r: unknown) => unknown;
+  onCreate?: (u: unknown) => unknown;
+  onWritten?: (e: unknown) => unknown;
+} = {};
 const handleUserCreated = vi.fn().mockResolvedValue(undefined);
 const handleSetRoles = vi.fn();
+const handleProgressWrite = vi.fn().mockResolvedValue('updated');
 
 vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn() }));
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: vi.fn(), FieldValue: {} }));
 vi.mock('firebase-functions/v2', () => ({ setGlobalOptions: vi.fn() }));
+vi.mock('firebase-functions/v2/firestore', () => ({
+  onDocumentWritten: (_path: string, fn: (e: unknown) => unknown) => {
+    captured.onWritten = fn;
+    return fn;
+  },
+}));
 vi.mock('firebase-functions/v2/https', () => ({
   HttpsError: class extends Error {
     constructor(
@@ -36,6 +47,7 @@ vi.mock('firebase-functions/v1', () => ({
   }),
 }));
 vi.mock('../src/profile.js', () => ({ handleUserCreated }));
+vi.mock('../src/progress.js', () => ({ handleProgressWrite }));
 vi.mock('../src/handlers.js', async (orig) => ({
   ...(await orig<typeof Handlers>()),
   handleSetRoles,
@@ -62,5 +74,23 @@ describe('index', () => {
     });
     handleSetRoles.mockRejectedValueOnce(new Error('boom'));
     await expect(captured.onCall?.({})).rejects.toThrow('boom');
+  });
+
+  it('wires the progress trigger with the before and after data, tolerating a missing snapshot', async () => {
+    await import('../src/index.js');
+    await captured.onWritten?.({
+      params: { progressId: 'u_git' },
+      data: { before: { data: () => undefined }, after: { data: () => ({ a: 1 }) } },
+    });
+    expect(handleProgressWrite).toHaveBeenCalledWith(expect.anything(), 'u_git', undefined, {
+      a: 1,
+    });
+    await captured.onWritten?.({ params: { progressId: 'u_git' }, data: undefined });
+    expect(handleProgressWrite).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'u_git',
+      undefined,
+      undefined,
+    );
   });
 });

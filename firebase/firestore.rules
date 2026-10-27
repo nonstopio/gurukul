@@ -22,6 +22,14 @@ service cloud.firestore {
       return signedIn() && request.auth.token.kulapati == true;
     }
 
+    // An Acharya may edit only the courses that list them in `acharyaIds` (the claim alone is not
+    // enough; per-course grants stay out of the token). Costs one read, so use it sparingly.
+    function isAcharyaOf(courseId) {
+      return signedIn()
+        && request.auth.token.acharya == true
+        && request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.acharyaIds;
+    }
+
     // A person reads their own profile (a Kulapati reads any) and may change only their display
     // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
     match /users/{uid} {
@@ -41,6 +49,63 @@ service cloud.firestore {
     match /assignments/{assignmentId} {
       allow read: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
       allow write: if false;
+    }
+
+    // The published course object. Everyone signed in reads published and archived courses
+    // (archived ones show as "Retired"); drafts are readable by the course's Acharyas and
+    // Kulapatis. Only the publish function writes.
+    match /courses/{courseId} {
+      allow read: if signedIn()
+        && (resource.data.status in ['published', 'archived']
+            || isKulapati()
+            || (request.auth.token.acharya == true && request.auth.uid in resource.data.acharyaIds));
+      allow write: if false;
+
+      // Pariksha answer keys never reach a browser. Grading runs in a function (Admin SDK).
+      match /private/{doc} {
+        allow read, write: if false;
+      }
+    }
+
+    // One learner's state in one course, `{uid}_{courseId}`. The learner creates it (starting or
+    // self-enrolling in a published course) and may only append completed lesson ids and move the
+    // resume point; percent, Pariksha results and certificates are written by functions.
+    match /progress/{progressId} {
+      allow read: if signedIn()
+        && (resource.data.uid == request.auth.uid
+            || isKulapati()
+            || isAcharyaOf(resource.data.courseId));
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'courseId', 'courseVersion', 'startedAt',
+             'lastItemId', 'lastActiveAt', 'completedItemIds', 'pariksha', 'percent',
+             'completedAt', 'certificateId'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.courseId is string
+        && progressId == request.auth.uid + '_' + request.resource.data.courseId
+        && get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.status == 'published'
+        && request.resource.data.courseVersion is int
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.lastActiveAt == request.time
+        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && request.resource.data.completedItemIds == []
+        && request.resource.data.pariksha == {}
+        && request.resource.data.percent == 0
+        && request.resource.data.completedAt == null
+        && request.resource.data.certificateId == null;
+
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['completedItemIds', 'lastItemId', 'lastActiveAt', 'courseVersion'])
+        && request.resource.data.completedItemIds is list
+        && request.resource.data.completedItemIds.size() <= 200
+        && request.resource.data.completedItemIds.toSet().hasAll(resource.data.completedItemIds)
+        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && request.resource.data.lastActiveAt == request.time
+        && request.resource.data.courseVersion is int;
+
+      allow delete: if false;
     }
 
     // Organisation settings: the allowed domain, the teams list, reminder settings.

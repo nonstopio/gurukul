@@ -4,8 +4,8 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { grantKulapati } from '../firebase/functions/lib/set-roles.js';
-import { firebaseRoleAdmin } from '../firebase/functions/lib/stores.js';
+import { grantKulapati } from '../firebase/functions/src/set-roles.js';
+import { firebaseRoleAdmin } from '../firebase/functions/src/stores.js';
 
 initializeApp({ projectId: process.env.GCLOUD_PROJECT ?? 'nonstop-gurukul' });
 const auth = getAuth();

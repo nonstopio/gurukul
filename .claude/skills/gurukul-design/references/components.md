@@ -157,19 +157,70 @@ stack bottom-right (full width on a phone), `--surface`-family soft ground with 
 "Dismiss"). Auto-dismiss after `duration` ms (`0` keeps it until dismissed); the timer is cleared on
 manual dismiss. `useToast` outside a provider throws.
 
-## CodeBlock
+## CodeBlock — shipped
 
-Header `--code-header` with filename in mono and a Copy button (`aria-label`
-when icon-only); body `--code-bg`, `--code-text`, 13.5px/1.7. Highlighted
-lines get a subtle mint wash. Horizontal scroll, never wrapped.
+`<CodeBlock code fileName? variant="code|terminal" highlight="2,4-6" copyLabel? copiedLabel? failedLabel? />`.
+Header `--code-header`: name in mono 12px `--code-comment` (`fileName`, else "terminal" or "code") and a 44px
+Copy button (`--code-text`, hover `--chrome-hover`). Body `--code-bg`, `--code-text`, mono 13.5px/1.7, one
+block per line, `--radius-lg`. Highlighted lines (`highlight`, 1-based, numbers and ranges, junk ignored) get
+`--chrome-active` and a 2px `--chrome-accent` bar. `terminal` prefixes each line with a `$` prompt in
+`--code-keyword` drawn by CSS, so it is never copied or selected.
 
-## QuizOption
+Copy writes the whole `code` with `navigator.clipboard.writeText`, flips the button to "Copied" (check icon) for
+2s (a second click restarts the timer), and a `role="status"` region next to it announces "Copied". If the
+clipboard refuses, the label stays "Copy" and the region says "Could not copy". The body is
+`role="region"` named by the header name with `tabIndex=0`, so a keyboard can scroll it; it scrolls
+horizontally and never wraps.
 
-A full-width `<button aria-pressed>` with a 32px letter badge. States:
-idle (`--border-strong`), selected (`--text` border), correct (`--accent-decor`
-border, `--accent-soft` ground), wrong (`--danger` border, `--danger-soft`).
-Feedback is announced in a `role="status"` region and always says the right
-answer in words.
+## VideoBlock — shipped
+
+`<VideoBlock src title href caption? linkLabel? />`. Presentational: the caller picks the provider and builds
+the embed `src` (for example `youtube-nocookie`); the component only frames it. A `<figure>` with a 16:9
+frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>` (13px `--text-muted`) and an
+always-visible 44px link "Open the video in a new tab" (`href`, `target="_blank"`, `rel="noopener noreferrer"`)
+for when the embed is blocked.
+
+## QuizOption — shipped
+
+`<QuizOption letter="A" checked onChange={(checked) => …} multiple? state="idle|correct|incorrect|locked" name value>Answer</QuizOption>`.
+A real radio (default) or checkbox (`multiple`) inside its `<label>`, so Tab, arrows, Space and screen
+readers behave natively; group them in a `<fieldset>` with a legend. The caller owns `checked`. 44px min,
+`--radius-lg`, 32px letter badge. States: idle `--border-strong`; selected (idle and checked) `--text`
+border and filled badge; correct `--accent-decor` border on `--accent-soft` with a check icon and the
+word "Correct"; incorrect `--danger` border on `--danger-soft` with a cross and "Incorrect"; locked
+`--surface-sunken`, `not-allowed`. correct, incorrect and locked disable the input. Feedback and the
+right answer in words belong in the caller's `role="status"` region. Colour is never the only signal.
+Focus ring is on the card (`:has(:focus-visible)`). Border and ground animate on `--dur-base`.
+
+## ResultRow — shipped
+
+```tsx
+<ul>
+  <ResultRow
+    passed={false}
+    question="What does pull do?"
+    yourAnswer="Only fetches"
+    correctAnswer="Fetches and merges"
+    revisit={{ href: '/lesson/3', label: 'Revisit lesson: Pulling' }}
+  >
+    Pull is fetch followed by merge.
+  </ResultRow>
+</ul>
+```
+
+A review row, an `<li>` (put rows in a `<ul>` or a Card). 28px pass (`--success` on `--success-soft`) or fail
+(`--danger` on `--danger-soft`) icon, hidden from assistive tech; the question is prefixed with a visually
+hidden "Correct." or "Incorrect.". "Your answer" is struck through (`<s>`) when wrong; "Correct answer" shows
+only when `correctAnswer` is given (omit it when the Pariksha does not reveal answers); `children` is the
+explanation slot; `revisit` is a 44px link, with the same `render` escape hatch as NavItem for a router.
+
+## Breadcrumb — shipped
+
+`<Breadcrumb items={[{label, href?, render?}]} label="Breadcrumb" />`. `<nav aria-label>` around an `<ol>`;
+chevron separators are `aria-hidden` SVG. The last item is the current page: plain text with
+`aria-current="page"`, never a link. Other items are links (`href`, or `render` like NavItem so a router
+`Link` can be used), or muted text when they have neither. 44px targets, links `--accent`, current
+`--text` 600, separators `--text-subtle`, focus `--focus-ring`.
 
 ## Certificate
 
