@@ -19,7 +19,7 @@ repository. Read the nearest nested `CLAUDE.md` before editing `apps/`,
 | `firebase/firestore.rules`, `firestore.indexes.json` | Security rules and indexes, deployed by CI                                                                                                                                                                                                                                                                                                   |
 | `firebase/rules/`                                    | Rules tests against the Firestore emulator                                                                                                                                                                                                                                                                                                   |
 | `firebase/functions/`                                | Cloud Functions (2nd gen): invite claiming, grading, certificates, role grants                                                                                                                                                                                                                                                               |
-| `.claude/rules/`                                     | Path-scoped rules: coverage, Firestore rules, course object, design, cost, open source, changelog entries, navigation, Claude config, API responses, logging                                                                                                                                                                                 |
+| `.claude/rules/`                                     | Path-scoped rules: coverage, Firestore rules, course object, design, cost, open source, changelog entries, navigation, Claude config, API responses, logging, end-to-end before push                                                                                                                                                         |
 | `.claude/skills/`                                    | `gurukul-design` (read before any UI change), `writing-changelog-entries`, `updating-claude-md` (CLAUDE.md, rules and skills), `writing-commit-messages`, `writing-logs`, `pick-up-next` (one tracker item, one PR)                                                                                                                          |
 | `.claude/hooks/`                                     | Node hooks, tested in `hooks/test/`: `claude-md-nudge` (names the CLAUDE.md, rules and skills governing an edited file), `changelog-nudge`, `navigation-nudge`, `api-response-nudge`, `logging-nudge`, `prod-guard` (asks before firebase CLI against production), `secret-write-guard` (asks before writing a secret into this public repo) |
 | `.claude/settings.json`                              | Hook registration, permission denies, and the `ponytail` and `firebase` plugins (enabled for every contributor by the maintainer's choice)                                                                                                                                                                                                   |
@@ -87,8 +87,9 @@ on with `git config core.hooksPath` (it should print `.husky`).
 ## Required checks
 
 1. `npm run check` from the root: lint, format, typecheck, navigation validator, hook and
-   script tests, 100% coverage in every workspace, build. CI runs the same jobs; the `ci` and
-   `pr-title` checks gate merges.
+   script tests, 100% coverage in every workspace, build. CI also runs the emulator jobs
+   `check` skips, so a change to the app, UI, schema, functions, rules or seed runs `npm run e2e`
+   before pushing (`.claude/rules/end-to-end.md`). The `ci` and `pr-title` checks gate merges.
 2. **100% coverage is mandatory.** Lines, branches, functions and statements,
    in every workspace. See `.claude/rules/coverage.md`. Never lower a threshold,
    exclude a file or add an ignore comment to pass.
