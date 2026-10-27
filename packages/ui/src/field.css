@@ -1,0 +1,52 @@
+.g-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.g-field__label {
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.g-field__hint {
+  margin: 0;
+  font: 400 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  color: var(--text-subtle);
+}
+.g-field__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--danger);
+}
+.g-field__error svg {
+  flex: none;
+}
+.g-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font: 400 var(--text-md) / 1.4 var(--font-ui);
+  color: var(--text);
+}
+.g-control--textarea {
+  min-height: 6rem;
+  padding: var(--space-3);
+  resize: vertical;
+}
+.g-control:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-control[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.g-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

@@ -1,0 +1,56 @@
+.g-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  cursor: pointer;
+}
+.g-toggle__input {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 44px;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.g-toggle__track {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.g-toggle__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.g-toggle__input:checked + .g-toggle__track {
+  background: var(--accent);
+}
+.g-toggle__input:checked + .g-toggle__track::after {
+  transform: translateX(16px);
+}
+.g-toggle__input:focus-visible + .g-toggle__track {
+  box-shadow: var(--focus-ring);
+}
+.g-toggle__input:disabled {
+  cursor: not-allowed;
+}
+.g-toggle__input:disabled ~ * {
+  opacity: 0.5;
+}
+.g-toggle__label {
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}

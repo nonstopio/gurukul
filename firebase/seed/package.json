@@ -1,0 +1,21 @@
+{
+  "name": "@gurukul/seed",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gurukul seed data: the first course (Git, the NonStop Way) and the tool that writes it, with its answer key, to Firestore.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "seed": "node --import tsx bin/seed.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@gurukul/schema": "*",
+    "firebase-admin": "^14.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

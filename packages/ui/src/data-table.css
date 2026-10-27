@@ -1,0 +1,105 @@
+.g-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+.g-table__scroll {
+  overflow: auto;
+  max-height: var(--g-table-max-height, none);
+}
+.g-table__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.g-table__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.g-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+  text-align: start;
+  white-space: nowrap;
+}
+.g-table td {
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+  vertical-align: middle;
+}
+.g-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.g-table th.g-table__end,
+.g-table td.g-table__end {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.g-table .g-table__check {
+  width: var(--control-height);
+  padding: 0 var(--space-2);
+  text-align: center;
+}
+.g-table__check input {
+  width: 20px;
+  height: 20px;
+  margin: 12px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.g-table__check input:focus-visible,
+.g-table__row--click:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-table__row--click {
+  cursor: pointer;
+}
+.g-table__row--click:hover {
+  background: var(--surface-sunken);
+}
+.g-table tbody tr.g-table__row--selected,
+.g-table tbody tr.g-table__row--selected:hover {
+  background: var(--accent-soft);
+}
+.g-table__row--click:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+.g-table__empty {
+  padding: var(--space-6) var(--space-4);
+}
+.g-table__footer {
+  border-top: 1px solid var(--border);
+}
+.g-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.g-pager__text {
+  margin: 0;
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
+.g-pager__actions {
+  display: flex;
+  gap: var(--space-2);
+}

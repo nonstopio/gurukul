@@ -33,6 +33,7 @@ apps/web/            the app
 packages/ui/         design system (tokens + components)
 firebase/            rules, indexes, rules tests, Cloud Functions
 .plan/               product and engineering plan
+docs/                user guides: learner, Kulapati, Acharya, operations
 ```
 
 ## Run it locally

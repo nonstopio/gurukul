@@ -21,6 +21,15 @@
   --g-green-800: #035c3b;
   --g-green-900: #054f34;
 
+  /* ---- Scale: state lines (hairlines around soft state grounds) ---- */
+  --g-red-200: #f9c7c2;
+  --g-blue-200: #bcd0f3;
+
+  /* ---- Scale: cover grounds (course cover themes; forest is an ink step) ---- */
+  --g-sand-300: #e3d5b4;
+  --g-sky-300: #bcd6e8;
+  --g-stone-300: #cfcfc6;
+
   /* ---- Scale: ink (the dark chrome) ---- */
   --g-ink-950: #061316;
   --g-ink-900: #0b211b;
@@ -68,6 +77,7 @@
   --accent-soft: var(--g-green-50);
   --accent-soft-text: var(--g-green-900);
   --accent-decor: var(--g-green-500);
+  --accent-line: var(--g-green-200);
 
   /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
   --chrome: var(--g-ink-950);
@@ -81,6 +91,9 @@
   --chrome-accent: var(--g-green-400);
   --chrome-accent-on: var(--g-ink-950);
   --cover-forest: var(--g-ink-850);
+  --cover-sand: var(--g-sand-300);
+  --cover-sky: var(--g-sky-300);
+  --cover-stone: var(--g-stone-300);
 
   /* ---- Roles: state (only for real state, always paired with words) ---- */
   --success: var(--g-green-700);
@@ -90,8 +103,10 @@
   --warning-line: #f6d9a8;
   --danger: #b42318;
   --danger-soft: #fef3f2;
+  --danger-line: var(--g-red-200);
   --info: #1d4ed8;
   --info-soft: #e8eef9;
+  --info-line: var(--g-blue-200);
 
   /* ---- Roles: ceremony ---- */
   --paper: var(--g-paper);

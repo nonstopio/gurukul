@@ -1,0 +1,20 @@
+{
+  "name": "@gurukul/schema",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gurukul data shapes: the course object and every other Firestore document, as zod schemas shared by the web app and the functions.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
+}

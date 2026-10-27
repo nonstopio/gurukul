@@ -1,0 +1,34 @@
+.g-tile {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+}
+.g-tile--reading {
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+.g-tile--video {
+  color: var(--accent-soft-text);
+  background: var(--accent-soft);
+}
+.g-tile--code {
+  color: var(--code-text);
+  background: var(--code-bg);
+}
+.g-tile--pariksha {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+.g-tile__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  margin: 0;
+}

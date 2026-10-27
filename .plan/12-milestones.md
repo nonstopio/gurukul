@@ -13,7 +13,7 @@ design handoff (`design-handoff/`).
 
 **Exit:** CI green on `main`; maintainer approves the plan.
 
-## M1 · Sign-in, shell and schema (~1 week)
+## M1 · Sign-in, shell and schema (~1 week) — done
 
 - `packages/schema`: Course, Progress, Assignment, Certificate, User schemas;
   progress-percent and item-state helpers; tests.
@@ -28,7 +28,7 @@ design handoff (`design-handoff/`).
 **Exit:** a NonStop account signs in and lands on an empty Home; a Gmail
 account is refused; a Kulapati sees the console nav; rules tests cover every rule.
 
-## M2 · Learner core (~2 weeks)
+## M2 · Learner core (~2 weeks) — built; Pariksha items stay locked until M3
 
 - Seed script: the Git course (from `14-first-course-git.md`) into the emulator and production.
 - Home, Catalogue, Course overview, Lesson player with all block renderers and
@@ -38,7 +38,7 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** a learner can take every Git lesson end to end and resume on another device.
 
-## M3 · Parikshas and certificates (~1.5 weeks)
+## M3 · Parikshas and certificates (~1.5 weeks) — built
 
 - `checkAnswer`, `gradeAttempt` with cooldowns; Pariksha and Result screens.
 - Sequential unlocking.
@@ -47,7 +47,7 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** a learner earns a verifiable Git certificate; answer keys never reach the browser (asserted by a test).
 
-## M4 · Kulapati console (~2 weeks)
+## M4 · Kulapati console (~2 weeks) — built; email sending waits on open question 4
 
 - Learners table (with pending invites), filters, pagination, bulk actions.
 - Assign flow: search, paste, CSV, team; client-side preview; `assignCourses`.
@@ -65,11 +65,15 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** an Acharya builds and publishes a second course without engineering help.
 
+**Status:** built (drafts, editors, Pariksha builder, versions, rollback, preview, question bank). Verified by unit tests; not yet used by a real Acharya.
+
 ## M6 · Hardening and launch (~1 week)
 
 - Playwright e2e for the three journeys; axe scans; Lighthouse CI.
 - Rules coverage gate; budget and alerts verified; backups (scheduled Firestore export — needs a Storage bucket, so decide or skip).
 - Docs: user guide for Kulapatis and Acharyas.
 - Launch: assign Git to everyone.
+
+**Status:** e2e, axe, Lighthouse CI, weekly backup function and docs are built. Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.
 
 **Total:** about 10 weeks of focused work.

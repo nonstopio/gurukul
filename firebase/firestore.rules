@@ -4,8 +4,7 @@ rules_version = '2';
 //
 // Default deny. Every collection opens explicitly, in its own match block, with
 // tests in firebase/rules/test/ for both the allowed and the denied case.
-// The full role model (Shishya, Acharya, Kulapati) lands with milestone M1;
-// see .plan/03-auth-and-roles.md.
+// Roles are custom claims; see .plan/03-auth-and-roles.md.
 service cloud.firestore {
   match /databases/{database}/documents {
     // Only verified NonStop io accounts, signed in with Google, count as signed in. A personal
@@ -23,11 +22,186 @@ service cloud.firestore {
       return signedIn() && request.auth.token.kulapati == true;
     }
 
-    // A signed-in person may read their own profile. Writes go through the
-    // Admin SDK (Cloud Functions) until M1 opens the profile fields.
+    // An Acharya may edit only the courses that list them in `acharyaIds` (the claim alone is not
+    // enough; per-course grants stay out of the token). Costs one read, so use it sparingly.
+    function isAcharyaOf(courseId) {
+      return signedIn()
+        && request.auth.token.acharya == true
+        && request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.acharyaIds;
+    }
+
+    // A person reads their own profile (a Kulapati reads any) and may change only their display
+    // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'team'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 120
+        && (request.resource.data.team == null
+            || (request.resource.data.team is string && request.resource.data.team.size() <= 80));
+      allow create, delete: if false;
+    }
+
+    // Assignments are keyed by email and stamped with the uid at first sign-in. The assignee
+    // reads their own; a Kulapati reads all. Writes go through the assignCourses function.
+    match /assignments/{assignmentId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
       allow write: if false;
+    }
+
+    // The published course object. Everyone signed in reads published and archived courses
+    // (archived ones show as "Retired"); drafts are readable by the course's Acharyas and
+    // Kulapatis. Only the publish function writes.
+    match /courses/{courseId} {
+      allow read: if signedIn()
+        && (resource.data.status in ['published', 'archived']
+            || isKulapati()
+            || (request.auth.token.acharya == true && request.auth.uid in resource.data.acharyaIds));
+      allow write: if false;
+
+      // The Studio's working copy: course plus answer keys (an Acharya needs them to edit). Saved
+      // by the author with a rev check, one step at a time. Created and deleted by functions only.
+      match /drafts/{draftId} {
+        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow update: if (isKulapati() || isAcharyaOf(courseId))
+          && request.resource.data.keys().hasOnly(['rev', 'updatedAt', 'updatedBy', 'course', 'answers'])
+          && request.resource.data.rev is int
+          && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.course is map
+          && request.resource.data.course.id == courseId
+          && request.resource.data.course.parvas is list
+          && request.resource.data.course.parvas.size() <= 30
+          && request.resource.data.answers is map;
+        allow create, delete: if false;
+      }
+
+      // One snapshot per publish, so any version can be rolled back to. Written by functions only.
+      match /versions/{version} {
+        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow write: if false;
+      }
+
+      // Pariksha answer keys never reach a browser. Grading runs in a function (Admin SDK).
+      match /private/{doc} {
+        allow read, write: if false;
+      }
+    }
+
+    // The shared question bank: any Acharya or Kulapati reads and adds; the creator or a Kulapati
+    // removes. Entries are never edited. Learners have no access.
+    match /questionBank/{entryId} {
+      allow read: if signedIn() && (request.auth.token.acharya == true || request.auth.token.kulapati == true);
+      allow create: if signedIn()
+        && (request.auth.token.acharya == true || request.auth.token.kulapati == true)
+        && request.resource.data.keys().hasOnly(['question', 'answers', 'tags', 'createdBy', 'createdAt'])
+        && request.resource.data.question is map
+        && request.resource.data.answers is list
+        && request.resource.data.tags is list
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow delete: if isKulapati()
+        || (signedIn() && request.auth.token.acharya == true && resource.data.createdBy == request.auth.uid);
+      allow update: if false;
+    }
+
+    // One learner's state in one course, `{uid}_{courseId}`. The learner creates it (starting or
+    // self-enrolling in a published course) and may only append completed lesson ids and move the
+    // resume point; percent, Pariksha results and certificates are written by functions.
+    match /progress/{progressId} {
+      // A learner may read their own id before the document exists (the player listens first).
+      allow read: if signedIn()
+        && (progressId.matches(request.auth.uid + '_.*')
+            || (resource != null
+                && (resource.data.uid == request.auth.uid
+                    || isKulapati()
+                    || isAcharyaOf(resource.data.courseId))));
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'courseId', 'courseVersion', 'startedAt',
+             'lastItemId', 'lastActiveAt', 'completedItemIds', 'pariksha', 'percent',
+             'completedAt', 'certificateId'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.courseId is string
+        && progressId == request.auth.uid + '_' + request.resource.data.courseId
+        && get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.status == 'published'
+        && request.resource.data.courseVersion is int
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.lastActiveAt == request.time
+        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && request.resource.data.completedItemIds == []
+        && request.resource.data.pariksha == {}
+        && request.resource.data.percent == 0
+        && request.resource.data.completedAt == null
+        && request.resource.data.certificateId == null;
+
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['completedItemIds', 'lastItemId', 'lastActiveAt', 'courseVersion'])
+        && request.resource.data.completedItemIds is list
+        && request.resource.data.completedItemIds.size() <= 200
+        && request.resource.data.completedItemIds.toSet().hasAll(resource.data.completedItemIds)
+        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && request.resource.data.lastActiveAt == request.time
+        && request.resource.data.courseVersion is int;
+
+      allow delete: if false;
+
+      // One graded attempt, written by gradeAttempt (Admin SDK) with the learner's uid and the
+      // course id on it, so reading costs no extra lookup. The learner, a Kulapati or the course's
+      // Acharya read it.
+      match /attempts/{attemptId} {
+        allow read: if signedIn()
+          && (resource.data.uid == request.auth.uid
+              || isKulapati()
+              || isAcharyaOf(resource.data.courseId));
+        allow write: if false;
+      }
+    }
+
+    // A certificate is public so anyone can verify it by id, signed in or not: the page shows the
+    // name, course, date and status, never an email. Listing is for the owner and Kulapatis (a
+    // learner's "my certificates"). Only the progress trigger issues and revokeCertificate edits.
+    match /certificates/{certificateId} {
+      allow get: if true;
+      allow list: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
+      allow write: if false;
+    }
+
+    // The certificate sequence counter. Functions only.
+    match /counters/{doc} {
+      allow read, write: if false;
+    }
+
+    // Sanjaya's counters, kept by triggers and the daily roll-up. `org` and every course's funnel
+    // are for Kulapatis; `course_{id}` is also readable by that course's Acharya. Never learners;
+    // never written from a client.
+    match /stats/{scope} {
+      allow read: if isKulapati()
+        || (scope.matches('course_.+') && isAcharyaOf(scope.replace('^course_', '')));
+      allow write: if false;
+    }
+
+    // The audit trail of Kulapati actions (roles, assignments, certificates, resets). Read-only
+    // for Kulapatis; entries are written by functions.
+    match /audit/{entryId} {
+      allow read: if isKulapati();
+      allow write: if false;
+    }
+
+    // The email outbox the functions queue into. Nothing in a browser may touch it.
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
+
+    // Organisation settings: the allowed domain, the teams list, reminder settings.
+    match /config/{doc} {
+      allow read: if signedIn();
+      allow write: if isKulapati();
     }
 
     match /{document=**} {

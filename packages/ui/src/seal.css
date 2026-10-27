@@ -1,0 +1,24 @@
+.g-seal {
+  display: block;
+  flex: none;
+}
+.g-seal__disc {
+  fill: var(--cover-forest);
+}
+.g-seal__ring {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.5;
+}
+.g-seal__ring--inner {
+  stroke-width: 1;
+}
+.g-seal__ring-text {
+  fill: var(--gold);
+  font: 600 9px / 1 var(--font-ui);
+  letter-spacing: 0.12em;
+}
+.g-seal__mark {
+  fill: var(--gold);
+  font: italic 500 40px / 1 var(--font-display);
+}

@@ -1,0 +1,29 @@
+.g-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-6);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
+  text-align: center;
+}
+.g-empty__icon {
+  display: inline-flex;
+  color: var(--text-subtle);
+}
+.g-empty__title {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+  color: var(--text);
+}
+.g-empty__text {
+  max-width: 44ch;
+  margin: 0;
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+  color: var(--text-muted);
+}
+.g-empty__action {
+  margin-top: var(--space-2);
+}

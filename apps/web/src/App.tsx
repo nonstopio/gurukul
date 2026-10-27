@@ -1,41 +1,50 @@
-import { useEffect } from 'react';
-import { AREAS } from './navigation';
-import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
-import type { AreaNavigation } from './navigation/types';
-import { NotFoundPage } from './NotFoundPage';
-import { normalizePath, screenFor } from './routes';
+import { ToastProvider } from '@gurukul/ui';
+import { RouterProvider } from 'react-router';
+import type { DataRouter } from 'react-router';
+import { AuthProvider } from './auth/AuthProvider';
+import type { AuthService } from './auth/service';
+import { ConsoleProvider } from './console/ConsoleProvider';
+import type { ConsoleData, ConsoleService } from './console/types';
+import { DataProvider } from './data/DataProvider';
+import type { LearnerData } from './data/types';
+import { ParikshaProvider } from './pariksha/ParikshaProvider';
+import { StudioProvider } from './studio/StudioProvider';
+import type { StudioData, StudioService } from './studio/types';
+import type { ParikshaService } from './pariksha/service';
 
 export interface AppProps {
-  /** The current path. Defaults to the address bar; tests pass their own. */
-  path?: string;
-  /** How to go somewhere. Defaults to a full page load until React Router arrives in M1. */
-  navigate?: (path: string) => void;
+  /** Firebase Auth + the profile watch; tests pass a fake. */
+  service: AuthService;
+  /** Firestore reads and writes for the learner screens; tests pass a fake. */
+  data: LearnerData;
+  /** Server-side grading (callable functions); tests pass a fake. */
+  pariksha: ParikshaService;
+  /** The Kulapati console's reads and callable functions; tests pass fakes. */
+  console: { data: ConsoleData; service: ConsoleService };
+  /** The Vyasa Studio's reads, drafts and callable functions; tests pass fakes. */
+  studio: { data: StudioData; service: StudioService };
+  /** The data router: `createBrowserRouter(appRoutes())` in production, a memory router in tests. */
+  router: DataRouter;
 }
 
-/** A full page load: the honest navigation until React Router arrives in M1. */
-export function goTo(path: string): void {
-  window.location.assign(path);
-}
-
-/** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
-export function titleFor(path: string, areas: readonly AreaNavigation[] = AREAS): string {
-  const target = normalizePath(path);
-  const page = areas.flatMap((a) => a.pages).find((p) => p.path === target);
-  if (!screenFor(path)) return 'Page not found · Gurukul';
-  return page && page.path !== '/' ? `${page.label} · Gurukul` : 'Gurukul · NonStop Academy';
-}
-
-export function App({ path = window.location.pathname, navigate = goTo }: AppProps) {
-  const page = screenFor(path) ?? <NotFoundPage />;
-  useEffect(() => {
-    document.title = titleFor(path);
-  }, [path]);
+/**
+ * Providers around the router. Sign-in is enforced inside the route tree (`RequireSession`), so a
+ * few pages — certificate verification — can stay public.
+ */
+export function App({ service, data, pariksha, console: consoleApi, studio, router }: AppProps) {
   return (
-    <GlobalSearchProvider navigate={navigate}>
-      <header className="app-bar">
-        <SearchTrigger />
-      </header>
-      {page}
-    </GlobalSearchProvider>
+    <AuthProvider service={service}>
+      <DataProvider data={data}>
+        <ParikshaProvider service={pariksha}>
+          <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
+            <StudioProvider data={studio.data} service={studio.service}>
+              <ToastProvider>
+                <RouterProvider router={router} />
+              </ToastProvider>
+            </StudioProvider>
+          </ConsoleProvider>
+        </ParikshaProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }

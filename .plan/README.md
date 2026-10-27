@@ -30,6 +30,8 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [13-open-questions.md](13-open-questions.md) | Decisions needed from the maintainer |
 | [14-first-course-git.md](14-first-course-git.md) | The Git course outline and its Parikshas |
 | [15-changelog-and-search.md](15-changelog-and-search.md) | The changelog, global search and the Claude hooks and skills behind them |
+| [16-api-contract.md](16-api-contract.md) | The one response envelope and error-code catalog every API follows |
+| [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 
 ## Sources

@@ -1,0 +1,12 @@
+.g-card {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text-body);
+}
+.g-card--highlighted {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-soft-text);
+}

@@ -10,13 +10,18 @@
     "node": "22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --sourcemap --outfile=lib/index.js --external:@google-cloud/firestore --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/*",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.4.0",
     "firebase-admin": "^14.5.0",
     "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "@gurukul/schema": "*",
+    "esbuild": "^0.28.2"
   }
 }

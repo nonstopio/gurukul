@@ -1,0 +1,40 @@
+.g-layouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.g-layouts__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.g-layouts__tile:hover {
+  background: var(--surface-sunken);
+}
+.g-layouts__tile--on,
+.g-layouts__tile--on:hover {
+  color: var(--accent-soft-text);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.g-layouts__tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-layouts__name {
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.g-layouts__tile--on .g-layouts__name {
+  color: var(--accent-soft-text);
+}

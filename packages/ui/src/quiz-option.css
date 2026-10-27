@@ -1,0 +1,92 @@
+.g-quiz-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-body);
+  font: 400 var(--text-md) / var(--leading-snug) var(--font-ui);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease);
+}
+.g-quiz-option__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.g-quiz-option:has(.g-quiz-option__input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+.g-quiz-option__letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+}
+.g-quiz-option__text {
+  flex: 1;
+  min-width: 0;
+}
+.g-quiz-option__verdict {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+}
+.g-quiz-option:hover:not(
+    .g-quiz-option--correct,
+    .g-quiz-option--incorrect,
+    .g-quiz-option--locked
+  ) {
+  border-color: var(--text-muted);
+}
+.g-quiz-option--selected {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+.g-quiz-option--selected .g-quiz-option__letter {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+.g-quiz-option--correct {
+  background: var(--accent-soft);
+  border-color: var(--accent-decor);
+  color: var(--accent-soft-text);
+  cursor: default;
+}
+.g-quiz-option--correct .g-quiz-option__verdict {
+  color: var(--success);
+}
+.g-quiz-option--incorrect {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--text-body);
+  cursor: default;
+}
+.g-quiz-option--incorrect .g-quiz-option__verdict {
+  color: var(--danger);
+}
+.g-quiz-option--locked {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}

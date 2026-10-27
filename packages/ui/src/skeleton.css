@@ -1,0 +1,17 @@
+.g-skeleton {
+  display: block;
+  background: var(--surface-sunken);
+}
+.g-skeleton--text {
+  height: 1em;
+  border-radius: var(--radius-sm);
+}
+.g-skeleton--block {
+  height: 6rem;
+  border-radius: var(--radius-lg);
+}
+.g-skeleton--circle {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+}

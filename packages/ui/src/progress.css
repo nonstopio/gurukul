@@ -1,0 +1,50 @@
+.g-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.g-progress__track {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+}
+.g-progress__fill {
+  height: 100%;
+  background: var(--accent-decor);
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-slow) var(--ease);
+}
+.g-progress__text {
+  min-width: 3ch;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  color: var(--text-body);
+  text-align: right;
+}
+
+.g-ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+.g-ring svg {
+  position: absolute;
+  inset: 0;
+}
+.g-ring__track {
+  fill: none;
+  stroke: var(--border);
+}
+.g-ring__fill {
+  fill: none;
+  stroke: var(--accent-decor);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-slow) var(--ease);
+}
+.g-ring__text {
+  position: relative;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  color: var(--text);
+}

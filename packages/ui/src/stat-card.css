@@ -1,0 +1,26 @@
+.g-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+.g-stat__label {
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.g-stat__value {
+  margin: 0;
+  font: 500 var(--text-3xl) / var(--leading-tight) var(--font-display);
+  color: var(--text);
+}
+.g-stat__sub {
+  margin: 0;
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}

@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
 let env: RulesTestEnvironment;
@@ -35,7 +35,11 @@ beforeAll(async () => {
 beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), 'users/priya'), { name: 'Priya' });
+    await setDoc(doc(ctx.firestore(), 'users/priya'), {
+      displayName: 'Priya',
+      team: null,
+      roles: ['shishya'],
+    });
   });
 });
 
@@ -98,16 +102,43 @@ describe('users/{uid}', () => {
     await assertFails(getDoc(doc(db, 'users/priya')));
   });
 
-  it('denies client writes, even to your own profile', async () => {
+  it('denies creating or deleting a profile from the client', async () => {
+    const db = nonstop('rohan');
+    await assertFails(setDoc(doc(db, 'users/rohan'), { displayName: 'Rohan', team: null }));
+    await assertFails(deleteDoc(doc(nonstop('priya'), 'users/priya')));
+  });
+
+  it('lets a person change their display name and team', async () => {
     const db = nonstop('priya');
-    await assertFails(setDoc(doc(db, 'users/priya'), { name: 'Hacked' }));
+    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { displayName: 'Priya N', team: 'QA' }));
+    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: null }));
+  });
+
+  it("denies changing roles, granted courses or anyone else's profile", async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { roles: ['kulapati'] }));
+    await assertFails(
+      updateDoc(doc(db, 'users/priya'), { displayName: 'P', grantedCourseIds: ['git'] }),
+    );
+    await assertFails(updateDoc(doc(nonstop('rohan'), 'users/priya'), { displayName: 'Hacked' }));
+    await assertFails(
+      updateDoc(doc(nonstop('ajay', { kulapati: true }), 'users/priya'), { displayName: 'X' }),
+    );
+  });
+
+  it('denies a badly shaped display name or team', async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { displayName: 42 }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { displayName: 'x'.repeat(121) }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'x'.repeat(81) }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 7 }));
   });
 });
 
 describe('everything else', () => {
   it('is closed by default', async () => {
     const db = nonstop('ajay', { kulapati: true });
-    await assertFails(getDoc(doc(db, 'courses/git')));
-    await assertFails(setDoc(doc(db, 'courses/git'), { title: 'Git' }));
+    await assertFails(getDoc(doc(db, 'unknown/thing')));
+    await assertFails(setDoc(doc(db, 'unknown/thing'), { title: 'Git' }));
   });
 });
