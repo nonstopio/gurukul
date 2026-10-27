@@ -29,8 +29,9 @@ Set it up once:
 
 1. Create a bucket in the same location as the database, for example
    `gsutil mb -l asia-south1 gs://nonstop-gurukul-backups`. Keep it private.
-2. Set `BACKUP_BUCKET=nonstop-gurukul-backups` (the bucket name, no `gs://`) for the functions, in
-   `firebase/functions/.env.nonstop-gurukul`. It is not a secret, but keep it out of other files.
+2. Set the repository variable `BACKUP_BUCKET=nonstop-gurukul-backups` (the bucket name, no `gs://`)
+   in GitHub, Settings, Secrets and variables, Actions, Variables. `deploy.yml` writes it to
+   `firebase/functions/.env.nonstop-gurukul` (git-ignored) before deploying. It is not a secret.
 3. Grant the functions' runtime service account (by default
    `<project-number>-compute@developer.gserviceaccount.com`) two roles: `roles/datastore.importExportAdmin`
    on the project, and `roles/storage.objectAdmin` on the bucket (write access to it).
