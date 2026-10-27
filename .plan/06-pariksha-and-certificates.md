@@ -25,7 +25,9 @@
 The "answer per question" feedback in the design is a call per question:
 `checkAnswer` returns correct/incorrect for one question without recording an
 attempt; `gradeAttempt` records the final attempt. Both read the private key
-server-side, so the key never reaches the browser.
+server-side, so the key never reaches the browser. Both also refuse a Pariksha
+that is still locked for the learner (`PRK_1003`), by the same item states the
+outline shows (`05-learner-experience.md`), so the lock holds outside the app.
 
 ## Certificates
 

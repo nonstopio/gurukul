@@ -216,6 +216,14 @@ export const ERROR_CODES = {
     userMessage: 'Those questions do not belong to this Pariksha.',
     developerMessage: 'The submitted question ids are not a valid draw: %s.',
   },
+  PRK_1003: {
+    title: 'Pariksha is locked',
+    category: 'PARIKSHA',
+    retryable: false,
+    status: 403,
+    userMessage: 'Finish the earlier parts of this course to open this Pariksha.',
+    developerMessage: "Pariksha '%s' is locked for this learner.",
+  },
   PRK_2001: {
     title: 'Pariksha not found',
     category: 'PARIKSHA',

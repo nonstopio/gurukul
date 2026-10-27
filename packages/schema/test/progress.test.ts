@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   attemptSchema,
   isItemDone,
+  isParvaPassed,
   itemStates,
   itemsOf,
   progressId,
@@ -9,7 +10,7 @@ import {
   resumeItemId,
   type ProgressState,
 } from '../src';
-import { itemAt, makeCourse, ts } from './fixtures';
+import { itemAt, makeCourse, parvaAt, ts } from './fixtures';
 
 const none: ProgressState = { completedItemIds: [], pariksha: {} };
 const passed = { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) };
@@ -94,18 +95,43 @@ describe('itemStates', () => {
     expect(itemStates(c, { ...none, completedItemIds: ['l1'] }).l2).toBe('todo');
   });
 
-  it('locks the next parva until the previous one is finished, only when sequential', () => {
-    const all = { completedItemIds: ['l1', 'l2'], pariksha: { q1: passed } };
+  it('locks the next parva until the previous parva’s Pariksha is passed, only when sequential', () => {
     const seq = twoParvas(true).c;
     expect(itemStates(seq, none).n1).toBe('locked');
-    expect(itemStates(seq, all).n1).toBe('locked');
-    expect(itemStates(seq, { ...all, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('current');
+    expect(itemStates(seq, { ...none, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('locked');
+    expect(itemStates(seq, { completedItemIds: ['l1'], pariksha: { q1: passed } }).n1).toBe('todo');
     expect(itemStates(twoParvas(false).c, none).n1).toBe('todo');
+  });
+
+  it('locks the next parva of a parva without a Pariksha until all its lessons are done', () => {
+    const { c } = twoParvas(true);
+    const first = parvaAt(c, 0);
+    first.items = first.items.filter((i) => i.type === 'lesson');
+    expect(itemStates(c, { ...none, completedItemIds: ['l1', 'l2'] }).n1).toBe('locked');
+    expect(itemStates(c, { ...none, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('current');
   });
 
   it('keeps a finished item done even inside a locked parva', () => {
     const seq = twoParvas(true).c;
     expect(itemStates(seq, { ...none, completedItemIds: ['n1'] }).n1).toBe('done');
+  });
+});
+
+describe('isParvaPassed', () => {
+  const parva = parvaAt(makeCourse(), 0);
+  it('needs every Pariksha passed when the parva has one', () => {
+    expect(isParvaPassed(parva, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(false);
+    expect(isParvaPassed(parva, { completedItemIds: [], pariksha: { q1: passed } })).toBe(true);
+    expect(
+      isParvaPassed(parva, { completedItemIds: [], pariksha: { q1: { passed: false } } }),
+    ).toBe(false);
+  });
+
+  it('needs every lesson done when the parva has no Pariksha, and nothing when empty', () => {
+    const lessons = { items: parva.items.filter((i) => i.type === 'lesson') };
+    expect(isParvaPassed(lessons, { ...none, completedItemIds: ['l1', 'l2'] })).toBe(false);
+    expect(isParvaPassed(lessons, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(true);
+    expect(isParvaPassed({ items: [] }, none)).toBe(true);
   });
 });
 

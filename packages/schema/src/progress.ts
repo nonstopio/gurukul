@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Course, Item } from './course';
+import type { Course, Item, Parva } from './course';
 import { timestamp } from './timestamp';
 
 export const parikshaResultSchema = z.object({
@@ -70,9 +70,19 @@ export function progressPercent(course: Pick<Course, 'parvas'>, state: ProgressS
 }
 
 /**
+ * Does this parva open the next one in a sequential course? When it has Parikshas, every one of
+ * them is passed; when it has none, every lesson is done. An empty parva never holds anyone back.
+ */
+export function isParvaPassed(parva: Pick<Parva, 'items'>, state: ProgressState): boolean {
+  const parikshas = parva.items.filter((i) => i.type === 'pariksha');
+  const gate = parikshas.length > 0 ? parikshas : parva.items;
+  return gate.every((i) => isItemDone(i, state));
+}
+
+/**
  * State of each item for the outline rail: done, current (the first unfinished item that is not
  * locked), todo, or locked. Two things lock: in a `sequential` course a parva stays locked until
- * every item of the previous parva is done; and an unfinished Pariksha that `blocksNext` locks
+ * the previous parva is passed (`isParvaPassed`); and an unfinished Pariksha that `blocksNext` locks
  * everything after it. A locked item that is already done stays done.
  */
 export function itemStates(
@@ -98,7 +108,7 @@ export function itemStates(
       currentTaken = true;
       if (item.type === 'pariksha' && item.blocksNext) blocked = true;
     }
-    previousParvaDone = parva.items.every((i) => isItemDone(i, state));
+    previousParvaDone = isParvaPassed(parva, state);
   }
   return out;
 }

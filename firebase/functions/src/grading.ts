@@ -1,4 +1,4 @@
-import { ApiException, itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
+import { ApiException, itemStates, itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
 import type { Course, Pariksha, ParikshaResult, Question } from '@gurukul/schema';
 import { log } from './logging/log.js';
 import { badField } from './validation.js';
@@ -126,6 +126,7 @@ function keyOf(key: Record<string, unknown>, questionId: string): string[] {
  */
 export async function checkAnswer(
   store: GradingStore,
+  uid: string,
   data: { courseId?: unknown; parikshaId?: unknown; questionId?: unknown; selected?: unknown },
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
   const { courseId, parikshaId, questionId, selected } = data;
@@ -136,17 +137,31 @@ export async function checkAnswer(
     throw badField('questionId', questionId, 'must be a question id');
   if (!isStringArray(selected))
     throw badField('selected', selected, 'must be a list of option ids');
-  log.debug('Checking an answer', { courseId, parikshaId, questionId });
-  const { pariksha } = await load(store, courseId, parikshaId);
+  log.debug('Checking an answer', { uid, courseId, parikshaId, questionId });
+  const { course, pariksha } = await load(store, courseId, parikshaId);
   if (pariksha.revealAnswers !== 'each') throw new ApiException('PRK_1001', [parikshaId]);
   const question = pariksha.questions.find((q) => q.id === questionId);
   if (!question) throw new ApiException('VAL_1003', ['question', questionId]);
+  checkUnlocked(course, await store.getProgress(uid, courseId), parikshaId);
   const correctOptionIds = keyOf(await loadKey(store, courseId, parikshaId), questionId);
   return {
     correct: isCorrect(question.kind, selected, correctOptionIds),
     correctOptionIds,
     explanation: question.explanation,
   };
+}
+
+/**
+ * Throws `PRK_1003` when the learner's progress still locks this Pariksha, by the same `itemStates`
+ * the outline shows. Progress that is missing or unreadable counts as nothing done. Checking outside
+ * the grading transaction is safe: completions and passes only ever add, so a lock never returns.
+ */
+export function checkUnlocked(course: Course, progressRaw: unknown, parikshaId: string): void {
+  const parsed = progressSchema.safeParse(progressRaw);
+  const state = parsed.success ? parsed.data : { completedItemIds: [], pariksha: {} };
+  if (itemStates(course, state)[parikshaId] === 'locked') {
+    throw new ApiException('PRK_1003', [parikshaId]);
+  }
 }
 
 /** The learner's Pariksha result so far; throws when they have not started or are cooling down. */
@@ -222,6 +237,7 @@ export async function gradeAttempt(
   // Cheap rejection first: a learner cooling down costs one progress read, not the answer key.
   const progress = await store.getProgress(uid, courseId);
   checkCooldown(progress, courseId, parikshaId, pariksha.cooldownMinutes, now);
+  checkUnlocked(course, progress, parikshaId);
 
   const key = await loadKey(store, courseId, parikshaId);
   const byId = new Map(pariksha.questions.map((q) => [q.id, q]));

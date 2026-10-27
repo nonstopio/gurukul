@@ -39,7 +39,8 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   in one transaction at 100% when `rules.certificate` is on; it never issues twice.
 - Pariksha callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,
-  writes `progress/{id}/attempts/{aid}` and `progress.pariksha[id]` in one transaction). Decisions
+  writes `progress/{id}/attempts/{aid}` and `progress.pariksha[id]` in one transaction). Both refuse a
+  Pariksha the learner's `itemStates` shows as locked (`PRK_1003`). Decisions
   live in `grading.ts`; the answer key never leaves the server. `revokeCertificate` is Kulapati-only
   and writes an `audit` entry. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 

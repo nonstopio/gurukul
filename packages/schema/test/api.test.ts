@@ -42,6 +42,16 @@ describe('the error catalog', () => {
   });
 });
 
+describe('the Pariksha lock code', () => {
+  it('raises PRK_1003 as a 403 naming the Pariksha', () => {
+    const res = apiFail([new ApiException('PRK_1003', ['pk'])], 't');
+    expect(res.status).toBe(403);
+    expect(res.errors[0]?.developerMessage).toBe("Pariksha 'pk' is locked for this learner.");
+    expect(res.errors[0]?.retryable).toBe(false);
+    expect(apiResponseSchema(z.unknown()).parse(res).errors[0]?.code).toBe('PRK_1003');
+  });
+});
+
 describe('the course codes', () => {
   it('raises each new CRS code with its status, message and params', () => {
     const cases = [
