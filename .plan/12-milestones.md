@@ -1,7 +1,8 @@
 # 12 · Milestones
 
 Each milestone ends deployable, at 100% coverage, with the plan updated.
-Sizes are rough, for one engineer with Claude Code.
+Sizes are rough, for one engineer with Claude Code. The "done" and "built" labels below are
+milestone-level; what is still open inside each milestone is in `tracker.md`.
 
 ## M0 · Foundations — done in the setup PR
 

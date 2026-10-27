@@ -44,7 +44,7 @@ fail() {
 echo "pre-push: typecheck, navigation, hooks"
 npm run -s typecheck >/dev/null 2>&1 || fail "typecheck" "npm run typecheck"
 npm run -s validate:navigation -- --quiet || fail "navigation validator" "npm run validate:navigation"
-if touches '^(\.claude/hooks/|scripts/|apps/web/scripts/)'; then
+if touches '^(\.claude/hooks/|scripts/|apps/web/scripts/|\.plan/tracker\.md$)'; then
   npm run -s test:tooling >/dev/null 2>&1 || fail "hook and script tests" "npm run test:tooling"
 fi
 

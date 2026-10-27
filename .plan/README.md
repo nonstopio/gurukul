@@ -4,8 +4,8 @@ The reviewed plan for NonStop Gurukul (NonStop Academy). Code follows this
 plan; a change in scope, data shape, roles or cost changes the plan first, in
 the same PR.
 
-**Status:** draft for review. The setup PR ships the foundations plus two platform features
-(changelog and global search, `15-changelog-and-search.md`); product features wait for approval.
+**Status:** M0–M6 are largely built; what is done and what is left, item by item, is in
+[tracker.md](tracker.md).
 
 ## How to review
 
@@ -32,6 +32,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [15-changelog-and-search.md](15-changelog-and-search.md) | The changelog, global search and the Claude hooks and skills behind them |
 | [16-api-contract.md](16-api-contract.md) | The one response envelope and error-code catalog every API follows |
 | [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
+| [tracker.md](tracker.md) | Status: every plan item as done, todo, blocked or maintainer, and the order to pick them up |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 
 ## Sources
