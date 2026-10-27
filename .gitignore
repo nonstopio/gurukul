@@ -68,3 +68,4 @@ Thumbs.db
 
 # Generated at build time from git tags (apps/web/scripts/changelog-releases.ts)
 apps/web/src/changelog/releases.generated.json
+.lighthouseci/

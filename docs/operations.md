@@ -76,3 +76,11 @@ first. Before each test the emulators are cleared and the seeded course is put b
 - A failed run leaves `e2e/playwright-report/` and `e2e/test-results/` (traces and screenshots);
   open one with `npx playwright show-report e2e/playwright-report`. CI uploads both as the
   `playwright-report` artifact when the `e2e` job fails.
+
+## Turning on email
+
+Assignment and reminder emails are written to the `mail` collection as `{ to, message: { subject, text } }`.
+Install the Firebase extension "Trigger Email from Firestore" (collection `mail`, SMTP URI from your
+mail provider, kept as an extension secret, never in this repository). The extension sends each
+document and records the outcome in a `delivery` field. Until it is installed, nothing is sent and
+learners see assignments on their next sign-in.

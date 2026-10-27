@@ -126,7 +126,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Placeholder public config: without it the app cannot start and the audit sees a blank page.
       - run: npm run build -w @gurukul/web
+        env:
+          VITE_FIREBASE_API_KEY: demo-key
+          VITE_FIREBASE_AUTH_DOMAIN: demo-gurukul.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: demo-gurukul
+          VITE_FIREBASE_APP_ID: 1:000000000000:web:lighthouse
       - name: Lighthouse CI
         run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.json
 

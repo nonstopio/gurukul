@@ -311,13 +311,17 @@ export function firestoreCooldownAdmin(db: Firestore): CooldownAdmin {
   };
 }
 
-/** `Mailer` that queues `mail/{autoId}`. Nothing is sent: see `mail.ts`. */
+/**
+ * `Mailer` that queues `mail/{autoId}` in the shape the Firebase "Trigger Email from Firestore"
+ * extension reads (`to` plus `message.subject/text`). Nothing sends until that extension (or
+ * another sender) is installed: see `mail.ts`.
+ */
 export function firestoreMailer(db: Firestore): Mailer {
   return {
-    async send(message) {
+    async send({ to, subject, text }) {
       await db
         .collection('mail')
-        .add({ ...message, createdAt: FieldValue.serverTimestamp(), state: 'pending' });
+        .add({ to, message: { subject, text }, createdAt: FieldValue.serverTimestamp() });
     },
   };
 }

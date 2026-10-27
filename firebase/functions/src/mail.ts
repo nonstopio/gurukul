@@ -1,6 +1,8 @@
 /**
- * Outgoing email. v1 queues messages in the `mail` collection (an outbox) and sends nothing:
- * the real sender needs credentials and is a later integration (.plan/13-open-questions.md, #4).
+ * Outgoing email. Messages are queued in the `mail` collection in the shape the Firebase
+ * "Trigger Email from Firestore" extension reads, so turning email on is installing that extension
+ * with SMTP credentials (docs/operations.md), not a code change. Until then nothing is sent
+ * (.plan/13-open-questions.md, #4).
  */
 export interface MailMessage {
   to: string;

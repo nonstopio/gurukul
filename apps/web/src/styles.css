@@ -22,6 +22,8 @@ body {
 .shell__logo {
   height: 32px;
   width: auto;
+  /* In a column flex container the default would stretch it out of its aspect ratio. */
+  align-self: flex-start;
 }
 .shell__kicker {
   margin: 0;

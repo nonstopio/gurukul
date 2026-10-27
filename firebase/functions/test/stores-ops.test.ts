@@ -239,7 +239,7 @@ describe('firestoreCooldownAdmin', () => {
 });
 
 describe('firestoreMailer', () => {
-  it('queues a pending outbox document and sends nothing', async () => {
+  it('queues an outbox document in the Trigger Email shape', async () => {
     const add = vi.fn().mockResolvedValue(undefined);
     const collection = vi.fn().mockReturnValue({ add });
     const db = { collection } as never;
@@ -247,10 +247,8 @@ describe('firestoreMailer', () => {
     expect(collection).toHaveBeenCalledWith('mail');
     expect(add).toHaveBeenCalledWith({
       to: 'a@example.com',
-      subject: 'S',
-      text: 'T',
+      message: { subject: 'S', text: 'T' },
       createdAt: 'NOW',
-      state: 'pending',
     });
   });
 });
