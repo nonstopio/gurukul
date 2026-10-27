@@ -167,7 +167,7 @@ describe('console callables', () => {
     auth: { uid: 'k', token: { email: 'k@nonstopio.com', kulapati: true } },
     data,
   });
-  const noAuth: AuthedRequest = { data: {} };
+  const signedOutRequest: AuthedRequest = { data: {} };
   const learnerReq: AuthedRequest = {
     auth: { uid: 'u', token: { email: 'u@nonstopio.com' } },
     data: { uid: 'u', courseId: 'git', parikshaId: 'pk', courseIds: ['git'] },
@@ -196,7 +196,7 @@ describe('console callables', () => {
       deps,
     );
     expect(ok).toMatchObject({ assigned: 1, notified: 1 });
-    await expect(handleAssignCourses(noAuth, deps)).rejects.toMatchObject({
+    await expect(handleAssignCourses(signedOutRequest, deps)).rejects.toMatchObject({
       code: 'AUTH_1001',
     });
     await expect(handleAssignCourses(learnerReq, deps)).rejects.toMatchObject({
@@ -229,7 +229,7 @@ describe('console callables', () => {
     expect(
       await handleResetCooldown(asKulapati({ uid: 'u', courseId: 'git', parikshaId: 'pk' }), admin),
     ).toEqual({ ok: true });
-    await expect(handleResetCooldown(noAuth, admin)).rejects.toMatchObject({
+    await expect(handleResetCooldown(signedOutRequest, admin)).rejects.toMatchObject({
       code: 'AUTH_1001',
     });
     await expect(handleResetCooldown(learnerReq, admin)).rejects.toMatchObject({
@@ -256,7 +256,7 @@ describe('console callables', () => {
       sent: 0,
       skipped: 0,
     });
-    await expect(handleRemindLearners(noAuth, deps, () => 5)).rejects.toMatchObject({
+    await expect(handleRemindLearners(signedOutRequest, deps, () => 5)).rejects.toMatchObject({
       code: 'AUTH_1001',
     });
     await expect(handleRemindLearners(learnerReq, deps, () => 5)).rejects.toMatchObject({
