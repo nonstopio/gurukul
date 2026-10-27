@@ -258,6 +258,7 @@ describe('firestoreReminderStore', () => {
     email: 'a@nonstopio.com',
     courseId: 'git',
     status: 'started',
+    mandatory: true,
     reminder: 'weekly',
     assignedAt: ts(10),
     dueAt: ts(20),
@@ -270,6 +271,7 @@ describe('firestoreReminderStore', () => {
     email: 'a@nonstopio.com',
     courseId: 'git',
     status: 'started',
+    mandatory: true,
     reminder: 'weekly',
     assignedAt: 10,
     dueAt: 20,
@@ -278,7 +280,7 @@ describe('firestoreReminderStore', () => {
 
   it('lists a course’s open assignments, reading times as milliseconds', async () => {
     const get = vi.fn().mockResolvedValue({
-      docs: [snap('x'), snap('y', { dueAt: null, lastRemindedAt: undefined })],
+      docs: [snap('x'), snap('y', { dueAt: null, lastRemindedAt: undefined, mandatory: false })],
     });
     const limit = vi.fn().mockReturnValue({ get });
     const where2 = vi.fn().mockReturnValue({ limit });
@@ -288,7 +290,7 @@ describe('firestoreReminderStore', () => {
     expect(where1).toHaveBeenCalledWith('courseId', '==', 'git');
     expect(where2).toHaveBeenCalledWith('status', 'in', ['assigned', 'started']);
     expect(out[0]).toEqual(expected);
-    expect(out[1]).toMatchObject({ id: 'y', dueAt: null, lastRemindedAt: null });
+    expect(out[1]).toMatchObject({ id: 'y', mandatory: false, dueAt: null, lastRemindedAt: null });
   });
 
   it('lists the assignments of emails in chunks of 30', async () => {
@@ -304,14 +306,14 @@ describe('firestoreReminderStore', () => {
     expect(where).toHaveBeenCalledTimes(2);
   });
 
-  it('lists the open assignments that carry a reminder cadence', async () => {
+  it('lists every open assignment for the daily run', async () => {
     const get = vi.fn().mockResolvedValue({ docs: [snap('x')] });
     const limit = vi.fn().mockReturnValue({ get });
-    const where2 = vi.fn().mockReturnValue({ limit });
-    const where1 = vi.fn().mockReturnValue({ where: where2 });
-    const db = { collection: vi.fn().mockReturnValue({ where: where1 }) } as never;
+    const where = vi.fn().mockReturnValue({ limit });
+    const db = { collection: vi.fn().mockReturnValue({ where }) } as never;
     expect(await firestoreReminderStore(db).scheduled()).toEqual([expected]);
-    expect(where2).toHaveBeenCalledWith('reminder', 'in', ['weekly', 'beforeDue']);
+    expect(where).toHaveBeenCalledOnce();
+    expect(where).toHaveBeenCalledWith('status', 'in', ['assigned', 'started']);
     expect(limit).toHaveBeenCalledWith(2000);
   });
 

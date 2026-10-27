@@ -20,85 +20,84 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell      | 7    | 4    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 5    | 4    | 1       | 0          |
-| Kulapati console and Sanjaya  | 9    | 14   | 2       | 0          |
+| Kulapati console and Sanjaya  | 10   | 13   | 2       | 0          |
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 5    | 10   | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 52   | 59   | 6       | 7          |
+| **Total**                     | 53   | 58   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `KUL-15` — reminders: one per person per day, mandatory only
-2. `OPS-09` — progress rule checks what learners append
-3. `OPS-05` — rules coverage gate
-4. `OPS-12` — CI aggregator treats a skipped job as a failure
-5. `OPS-13` — dependency and docs hygiene
-6. `OPS-22` — load Firestore after sign-in; bundle budget back to 320 KB
-7. `OPS-08` — envelope tests for every callable
-8. `OPS-10` — close the ESLint loopholes around callables
-9. `GIT-03` — placeholder videos stop embedding a dead player
-10. `GIT-06` — seed matches the course outline
-11. `PRK-06` — Pariksha answers survive a reload
-12. `PRK-07` — Result page survives a reload
-13. `SHL-01` — skip link, focus on route change, retry on load errors
-14. `SHL-02` — focused shell for lesson, Pariksha and result
-15. `KUL-10` — Learners table: pending invites and filters that combine
-16. `KUL-11` — people search by name
-17. `KUL-12` — learner drawer completeness
-18. `KUL-16` — org settings: teams and reminders
-19. `KUL-17` — learners pick their team
-20. `STU-07` — Acharyas see every course
-21. `STU-06` — Acharya names on courses
-22. `LRN-14` — Retired and "New lessons added" states
-23. `PRK-09` — revocation date on certificates
-24. `KUL-18` — org Pariksha KPIs and a true overdue count
-25. `KUL-21` — daily roll-up repairs course counters
-26. `SRC-02` — learner navigation area
-27. `SRC-03` — courses and lessons in search
-28. `SRC-04` — people in search for Kulapatis
-29. `SRC-05` — draft courses in search for Acharyas
-30. `STU-11` — preview uses the real learner screens
-31. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-32. `STU-08` — "Draft vN · saved just now"
-33. `STU-10` — learner counts in the publish dialog and on course cards
-34. `STU-12` — publishing an archived course
-35. `STU-13` — structure editor polish
-36. `LRN-12` — course overview to the handoff
-37. `LRN-13` — Home to the handoff
-38. `LRN-11` — outline rail grouped by parva
-39. `LRN-10` — split layout
-40. `LRN-15` — block renderer polish
-41. `LRN-16` — check blocks reveal the right option
-42. `LRN-17` — keyboard shortcuts dialog
-43. `PRK-08` — completion screen to the handoff
-44. `AUTH-08` — sign-in screen to the handoff
-45. `SHL-03` — handoff breakpoints and the menu button
-46. `KUL-13` — bulk role change and select all
-47. `KUL-14` — Assign screen finish
-48. `KUL-19` — Needs attention, pending-invite strip, overview filters
-49. `KUL-20` — course analytics finish
-50. `KUL-22` — Roles screen polish
-51. `KUL-23` — audit log view finish
-52. `DS-05` — axe on the remaining page tests
-53. `DS-04` — shared icon set
-54. `DS-03` — `/__ui` component gallery
-55. `STU-15` — lesson editor extras
-56. `STU-16` — CodeMirror for markdown and code
-57. `OPS-11` — deeper e2e journeys
-58. `OPS-06` — Lighthouse on the preview URL
-59. `OPS-14` — trigger tests against the emulators
-60. `KUL-24` — email delivery (blocked: question 4)
-61. `KUL-25` — Acharyas see their learners (blocked: question 7)
-62. `PRK-10` — tell a learner their certificate was revoked (blocked)
-63. `OPS-18` — custom domain (blocked: question 6)
-64. `OPS-19` — licence holder (blocked: question 10)
-65. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `OPS-09` — progress rule checks what learners append
+2. `OPS-05` — rules coverage gate
+3. `OPS-12` — CI aggregator treats a skipped job as a failure
+4. `OPS-13` — dependency and docs hygiene
+5. `OPS-22` — load Firestore after sign-in; bundle budget back to 320 KB
+6. `OPS-08` — envelope tests for every callable
+7. `OPS-10` — close the ESLint loopholes around callables
+8. `GIT-03` — placeholder videos stop embedding a dead player
+9. `GIT-06` — seed matches the course outline
+10. `PRK-06` — Pariksha answers survive a reload
+11. `PRK-07` — Result page survives a reload
+12. `SHL-01` — skip link, focus on route change, retry on load errors
+13. `SHL-02` — focused shell for lesson, Pariksha and result
+14. `KUL-10` — Learners table: pending invites and filters that combine
+15. `KUL-11` — people search by name
+16. `KUL-12` — learner drawer completeness
+17. `KUL-16` — org settings: teams and reminders
+18. `KUL-17` — learners pick their team
+19. `STU-07` — Acharyas see every course
+20. `STU-06` — Acharya names on courses
+21. `LRN-14` — Retired and "New lessons added" states
+22. `PRK-09` — revocation date on certificates
+23. `KUL-18` — org Pariksha KPIs and a true overdue count
+24. `KUL-21` — daily roll-up repairs course counters
+25. `SRC-02` — learner navigation area
+26. `SRC-03` — courses and lessons in search
+27. `SRC-04` — people in search for Kulapatis
+28. `SRC-05` — draft courses in search for Acharyas
+29. `STU-11` — preview uses the real learner screens
+30. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+31. `STU-08` — "Draft vN · saved just now"
+32. `STU-10` — learner counts in the publish dialog and on course cards
+33. `STU-12` — publishing an archived course
+34. `STU-13` — structure editor polish
+35. `LRN-12` — course overview to the handoff
+36. `LRN-13` — Home to the handoff
+37. `LRN-11` — outline rail grouped by parva
+38. `LRN-10` — split layout
+39. `LRN-15` — block renderer polish
+40. `LRN-16` — check blocks reveal the right option
+41. `LRN-17` — keyboard shortcuts dialog
+42. `PRK-08` — completion screen to the handoff
+43. `AUTH-08` — sign-in screen to the handoff
+44. `SHL-03` — handoff breakpoints and the menu button
+45. `KUL-13` — bulk role change and select all
+46. `KUL-14` — Assign screen finish
+47. `KUL-19` — Needs attention, pending-invite strip, overview filters
+48. `KUL-20` — course analytics finish
+49. `KUL-22` — Roles screen polish
+50. `KUL-23` — audit log view finish
+51. `DS-05` — axe on the remaining page tests
+52. `DS-04` — shared icon set
+53. `DS-03` — `/__ui` component gallery
+54. `STU-15` — lesson editor extras
+55. `STU-16` — CodeMirror for markdown and code
+56. `OPS-11` — deeper e2e journeys
+57. `OPS-06` — Lighthouse on the preview URL
+58. `OPS-14` — trigger tests against the emulators
+59. `KUL-24` — email delivery (blocked: question 4)
+60. `KUL-25` — Acharyas see their learners (blocked: question 7)
+61. `PRK-10` — tell a learner their certificate was revoked (blocked)
+62. `OPS-18` — custom domain (blocked: question 6)
+63. `OPS-19` — licence holder (blocked: question 10)
+64. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -192,7 +191,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-12` | Learner drawer completeness                                                  | todo    | —        | Assigned-but-unstarted courses with due dates; attempt history from `attempts`; Pariksha titles, not ids; pending-invite drawers; confirm before revoking                           |
 | `KUL-13` | Bulk role change and select all                                              | todo    | —        | "Change role" is only a link today; "Select all N" across pages                                                                                                                      |
 | `KUL-14` | Assign screen finish                                                         | todo    | —        | Lesson counts, CSV drop zone, team member count; toast counts people, not pairs; land on Learners filtered by course; partial-failure list with retry; per-course preview matches the server |
-| `KUL-15` | Reminders: one per person per day, mandatory only                            | todo    | —        | The cap is per assignment and `mandatory` is ignored (`07` Email notifications). Honour `config/org.reminders.hourUtc` or drop it                                                   |
+| `KUL-15` | Reminders: one per person per day, mandatory only                            | done    | —        | Daily run takes mandatory assignments only and sends one email per person, none to anyone reminded in the last 20 h (`firebase/functions/src/remind.ts`, `mail.ts` `buildReminderEmail`, `stores.ts`); `hourUtc` dropped from `packages/schema/src/user.ts`, the schedule stays 04:00 UTC (`.plan/07-kulapati-console.md`) |
 | `KUL-16` | Org settings: teams and reminders                                            | todo    | —        | Nothing writes `config/org`, so the team filter and "whole team" are empty. Kulapati screen for teams and reminders on/off; seed a default; narrow the `config` rule to `org` with shape validation and tests |
 | `KUL-17` | Learners pick their team                                                     | todo    | `KUL-16` | One-time prompt or profile setting writing `users/{uid}.team` from `config/org.teams` (`13-open-questions.md` question 8)                                                          |
 | `KUL-18` | Org Pariksha KPIs and a true overdue count                                   | todo    | —        | `stats/org` has no Pariksha fields (`09` table: average score, first-try pass rate); overdue is counted from 500 loaded rows, not a `count()` aggregation                          |

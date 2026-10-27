@@ -19,14 +19,14 @@ export type UserProfile = z.infer<typeof userSchema>;
 export const orgConfigSchema = z.object({
   domain: z.string().min(1),
   teams: z.array(z.string().min(1).max(80)).max(100),
-  reminders: z.object({ enabled: z.boolean(), hourUtc: z.number().int().min(0).max(23) }),
+  reminders: z.object({ enabled: z.boolean() }),
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
 
 export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',
   teams: [],
-  reminders: { enabled: false, hourUtc: 4 },
+  reminders: { enabled: false },
 };
 
 /** Claim keys set by the `setRoles` function. */

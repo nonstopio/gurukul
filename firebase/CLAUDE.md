@@ -47,7 +47,8 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
 - Kulapati console callables (all Kulapati-only, each writes an `audit` entry): `assignCourses`
   (1-20 published courses x 1-1000 emails; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps
   `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
-  `remindLearners` (max 200, at most one reminder per assignment per 24h via `lastRemindedAt`), and
+  `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
+  20 hours via `lastRemindedAt`), and
   `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds`, existing courses only).
 - Vyasa Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`
   (Acharya or Kulapati; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
@@ -65,7 +66,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   lessons, finish days, certified) by comparing before/after; `onAttemptCreated` adds score sums and
   first-try question counts from the attempt's stored `results`. Schedules (daily, UTC, asia-south1):
   `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries;
-  `dailyReminders` 04:00 sends weekly/before-due reminders when `config/org.reminders.enabled`.
+  `dailyReminders` 04:00 sends weekly/before-due reminders for mandatory assignments when
+  `config/org.reminders.enabled`: one email per person listing everything due, none to anyone reminded in the
+  last 20 hours (`remind.ts`; 20, not 24, so a run a few seconds early still counts yesterday's as a day old).
   Never schedule more often than daily. `weeklyBackup` (Sunday 02:00 UTC, `backup.ts`) starts a Firestore
   export to `gs://$BACKUP_BUCKET/backups/YYYY-MM-DD` through the `BackupPort` (`firestoreBackupPort`, the
   Firestore Admin client) and warns, without throwing, when `BACKUP_BUCKET` is unset. It never deletes:

@@ -334,6 +334,7 @@ function toCandidate(d: QueryDocumentSnapshot): ReminderCandidate {
     email: string;
     courseId: string;
     status: ReminderCandidate['status'];
+    mandatory?: boolean;
     reminder: ReminderCandidate['reminder'];
     assignedAt: { toMillis(): number };
     dueAt?: Millis;
@@ -344,6 +345,7 @@ function toCandidate(d: QueryDocumentSnapshot): ReminderCandidate {
     email: x.email,
     courseId: x.courseId,
     status: x.status,
+    mandatory: x.mandatory === true,
     reminder: x.reminder,
     assignedAt: x.assignedAt.toMillis(),
     dueAt: millis(x.dueAt),
@@ -374,12 +376,7 @@ export function firestoreReminderStore(db: Firestore): ReminderStore {
       return out;
     },
     async scheduled() {
-      const snap = await db
-        .collection('assignments')
-        .where('status', 'in', OPEN)
-        .where('reminder', 'in', ['weekly', 'beforeDue'])
-        .limit(2000)
-        .get();
+      const snap = await db.collection('assignments').where('status', 'in', OPEN).limit(2000).get();
       return snap.docs.map(toCandidate);
     },
     async courseTitles(ids) {
