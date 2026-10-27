@@ -290,13 +290,24 @@ describe('Lesson player', () => {
     expect(await screen.findByRole('button', { name: 'Back to the course' })).toBeTruthy();
   });
 
-  it('keeps the page and shows a toast when saving fails', async () => {
+  it('moves on without waiting for the server, so it works offline', async () => {
     const d = fakeData({ watched: started() });
-    d.data.completeItem = vi.fn().mockRejectedValue(new Error('offline'));
+    d.data.completeItem = vi.fn(() => new Promise<void>(() => {}));
     const { router } = await open('/courses/git/learn/l1', d);
     fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
-    expect(await screen.findByText('Could not save your progress. Try again.')).toBeTruthy();
-    expect(router.state.location.pathname).toBe('/courses/git/learn/l1');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
+  });
+
+  it('names the lesson in a toast when the server refuses the write', async () => {
+    const d = fakeData({ watched: started() });
+    d.data.completeItem = vi.fn().mockRejectedValue(new Error('permission-denied'));
+    await open('/courses/git/learn/l1', d);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    expect(
+      await screen.findByText(
+        'Could not save your progress on "Lesson l1". Open it and try again.',
+      ),
+    ).toBeTruthy();
   });
 
   it('waits for the "watched" toggle on a video lesson', async () => {

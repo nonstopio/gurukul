@@ -11,7 +11,9 @@ vi.mock('firebase/functions', () => ({
   connectFunctionsEmulator: vi.fn(() => calls.push('functions-emulator')),
 }));
 vi.mock('firebase/firestore', () => ({
-  getFirestore: vi.fn(() => ({ kind: 'db' })),
+  initializeFirestore: vi.fn((_app, settings) => ({ kind: 'db', settings })),
+  persistentLocalCache: vi.fn((s) => ({ cache: 'persistent', ...s })),
+  persistentMultipleTabManager: vi.fn(() => ({ tabs: 'multiple' })),
   connectFirestoreEmulator: vi.fn(() => calls.push('db-emulator')),
 }));
 
@@ -49,6 +51,14 @@ describe('initFirebase', () => {
     const fb = initFirebase({ VITE_FIREBASE_PROJECT_ID: 'p' });
     expect(fb.auth).toEqual({ kind: 'auth' });
     expect(calls).toEqual([]);
+  });
+
+  it('keeps a persistent Firestore cache shared across tabs, so reading works offline', () => {
+    const fb = initFirebase({ VITE_FIREBASE_PROJECT_ID: 'p' });
+    expect(fb.db).toEqual({
+      kind: 'db',
+      settings: { localCache: { cache: 'persistent', tabManager: { tabs: 'multiple' } } },
+    });
   });
 
   it('connects the Auth and Firestore emulators when asked', () => {

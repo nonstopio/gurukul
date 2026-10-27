@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { appRoutes } from '../src/routes';
 import { groupByArea, titleFor } from '../src/Shell';
@@ -154,6 +154,32 @@ describe('signed-in shell', () => {
     const { f } = await open('/');
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(f.service.signOut).toHaveBeenCalled();
+  });
+});
+
+describe('offline banner', () => {
+  it('shows while the connection is gone and leaves when it returns', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    await open('/');
+    const text = "You're offline. Progress will sync when you're back.";
+    expect((await screen.findByText(text)).getAttribute('role')).toBe('status');
+    online.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(screen.queryByText(text)).toBeNull();
+    online.mockReturnValue(false);
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+    expect(screen.getByText(text)).toBeTruthy();
+    online.mockRestore();
+  });
+
+  it('is not shown online', async () => {
+    await open('/');
+    await screen.findByRole('heading', { level: 1, name: 'Namaste, Priya' });
+    expect(screen.queryByText(/You're offline/)).toBeNull();
   });
 });
 
