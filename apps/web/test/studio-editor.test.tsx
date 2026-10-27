@@ -139,6 +139,67 @@ describe('Course editor: the shell', () => {
   });
 });
 
+describe('Course editor: deleting a lesson learners may have completed', () => {
+  const askToDelete = (name: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${name}` }));
+
+  it('says how many learners completed a published lesson', async () => {
+    const { studio } = await open();
+    await ready();
+    vi.mocked(studio.data.completedCount).mockResolvedValueOnce(12);
+    askToDelete('Lesson l1');
+    expect(await screen.findByText(/12 learners have completed it; they keep their/)).toBeTruthy();
+    expect(studio.data.completedCount).toHaveBeenCalledWith('git', 'l1');
+  });
+
+  it('uses the singular for one learner and says nothing extra for none', async () => {
+    const { studio } = await open();
+    await ready();
+    vi.mocked(studio.data.completedCount).mockResolvedValueOnce(1);
+    askToDelete('Lesson l1');
+    expect(await screen.findByText(/1 learner has completed it; they keep/)).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keep it' }));
+    askToDelete('Lesson l2');
+    await waitFor(() => expect(studio.data.completedCount).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(/Learners who completed it keep their progress/)).toBeTruthy();
+  });
+
+  it('does not count a lesson that was never published, or a Pariksha', async () => {
+    const { studio } = await open({
+      draft: mine({ version: 3, parvas: [{ id: 'p1', title: 'Basics', items: [lesson('new1')] }] }),
+      live: mine(),
+    });
+    await ready();
+    askToDelete('Lesson new1');
+    expect(studio.data.completedCount).not.toHaveBeenCalled();
+  });
+
+  it('still lets the Acharya delete when the count cannot be read', async () => {
+    const { studio } = await open();
+    await ready();
+    vi.mocked(studio.data.completedCount).mockRejectedValueOnce(new Error('offline'));
+    askToDelete('Lesson l1');
+    await waitFor(() =>
+      expect(log.warn).toHaveBeenCalledWith('Counting lesson completions failed', {
+        courseId: 'git',
+      }),
+    );
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    expect(screen.queryByRole('link', { name: 'Lesson l1' })).toBeNull();
+  });
+
+  it('ignores a count that arrives after the dialog moved on', async () => {
+    const { studio } = await open();
+    await ready();
+    let late: (n: number) => void = () => {};
+    vi.mocked(studio.data.completedCount).mockReturnValueOnce(new Promise((r) => (late = r)));
+    askToDelete('Lesson l1');
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keep it' }));
+    await act(async () => late(9));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
 describe('Course editor: structure', () => {
   it('renames, adds and deletes parvas, items; collapses', async () => {
     await open();

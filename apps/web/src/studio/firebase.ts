@@ -6,6 +6,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getCountFromServer,
   getDocs,
   limit,
   orderBy,
@@ -158,6 +159,16 @@ export function firebaseStudioData(db: Firestore): StudioData {
     },
     async removeFromBank(id) {
       await deleteDoc(doc(db, 'questionBank', id));
+    },
+    async completedCount(courseId, lessonId) {
+      const snap = await getCountFromServer(
+        query(
+          collection(db, 'progress'),
+          where('courseId', '==', courseId),
+          where('completedItemIds', 'array-contains', lessonId),
+        ),
+      );
+      return snap.data().count;
     },
   };
 }

@@ -28,7 +28,7 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 - Parvas and items in a keyboard-accessible drag list (move with buttons and
   `Alt+↑/↓` as well as drag).
 - Add parva, add lesson, add Pariksha, rename inline, delete with confirmation
-  (deleting a lesson that learners completed warns with the count).
+  (deleting a published lesson warns with how many learners completed it: one count query when the dialog opens).
 - Right panel: title, slug (locked after first publish), summary, level, pass
   mark, cover theme, learning rules toggles, Acharyas with access.
 
