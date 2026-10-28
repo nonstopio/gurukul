@@ -179,9 +179,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      # Every result must be `success`: a job that ends `skipped` (a stray `if:`, a failed
+      # dependency) ran nothing, so it must not count as a pass.
       - name: Require every job to pass
         env:
           RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           echo "$RESULTS"
-          echo "$RESULTS" | grep -Eq '"(failure|cancelled)"' && exit 1 || exit 0
+          echo "$RESULTS" | jq -e 'length > 0 and all(. == "success")'
