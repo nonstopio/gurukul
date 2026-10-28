@@ -44,6 +44,11 @@ describe('git course', () => {
     expect(gitCourse.estimatedMinutes).toBe(lessons.reduce((s, l) => s + l.minutes, 0));
   });
 
+  it('matches the outline: 3 h 10 of lessons, a 10 minute cooldown on Pariksha I and II', () => {
+    expect(gitCourse.estimatedMinutes).toBe(190);
+    expect(parikshas.slice(0, 2).map((p) => p.cooldownMinutes)).toEqual([10, 10]);
+  });
+
   it('uses unique ids for parvas, items, blocks and questions', () => {
     const ids = [
       ...gitCourse.parvas.map((p) => p.id),
