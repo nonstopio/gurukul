@@ -20,6 +20,24 @@ export function isEmbedAllowed(url: string): boolean {
   }
 }
 
+/** Prefix of the video id a course carries until its video is recorded. */
+export const PLACEHOLDER_VIDEO_ID = 'TODO_';
+
+/**
+ * True for a video link that stands in for a video not yet recorded (its id starts with
+ * `TODO_`). It looks like a real YouTube link, so players show "Video coming soon" instead of
+ * embedding a dead player.
+ */
+export function isPlaceholderVideo(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const id = u.hostname === 'youtu.be' ? u.pathname.slice(1) : u.searchParams.get('v');
+    return !!id && id.startsWith(PLACEHOLDER_VIDEO_ID);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The iframe URL for a video block, or null when the link is not one this provider can embed
  * (the player then shows the plain "open in a new tab" link instead).

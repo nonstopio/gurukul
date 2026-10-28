@@ -6,7 +6,6 @@ import {
   signInWithRedirect,
   signOut,
 } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
 import type { Firebase } from '../firebase';
 
 /** A signed-in Firebase user, reduced to what the app reads. */
@@ -69,7 +68,8 @@ export interface AuthService {
 }
 
 export function firebaseAuthService(
-  { auth, db }: Pick<Firebase, 'auth' | 'db'>,
+  { auth }: Pick<Firebase, 'auth'>,
+  watchProfile: AuthService['watchProfile'],
   nav: Pick<Navigator, 'userAgent' | 'maxTouchPoints'> = navigator,
 ): AuthService {
   return {
@@ -109,9 +109,6 @@ export function firebaseAuthService(
       const token = await auth.currentUser?.getIdTokenResult(refresh);
       return (token?.claims ?? {}) as { acharya?: boolean; kulapati?: boolean };
     },
-    watchProfile: (uid, cb) =>
-      onSnapshot(doc(db, 'users', uid), (snap) =>
-        cb(snap.exists() ? (snap.data() as ProfileMirror) : null),
-      ),
+    watchProfile,
   };
 }

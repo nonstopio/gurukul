@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   authCb: undefined as undefined | ((u: unknown) => void),
-  snapCb: undefined as undefined | ((s: unknown) => void),
   params: undefined as unknown,
 }));
 vi.mock('firebase/auth', () => ({
@@ -19,13 +18,6 @@ vi.mock('firebase/auth', () => ({
   signInWithRedirect: vi.fn().mockResolvedValue(undefined),
   getRedirectResult: vi.fn().mockResolvedValue(null),
   signOut: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('firebase/firestore', () => ({
-  doc: vi.fn((_d, c, id) => `${c}/${id}`),
-  onSnapshot: vi.fn((_r, cb) => {
-    state.snapCb = cb;
-    return () => {};
-  }),
 }));
 
 import { getRedirectResult, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
@@ -45,8 +37,9 @@ const IPAD = {
 };
 const MAC = { ...IPAD, maxTouchPoints: 0 };
 
+const watchProfile = vi.fn(() => () => {});
 const auth = { currentUser: { getIdTokenResult: vi.fn() } };
-const svc = (nav = DESKTOP) => firebaseAuthService({ auth: auth as never, db: {} as never }, nav);
+const svc = (nav = DESKTOP) => firebaseAuthService({ auth: auth as never }, watchProfile, nav);
 const failWith = (code: string) =>
   vi.mocked(signInWithPopup).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
 
@@ -131,7 +124,7 @@ describe('firebaseAuthService', () => {
   });
 
   it('reads the real navigator by default', () => {
-    expect(firebaseAuthService({ auth: auth as never, db: {} as never }).signIn).toBeTypeOf(
+    expect(firebaseAuthService({ auth: auth as never }, watchProfile).signIn).toBeTypeOf(
       'function',
     );
   });
@@ -145,16 +138,11 @@ describe('firebaseAuthService', () => {
   });
 
   it('has no claims when nobody is signed in', async () => {
-    const out = firebaseAuthService({ auth: { currentUser: null } as never, db: {} as never });
+    const out = firebaseAuthService({ auth: { currentUser: null } as never }, watchProfile);
     expect(await out.claims({} as never, false)).toEqual({});
   });
 
-  it('watches the profile, reporting a missing document as null', () => {
-    const cb = vi.fn();
-    svc().watchProfile('u', cb);
-    state.snapCb?.({ exists: () => false });
-    state.snapCb?.({ exists: () => true, data: () => ({ roles: ['shishya'] }) });
-    expect(cb).toHaveBeenNthCalledWith(1, null);
-    expect(cb).toHaveBeenNthCalledWith(2, { roles: ['shishya'] });
+  it('hands profile watching to the lazily loaded Firestore', () => {
+    expect(svc().watchProfile).toBe(watchProfile);
   });
 });

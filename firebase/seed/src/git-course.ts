@@ -471,7 +471,7 @@ const parva2: Parva = {
         '`*.log` matches by extension. `log/` matches a folder named log, and `!` re-includes files.',
       ),
     ]),
-    pariksha('pariksha-i', 'Pariksha I: Snapshots and history', pariksha1Specs, 'each', 0),
+    pariksha('pariksha-i', 'Pariksha I: Snapshots and history', pariksha1Specs, 'each', 10),
   ],
 };
 
@@ -630,7 +630,7 @@ const parva3: Parva = {
         '`git switch -c` creates the branch and moves you onto it. `git branch` alone leaves you on main.',
       ),
     ]),
-    lesson('merging', 'Merging', 9, 'hands', [
+    lesson('merging', 'Merging', 11, 'hands', [
       md(
         '## Bring work back together',
         '',
@@ -661,7 +661,7 @@ const parva3: Parva = {
         'If the history is a straight line, Git moves the pointer. Otherwise it needs a merge commit.',
       ),
     ]),
-    lesson('resolving-merge-conflicts', 'Resolving merge conflicts', 12, 'hands', [
+    lesson('resolving-merge-conflicts', 'Resolving merge conflicts', 14, 'hands', [
       md(
         '## Conflicts are normal',
         '',
@@ -711,7 +711,7 @@ const parva3: Parva = {
         'Adding marks the conflict resolved; committing finishes the merge.',
       ),
     ]),
-    pariksha('pariksha-ii', 'Pariksha II: Branching', pariksha2Specs, 'each', 0),
+    pariksha('pariksha-ii', 'Pariksha II: Branching', pariksha2Specs, 'each', 10),
   ],
 };
 
@@ -870,7 +870,7 @@ const parva5: Parva = {
   id: 'undoing-things-safely',
   title: 'Undoing things safely',
   items: [
-    lesson('restore-and-reset', 'restore and reset', 11, 'hands', [
+    lesson('restore-and-reset', 'restore and reset', 13, 'hands', [
       md('## Undo uncommitted work: `git restore`'),
       sh(
         'git restore notes.md            # discard edits in the working directory',
@@ -927,7 +927,7 @@ const parva5: Parva = {
         'Revert records the undo as a new commit and does not rewrite shared history.',
       ),
     ]),
-    lesson('stash', 'stash', 6, 'hands', [
+    lesson('stash', 'stash', 7, 'hands', [
       md(
         'You are half way through a change and need to switch branches. **Stash** puts uncommitted work on a shelf.',
       ),

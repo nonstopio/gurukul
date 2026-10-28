@@ -49,7 +49,7 @@ Other workflows:
 | `codeql.yml` | CodeQL on PRs, `main` and weekly |
 | Dependabot | npm and actions, weekly, grouped, `chore(deps)` / `ci(deps)` titles |
 
-Added later: bundle-size budget check (M3: initial JS < 320 KB gzip, enforced by `npm run check:bundle`: the Firebase SDK is about half of it; pages load on demand). Raised to 340 KB when Firestore's persistent offline cache (`05` Progress and resume) added about 22 KB; deferring Firestore until after sign-in (about 140 KB) is the next saving and brings it back under 320 KB (tracker `OPS-22`). Still to come: Lighthouse CI on the preview URL (M6) rather than the built page.
+Added later: bundle-size budget check (M3: initial JS < 320 KB gzip, enforced by `npm run check:bundle`: the Firebase SDK is about half of it; pages load on demand). Firestore's persistent offline cache (`05` Progress and resume) briefly raised it to 340 KB; Firestore now loads as its own chunk after sign-in (`apps/web/src/firestore.ts`), initial JS is about 181 KB, and the budget is back at 320 KB. Still to come: Lighthouse CI on the preview URL (M6) rather than the built page.
 
 ## Branch protection (to set on GitHub)
 

@@ -26,6 +26,24 @@ describe('web lint rules', () => {
     assert.deepEqual(await rulesFor(code, 'apps/web/src/api/x.ts'), []);
   });
 
+  it('rejects httpsCallableFromURL and namespace imports outside apps/web/src/api', async () => {
+    for (const code of [
+      "import { httpsCallableFromURL } from 'firebase/functions';\nexport const c = httpsCallableFromURL;\n",
+      "import * as fns from 'firebase/functions';\nexport const c = fns;\n",
+    ]) {
+      assert.ok(
+        (await rulesFor(code, 'apps/web/src/foo.ts')).includes('no-restricted-imports'),
+        code,
+      );
+    }
+  });
+
+  it('allows httpsCallableFromURL inside apps/web/src/api', async () => {
+    const code =
+      "import { httpsCallableFromURL } from 'firebase/functions';\nexport const c = httpsCallableFromURL;\n";
+    assert.deepEqual(await rulesFor(code, 'apps/web/src/api/x.ts'), []);
+  });
+
   it('rejects console calls outside apps/web/src/log.ts, even warn and error', async () => {
     for (const method of ['log', 'warn', 'error']) {
       const code = `console.${method}('x');\n`;
@@ -77,6 +95,29 @@ describe('functions lint rules', () => {
       const rules = await rulesFor(code, 'firebase/functions/src/foo.ts');
       assert.ok(rules.includes('no-restricted-imports'), code);
     }
+  });
+
+  it('rejects https namespace access on firebase-functions, v1 and v2', async () => {
+    for (const mod of ['firebase-functions', 'firebase-functions/v1', 'firebase-functions/v2']) {
+      for (const code of [
+        `import { https } from '${mod}';\nexport const h = https;\n`,
+        `import * as functions from '${mod}';\nexport const h = functions;\n`,
+        `import functions from '${mod}';\nexport const h = functions;\n`,
+      ]) {
+        const rules = await rulesFor(code, 'firebase/functions/src/foo.ts');
+        assert.ok(rules.includes('no-restricted-imports'), code);
+      }
+    }
+    const subpath =
+      "import { onCall } from 'firebase-functions/https';\nexport const f = onCall;\n";
+    assert.ok(
+      (await rulesFor(subpath, 'firebase/functions/src/foo.ts')).includes('no-restricted-imports'),
+    );
+  });
+
+  it('allows the https namespace inside firebase/functions/src/api', async () => {
+    const code = "import { https } from 'firebase-functions';\nexport const h = https;\n";
+    assert.deepEqual(await rulesFor(code, 'firebase/functions/src/api/x.ts'), []);
   });
 
   it('points the import message at the rule file', async () => {

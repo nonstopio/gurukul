@@ -7,7 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as v1 from 'firebase-functions/v1';
+import { region } from 'firebase-functions/v1';
 import { apiCallable } from './api/callable.js';
 import { handleAttemptCreated, runDailyRollup } from './analytics.js';
 import { runWeeklyBackup } from './backup.js';
@@ -54,8 +54,7 @@ initializeApp();
  * First sign-in: profile + claim invites. (v1 API: 2nd gen has no plain Auth `onCreate`.)
  * `setGlobalOptions` is v2-only, so region and the instance cap are set here as well.
  */
-export const onUserCreated = v1
-  .region('asia-south1')
+export const onUserCreated = region('asia-south1')
   .runWith({ maxInstances: MAX_INSTANCES })
   .auth.user()
   .onCreate(async (user) => {

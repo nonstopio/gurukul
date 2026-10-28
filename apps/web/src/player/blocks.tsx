@@ -2,7 +2,7 @@ import { Callout, CodeBlock, QuizOption, VideoBlock, Button } from '@gurukul/ui'
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
-import { isEmbedAllowed, videoEmbedUrl } from '@gurukul/schema';
+import { isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { TrackedVideo } from './TrackedVideo';
 
 /** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
@@ -74,6 +74,7 @@ export function BlockView({
   switch (block.type) {
     case 'video': {
       if (onWatched) return <TrackedVideo block={block} onWatched={onWatched} />;
+      if (isPlaceholderVideo(block.url)) return <p>Video coming soon.</p>;
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
         <VideoBlock src={src} title="Lesson video" href={block.url} />
