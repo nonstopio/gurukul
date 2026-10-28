@@ -24,78 +24,77 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
-| Platform, CI and operations   | 7    | 8    | 2       | 5          |
+| Platform, CI and operations   | 8    | 7    | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 55   | 56   | 6       | 7          |
+| **Total**                     | 56   | 55   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `OPS-12` — CI aggregator treats a skipped job as a failure
-2. `OPS-13` — dependency and docs hygiene
-3. `OPS-22` — load Firestore after sign-in; bundle budget back to 320 KB
-4. `OPS-08` — envelope tests for every callable
-5. `OPS-10` — close the ESLint loopholes around callables
-6. `GIT-03` — placeholder videos stop embedding a dead player
-7. `GIT-06` — seed matches the course outline
-8. `PRK-06` — Pariksha answers survive a reload
-9. `PRK-07` — Result page survives a reload
-10. `SHL-01` — skip link, focus on route change, retry on load errors
-11. `SHL-02` — focused shell for lesson, Pariksha and result
-12. `KUL-10` — Learners table: pending invites and filters that combine
-13. `KUL-11` — people search by name
-14. `KUL-12` — learner drawer completeness
-15. `KUL-16` — org settings: teams and reminders
-16. `KUL-17` — learners pick their team
-17. `STU-07` — Acharyas see every course
-18. `STU-06` — Acharya names on courses
-19. `LRN-14` — Retired and "New lessons added" states
-20. `PRK-09` — revocation date on certificates
-21. `KUL-18` — org Pariksha KPIs and a true overdue count
-22. `KUL-21` — daily roll-up repairs course counters
-23. `SRC-02` — learner navigation area
-24. `SRC-03` — courses and lessons in search
-25. `SRC-04` — people in search for Kulapatis
-26. `SRC-05` — draft courses in search for Acharyas
-27. `STU-11` — preview uses the real learner screens
-28. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-29. `STU-08` — "Draft vN · saved just now"
-30. `STU-10` — learner counts in the publish dialog and on course cards
-31. `STU-12` — publishing an archived course
-32. `STU-13` — structure editor polish
-33. `LRN-12` — course overview to the handoff
-34. `LRN-13` — Home to the handoff
-35. `LRN-11` — outline rail grouped by parva
-36. `LRN-10` — split layout
-37. `LRN-15` — block renderer polish
-38. `LRN-16` — check blocks reveal the right option
-39. `LRN-17` — keyboard shortcuts dialog
-40. `PRK-08` — completion screen to the handoff
-41. `AUTH-08` — sign-in screen to the handoff
-42. `SHL-03` — handoff breakpoints and the menu button
-43. `KUL-13` — bulk role change and select all
-44. `KUL-14` — Assign screen finish
-45. `KUL-19` — Needs attention, pending-invite strip, overview filters
-46. `KUL-20` — course analytics finish
-47. `KUL-22` — Roles screen polish
-48. `KUL-23` — audit log view finish
-49. `DS-05` — axe on the remaining page tests
-50. `DS-04` — shared icon set
-51. `DS-03` — `/__ui` component gallery
-52. `STU-15` — lesson editor extras
-53. `STU-16` — CodeMirror for markdown and code
-54. `OPS-11` — deeper e2e journeys
-55. `OPS-06` — Lighthouse on the preview URL
-56. `OPS-14` — trigger tests against the emulators
-57. `KUL-24` — email delivery (blocked: question 4)
-58. `KUL-25` — Acharyas see their learners (blocked: question 7)
-59. `PRK-10` — tell a learner their certificate was revoked (blocked)
-60. `OPS-18` — custom domain (blocked: question 6)
-61. `OPS-19` — licence holder (blocked: question 10)
-62. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `OPS-13` — dependency and docs hygiene
+2. `OPS-22` — load Firestore after sign-in; bundle budget back to 320 KB
+3. `OPS-08` — envelope tests for every callable
+4. `OPS-10` — close the ESLint loopholes around callables
+5. `GIT-03` — placeholder videos stop embedding a dead player
+6. `GIT-06` — seed matches the course outline
+7. `PRK-06` — Pariksha answers survive a reload
+8. `PRK-07` — Result page survives a reload
+9. `SHL-01` — skip link, focus on route change, retry on load errors
+10. `SHL-02` — focused shell for lesson, Pariksha and result
+11. `KUL-10` — Learners table: pending invites and filters that combine
+12. `KUL-11` — people search by name
+13. `KUL-12` — learner drawer completeness
+14. `KUL-16` — org settings: teams and reminders
+15. `KUL-17` — learners pick their team
+16. `STU-07` — Acharyas see every course
+17. `STU-06` — Acharya names on courses
+18. `LRN-14` — Retired and "New lessons added" states
+19. `PRK-09` — revocation date on certificates
+20. `KUL-18` — org Pariksha KPIs and a true overdue count
+21. `KUL-21` — daily roll-up repairs course counters
+22. `SRC-02` — learner navigation area
+23. `SRC-03` — courses and lessons in search
+24. `SRC-04` — people in search for Kulapatis
+25. `SRC-05` — draft courses in search for Acharyas
+26. `STU-11` — preview uses the real learner screens
+27. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+28. `STU-08` — "Draft vN · saved just now"
+29. `STU-10` — learner counts in the publish dialog and on course cards
+30. `STU-12` — publishing an archived course
+31. `STU-13` — structure editor polish
+32. `LRN-12` — course overview to the handoff
+33. `LRN-13` — Home to the handoff
+34. `LRN-11` — outline rail grouped by parva
+35. `LRN-10` — split layout
+36. `LRN-15` — block renderer polish
+37. `LRN-16` — check blocks reveal the right option
+38. `LRN-17` — keyboard shortcuts dialog
+39. `PRK-08` — completion screen to the handoff
+40. `AUTH-08` — sign-in screen to the handoff
+41. `SHL-03` — handoff breakpoints and the menu button
+42. `KUL-13` — bulk role change and select all
+43. `KUL-14` — Assign screen finish
+44. `KUL-19` — Needs attention, pending-invite strip, overview filters
+45. `KUL-20` — course analytics finish
+46. `KUL-22` — Roles screen polish
+47. `KUL-23` — audit log view finish
+48. `DS-05` — axe on the remaining page tests
+49. `DS-04` — shared icon set
+50. `DS-03` — `/__ui` component gallery
+51. `STU-15` — lesson editor extras
+52. `STU-16` — CodeMirror for markdown and code
+53. `OPS-11` — deeper e2e journeys
+54. `OPS-06` — Lighthouse on the preview URL
+55. `OPS-14` — trigger tests against the emulators
+56. `KUL-24` — email delivery (blocked: question 4)
+57. `KUL-25` — Acharyas see their learners (blocked: question 7)
+58. `PRK-10` — tell a learner their certificate was revoked (blocked)
+59. `OPS-18` — custom domain (blocked: question 6)
+60. `OPS-19` — licence holder (blocked: question 10)
+61. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -264,7 +263,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-09` | Progress rule checks what learners append | done | — | `firebase/firestore.rules` (`appendsAtMostOneItemId`: unchanged, or one new 1-80 character string id on the end, no duplicates), tests in `firebase/rules/test/courses-progress.test.ts` |
 | `OPS-10` | Close the ESLint loopholes around callables                                | todo       | —        | `httpsCallableFromURL`, and `https` namespace access on `firebase-functions`/`v1`/`v2`, are not banned; extend `scripts/test/lint-rules.test.mjs`          |
 | `OPS-11` | Deeper e2e journeys                                                        | todo       | —        | Learner: Pariksha, certificate, `/verify`. Acharya: publish, then the course is in the catalogue                                                           |
-| `OPS-12` | CI aggregator treats a skipped job as a failure                            | todo       | —        | `ci` passes when a needed job is skipped; require `success`                                                                                                 |
+| `OPS-12` | CI aggregator passes only when every job succeeded                         | done       | —        | `.github/workflows/ci.yml` (`ci` job: every `needs` result must be `success`)                                                                               |
 | `OPS-13` | Dependency and docs hygiene                                                | todo       | —        | `tsx` in root devDependencies; `axe-core` in `e2e`; CONTRIBUTING points at the bootstrap in `docs/operations.md` (`03` Bootstrap)                          |
 | `OPS-14` | Trigger tests against the emulators                                        | todo       | —        | `10` Layers names `firebase-functions-test`; today triggers are tested with mocks only                                                                     |
 | `OPS-15` | Firebase project setup                                                     | maintainer | —        | `11` First-time setup checklist: Blaze and the $1 budget with alerts, Firestore in asia-south1, Google provider, web app variables, both service accounts, branch protection |
