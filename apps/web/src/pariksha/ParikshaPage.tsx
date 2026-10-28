@@ -83,8 +83,9 @@ function Exam({
   if (states[pariksha.id] === 'locked' || wait > 0) {
     return (
       <>
-        <TopBar title={pariksha.title} back={back} />
+        <TopBar title={course.title} titleAs="p" back={back} />
         <main className="page">
+          <h1 className="page__title">{pariksha.title}</h1>
           <Callout tone="note" title={wait > 0 ? 'Retake not open yet' : 'Locked for now'}>
             <p>
               {wait > 0
@@ -271,11 +272,13 @@ function Questions({
   return (
     <>
       <TopBar
-        title={pariksha.title}
+        title={course.title}
+        titleAs="p"
         back={back}
         status={<span>Answers are saved on this device as you go</span>}
       />
       <main className="page exam">
+        <h1 className="exam__title">{pariksha.title}</h1>
         <p className="article__kicker">
           Question {index + 1} of {questions.length}
         </p>

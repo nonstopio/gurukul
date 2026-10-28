@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
 import './progress.css';
 
@@ -9,6 +9,8 @@ export interface ProgressBarProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   label: string;
   /** Print the percentage beside the bar. Default: true. */
   showValue?: boolean;
+  /** Printed in place of the percentage, e.g. "44% · 10 / 22". */
+  caption?: ReactNode;
 }
 
 /** Rounds to a whole percent inside 0 to 100. */
@@ -21,6 +23,7 @@ export function ProgressBar({
   value,
   label,
   showValue = true,
+  caption,
   className,
   ...rest
 }: ProgressBarProps) {
@@ -37,7 +40,7 @@ export function ProgressBar({
       >
         <div className="g-progress__fill" style={{ width: `${pct}%` }} />
       </div>
-      {showValue ? <span className="g-progress__text">{pct}%</span> : null}
+      {showValue ? <span className="g-progress__text">{caption ?? `${pct}%`}</span> : null}
     </div>
   );
 }

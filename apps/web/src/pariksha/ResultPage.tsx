@@ -1,6 +1,14 @@
 import { itemsOf } from '@gurukul/schema';
 import type { Question } from '@gurukul/schema';
-import { Card, Chip, ProgressRing, ResultRow, buttonClass } from '@gurukul/ui';
+import {
+  Card,
+  Chip,
+  ProgressRing,
+  ResultRow,
+  TopBar,
+  buttonClass,
+  topBarBackClass,
+} from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
@@ -88,90 +96,106 @@ export function ResultPage() {
           (q) => q.id === firstWrong?.questionId,
         )?.reviewItemId;
         return (
-          <main className="page">
-            <Card className="score">
-              <ProgressRing value={score * 100} label={`${pariksha.title} score`} size={148} />
-              <div>
-                <Chip tone={passed ? 'accent' : 'warning'}>
-                  {passed ? 'Passed' : 'Not passed yet'}
-                </Chip>
-                <h1 className="page__title">
-                  {passed ? `${pariksha.title} cleared.` : 'Not this time.'}
-                </h1>
-                <p>
-                  {review
-                    ? `You answered ${review.correctCount} of ${review.total} correctly (${Math.round(score * 100)}%).`
-                    : `Your best score is ${Math.round(score * 100)}%.`}
-                </p>
-                <div className="continue__actions">
-                  {passed ? (
-                    <Link
-                      className={buttonClass('primary')}
-                      to={
-                        nextItem ? itemPath(course.id, nextItem) : `/courses/${course.id}/complete`
-                      }
-                    >
-                      {!nextItem
-                        ? 'Finish course'
-                        : nextParva === parvaNumber(course, pariksha.id)
-                          ? 'Continue'
-                          : `Continue to Parva ${nextParva}`}
-                    </Link>
-                  ) : (
-                    <Link
-                      className={buttonClass('primary')}
-                      to={
-                        titleOf(reviewId)
-                          ? `/courses/${course.id}/learn/${reviewId}`
-                          : `/courses/${course.id}`
-                      }
-                    >
-                      Revisit lessons
-                    </Link>
-                  )}
-                  <Retake opensAt={opensAt} to={`/courses/${course.id}/pariksha/${pariksha.id}`} />
-                </div>
-              </div>
-            </Card>
-            {review ? (
-              <section aria-labelledby="review-title">
-                <h2 id="review-title">Review</h2>
-                <ul className="review">
-                  {review.questions.map((q) => {
-                    const r = review.results.find((x) => x.questionId === q.id);
-                    const correct = r?.correct === true;
-                    const lesson = titleOf(q.reviewItemId);
-                    return (
-                      <ResultRow
-                        key={q.id}
-                        passed={correct}
-                        question={q.prompt}
-                        yourAnswer={text(q, review.answers[q.id] ?? [])}
-                        {...(r?.correctOptionIds && !correct
-                          ? { correctAnswer: text(q, r.correctOptionIds) }
-                          : {})}
-                        {...(lesson && !correct
-                          ? {
-                              revisit: {
-                                label: `Revisit lesson: ${lesson}`,
-                                render: (p) => (
-                                  <Link
-                                    to={`/courses/${course.id}/learn/${q.reviewItemId}`}
-                                    {...(p as object)}
-                                  />
-                                ),
-                              },
-                            }
-                          : {})}
+          <>
+            <TopBar
+              title={course.title}
+              titleAs="p"
+              back={
+                <Link className={topBarBackClass} to={`/courses/${course.id}`}>
+                  Course outline
+                </Link>
+              }
+            />
+            <main className="page">
+              <Card className="score">
+                <ProgressRing value={score * 100} label={`${pariksha.title} score`} size={148} />
+                <div>
+                  <Chip tone={passed ? 'accent' : 'warning'}>
+                    {passed ? 'Passed' : 'Not passed yet'}
+                  </Chip>
+                  <h1 className="page__title">
+                    {passed ? `${pariksha.title} cleared.` : 'Not this time.'}
+                  </h1>
+                  <p>
+                    {review
+                      ? `You answered ${review.correctCount} of ${review.total} correctly (${Math.round(score * 100)}%).`
+                      : `Your best score is ${Math.round(score * 100)}%.`}
+                  </p>
+                  <div className="continue__actions">
+                    {passed ? (
+                      <Link
+                        className={buttonClass('primary')}
+                        to={
+                          nextItem
+                            ? itemPath(course.id, nextItem)
+                            : `/courses/${course.id}/complete`
+                        }
                       >
-                        {r?.explanation}
-                      </ResultRow>
-                    );
-                  })}
-                </ul>
-              </section>
-            ) : null}
-          </main>
+                        {!nextItem
+                          ? 'Finish course'
+                          : nextParva === parvaNumber(course, pariksha.id)
+                            ? 'Continue'
+                            : `Continue to Parva ${nextParva}`}
+                      </Link>
+                    ) : (
+                      <Link
+                        className={buttonClass('primary')}
+                        to={
+                          titleOf(reviewId)
+                            ? `/courses/${course.id}/learn/${reviewId}`
+                            : `/courses/${course.id}`
+                        }
+                      >
+                        Revisit lessons
+                      </Link>
+                    )}
+                    <Retake
+                      opensAt={opensAt}
+                      to={`/courses/${course.id}/pariksha/${pariksha.id}`}
+                    />
+                  </div>
+                </div>
+              </Card>
+              {review ? (
+                <section aria-labelledby="review-title">
+                  <h2 id="review-title">Review</h2>
+                  <ul className="review">
+                    {review.questions.map((q) => {
+                      const r = review.results.find((x) => x.questionId === q.id);
+                      const correct = r?.correct === true;
+                      const lesson = titleOf(q.reviewItemId);
+                      return (
+                        <ResultRow
+                          key={q.id}
+                          passed={correct}
+                          question={q.prompt}
+                          yourAnswer={text(q, review.answers[q.id] ?? [])}
+                          {...(r?.correctOptionIds && !correct
+                            ? { correctAnswer: text(q, r.correctOptionIds) }
+                            : {})}
+                          {...(lesson && !correct
+                            ? {
+                                revisit: {
+                                  label: `Revisit lesson: ${lesson}`,
+                                  render: (p) => (
+                                    <Link
+                                      to={`/courses/${course.id}/learn/${q.reviewItemId}`}
+                                      {...(p as object)}
+                                    />
+                                  ),
+                                },
+                              }
+                            : {})}
+                        >
+                          {r?.explanation}
+                        </ResultRow>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ) : null}
+            </main>
+          </>
         );
       }}
     </Loaded>

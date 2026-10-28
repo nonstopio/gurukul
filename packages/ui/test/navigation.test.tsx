@@ -108,6 +108,12 @@ describe('TopBar', () => {
     expect(container.querySelector('.g-topbar__actions')).toBeNull();
   });
 
+  it('draws the title as a paragraph when the page has its own heading', () => {
+    render(<TopBar title="Git basics" titleAs="p" />);
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByText('Git basics').tagName).toBe('P');
+  });
+
   it('renders back, status and actions', () => {
     render(
       <TopBar

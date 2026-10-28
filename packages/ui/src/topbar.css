@@ -46,3 +46,18 @@
   align-items: center;
   gap: var(--space-2);
 }
+/* A progress bar in the top bar: a 6px bar on the chrome, the caption in chrome text. */
+.g-topbar__status .g-progress {
+  width: clamp(10rem, 24vw, 16rem);
+}
+.g-topbar__status .g-progress__track {
+  height: 6px;
+  background: var(--chrome-active);
+}
+.g-topbar__status .g-progress__fill {
+  background: var(--chrome-accent);
+}
+.g-topbar__status .g-progress__text {
+  white-space: nowrap;
+  color: var(--chrome-text);
+}

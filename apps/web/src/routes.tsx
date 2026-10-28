@@ -9,7 +9,7 @@ import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
 import { PageLoading } from './learn/ui';
 import type { RoutePath } from './route-paths';
-import { Shell } from './Shell';
+import { FocusedShell, Frame, Shell } from './Shell';
 
 /**
  * Pages that are not on the first screen load on demand, so a first visit downloads only the shell,
@@ -138,12 +138,20 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
 /** Pages anyone can open, signed in or not: certificate verification, which employers use. */
 const PUBLIC: readonly RoutePath[] = ['/verify/:id'];
 
+/** Pages that leave the sidebar for the focused layout: the page's own top bar is the chrome. */
+export const FOCUSED: readonly RoutePath[] = [
+  '/courses/:courseId/learn/:itemId',
+  '/courses/:courseId/pariksha/:parikshaId',
+  '/courses/:courseId/pariksha/:parikshaId/result',
+];
+
 /**
- * The data-router route objects: public pages, then everything behind sign-in inside the shell,
- * plus the not-found fallback.
+ * The data-router route objects: public pages, then everything behind sign-in inside the frame —
+ * the focused pages in the top-bar layout, the rest (and the not-found fallback) in the sidebar one.
  */
 export function appRoutes(): RouteObject[] {
   const entries = Object.entries(ROUTES) as [RoutePath, ReactElement][];
+  const signedIn = entries.filter(([path]) => !PUBLIC.includes(path));
   const route = ([path, element]: [RoutePath, ReactElement]) => ({ path, element });
   const publicRoute = ([path, element]: [RoutePath, ReactElement]) => ({
     path,
@@ -155,10 +163,19 @@ export function appRoutes(): RouteObject[] {
       element: <RequireSession />,
       children: [
         {
-          element: <Shell />,
+          element: <Frame />,
           children: [
-            ...entries.filter(([path]) => !PUBLIC.includes(path)).map(route),
-            { path: '*', element: <NotFoundPage /> },
+            {
+              element: <FocusedShell />,
+              children: signedIn.filter(([path]) => FOCUSED.includes(path)).map(route),
+            },
+            {
+              element: <Shell />,
+              children: [
+                ...signedIn.filter(([path]) => !FOCUSED.includes(path)).map(route),
+                { path: '*', element: <NotFoundPage /> },
+              ],
+            },
           ],
         },
       ],

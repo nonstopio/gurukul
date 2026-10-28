@@ -142,6 +142,7 @@ function Player({
     );
   }
   const s = states[itemId] as ItemState;
+  const finishedCount = items.filter((i) => states[i.id] === 'done').length;
   const percent = percentFor(course, progress ?? null);
   const back = (
     <Link className={topBarBackClass} to={`/courses/${course.id}`}>
@@ -152,8 +153,9 @@ function Player({
   if (s === 'locked') {
     return (
       <>
-        <TopBar title={course.title} back={back} />
+        <TopBar title={course.title} titleAs="p" back={back} />
         <main className="page">
+          <h1 className="page__title">{item.title}</h1>
           <Callout tone="note" title="Locked for now">
             <p>Finish the earlier items, and pass any Pariksha before this one, to open it.</p>
           </Callout>
@@ -198,8 +200,15 @@ function Player({
     <>
       <TopBar
         title={course.title}
+        titleAs="p"
         back={back}
-        status={<ProgressBar value={percent} label="Course progress" />}
+        status={
+          <ProgressBar
+            value={percent}
+            label="Course progress"
+            caption={`${percent}% · ${finishedCount} / ${items.length}`}
+          />
+        }
       />
       <div className="player">
         <nav className="rail" aria-label="Course outline">

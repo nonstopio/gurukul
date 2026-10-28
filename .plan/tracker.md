@@ -17,7 +17,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations                   | 7    | 0    | 0       | 0          |
-| Sign-in, roles and shell      | 8    | 3    | 0       | 0          |
+| Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
 | Kulapati console and Sanjaya  | 10   | 13   | 2       | 0          |
@@ -27,65 +27,64 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 65   | 46   | 6       | 7          |
+| **Total**                     | 66   | 45   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `SHL-02` — focused shell for lesson, Pariksha and result
-2. `KUL-10` — Learners table: pending invites and filters that combine
-3. `KUL-11` — people search by name
-4. `KUL-12` — learner drawer completeness
-5. `KUL-16` — org settings: teams and reminders
-6. `KUL-17` — learners pick their team
-7. `STU-07` — Acharyas see every course
-8. `STU-06` — Acharya names on courses
-9. `LRN-14` — Retired and "New lessons added" states
-10. `PRK-09` — revocation date on certificates
-11. `KUL-18` — org Pariksha KPIs and a true overdue count
-12. `KUL-21` — daily roll-up repairs course counters
-13. `SRC-02` — learner navigation area
-14. `SRC-03` — courses and lessons in search
-15. `SRC-04` — people in search for Kulapatis
-16. `SRC-05` — draft courses in search for Acharyas
-17. `STU-11` — preview uses the real learner screens
-18. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-19. `STU-08` — "Draft vN · saved just now"
-20. `STU-10` — learner counts in the publish dialog and on course cards
-21. `STU-12` — publishing an archived course
-22. `STU-13` — structure editor polish
-23. `LRN-12` — course overview to the handoff
-24. `LRN-13` — Home to the handoff
-25. `LRN-11` — outline rail grouped by parva
-26. `LRN-10` — split layout
-27. `LRN-15` — block renderer polish
-28. `LRN-16` — check blocks reveal the right option
-29. `LRN-17` — keyboard shortcuts dialog
-30. `PRK-08` — completion screen to the handoff
-31. `AUTH-08` — sign-in screen to the handoff
-32. `SHL-03` — handoff breakpoints and the menu button
-33. `KUL-13` — bulk role change and select all
-34. `KUL-14` — Assign screen finish
-35. `KUL-19` — Needs attention, pending-invite strip, overview filters
-36. `KUL-20` — course analytics finish
-37. `KUL-22` — Roles screen polish
-38. `KUL-23` — audit log view finish
-39. `DS-05` — axe on the remaining page tests
-40. `DS-04` — shared icon set
-41. `DS-03` — `/__ui` component gallery
-42. `STU-15` — lesson editor extras
-43. `STU-16` — CodeMirror for markdown and code
-44. `OPS-11` — deeper e2e journeys
-45. `OPS-06` — Lighthouse on the preview URL
-46. `OPS-14` — trigger tests against the emulators
-47. `KUL-24` — email delivery (blocked: question 4)
-48. `KUL-25` — Acharyas see their learners (blocked: question 7)
-49. `PRK-10` — tell a learner their certificate was revoked (blocked)
-50. `OPS-18` — custom domain (blocked: question 6)
-51. `OPS-19` — licence holder (blocked: question 10)
-52. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `KUL-10` — Learners table: pending invites and filters that combine
+2. `KUL-11` — people search by name
+3. `KUL-12` — learner drawer completeness
+4. `KUL-16` — org settings: teams and reminders
+5. `KUL-17` — learners pick their team
+6. `STU-07` — Acharyas see every course
+7. `STU-06` — Acharya names on courses
+8. `LRN-14` — Retired and "New lessons added" states
+9. `PRK-09` — revocation date on certificates
+10. `KUL-18` — org Pariksha KPIs and a true overdue count
+11. `KUL-21` — daily roll-up repairs course counters
+12. `SRC-02` — learner navigation area
+13. `SRC-03` — courses and lessons in search
+14. `SRC-04` — people in search for Kulapatis
+15. `SRC-05` — draft courses in search for Acharyas
+16. `STU-11` — preview uses the real learner screens
+17. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+18. `STU-08` — "Draft vN · saved just now"
+19. `STU-10` — learner counts in the publish dialog and on course cards
+20. `STU-12` — publishing an archived course
+21. `STU-13` — structure editor polish
+22. `LRN-12` — course overview to the handoff
+23. `LRN-13` — Home to the handoff
+24. `LRN-11` — outline rail grouped by parva
+25. `LRN-10` — split layout
+26. `LRN-15` — block renderer polish
+27. `LRN-16` — check blocks reveal the right option
+28. `LRN-17` — keyboard shortcuts dialog
+29. `PRK-08` — completion screen to the handoff
+30. `AUTH-08` — sign-in screen to the handoff
+31. `SHL-03` — handoff breakpoints and the menu button
+32. `KUL-13` — bulk role change and select all
+33. `KUL-14` — Assign screen finish
+34. `KUL-19` — Needs attention, pending-invite strip, overview filters
+35. `KUL-20` — course analytics finish
+36. `KUL-22` — Roles screen polish
+37. `KUL-23` — audit log view finish
+38. `DS-05` — axe on the remaining page tests
+39. `DS-04` — shared icon set
+40. `DS-03` — `/__ui` component gallery
+41. `STU-15` — lesson editor extras
+42. `STU-16` — CodeMirror for markdown and code
+43. `OPS-11` — deeper e2e journeys
+44. `OPS-06` — Lighthouse on the preview URL
+45. `OPS-14` — trigger tests against the emulators
+46. `KUL-24` — email delivery (blocked: question 4)
+47. `KUL-25` — Acharyas see their learners (blocked: question 7)
+48. `PRK-10` — tell a learner their certificate was revoked (blocked)
+49. `OPS-18` — custom domain (blocked: question 6)
+50. `OPS-19` — licence holder (blocked: question 10)
+51. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -116,7 +115,7 @@ Plan: `03-auth-and-roles.md`, `design-handoff/00-shared-patterns.md`, `design-ha
 | `AUTH-07` | Sign-in works on mobile Safari and fails politely                        | done   | —       | `apps/web/src/auth/service.ts` (`prefersRedirect`, `finishRedirect`, cancel and blocked-popup handling), `AuthProvider.tsx` (`deniedMessage`, `wrongAccount`), `SignInPage.tsx`; auth domain switch is `OPS-21` |
 | `AUTH-08` | Sign-in screen to the handoff                                            | todo   | —       | Two-pane hero, benefits, invite callout, footnote (`design-handoff/01-learner.md` §01). Today: one column, logo, title, button                                                               |
 | `SHL-01`  | Skip link, focus on route change, retry on load errors                   | done   | —       | "Skip to content" and focus/announce on navigation in `apps/web/src/Shell.tsx` + `src/routeFocus.ts`; Retry from `useAsync` (`src/data/useAsync.ts`) on the load-error callout (`src/learn/ui.tsx`); `test/route-focus.test.tsx` |
-| `SHL-02`  | Focused shell for lesson, Pariksha and result                            | todo   | —       | Those routes leave `<Shell>` for a TopBar-only layout; one `h1` per page (lesson page has two today); "44% · 10 / 22" caption                                                                 |
+| `SHL-02`  | Focused shell for lesson, Pariksha and result                            | done   | —       | `FocusedShell` (top bar only) and `Frame` (search, skip link, route focus above both layouts) in `apps/web/src/Shell.tsx`, `FOCUSED` in `src/routes.tsx`; one `h1` each (`TopBar titleAs="p"`, `packages/ui/src/TopBar.tsx`); `ProgressBar caption` "60% · 3 / 5"; `test/focused-shell.test.tsx` |
 | `SHL-03`  | Handoff breakpoints and the menu button                                  | todo   | —       | Sidebar stacks below 808px and becomes a menu button below 560px; today 760px/900px and no menu button                                                                                        |
 
 ## Learner experience

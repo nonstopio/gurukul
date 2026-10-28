@@ -358,6 +358,23 @@ a.items__row:hover {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+/* The focused layout (lesson, Pariksha, result): the page's top bar first, the offline banner under it. */
+.focused {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.focused > * {
+  width: 100%;
+}
+.focused > .g-topbar {
+  order: -1;
+  padding-inline: clamp(var(--space-4), 3vw, var(--space-8));
+}
+.focused > .app__offline {
+  width: auto;
+  margin-top: var(--space-4);
+}
 .player {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -518,6 +535,13 @@ a.items__row:hover {
   display: grid;
   gap: var(--space-5);
   max-width: 760px;
+}
+.exam__title {
+  margin: 0;
+  color: var(--warning);
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
 }
 .exam__question {
   display: grid;

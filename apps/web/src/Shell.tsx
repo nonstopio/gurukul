@@ -26,19 +26,18 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
 }
 
 /**
- * Signed-in chrome: the sidebar (generated from the same navigation metadata as search, filtered
- * to the session's roles), the search trigger, and the routed page.
+ * What every signed-in page shares, whichever layout it uses: global search, the document title,
+ * "Skip to content", and focus moving to the new page's `h1` (announced) after each navigation.
+ * It sits above both layouts, so moving from the outline into a lesson still counts as a navigation.
  */
-export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
-  const { roles, signOut } = useSession();
-  const user = useUser();
+export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
+  const { roles } = useSession();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const groups = useMemo(() => groupByArea(destinationsFor(areas, roles)), [areas, roles]);
   useEffect(() => {
     document.title = titleFor(pathname, areas);
   }, [pathname, areas]);
-  const content = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const arrived = useRef(false);
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => {
@@ -47,7 +46,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       arrived.current = true;
       return;
     }
-    return focusPageOnArrival(content.current as HTMLDivElement, setAnnouncement);
+    return focusPageOnArrival(root.current as HTMLDivElement, setAnnouncement);
   }, [pathname]);
 
   return (
@@ -57,7 +56,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
         href="#content"
         onClick={(e) => {
           e.preventDefault();
-          pageStart(content.current as HTMLDivElement)?.focus();
+          pageStart(root.current as HTMLDivElement)?.focus();
         }}
       >
         Skip to content
@@ -65,44 +64,76 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
-      <div className="app">
-        <Sidebar
-          label="Main"
-          brand={<span className="app__brand">Gurukul</span>}
-          footer={
-            <div className="app__user">
-              <span>{user.displayName ?? user.email}</span>
-              <Button variant="chrome" onClick={() => void signOut()}>
-                Sign out
-              </Button>
-            </div>
-          }
-        >
-          {groups.map(([name, pages]) => (
-            <SidebarGroup key={name} label={name}>
-              {pages.map((p) => (
-                <NavItem
-                  key={p.id}
-                  href={p.path}
-                  current={(pathname.replace(/\/+$/, '') || '/') === p.path}
-                  render={(props) => <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />}
-                >
-                  {p.label}
-                </NavItem>
-              ))}
-            </SidebarGroup>
-          ))}
-        </Sidebar>
-        <div className="app__content" id="content" ref={content}>
-          <div className="app__bar">
-            <SearchTrigger />
-          </div>
-          <OfflineBanner />
-          <Suspense fallback={<PageLoading />}>
-            <Outlet />
-          </Suspense>
-        </div>
+      <div ref={root}>
+        <Outlet />
       </div>
     </GlobalSearchProvider>
+  );
+}
+
+/**
+ * The sidebar layout: the sidebar (generated from the same navigation metadata as search, filtered
+ * to the session's roles), the search trigger, and the routed page.
+ */
+export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
+  const { roles, signOut } = useSession();
+  const user = useUser();
+  const { pathname } = useLocation();
+  const groups = useMemo(() => groupByArea(destinationsFor(areas, roles)), [areas, roles]);
+
+  return (
+    <div className="app">
+      <Sidebar
+        label="Main"
+        brand={<span className="app__brand">Gurukul</span>}
+        footer={
+          <div className="app__user">
+            <span>{user.displayName ?? user.email}</span>
+            <Button variant="chrome" onClick={() => void signOut()}>
+              Sign out
+            </Button>
+          </div>
+        }
+      >
+        {groups.map(([name, pages]) => (
+          <SidebarGroup key={name} label={name}>
+            {pages.map((p) => (
+              <NavItem
+                key={p.id}
+                href={p.path}
+                current={(pathname.replace(/\/+$/, '') || '/') === p.path}
+                render={(props) => <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />}
+              >
+                {p.label}
+              </NavItem>
+            ))}
+          </SidebarGroup>
+        ))}
+      </Sidebar>
+      <div className="app__content" id="content">
+        <div className="app__bar">
+          <SearchTrigger />
+        </div>
+        <OfflineBanner />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The focused layout for the lesson, Pariksha and result: no sidebar, so the page's own dark
+ * `TopBar` (back link, course title, progress) is the only chrome. Search stays on Ctrl K / ⌘K.
+ */
+export function FocusedShell() {
+  return (
+    <div className="focused" id="content">
+      <OfflineBanner />
+      <Suspense fallback={<PageLoading />}>
+        <Outlet />
+      </Suspense>
+    </div>
   );
 }
