@@ -24,17 +24,16 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
-| Platform, CI and operations   | 11   | 4    | 2       | 5          |
+| Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 59   | 52   | 6       | 7          |
+| **Total**                     | 60   | 51   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `OPS-10` — close the ESLint loopholes around callables
 2. `GIT-03` — placeholder videos stop embedding a dead player
 3. `GIT-06` — seed matches the course outline
 4. `PRK-06` — Pariksha answers survive a reload
@@ -258,7 +257,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-07` | `onUserCreated` gets `maxInstances`                                        | done       | —        | `firebase/functions/src/index.ts` (`runWith({ maxInstances })` on the v1 trigger), `firebase/functions/test/index.test.ts` (asserts global and v1 options) |
 | `OPS-08` | Envelope tests for every callable                                          | done       | —        | `firebase/functions/test/envelopes.test.ts`: success and failure bodies of all seven callables parse with `apiResponseSchema` |
 | `OPS-09` | Progress rule checks what learners append | done | — | `firebase/firestore.rules` (`appendsAtMostOneItemId`: unchanged, or one new 1-80 character string id on the end, no duplicates), tests in `firebase/rules/test/courses-progress.test.ts` |
-| `OPS-10` | Close the ESLint loopholes around callables                                | todo       | —        | `httpsCallableFromURL`, and `https` namespace access on `firebase-functions`/`v1`/`v2`, are not banned; extend `scripts/test/lint-rules.test.mjs`          |
+| `OPS-10` | Close the ESLint loopholes around callables                                | done       | —        | `eslint.config.js` bans `httpsCallableFromURL` and `https`/default imports of `firebase-functions`, `/v1`, `/v2` and the `/https` subpath outside `api/`; tests in `scripts/test/lint-rules.test.mjs` |
 | `OPS-11` | Deeper e2e journeys                                                        | todo       | —        | Learner: Pariksha, certificate, `/verify`. Acharya: publish, then the course is in the catalogue                                                           |
 | `OPS-12` | CI aggregator passes only when every job succeeded                         | done       | —        | `.github/workflows/ci.yml` (`ci` job: every `needs` result must be `success`)                                                                               |
 | `OPS-13` | Dependency and docs hygiene                                                | done       | —        | `package.json` (`tsx`), `e2e/package.json` (`axe-core`), `CONTRIBUTING.md` links `docs/operations.md` for the bootstrap                                     |

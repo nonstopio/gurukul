@@ -44,7 +44,7 @@ export default tseslint.config(
           paths: [
             {
               name: 'firebase/functions',
-              importNames: ['httpsCallable'],
+              importNames: ['httpsCallable', 'httpsCallableFromURL'],
               message:
                 'Call Cloud Functions through callApi in apps/web/src/api/ (.claude/rules/api-responses.md).',
             },
@@ -97,11 +97,24 @@ export default tseslint.config(
         'error',
         {
           paths: [
-            ...['firebase-functions/v2/https', 'firebase-functions/v1/https'].map((name) => ({
+            ...[
+              'firebase-functions/v2/https',
+              'firebase-functions/v1/https',
+              'firebase-functions/https',
+            ].map((name) => ({
               name,
               message:
                 'Callables are created with apiCallable and fail with ApiException; only firebase/functions/src/api/ imports onCall or HttpsError (.claude/rules/api-responses.md).',
             })),
+            // The https namespace reaches onCall and HttpsError without the subpath imports above.
+            ...['firebase-functions', 'firebase-functions/v1', 'firebase-functions/v2'].map(
+              (name) => ({
+                name,
+                importNames: ['https', 'default'],
+                message:
+                  'Callables are created with apiCallable and fail with ApiException; only firebase/functions/src/api/ reaches the https namespace (.claude/rules/api-responses.md).',
+              }),
+            ),
             {
               name: 'firebase-functions/logger',
               message:
