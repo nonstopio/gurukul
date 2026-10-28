@@ -36,6 +36,7 @@ const CourseAnalyticsPage = lazyPage(
 const LearnersPage = lazyPage(() => import('./console/LearnersPage'), 'LearnersPage');
 const OverviewPage = lazyPage(() => import('./console/OverviewPage'), 'OverviewPage');
 const RolesPage = lazyPage(() => import('./console/RolesPage'), 'RolesPage');
+const SettingsPage = lazyPage(() => import('./console/SettingsPage'), 'SettingsPage');
 const CourseEditorPage = lazyPage(() => import('./studio/CourseEditorPage'), 'CourseEditorPage');
 const LessonEditorPage = lazyPage(() => import('./studio/LessonEditorPage'), 'LessonEditorPage');
 const MediaPage = lazyPage(() => import('./studio/MediaPage'), 'MediaPage');
@@ -91,6 +92,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/kulapati/audit': (
     <RequireRole any={['kulapati']}>
       <AuditPage />
+    </RequireRole>
+  ),
+  '/kulapati/settings': (
+    <RequireRole any={['kulapati']}>
+      <SettingsPage />
     </RequireRole>
   ),
   '/kulapati/courses/:courseId': (

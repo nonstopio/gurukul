@@ -57,6 +57,32 @@ test.describe('Kulapati', () => {
     }
   });
 
+  test('adds teams and turns reminders on, and the settings survive a reload', async ({ page }) => {
+    await signedInAsShishya(page, meera);
+    await grantRoles(meera.email, ['kulapati']);
+    await page.goto('/kulapati/settings');
+    await expect(page.getByRole('heading', { level: 1, name: 'Org settings' })).toBeVisible();
+    // The seed's default: no teams, reminders off.
+    await expect(page.getByText('No teams yet')).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Send daily reminders' })).not.toBeChecked();
+
+    for (const team of ['Mobile', 'Quality']) {
+      await page.getByLabel('New team').fill(team);
+      await page.getByRole('button', { name: 'Add team' }).click();
+    }
+    // The switch's track covers its input, so click the label, as a person does.
+    await page.getByText('Send daily reminders').click();
+    await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
+    await expectNoSeriousViolations(page);
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Settings saved')).toBeVisible();
+
+    await page.reload();
+    const teams = page.getByRole('list', { name: 'Teams' });
+    await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
+    await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
+  });
+
   test('a Shishya cannot open the Kulapati console', async ({ page }) => {
     await signedInAsShishya(page, { email: 'ravi.nair@nonstopio.com', name: 'Ravi Nair' });
     await page.goto('/kulapati');

@@ -28,6 +28,7 @@ describe('console access', () => {
       '/kulapati/assign',
       '/kulapati/roles',
       '/kulapati/audit',
+      '/kulapati/settings',
       '/kulapati/courses/git',
     ]) {
       const { unmount } = await openApp(path);
@@ -39,7 +40,13 @@ describe('console access', () => {
   it('lists the console in the sidebar for a Kulapati', async () => {
     await openApp('/kulapati', { ...kulapati });
     const nav = await screen.findByRole('navigation', { name: 'Main' });
-    for (const name of ['Overview', 'Learners', 'Assign courses', 'Roles & access']) {
+    for (const name of [
+      'Overview',
+      'Learners',
+      'Assign courses',
+      'Roles & access',
+      'Org settings',
+    ]) {
       expect(within(nav).getByRole('link', { name })).toBeTruthy();
     }
   });

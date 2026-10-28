@@ -1,4 +1,10 @@
-import { courseStatsSchema, orgStatsSchema, progressId } from '@gurukul/schema';
+import {
+  DEFAULT_ORG_CONFIG,
+  courseStatsSchema,
+  orgConfigSchema,
+  orgStatsSchema,
+  progressId,
+} from '@gurukul/schema';
 import {
   collection,
   doc,
@@ -9,6 +15,7 @@ import {
   limit,
   orderBy,
   query,
+  setDoc,
   startAfter,
   where,
 } from 'firebase/firestore';
@@ -205,6 +212,16 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async teams() {
       const snap = await getDoc(doc(db, 'config', 'org'));
       return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async orgSettings() {
+      const snap = await getDoc(doc(db, 'config', 'org'));
+      return orgConfigSchema.parse({
+        ...DEFAULT_ORG_CONFIG,
+        ...(snap.exists() ? snap.data() : {}),
+      });
+    },
+    async saveOrgSettings(settings) {
+      await setDoc(doc(db, 'config', 'org'), orgConfigSchema.parse(settings));
     },
     async auditLog() {
       const snap = await getDocs(

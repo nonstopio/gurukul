@@ -42,6 +42,13 @@ export const navigation = {
       description: 'Who assigned, granted, revoked or published what, and when',
       keywords: ['history', 'trail', 'log', 'activity', 'changes'],
     },
+    {
+      id: 'kulapati-settings',
+      path: '/kulapati/settings',
+      label: 'Org settings',
+      description: 'The teams learners pick from and whether daily reminders are sent',
+      keywords: ['settings', 'teams', 'reminders', 'email', 'organisation', 'config'],
+    },
   ],
   unlisted: {
     '/kulapati/courses/:courseId': { context: 'needs a course id; reached from the overview' },

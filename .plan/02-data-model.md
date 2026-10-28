@@ -20,7 +20,7 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Sanjaya (`org`, `course_{id}`) | Kulapati, granted Acharyas | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Kulapati | never (function) |
 | `questionBank/{id}` (M5) | Reusable Pariksha questions, answers included | Acharyas, Kulapati | Acharyas, Kulapati |
-| `config/org` | Allowed domain, teams list, reminder settings | signed-in | Kulapati |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`; only these keys, never deleted; the seed creates the default if missing | signed-in | Kulapati (Org settings) |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Outgoing email queue, in the shape the "Trigger Email from Firestore" extension reads; nothing sends until a sender is installed (`firebase/functions/src/mail.ts`) | never | never (function) |
 

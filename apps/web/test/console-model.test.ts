@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
+  MAX_TEAMS,
+  addTeam,
   assignmentsCsv,
   auditLabel,
   averageDays,
@@ -399,5 +401,19 @@ describe('drawerCourses', () => {
       { id: 'q1', title: 'Pariksha I', attempts: 1, best: 0.8, passed: true },
       { id: 'old', title: 'old', attempts: 2, best: 0, passed: false },
     ]);
+  });
+});
+
+describe('addTeam', () => {
+  it('appends a trimmed name', () => {
+    expect(addTeam(['QA'], '  Mobile ')).toEqual({ teams: ['QA', 'Mobile'] });
+  });
+  it('refuses a blank, too long or duplicate name, and a full list', () => {
+    expect(addTeam([], '   ')).toEqual({ error: 'Enter a team name.' });
+    expect(addTeam([], 'x'.repeat(81))).toEqual({ error: 'Use 80 characters or fewer.' });
+    expect(addTeam([], 'x'.repeat(80))).toEqual({ teams: ['x'.repeat(80)] });
+    expect(addTeam(['QA'], 'qa')).toEqual({ error: 'qa is already in the list.' });
+    const full = Array.from({ length: MAX_TEAMS }, (_, i) => `T${i}`);
+    expect(addTeam(full, 'One more')).toEqual({ error: 'The list holds at most 100 teams.' });
   });
 });

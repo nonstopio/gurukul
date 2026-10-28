@@ -1,4 +1,4 @@
-import type { AssignSummary, CourseStats, OrgStats, Reminder } from '@gurukul/schema';
+import type { AssignSummary, CourseStats, OrgConfig, OrgStats, Reminder } from '@gurukul/schema';
 import type { CertificateRow, ProgressRow } from '../data/types';
 
 export interface UserRow {
@@ -51,7 +51,7 @@ export interface UserPage {
 }
 
 /**
- * What the Kulapati console reads. Bounded queries only (see `firebase-cost.md`): pages of 25,
+ * What the Kulapati console reads, and the org settings it writes. Bounded queries only (see `firebase-cost.md`): pages of 25,
  * `limit` on every list, aggregates from the `stats` documents rather than per-learner reads.
  * A port, so screens are tested with a fake and `firebaseConsoleData` is the real thing.
  */
@@ -83,6 +83,10 @@ export interface ConsoleData {
     courseIds: string[],
   ): Promise<{ signedIn: Set<string>; assigned: Set<string> }>;
   teams(): Promise<string[]>;
+  /** `config/org`, with the defaults for anything not saved yet. */
+  orgSettings(): Promise<OrgConfig>;
+  /** Writes the whole of `config/org`; the rules let only a Kulapati, and only this shape. */
+  saveOrgSettings(settings: OrgConfig): Promise<void>;
   /** The newest audit entries (capped), with each doer's email resolved. */
   auditLog(): Promise<AuditRow[]>;
 }

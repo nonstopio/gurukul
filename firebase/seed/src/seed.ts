@@ -1,8 +1,10 @@
-import { courseSchema, type Course, type TimestampLike } from '@gurukul/schema';
+import { DEFAULT_ORG_CONFIG, courseSchema, type Course, type TimestampLike } from '@gurukul/schema';
 
-/** The one thing the seeder needs from Firestore: write a document at a path. */
+/** What the seeder needs from Firestore: write a document, or create one only if it is missing. */
 export interface SeedDb {
   set(path: string, data: unknown): Promise<void>;
+  /** Writes `data` unless a document is already at `path`; true when it wrote. */
+  createIfMissing(path: string, data: unknown): Promise<boolean>;
 }
 
 /** `{ [parikshaId]: { [questionId]: optionIds } }`, the shape of `courses/{id}/private/answers`. */
@@ -80,4 +82,13 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
   await db.set(coursePath, parsed.data);
   await db.set(answersPath, input.answers);
   return { coursePath, answersPath };
+}
+
+/**
+ * Writes the default `config/org` (no teams, reminders off) when there is none. Never overwrites:
+ * once a Kulapati has saved teams or switched reminders on, re-seeding keeps their settings.
+ */
+export async function seedOrgConfig(db: SeedDb): Promise<{ path: string; created: boolean }> {
+  const path = 'config/org';
+  return { path, created: await db.createIfMissing(path, DEFAULT_ORG_CONFIG) };
 }

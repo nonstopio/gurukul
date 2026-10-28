@@ -396,3 +396,25 @@ export function assignmentsCsv(
   }
   return lines.map((row) => row.map(csvCell).join(',')).join('\n') + '\n';
 }
+
+/** Most teams `config/org` holds; the rules check the same number. */
+export const MAX_TEAMS = 100;
+const MAX_TEAM_NAME = 80;
+
+/**
+ * The teams list with `name` added at the end, or why it cannot be: blank, longer than a team name
+ * may be, already there (in any case), or the list is full. The name is trimmed.
+ */
+export function addTeam(
+  teams: readonly string[],
+  name: string,
+): { teams: string[] } | { error: string } {
+  const team = name.trim();
+  if (team === '') return { error: 'Enter a team name.' };
+  if (team.length > MAX_TEAM_NAME) return { error: `Use ${MAX_TEAM_NAME} characters or fewer.` };
+  if (teams.some((t) => t.toLowerCase() === team.toLowerCase())) {
+    return { error: `${team} is already in the list.` };
+  }
+  if (teams.length >= MAX_TEAMS) return { error: `The list holds at most ${MAX_TEAMS} teams.` };
+  return { teams: [...teams, team] };
+}

@@ -24,6 +24,9 @@ vi.mock('firebase/firestore', () => ({
   limit: (n: number) => ({ limit: n }),
   orderBy: (f: string, d?: string) => ({ orderBy: [f, d] }),
   query: (...parts: unknown[]) => ({ parts }),
+  setDoc: async (ref: { path: string }, value: unknown) => {
+    store.docs.set(ref.path, value);
+  },
   startAfter: (v: string) => ({ startAfter: v }),
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
@@ -66,6 +69,27 @@ describe('stats and config', () => {
     expect(await data.teams()).toEqual([]);
     store.docs.set('config/org', { teams: ['QA', 'Dev'] });
     expect(await data.teams()).toEqual(['QA', 'Dev']);
+  });
+
+  it('reads org settings over the defaults, and saves the whole document', async () => {
+    expect(await data.orgSettings()).toEqual({
+      domain: 'nonstopio.com',
+      teams: [],
+      reminders: { enabled: false },
+    });
+    store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA'] });
+    expect(await data.orgSettings()).toMatchObject({
+      teams: ['QA'],
+      reminders: { enabled: false },
+    });
+    const settings = {
+      domain: 'nonstopio.com',
+      teams: ['QA', 'Dev'],
+      reminders: { enabled: true },
+    };
+    await data.saveOrgSettings(settings);
+    expect(store.docs.get('config/org')).toEqual(settings);
+    expect(await data.orgSettings()).toEqual(settings);
   });
 });
 

@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
-import type { CourseStats, OrgStats } from '@gurukul/schema';
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
+import type { CourseStats, OrgConfig, OrgStats } from '@gurukul/schema';
 import type {
   ConsoleData,
   ConsoleService,
@@ -31,6 +32,7 @@ export function fakeConsole(
     team?: UserRow[];
     found?: UserRow[];
     audit?: AuditRow[];
+    settings?: Partial<OrgConfig>;
   } = {},
 ) {
   const users = init.users ?? [];
@@ -55,6 +57,8 @@ export function fakeConsole(
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
     auditLog: vi.fn().mockResolvedValue(init.audit ?? []),
+    orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
+    saveOrgSettings: vi.fn().mockResolvedValue(undefined),
   };
   const service: ConsoleService = {
     assignCourses: vi.fn().mockResolvedValue({

@@ -746,6 +746,36 @@ a.items__row:hover {
   }
 }
 
+.settings-team {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.settings-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.settings-add .g-field {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
 /* ---- Studio: courses ---- */
 .studio-page {
   max-width: 1200px;

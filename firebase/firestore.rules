@@ -215,10 +215,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Organisation settings: the allowed domain, the teams list, reminder settings.
-    match /config/{doc} {
+    // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
+    // settings. A Kulapati edits teams and reminders from the console; the domain is fixed here,
+    // as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
+    // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
+    match /config/org {
       allow read: if signedIn();
-      allow write: if isKulapati();
+      allow create, update: if isKulapati()
+        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders'])
+        && request.resource.data.domain == 'nonstopio.com'
+        && request.resource.data.teams is list
+        && request.resource.data.teams.size() <= 100
+        && request.resource.data.reminders is map
+        && request.resource.data.reminders.keys().hasOnly(['enabled'])
+        && request.resource.data.reminders.enabled is bool;
     }
 
     match /{document=**} {
