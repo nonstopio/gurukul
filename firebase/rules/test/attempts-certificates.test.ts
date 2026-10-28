@@ -88,6 +88,21 @@ describe('progress/{id}/attempts/{attemptId}', () => {
     await assertFails(latest(as('ravi'), 'priya'));
   });
 
+  it('lets a Kulapati query a learner’s attempt history (the learner drawer), and not another learner', async () => {
+    const history = (db: ReturnType<typeof as>) =>
+      getDocs(
+        query(
+          collection(db, 'progress/priya_git/attempts'),
+          where('uid', '==', 'priya'),
+          where('parikshaId', '==', 'pk'),
+          orderBy('createdAt', 'desc'),
+          limit(10),
+        ),
+      );
+    await assertSucceeds(history(as('root', { kulapati: true })));
+    await assertFails(history(as('ravi')));
+  });
+
   it('denies every client write, even from the owner or a Kulapati', async () => {
     for (const db of [as('priya'), as('root', { kulapati: true })]) {
       await assertFails(setDoc(doc(db, 'progress/priya_git/attempts/a2'), { uid: 'priya' }));

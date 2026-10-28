@@ -6,6 +6,7 @@ import {
   averageDays,
   buildLearnerRows,
   allPage,
+  drawerCourses,
   filterPeople,
   funnelSteps,
   hardestQuestions,
@@ -15,11 +16,12 @@ import {
   peopleFromAssignments,
   searchPrefix,
   tabCounts,
+  parikshaTitle,
   pct,
   weeklySeries,
 } from '../src/console/model';
 import type { AssignmentFull, UserRow } from '../src/console/types';
-import { progressRow } from './fake-data';
+import { makeCourse, progressRow } from './fake-data';
 
 const now = new Date('2026-03-10T00:00:00Z');
 const user = (n: number, over: Partial<UserRow> = {}): UserRow => ({
@@ -336,5 +338,66 @@ describe('assignmentsCsv', () => {
       new Map([['git', 'The "best" course']]),
     );
     expect(csv.split('\n')[1]).toContain('\'=cmd@nonstopio.com,"The ""best"" course"');
+  });
+});
+
+describe('drawerCourses', () => {
+  const a = (courseId: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
+    id: courseId,
+    email: 'p@nonstopio.com',
+    uid: 'u1',
+    courseId,
+    dueAt: null,
+    assignedAt: null,
+    mandatory: false,
+    status: 'assigned',
+    ...over,
+  });
+
+  it('lists assignments soonest due first, then by title, then courses opened without one', () => {
+    const list = drawerCourses(
+      [
+        a('b'),
+        a('a'),
+        a('late', { dueAt: new Date('2026-03-01T00:00:00Z') }),
+        a('soon', { dueAt: new Date('2026-03-20T00:00:00Z'), mandatory: true }),
+      ],
+      [
+        progressRow({ courseId: 'extra', percent: 100, completedAt: now }),
+        progressRow({ courseId: 'a', percent: 30 }),
+      ],
+      [makeCourse({ id: 'a', title: 'Alpha' })],
+      now,
+    );
+    expect(list.map((c) => c.courseId)).toEqual(['late', 'soon', 'a', 'b', 'extra']);
+    expect(list[0]).toMatchObject({ overdue: true, percent: null, completed: false });
+    expect(list[1]).toMatchObject({ overdue: false, mandatory: true });
+    expect(list[2]).toMatchObject({ title: 'Alpha', percent: 30 });
+    expect(list[4]).toMatchObject({ assigned: false, completed: true, dueAt: null });
+  });
+
+  it('names attempted Parikshas by title, by id once they are gone', () => {
+    const course = makeCourse();
+    expect(parikshaTitle(course, 'q1')).toBe('Pariksha I');
+    expect(parikshaTitle(course, 'l1')).toBeNull();
+    expect(parikshaTitle(undefined, 'q1')).toBeNull();
+    const [git] = drawerCourses(
+      [],
+      [
+        progressRow({
+          pariksha: {
+            q1: { best: 0.8, passed: true, attempts: 1, lastAttemptAt: null },
+            old: { best: 0, passed: false, attempts: 2, lastAttemptAt: null },
+            none: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
+          },
+        }),
+      ],
+      [course],
+      now,
+    );
+    expect(git?.parikshas).toEqual([
+      { id: 'q1', title: 'Pariksha I', attempts: 1, best: 0.8, passed: true },
+      { id: 'old', title: 'old', attempts: 2, best: 0, passed: false },
+    ]);
   });
 });

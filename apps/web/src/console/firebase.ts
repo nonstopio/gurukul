@@ -1,4 +1,4 @@
-import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
+import { courseStatsSchema, orgStatsSchema, progressId } from '@gurukul/schema';
 import {
   collection,
   doc,
@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { toCertificate, toProgress } from '../data/firebase';
-import type { AssignmentFull, AuditRow, ConsoleData, UserRow } from './types';
+import type { AssignmentFull, AttemptSummary, AuditRow, ConsoleData, UserRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
@@ -24,6 +24,8 @@ const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
 const AUDIT_LIMIT = 100;
 const SEARCH_LIMIT = 8;
+const PERSON_ASSIGNMENT_LIMIT = 50;
+const ATTEMPT_LIMIT = 10;
 
 const chunks = <T>(list: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
@@ -105,6 +107,38 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         query(collection(db, 'certificates'), where('uid', '==', uid), limit(50)),
       );
       return snap.docs.map((d) => toCertificate(d.id, d.data()));
+    },
+    async assignmentsFor(email) {
+      const snap = await getDocs(
+        query(
+          collection(db, 'assignments'),
+          where('email', '==', email),
+          limit(PERSON_ASSIGNMENT_LIMIT),
+        ),
+      );
+      return snap.docs.map((d) => toAssignment(d.id, d.data()));
+    },
+    async attemptsFor(uid, courseId, parikshaId) {
+      // Same shape as the learner's own latest-attempt query, so it uses the same index.
+      const snap = await getDocs(
+        query(
+          collection(db, 'progress', progressId(uid, courseId), 'attempts'),
+          where('uid', '==', uid),
+          where('parikshaId', '==', parikshaId),
+          orderBy('createdAt', 'desc'),
+          limit(ATTEMPT_LIMIT),
+        ),
+      );
+      return snap.docs.map((d): AttemptSummary => {
+        const a = d.data();
+        return {
+          id: d.id,
+          parikshaId: a.parikshaId as string,
+          score: (a.score as number | undefined) ?? 0,
+          passed: a.passed === true,
+          at: date(a.createdAt as Ts),
+        };
+      });
     },
     async searchUsers(prefix) {
       const p = prefix.trim().toLowerCase();

@@ -2,7 +2,6 @@ import {
   Button,
   Chip,
   DataTable,
-  Dialog,
   Input,
   Pagination,
   ProgressBar,
@@ -16,11 +15,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
-import type { CertificateRow, ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { longDate } from '../pariksha/model';
 import { useConsole } from './ConsoleProvider';
+import { LearnerDrawer } from './LearnerDrawer';
 import {
   allPage,
   buildLearnerRows,
@@ -368,118 +367,8 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         </div>
       ) : null}
       {open ? (
-        <LearnerDrawer row={open} courses={meta.courses} onClose={() => setOpen(null)} />
+        <LearnerDrawer row={open} courses={meta.courses} now={now} onClose={() => setOpen(null)} />
       ) : null}
     </>
-  );
-}
-
-function LearnerDrawer({
-  row,
-  courses,
-  onClose,
-}: {
-  row: LearnerRow;
-  courses: readonly Course[];
-  onClose: () => void;
-}) {
-  const { data, service } = useConsole();
-  const toast = useToast();
-  const [reload, setReload] = useState(0);
-  const result = useAsync(
-    useCallback(async () => {
-      if (!row.uid)
-        return {
-          progress: [] as Array<ProgressRow & { uid: string }>,
-          certificates: [] as CertificateRow[],
-          reload,
-        };
-      const [progress, certificates] = await Promise.all([
-        data.progressFor([row.uid]),
-        data.certificatesFor(row.uid),
-      ]);
-      return { progress, certificates, reload };
-    }, [data, row.uid, reload]),
-  );
-  const title = (id: string) => courses.find((c) => c.id === id)?.title ?? id;
-  const act = async (task: () => Promise<unknown>, done: string) => {
-    try {
-      await task();
-      toast.show(done, { tone: 'success' });
-      setReload(reload + 1);
-    } catch {
-      toast.show('That did not work. Try again.', { tone: 'danger' });
-    }
-  };
-
-  return (
-    <Dialog open onClose={onClose} title={row.name} size="drawer">
-      <p>{row.email}</p>
-      <Loaded loadable={result}>
-        {({ progress, certificates }) => (
-          <>
-            <h3>Courses</h3>
-            {progress.length === 0 ? (
-              <p>No activity yet.</p>
-            ) : (
-              <ul className="course-list">
-                {progress.map((p) => (
-                  <li key={p.courseId}>
-                    <span className="course-row__title">{title(p.courseId)}</span>
-                    <ProgressBar value={p.percent} label={`${title(p.courseId)} progress`} />
-                    {Object.entries(p.pariksha)
-                      .filter(([, r]) => r.attempts > 0)
-                      .map(([pid, r]) => (
-                        <Button
-                          key={pid}
-                          variant="secondary"
-                          onClick={() =>
-                            void act(
-                              () =>
-                                service.resetCooldown({
-                                  uid: row.uid as string,
-                                  courseId: p.courseId,
-                                  parikshaId: pid,
-                                }),
-                              'Retake opened',
-                            )
-                          }
-                        >
-                          Reset cooldown for {pid} ({r.attempts}{' '}
-                          {r.attempts === 1 ? 'attempt' : 'attempts'})
-                        </Button>
-                      ))}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h3>Certificates</h3>
-            {certificates.length === 0 ? (
-              <p>None yet.</p>
-            ) : (
-              <ul className="course-list">
-                {certificates.map((c) => (
-                  <li key={c.id}>
-                    <Link to={`/certificates/${c.id}`}>{c.courseTitle}</Link> · {c.id}
-                    {c.revoked ? ' · Revoked' : null}
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        void act(
-                          () => service.revokeCertificate({ id: c.id, revoked: !c.revoked }),
-                          c.revoked ? 'Certificate restored' : 'Certificate revoked',
-                        )
-                      }
-                    >
-                      {c.revoked ? 'Restore' : 'Revoke'}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </Loaded>
-    </Dialog>
   );
 }

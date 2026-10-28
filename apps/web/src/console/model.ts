@@ -1,5 +1,5 @@
 import { lastWeeks, nameKey } from '@gurukul/schema';
-import type { CourseStats, OrgStats } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import type { AssignmentFull, UserRow } from './types';
 
@@ -217,6 +217,88 @@ export function allPage(
     people: start < signedIn,
     pending: [Math.max(0, start - signedIn), Math.max(0, end - signedIn)],
   };
+}
+
+/** One Pariksha a learner has attempted, as the drawer lists it. */
+export interface DrawerPariksha {
+  id: string;
+  /** The Pariksha's title in the current course, or its id when it no longer exists. */
+  title: string;
+  attempts: number;
+  /** 0..1 */
+  best: number;
+  passed: boolean;
+}
+
+/** One course in the learner drawer: assigned, started, or both. */
+export interface DrawerCourse {
+  courseId: string;
+  title: string;
+  assigned: boolean;
+  dueAt: Date | null;
+  overdue: boolean;
+  mandatory: boolean;
+  /** Progress 0–100, or null when the learner has not opened the course yet. */
+  percent: number | null;
+  completed: boolean;
+  parikshas: DrawerPariksha[];
+}
+
+/** A Pariksha's title in this course, or `null` when the course has none by that id. */
+export function parikshaTitle(course: Pick<Course, 'parvas'> | undefined, id: string) {
+  for (const parva of course?.parvas ?? []) {
+    for (const item of parva.items)
+      if (item.type === 'pariksha' && item.id === id) return item.title;
+  }
+  return null;
+}
+
+/**
+ * Every course in one person's drawer: each assignment (started or not, with its due date) and
+ * each course they opened without one. Assigned courses come first, soonest due first; Parikshas
+ * appear once attempted, by title.
+ */
+export function drawerCourses(
+  assignments: readonly AssignmentFull[],
+  progress: readonly ProgressRow[],
+  courses: readonly Course[],
+  now: Date,
+): DrawerCourse[] {
+  const ids = [
+    ...new Set([...assignments.map((a) => a.courseId), ...progress.map((p) => p.courseId)]),
+  ];
+  const due = (c: DrawerCourse) => c.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  return ids
+    .map((courseId): DrawerCourse => {
+      const assignment = assignments.find((a) => a.courseId === courseId);
+      const prog = progress.find((p) => p.courseId === courseId);
+      const course = courses.find((c) => c.id === courseId);
+      return {
+        courseId,
+        title: course?.title ?? courseId,
+        assigned: assignment !== undefined,
+        dueAt: assignment?.dueAt ?? null,
+        overdue: assignment !== undefined && isOverdue(assignment, now),
+        mandatory: assignment?.mandatory === true,
+        percent: prog ? prog.percent : null,
+        completed: assignment?.status === 'completed' || (prog?.completedAt ?? null) !== null,
+        parikshas: Object.entries(prog?.pariksha ?? {})
+          .filter(([, r]) => r.attempts > 0)
+          .map(([id, r]) => ({
+            id,
+            title: parikshaTitle(course, id) ?? id,
+            attempts: r.attempts,
+            best: r.best,
+            passed: r.passed,
+          })),
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.assigned) - Number(a.assigned) ||
+        due(a) - due(b) ||
+        a.title.localeCompare(b.title),
+    );
 }
 
 /** Lessons completed in each of the last `n` weeks, oldest first, with zero for quiet weeks. */

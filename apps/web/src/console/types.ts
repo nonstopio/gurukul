@@ -31,6 +31,19 @@ export interface AuditRow {
   at: Date | null;
 }
 
+/**
+ * One graded Pariksha attempt as the learner drawer shows it: when, the score and the verdict.
+ * Deliberately not the learner's answers or the per-question results.
+ */
+export interface AttemptSummary {
+  id: string;
+  parikshaId: string;
+  /** 0..1 */
+  score: number;
+  passed: boolean;
+  at: Date | null;
+}
+
 export interface UserPage {
   rows: UserRow[];
   /** Pass back to get the next page; null on the last one. */
@@ -53,6 +66,10 @@ export interface ConsoleData {
   /** Progress documents for a set of people, to show courses and percent per row. */
   progressFor(uids: string[]): Promise<Array<ProgressRow & { uid: string }>>;
   certificatesFor(uid: string): Promise<CertificateRow[]>;
+  /** Every course assigned to one email (capped), started or not: the learner drawer's list. */
+  assignmentsFor(email: string): Promise<AssignmentFull[]>;
+  /** One person's newest graded attempts at one Pariksha (capped), newest first. */
+  attemptsFor(uid: string, courseId: string, parikshaId: string): Promise<AttemptSummary[]>;
   /** People who have signed in whose email or name starts with `prefix` (at most 8, email matches first). */
   searchUsers(prefix: string): Promise<UserRow[]>;
   usersInTeam(team: string): Promise<UserRow[]>;

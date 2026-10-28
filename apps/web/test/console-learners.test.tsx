@@ -214,8 +214,21 @@ describe('Learners', () => {
   });
 
   describe('learner drawer', () => {
+    const soon = new Date(Date.now() + 10 * 86_400_000);
     const detail = () => {
-      const c = setup();
+      const c = setup({
+        assignments: [
+          ...assignments,
+          asg('user1@nonstopio.com', {
+            uid: 'u1',
+            courseId: 'docker',
+            dueAt: soon,
+            mandatory: true,
+          }),
+          asg('user1@nonstopio.com', { uid: 'u1', courseId: 'k8s', status: 'completed' }),
+          asg('new@nonstopio.com', { courseId: 'docker', dueAt: soon }),
+        ],
+      });
       c.data.progressFor = vi.fn().mockResolvedValue([
         {
           ...progressRow({
@@ -224,13 +237,27 @@ describe('Learners', () => {
             pariksha: {
               q1: { best: 0.5, passed: false, attempts: 2, lastAttemptAt: null },
               q2: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
-              q3: { best: 1, passed: true, attempts: 1, lastAttemptAt: null },
+              gone: { best: 1, passed: true, attempts: 1, lastAttemptAt: null },
             },
           }),
           uid: 'u1',
         },
-        { ...progressRow({ courseId: 'unknown-course', percent: 0 }), uid: 'u1' },
+        { ...progressRow({ courseId: 'unknown-course', percent: 10 }), uid: 'u1' },
       ]);
+      c.data.attemptsFor = vi.fn(async (_uid: string, _courseId: string, parikshaId: string) =>
+        parikshaId === 'q1'
+          ? [
+              {
+                id: 'a2',
+                parikshaId,
+                score: 0.5,
+                passed: false,
+                at: new Date('2026-03-04T00:00:00Z'),
+              },
+              { id: 'a1', parikshaId, score: 0.25, passed: false, at: null },
+            ]
+          : [{ id: 'a3', parikshaId, score: 1, passed: true, at: null }],
+      );
       c.data.certificatesFor = vi
         .fn()
         .mockResolvedValue([
@@ -240,18 +267,50 @@ describe('Learners', () => {
       return c;
     };
 
-    it('shows courses, certificates and resets a cooldown', async () => {
-      const c = detail();
+    const openPriya = async (c: ReturnType<typeof detail>) => {
       await openApp('/kulapati/learners', { ...kulapati, console: c });
       fireEvent.click(await screen.findByText('Priya'));
       const dialog = await screen.findByRole('dialog');
-      expect((await within(dialog).findAllByText('Git, the NonStop Way')).length).toBeGreaterThan(
-        0,
-      );
-      expect(within(dialog).getByText('unknown-course')).toBeTruthy();
-      fireEvent.click(
-        within(dialog).getByRole('button', { name: 'Reset cooldown for q1 (2 attempts)' }),
-      );
+      await within(dialog).findByText('Certificates');
+      return dialog;
+    };
+
+    it('lists every assigned course, started or not, with due dates and status', async () => {
+      const c = detail();
+      const dialog = await openPriya(c);
+      expect(c.data.assignmentsFor).toHaveBeenCalledWith('user1@nonstopio.com');
+      const items = within(dialog)
+        .getAllByRole('listitem')
+        .filter((li) => li.classList.contains('drawer-course'))
+        .map((li) => li.textContent ?? '');
+      expect(items).toHaveLength(4);
+      expect(items[0]).toMatch(/^Git, the NonStop Way.*Overdue/);
+      expect(items[1]).toMatch(/^docker.*Not started.*Due .* · Mandatory/);
+      expect(items[2]).toMatch(/^k8s.*Completed.*No due date/);
+      expect(items[3]).toMatch(/^unknown-course.*In progress.*Not assigned/);
+      expect(within(dialog).queryByRole('progressbar', { name: 'docker progress' })).toBeNull();
+      expect(
+        within(dialog).getByRole('progressbar', { name: 'Git, the NonStop Way progress' }),
+      ).toBeTruthy();
+    });
+
+    it('shows Pariksha attempts by title, newest first, and resets a cooldown', async () => {
+      const c = detail();
+      const dialog = await openPriya(c);
+      const q1 = within(dialog).getByRole('region', { name: 'Pariksha I attempts' });
+      expect(q1.textContent).toContain('Pariksha I · 2 attempts · best 50% · Not passed yet');
+      expect(
+        within(q1)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['4 March 2026: 50%, not passed', 'Date unknown: 25%, not passed']);
+      const gone = within(dialog).getByRole('region', { name: 'gone attempts' });
+      expect(gone.textContent).toContain('gone · 1 attempt · best 100% · Passed');
+      expect(within(gone).getByText('Date unknown: 100%, passed')).toBeTruthy();
+      expect(within(dialog).queryByText(/q1|q2/)).toBeNull();
+      expect(c.data.attemptsFor).toHaveBeenCalledWith('u1', 'git', 'q1');
+      expect(c.data.attemptsFor).toHaveBeenCalledTimes(2);
+      fireEvent.click(within(q1).getByRole('button', { name: 'Reset cooldown for Pariksha I' }));
       await waitFor(() =>
         expect(c.service.resetCooldown).toHaveBeenCalledWith({
           uid: 'u1',
@@ -260,18 +319,21 @@ describe('Learners', () => {
         }),
       );
       expect(await screen.findByText('Retake opened')).toBeTruthy();
-      expect(
-        await within(dialog).findByRole('button', { name: 'Reset cooldown for q3 (1 attempt)' }),
-      ).toBeTruthy();
-      expect(within(dialog).queryByText(/q2/)).toBeNull();
+      await waitFor(() => expect(c.data.attemptsFor).toHaveBeenCalledTimes(4));
     });
 
-    it('revokes and restores certificates, and reports a failure', async () => {
+    it('asks before revoking a certificate, restores without asking, and reports a failure', async () => {
       const c = detail();
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
-      fireEvent.click(await screen.findByText('Priya'));
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(await within(dialog).findByRole('button', { name: 'Revoke' }));
+      const dialog = await openPriya(c);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }));
+      const confirm = within(dialog).getByRole('group', {
+        name: 'Confirm revoking NSG-GIT-26-0001',
+      });
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Keep it' }));
+      expect(within(dialog).queryByRole('group')).toBeNull();
+      expect(c.service.revokeCertificate).not.toHaveBeenCalled();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke certificate' }));
       await waitFor(() =>
         expect(c.service.revokeCertificate).toHaveBeenCalledWith({
           id: 'NSG-GIT-26-0001',
@@ -288,23 +350,38 @@ describe('Learners', () => {
       );
       expect(await screen.findByText('Certificate restored')).toBeTruthy();
       c.service.revokeCertificate = vi.fn().mockRejectedValue(new Error('x'));
-      fireEvent.click(await within(dialog).findByRole('button', { name: 'Revoke' }));
+      fireEvent.click(await within(dialog).findByRole('button', { name: 'Restore' }));
       expect(await screen.findByText('That did not work. Try again.')).toBeTruthy();
     });
 
-    it('shows nothing to load for a pending invite, and closes with Escape', async () => {
+    it('shows a pending invite’s assignments without reading progress, and closes with Escape', async () => {
       const c = detail();
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      const { container } = await openApp('/kulapati/learners', { ...kulapati, console: c });
       await screen.findByText('Priya');
       fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
       fireEvent.click(await screen.findByText('new@nonstopio.com'));
       const dialog = await screen.findByRole('dialog');
-      expect(await within(dialog).findByText('No activity yet.')).toBeTruthy();
+      expect(
+        await within(dialog).findByText(/Pending invite: they have not signed in/),
+      ).toBeTruthy();
+      expect(within(dialog).getByText('Git, the NonStop Way')).toBeTruthy();
+      expect(within(dialog).getAllByText('Not started')).toHaveLength(2);
       expect(within(dialog).getByText('None yet.')).toBeTruthy();
       expect(c.data.progressFor).toHaveBeenCalledTimes(1);
+      expect(c.data.certificatesFor).not.toHaveBeenCalled();
+      expect(c.data.attemptsFor).not.toHaveBeenCalled();
+      expect(await axeViolations(container)).toEqual([]);
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(act).toBeDefined();
+    });
+
+    it('says so when a person has no courses at all', async () => {
+      const c = setup({ assignments: [] });
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      fireEvent.click(await screen.findByText('Rohan'));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText('No courses assigned or started.')).toBeTruthy();
     });
   });
 });

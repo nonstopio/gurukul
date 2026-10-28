@@ -42,6 +42,10 @@ export function fakeConsole(
     userCount: vi.fn().mockResolvedValue(init.count ?? users.length),
     progressFor: vi.fn().mockResolvedValue([]),
     certificatesFor: vi.fn().mockResolvedValue([]),
+    assignmentsFor: vi.fn(async (email: string) =>
+      (init.assignments ?? []).filter((a) => a.email === email),
+    ),
+    attemptsFor: vi.fn().mockResolvedValue([]),
     searchUsers: vi.fn().mockResolvedValue(init.found ?? []),
     usersInTeam: vi.fn().mockResolvedValue(init.team ?? []),
     usersByUid: vi.fn(async (uids: string[]) =>

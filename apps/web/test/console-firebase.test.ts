@@ -8,7 +8,7 @@ const store = vi.hoisted(() => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-  collection: (_db: unknown, name: string) => ({ collection: name }),
+  collection: (_db: unknown, ...path: string[]) => ({ collection: path.join('/') }),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   documentId: () => '__name__',
   getCountFromServer: async () => ({ data: () => ({ count: store.count }) }),
@@ -207,6 +207,47 @@ describe('progress, certificates and known emails', () => {
       ],
     ];
     expect((await data.certificatesFor('u1'))[0]?.id).toBe('NSG-1');
+  });
+
+  it('reads every assignment for one email, capped', async () => {
+    store.queue = [[d('a1', { email: 'p@nonstopio.com', courseId: 'git', status: 'assigned' })]];
+    expect((await data.assignmentsFor('p@nonstopio.com'))[0]).toMatchObject({
+      id: 'a1',
+      courseId: 'git',
+      uid: null,
+    });
+    expect(store.queries[0]).toEqual([
+      { collection: 'assignments' },
+      { where: ['email', '==', 'p@nonstopio.com'] },
+      { limit: 50 },
+    ]);
+  });
+
+  it('reads one person’s newest attempts at a Pariksha: score, verdict and date only', async () => {
+    store.queue = [
+      [
+        d('a2', {
+          uid: 'u1',
+          parikshaId: 'q1',
+          score: 0.5,
+          passed: true,
+          createdAt: ts(9),
+          answers: { k1: ['a'] },
+        }),
+        d('a1', { uid: 'u1', parikshaId: 'q1' }),
+      ],
+    ];
+    expect(await data.attemptsFor('u1', 'git', 'q1')).toEqual([
+      { id: 'a2', parikshaId: 'q1', score: 0.5, passed: true, at: new Date(9) },
+      { id: 'a1', parikshaId: 'q1', score: 0, passed: false, at: null },
+    ]);
+    expect(store.queries[0]).toEqual([
+      { collection: 'progress/u1_git/attempts' },
+      { where: ['uid', '==', 'u1'] },
+      { where: ['parikshaId', '==', 'q1'] },
+      { orderBy: ['createdAt', 'desc'] },
+      { limit: 10 },
+    ]);
   });
 
   it('finds who has signed in and who already holds EVERY selected course', async () => {

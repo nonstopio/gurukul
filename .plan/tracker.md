@@ -20,14 +20,14 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
-| Kulapati console and Sanjaya  | 12   | 12   | 2       | 0          |
+| Kulapati console and Sanjaya  | 13   | 11   | 2       | 0          |
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 68   | 44   | 6       | 7          |
+| **Total**                     | 69   | 43   | 6       | 7          |
 
 ## Pick order
 
@@ -35,55 +35,54 @@ Correctness and cost first, then what learners meet, then the console and Studio
 Blocked items wait at the end until the maintainer answers their question.
 
 1. `KUL-26` — Learners counts past the newest 500 assignments
-2. `KUL-12` — learner drawer completeness
-3. `KUL-16` — org settings: teams and reminders
-4. `KUL-17` — learners pick their team
-5. `STU-07` — Acharyas see every course
-6. `STU-06` — Acharya names on courses
-7. `LRN-14` — Retired and "New lessons added" states
-8. `PRK-09` — revocation date on certificates
-9. `KUL-18` — org Pariksha KPIs and a true overdue count
-10. `KUL-21` — daily roll-up repairs course counters
-11. `SRC-02` — learner navigation area
-12. `SRC-03` — courses and lessons in search
-13. `SRC-04` — people in search for Kulapatis
-14. `SRC-05` — draft courses in search for Acharyas
-15. `STU-11` — preview uses the real learner screens
-16. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-17. `STU-08` — "Draft vN · saved just now"
-18. `STU-10` — learner counts in the publish dialog and on course cards
-19. `STU-12` — publishing an archived course
-20. `STU-13` — structure editor polish
-21. `LRN-12` — course overview to the handoff
-22. `LRN-13` — Home to the handoff
-23. `LRN-11` — outline rail grouped by parva
-24. `LRN-10` — split layout
-25. `LRN-15` — block renderer polish
-26. `LRN-16` — check blocks reveal the right option
-27. `LRN-17` — keyboard shortcuts dialog
-28. `PRK-08` — completion screen to the handoff
-29. `AUTH-08` — sign-in screen to the handoff
-30. `SHL-03` — handoff breakpoints and the menu button
-31. `KUL-13` — bulk role change and select all
-32. `KUL-14` — Assign screen finish
-33. `KUL-19` — Needs attention, pending-invite strip, overview filters
-34. `KUL-20` — course analytics finish
-35. `KUL-22` — Roles screen polish
-36. `KUL-23` — audit log view finish
-37. `DS-05` — axe on the remaining page tests
-38. `DS-04` — shared icon set
-39. `DS-03` — `/__ui` component gallery
-40. `STU-15` — lesson editor extras
-41. `STU-16` — CodeMirror for markdown and code
-42. `OPS-11` — deeper e2e journeys
-43. `OPS-06` — Lighthouse on the preview URL
-44. `OPS-14` — trigger tests against the emulators
-45. `KUL-24` — email delivery (blocked: question 4)
-46. `KUL-25` — Acharyas see their learners (blocked: question 7)
-47. `PRK-10` — tell a learner their certificate was revoked (blocked)
-48. `OPS-18` — custom domain (blocked: question 6)
-49. `OPS-19` — licence holder (blocked: question 10)
-50. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+2. `KUL-16` — org settings: teams and reminders
+3. `KUL-17` — learners pick their team
+4. `STU-07` — Acharyas see every course
+5. `STU-06` — Acharya names on courses
+6. `LRN-14` — Retired and "New lessons added" states
+7. `PRK-09` — revocation date on certificates
+8. `KUL-18` — org Pariksha KPIs and a true overdue count
+9. `KUL-21` — daily roll-up repairs course counters
+10. `SRC-02` — learner navigation area
+11. `SRC-03` — courses and lessons in search
+12. `SRC-04` — people in search for Kulapatis
+13. `SRC-05` — draft courses in search for Acharyas
+14. `STU-11` — preview uses the real learner screens
+15. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+16. `STU-08` — "Draft vN · saved just now"
+17. `STU-10` — learner counts in the publish dialog and on course cards
+18. `STU-12` — publishing an archived course
+19. `STU-13` — structure editor polish
+20. `LRN-12` — course overview to the handoff
+21. `LRN-13` — Home to the handoff
+22. `LRN-11` — outline rail grouped by parva
+23. `LRN-10` — split layout
+24. `LRN-15` — block renderer polish
+25. `LRN-16` — check blocks reveal the right option
+26. `LRN-17` — keyboard shortcuts dialog
+27. `PRK-08` — completion screen to the handoff
+28. `AUTH-08` — sign-in screen to the handoff
+29. `SHL-03` — handoff breakpoints and the menu button
+30. `KUL-13` — bulk role change and select all
+31. `KUL-14` — Assign screen finish
+32. `KUL-19` — Needs attention, pending-invite strip, overview filters
+33. `KUL-20` — course analytics finish
+34. `KUL-22` — Roles screen polish
+35. `KUL-23` — audit log view finish
+36. `DS-05` — axe on the remaining page tests
+37. `DS-04` — shared icon set
+38. `DS-03` — `/__ui` component gallery
+39. `STU-15` — lesson editor extras
+40. `STU-16` — CodeMirror for markdown and code
+41. `OPS-11` — deeper e2e journeys
+42. `OPS-06` — Lighthouse on the preview URL
+43. `OPS-14` — trigger tests against the emulators
+44. `KUL-24` — email delivery (blocked: question 4)
+45. `KUL-25` — Acharyas see their learners (blocked: question 7)
+46. `PRK-10` — tell a learner their certificate was revoked (blocked)
+47. `OPS-18` — custom domain (blocked: question 6)
+48. `OPS-19` — licence holder (blocked: question 10)
+49. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -174,7 +173,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Queued only: delivery is `KUL-24`                                                                                                    |
 | `KUL-10` | Learners table: pending invites and filters that combine                     | done    | —        | `apps/web/src/console/LearnersPage.tsx`, `model.ts` (`filterPeople`, `onTab`, `tabCounts`, `allPage`). Counts past 500: `KUL-26`                                                     |
 | `KUL-11` | People search by name                                                        | done    | —        | `apps/web/src/console/firebase.ts` (`searchUsers`: `email` and `nameLower` prefixes), `usePeopleSearch.ts` (newest answer wins), `model.ts` (`filterPeople`); `nameLower` set by `firebase/functions/src/profile.ts`, backfilled at sign-in (`apps/web/src/firestore.ts`), kept in step by `firestore.rules` |
-| `KUL-12` | Learner drawer completeness                                                  | todo    | —        | Assigned-but-unstarted courses with due dates; attempt history from `attempts`; Pariksha titles, not ids; pending-invite drawers; confirm before revoking                           |
+| `KUL-12` | Learner drawer completeness | done | — | `apps/web/src/console/LearnerDrawer.tsx`, `model.ts` (`drawerCourses`, `parikshaTitle`), `firebase.ts` (`assignmentsFor`, `attemptsFor`: score, verdict and date only) |
 | `KUL-13` | Bulk role change and select all                                              | todo    | —        | "Change role" is only a link today; "Select all N" across pages                                                                                                                      |
 | `KUL-14` | Assign screen finish                                                         | todo    | —        | Lesson counts, CSV drop zone, team member count; toast counts people, not pairs; land on Learners filtered by course; partial-failure list with retry; per-course preview matches the server |
 | `KUL-15` | Reminders: one per person per day, mandatory only                            | done    | —        | Daily run takes mandatory assignments only and sends one email per person, none to anyone reminded in the last 20 h (`firebase/functions/src/remind.ts`, `mail.ts` `buildReminderEmail`, `stores.ts`); `hourUtc` dropped from `packages/schema/src/user.ts`, the schedule stays 04:00 UTC (`.plan/07-kulapati-console.md`) |
