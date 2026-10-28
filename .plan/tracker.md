@@ -20,21 +20,21 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
-| Kulapati console and Sanjaya  | 10   | 13   | 2       | 0          |
+| Kulapati console and Sanjaya  | 11   | 13   | 2       | 0          |
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 66   | 45   | 6       | 7          |
+| **Total**                     | 67   | 45   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `KUL-10` — Learners table: pending invites and filters that combine
+1. `KUL-26` — Learners counts past the newest 500 assignments
 2. `KUL-11` — people search by name
 3. `KUL-12` — learner drawer completeness
 4. `KUL-16` — org settings: teams and reminders
@@ -173,7 +173,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-07` | Course analytics: funnel, parva drop-off, hardest questions                  | done    | —        | `apps/web/src/console/CourseAnalyticsPage.tsx`                                                                                                                                       |
 | `KUL-08` | Counter triggers and the daily org roll-up                                   | done    | —        | `firebase/functions/src/analytics.ts`                                                                                                                                                |
 | `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Queued only: delivery is `KUL-24`                                                                                                    |
-| `KUL-10` | Learners table: pending invites and filters that combine                     | todo    | —        | "All" omits pending invites although its count includes them; search, team, course, role and tab do not compose; counts stop at the newest 500 assignments; 250 ms debounce          |
+| `KUL-10` | Learners table: pending invites and filters that combine                     | done    | —        | `apps/web/src/console/LearnersPage.tsx`, `model.ts` (`filterPeople`, `onTab`, `tabCounts`, `allPage`). Counts past 500: `KUL-26`                                                     |
 | `KUL-11` | People search by name                                                        | todo    | —        | Email-prefix only today, in Learners, Assign and the grant dialog; a lower-cased name field on `users`; ignore out-of-order responses                                               |
 | `KUL-12` | Learner drawer completeness                                                  | todo    | —        | Assigned-but-unstarted courses with due dates; attempt history from `attempts`; Pariksha titles, not ids; pending-invite drawers; confirm before revoking                           |
 | `KUL-13` | Bulk role change and select all                                              | todo    | —        | "Change role" is only a link today; "Select all N" across pages                                                                                                                      |
@@ -189,6 +189,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-23` | Audit log view finish                                                        | todo    | —        | Paging past 100, a detail column, names instead of uids; `assign` entries record who was assigned                                                                                   |
 | `KUL-24` | Email delivery                                                               | blocked | —        | Question 4: the code queues for the Trigger Email extension, the plan recommends the Gmail API. Then: sender, `from`/`replyTo`, HTML template, configurable site URL              |
 | `KUL-25` | Acharyas see their learners                                                  | blocked | —        | Question 7. Course analytics is Kulapati-only; names need a rules change                                                                                                            |
+| `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | todo    | —        | Tab counts and the pending list come from the newest 500 assignments; per-person counts need counters kept by the functions                                                          |
 
 ## Vyasa Studio
 

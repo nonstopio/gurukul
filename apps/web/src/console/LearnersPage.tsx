@@ -12,7 +12,7 @@ import {
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
@@ -21,11 +21,22 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { longDate } from '../pariksha/model';
 import { useConsole } from './ConsoleProvider';
-import { buildLearnerRows, filterByRole, isOverdue, rowsFromAssignments } from './model';
-import type { LearnerRow, LearnerTab } from './model';
+import {
+  allPage,
+  buildLearnerRows,
+  filterPeople,
+  isFiltered,
+  onTab,
+  peopleFromAssignments,
+  searchPrefix,
+  tabCounts,
+} from './model';
+import type { LearnerRow, LearnerTab, Person } from './model';
 import type { AssignmentFull, UserRow } from './types';
 
 export const PAGE_SIZE = 25;
+/** How long typing must pause before the search runs. */
+export const SEARCH_DELAY_MS = 250;
 
 function tabItems(
   counts: Record<LearnerTab, number>,
@@ -47,6 +58,16 @@ const TABS: Array<{ id: LearnerTab; label: string }> = [
   { id: 'overdue', label: 'Overdue' },
 ];
 
+/** `value`, once it has stopped changing for `ms`. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
 /** `/kulapati/learners`: everyone who signed in plus pending invites, with filters and bulk actions. */
 export function LearnersPage() {
   const { data } = useConsole();
@@ -60,21 +81,15 @@ export function LearnersPage() {
         data.teams(),
         data.userCount(),
       ]);
-      const pending = rowsFromAssignments(
-        assignments.filter((a) => a.uid === null),
-        now,
-      );
-      const overdue = rowsFromAssignments(
-        assignments.filter((a) => isOverdue(a, now)),
-        now,
-      );
+      const people = peopleFromAssignments(assignments);
+      const pending = onTab(people, 'pending', assignments, now);
       const counts: Record<LearnerTab, number> = {
         all: total + pending.length,
         signedIn: total,
         pending: pending.length,
-        overdue: overdue.length,
+        overdue: onTab(people, 'overdue', assignments, now).length,
       };
-      return { assignments, courses, teams, total, pending, overdue, counts };
+      return { assignments, courses, teams, total, people, pending, counts };
     }, [data, learner, now]),
   );
 
@@ -92,18 +107,24 @@ interface Meta {
   courses: Course[];
   teams: string[];
   total: number;
-  pending: LearnerRow[];
-  overdue: LearnerRow[];
+  /** Everyone in the newest assignments, and the pending invites among them. */
+  people: Person[];
+  pending: Person[];
   counts: Record<LearnerTab, number>;
 }
 
-/** Filters stay mounted while rows reload, so typing is never interrupted. */
+/**
+ * Filters stay mounted while rows reload, so typing is never interrupted. With no filter, "All"
+ * and "Signed in" page through everyone from Firestore (pending invites follow on "All"); any
+ * filter narrows to a bounded set that every other filter and the tab then apply to.
+ */
 function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const { data, service } = useConsole();
   const navigate = useNavigate();
   const toast = useToast();
   const [tab, setTab] = useState<LearnerTab>('all');
   const [search, setSearch] = useState('');
+  const query = useDebounced(search, SEARCH_DELAY_MS);
   const [team, setTeam] = useState('');
   const [role, setRole] = useState('');
   const [courseId, setCourseId] = useState('');
@@ -118,48 +139,68 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
     setSelected([]);
   };
 
+  /** The set the filters narrow to, read once per filter change and reused across tabs and pages. */
+  const source = useMemo(() => {
+    const prefix = searchPrefix(query);
+    return Promise.all([
+      courseId ? data.assignments({ courseId }) : meta.assignments,
+      team
+        ? data.usersInTeam(team)
+        : role
+          ? data.usersWithRole(role as 'acharya' | 'kulapati')
+          : prefix
+            ? data.searchUsers(prefix)
+            : null,
+    ]).then(([scope, users]) => ({ scope, users }));
+  }, [data, meta, query, team, role, courseId]);
+
   const result = useAsync(
     useCallback(async () => {
-      const fromAssignments =
-        tab === 'pending'
-          ? meta.pending
-          : tab === 'overdue'
-            ? meta.overdue
-            : courseId
-              ? rowsFromAssignments(
-                  meta.assignments.filter((a) => a.courseId === courseId),
-                  now,
-                )
-              : null;
-      if (fromAssignments) {
-        return {
-          rows: fromAssignments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-          total: fromAssignments.length,
-          nextCursor: null as string | null,
-        };
-      }
-      let users: UserRow[];
-      let total = meta.total;
+      const filters = { search: query, team, role, courseId };
+      const filtered = isFiltered(filters);
+      let scope = meta.assignments;
+      let onPage: Person[];
+      let total: number;
+      let counts = meta.counts;
       let nextCursor: string | null = null;
-      if (search.trim().length >= 2) {
-        users = await data.searchUsers(search);
-        total = users.length;
-      } else if (team) {
-        const all = await data.usersInTeam(team);
-        users = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-        total = all.length;
+      if (!filtered && (tab === 'all' || tab === 'signedIn')) {
+        const span = allPage(page, PAGE_SIZE, meta.total);
+        const people = span.people
+          ? await data.usersPage(cursors[page - 1] ?? null, PAGE_SIZE)
+          : { rows: [], nextCursor: null };
+        nextCursor = people.nextCursor;
+        onPage = [
+          ...people.rows.map((u): Person => ({ email: u.email, uid: u.uid, user: u })),
+          ...(tab === 'all' ? meta.pending.slice(...span.pending) : []),
+        ];
+        total = meta.counts[tab];
       } else {
-        const next = await data.usersPage(cursors[page - 1] ?? null, PAGE_SIZE);
-        users = next.rows;
-        nextCursor = next.nextCursor;
+        const narrowed = await source;
+        scope = narrowed.scope;
+        const users = narrowed.users;
+        const people = filtered ? filterPeople(users, scope, filters, !team && !role) : meta.people;
+        if (filtered) counts = tabCounts(people, scope, now);
+        const inTab = onTab(people, tab, scope, now);
+        onPage = inTab.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        total = inTab.length;
       }
-      const progress = await data.progressFor(users.map((u) => u.uid));
-      return {
-        rows: buildLearnerRows(users, meta.assignments, progress, now, false),
-        total,
-        nextCursor,
-      };
-    }, [data, meta, now, tab, search, team, courseId, page, cursors]),
+      const unread = onPage.filter((p) => p.uid !== null && p.user === null);
+      const profiles = unread.length
+        ? await data.usersByUid(unread.map((p) => p.uid as string))
+        : [];
+      const users = onPage
+        .map((p) => p.user ?? profiles.find((u) => u.uid === p.uid))
+        .filter((u): u is UserRow => u !== undefined);
+      const progress = users.length ? await data.progressFor(users.map((u) => u.uid)) : [];
+      const order = new Map(onPage.map((p, i) => [p.email, i]));
+      const rows = buildLearnerRows(
+        users,
+        scope.filter((a) => order.has(a.email)),
+        progress,
+        now,
+      ).sort((a, b) => (order.get(a.email) as number) - (order.get(b.email) as number));
+      return { rows, total, counts, nextCursor };
+    }, [data, meta, now, source, tab, query, team, role, courseId, page, cursors]),
   );
 
   /** Remembers where the next page starts, so Previous and Next never re-read earlier pages. */
@@ -175,7 +216,10 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
     setSelected([]);
   };
 
-  const rows = result.state === 'ready' ? filterByRole(result.value.rows, role) : [];
+  const rows = result.state === 'ready' ? result.value.rows : [];
+  /** The tab counts of the last result, so they do not flicker while the next one loads. */
+  const [counts, setCounts] = useState(meta.counts);
+  if (result.state === 'ready' && result.value.counts !== counts) setCounts(result.value.counts);
   const emails = rows.filter((r) => selected.includes(r.key)).map((r) => r.email);
 
   const table = (
@@ -287,7 +331,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         label="Learner groups"
         value={tab}
         onValueChange={(id) => reset(() => setTab(id as LearnerTab))}
-        tabs={tabItems(meta.counts, tab, table)}
+        tabs={tabItems(counts, tab, table)}
       />
       {selected.length > 0 ? (
         <div className="bulk-bar" role="region" aria-label="Bulk actions">

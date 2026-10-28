@@ -10,6 +10,7 @@ const store = vi.hoisted(() => ({
 vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, name: string) => ({ collection: name }),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  documentId: () => '__name__',
   getCountFromServer: async () => ({ data: () => ({ count: store.count }) }),
   getDoc: async (ref: { path: string }) => ({
     exists: () => store.docs.has(ref.path),
@@ -152,6 +153,14 @@ describe('users', () => {
     expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1']);
     expect(store.queries[0]).toContainEqual({ where: ['email', '>=', 'u1'] });
     expect((await data.usersInTeam('QA'))[0]?.team).toBe('QA');
+  });
+
+  it('reads profiles by uid in chunks of 30', async () => {
+    const uids = Array.from({ length: 31 }, (_, i) => `u${i}`);
+    store.queue = [[user(1)], [user(30)]];
+    expect((await data.usersByUid(uids)).map((u) => u.uid)).toEqual(['u1', 'u30']);
+    expect(store.queries).toHaveLength(2);
+    expect(store.queries[1]).toContainEqual({ where: ['__name__', 'in', ['u30']] });
   });
 });
 

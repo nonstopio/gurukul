@@ -44,6 +44,9 @@ export function fakeConsole(
     certificatesFor: vi.fn().mockResolvedValue([]),
     searchUsers: vi.fn().mockResolvedValue(init.found ?? []),
     usersInTeam: vi.fn().mockResolvedValue(init.team ?? []),
+    usersByUid: vi.fn(async (uids: string[]) =>
+      [...users, ...(init.team ?? []), ...(init.found ?? [])].filter((u) => uids.includes(u.uid)),
+    ),
     usersWithRole: vi.fn(async (role: string) => users.filter((u) => u.roles.includes(role))),
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),

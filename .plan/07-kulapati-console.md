@@ -8,6 +8,11 @@ analytics. Handoff: `design-handoff/02-kulapati-console.md`.
 - One table of everyone signed in **plus** pending invites (emails with
   assignments but no account), tabs: All, Signed in, Pending invite, Overdue.
 - Filters: search (name/email), team, course, role. Paginated 25 per page.
+  Every filter and the tab apply together. With no filter, "All" pages
+  through everyone signed in, then the pending invites; any filter narrows to
+  a bounded set (a team, a role, a course's assignments, search results) that
+  the rest then filter in memory, and the tab counts follow the filters.
+  Search waits for a 250 ms pause in typing and starts at two characters.
 - Bulk actions on selected rows: assign course, send reminder, change role.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).

@@ -96,9 +96,125 @@ export function buildLearnerRows(
 
 export type LearnerTab = 'all' | 'signedIn' | 'pending' | 'overdue';
 
-/** Keeps rows holding `role`; an empty role keeps everyone. */
-export function filterByRole(rows: readonly LearnerRow[], role: string): LearnerRow[] {
-  return role === '' ? [...rows] : rows.filter((r) => r.roles.includes(role));
+/** The filters above the Learners table. Each one narrows the rows; together they all apply. */
+export interface LearnerFilters {
+  search: string;
+  team: string;
+  role: string;
+  courseId: string;
+}
+
+/** Search starts at two characters, so one keystroke does not read the whole people list. */
+export const searchPrefix = (search: string): string => {
+  const p = search.trim().toLowerCase();
+  return p.length >= 2 ? p : '';
+};
+
+/** True when a filter narrows the table to a bounded set, held and paged in memory. */
+export const isFiltered = (f: LearnerFilters): boolean =>
+  searchPrefix(f.search) !== '' || f.team !== '' || f.role !== '' || f.courseId !== '';
+
+/**
+ * One person in the table before their row is built. `user` is null for a pending invite, and for
+ * someone known only by their assignments until their profile is read for the page they are on.
+ */
+export interface Person {
+  email: string;
+  uid: string | null;
+  user: UserRow | null;
+}
+
+/** One person per email in these assignments, sorted by email. */
+export function peopleFromAssignments(assignments: readonly AssignmentFull[]): Person[] {
+  const byEmail = new Map<string, string | null>();
+  for (const a of assignments) byEmail.set(a.email, byEmail.get(a.email) ?? a.uid);
+  return [...byEmail]
+    .map(([email, uid]) => ({ email, uid, user: null }))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/**
+ * Everyone matching every filter, sorted by email. `users` is the people read for the narrowest
+ * people filter (team, role or search), or null when only a course is chosen; `scope` is the
+ * assignments in view (the chosen course's, or the newest ones). Pending invites have no team or
+ * role, so a team or role filter leaves them out. `searched` says `users` came from the search
+ * itself, which already matched them (by more than the email), so it is not applied to them again.
+ */
+export function filterPeople(
+  users: readonly UserRow[] | null,
+  scope: readonly AssignmentFull[],
+  f: LearnerFilters,
+  searched = false,
+): Person[] {
+  const fromAssignments = peopleFromAssignments(scope);
+  if (users === null) return fromAssignments;
+  const prefix = searchPrefix(f.search);
+  const inCourse = new Set(scope.map((a) => a.email));
+  const inScope = (email: string) => f.courseId === '' || inCourse.has(email);
+  const matches = (email: string) => email.startsWith(prefix) && inScope(email);
+  const signedIn = users
+    .filter(
+      (u) =>
+        (searched ? inScope(u.email) : matches(u.email)) &&
+        (f.team === '' || u.team === f.team) &&
+        (f.role === '' || u.roles.includes(f.role)),
+    )
+    .map((u): Person => ({ email: u.email, uid: u.uid, user: u }));
+  const known = new Set(users.map((u) => u.email));
+  const pending =
+    f.team === '' && f.role === ''
+      ? fromAssignments.filter((p) => p.uid === null && !known.has(p.email) && matches(p.email))
+      : [];
+  return [...signedIn, ...pending].sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/** The people on one tab: signed in, pending invites, or anyone with an overdue assignment in scope. */
+export function onTab(
+  people: readonly Person[],
+  tab: LearnerTab,
+  scope: readonly AssignmentFull[],
+  now: Date,
+): Person[] {
+  if (tab === 'signedIn') return people.filter((p) => p.uid !== null);
+  if (tab === 'pending') return people.filter((p) => p.uid === null);
+  if (tab === 'overdue') {
+    const late = new Set(scope.filter((a) => isOverdue(a, now)).map((a) => a.email));
+    return people.filter((p) => late.has(p.email));
+  }
+  return [...people];
+}
+
+/** How many people each tab holds, for the tab labels. */
+export function tabCounts(
+  people: readonly Person[],
+  scope: readonly AssignmentFull[],
+  now: Date,
+): Record<LearnerTab, number> {
+  const count = (tab: LearnerTab) => onTab(people, tab, scope, now).length;
+  return {
+    all: people.length,
+    signedIn: count('signedIn'),
+    pending: count('pending'),
+    overdue: count('overdue'),
+  };
+}
+
+/**
+ * Where page `page` of "All" falls when signed-in people (paged from Firestore, `signedIn` of them)
+ * come first and pending invites follow: whether the page shows people, and which slice of the
+ * pending list fills the rest.
+ */
+export function allPage(
+  page: number,
+  pageSize: number,
+  signedIn: number,
+): { people: boolean; pending: [number, number] } {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return {
+    people: start < signedIn,
+    pending: [Math.max(0, start - signedIn), Math.max(0, end - signedIn)],
+  };
 }
 
 /** Lessons completed in each of the last `n` weeks, oldest first, with zero for quiet weeks. */
@@ -149,37 +265,6 @@ export function averageDays(
   stats: Pick<CourseStats, 'finishDaysSum' | 'completed'>,
 ): number | null {
   return stats.completed > 0 ? Math.round((stats.finishDaysSum / stats.completed) * 10) / 10 : null;
-}
-
-/**
- * Rows built straight from assignments, grouped by email: the Pending, Overdue and per-course
- * views. A person with an account is `active`; an email with none is `invited`.
- */
-export function rowsFromAssignments(
-  assignments: readonly AssignmentFull[],
-  now: Date,
-): LearnerRow[] {
-  const byEmail = new Map<string, AssignmentFull[]>();
-  for (const a of assignments) byEmail.set(a.email, [...(byEmail.get(a.email) ?? []), a]);
-  return [...byEmail].map(([email, list]) => {
-    const uid = list.find((a) => a.uid !== null)?.uid ?? null;
-    const assignedAt = Math.max(0, ...list.map((a) => a.assignedAt?.getTime() ?? 0));
-    return {
-      key: uid ?? email,
-      uid,
-      email,
-      name: email,
-      team: null,
-      roles: [],
-      status: uid === null ? 'invited' : 'active',
-      assigned: list.length,
-      done: list.filter((a) => a.status === 'completed').length,
-      percent: 0,
-      overdue: list.some((a) => isOverdue(a, now)),
-      lastActive: null,
-      invitedAt: assignedAt > 0 ? new Date(assignedAt) : null,
-    } satisfies LearnerRow;
-  });
 }
 
 /** Plain-English names for the audit actions the functions write. */

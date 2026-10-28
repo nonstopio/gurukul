@@ -56,6 +56,8 @@ export interface ConsoleData {
   /** Email-prefix search over people who have signed in. */
   searchUsers(prefix: string): Promise<UserRow[]>;
   usersInTeam(team: string): Promise<UserRow[]>;
+  /** Profiles for a page of people known only by their assignments (in chunks of 30). */
+  usersByUid(uids: string[]): Promise<UserRow[]>;
   /** People holding a granted role (acharya or kulapati), for Roles & access. */
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
   /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */

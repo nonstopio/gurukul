@@ -2,6 +2,7 @@ import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
   collection,
   doc,
+  documentId,
   getCountFromServer,
   getDoc,
   getDocs,
@@ -122,6 +123,14 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         query(collection(db, 'users'), where('team', '==', team), limit(500)),
       );
       return snap.docs.map((d) => toUser(d.id, d.data()));
+    },
+    async usersByUid(uids) {
+      const out = await Promise.all(
+        chunks(uids, IN_LIMIT).map((part) =>
+          getDocs(query(collection(db, 'users'), where(documentId(), 'in', part))),
+        ),
+      );
+      return out.flatMap((snap) => snap.docs.map((d) => toUser(d.id, d.data())));
     },
     async usersWithRole(role) {
       const snap = await getDocs(

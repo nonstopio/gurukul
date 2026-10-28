@@ -64,30 +64,83 @@ describe('Learners', () => {
       count: 0,
     });
     await openApp('/kulapati/learners', { ...kulapati, console: c });
-    await screen.findByRole('tab', { name: 'Pending invite (1)' });
-    expect(await screen.findByText('No learners match these filters.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
     expect(await screen.findByText(/Invited$/)).toBeTruthy();
+    expect(c.data.usersPage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Signed in (0)' }));
+    expect(await screen.findByText('No learners match these filters.')).toBeTruthy();
+  });
+
+  it('lists pending invites on "All", after everyone who signed in', async () => {
+    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    const table = await screen.findByRole('table', { name: 'Learners' });
+    await within(table).findByText('new@nonstopio.com');
+    const rows = within(table)
+      .getAllByRole('row')
+      .map((r) => r.textContent);
+    expect(rows.findIndex((t) => t?.includes('Rohan'))).toBeLessThan(
+      rows.findIndex((t) => t?.includes('new@nonstopio.com')),
+    );
   });
 
   it('filters by search, team, course and role', async () => {
     const c = setup({ found: [users[1] as UserRow], team: [users[0] as UserRow] });
     await openApp('/kulapati/learners', { ...kulapati, console: c });
     await screen.findByText('Priya');
-    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'r' } });
-    expect(c.data.searchUsers).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'ro' } });
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'rohan' } });
     await waitFor(() => expect(c.data.searchUsers).toHaveBeenCalledWith('rohan'));
+    expect(c.data.searchUsers).toHaveBeenCalledTimes(1);
     expect(await screen.findByText('Rohan')).toBeTruthy();
+    expect(screen.queryByText('new@nonstopio.com')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'All (1)' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
     await waitFor(() => expect(c.data.usersInTeam).toHaveBeenCalledWith('QA'));
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Course'), { target: { value: 'git' } });
     expect(await screen.findByText('new@nonstopio.com')).toBeTruthy();
+    expect(await screen.findByText('Priya')).toBeTruthy();
+    expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' });
     fireEvent.change(screen.getByLabelText('Course'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'acharya' } });
     await screen.findByText('Priya');
+    expect(screen.queryByText('Rohan')).toBeNull();
+    expect(screen.queryByText('new@nonstopio.com')).toBeNull();
+  });
+
+  it('combines filters with each other and with the tab', async () => {
+    const team = [
+      userRow(1, { displayName: 'Priya', team: 'QA', roles: ['shishya', 'acharya'] }),
+      userRow(3, { displayName: 'Meera', team: 'QA' }),
+    ];
+    const c = setup({ team });
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Priya');
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    expect(await screen.findByText('Meera')).toBeTruthy();
+    expect(await screen.findByRole('tab', { name: 'All (2)' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Overdue (1)' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'acharya' } });
+    expect(await screen.findByRole('tab', { name: 'All (1)' })).toBeTruthy();
+    expect(screen.queryByText('Meera')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'user3' } });
+    expect(await screen.findByRole('tab', { name: 'All (1)' })).toBeTruthy();
+    expect(screen.getByText('Meera')).toBeTruthy();
+    expect(c.data.searchUsers).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: '' } });
+    fireEvent.click(await screen.findByRole('tab', { name: 'Overdue (1)' }));
+    expect(await screen.findByText('Priya')).toBeTruthy();
+    expect(screen.queryByText('Meera')).toBeNull();
+  });
+
+  it('reads the names of people on a course or overdue page that only assignments mention', async () => {
+    const c = setup();
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Rohan');
+    fireEvent.click(screen.getByRole('tab', { name: 'Overdue (1)' }));
+    expect(await screen.findByText('Priya')).toBeTruthy();
+    expect(c.data.usersByUid).toHaveBeenCalledWith(['u1']);
     expect(screen.queryByText('Rohan')).toBeNull();
   });
 
@@ -102,10 +155,11 @@ describe('Learners', () => {
         : { rows: many, nextCursor: 'cursor-1' },
     );
     await openApp('/kulapati/learners', { ...kulapati, console: c });
-    await screen.findByText('Showing 1–25 of 30');
+    await screen.findByText('Showing 1–25 of 31');
     await screen.findByText('Person 0');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('Page Two')).toBeTruthy();
+    expect(screen.getByText('new@nonstopio.com')).toBeTruthy();
     expect(c.data.usersPage).toHaveBeenLastCalledWith('cursor-1', 25);
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
     await screen.findByText('Person 0');
@@ -125,6 +179,7 @@ describe('Learners', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('T25')).toBeTruthy();
     expect(screen.queryByText('1 selected')).toBeNull();
+    expect(c.data.usersInTeam).toHaveBeenCalledTimes(1);
   });
 
   it('runs the bulk actions: assign, remind, change role and clear', async () => {
