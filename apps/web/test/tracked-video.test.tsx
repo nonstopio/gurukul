@@ -51,6 +51,15 @@ describe('trackedSrc', () => {
 });
 
 describe('TrackedVideo', () => {
+  it('shows "Video coming soon" for an unrecorded video and does not hold the lesson back', () => {
+    const { onWatched } = show(video({ url: 'https://www.youtube.com/watch?v=TODO_RECORD_VIDEO' }));
+    expect(screen.getByText('Video coming soon.')).toBeTruthy();
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(onWatched).toHaveBeenLastCalledWith('v1', true);
+    expect(tracked.on).toBeNull();
+  });
+
   it('counts as watched at 90% played, and says how far along it is', () => {
     const { onWatched, unmount } = show(video());
     expect(onWatched).toHaveBeenLastCalledWith('v1', false);

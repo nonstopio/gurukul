@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isEmbedAllowed, videoEmbedUrl } from '../src';
+import { isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '../src';
 
 describe('embeds', () => {
   it('allows only listed https hosts', () => {
@@ -45,5 +45,15 @@ describe('embeds', () => {
     ['drive', 'https://evil.example/file/d/abc/view'],
   ] as const)('refuses %s link %s', (provider, url) => {
     expect(videoEmbedUrl(provider, url)).toBeNull();
+  });
+});
+
+describe('isPlaceholderVideo', () => {
+  it('spots a link whose id is not recorded yet, and nothing else', () => {
+    expect(isPlaceholderVideo('https://www.youtube.com/watch?v=TODO_RECORD_VIDEO')).toBe(true);
+    expect(isPlaceholderVideo('https://youtu.be/TODO_RECORD_VIDEO')).toBe(true);
+    expect(isPlaceholderVideo('https://youtu.be/abc123')).toBe(false);
+    expect(isPlaceholderVideo('https://www.youtube.com/watch')).toBe(false);
+    expect(isPlaceholderVideo('not a url')).toBe(false);
   });
 });

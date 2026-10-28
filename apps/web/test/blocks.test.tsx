@@ -41,6 +41,18 @@ describe('BlockView', () => {
     expect(screen.getByRole('link', { name: 'Open the video in a new tab' })).toBeTruthy();
   });
 
+  it('says "Video coming soon" for a video that is not recorded yet', () => {
+    show({
+      type: 'video',
+      id: 'v',
+      provider: 'youtube',
+      url: 'https://www.youtube.com/watch?v=TODO_RECORD_VIDEO',
+      captions: true,
+    });
+    expect(screen.getByText('Video coming soon.')).toBeTruthy();
+    expect(document.querySelector('iframe')).toBeNull();
+  });
+
   it('renders markdown, with and without a title on a callout', () => {
     const { unmount } = show({ type: 'markdown', id: 'm', md: 'Hello **there**' });
     expect(screen.getByText('there').tagName).toBe('STRONG');

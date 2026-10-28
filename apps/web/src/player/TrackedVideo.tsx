@@ -1,5 +1,5 @@
 import type { Block } from '@gurukul/schema';
-import { videoEmbedUrl } from '@gurukul/schema';
+import { isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { Toggle, VideoBlock } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { log } from '../log';
@@ -36,14 +36,15 @@ export function TrackedVideo({
   block: VideoBlockData;
   onWatched: (blockId: string, watched: boolean) => void;
 }) {
-  const src = trackedSrc(block);
+  const comingSoon = isPlaceholderVideo(block.url);
+  const src = comingSoon ? null : trackedSrc(block);
   const tracker = src ? TRACKERS[block.provider] : undefined;
   const frame = useRef<HTMLIFrameElement>(null);
   const [share, setShare] = useState(0);
   const [lost, setLost] = useState(false);
   const [attested, setAttested] = useState(false);
   const tracked = !!tracker && !lost;
-  const watched = tracked ? share >= WATCH_SHARE : attested;
+  const watched = comingSoon || (tracked ? share >= WATCH_SHARE : attested);
 
   useEffect(() => onWatched(block.id, watched), [onWatched, block.id, watched]);
 
@@ -84,6 +85,7 @@ export function TrackedVideo({
   }, [tracker, block.id, block.provider]);
 
   const percent = Math.round(share * 100);
+  if (comingSoon) return <p className="tracked-video">Video coming soon.</p>;
   return (
     <div className="tracked-video">
       {src ? (
