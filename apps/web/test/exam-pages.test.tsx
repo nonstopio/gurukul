@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import { draftKey } from '../src/pariksha/draftStore';
 import { CooldownError } from '../src/pariksha/service';
@@ -34,6 +34,23 @@ const unlocked = (over = {}) =>
 const PATH = '/courses/git/pariksha/q1';
 const data = (course = courseWith(), watched = unlocked()) =>
   fakeData({ courses: [course], watched });
+/**
+ * Lets the screen's effects run (key listener, draft save, countdown interval). `findBy*` can
+ * return before them: it ends on a timeout, React runs effects in a setImmediate task queued
+ * earlier, and on a busy machine the timeout fires first. An immediate queued now runs after it.
+ */
+const effectsRun = () => act(() => new Promise<void>((resolve) => setImmediate(resolve)));
+
+// These screens are lazy routes. Load them before the tests, so a busy machine's first transform of
+// them does not use up the first test's one-second wait for the screen.
+beforeAll(() =>
+  Promise.all([
+    import('../src/pariksha/ParikshaPage'),
+    import('../src/pariksha/ResultPage'),
+    import('../src/certificates/pages'),
+    import('../src/LessonPage'),
+  ]),
+);
 
 describe('Pariksha screen', () => {
   it('asks one question at a time and checks each answer when answers are revealed', async () => {
@@ -143,7 +160,7 @@ describe('Pariksha screen', () => {
     const course = courseWith({ revealAnswers: 'never' }, [question('k1', { kind: 'multiple' })]);
     await openApp(PATH, { data: data(course) });
     await screen.findByText('Question 1 of 1');
-    await act(async () => {}); // let the key listener attach
+    await effectsRun(); // the key listener
     fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: '2' });
     expect((screen.getByLabelText(/Beta/) as HTMLInputElement).checked).toBe(true);
     fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: 'C' });
@@ -161,7 +178,7 @@ describe('Pariksha screen', () => {
     const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
     await openApp(PATH, { data: data(course) });
     await screen.findByText('Question 1 of 1');
-    await act(async () => {}); // let the key listener attach
+    await effectsRun(); // the key listener
     const main = document.body.querySelector('main') as HTMLElement;
     fireEvent.keyDown(main, { key: '1' });
     fireEvent.keyDown(main, { key: 'b' });
@@ -264,13 +281,14 @@ describe('Pariksha screen', () => {
   it('checks with Enter, then advances with Enter, and leaves Enter on a button to the button', async () => {
     const { pariksha } = await openApp(PATH, { data: data() });
     await screen.findByText('Question 1 of 2');
-    await act(async () => {}); // let the key listener attach
+    await effectsRun(); // the key listener
     const main = document.body.querySelector('main') as HTMLElement;
     fireEvent.keyDown(main, { key: 'Enter' });
     expect(pariksha.checkAnswer).not.toHaveBeenCalled();
     fireEvent.keyDown(main, { key: '1' });
     fireEvent.keyDown(main, { key: 'Enter' });
     expect(await screen.findByText('Correct.')).toBeTruthy();
+    await effectsRun(); // the key listener sees the verdict
     fireEvent.keyDown(main, { key: '2' }); // a checked answer is final
     expect((screen.getByLabelText(/Beta/) as HTMLInputElement).checked).toBe(false);
     fireEvent.keyDown(screen.getByRole('button', { name: 'Next question' }), { key: 'Enter' });
@@ -325,6 +343,7 @@ describe('Pariksha screen', () => {
     const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
     const first = await openApp(PATH, { data: data(course) });
     await screen.findByText('Question 1 of 1');
+    await effectsRun(); // the draft save
     expect(localStorage.getItem(key)).not.toBeNull();
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
@@ -509,6 +528,7 @@ describe('Result screen', () => {
       };
       await openApp({ pathname: RESULT, state }, { data: data() });
       expect((await screen.findByRole('timer')).textContent).toBe('Retake opens in 1:02');
+      await effectsRun(); // the interval
       act(() => vi.advanceTimersByTime(1000));
       expect(screen.getByRole('timer').textContent).toBe('Retake opens in 1:01');
       act(() => vi.advanceTimersByTime(61_000));
