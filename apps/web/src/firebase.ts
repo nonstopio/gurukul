@@ -2,15 +2,8 @@ import { initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import type { Auth } from 'firebase/auth';
-import {
-  connectFirestoreEmulator,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-} from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import type { Functions } from 'firebase/functions';
-import type { Firestore } from 'firebase/firestore';
 
 /** The public Firebase web config. Not secret, but configuration: it comes from VITE_FIREBASE_*. */
 export interface FirebaseEnv {
@@ -24,7 +17,6 @@ export interface FirebaseEnv {
 export interface Firebase {
   app: FirebaseApp;
   auth: Auth;
-  db: Firestore;
   functions: Functions;
 }
 
@@ -41,20 +33,16 @@ export function firebaseConfig(env: FirebaseEnv) {
 
 /**
  * Initialises Firebase once from the environment, connecting the local emulators when asked.
- * Firestore keeps a persistent local cache, shared across tabs, so the last opened course stays
- * readable offline and progress writes queue until the connection returns.
+ * Firestore is not started here: `firestore.ts` loads it on demand, so its SDK stays out of the
+ * initial bundle.
  */
 export function initFirebase(env: FirebaseEnv): Firebase {
   const app = initializeApp(firebaseConfig(env));
   const auth = getAuth(app);
-  const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  });
   const functions = getFunctions(app, 'asia-south1');
   if (env.VITE_USE_EMULATORS === 'true') {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
   }
-  return { app, auth, db, functions };
+  return { app, auth, functions };
 }

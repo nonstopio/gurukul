@@ -24,17 +24,16 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Vyasa Studio                  | 5    | 10   | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
-| Platform, CI and operations   | 9    | 6    | 2       | 5          |
+| Platform, CI and operations   | 10   | 5    | 2       | 5          |
 | First course: Git             | 1    | 2    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 57   | 54   | 6       | 7          |
+| **Total**                     | 58   | 53   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `OPS-22` — load Firestore after sign-in; bundle budget back to 320 KB
 2. `OPS-08` — envelope tests for every callable
 3. `OPS-10` — close the ESLint loopholes around callables
 4. `GIT-03` — placeholder videos stop embedding a dead player
@@ -272,7 +271,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-19` | Licence holder                                                             | blocked    | —        | Question 10: confirm the legal entity in `LICENSE`                                                                                                          |
 | `OPS-20` | Launch: assign Git to everyone                                             | maintainer | `GIT-02` | M6 exit                                                                                                                                                     |
 | `OPS-21` | Auth domain for the iOS redirect                                           | maintainer | —        | `VITE_FIREBASE_AUTH_DOMAIN` = `nonstop-gurukul.web.app` (GitHub variable) and its `/__/auth/handler` in the OAuth client's redirect URIs (`11` checklist step 4) |
-| `OPS-22` | Load Firestore after sign-in; bundle budget back to 320 KB                 | todo       | —        | Firestore is about 140 KB of the 335 KB initial JS; the persistent cache pushed it over 320, so the budget is 340 for now (`10` CI). Touches `main.tsx`, `App.tsx`, `auth/service.ts` and the data ports |
+| `OPS-22` | Load Firestore after sign-in; bundle budget back to 320 KB | done | — | `apps/web/src/firestore.ts` (the only importer of the Firestore SDK, a separate chunk), `lazy.ts` (`lazyPort`), `main.tsx` (loads it on first read), `auth/service.ts` (takes `watchProfile`); initial JS 181 KB gzip, budget 320 in `package.json` and `ci.yml` |
 
 ## First course: Git
 
