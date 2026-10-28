@@ -14,7 +14,9 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 4. **Lesson player** renders the lesson's blocks in its layout; the outline
    rail shows where you are. "Mark complete" saves and moves to the next item.
 5. **Pariksha** after a parva: one question per screen, answer feedback as
-   configured, progress saved after every answer.
+   configured, each answer saved in the browser as it is checked or left
+   (with the draw and any verdict shown), so a reload carries on. The server
+   records the attempt only at Finish; another device starts afresh.
 6. **Result**: score, pass/fail, review with explanations and "revisit lesson"
    links; next parva unlocks on pass.
 7. **Complete**: the last item done → certificate issued → completion screen

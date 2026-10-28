@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
+import { draftKey } from '../src/pariksha/draftStore';
 import { CooldownError } from '../src/pariksha/service';
 import { axeViolations } from './axe';
 import { certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
@@ -48,7 +49,7 @@ describe('Pariksha screen', () => {
     expect(primary.disabled).toBe(true);
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(primary);
-    expect(await screen.findByText('Not quite.')).toBeTruthy();
+    expect(await screen.findByText('Not quite — the answer is B.')).toBeTruthy();
     expect(screen.getByText('Beta wins.', { exact: false })).toBeTruthy();
     expect(pariksha.checkAnswer).toHaveBeenCalledWith({
       courseId: 'git',
@@ -239,6 +240,146 @@ describe('Pariksha screen', () => {
     unmount();
     const second = await openApp('/courses/zzz/pariksha/q1', { data: data() });
     await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses'));
+  });
+
+  it('names every right letter, and none when the verdict names unknown options', async () => {
+    const course = courseWith({}, [question('k1', { kind: 'multiple' }), question('k2')]);
+    const pariksha = fakePariksha({
+      checkAnswer: vi
+        .fn()
+        .mockResolvedValueOnce({ correct: false, correctOptionIds: ['c', 'a'], explanation: '' })
+        .mockResolvedValueOnce({ correct: false, correctOptionIds: ['zzz'], explanation: '' }),
+    });
+    await openApp(PATH, { data: data(course), pariksha });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Beta/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(await screen.findByText('Not quite — the answers are A and C.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
+    fireEvent.click(screen.getByLabelText(/Beta/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(await screen.findByText('Not quite.')).toBeTruthy();
+  });
+
+  it('checks with Enter, then advances with Enter, and leaves Enter on a button to the button', async () => {
+    const { pariksha } = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    await act(async () => {}); // let the key listener attach
+    const main = document.body.querySelector('main') as HTMLElement;
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(pariksha.checkAnswer).not.toHaveBeenCalled();
+    fireEvent.keyDown(main, { key: '1' });
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(await screen.findByText('Correct.')).toBeTruthy();
+    fireEvent.keyDown(main, { key: '2' }); // a checked answer is final
+    expect((screen.getByLabelText(/Beta/) as HTMLInputElement).checked).toBe(false);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Next question' }), { key: 'Enter' });
+    expect(screen.getByText('Question 1 of 2')).toBeTruthy();
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(screen.getByText('Question 2 of 2')).toBeTruthy();
+  });
+
+  it('locks the options while an answer is being checked', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    const pariksha = fakePariksha({
+      checkAnswer: vi.fn().mockReturnValue(new Promise((r) => (resolve = r))),
+    });
+    await openApp(PATH, { data: data(), pariksha });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect((document.querySelector('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
+    fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: '2' });
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    await act(async () => resolve({ correct: true, correctOptionIds: ['a'], explanation: '' }));
+    expect((document.querySelector('fieldset') as HTMLFieldSetElement).disabled).toBe(false);
+  });
+
+  it('carries on after a reload with the same questions, answers and verdicts', async () => {
+    const course = courseWith({}, [question('k1'), question('k2'), question('k3')]);
+    const pariksha = fakePariksha({
+      checkAnswer: vi
+        .fn()
+        .mockResolvedValue({ correct: false, correctOptionIds: ['b'], explanation: 'Beta.' }),
+    });
+    const first = await openApp(PATH, { data: data(course), pariksha });
+    await screen.findByText('Question 1 of 3');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
+    fireEvent.click(screen.getByLabelText(/Gamma/)); // picked, never checked
+    first.unmount();
+
+    await openApp(PATH, { data: data(course), pariksha });
+    expect(await screen.findByText('Question 2 of 3')).toBeTruthy();
+    expect((screen.getByLabelText(/Gamma/) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('Not quite — the answer is B.')).toBeTruthy();
+    expect((screen.getByLabelText(/Beta/) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('forgets the draft once the attempt is graded, and ignores a stale or outdated one', async () => {
+    const key = draftKey('u1', 'git', 'q1');
+    const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
+    const first = await openApp(PATH, { data: data(course) });
+    await screen.findByText('Question 1 of 1');
+    expect(localStorage.getItem(key)).not.toBeNull();
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    await waitFor(() => expect(localStorage.getItem(key)).toBeNull());
+    first.unmount();
+
+    const draft = (startedAt: number, order: object[]) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({ startedAt, order, index: 1, answers: { k1: ['a'] }, feedback: {} }),
+      );
+    const two = courseWith({ revealAnswers: 'never' });
+    const order = [
+      { id: 'k1', optionIds: ['a', 'b', 'c'] },
+      { id: 'k2', optionIds: ['a', 'b', 'c'] },
+    ];
+    // Older than the last graded attempt: that attempt's draft, so a fresh start.
+    draft(Date.now() - 3_600_000, order);
+    const graded = unlocked({
+      pariksha: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
+    });
+    const second = await openApp(PATH, { data: data(two, graded) });
+    expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(false);
+    second.unmount();
+    // The Acharya removed a question since: a fresh start too.
+    draft(Date.now(), [{ id: 'gone', optionIds: ['a'] }]);
+    await openApp(PATH, { data: data(two) });
+    expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
+  });
+
+  it('asks before leaving with an unsaved answer, and leaves at once without one', async () => {
+    const { router, unmount } = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave this Pariksha?' });
+    await act(async () => {});
+    fireEvent.keyDown(dialog, { key: '2' });
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe(PATH);
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
+    unmount();
+
+    const second = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses/git'));
   });
 
   it('has no axe violations', async () => {
