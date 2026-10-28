@@ -72,25 +72,18 @@ function toDraft(d: Record<string, unknown>): DraftDoc {
 export function firebaseStudioData(db: Firestore): StudioData {
   const draftRef = (courseId: string) => doc(db, 'courses', courseId, 'drafts', 'current');
   return {
+    // Every Acharya and Kulapati sees every course, never-published ones included (the rules allow
+    // it); only the drafts of courses they may edit are read.
     async listCourses(uid, kulapati) {
-      const base = collection(db, 'courses');
-      const snaps = kulapati
-        ? [await getDocs(query(base, limit(COURSE_LIMIT)))]
-        : await Promise.all([
-            getDocs(
-              query(base, where('status', 'in', ['published', 'archived']), limit(COURSE_LIMIT)),
-            ),
-            getDocs(query(base, where('acharyaIds', 'array-contains', uid), limit(COURSE_LIMIT))),
-          ]);
-      const live = new Map<string, Course>();
-      for (const snap of snaps)
-        for (const d of snap.docs) {
-          const course = readCourse(d.data());
-          if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
-          else live.set(d.id, course);
-        }
+      const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
+      const live: Course[] = [];
+      for (const d of snap.docs) {
+        const course = readCourse(d.data());
+        if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
+        else live.push(course);
+      }
       return Promise.all(
-        [...live.values()].map(async (course): Promise<StudioCourse> => {
+        live.map(async (course): Promise<StudioCourse> => {
           const editable = kulapati || course.acharyaIds.includes(uid);
           if (!editable) return { live: course, draft: null };
           const snap = await getDoc(draftRef(course.id));
