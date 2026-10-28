@@ -117,7 +117,7 @@ describe('pre-push.sh', () => {
         { fail: step },
       );
       assert.equal(res.status, 1, step);
-      assert.match(res.stderr, new RegExp(reproduce.replace(/[.:]/g, '\\$&')), step);
+      assert.ok(res.stderr.includes(reproduce), `${step}: ${res.stderr}`);
     }
   });
 });
