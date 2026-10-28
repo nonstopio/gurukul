@@ -10,7 +10,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-gurukul \"vitest run\" && node ../../scripts/check-rules-coverage.mjs coverage ../firestore.rules"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.2",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "firebase": "^12.19.0"
   }
 }
