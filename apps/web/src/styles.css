@@ -206,6 +206,29 @@ body {
   margin: 0;
   font: 500 var(--text-2xl) / var(--leading-snug) var(--font-display);
 }
+.team-prompt {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.team-prompt__title {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+}
+.team-prompt p {
+  margin: 0;
+}
+.team-prompt__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.team-prompt__form .g-field {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
 .continue__actions {
   display: flex;
   flex-wrap: wrap;

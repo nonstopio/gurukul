@@ -241,4 +241,17 @@ describe('firebaseLearnerData', () => {
       ['update', 'progress/u_git', { lastItemId: 'l2', lastActiveAt: 'NOW' }],
     ]);
   });
+
+  it('reads the org teams, empty when none are saved', async () => {
+    expect(await data.orgTeams()).toEqual([]);
+    store.docs.set('config/org', { domain: 'nonstopio.com' });
+    expect(await data.orgTeams()).toEqual([]);
+    store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA', 'Dev'] });
+    expect(await data.orgTeams()).toEqual(['QA', 'Dev']);
+  });
+
+  it('writes only the team to my profile', async () => {
+    await data.setTeam('u', 'QA');
+    expect(store.calls).toEqual([['update', 'users/u', { team: 'QA' }]]);
+  });
 });

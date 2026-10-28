@@ -9,6 +9,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    email beforehand.
 2. **Home** shows a "continue" hero for the most recent in-progress course,
    assigned courses (mandatory first, then by due date), and recent activity.
+   A learner with no team (and a teams list in Org settings) is asked to pick
+   one, so "whole team" assignments and the team filter reach them.
 3. **Course overview** shows description, outcomes, the parva list with
    per-item state, progress ring, due date and the resume button.
 4. **Lesson player** renders the lesson's blocks in its layout; the outline

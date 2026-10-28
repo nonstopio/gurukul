@@ -40,6 +40,11 @@ beforeEach(async () => {
       team: null,
       roles: ['shishya'],
     });
+    await setDoc(doc(ctx.firestore(), 'config/org'), {
+      domain: 'nonstopio.com',
+      teams: ['QA', 'Dev'],
+      reminders: { enabled: false },
+    });
   });
 });
 
@@ -169,6 +174,24 @@ describe('users/{uid}', () => {
     );
     await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'x'.repeat(81) }));
     await assertFails(updateDoc(doc(db, 'users/priya'), { team: 7 }));
+  });
+
+  it('accepts only a team from the org list', async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'Sales' }));
+    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: 'Dev' }));
+  });
+
+  it('keeps a team the Kulapati later removed through a name change', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users/priya'), { team: 'Retired team' });
+    });
+    await assertSucceeds(
+      updateDoc(doc(nonstop('priya'), 'users/priya'), {
+        displayName: 'Priya K',
+        nameLower: 'priya k',
+      }),
+    );
   });
 });
 

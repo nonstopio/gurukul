@@ -124,6 +124,8 @@ export function fakeData(
     attempt?: AttemptRow | null;
     /** Do not emit the progress document until `emitProgress` is called. */
     deferProgress?: boolean;
+    /** `config/org.teams`; none by default, so Home asks nobody for a team. */
+    teams?: string[];
   } = {},
 ) {
   const courses = init.courses ?? [makeCourse()];
@@ -146,6 +148,8 @@ export function fakeData(
     startCourse: vi.fn().mockResolvedValue(undefined),
     completeItem: vi.fn().mockResolvedValue(undefined),
     setLastItem: vi.fn().mockResolvedValue(undefined),
+    orgTeams: vi.fn().mockResolvedValue(init.teams ?? []),
+    setTeam: vi.fn().mockResolvedValue(undefined),
   };
   return { data, emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)) };
 }

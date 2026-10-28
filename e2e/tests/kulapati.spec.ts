@@ -81,6 +81,17 @@ test.describe('Kulapati', () => {
     const teams = page.getByRole('list', { name: 'Teams' });
     await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
+
+    // Meera has no team yet, so Home now asks her to pick one from the saved list.
+    await page.goto('/');
+    const prompt = page.getByRole('heading', { name: 'Which team are you in?' });
+    await expect(prompt).toBeVisible();
+    await page.getByLabel('Team', { exact: true }).selectOption('Quality');
+    await page.getByRole('button', { name: 'Save team' }).click();
+    await expect(prompt).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: /Namaste/ })).toBeVisible();
+    await expect(prompt).toHaveCount(0);
   });
 
   test('a Shishya cannot open the Kulapati console', async ({ page }) => {

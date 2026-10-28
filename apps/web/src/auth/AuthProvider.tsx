@@ -11,6 +11,8 @@ export interface Session {
   status: SessionStatus;
   user: AuthUser | null;
   roles: Role[];
+  /** The team on the profile (`users/{uid}.team`); `null` until the person picks one. */
+  team: string | null;
   /** Why sign-in failed, or why a non-NonStop account was signed back out. */
   error: string | null;
   /** The last account Google returned was not a NonStop io one: offer to choose another. */
@@ -55,6 +57,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [roles, setRoles] = useState<Role[]>(['shishya']);
+  const [team, setTeam] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wrongAccount, setWrongAccount] = useState(false);
   const stopProfile = useRef<() => void>(() => {});
@@ -73,6 +76,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       if (!u) {
         setUser(null);
         setRoles(['shishya']);
+        setTeam(null);
         setStatus('signedOut');
         return;
       }
@@ -101,6 +105,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
             setRoles(current);
           });
         }
+        setTeam(profile.team ?? null);
         setStatus('ready');
       });
     });
@@ -115,6 +120,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       status,
       user,
       roles,
+      team,
       error,
       wrongAccount,
       signIn: async (options) => {
@@ -128,7 +134,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       },
       signOut: () => service.signOut(),
     }),
-    [status, user, roles, error, wrongAccount, service],
+    [status, user, roles, team, error, wrongAccount, service],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

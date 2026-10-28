@@ -8,7 +8,7 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Kulapati | self: `displayName`, `nameLower`, `team` only; `nameLower` must equal `displayName` lower-cased |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Kulapati | self: `displayName`, `nameLower`, `team` only; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null` |
 | `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); its Acharyas and Kulapatis in any status | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Acharyas granted the course, Kulapati | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Acharyas, Kulapati | never |

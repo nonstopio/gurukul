@@ -191,5 +191,12 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         lastActiveAt: serverTimestamp(),
       });
     },
+    async orgTeams() {
+      const snap = await getDoc(doc(db, 'config', 'org'));
+      return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async setTeam(uid, team) {
+      await updateDoc(doc(db, 'users', uid), { team });
+    },
   };
 }

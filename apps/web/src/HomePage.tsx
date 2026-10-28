@@ -2,16 +2,18 @@ import { Card, Chip, EmptyState, ProgressBar, buttonClass } from '@gurukul/ui';
 import { resumeItemId } from '@gurukul/schema';
 import { useCallback } from 'react';
 import { Link } from 'react-router';
-import { useUser } from './auth/AuthProvider';
+import { useSession, useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import { continueCourse, dueLabel, firstName, orderAssigned, percentFor } from './learn/model';
 import type { AssignedCourse } from './learn/model';
+import { TeamPrompt } from './learn/TeamPrompt';
 import { Loaded } from './learn/ui';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   const user = useUser();
+  const { team } = useSession();
   const data = useLearnerData();
   const uid = user.uid;
   const load = useCallback(async () => {
@@ -34,6 +36,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   return (
     <main className="page">
       <h1 className="page__title">{name ? `Namaste, ${name}` : 'Namaste'}</h1>
+      {team === null ? <TeamPrompt /> : null}
       <Loaded loadable={result}>
         {({ assigned, courses, progress }) => {
           const current = continueCourse(courses, progress);
