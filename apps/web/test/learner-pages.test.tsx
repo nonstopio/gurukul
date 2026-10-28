@@ -384,6 +384,7 @@ describe('Lesson player', () => {
 
     it('waits until the end of the lesson scrolls into view', async () => {
       let notify: (entries: Array<{ isIntersecting: boolean }>) => void = () => {};
+      const observe = vi.fn();
       const disconnect = vi.fn();
       vi.stubGlobal(
         'IntersectionObserver',
@@ -391,7 +392,7 @@ describe('Lesson player', () => {
           constructor(cb: typeof notify) {
             notify = cb;
           }
-          observe() {}
+          observe = observe;
           disconnect = disconnect;
         },
       );
@@ -403,6 +404,9 @@ describe('Lesson player', () => {
         name: 'Mark complete',
       })) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
+      // The observer starts in an effect that can run after the button is on screen; a notify
+      // before then would reach nobody.
+      await waitFor(() => expect(observe).toHaveBeenCalled());
       act(() => notify([{ isIntersecting: false }]));
       expect(button.disabled).toBe(true);
       act(() => notify([{ isIntersecting: true }]));

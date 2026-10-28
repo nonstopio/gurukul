@@ -80,16 +80,19 @@ to the map above.
 
 `npm ci` installs them (`prepare` → husky). `pre-commit` checks changelog entry names and lints
 and formats the staged files; `commit-msg` runs commitlint; `pre-push` runs typecheck, the
-navigation validator, the hook tests when hooks changed, and 100% coverage for each workspace the
-push touches. Never use `--no-verify` to get past one; if a hook cannot run, say so. Check they are
-on with `git config core.hooksPath` (it should print `.husky`).
+navigation validator, the hook tests when hooks changed, 100% coverage for each workspace the
+push touches, and the CI jobs `check` leaves out when the push touches what they cover: the
+end-to-end specs, the rules tests and the bundle budget (`scripts/pre-push.sh` lists the paths; it
+refuses a push that needs them on a machine without Java 21). Never use `--no-verify` to get past
+one; if a hook cannot run, say so. Check they are on with `git config core.hooksPath` (husky prints
+`.husky/_`).
 
 ## Required checks
 
 1. `npm run check` from the root: lint, format, typecheck, navigation validator, hook and
-   script tests, 100% coverage in every workspace, build. CI also runs the emulator jobs
-   `check` skips, so a change to the app, UI, schema, functions, rules or seed runs `npm run e2e`
-   before pushing (`.claude/rules/end-to-end.md`). The `ci` and `pr-title` checks gate merges.
+   script tests, 100% coverage in every workspace, build, bundle budget. CI also runs the
+   emulator jobs `check` skips, so a change to the app, UI, schema, functions, rules or seed runs
+   `npm run e2e` before pushing (`.claude/rules/end-to-end.md`); the pre-push hook runs it for you. The `ci` and `pr-title` checks gate merges.
 2. **100% coverage is mandatory.** Lines, branches, functions and statements,
    in every workspace. See `.claude/rules/coverage.md`. Never lower a threshold,
    exclude a file or add an ignore comment to pass.

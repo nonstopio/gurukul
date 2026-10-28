@@ -4,9 +4,9 @@
 #
 #  WHY HERE AS WELL AS CI
 #
-#  CI is the gate. This is the thirty seconds that saves a red pull request and a round trip.
+#  CI is the gate. This is the minute or two that saves a red pull request and a round trip.
 #  A hook slow enough to resent gets bypassed with --no-verify, and a bypassed hook is worse than
-#  none, so it runs only what the pushed commits touch.
+#  none, so it runs only what the pushed commits touch: a docs-only push still takes seconds.
 #
 #  WHAT THIS PUSH CHANGES
 #
@@ -14,11 +14,25 @@
 #  `git push origin other-branch` checks other-branch, not whatever is checked out. If git cannot
 #  answer, everything runs: failing safe.
 #
+#  THE JOBS `npm run check` LEAVES TO CI
+#
+#  A green `check` said nothing about CI's emulator and bundle jobs, and that is where pull
+#  requests kept going red on their first push: a renamed label a Playwright spec still looked
+#  for, a video lesson that waited on real YouTube, a bundle over its budget. So when a push
+#  touches what those jobs cover, this runs them too:
+#
+#    - the end-to-end specs (`npm run e2e`, about a minute) for the app, UI, schema, functions,
+#      rules, seed and e2e paths (.claude/rules/end-to-end.md);
+#    - the Firestore rules tests (`npm run test:rules`) for the rules and their tests;
+#    - the web build and its size budget (`npm run check:bundle`) for the app, UI and schema.
+#
+#  The emulator jobs need Java 21. Without it the push is refused rather than skipped: skipping
+#  is how the red runs got through. Lighthouse and CodeQL stay CI-only.
+#
 #  WHAT IT DOES NOT RUN
 #
-#  The Firestore rules tests (they need Java and the emulator; CI's `rules` job runs them) and the
-#  production build of every workspace (CI's `build` job). Typecheck, the navigation validator and
-#  the hook tests are cheap and always run.
+#  The production build of every workspace (CI's `build` job builds them all; this builds only
+#  the web app, for its budget).
 # =================================================================================================
 set -eu
 
@@ -59,5 +73,27 @@ for ws in apps/web:@gurukul/web packages/ui:@gurukul/ui firebase/functions:@guru
     npm run -s coverage -w "$name" >/dev/null 2>&1 || fail "$name coverage" "npm run coverage -w $name"
   fi
 done
+
+# CI's emulator and bundle jobs, for the pushes they would judge. Paths match the e2e rule's.
+app='^(apps/web/src/|packages/ui/src/|packages/schema/src/)'
+e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/)'
+rules='^(firebase/firestore\.rules$|firebase/rules/)'
+if touches "$e2e" || touches "$rules" || touches "$everything"; then
+  command -v java >/dev/null 2>&1 ||
+    fail "Java check (the emulator tests need Java 21)" "install Java 21, then git push again"
+fi
+if touches "$rules" || touches "$everything"; then
+  echo "pre-push: Firestore rules tests"
+  npm run -s test:rules >/dev/null 2>&1 || fail "Firestore rules tests" "npm run test:rules"
+fi
+if touches "$app" || touches "$everything"; then
+  echo "pre-push: web build and bundle budget"
+  npm run -s build -w @gurukul/web >/dev/null 2>&1 || fail "web build" "npm run build -w @gurukul/web"
+  npm run -s check:bundle || fail "bundle budget" "npm run build -w @gurukul/web && npm run check:bundle"
+fi
+if touches "$e2e" || touches "$everything"; then
+  echo "pre-push: end-to-end specs (about a minute)"
+  npm run -s e2e >/dev/null 2>&1 || fail "end-to-end specs" "npm run e2e"
+fi
 
 echo "pre-push: ok"
