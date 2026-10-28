@@ -1,6 +1,12 @@
 import { vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
-import type { AssignmentRow, CertificateRow, LearnerData, ProgressRow } from '../src/data/types';
+import type {
+  AssignmentRow,
+  AttemptRow,
+  CertificateRow,
+  LearnerData,
+  ProgressRow,
+} from '../src/data/types';
 
 export const progressRow = (over: Partial<ProgressRow> = {}): ProgressRow => ({
   courseId: 'git',
@@ -26,6 +32,18 @@ export const certificateRow = (over: Partial<CertificateRow> = {}): CertificateR
   signatoryName: 'The Kulapati',
   signatoryRole: 'NonStop Academy',
   revoked: false,
+  ...over,
+});
+
+export const attemptRow = (over: Partial<AttemptRow> = {}): AttemptRow => ({
+  id: 'a1',
+  score: 1,
+  correctCount: 1,
+  total: 1,
+  passed: true,
+  questionIds: ['k1'],
+  answers: { k1: ['a'] },
+  results: [{ questionId: 'k1', correct: true }],
   ...over,
 });
 
@@ -102,6 +120,8 @@ export function fakeData(
     progress?: ProgressRow[];
     watched?: ProgressRow | null;
     certificates?: CertificateRow[];
+    /** The latest attempt; `null` (none yet) by default. */
+    attempt?: AttemptRow | null;
     /** Do not emit the progress document until `emitProgress` is called. */
     deferProgress?: boolean;
   } = {},
@@ -118,6 +138,7 @@ export function fakeData(
       if (!init.deferProgress) cb(init.watched === undefined ? null : init.watched);
       return () => {};
     }),
+    latestAttempt: vi.fn().mockResolvedValue(init.attempt ?? null),
     getCertificate: vi.fn(
       async (id: string) => (init.certificates ?? []).find((c) => c.id === id) ?? null,
     ),

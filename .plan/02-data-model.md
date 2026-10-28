@@ -167,6 +167,7 @@ the certificate, the course and the date — no email.
 - `assignments`: `uid ASC, dueAt ASC`; `courseId ASC, status ASC`; `email ASC, uid ASC`
 - `progress`: `courseId ASC, percent DESC`; `courseId ASC, lastActiveAt DESC`
 - `certificates`: `uid ASC, issuedAt DESC`
+- `attempts` (per progress document): `uid ASC, parikshaId ASC, createdAt DESC` — the result page's latest attempt
 
 ## Migrations
 

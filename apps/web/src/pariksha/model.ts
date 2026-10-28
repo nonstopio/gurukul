@@ -1,6 +1,7 @@
 import { itemsOf } from '@gurukul/schema';
 import type { Course, Item, Pariksha, Question } from '@gurukul/schema';
-import type { CheckAnswerResult } from './service';
+import type { AttemptRow } from '../data/types';
+import type { CheckAnswerResult, QuestionResult } from './service';
 
 /** Fisher–Yates on a copy; `rng` returns [0, 1) so tests can be deterministic. */
 export function shuffle<T>(list: readonly T[], rng: () => number = Math.random): T[] {
@@ -107,6 +108,58 @@ export function formatWait(ms: number): string {
   const minutes = Math.ceil(ms / 60_000);
   if (ms <= 0 || minutes < 1) return 'less than a minute';
   return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
+/** "9:05", or "1:02:03" from an hour up: a retake countdown that ticks each second. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor(total / 60) % 60;
+  const seconds = String(total % 60).padStart(2, '0');
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
+    : `${minutes}:${seconds}`;
+}
+
+/** What the result page shows of one attempt, whichever way it arrived. */
+export interface AttemptReview {
+  score: number;
+  correctCount: number;
+  total: number;
+  passed: boolean;
+  questions: Question[];
+  answers: Record<string, string[]>;
+  results: QuestionResult[];
+}
+
+/**
+ * A recorded attempt as a review, after a reload or on another device. The questions come from the
+ * course (one removed since is left out); explanations show as `gradeAttempt` would reveal them. The
+ * right options are never stored in the browser's reach, so this review names only the learner's.
+ */
+export function reviewOfAttempt(pariksha: Pariksha, attempt: AttemptRow): AttemptReview {
+  const reveal =
+    pariksha.revealAnswers === 'each' || (pariksha.revealAnswers === 'onPass' && attempt.passed);
+  const questions = attempt.questionIds.flatMap(
+    (id) => pariksha.questions.find((q) => q.id === id) ?? [],
+  );
+  return {
+    score: attempt.score,
+    correctCount: attempt.correctCount,
+    total: attempt.total,
+    passed: attempt.passed,
+    questions,
+    answers: attempt.answers,
+    results: attempt.results.map((r) => {
+      const explanation = questions.find((q) => q.id === r.questionId)?.explanation;
+      return reveal && explanation ? { ...r, explanation } : r;
+    }),
+  };
+}
+
+/** The 1-based number of the parva holding `itemId`; 0 when no parva does. */
+export function parvaNumber(course: Pick<Course, 'parvas'>, itemId: string): number {
+  return course.parvas.findIndex((p) => p.items.some((i) => i.id === itemId)) + 1;
 }
 
 /** The item after `itemId` in reading order, if any. */

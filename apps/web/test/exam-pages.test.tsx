@@ -4,7 +4,7 @@ import type { Course } from '@gurukul/schema';
 import { draftKey } from '../src/pariksha/draftStore';
 import { CooldownError } from '../src/pariksha/service';
 import { axeViolations } from './axe';
-import { certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
+import { attemptRow, certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
 import { attemptResult, fakePariksha } from './fake-pariksha';
 import { openApp } from './harness';
 
@@ -106,12 +106,12 @@ describe('Pariksha screen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Not this time.' })).toBeTruthy();
     expect(screen.getByText('Not passed yet')).toBeTruthy();
     expect(screen.getByText(/1 of 2 correctly \(50%\)/)).toBeTruthy();
-    expect(screen.getByText(/Retake in/)).toBeTruthy();
+    expect(screen.getByRole('timer').textContent).toMatch(/^Retake opens in (10:00|9:5\d)$/);
     expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
       '/courses/git/learn/l1',
     );
     expect(screen.getByText('Beta.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Revisit the lesson' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Revisit lesson: Lesson l1' })).toBeTruthy();
   });
 
   it('goes straight to the next question when answers are not revealed, with multi-select', async () => {
@@ -406,7 +406,7 @@ describe('Result screen', () => {
       '/courses/git/learn/l4',
     );
     expect(screen.getByRole('link', { name: 'Retake' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Revisit the lesson' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
   });
 
   it('finishes the course when the Pariksha is the last item', async () => {
@@ -420,7 +420,106 @@ describe('Result screen', () => {
     ).toBe('/courses/git/complete');
   });
 
-  it('shows a saved summary after a reload, without the review', async () => {
+  it('continues to the next parva by number when the Pariksha ends its parva', async () => {
+    const c = courseWith();
+    const moved = c.parvas[1]?.items.pop();
+    c.parvas.push({ id: 'p3', title: 'Remotes', items: moved ? [moved] : [] });
+    await openApp({ pathname: RESULT, state: passedState }, { data: data(c) });
+    const link = await screen.findByRole('link', { name: 'Continue to Parva 3' });
+    expect(link.getAttribute('href')).toBe('/courses/git/learn/l4');
+  });
+
+  it('rebuilds the review from the latest attempt after a reload', async () => {
+    const c = courseWith({ cooldownMinutes: 10 }, [
+      question('k1'),
+      question('k2', { reviewItemId: 'gone' }),
+    ]);
+    const attempt = attemptRow({
+      score: 0,
+      correctCount: 0,
+      total: 3,
+      passed: false,
+      questionIds: ['k1', 'removed', 'k2'],
+      answers: { k1: ['b'] },
+      results: [
+        { questionId: 'k1', correct: false },
+        { questionId: 'removed', correct: false },
+        { questionId: 'k2', correct: false },
+      ],
+    });
+    const watched = unlocked({
+      pariksha: {
+        q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date(Date.now() - 60_000) },
+      },
+    });
+    const learner = fakeData({ courses: [c], watched, attempt });
+    await openApp(RESULT, { data: learner });
+    expect(await screen.findByText(/0 of 3 correctly \(0%\)/)).toBeTruthy();
+    expect(learner.data.latestAttempt).toHaveBeenCalledWith('u1', 'git', 'q1');
+    expect(screen.getByRole('heading', { name: 'Review' })).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(screen.getByText('No answer')).toBeTruthy();
+    expect(screen.getAllByText('Because.')).toHaveLength(2);
+    expect(screen.queryByText('Correct answer')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Revisit lesson: Lesson l1' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Revisit lesson:/ })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
+      '/courses/git/learn/l1',
+    );
+    expect(screen.getByRole('timer').textContent).toMatch(/^Retake opens in (9:00|8:5\d)$/);
+  });
+
+  it('hides explanations a failed attempt may not reveal, and sends a revisit with no lesson to the outline', async () => {
+    for (const revealAnswers of ['onPass', 'never'] as const) {
+      const c = courseWith({ revealAnswers }, [question('k1', { reviewItemId: 'gone' })]);
+      const attempt = attemptRow({ passed: false, score: 0, correctCount: 0 });
+      const { unmount } = await openApp(RESULT, { data: fakeData({ courses: [c], attempt }) });
+      expect(await screen.findByText(/0 of 1 correctly/)).toBeTruthy();
+      expect(screen.queryByText('Because.')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
+        '/courses/git',
+      );
+      unmount();
+    }
+    const c = courseWith({ revealAnswers: 'onPass' }, [question('k1')]);
+    await openApp(RESULT, { data: fakeData({ courses: [c], attempt: attemptRow() }) });
+    expect(await screen.findByText('Because.')).toBeTruthy();
+  });
+
+  it('falls back to the saved summary when the attempt cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const learner = data();
+    vi.mocked(learner.data.latestAttempt).mockRejectedValue(new Error('missing index'));
+    await openApp(RESULT, { data: learner });
+    expect(await screen.findByText('Your best score is 0%.')).toBeTruthy();
+    expect(warn).toHaveBeenCalledWith('Latest attempt unreadable, showing the summary', {
+      courseId: 'git',
+      parikshaId: 'q1',
+    });
+    warn.mockRestore();
+  });
+
+  it('counts down to the retake each second and then offers it', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    try {
+      const state = {
+        ...passedState,
+        result: attemptResult({ nextAttemptAt: Date.now() + 61_500 }),
+      };
+      await openApp({ pathname: RESULT, state }, { data: data() });
+      expect((await screen.findByRole('timer')).textContent).toBe('Retake opens in 1:02');
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.getByRole('timer').textContent).toBe('Retake opens in 1:01');
+      act(() => vi.advanceTimersByTime(61_000));
+      expect(screen.queryByRole('timer')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Retake' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows a saved summary when there is no attempt to review', async () => {
     const saved = unlocked({
       pariksha: {
         q1: {
@@ -455,7 +554,7 @@ describe('Result screen', () => {
     expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
       '/courses/git',
     );
-    expect(screen.queryByRole('link', { name: 'Revisit the lesson' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
     second.unmount();
     await openApp('/courses/git/pariksha/nope/result', { data: data() });
     expect(await screen.findByText('This Pariksha does not exist.')).toBeTruthy();
