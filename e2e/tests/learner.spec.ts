@@ -33,13 +33,10 @@ test.describe('Learner', () => {
     const progress = page.getByRole('progressbar', { name: 'Course progress' });
     await expect(progress).toHaveAttribute('aria-valuenow', '0');
 
-    // The first lesson is a video. YouTube is blocked in these runs, so its watch time cannot be
-    // tracked and the lesson asks the learner to say they watched it instead.
-    // (The switch itself is visually hidden, so the click goes to its label.)
+    // The first lesson's video is not recorded yet, so it says so and does not hold the lesson back.
+    await expect(page.getByText('Video coming soon.')).toBeVisible();
     const markComplete = page.getByRole('button', { name: 'Mark complete' });
-    await expect(markComplete).toBeDisabled();
-    await page.getByText('I have watched the video').click();
-    await expect(page.getByLabel('I have watched the video')).toBeChecked();
+    await expect(markComplete).toBeEnabled();
     await markComplete.click();
 
     await expect(page).toHaveURL(/\/learn\/install-and-configure-git$/);
