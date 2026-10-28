@@ -112,6 +112,21 @@ service cloud.firestore {
     // self-enrolling in a published course) and may only append completed lesson ids and move the
     // resume point; percent, Pariksha results and certificates are written by functions.
     match /progress/{progressId} {
+      // `completedItemIds` only grows the way arrayUnion(itemId) grows it: unchanged, or the same
+      // list with one new item id (a string of 1-80 characters, the course object's id) on the end.
+      // Rules cannot loop, so checking one appended entry is what keeps every entry a string.
+      function appendsAtMostOneItemId(before, after) {
+        return after is list
+          && after.size() <= 200
+          && (after == before
+              || (after.size() == before.size() + 1
+                  && after[0:before.size()] == before
+                  && after[before.size()] is string
+                  && after[before.size()].size() >= 1
+                  && after[before.size()].size() <= 80
+                  && !(after[before.size()] in before)));
+      }
+
       // A learner may read their own id before the document exists (the player listens first).
       allow read: if signedIn()
         && (progressId.matches(request.auth.uid + '_.*')
@@ -142,9 +157,7 @@ service cloud.firestore {
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['completedItemIds', 'lastItemId', 'lastActiveAt', 'courseVersion'])
-        && request.resource.data.completedItemIds is list
-        && request.resource.data.completedItemIds.size() <= 200
-        && request.resource.data.completedItemIds.toSet().hasAll(resource.data.completedItemIds)
+        && appendsAtMostOneItemId(resource.data.completedItemIds, request.resource.data.completedItemIds)
         && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
         && request.resource.data.lastActiveAt == request.time
         && request.resource.data.courseVersion is int;

@@ -3,7 +3,15 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  arrayUnion,
+  deleteDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { nonstop, startEnv } from './helpers';
 
@@ -162,6 +170,36 @@ describe('progress update', () => {
         lastActiveAt: serverTimestamp(),
       }),
     );
+  });
+  it('lets the owner append with arrayUnion, including an id already there', async () => {
+    const db = as('priya');
+    await assertSucceeds(
+      updateDoc(doc(db, 'progress/priya_git'), {
+        completedItemIds: arrayUnion('l2'),
+        lastActiveAt: serverTimestamp(),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, 'progress/priya_git'), {
+        completedItemIds: arrayUnion('l1'),
+        lastActiveAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('denies appending more than one id, a non-string, an empty or over-long id, or a duplicate', async () => {
+    const db = as('priya');
+    const append = (completedItemIds: unknown[]) =>
+      updateDoc(doc(db, 'progress/priya_git'), {
+        completedItemIds,
+        lastActiveAt: serverTimestamp(),
+      });
+    await assertFails(append(['l1', 'l2', 'l3']));
+    await assertFails(append(['l1', 7]));
+    await assertFails(append(['l1', { id: 'l2' }]));
+    await assertFails(append(['l1', '']));
+    await assertFails(append(['l1', 'x'.repeat(81)]));
+    await assertFails(append(['l1', 'l1']));
+    await assertFails(append(['l2', 'l1']));
   });
   it('denies setting percent, Pariksha results or a certificate', async () => {
     const db = as('priya');
