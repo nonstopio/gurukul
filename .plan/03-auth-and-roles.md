@@ -39,7 +39,8 @@
 
 **Bootstrap:** the first Kulapati is set with a one-off script,
 `npm run grant-kulapati -- you@nonstopio.com`, run once with an admin
-credential on the maintainer's machine. Documented in CONTRIBUTING, never in CI.
+credential on the maintainer's machine. Documented in `docs/operations.md`,
+linked from CONTRIBUTING, never in CI.
 
 ## Route gating in the app
 

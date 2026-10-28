@@ -19,6 +19,11 @@ npm run emulators             # Auth, Firestore, Functions, Hosting on a demo pr
 For a real Firebase project, copy `apps/web/.env.example` to
 `apps/web/.env.local` and fill in the web config. Never commit `.env.local`.
 
+Setting up a new environment (the first Kulapati, seeding the first course,
+backups, email) is in [`docs/operations.md`](docs/operations.md). The first
+Kulapati is granted once, by the maintainer, with
+`npm run grant-kulapati -- you@nonstopio.com`; never from CI.
+
 ## Checks
 
 | Command                       | What it proves                                                               |
