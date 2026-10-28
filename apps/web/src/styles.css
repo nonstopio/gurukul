@@ -164,6 +164,30 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.load-retry {
+  margin-top: var(--space-3);
+}
 .loading-row {
   display: block;
   margin-bottom: var(--space-3);

@@ -1,10 +1,11 @@
 import { NavItem, Sidebar, SidebarGroup, Button } from '@gurukul/ui';
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { PageLoading } from './learn/ui';
 import { OfflineBanner } from './OfflineBanner';
+import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import type { AreaNavigation, Destination } from './navigation';
@@ -37,9 +38,33 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   useEffect(() => {
     document.title = titleFor(pathname, areas);
   }, [pathname, areas]);
+  const content = useRef<HTMLDivElement>(null);
+  const arrived = useRef(false);
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    // The first page is announced by the browser itself; only later navigations move focus.
+    if (!arrived.current) {
+      arrived.current = true;
+      return;
+    }
+    return focusPageOnArrival(content.current as HTMLDivElement, setAnnouncement);
+  }, [pathname]);
 
   return (
     <GlobalSearchProvider navigate={(p) => void navigate(p)} roles={roles} areas={areas}>
+      <a
+        className="skip-link"
+        href="#content"
+        onClick={(e) => {
+          e.preventDefault();
+          pageStart(content.current as HTMLDivElement)?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
       <div className="app">
         <Sidebar
           label="Main"
@@ -68,7 +93,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
             </SidebarGroup>
           ))}
         </Sidebar>
-        <div className="app__content">
+        <div className="app__content" id="content" ref={content}>
           <div className="app__bar">
             <SearchTrigger />
           </div>
