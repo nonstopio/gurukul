@@ -52,17 +52,32 @@ export function buildAssignedEmail(
   };
 }
 
-/** A reminder for one incomplete assignment. */
+/** One reminder for one person, listing every incomplete course it covers. */
 export function buildReminderEmail(
   to: string,
-  course: { id: string; title: string },
-  dueAt: number | null,
+  courses: readonly { id: string; title: string; dueAt: number | null }[],
 ): MailMessage {
+  const course = courses.length === 1 ? courses[0] : undefined;
+  if (course) {
+    return {
+      to,
+      subject: `Reminder: ${course.title} is waiting for you`,
+      text:
+        `Hello,\n\nA quick reminder to continue "${course.title}" on NonStop Academy:\n\n` +
+        `${courseLink(course.id)}\n${dueLine(course.dueAt)}\nIf you have already finished, you can ignore this note.\n`,
+    };
+  }
+  const list = courses
+    .map(
+      (c) =>
+        `- ${c.title}: ${courseLink(c.id)}${c.dueAt === null ? '' : ` (finish by ${formatDue(c.dueAt)})`}`,
+    )
+    .join('\n');
   return {
     to,
-    subject: `Reminder: ${course.title} is waiting for you`,
+    subject: `Reminder: ${courses.length} courses are waiting for you`,
     text:
-      `Hello,\n\nA quick reminder to continue "${course.title}" on NonStop Academy:\n\n` +
-      `${courseLink(course.id)}\n${dueLine(dueAt)}\nIf you have already finished, you can ignore this note.\n`,
+      `Hello,\n\nA quick reminder to continue these courses on NonStop Academy:\n\n${list}\n\n` +
+      `If you have already finished, you can ignore this note.\n`,
   };
 }

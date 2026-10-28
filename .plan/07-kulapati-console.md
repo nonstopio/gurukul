@@ -39,8 +39,11 @@ Firebase has no built-in email sending. Options, decided in open questions:
 | "Trigger Email" Firebase extension + SMTP | Free with an SMTP provider | Extension adds a function; still needs SMTP credentials |
 | No email in v1 | Free | Learners see assignments on next sign-in; Slack message by hand |
 
-Reminders: a daily scheduled function sends weekly or before-due reminders
-for incomplete mandatory assignments. Capped to one email per person per day.
+Reminders: a daily scheduled function (04:00 UTC) sends weekly or before-due reminders
+for incomplete mandatory assignments. Capped to one email per person per day: a person
+with several courses due gets one email listing them all, and nobody reminded that day,
+by the schedule or by a Kulapati, gets another. The time is fixed in the schedule, not
+an org setting; `config/org.reminders` only switches the daily run on or off.
 
 ## Roles & access
 

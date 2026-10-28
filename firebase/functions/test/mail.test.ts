@@ -39,16 +39,26 @@ describe('mail builders', () => {
   });
 
   it('builds a reminder', () => {
-    const m = buildReminderEmail(
-      'a@example.com',
-      { id: 'git', title: 'Git' },
-      Date.UTC(2026, 0, 5),
-    );
+    const m = buildReminderEmail('a@example.com', [
+      { id: 'git', title: 'Git', dueAt: Date.UTC(2026, 0, 5) },
+    ]);
     expect(m.subject).toBe('Reminder: Git is waiting for you');
     expect(m.text).toContain('https://nonstop-gurukul.web.app/courses/git');
     expect(m.text).toContain('5 Jan 2026');
     expect(
-      buildReminderEmail('a@example.com', { id: 'git', title: 'Git' }, null).text,
+      buildReminderEmail('a@example.com', [{ id: 'git', title: 'Git', dueAt: null }]).text,
     ).not.toContain('finish it by');
+  });
+
+  it('builds one reminder for several courses, each with its own due date', () => {
+    const m = buildReminderEmail('a@example.com', [
+      { id: 'git', title: 'Git', dueAt: Date.UTC(2026, 0, 5) },
+      { id: 'sql', title: 'SQL', dueAt: null },
+    ]);
+    expect(m.subject).toBe('Reminder: 2 courses are waiting for you');
+    expect(m.text).toContain(
+      '- Git: https://nonstop-gurukul.web.app/courses/git (finish by 5 Jan 2026)',
+    );
+    expect(m.text).toContain('- SQL: https://nonstop-gurukul.web.app/courses/sql\n');
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { remindLearners, runDailyReminders, selectManual, selectScheduled } from '../src/remind.js';
-import type { ReminderCandidate, ReminderStore } from '../src/remind.js';
+import type { ReminderCandidate, ReminderStore, Selection } from '../src/remind.js';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 27);
@@ -9,6 +9,7 @@ const cand = (id: string, over: Partial<ReminderCandidate> = {}): ReminderCandid
   email: `${id}@nonstopio.com`,
   courseId: 'git',
   status: 'started',
+  mandatory: true,
   reminder: 'weekly',
   assignedAt: NOW - 30 * DAY,
   dueAt: null,
@@ -16,40 +17,58 @@ const cand = (id: string, over: Partial<ReminderCandidate> = {}): ReminderCandid
   ...over,
 });
 
+const ids = (due: Selection['due']) => due.map((p) => p.assignments.map((c) => c.id));
+
 describe('selectManual', () => {
-  it('skips completed ones silently and recent ones as skipped', () => {
+  it('skips completed ones silently and people reminded today as skipped', () => {
     const out = selectManual(
       [
         cand('a'),
         cand('done', { status: 'completed' }),
         cand('recent', { lastRemindedAt: NOW - DAY / 2 }),
         cand('old', { lastRemindedAt: NOW - DAY }),
+        cand('nearly', { lastRemindedAt: NOW - 20 * 3_600_000 }),
       ],
       NOW,
     );
-    expect(out.due.map((c) => c.id)).toEqual(['a', 'old']);
+    expect(ids(out.due)).toEqual([['a'], ['old'], ['nearly']]);
     expect(out.skipped).toBe(1);
   });
 
-  it('caps the send and counts the rest as skipped', () => {
+  it('sends one email per person, none to a person reminded today about another course', () => {
+    const mine = { email: 'p@nonstopio.com' };
+    const out = selectManual(
+      [
+        cand('git', mine),
+        cand('sql', { ...mine, courseId: 'sql' }),
+        cand('q', { email: 'q@nonstopio.com' }),
+        cand('q-sql', { email: 'q@nonstopio.com', courseId: 'sql', lastRemindedAt: NOW - 1000 }),
+      ],
+      NOW,
+    );
+    expect(ids(out.due)).toEqual([['git', 'sql']]);
+    expect(out.skipped).toBe(1);
+  });
+
+  it('caps the send by people and counts the rest as skipped', () => {
     const out = selectManual([cand('a'), cand('b'), cand('c')], NOW, 2);
-    expect(out.due.map((c) => c.id)).toEqual(['a', 'b']);
+    expect(ids(out.due)).toEqual([['a'], ['b']]);
     expect(out.skipped).toBe(1);
   });
 });
 
 describe('selectScheduled', () => {
-  it('reminds weekly assignments seven days after the last reminder, or the assignment', () => {
+  it('reminds weekly assignments a week after the last reminder, or the assignment', () => {
     const out = selectScheduled(
       [
         cand('never', { assignedAt: NOW - 8 * DAY }),
         cand('fresh', { assignedAt: NOW - 2 * DAY }),
-        cand('stale', { lastRemindedAt: NOW - 7 * DAY }),
+        cand('stale', { lastRemindedAt: NOW - 7 * DAY + 60_000 }),
         cand('lately', { lastRemindedAt: NOW - 6 * DAY }),
       ],
       NOW,
     );
-    expect(out.due.map((c) => c.id)).toEqual(['never', 'stale']);
+    expect(ids(out.due)).toEqual([['never'], ['stale']]);
     expect(out.skipped).toBe(2);
   });
 
@@ -58,30 +77,48 @@ describe('selectScheduled', () => {
     const out = selectScheduled(
       [
         cand('soon', { ...base, dueAt: NOW + 2 * DAY }),
-        cand('overdue', { ...base, dueAt: NOW - DAY }),
+        cand('overdue', { ...base, dueAt: NOW - DAY, lastRemindedAt: NOW - DAY + 60_000 }),
         cand('far', { ...base, dueAt: NOW + 4 * DAY }),
         cand('nodue', { ...base, dueAt: null }),
         cand('today', { ...base, dueAt: NOW + DAY, lastRemindedAt: NOW - 3_600_000 }),
       ],
       NOW,
     );
-    expect(out.due.map((c) => c.id)).toEqual(['soon', 'overdue']);
+    expect(ids(out.due)).toEqual([['soon'], ['overdue']]);
     expect(out.skipped).toBe(3);
   });
 
-  it('never reminds completed assignments or reminder "none", and honours the cap', () => {
+  it('reminds mandatory assignments only, never completed ones or reminder "none"', () => {
     const out = selectScheduled(
       [
         cand('done', { status: 'completed' }),
         cand('none', { reminder: 'none' }),
+        cand('optional', { mandatory: false }),
         cand('a'),
-        cand('b'),
       ],
       NOW,
-      1,
     );
-    expect(out.due.map((c) => c.id)).toEqual(['a']);
+    expect(ids(out.due)).toEqual([['a']]);
+    expect(out.skipped).toBe(0);
+  });
+
+  it('sends one email per person, none if a Kulapati reminded them today, and caps by people', () => {
+    const p = { email: 'p@nonstopio.com' };
+    const q = { email: 'q@nonstopio.com' };
+    const r = { email: 'r@nonstopio.com' };
+    const candidates = [
+      cand('p-git', p),
+      cand('p-sql', { ...p, courseId: 'sql', reminder: 'beforeDue', dueAt: NOW + DAY }),
+      cand('q-git', q),
+      cand('q-css', { ...q, courseId: 'css', reminder: 'none', lastRemindedAt: NOW - 1000 }),
+      cand('r-git', r),
+    ];
+    const out = selectScheduled(candidates, NOW);
+    expect(ids(out.due)).toEqual([['p-git', 'p-sql'], ['r-git']]);
     expect(out.skipped).toBe(1);
+    const capped = selectScheduled(candidates, NOW, 1);
+    expect(ids(capped.due)).toEqual([['p-git', 'p-sql']]);
+    expect(capped.skipped).toBe(2);
   });
 });
 
@@ -209,6 +246,27 @@ describe('runDailyReminders', () => {
     expect(await runDailyReminders(deps, NOW)).toEqual({ sent: 1, skipped: 0 });
     expect(mailer.send).toHaveBeenCalledOnce();
     expect(store.markReminded).toHaveBeenCalledWith(['a']);
+  });
+
+  it('covers all of a person’s due courses in one email and stamps each', async () => {
+    const { store, mailer, deps } = setup({
+      scheduled: vi
+        .fn()
+        .mockResolvedValue([
+          cand('a'),
+          cand('a-sql', { email: 'a@nonstopio.com', courseId: 'sql' }),
+        ]),
+      courseTitles: vi.fn().mockResolvedValue({ git: 'Git basics', sql: 'SQL' }),
+    });
+    expect(await runDailyReminders(deps, NOW)).toEqual({ sent: 1, skipped: 0 });
+    expect(mailer.send).toHaveBeenCalledOnce();
+    expect(mailer.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'a@nonstopio.com',
+        subject: 'Reminder: 2 courses are waiting for you',
+      }),
+    );
+    expect(store.markReminded).toHaveBeenCalledWith(['a', 'a-sql']);
   });
 
   it('stamps nothing when nothing is due', async () => {

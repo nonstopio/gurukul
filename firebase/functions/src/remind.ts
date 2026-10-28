@@ -6,6 +6,12 @@ import type { Mailer } from './mail.js';
 import { badCount, badField, missing } from './validation.js';
 
 const DAY_MS = 86_400_000;
+/**
+ * Room for a scheduled run that starts a few seconds earlier than yesterday's reminder was stamped:
+ * "reminded today" is the last 20 hours, and "a week since" is 7 days less the same 4 hours.
+ */
+const SLACK_MS = 4 * 3_600_000;
+const RECENT_MS = DAY_MS - SLACK_MS;
 export const MANUAL_CAP = 200;
 export const SCHEDULED_CAP = 500;
 const MAX_EMAILS = 1000;
@@ -16,6 +22,7 @@ export interface ReminderCandidate {
   email: string;
   courseId: string;
   status: 'assigned' | 'started' | 'completed';
+  mandatory: boolean;
   reminder: 'weekly' | 'beforeDue' | 'none';
   assignedAt: number;
   dueAt: number | null;
@@ -23,51 +30,66 @@ export interface ReminderCandidate {
 }
 
 export interface Selection {
-  due: ReminderCandidate[];
-  /** Incomplete assignments that were not reminded: too recent, or over the cap. */
+  /** One entry per person to email, with every assignment that one email covers. */
+  due: { email: string; assignments: ReminderCandidate[] }[];
+  /** People with a candidate assignment who get no email: reminded today, or over the cap. */
   skipped: number;
 }
 
 const incomplete = (c: ReminderCandidate): boolean => c.status !== 'completed';
 const recentlyReminded = (c: ReminderCandidate, now: number): boolean =>
-  c.lastRemindedAt !== null && now - c.lastRemindedAt < DAY_MS;
+  c.lastRemindedAt !== null && now - c.lastRemindedAt < RECENT_MS;
 
-function capped(eligible: ReminderCandidate[], total: number, cap: number): Selection {
-  const due = eligible.slice(0, cap);
-  return { due, skipped: total - due.length };
+/**
+ * At most one email per person per day: a person any of whose `open` assignments was reminded
+ * today gets nothing; everyone else gets one email for all their `eligible` assignments, up to
+ * `cap` people. `considered` is who could have been reminded, for the skipped count.
+ */
+function perPerson(
+  open: readonly ReminderCandidate[],
+  considered: readonly ReminderCandidate[],
+  eligible: readonly ReminderCandidate[],
+  now: number,
+  cap: number,
+): Selection {
+  const remindedToday = new Set(open.filter((c) => recentlyReminded(c, now)).map((c) => c.email));
+  const people = new Map<string, ReminderCandidate[]>();
+  for (const c of eligible) {
+    if (!remindedToday.has(c.email)) people.set(c.email, [...(people.get(c.email) ?? []), c]);
+  }
+  const due = [...people].slice(0, cap).map(([email, assignments]) => ({ email, assignments }));
+  return { due, skipped: new Set(considered.map((c) => c.email)).size - due.length };
 }
 
-/** A Kulapati asked: every incomplete assignment not reminded in the last 24 hours, up to `cap`. */
+/** A Kulapati asked: one email to each person with something unfinished, not reminded today. */
 export function selectManual(
   candidates: readonly ReminderCandidate[],
   now: number,
   cap = MANUAL_CAP,
 ): Selection {
   const open = candidates.filter(incomplete);
-  return capped(
-    open.filter((c) => !recentlyReminded(c, now)),
-    open.length,
-    cap,
-  );
+  return perPerson(open, open, open, now, cap);
 }
 
 /**
- * The daily run. `weekly`: a reminder is due 7 days after the last one (the assignment date
- * stands in before the first). `beforeDue`: the due date is within 3 days (or past) and nobody
- * reminded in the last 24 hours. `none` and completed assignments are never reminded.
+ * The daily run, over incomplete mandatory assignments only. `weekly`: due 7 days after the last
+ * reminder (the assignment date stands in before the first). `beforeDue`: the due date is within
+ * 3 days, or past. `none` is never reminded. A person gets one email for everything due, and none
+ * if anything of theirs was reminded today, by this run or by a Kulapati.
  */
 export function selectScheduled(
   candidates: readonly ReminderCandidate[],
   now: number,
   cap = SCHEDULED_CAP,
 ): Selection {
-  const open = candidates.filter((c) => incomplete(c) && c.reminder !== 'none');
-  const eligible = open.filter((c) =>
+  const open = candidates.filter(incomplete);
+  const considered = open.filter((c) => c.mandatory && c.reminder !== 'none');
+  const eligible = considered.filter((c) =>
     c.reminder === 'weekly'
-      ? now - (c.lastRemindedAt ?? c.assignedAt) >= 7 * DAY_MS
-      : c.dueAt !== null && c.dueAt - now <= 3 * DAY_MS && !recentlyReminded(c, now),
+      ? now - (c.lastRemindedAt ?? c.assignedAt) >= 7 * DAY_MS - SLACK_MS
+      : c.dueAt !== null && c.dueAt - now <= 3 * DAY_MS,
   );
-  return capped(eligible, open.length, cap);
+  return perPerson(open, considered, eligible, now, cap);
 }
 
 /** Where reminders read assignments and record that one was sent. `stores.ts` adapts the Admin SDK. */
@@ -76,7 +98,7 @@ export interface ReminderStore {
   forCourse(courseId: string): Promise<ReminderCandidate[]>;
   /** Assignments (complete or not) of these emails. */
   forEmails(emails: string[]): Promise<ReminderCandidate[]>;
-  /** Incomplete assignments whose reminder is `weekly` or `beforeDue`. */
+  /** Every incomplete assignment: the daily run needs all of a person's to know who was reminded today. */
   scheduled(): Promise<ReminderCandidate[]>;
   courseTitles(ids: string[]): Promise<Record<string, string | undefined>>;
   /** Stamps `lastRemindedAt` on each assignment. */
@@ -85,25 +107,28 @@ export interface ReminderStore {
   audit(entry: AuditEntry): Promise<void>;
 }
 
-async function deliver(
-  store: ReminderStore,
-  mailer: Mailer,
-  due: ReminderCandidate[],
-): Promise<void> {
-  const titles = await store.courseTitles([...new Set(due.map((c) => c.courseId))]);
-  for (const c of due) {
+async function deliver(store: ReminderStore, mailer: Mailer, due: Selection['due']): Promise<void> {
+  const all = due.flatMap((p) => p.assignments);
+  const titles = await store.courseTitles([...new Set(all.map((c) => c.courseId))]);
+  for (const { email, assignments } of due) {
     await mailer.send(
       buildReminderEmail(
-        c.email,
-        { id: c.courseId, title: titles[c.courseId] ?? c.courseId },
-        c.dueAt,
+        email,
+        assignments.map((c) => ({
+          id: c.courseId,
+          title: titles[c.courseId] ?? c.courseId,
+          dueAt: c.dueAt,
+        })),
       ),
     );
   }
-  await store.markReminded(due.map((c) => c.id));
+  await store.markReminded(all.map((c) => c.id));
 }
 
-/** `remindLearners`: nudge the people with an unfinished assignment of a course, or the given people. */
+/**
+ * `remindLearners`: nudge the people with an unfinished assignment of a course, or the given people.
+ * `sent` and `skipped` count people, one email each.
+ */
 export async function remindLearners(
   deps: { store: ReminderStore; mailer: Mailer },
   caller: Caller,
