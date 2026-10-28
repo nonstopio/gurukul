@@ -19,9 +19,11 @@ unreachable race. See `.claude/rules/coverage.md`.
 | End to end (built) | Playwright against emulators + built app | `e2e/` | `e2e` job |
 | Accessibility | axe-core per component and page; Playwright axe on Home, the course page, the Kulapati overview and the Studio course list (built) | as above | as above |
 
-Rules coverage: every `allow` has an allowed and a denied test. From M2, a
-script reads the emulator's rules coverage report and fails if any rule
-expression was never evaluated.
+Rules coverage: every `allow` has an allowed and a denied test, and
+`npm run test:rules` fails if any rule expression was never evaluated. Each test
+file saves the emulator's coverage report (the emulator resets it whenever rules
+load), and `scripts/check-rules-coverage.mjs` merges them; an expression a short
+circuit skipped counts as never evaluated.
 
 ## CI — in place
 
