@@ -110,7 +110,13 @@ describe('users/{uid}', () => {
 
   it('lets a person change their display name and team', async () => {
     const db = nonstop('priya');
-    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { displayName: 'Priya N', team: 'QA' }));
+    await assertSucceeds(
+      updateDoc(doc(db, 'users/priya'), {
+        displayName: 'Priya N',
+        nameLower: 'priya n',
+        team: 'QA',
+      }),
+    );
     await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: null }));
   });
 
@@ -118,18 +124,49 @@ describe('users/{uid}', () => {
     const db = nonstop('priya');
     await assertFails(updateDoc(doc(db, 'users/priya'), { roles: ['kulapati'] }));
     await assertFails(
-      updateDoc(doc(db, 'users/priya'), { displayName: 'P', grantedCourseIds: ['git'] }),
+      updateDoc(doc(db, 'users/priya'), {
+        displayName: 'P',
+        nameLower: 'p',
+        grantedCourseIds: ['git'],
+      }),
     );
-    await assertFails(updateDoc(doc(nonstop('rohan'), 'users/priya'), { displayName: 'Hacked' }));
     await assertFails(
-      updateDoc(doc(nonstop('ajay', { kulapati: true }), 'users/priya'), { displayName: 'X' }),
+      updateDoc(doc(nonstop('rohan'), 'users/priya'), {
+        displayName: 'Hacked',
+        nameLower: 'hacked',
+      }),
     );
+    await assertFails(
+      updateDoc(doc(nonstop('ajay', { kulapati: true }), 'users/priya'), {
+        displayName: 'X',
+        nameLower: 'x',
+      }),
+    );
+  });
+
+  it('lets a person fill in the lower-cased name that people search by', async () => {
+    await assertSucceeds(updateDoc(doc(nonstop('priya'), 'users/priya'), { nameLower: 'priya' }));
+  });
+
+  it('keeps the lower-cased name in step with the display name', async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { displayName: 'Priya N' }));
+    await assertFails(
+      updateDoc(doc(db, 'users/priya'), { displayName: 'Priya N', nameLower: 'priya' }),
+    );
+    await assertFails(updateDoc(doc(db, 'users/priya'), { nameLower: 'someone else' }));
+    await assertFails(updateDoc(doc(nonstop('rohan'), 'users/priya'), { nameLower: 'priya' }));
   });
 
   it('denies a badly shaped display name or team', async () => {
     const db = nonstop('priya');
     await assertFails(updateDoc(doc(db, 'users/priya'), { displayName: 42 }));
-    await assertFails(updateDoc(doc(db, 'users/priya'), { displayName: 'x'.repeat(121) }));
+    await assertFails(
+      updateDoc(doc(db, 'users/priya'), {
+        displayName: 'x'.repeat(121),
+        nameLower: 'x'.repeat(121),
+      }),
+    );
     await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'x'.repeat(81) }));
     await assertFails(updateDoc(doc(db, 'users/priya'), { team: 7 }));
   });

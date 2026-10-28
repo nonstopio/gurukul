@@ -47,6 +47,7 @@ export const DEFAULT_MASK_RULES: readonly MaskRule[] = [
     '*lastname*',
     '*fullname*',
     '*displayname*',
+    '*namelower*',
     '*learnername*',
     '*username*',
     '*dob*',

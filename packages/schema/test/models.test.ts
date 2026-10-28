@@ -12,6 +12,7 @@ import {
   progressSchema,
   rolesFromClaims,
   userSchema,
+  nameKey,
 } from '../src';
 import { ts } from './fixtures';
 
@@ -51,6 +52,18 @@ describe('document shapes', () => {
         createdAt: ts(1),
       }).success,
     ).toBe(true);
+    expect(
+      userSchema.safeParse({
+        email: 'a@nonstopio.com',
+        displayName: 'Ananya Rao',
+        nameLower: nameKey('Ananya Rao'),
+        photoURL: null,
+        team: null,
+        roles: ['shishya'],
+        grantedCourseIds: [],
+        createdAt: ts(1),
+      }).data?.nameLower,
+    ).toBe('ananya rao');
     expect(orgConfigSchema.safeParse(DEFAULT_ORG_CONFIG).success).toBe(true);
     expect(orgConfigSchema.safeParse({ ...DEFAULT_ORG_CONFIG, domain: '' }).success).toBe(false);
   });

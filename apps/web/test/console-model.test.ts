@@ -248,6 +248,19 @@ describe('learner filters', () => {
     expect(emails(filterPeople(users, [], { ...none, courseId: 'git' }))).toEqual([]);
   });
 
+  it('matches a search against the start of a signed-in name, with a team or role chosen', () => {
+    const users = [
+      user(1, { displayName: 'Ananya Rao', team: 'QA' }),
+      user(2, { displayName: 'Ravi K', team: 'QA' }),
+    ];
+    const qa = { ...none, team: 'QA' };
+    expect(emails(filterPeople(users, scope, { ...qa, search: 'Anan' }))).toEqual([
+      'u1@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, scope, { ...qa, search: 'rao' }))).toEqual([]);
+    expect(emails(filterPeople(users, [], { ...qa, search: 'ravi', courseId: 'git' }))).toEqual([]);
+  });
+
   it('trusts people the search itself found, still narrowing them by course', () => {
     const found = [user(1, { email: 'priya@nonstopio.com' }), user(2)];
     const f = { ...none, search: 'priya s', courseId: 'git' };

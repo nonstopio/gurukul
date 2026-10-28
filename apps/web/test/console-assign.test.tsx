@@ -182,9 +182,11 @@ describe('Assign courses', () => {
     });
     await openApp(PATH, { ...kulapati, console: c, data: data() });
     await screen.findByLabelText(/Git, the NonStop Way/);
-    fireEvent.change(screen.getByLabelText('Search by email'), { target: { value: 'r' } });
+    fireEvent.change(screen.getByLabelText('Search by name or email'), { target: { value: 'r' } });
     expect(c.data.searchUsers).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Search by email'), { target: { value: 'rav' } });
+    fireEvent.change(screen.getByLabelText('Search by name or email'), {
+      target: { value: 'rav' },
+    });
     fireEvent.click(await screen.findByRole('button', { name: 'Add Ravi' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add sam@nonstopio.com' }));
     await waitFor(() =>

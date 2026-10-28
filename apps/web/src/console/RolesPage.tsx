@@ -7,6 +7,7 @@ import { useAsync } from '../data/useAsync';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
+import { usePeopleSearch } from './usePeopleSearch';
 import type { UserRow } from './types';
 
 type RoleChoice = 'shishya' | 'acharya' | 'kulapati';
@@ -202,18 +203,12 @@ function GrantDialog({
 }) {
   const { data } = useConsole();
   const [user, setUser] = useState<UserRow | null>(initial);
-  const [query, setQuery] = useState('');
-  const [found, setFound] = useState<UserRow[]>([]);
+  const people = usePeopleSearch(data);
   const [role, setRole] = useState<RoleChoice>(initial ? currentRole(initial) : 'acharya');
   const [courseIds, setCourseIds] = useState<string[]>(initial?.grantedCourseIds ?? []);
   const [saving, setSaving] = useState(false);
   const self = user?.uid === meUid;
   const wasKulapati = user?.roles.includes('kulapati') === true;
-
-  const search = async (text: string) => {
-    setQuery(text);
-    setFound(text.trim().length >= 2 ? await data.searchUsers(text) : []);
-  };
 
   return (
     <Dialog
@@ -239,12 +234,12 @@ function GrantDialog({
       ) : (
         <>
           <Input
-            label="Find a person by email"
-            value={query}
-            onChange={(e) => void search(e.target.value)}
+            label="Find a person by name or email"
+            value={people.query}
+            onChange={(e) => void people.search(e.target.value)}
           />
           <ul className="course-list" aria-label="People found">
-            {found.map((u) => (
+            {people.found.map((u) => (
               <li key={u.uid}>
                 <Button
                   variant="secondary"

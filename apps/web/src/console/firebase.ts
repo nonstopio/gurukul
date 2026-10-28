@@ -23,6 +23,7 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
 const AUDIT_LIMIT = 100;
+const SEARCH_LIMIT = 8;
 
 const chunks = <T>(list: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
@@ -107,16 +108,20 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     },
     async searchUsers(prefix) {
       const p = prefix.trim().toLowerCase();
-      const snap = await getDocs(
-        query(
-          collection(db, 'users'),
-          orderBy('email'),
-          where('email', '>=', p),
-          where('email', '<=', `${p}`),
-          limit(8),
-        ),
-      );
-      return snap.docs.map((d) => toUser(d.id, d.data()));
+      const by = (field: 'email' | 'nameLower') =>
+        getDocs(
+          query(
+            collection(db, 'users'),
+            orderBy(field),
+            where(field, '>=', p),
+            where(field, '<=', `${p}\uf8ff`),
+            limit(SEARCH_LIMIT),
+          ),
+        );
+      const [byEmail, byName] = await Promise.all([by('email'), by('nameLower')]);
+      const found = new Map<string, UserRow>();
+      for (const d of [...byEmail.docs, ...byName.docs]) found.set(d.id, toUser(d.id, d.data()));
+      return [...found.values()].slice(0, SEARCH_LIMIT);
     },
     async usersInTeam(team) {
       const snap = await getDocs(

@@ -247,11 +247,11 @@ describe('Roles & access', () => {
     const dialog = await screen.findByRole('dialog');
     const save = within(dialog).getByRole('button', { name: 'Save role' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
-    fireEvent.change(within(dialog).getByLabelText('Find a person by email'), {
+    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
       target: { value: 'r' },
     });
     expect(c.data.searchUsers).not.toHaveBeenCalled();
-    fireEvent.change(within(dialog).getByLabelText('Find a person by email'), {
+    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
       target: { value: 'rav' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
@@ -287,7 +287,7 @@ describe('Roles & access', () => {
     expect(await screen.findByText('Updated solo@nonstopio.com')).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const grant = await screen.findByRole('dialog', { name: 'Grant a role' });
-    fireEvent.change(within(grant).getByLabelText('Find a person by email'), {
+    fireEvent.change(within(grant).getByLabelText('Find a person by name or email'), {
       target: { value: 'sol' },
     });
     fireEvent.click(await within(grant).findByRole('button', { name: 'solo@nonstopio.com' }));
@@ -300,7 +300,7 @@ describe('Roles & access', () => {
     await openApp('/kulapati/roles', { ...kulapati, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Find a person by email'), {
+    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
       target: { value: 'me' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));

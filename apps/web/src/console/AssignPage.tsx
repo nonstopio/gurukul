@@ -16,7 +16,7 @@ import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import type { UserRow } from './types';
+import { usePeopleSearch } from './usePeopleSearch';
 
 interface Prefill {
   emails?: string[];
@@ -37,8 +37,7 @@ export function AssignPage() {
   const [mandatory, setMandatory] = useState(true);
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [found, setFound] = useState<UserRow[]>([]);
-  const [query, setQuery] = useState('');
+  const people = usePeopleSearch(data);
   const [team, setTeam] = useState('');
   const [known, setKnown] = useState<{
     signedIn: ReadonlySet<string>;
@@ -143,19 +142,12 @@ export function AssignPage() {
                       panel: (
                         <>
                           <Input
-                            label="Search by email"
-                            value={query}
-                            onChange={async (e) => {
-                              setQuery(e.target.value);
-                              setFound(
-                                e.target.value.trim().length >= 2
-                                  ? await data.searchUsers(e.target.value)
-                                  : [],
-                              );
-                            }}
+                            label="Search by name or email"
+                            value={people.query}
+                            onChange={(e) => void people.search(e.target.value)}
                           />
                           <ul className="course-list" aria-label="People found">
-                            {found.map((u) => (
+                            {people.found.map((u) => (
                               <li key={u.uid}>
                                 <Button variant="secondary" onClick={() => add([u.email])}>
                                   Add {u.displayName || u.email}

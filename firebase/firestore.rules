@@ -32,15 +32,19 @@ service cloud.firestore {
 
     // A person reads their own profile (a Kulapati reads any) and may change only their display
     // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
+    // `nameLower` (people search by name) moves with the display name: a write touching either
+    // must leave it equal to the display name lower-cased, so it never goes stale.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'team'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'nameLower', 'team'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 120
         && (request.resource.data.team == null
-            || (request.resource.data.team is string && request.resource.data.team.size() <= 80));
+            || (request.resource.data.team is string && request.resource.data.team.size() <= 80))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName', 'nameLower'])
+            || request.resource.data.get('nameLower', null) == request.resource.data.displayName.lower());
       allow create, delete: if false;
     }
 

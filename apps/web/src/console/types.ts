@@ -53,7 +53,7 @@ export interface ConsoleData {
   /** Progress documents for a set of people, to show courses and percent per row. */
   progressFor(uids: string[]): Promise<Array<ProgressRow & { uid: string }>>;
   certificatesFor(uid: string): Promise<CertificateRow[]>;
-  /** Email-prefix search over people who have signed in. */
+  /** People who have signed in whose email or name starts with `prefix` (at most 8, email matches first). */
   searchUsers(prefix: string): Promise<UserRow[]>;
   usersInTeam(team: string): Promise<UserRow[]>;
   /** Profiles for a page of people known only by their assignments (in chunks of 30). */

@@ -148,10 +148,26 @@ describe('users', () => {
     expect(await data.userCount()).toBe(148);
   });
 
-  it('searches by email prefix and lists a team', async () => {
-    store.queue = [[user(1)], [user(2)]];
-    expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1']);
+  it('searches by email and by name prefix, email matches first, each person once', async () => {
+    store.queue = [[user(1)], [user(2), user(1)]];
+    expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1', 'u2']);
     expect(store.queries[0]).toContainEqual({ where: ['email', '>=', 'u1'] });
+    expect(store.queries[0]).toContainEqual({ where: ['email', '<=', 'u1\uf8ff'] });
+    expect(store.queries[1]).toContainEqual({ orderBy: ['nameLower', undefined] });
+    expect(store.queries[1]).toContainEqual({ where: ['nameLower', '>=', 'u1'] });
+    expect(store.queries[1]).toContainEqual({ limit: 8 });
+  });
+
+  it('returns at most 8 people from a search', async () => {
+    store.queue = [
+      Array.from({ length: 8 }, (_, i) => user(i)),
+      Array.from({ length: 8 }, (_, i) => user(i + 10)),
+    ];
+    expect(await data.searchUsers('u')).toHaveLength(8);
+  });
+
+  it('lists a team', async () => {
+    store.queue = [[user(2)]];
     expect((await data.usersInTeam('QA'))[0]?.team).toBe('QA');
   });
 

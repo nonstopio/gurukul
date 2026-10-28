@@ -8,7 +8,7 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror | self, Kulapati | self: `displayName`, `team` only |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Kulapati | self: `displayName`, `nameLower`, `team` only; `nameLower` must equal `displayName` lower-cased |
 | `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); its Acharyas and Kulapatis in any status | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Acharyas granted the course, Kulapati | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Acharyas, Kulapati | never |
@@ -126,6 +126,29 @@ Percent = (completed lessons + passed Parikshas) ÷ (lessons + Parikshas) in the
 **current** published version. Ids that no longer exist are ignored; new items
 added in a later version simply count as not done. A learner who already holds
 a certificate keeps it when a course gains lessons.
+
+## Users
+
+```ts
+type User = {
+  email: string;                 // lower-cased
+  displayName: string;           // from Google; the email's local part when Google has none
+  nameLower?: string;            // displayName lower-cased (`nameKey`), for search by name
+  photoURL: string | null;
+  team: string | null;
+  roles: Array<'shishya' | 'acharya' | 'kulapati'>;   // mirror of the claims
+  grantedCourseIds: string[];
+  createdAt: Timestamp;
+};
+```
+
+People search (Learners, Assign, granting a role) runs two prefix range queries, on `email`
+and on `nameLower`, 8 people each, merged with email matches first. A name matches from its
+start (`ana` finds "Ananya Rao"; `rao` does not). `onUserCreated` writes `nameLower` with the
+profile; profiles made before it existed get it from the app on their owner's next sign-in,
+and the rules keep it in step with `displayName` on every later write. Single-field
+indexes cover both queries; there is no composite index. `nameLower` is optional in the
+schema until every profile has it.
 
 ## Assignments
 

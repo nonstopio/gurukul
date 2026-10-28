@@ -1,4 +1,4 @@
-import { lastWeeks } from '@gurukul/schema';
+import { lastWeeks, nameKey } from '@gurukul/schema';
 import type { CourseStats, OrgStats } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import type { AssignmentFull, UserRow } from './types';
@@ -137,7 +137,8 @@ export function peopleFromAssignments(assignments: readonly AssignmentFull[]): P
  * Everyone matching every filter, sorted by email. `users` is the people read for the narrowest
  * people filter (team, role or search), or null when only a course is chosen; `scope` is the
  * assignments in view (the chosen course's, or the newest ones). Pending invites have no team or
- * role, so a team or role filter leaves them out. `searched` says `users` came from the search
+ * role, so a team or role filter leaves them out. Search matches the start of a signed-in person's
+ * email or name (a pending invite has only an email). `searched` says `users` came from the search
  * itself, which already matched them (by more than the email), so it is not applied to them again.
  */
 export function filterPeople(
@@ -152,10 +153,11 @@ export function filterPeople(
   const inCourse = new Set(scope.map((a) => a.email));
   const inScope = (email: string) => f.courseId === '' || inCourse.has(email);
   const matches = (email: string) => email.startsWith(prefix) && inScope(email);
+  const named = (u: UserRow) => nameKey(u.displayName).startsWith(prefix) && inScope(u.email);
   const signedIn = users
     .filter(
       (u) =>
-        (searched ? inScope(u.email) : matches(u.email)) &&
+        (searched ? inScope(u.email) : matches(u.email) || named(u)) &&
         (f.team === '' || u.team === f.team) &&
         (f.role === '' || u.roles.includes(f.role)),
     )
