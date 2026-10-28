@@ -1,12 +1,39 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { chmodSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  chmodSync,
+  constants,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { commitAll, git, gitRepo, sh, tempDir, writeFiles } from './helpers.mjs';
 
 const ZERO = '0'.repeat(40);
 const TOOLS = ['sh', 'git', 'grep', 'sort', 'dirname'];
+
+/** Where `tool` lives on this machine's PATH, found without running a shell. */
+function which(tool) {
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+    const candidate = path.join(dir, tool);
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {
+      // not in this directory
+    }
+  }
+  throw new Error(`${tool} is not on PATH`);
+}
+
+/** Logs each call to $NPM_LOG and fails the one whose arguments contain $NPM_FAIL. */
+const FAKE_NPM = `#!/bin/sh
+echo "$*" >> "$NPM_LOG"
+[ -n "\${NPM_FAIL:-}" ] && echo "$*" | grep -q -- "$NPM_FAIL" && exit 1
+exit 0
+`;
 
 /**
  * A PATH holding a fake `npm` that logs each call (and fails the one named in NPM_FAIL), the
@@ -15,16 +42,11 @@ const TOOLS = ['sh', 'git', 'grep', 'sort', 'dirname'];
 function fakePath({ java }) {
   const bin = tempDir('bin');
   const log = path.join(bin, 'npm.log');
-  writeFileSync(
-    path.join(bin, 'npm'),
-    `#!/bin/sh\necho "$*" >> "${log}"\n[ -n "\${NPM_FAIL:-}" ] && echo "$*" | grep -q -- "$NPM_FAIL" && exit 1\nexit 0\n`,
-  );
+  writeFileSync(path.join(bin, 'npm'), FAKE_NPM);
   chmodSync(path.join(bin, 'npm'), 0o755);
-  for (const tool of java ? [...TOOLS, 'java'] : TOOLS) {
-    const real = execFileSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).trim();
-    symlinkSync(real, path.join(bin, tool));
-  }
-  return { bin, calls: () => readFileSync(log, 'utf8').trim().split('\n') };
+  for (const tool of java ? [...TOOLS, 'java'] : TOOLS)
+    symlinkSync(which(tool), path.join(bin, tool));
+  return { bin, log, calls: () => readFileSync(log, 'utf8').trim().split('\n') };
 }
 
 /** Push a new branch that adds `files`; returns the hook's result and the npm calls it made. */
@@ -38,11 +60,11 @@ function push(files, { java = true, fail } = {}) {
   git(dir, 'checkout', '-q', '-b', 'feat');
   writeFiles(dir, files);
   const sha = commitAll(dir, 'change');
-  const { bin, calls } = fakePath({ java });
+  const { bin, log, calls } = fakePath({ java });
   const res = sh('pre-push.sh', {
     cwd: dir,
     input: `refs/heads/feat ${sha} refs/heads/feat ${ZERO}\n`,
-    env: { PATH: bin, ...(fail ? { NPM_FAIL: fail } : {}) },
+    env: { PATH: bin, NPM_LOG: log, ...(fail ? { NPM_FAIL: fail } : {}) },
   });
   return { res, calls: calls() };
 }
