@@ -29,8 +29,9 @@ per view. Instead, Firestore triggers keep **counters** current:
 - Daily scheduled roll-up: users, active learners and assignments by count() aggregations, and a
   consistency check that rebuilds every course counter and the org's started, completed and
   `pariksha*` counters from the progress and attempt documents, overwriting any drift (and
-  backfilling attempts graded before a counter existed). It reads each course, progress and attempt
-  document once: a few thousand reads a day at 200 people, well inside the 50k free reads.
+  backfilling attempts graded before a counter existed). It also brings each course's learner roster
+  up to date (below). It reads each course, progress, attempt, profile and roster document once: a
+  few thousand reads a day at 200 people, well inside the 50k free reads.
   The weekly lessons series is kept by the trigger alone: no lesson stores when it was completed,
   so a past week cannot be rebuilt.
 
@@ -49,6 +50,6 @@ and, for their own courses only, the names of the people who started them (decid
 `courses/{id}/learners/{uid}` (`{displayName, startedAt}`), written by the progress trigger when a
 learner starts; the rules let that course's Acharyas and Kulapatis read it, so an Acharya never
 reads a profile (`users/`), an email or another course. Vyasa Studio's Analytics tab lists them with
-their progress. A name is copied once, at the start, so a later rename shows on the Kulapati
-console but not there; learners who started before this was kept show as "Name not recorded". No analytics or tracking scripts on the
+their progress. The daily roll-up adds anyone missing from the roster (learners who started before it
+was kept) and copies a profile rename to it, so a new name shows there by the next day. No analytics or tracking scripts on the
 site; no third-party cookies.

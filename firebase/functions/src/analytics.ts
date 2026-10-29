@@ -263,6 +263,38 @@ export function recountFromSource(
   return { org, courses: out };
 }
 
+/** One `courses/{id}/learners/{uid}` entry the roll-up writes (merged): missing, or with an old name. */
+export interface RosterWrite {
+  courseId: string;
+  uid: string;
+  displayName: string;
+  startedAt: Progress['startedAt'];
+}
+
+/**
+ * The roster entries that are missing (a learner who started before the roster was kept) or carry
+ * a name the learner has since changed on their profile. A learner without a profile keeps the
+ * name already stored, or gets an empty one. Progress of a course that does not exist is ignored.
+ */
+export function planRoster(
+  courses: ReadonlyMap<string, unknown>,
+  progressDocs: readonly unknown[],
+  names: ReadonlyMap<string, string>,
+  rosters: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): RosterWrite[] {
+  const writes: RosterWrite[] = [];
+  for (const raw of progressDocs) {
+    const parsed = progressSchema.safeParse(raw);
+    if (!parsed.success || !courses.has(parsed.data.courseId)) continue;
+    const { uid, courseId, startedAt } = parsed.data;
+    const stored = rosters.get(courseId)?.get(uid);
+    const name = names.get(uid);
+    if (stored !== undefined && (name === undefined || name === stored)) continue;
+    writes.push({ courseId, uid, displayName: name ?? '', startedAt });
+  }
+  return writes;
+}
+
 /** The counts the daily roll-up recomputes from the source collections. */
 export interface RollupCounts extends OrgRecount {
   usersTotal: number;
@@ -285,6 +317,12 @@ export interface RollupStore {
   progress(): Promise<unknown[]>;
   /** Every graded attempt, across every learner. */
   attempts(): Promise<StoredAttempt[]>;
+  /** Every profile's display name, by uid. */
+  userNames(): Promise<Map<string, string>>;
+  /** One course's `learners` roster: display name by uid. */
+  roster(courseId: string): Promise<Map<string, string>>;
+  /** Merges these entries into the course rosters. */
+  writeRoster(writes: readonly RosterWrite[]): Promise<void>;
   /** Overwrites these counters on `stats/org`; `weekly` is left alone. */
   writeOrgCounts(counts: RollupCounts): Promise<void>;
   /** Overwrites every counter on `stats/course_{id}`. */
@@ -296,6 +334,7 @@ export interface RollupSummary extends RollupCounts {
   courses: number;
   progressDocs: number;
   attempts: number;
+  rosterWrites: number;
 }
 
 /** The start of the "active in the last 30 days" window. */
@@ -317,9 +356,9 @@ function readableCourses(docs: { id: string; data: unknown }[]): Map<string, Cou
 /**
  * `dailyRollup`: recomputes every counter the triggers keep, except `weekly` (no lesson stores when
  * it was completed, so a week cannot be rebuilt), and overwrites them, fixing any drift. Counts come
- * from count() aggregations; the rest reads each course, progress and attempt document once, a few
- * thousand reads a day at 200 people. An increment that lands between the read and the write is
- * lost until the next run.
+ * from count() aggregations; the rest reads each course, progress, attempt, profile and roster
+ * document once, a few thousand reads a day at 200 people. An increment that lands between the read
+ * and the write is lost until the next run. It also fills in the course rosters (`planRoster`).
  */
 export async function runDailyRollup(store: RollupStore, now: number): Promise<RollupSummary> {
   const [usersTotal, activeLearners30d, assignmentsTotal, assignmentsCompleted] = await Promise.all(
@@ -330,17 +369,22 @@ export async function runDailyRollup(store: RollupStore, now: number): Promise<R
       store.countCompletedAssignments(),
     ],
   );
-  const [courseDocs, progressDocs, attempts] = await Promise.all([
+  const [courseDocs, progressDocs, attempts, names] = await Promise.all([
     store.courses(),
     store.progress(),
     store.attempts(),
+    store.userNames(),
   ]);
   const courses = readableCourses(courseDocs);
   const recount = recountFromSource(courses, progressDocs, attempts);
+  const rosters = new Map<string, Map<string, string>>();
   for (const [courseId, counts] of Object.entries(recount.courses)) {
     const assigned = await store.countCourseAssignments(courseId);
     await store.writeCourseCounts(courseId, { assigned, ...counts });
+    rosters.set(courseId, await store.roster(courseId));
   }
+  const rosterWrites = planRoster(courses, progressDocs, names, rosters);
+  if (rosterWrites.length > 0) await store.writeRoster(rosterWrites);
   const counts: RollupCounts = {
     usersTotal,
     activeLearners30d,
@@ -354,5 +398,6 @@ export async function runDailyRollup(store: RollupStore, now: number): Promise<R
     courses: courses.size,
     progressDocs: progressDocs.length,
     attempts: attempts.length,
+    rosterWrites: rosterWrites.length,
   };
 }

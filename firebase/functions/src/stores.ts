@@ -525,6 +525,31 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
         data: d.data(),
       }));
     },
+    async userNames() {
+      const names = new Map<string, string>();
+      for (const d of await readAll(db.collection('users'))) {
+        const name: unknown = d.get('displayName');
+        if (typeof name === 'string') names.set(d.id, name);
+      }
+      return names;
+    },
+    async roster(courseId) {
+      const docs = await readAll(db.collection(`courses/${courseId}/learners`));
+      return new Map(docs.map((d) => [d.id, String(d.get('displayName') ?? '')]));
+    },
+    async writeRoster(writes) {
+      for (let i = 0; i < writes.length; i += PAGE) {
+        const batch = db.batch();
+        for (const { courseId, uid, displayName, startedAt } of writes.slice(i, i + PAGE)) {
+          batch.set(
+            db.doc(`courses/${courseId}/learners/${uid}`),
+            { displayName, startedAt },
+            { merge: true },
+          );
+        }
+        await batch.commit();
+      }
+    },
     async writeOrgCounts(counts) {
       await db.doc('stats/org').set(counts, { merge: true });
     },
