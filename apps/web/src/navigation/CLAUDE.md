@@ -6,7 +6,7 @@ Back-pointer: [`../../CLAUDE.md`](../../CLAUDE.md).
 ## The rule
 
 **Adding, renaming, removing or changing access to a page means editing that area's
-`areas/<slug>.ts` in the same change.** Search is generated from it (and, from M1, the sidebar).
+`areas/<slug>.ts` in the same change.** Search and the sidebar are generated from it.
 Every path in `src/route-paths.ts` must be classified there, and `npm run validate:navigation`
 must pass — the build, CI and the Claude `navigation-nudge` hook all run it.
 
@@ -54,5 +54,5 @@ Escape and the backdrop close, focus returns to where it was. Twenty rows, then 
 Enter is ignored while an IME is composing. Matching 1,000 destinations is asserted under 25 ms
 per query in `test/navigation-search.test.ts` (it measures well under 1 ms).
 
-Roles come from the session from M1; until then everyone searches as a Shishya. Access in search
+Roles come from the session's custom claims; everyone signed in is a Shishya. Access in search
 is convenience only — Firestore rules are the gate.

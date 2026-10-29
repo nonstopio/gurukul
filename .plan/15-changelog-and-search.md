@@ -30,13 +30,14 @@ system, Platform. **Kinds:** New, Fix, Security, Operability, Docs, Housekeeping
 ## Global search
 
 **What:** Ctrl K / ⌘K (or the Search button) opens a palette that finds any page the person can
-open, by name, area or other words for it. Today that is Home and Changelog; every milestone adds
-its pages.
+open, by name, area or other words for it: the learner pages, the Kulapati console and Vyasa
+Studio for those roles, and the changelog.
 
 **How:**
 
 - Per-area metadata in `apps/web/src/navigation/areas/<slug>.ts` (plain data: pages, roles,
-  keywords, unlisted routes with reasons). Search, and the sidebar from M1, are generated from it.
+  keywords, unlisted routes with reasons): `learner`, `kulapati`, `studio`, and `platform` for
+  pages that belong to no one area. Search and the sidebar are generated from it.
 - Access is filtered before matching, so nothing a person cannot open is ranked or shown.
 - Local, deterministic ranking (exact label, prefix, path terms, contains, keywords); no network.
 - `npm run validate:navigation` fails if any route is unclassified or any page points nowhere.
