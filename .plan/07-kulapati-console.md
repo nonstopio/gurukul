@@ -53,7 +53,9 @@ file. After assigning exactly one course the console opens Learners filtered to 
 
 ## Email notifications
 
-Firebase has no built-in email sending. Options, decided in open questions:
+Firebase has no built-in email sending. Decided (open question 4): the first option, sender
+`gurukul@nonstopio.com`, in `firebase/functions/src/gmail.ts` behind a `Mailer` port; without
+credentials it logs a warning and sends nothing. Options considered:
 
 | Option | Cost | Notes |
 |---|---|---|

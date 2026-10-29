@@ -41,9 +41,11 @@ outline shows (`05-learner-experience.md`), so the lock holds outside the app.
   No server rendering, no Storage.
 - "Add to LinkedIn" uses LinkedIn's add-certification URL with the
   organisation name, credential id and verification URL.
-- Kulapatis can revoke a certificate (it stays on the verify page as revoked).
+- Kulapatis can revoke a certificate (it stays on the verify page as revoked). A new revocation
+  emails the learner the course name and `gurukul@nonstopio.com` as the contact; a restore, or a
+  repeat revoke, sends nothing, and a failed send never undoes the revocation.
 
 ## Open questions
 
 - ~~Who signs certificates~~ Resolved: the name and role are a setting in the Kulapati console (`GIT-05`).
-- ~~Should a revoked certificate's learner be notified?~~ Resolved: yes, by email once email delivery exists (`PRK-10`, `KUL-24`).
+- ~~Should a revoked certificate's learner be notified?~~ Resolved: yes, by email through the `KUL-24` sender (`PRK-10`).

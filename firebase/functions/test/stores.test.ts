@@ -333,22 +333,47 @@ describe('firestoreCertificateAdmin', () => {
     const update = vi.fn().mockResolvedValue(undefined);
     const get = vi
       .fn()
-      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({
+        exists: true,
+        get: (f: string) => ({ uid: 'u1', courseTitle: 'Git basics', revoked: false })[f],
+      })
       .mockResolvedValueOnce({ exists: false });
     const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
     const admin = firestoreCertificateAdmin(db);
-    expect(await admin.setRevoked('NSG-GIT-26-0001', true)).toBe(true);
+    expect(await admin.setRevoked('NSG-GIT-26-0001', true)).toEqual({
+      uid: 'u1',
+      courseTitle: 'Git basics',
+      changed: true,
+    });
     expect(update).toHaveBeenCalledWith({ revoked: true, revokedAt: 'NOW' });
-    expect(await admin.setRevoked('NSG-GIT-26-0002', true)).toBe(false);
+    expect(await admin.setRevoked('NSG-GIT-26-0002', true)).toBeNull();
     expect(update).toHaveBeenCalledOnce();
   });
 
   it('clears the revocation date on restore', async () => {
     const update = vi.fn().mockResolvedValue(undefined);
-    const get = vi.fn().mockResolvedValue({ exists: true });
+    const get = vi.fn().mockResolvedValue({
+      exists: true,
+      get: (f: string) => ({ uid: 'u1', courseTitle: 'Git basics', revoked: false })[f],
+    });
     const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
-    expect(await firestoreCertificateAdmin(db).setRevoked('NSG-GIT-26-0001', false)).toBe(true);
+    expect(await firestoreCertificateAdmin(db).setRevoked('NSG-GIT-26-0001', false)).toMatchObject({
+      changed: false,
+    });
     expect(update).toHaveBeenCalledWith({ revoked: false, revokedAt: null });
+  });
+
+  it('reads the learner email from the profile, or null when there is none', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ get: () => 'asha@example.com' })
+      .mockResolvedValueOnce({ get: () => undefined })
+      .mockResolvedValueOnce({ get: () => '' });
+    const db = { doc: vi.fn().mockReturnValue({ get }) } as never;
+    const admin = firestoreCertificateAdmin(db);
+    expect(await admin.emailOf('u1')).toBe('asha@example.com');
+    expect(await admin.emailOf('u2')).toBeNull();
+    expect(await admin.emailOf('u3')).toBeNull();
   });
 
   it('writes the audit entry with a server timestamp', async () => {

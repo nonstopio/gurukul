@@ -17,8 +17,13 @@ For the maintainer. The deployment itself is described in `.plan/11-deployment-a
 
 ## Email
 
-Assignment and reminder emails are written to a `mail` collection and not sent. Choose a sender
-(`.plan/13-open-questions.md`, question 4) and connect it to that collection.
+Assignment, reminder and revocation emails go out through the Gmail API as `gurukul@nonstopio.com`
+(a service account with domain-wide delegation, impersonating that mailbox; scope `gmail.send`).
+Without credentials the functions log `Email skipped` at warn and send nothing, so deploys never
+depend on the mailbox. To turn it on (maintainer row OPS-25): create the mailbox, grant the service
+account delegation for the `gmail.send` scope in the Workspace admin console, and give the functions
+the key JSON as `GMAIL_CREDENTIALS` (a secret, never committed). Optional: `MAIL_FROM`,
+`MAIL_REPLY_TO` (default: the sender) and `SITE_URL` (default: the production site).
 
 ## Backups
 
@@ -79,11 +84,3 @@ first. Before each test the emulators are cleared and the seeded course is put b
 - A failed run leaves `e2e/playwright-report/` and `e2e/test-results/` (traces and screenshots);
   open one with `npx playwright show-report e2e/playwright-report`. CI uploads both as the
   `playwright-report` artifact when the `e2e` job fails.
-
-## Turning on email
-
-Assignment and reminder emails are written to the `mail` collection as `{ to, message: { subject, text } }`.
-Install the Firebase extension "Trigger Email from Firestore" (collection `mail`, SMTP URI from your
-mail provider, kept as an extension secret, never in this repository). The extension sends each
-document and records the outcome in a `delivery` field. Until it is installed, nothing is sent and
-learners see assignments on their next sign-in.
