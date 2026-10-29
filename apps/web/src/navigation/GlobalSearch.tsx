@@ -2,15 +2,26 @@
 //
 // Mounted once, in App, around every page. The header's SearchTrigger opens the same palette
 // through context. Destinations come from the per-area metadata in `areas/*.ts`, filtered to what
-// this person can open BEFORE matching, so nothing inaccessible is ever ranked or shown.
+// this person can open BEFORE matching, so nothing inaccessible is ever ranked or shown. Record
+// results (courses and lessons) come from `sources`, loaded once on first open and ranked with the
+// pages; an empty query lists pages only.
 
 import { CommandPalette } from '@gurukul/ui';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import { destinationsFor } from './catalog';
 import { AREAS } from './index';
-import { indexDestinations, searchDestinations } from './search';
-import type { AreaNavigation, Destination, Role } from './types';
+import { loadRecords } from './records';
+import { indexDestinations, normalize, searchDestinations } from './search';
+import type { AreaNavigation, Destination, RecordSource, Role } from './types';
 
 interface GlobalSearchValue {
   open: boolean;
@@ -34,18 +45,46 @@ export interface GlobalSearchProviderProps {
   /** The signed-in person's roles. Until sign-in lands (M1) everyone is a Shishya. */
   roles?: readonly Role[];
   areas?: readonly AreaNavigation[];
+  /** Record results (courses today), loaded the first time the palette opens. */
+  sources?: readonly RecordSource[];
   mac?: boolean;
 }
+
+const SHISHYA: readonly Role[] = ['shishya'];
+const NO_SOURCES: readonly RecordSource[] = [];
 
 export function GlobalSearchProvider({
   children,
   navigate,
-  roles = ['shishya'],
+  roles = SHISHYA,
   areas = AREAS,
+  sources = NO_SOURCES,
   mac = isMac(),
 }: GlobalSearchProviderProps) {
   const [open, setOpen] = useState(false);
-  const index = useMemo(() => indexDestinations(destinationsFor(areas, roles)), [areas, roles]);
+  // Records are kept with the sources and roles they were loaded for, so a change of roles never
+  // shows what the previous roles could see while the new load is in flight.
+  const scope = useMemo(() => ({ sources, roles }), [sources, roles]);
+  const [records, setRecords] = useState({ scope, list: [] as Destination[] });
+  const index = useMemo(
+    () =>
+      indexDestinations([
+        ...destinationsFor(areas, roles),
+        ...(records.scope === scope ? records.list : []),
+      ]),
+    [areas, roles, records, scope],
+  );
+
+  // Once per scope, and only when someone actually opens search: no reads before that.
+  const requested = useRef<typeof scope | null>(null);
+  useEffect(() => {
+    if (!open || requested.current === scope) return;
+    requested.current = scope;
+    void loadRecords(scope.sources, scope.roles).then((list) => {
+      // A slower load for an earlier scope must not overwrite a newer one.
+      if (requested.current === scope) setRecords({ scope, list });
+    });
+  }, [open, scope]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,14 +103,18 @@ export function GlobalSearchProvider({
   const close = useCallback(() => setOpen(false), []);
   const openSearch = useCallback(() => setOpen(true), []);
   const search = useCallback(
-    (query: string) =>
-      searchDestinations(index, query).map((d: Destination) => ({
-        id: d.id,
-        label: d.label,
-        sub: [d.areaName, d.description].filter(Boolean).join(' · '),
-        kind: 'Page',
-        value: d.path,
-      })),
+    (query: string) => {
+      const typed = normalize(query) !== '';
+      return searchDestinations(index, query)
+        .filter((d) => typed || !d.kind)
+        .map((d: Destination) => ({
+          id: d.id,
+          label: d.label,
+          sub: [d.areaName, d.description].filter(Boolean).join(' · '),
+          kind: d.kind ?? 'Page',
+          value: d.path,
+        }));
+    },
     [index],
   );
   const select = useCallback(
@@ -95,8 +138,8 @@ export function GlobalSearchProvider({
         search={search}
         onSelect={select}
         label="Search Gurukul"
-        placeholder="Search pages…"
-        emptyText="No pages match"
+        placeholder="Search pages, courses and lessons…"
+        emptyText="Nothing matches"
       />
     </Ctx.Provider>
   );

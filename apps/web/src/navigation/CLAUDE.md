@@ -18,6 +18,7 @@ must pass — the build, CI and the Claude `navigation-nudge` hook all run it.
 | `types.ts`                     | `AreaNavigation`, `PageNavigation`, `Destination`, `Role`                                                                         |
 | `catalog.ts`                   | Collects areas (by file name) and filters pages to what this person can open, **before** matching                                 |
 | `search.ts`                    | The local matcher. Ranking is in its header. No network, no debounce, no dependency                                               |
+| `records.ts`                   | Record results (courses and lessons today) as `RecordSource`s, and `loadRecords`, which drops a failed source and logs it         |
 | `validate.ts`                  | The rules; `scripts/validate-navigation.ts` runs them over the real files                                                         |
 | `GlobalSearch.tsx`             | The one provider, the one shortcut listener, the `SearchTrigger` button. Mounted once in `App.tsx`                                |
 | `packages/ui` `CommandPalette` | The dialog itself: combobox, listbox, keys. Knows nothing about pages                                                             |
@@ -46,6 +47,21 @@ x navigation: 1 problem
 ```
 
 A new area is a new file in `areas/`; nothing to register.
+
+## Record results
+
+Search also offers records — courses and their lessons today; people (Kulapatis) and draft
+courses (Acharyas) next. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
+and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The sources are built in
+`Frame` (`src/Shell.tsx`) and passed to `GlobalSearchProvider`, which:
+
+- loads them **once, the first time the palette opens** — no reads before someone searches, and a
+  source reuses a query the person's screens already make (courses: the catalogue's `listCourses`);
+- keeps them with the roles they were loaded for, so a change of roles never shows the old ones;
+- ranks them with the pages, but lists pages only while the query is empty.
+
+A source offers only what the person can already read; the rules are still the gate. A new source
+is one function in `records.ts` and one entry in `Frame`'s list.
 
 ## The palette
 

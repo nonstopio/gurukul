@@ -31,7 +31,8 @@ system, Platform. **Kinds:** New, Fix, Security, Operability, Docs, Housekeeping
 
 **What:** Ctrl K / ⌘K (or the Search button) opens a palette that finds any page the person can
 open, by name, area or other words for it: the learner pages, the Kulapati console and Vyasa
-Studio for those roles, and the changelog.
+Studio for those roles, and the changelog. It also finds every published course and lesson by its
+title.
 
 **How:**
 
@@ -43,13 +44,16 @@ Studio for those roles, and the changelog.
 - `npm run validate:navigation` fails if any route is unclassified or any page points nowhere.
   It runs in the build, in CI and in the `navigation-nudge` hook.
 - The dialog is `CommandPalette` in `packages/ui`, generic and fully keyboard-operable.
+- Records (courses and lessons) come from `RecordSource`s in `navigation/records.ts`, loaded once
+  when the palette first opens from the catalogue's own `listCourses` query, and ranked with the
+  pages. An empty query lists pages only.
 
 **Later (proposed, needs review):**
 
 | Milestone | Search gains |
 |---|---|
 | M1 | Real roles from the session; sidebar generated from the same metadata |
-| M2 | Courses and lessons as results (from published course documents, filtered client-side) |
+| M2 | Courses and lessons as results (from published course documents, filtered client-side) — built |
 | M4 | Kulapati: people by name or email |
 | M5 | Acharya: their draft courses |
 
