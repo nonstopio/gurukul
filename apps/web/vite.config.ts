@@ -12,6 +12,9 @@ export default defineConfig({
     // to the tests until the cache is cleared, and the "every file is collected" test fails on a
     // correct change. Measured: a new changelog entry was missing from CHANGES on the second run.
     fsModuleCache: false,
+    // Matches the 5 s wait in test/setup.ts with room to spare: a wait that is allowed to last 5 s
+    // must not be cut off by the 5 s default test timeout.
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
