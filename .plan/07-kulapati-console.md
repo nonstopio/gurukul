@@ -78,5 +78,7 @@ leaves it on the profiles that have it. One Save writes the whole document.
 ## Audit log
 
 Every Kulapati action (assign, role change, revoke, publish) writes
-`audit/{id}` from the function: who, what, when, target. Read-only in the
-console (M5).
+`audit/{id}` from the function: who, what, when, target and a `detail` map. Read-only in the
+console (M5). The view pages back through the whole history, 50 entries at a time (ordered by
+`at`, then document id); people (the doer, and the target of a role change or retake) show as
+name or email; a Detail column words `detail` (an `assign` entry records the assigned emails).

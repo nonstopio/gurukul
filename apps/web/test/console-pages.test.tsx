@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { AssignmentFull } from '../src/console/types';
+import type { AssignmentFull, AuditRow } from '../src/console/types';
 import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { fakeData, makeCourse, progressRow } from './fake-data';
@@ -167,17 +167,49 @@ describe('Audit log', () => {
           id: 'a1',
           action: 'roles.set',
           by: 'boss@nonstopio.com',
-          target: 'u2',
+          target: 'Dev Rao',
+          detail: { acharya: true },
           at: new Date('2026-03-01T10:00:00Z'),
         },
-        { id: 'a2', action: 'odd.thing', by: 'u9', target: null, at: null },
+        { id: 'a2', action: 'odd.thing', by: 'u9', target: null, detail: {}, at: null },
       ],
     });
     const { container } = await openApp('/kulapati/audit', { ...kulapati, console: c });
     expect(await screen.findByText('Changed a role')).toBeTruthy();
     expect(screen.getByText('boss@nonstopio.com')).toBeTruthy();
+    expect(screen.getByText('Dev Rao')).toBeTruthy();
+    expect(screen.getByText('Now acharya')).toBeTruthy();
     expect(screen.getByText('odd.thing')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('loads older entries on request, and says when that fails', async () => {
+    const row = (id: string): AuditRow => ({
+      id,
+      action: 'course.publish',
+      by: 'boss@nonstopio.com',
+      target: id,
+      detail: { version: 2 },
+      at: new Date('2026-03-01T10:00:00Z'),
+    });
+    const cursor = { at: new Date('2026-03-01T10:00:00Z'), id: 'one' };
+    const c = fakeConsole();
+    c.data.auditPage = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [row('one')], nextCursor: cursor })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ rows: [row('two')], nextCursor: { ...cursor, id: 'two' } })
+      .mockResolvedValueOnce({ rows: [row('three')], nextCursor: null });
+    await openApp('/kulapati/audit', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText(/Could not load more entries/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText('two')).toBeTruthy();
+    expect(screen.queryByText(/Could not load more entries/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText('three')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Load older entries' })).toBeNull();
+    expect(c.data.auditPage).toHaveBeenLastCalledWith({ ...cursor, id: 'two' }, 50);
   });
 
   it('says so when nothing has been recorded', async () => {

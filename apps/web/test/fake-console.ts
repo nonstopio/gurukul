@@ -80,7 +80,7 @@ export function fakeConsole(
     allCourses: vi.fn(async () => init.courses ?? [makeCourse()]),
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
-    auditLog: vi.fn().mockResolvedValue(init.audit ?? []),
+    auditPage: vi.fn().mockResolvedValue({ rows: init.audit ?? [], nextCursor: null }),
     orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
     saveOrgSettings: vi.fn().mockResolvedValue(undefined),
   };

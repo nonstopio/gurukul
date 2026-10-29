@@ -572,3 +572,52 @@ export function pendingInvites(
     .sort((a, b) => (b.invitedAt?.getTime() ?? 0) - (a.invitedAt?.getTime() ?? 0));
   return { shown: all.slice(0, ATTENTION_LIMIT), total: all.length };
 }
+
+const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+const count = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+const list = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+const AUDIT_NAMES_SHOWN = 3;
+
+/** Who was assigned, e.g. "a@x.com, b@x.com and 4 more"; entries from before emails were recorded say how many. */
+const assignedWho = (detail: Record<string, unknown>): string => {
+  const emails = list(detail.emails);
+  if (emails.length === 0) return `${count(detail.count) ?? 0} assignments`;
+  const shown = emails.slice(0, AUDIT_NAMES_SHOWN).join(', ');
+  const more = emails.length - AUDIT_NAMES_SHOWN;
+  return more > 0 ? `${shown} and ${more} more` : shown;
+};
+
+/** The recorded detail of an audit entry in a short sentence; null when there is nothing to add. */
+export function auditDetail(action: string, detail: Record<string, unknown>): string | null {
+  switch (action) {
+    case 'assign': {
+      const courses = list(detail.courseIds).join(', ');
+      return `${assignedWho(detail)}${courses === '' ? '' : ` to ${courses}`}`;
+    }
+    case 'reminders.send':
+      return `Sent ${count(detail.sent) ?? 0}, skipped ${count(detail.skipped) ?? 0}${
+        text(detail.courseId) === null ? '' : ` for ${text(detail.courseId)}`
+      }`;
+    case 'roles.set':
+    case 'roles.bootstrap': {
+      const held = (['acharya', 'kulapati'] as const).filter((r) => detail[r] === true);
+      return held.length === 0 ? 'Learner only' : `Now ${held.join(' and ')}`;
+    }
+    case 'cooldown.reset':
+      return [text(detail.courseId), text(detail.parikshaId)].filter(Boolean).join(' / ') || null;
+    case 'certificate.revoke':
+    case 'certificate.restore':
+      return null;
+    case 'course.create':
+      return text(detail.duplicateFrom) === null ? null : `Copy of ${text(detail.duplicateFrom)}`;
+    case 'course.publish':
+      return count(detail.version) === null ? null : `Version ${count(detail.version)}`;
+    case 'course.rollback':
+      return `Back to version ${count(detail.restoredVersion) ?? '?'}, now version ${count(detail.version) ?? '?'}`;
+    case 'course.archive':
+      return text(detail.status);
+    default:
+      return null;
+  }
+}

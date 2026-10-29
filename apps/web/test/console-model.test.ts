@@ -10,6 +10,7 @@ import {
   visibleFailed,
   addTeam,
   assignmentsCsv,
+  auditDetail,
   auditLabel,
   averageDays,
   buildLearnerRows,
@@ -334,6 +335,45 @@ describe('auditLabel', () => {
   it('words known actions and shows unknown ones as written', () => {
     expect(auditLabel('roles.set')).toBe('Changed a role');
     expect(auditLabel('something.new')).toBe('something.new');
+  });
+});
+
+describe('auditDetail', () => {
+  it('says who was assigned, naming a few and counting the rest', () => {
+    expect(
+      auditDetail('assign', { courseIds: ['git', 'sql'], count: 2, emails: ['a@x.com'] }),
+    ).toBe('a@x.com to git, sql');
+    expect(
+      auditDetail('assign', { courseIds: ['git'], count: 5, emails: ['a', 'b', 'c', 'd', 'e'] }),
+    ).toBe('a, b, c and 2 more to git');
+    expect(auditDetail('assign', { courseIds: ['git'], count: 4 })).toBe('4 assignments to git');
+    expect(auditDetail('assign', {})).toBe('0 assignments');
+  });
+
+  it('words each other action, and says nothing when there is nothing to add', () => {
+    expect(auditDetail('reminders.send', { sent: 3, skipped: 1, courseId: 'git' })).toBe(
+      'Sent 3, skipped 1 for git',
+    );
+    expect(auditDetail('reminders.send', { courseId: null })).toBe('Sent 0, skipped 0');
+    expect(auditDetail('roles.set', { acharya: true, kulapati: true })).toBe(
+      'Now acharya and kulapati',
+    );
+    expect(auditDetail('roles.bootstrap', { acharya: false, kulapati: false })).toBe(
+      'Learner only',
+    );
+    expect(auditDetail('cooldown.reset', { courseId: 'git', parikshaId: 'p1' })).toBe('git / p1');
+    expect(auditDetail('cooldown.reset', {})).toBeNull();
+    expect(auditDetail('certificate.revoke', { revoked: true })).toBeNull();
+    expect(auditDetail('course.create', { duplicateFrom: 'git' })).toBe('Copy of git');
+    expect(auditDetail('course.create', {})).toBeNull();
+    expect(auditDetail('course.publish', { version: 4 })).toBe('Version 4');
+    expect(auditDetail('course.publish', {})).toBeNull();
+    expect(auditDetail('course.rollback', { restoredVersion: 2, version: 5 })).toBe(
+      'Back to version 2, now version 5',
+    );
+    expect(auditDetail('course.rollback', {})).toBe('Back to version ?, now version ?');
+    expect(auditDetail('course.archive', { status: 'archived' })).toBe('archived');
+    expect(auditDetail('odd.thing', { x: 1 })).toBeNull();
   });
 });
 

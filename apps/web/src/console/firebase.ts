@@ -34,7 +34,8 @@ const ASSIGNMENT_LIMIT = 500;
 const OPEN_LIMIT = 2000;
 /** Failed-twice detection looks only at the most recently active learners. */
 const RECENT_PROGRESS_LIMIT = 100;
-const AUDIT_LIMIT = 100;
+/** Audit actions whose `target` is a person's uid, shown as a name. */
+const USER_TARGETS = new Set(['roles.set', 'roles.bootstrap', 'cooldown.reset']);
 const SEARCH_LIMIT = 8;
 const COURSE_LIMIT = 100;
 const PERSON_ASSIGNMENT_LIMIT = 50;
@@ -261,29 +262,53 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async saveOrgSettings(settings) {
       await setDoc(doc(db, 'config', 'org'), orgConfigSchema.parse(settings));
     },
-    async auditLog() {
+    async auditPage(after, pageSize) {
+      const base = [collection(db, 'audit'), orderBy('at', 'desc')] as const;
       const snap = await getDocs(
-        query(collection(db, 'audit'), orderBy('at', 'desc'), limit(AUDIT_LIMIT)),
+        after === null
+          ? query(...base, limit(pageSize + 1))
+          : query(...base, startAfter(after.at, after.id), limit(pageSize + 1)),
       );
-      const uids = [...new Set(snap.docs.map((d) => d.data().by as string))];
-      const emails = new Map(
+      const shown = snap.docs.slice(0, pageSize);
+      const uids = [
+        ...new Set(
+          shown.flatMap((d) => {
+            const a = d.data();
+            return [a.by, ...(USER_TARGETS.has(a.action as string) ? [a.target] : [])].filter(
+              (v) => typeof v === 'string',
+            );
+          }),
+        ),
+      ] as string[];
+      const names = new Map(
         await Promise.all(
           uids.map(async (uid) => {
             const user = await getDoc(doc(db, 'users', uid));
-            return [uid, user.exists() ? (user.data().email as string) : uid] as const;
+            const u = user.data();
+            return [uid, u ? (u.displayName as string) || (u.email as string) : uid] as const;
           }),
         ),
       );
-      return snap.docs.map((d): AuditRow => {
+      const rows = shown.map((d): AuditRow => {
         const a = d.data();
+        const target = (a.target as string | undefined) ?? null;
         return {
           id: d.id,
           action: a.action as string,
-          by: emails.get(a.by as string) as string,
-          target: (a.target as string | undefined) ?? null,
+          by: names.get(a.by as string) as string,
+          target:
+            target !== null && USER_TARGETS.has(a.action as string)
+              ? (names.get(target) as string)
+              : target,
+          detail: (a.detail as Record<string, unknown> | undefined) ?? {},
           at: date(a.at as Ts),
         };
       });
+      const last = rows[rows.length - 1];
+      return {
+        rows,
+        nextCursor: snap.docs.length > pageSize && last?.at ? { at: last.at, id: last.id } : null,
+      };
     },
   };
 }

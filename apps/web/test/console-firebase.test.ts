@@ -30,7 +30,7 @@ vi.mock('firebase/firestore', () => ({
   setDoc: async (ref: { path: string }, value: unknown) => {
     store.docs.set(ref.path, value);
   },
-  startAfter: (v: string) => ({ startAfter: v }),
+  startAfter: (...v: unknown[]) => ({ startAfter: v }),
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
@@ -169,7 +169,7 @@ describe('users', () => {
     store.queue = [[user(3)]];
     const last = await data.usersPage('u2@nonstopio.com', 2);
     expect(last).toMatchObject({ nextCursor: null });
-    expect(store.queries[1]).toContainEqual({ startAfter: 'u2@nonstopio.com' });
+    expect(store.queries[1]).toContainEqual({ startAfter: ['u2@nonstopio.com'] });
     store.queue = [[]];
     expect(await data.usersPage(null, 2)).toEqual({ rows: [], nextCursor: null });
   });
@@ -333,22 +333,44 @@ describe('progress, certificates and known emails', () => {
     });
   });
 
-  it('reads the newest audit entries and resolves each doer to an email once', async () => {
-    store.docs.set('users/boss', { email: 'boss@nonstopio.com' });
+  it('reads a page of audit entries and resolves people to names once', async () => {
+    store.docs.set('users/boss', { email: 'boss@nonstopio.com', displayName: 'Boss' });
+    store.docs.set('users/dev', { email: 'dev@nonstopio.com', displayName: '' });
     store.queue = [
       [
-        d('a1', { action: 'assign', by: 'boss', target: 'git', at: ts(9) }),
-        d('a2', { action: 'roles.set', by: 'boss' }),
-        d('a3', { action: 'course.publish', by: 'gone', at: ts(1) }),
+        d('a1', {
+          action: 'roles.set',
+          by: 'boss',
+          target: 'dev',
+          detail: { acharya: true },
+          at: ts(9),
+        }),
+        d('a2', { action: 'course.publish', by: 'boss', target: 'git' }),
+        d('a3', { action: 'roles.set', by: 'gone', target: 'gone2', at: ts(1) }),
+        d('a4', { action: 'assign', by: 'boss', at: ts(0) }),
       ],
     ];
-    const rows = await data.auditLog();
+    const page = await data.auditPage(null, 3);
     expect(store.queries[0]).toContainEqual({ orderBy: ['at', 'desc'] });
-    expect(store.queries[0]).toContainEqual({ limit: 100 });
-    expect(rows.map((r) => [r.by, r.target, r.at?.getTime() ?? null])).toEqual([
-      ['boss@nonstopio.com', 'git', 9],
-      ['boss@nonstopio.com', null, null],
-      ['gone', null, 1],
+    expect(store.queries[0]).toContainEqual({ limit: 4 });
+    expect(page.rows.map((r) => [r.by, r.target, r.detail, r.at?.getTime() ?? null])).toEqual([
+      ['Boss', 'dev@nonstopio.com', { acharya: true }, 9],
+      ['Boss', 'git', {}, null],
+      ['gone', 'gone2', {}, 1],
     ]);
+    expect(page.nextCursor).toEqual({ at: new Date(1), id: 'a3' });
+  });
+
+  it('continues after a cursor, and ends when the last page is short', async () => {
+    store.docs.set('users/boss', { email: 'boss@nonstopio.com', displayName: 'Boss' });
+    store.queue = [
+      [d('a5', { action: 'assign', by: 'boss', at: ts(5) })],
+      [d('a6', { action: 'assign', by: 'boss' })],
+    ];
+    const cursor = { at: new Date(7), id: 'a4' };
+    const page = await data.auditPage(cursor, 3);
+    expect(store.queries[0]).toContainEqual({ startAfter: [cursor.at, 'a4'] });
+    expect(page.nextCursor).toBeNull();
+    expect((await data.auditPage(null, 1)).nextCursor).toBeNull();
   });
 });
