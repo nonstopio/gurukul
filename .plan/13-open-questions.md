@@ -7,7 +7,7 @@ Each has a recommendation. Answer inline or in the review.
 | 1 | What is "AVB" from the brief? | Clarify; parked out of scope until then | — |
 | 2 | Firestore location: `asia-south1` (Mumbai)? It cannot change later. | Yes, asia-south1 | M1 |
 | 3 | Domain lock: rules-only, or also Identity Platform blocking function? | **Resolved as built:** rules-only. `signedIn()` in `firebase/firestore.rules` requires a verified `@nonstopio.com` Google account; there is no blocking function. Revisit if Gmail accounts become noise | M1 |
-| 4 | Email for assignments and reminders: Gmail API via a NonStop mailbox, SMTP extension, or none in v1? | **Resolved:** Gmail API from a function, sender `academy@nonstopio.com`. Built as `KUL-24` | M4 |
+| 4 | Email for assignments and reminders: Gmail API via a NonStop mailbox, SMTP extension, or none in v1? | **Resolved:** Gmail API from a function, sender `gurukul@nonstopio.com`. Built as `KUL-24` | M4 |
 | 5 | Who signs certificates (name, role)? | **Resolved:** the signatory is a setting in the Kulapati console, not code (`GIT-05`) | M3 |
 | 6 | Public name and URL: `nonstop-gurukul.web.app`, or a custom domain like `academy.nonstopio.com`? | **Resolved:** custom domain `gurukul.nonstopio.com` (`OPS-18`, DNS in `OPS-24`) | M6 |
 | 7 | Should Acharyas see learner names in course analytics? | **Resolved:** yes, for their own courses only (`KUL-25`) | M4 |
