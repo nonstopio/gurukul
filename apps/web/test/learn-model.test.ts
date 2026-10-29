@@ -40,6 +40,7 @@ const assignment = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   dueAt: null,
   mandatory: false,
   status: 'assigned',
+  assignedByName: null,
   ...over,
 });
 const progress = (over: Partial<ProgressRow> = {}): ProgressRow => ({

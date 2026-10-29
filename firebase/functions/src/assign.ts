@@ -8,7 +8,7 @@ import { buildAssignedEmail } from './mail.js';
 import type { Mailer } from './mail.js';
 import { badCount, badField } from './validation.js';
 
-/** One assignment document to create; the adapter stamps `assignedBy`, `assignedAt` and `status`. */
+/** One assignment document to create; the adapter stamps `assignedBy`, `assignedByName`, `assignedAt` and `status`. */
 export interface NewAssignment {
   id: string;
   email: string;
@@ -28,7 +28,11 @@ export interface AssignStore {
   /** Which of these assignment ids already exist. */
   existingAssignmentIds(ids: string[]): Promise<Set<string>>;
   /** Creates the documents (never overwrites), in batches. */
-  createAssignments(assignedBy: string, docs: NewAssignment[]): Promise<void>;
+  createAssignments(
+    assignedBy: string,
+    assignedByName: string | null,
+    docs: NewAssignment[],
+  ): Promise<void>;
   /** Adds to `stats/course_{id}.assigned` and `stats/org.assignmentsTotal`. */
   bumpAssigned(perCourse: Record<string, number>): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
@@ -156,7 +160,7 @@ export async function assignCourses(
   }
 
   if (docs.length > 0) {
-    await store.createAssignments(caller.uid, docs);
+    await store.createAssignments(caller.uid, caller.name?.trim() || null, docs);
     await store.bumpAssigned(perCourse);
   }
   await store.audit({

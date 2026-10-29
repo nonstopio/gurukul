@@ -15,7 +15,7 @@ import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
-import { countItems, hasNewLessons, isRetired, percentFor } from './learn/model';
+import { countItems, dueLabel, hasNewLessons, isRetired, percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
 import { Loaded, RetiredNote } from './learn/ui';
 import { openParvasKey, readOpenParvas, writeOpenParvas } from './learn/openParvas';
@@ -31,19 +31,27 @@ const STATE_LABEL: Record<ItemState, string> = {
 };
 
 /** A course's overview: description, outcomes, the outline with per-item state, and Resume. */
-export function CoursePage() {
+export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
   const { courseId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
+  // The due date is a nicety: if assignments fail to load the overview still opens without it.
+  const assignments = useAsync(
+    useCallback(() => data.myAssignments(uid).catch(() => []), [data, uid]),
+  );
+  const dueAt =
+    assignments.state === 'ready'
+      ? (assignments.value.find((a) => a.courseId === courseId)?.dueAt ?? null)
+      : null;
 
   return (
     <Loaded loadable={result}>
       {(course) =>
         course ? (
-          <Overview course={course} progress={progress} uid={uid} />
+          <Overview course={course} progress={progress} uid={uid} dueAt={dueAt} now={now} />
         ) : (
           <main className="page">
             <EmptyState
@@ -78,10 +86,14 @@ function Overview({
   course,
   progress,
   uid,
+  dueAt,
+  now,
 }: {
   course: Course;
   progress: ProgressRow | null;
   uid: string;
+  dueAt: Date | null;
+  now: () => Date;
 }) {
   const state = progress ?? NO_PROGRESS;
   const states = itemStates(course, state);
@@ -98,140 +110,169 @@ function Overview({
     writeOpenParvas(storeKey, next);
   };
   const acharyas = Object.values(course.acharyaNames);
+  const due = dueAt
+    ? {
+        ...dueLabel(dueAt, now()),
+        date: dueAt.toLocaleDateString('en-IN', { dateStyle: 'medium' }),
+      }
+    : null;
   const isOpen = (id: string) => open[id] ?? id === currentParva?.id;
 
   return (
-    <main className="page">
-      <Breadcrumb
-        items={[
-          { label: 'Catalogue', render: (p) => <Link to="/courses" {...(p as object)} /> },
-          { label: course.title },
-        ]}
-      />
-      <h1 className="page__title">{course.title}</h1>
-      <p className="course__summary">{course.summary}</p>
-      <p className="course__meta">
-        {course.parvas.length} parvas · {counts.lessons} lessons · {counts.parikshas} Parikshas ·{' '}
-        {course.estimatedMinutes} min
-        {course.rules.certificate ? ' · Certificate' : ''}
-        {isRetired(course) ? ' · Retired' : ''}
-      </p>
-      {course.description.trim() && course.description !== course.summary ? (
-        <Prose md={course.description} />
-      ) : null}
-      {isRetired(course) ? <RetiredNote /> : null}
-      {hasNewLessons(course, progress) ? (
-        <Callout tone="note" title="New lessons added">
-          <p>
-            This course has grown since you finished it. Your certificate stays; the new lessons are
-            there whenever you want them.
+    <main>
+      <div className="page course__crumb">
+        <Breadcrumb
+          items={[
+            { label: 'Catalogue', render: (p) => <Link to="/courses" {...(p as object)} /> },
+            { label: course.title },
+          ]}
+        />
+      </div>
+      <header className="course-hero">
+        <div className="course-hero__inner">
+          <h1 className="course-hero__title">{course.title}</h1>
+          <p className="course-hero__summary">{course.summary}</p>
+          <p className="course-hero__meta">
+            {course.parvas.length} parvas · {counts.lessons} lessons · {counts.parikshas} Parikshas
+            · {course.estimatedMinutes} min
+            {course.rules.certificate ? ' · Certificate' : ''}
+            {isRetired(course) ? ' · Retired' : ''}
           </p>
-        </Callout>
-      ) : null}
-      {resume ? (
-        <Link className={buttonClass('primary')} to={`/courses/${course.id}/learn/${resume}`}>
-          {progress ? `Resume — ${resumeTitle}` : 'Start course'}
-        </Link>
-      ) : null}
-      {progress?.certificateId ? (
-        <Link className={buttonClass('secondary')} to={`/certificates/${progress.certificateId}`}>
-          View your certificate
-        </Link>
-      ) : null}
+          {due ? (
+            <p className="course-hero__due">
+              <Chip tone={due.overdue ? 'danger' : 'warning'}>{due.text}</Chip>
+              <span className="course-hero__due-date">{due.date}</span>
+            </p>
+          ) : null}
+          <div className="course-hero__actions">
+            {resume ? (
+              <Link className={buttonClass('chrome')} to={`/courses/${course.id}/learn/${resume}`}>
+                {progress ? `Resume — ${resumeTitle}` : 'Start course'}
+              </Link>
+            ) : null}
+            {progress?.certificateId ? (
+              <Link
+                className={buttonClass('secondary')}
+                to={`/certificates/${progress.certificateId}`}
+              >
+                View your certificate
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </header>
+      <div className="page course__body">
+        {course.description.trim() && course.description !== course.summary ? (
+          <Prose md={course.description} />
+        ) : null}
+        {isRetired(course) ? <RetiredNote /> : null}
+        {hasNewLessons(course, progress) ? (
+          <Callout tone="note" title="New lessons added">
+            <p>
+              This course has grown since you finished it. Your certificate stays; the new lessons
+              are there whenever you want them.
+            </p>
+          </Callout>
+        ) : null}
 
-      <div className="course__layout">
-        <section aria-labelledby="outline-title">
-          <h2 id="outline-title">Outline</h2>
-          {course.parvas.map((parva, n) => {
-            const expanded = isOpen(parva.id);
-            const done = parva.items.filter((i) => states[i.id] === 'done').length;
-            return (
-              <Card as="section" key={parva.id} className="parva">
-                <h3 className="parva__title">
-                  <button
-                    type="button"
-                    className="parva__toggle"
-                    aria-expanded={expanded}
-                    aria-controls={`parva-${parva.id}`}
-                    onClick={() => toggle(parva.id, expanded)}
-                  >
-                    <span className="parva__label">Parva {n + 1}</span> {parva.title}
-                    <span className="parva__count">
-                      {done}/{parva.items.length}
-                    </span>
-                  </button>
-                </h3>
-                {expanded ? (
-                  <ul id={`parva-${parva.id}`} className="items">
-                    {parva.items.map((item) => {
-                      const s = states[item.id] as ItemState;
-                      const label = (
-                        <>
-                          <span>{item.title}</span>
-                          <span className="items__kind">
-                            {item.type === 'lesson' ? `${item.minutes} min` : 'Pariksha'}
-                          </span>
-                          {STATE_LABEL[s] ? (
-                            <Chip tone={s === 'done' ? 'accent' : 'neutral'}>{STATE_LABEL[s]}</Chip>
-                          ) : null}
-                        </>
-                      );
-                      return (
-                        <li key={item.id}>
-                          {s === 'locked' ? (
-                            <span
-                              className="items__row"
-                              aria-disabled="true"
-                              title={unlockHint(course, item.id)}
-                            >
-                              {label}
+        <div className="course__layout">
+          <section aria-labelledby="outline-title">
+            <h2 id="outline-title">Outline</h2>
+            {course.parvas.map((parva, n) => {
+              const expanded = isOpen(parva.id);
+              const done = parva.items.filter((i) => states[i.id] === 'done').length;
+              return (
+                <Card as="section" key={parva.id} className="parva">
+                  <h3 className="parva__title">
+                    <button
+                      type="button"
+                      className="parva__toggle"
+                      aria-expanded={expanded}
+                      aria-controls={`parva-${parva.id}`}
+                      onClick={() => toggle(parva.id, expanded)}
+                    >
+                      <span className="parva__label">Parva {n + 1}</span> {parva.title}
+                      <span className="parva__count">
+                        {done}/{parva.items.length}
+                      </span>
+                    </button>
+                  </h3>
+                  {expanded ? (
+                    <ul id={`parva-${parva.id}`} className="items">
+                      {parva.items.map((item) => {
+                        const s = states[item.id] as ItemState;
+                        const label = (
+                          <>
+                            <span>{item.title}</span>
+                            <span className="items__kind">
+                              {item.type === 'lesson' ? `${item.minutes} min` : 'Pariksha'}
                             </span>
-                          ) : (
-                            <Link className="items__row" to={itemPath(course.id, item)}>
-                              {label}
-                            </Link>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
+                            {STATE_LABEL[s] ? (
+                              <Chip tone={s === 'done' ? 'accent' : 'neutral'}>
+                                {STATE_LABEL[s]}
+                              </Chip>
+                            ) : null}
+                          </>
+                        );
+                        return (
+                          <li key={item.id}>
+                            {s === 'locked' ? (
+                              <span
+                                className="items__row"
+                                aria-disabled="true"
+                                title={unlockHint(course, item.id)}
+                              >
+                                {label}
+                              </span>
+                            ) : (
+                              <Link className="items__row" to={itemPath(course.id, item)}>
+                                {label}
+                              </Link>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </Card>
+              );
+            })}
+          </section>
+          <aside aria-label="Your progress">
+            <Card>
+              <ProgressRing value={percent} label={`${course.title} progress`} size={96} />
+              <dl className="course__stats">
+                <dt>Lessons</dt>
+                <dd>{counts.lessons}</dd>
+                <dt>Parikshas</dt>
+                <dd>{counts.parikshas}</dd>
+              </dl>
+              <p>Pass mark {Math.round(course.rules.passMark * 100)}% on each Pariksha.</p>
+            </Card>
+            {acharyas.length > 0 ? (
+              <Card as="section" aria-labelledby="acharya-title">
+                <h2 id="acharya-title">
+                  {acharyas.length === 1 ? 'Your Acharya' : 'Your Acharyas'}
+                </h2>
+                <ul>
+                  {acharyas.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
               </Card>
-            );
-          })}
-        </section>
-        <aside aria-label="Your progress">
-          <Card>
-            <ProgressRing value={percent} label={`${course.title} progress`} size={96} />
-            <dl className="course__stats">
-              <dt>Lessons</dt>
-              <dd>{counts.lessons}</dd>
-              <dt>Parikshas</dt>
-              <dd>{counts.parikshas}</dd>
-            </dl>
-            <p>Pass mark {Math.round(course.rules.passMark * 100)}% on each Pariksha.</p>
-          </Card>
-          {acharyas.length > 0 ? (
-            <Card as="section" aria-labelledby="acharya-title">
-              <h2 id="acharya-title">{acharyas.length === 1 ? 'Your Acharya' : 'Your Acharyas'}</h2>
-              <ul>
-                {acharyas.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-          {course.outcomes.length > 0 ? (
-            <Card as="section" aria-labelledby="learn-title">
-              <h2 id="learn-title">What you will learn</h2>
-              <ul>
-                {course.outcomes.map((o) => (
-                  <li key={o}>{o}</li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-        </aside>
+            ) : null}
+            {course.outcomes.length > 0 ? (
+              <Card as="section" aria-labelledby="learn-title">
+                <h2 id="learn-title">What you will learn</h2>
+                <ul>
+                  {course.outcomes.map((o) => (
+                    <li key={o}>{o}</li>
+                  ))}
+                </ul>
+              </Card>
+            ) : null}
+          </aside>
+        </div>
       </div>
     </main>
   );

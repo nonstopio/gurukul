@@ -187,7 +187,7 @@ describe('firestoreAssignStore', () => {
       mandatory: true,
       reminder: 'weekly' as const,
     }));
-    await firestoreAssignStore(db).createAssignments('k', docs);
+    await firestoreAssignStore(db).createAssignments('k', 'Kavya Rao', docs);
     expect(batches[0]?.create).toHaveBeenCalledTimes(400);
     expect(batches[1]?.create).toHaveBeenCalledTimes(1);
     expect(batches[0]?.set).not.toHaveBeenCalled();
@@ -196,6 +196,7 @@ describe('firestoreAssignStore', () => {
       uid: 'priya',
       courseId: 'git',
       assignedBy: 'k',
+      assignedByName: 'Kavya Rao',
       assignedAt: 'NOW',
       dueAt: 'ts:1000',
       mandatory: true,

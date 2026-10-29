@@ -20,7 +20,7 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Sanjaya (`org`, `course_{id}`) | Kulapati, granted Acharyas | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Kulapati | never (function) |
 | `questionBank/{id}` (M5) | Reusable Pariksha questions, answers included | Acharyas, Kulapati | Acharyas, Kulapati |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`; only these keys, never deleted; the seed creates the default if missing | signed-in | Kulapati (Org settings) |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Kulapati (Org settings) |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Outgoing email queue, in the shape the "Trigger Email from Firestore" extension reads; nothing sends until a sender is installed (`firebase/functions/src/mail.ts`) | never | never (function) |
 
@@ -50,7 +50,7 @@ type Course = {
     certificate: boolean;
     requireVideoWatch: boolean;  // every lesson with a video: mark-complete enables at 90% watched
   };
-  certificate: { title: string; signatoryName: string; signatoryRole: string };
+  certificate: { title: string };  // the signatory is `config/org.signatory`, not per course
   parvas: Parva[];
   estimatedMinutes: number;      // derived on publish
 };
@@ -159,6 +159,7 @@ type Assignment = {
   uid: string | null;            // filled at first sign-in
   courseId: string;
   assignedBy: string;            // uid
+  assignedByName?: string | null; // assigner's display name; learners cannot read other users
   assignedAt: Timestamp;
   dueAt: Timestamp | null;
   mandatory: boolean;

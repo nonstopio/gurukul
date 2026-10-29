@@ -102,7 +102,12 @@ describe('seedOrgConfig', () => {
     expect(writes).toEqual([
       {
         path: 'config/org',
-        data: { domain: 'nonstopio.com', teams: [], reminders: { enabled: false } },
+        data: {
+          domain: 'nonstopio.com',
+          teams: [],
+          reminders: { enabled: false },
+          signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+        },
       },
     ]);
     expect(await seedOrgConfig(db)).toEqual({ path: 'config/org', created: false });

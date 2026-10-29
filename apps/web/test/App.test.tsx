@@ -77,6 +77,50 @@ describe('App gate', () => {
   });
 });
 
+describe('sign-in pending state', () => {
+  function renderSignedOut(f: ReturnType<typeof fakeAuth>) {
+    render(
+      <App
+        service={f.service}
+        data={fakeData().data}
+        pariksha={fakePariksha()}
+        console={fakeConsole()}
+        studio={fakeStudio()}
+        router={createMemoryRouter(appRoutes())}
+      />,
+    );
+  }
+
+  it('disables the button and says "Signing in…" until Google answers', async () => {
+    const f = fakeAuth();
+    let finish: () => void = () => {};
+    f.service.signIn = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    renderSignedOut(f);
+    act(() => f.emitUser(null));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
+    const busy = screen.getByRole('button', { name: 'Signing in…' }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute('aria-busy')).toBe('true');
+    await act(async () => finish());
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeTruthy();
+  });
+
+  it('does the same for "Try another account"', async () => {
+    const f = fakeAuth();
+    let finish: () => void = () => {};
+    f.service.signIn = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    renderSignedOut(f);
+    act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
+    act(() => f.emitUser(null));
+    fireEvent.click(screen.getByRole('button', { name: 'Try another account' }));
+    expect(
+      (screen.getByRole('button', { name: 'Signing in…' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await act(async () => finish());
+    expect(screen.getByRole('button', { name: 'Try another account' })).toBeTruthy();
+  });
+});
+
 describe('signed-in shell', () => {
   it('lands on an empty Home and offers only what a Shishya may open', async () => {
     await open('/');

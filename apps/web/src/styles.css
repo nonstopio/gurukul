@@ -412,10 +412,46 @@ body {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
-.course__summary {
+.course__crumb {
+  padding-bottom: 0;
+}
+.course-hero {
+  margin-top: var(--space-4);
+  background: var(--cover-forest);
+  color: var(--chrome-text);
+}
+.course-hero__inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-5);
+}
+.course-hero__title {
+  margin: 0 0 var(--space-3);
+  color: var(--chrome-text-strong);
+  font: 500 var(--text-3xl) / var(--leading-tight) var(--font-display);
+}
+.course-hero__summary {
   max-width: 60ch;
+  margin: 0 0 var(--space-3);
   font-size: var(--text-lg);
-  color: var(--text-body);
+}
+.course-hero__meta {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+.course-hero__due {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+.course-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.course__body {
+  padding-top: var(--space-8);
 }
 .course__layout {
   display: grid;
@@ -1924,6 +1960,20 @@ a.items__row:hover {
   font: 500 clamp(2.5rem, 5vw, 4rem) / var(--leading-tight) var(--font-display);
   color: var(--chrome-text-strong);
   text-wrap: balance;
+}
+.signin__quote {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.signin__quote blockquote {
+  margin: 0;
+  font: 500 1.25rem / var(--leading-tight) var(--font-display);
+  color: var(--chrome-text-strong);
+}
+.signin__quote figcaption {
+  font-size: 0.8125rem;
+  color: var(--chrome-label);
 }
 .signin__benefits {
   margin: 0;

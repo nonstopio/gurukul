@@ -6,6 +6,8 @@ export const assignmentSchema = z.object({
   uid: z.string().nullable(),
   courseId: z.string().min(1),
   assignedBy: z.string().min(1),
+  /** The assigner's display name, copied here because learners cannot read other users. Absent on older assignments. */
+  assignedByName: z.string().min(1).nullable().optional(),
   assignedAt: timestamp,
   dueAt: timestamp.nullable(),
   mandatory: z.boolean(),

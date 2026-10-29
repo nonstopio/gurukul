@@ -1,7 +1,7 @@
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { progressId as progressDocId } from '@gurukul/schema';
+import { DEFAULT_ORG_CONFIG, orgConfigSchema, progressId as progressDocId } from '@gurukul/schema';
 import { addParvaCompletions } from './analytics.js';
 import type { AttemptStatsStore, RollupStore } from './analytics.js';
 import type { AssignStore } from './assign.js';
@@ -163,6 +163,12 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
       await batch.commit();
       return changing.length;
     },
+    async signatory() {
+      const parsed = orgConfigSchema.shape.signatory.safeParse(
+        (await db.doc('config/org').get()).get('signatory'),
+      );
+      return parsed.success ? parsed.data : DEFAULT_ORG_CONFIG.signatory;
+    },
     async issueCertificate(progressId, grant) {
       return db.runTransaction(async (tx) => {
         const progressRef = db.doc(`progress/${progressId}`);
@@ -266,7 +272,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       }
       return existing;
     },
-    async createAssignments(assignedBy, docs) {
+    async createAssignments(assignedBy, assignedByName, docs) {
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
         for (const d of part) {
@@ -276,6 +282,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             uid: d.uid,
             courseId: d.courseId,
             assignedBy,
+            assignedByName,
             assignedAt: FieldValue.serverTimestamp(),
             dueAt: d.dueAt === null ? null : Timestamp.fromMillis(d.dueAt),
             mandatory: d.mandatory,

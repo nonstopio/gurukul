@@ -23,11 +23,13 @@ export type UserProfile = z.infer<typeof userSchema>;
 /** What `users/{uid}.nameLower` holds for a display name; the rules check the same `lower()`. */
 export const nameKey = (displayName: string): string => displayName.toLowerCase();
 
-/** `config/org`: the allowed domain, the teams a learner can pick, and reminder settings. */
+/** `config/org`: the allowed domain, the teams a learner can pick, reminder settings and who signs certificates. */
 export const orgConfigSchema = z.object({
   domain: z.string().min(1),
   teams: z.array(z.string().min(1).max(80)).max(100),
   reminders: z.object({ enabled: z.boolean() }),
+  /** Printed on every certificate issued from now on; a certificate keeps the one it was issued with. */
+  signatory: z.object({ name: z.string().min(1).max(120), role: z.string().min(1).max(120) }),
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
 
@@ -35,6 +37,7 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',
   teams: [],
   reminders: { enabled: false },
+  signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
 };
 
 /** Claim keys set by the `setRoles` function. */

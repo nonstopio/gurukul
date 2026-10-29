@@ -60,9 +60,8 @@ describe('courseEdit', () => {
     expect(setPassMark(w, 250).course.rules.passMark).toBe(1);
     expect(setPassMark(w, -4).course.rules.passMark).toBe(0);
     expect(setPassMark(w, Number.NaN)).toBe(w);
-    expect(setCertificate(w, { signatoryName: 'Asha' }).course.certificate).toMatchObject({
-      title: 'Git',
-      signatoryName: 'Asha',
+    expect(setCertificate(w, { title: 'Git, well' }).course.certificate).toEqual({
+      title: 'Git, well',
     });
     expect(setCoverTheme(w, 'sky').course.cover).toEqual({ theme: 'sky', glyph: 'G' });
     const added = addOutcome(w);

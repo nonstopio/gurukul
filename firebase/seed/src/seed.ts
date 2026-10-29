@@ -85,7 +85,7 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
 }
 
 /**
- * Writes the default `config/org` (no teams, reminders off) when there is none. Never overwrites:
+ * Writes the default `config/org` (no teams, reminders off, a fictional signatory) when there is none. Never overwrites:
  * once a Kulapati has saved teams or switched reminders on, re-seeding keeps their settings.
  */
 export async function seedOrgConfig(db: SeedDb): Promise<{ path: string; created: boolean }> {

@@ -641,7 +641,14 @@ describe('Course complete', () => {
   it('offers Add to LinkedIn, a certificate thumbnail and the next assigned course', async () => {
     const other = makeCourse({ id: 'k8s', title: 'Kubernetes basics' });
     const assignment = (courseId: string, status: 'assigned' | 'completed' = 'assigned') =>
-      ({ id: `a-${courseId}`, courseId, mandatory: true, dueAt: null, status }) as const;
+      ({
+        id: `a-${courseId}`,
+        courseId,
+        mandatory: true,
+        dueAt: null,
+        status,
+        assignedByName: null,
+      }) as const;
     await openApp('/courses/git/complete', {
       data: fakeData({
         courses: [courseWith(), other],
@@ -668,7 +675,14 @@ describe('Course complete', () => {
         courses: [courseWith(), other],
         watched: done(),
         assignments: [
-          { id: 'a1', courseId: 'k8s', mandatory: false, dueAt: null, status: 'started' },
+          {
+            id: 'a1',
+            courseId: 'k8s',
+            mandatory: false,
+            dueAt: null,
+            status: 'started',
+            assignedByName: null,
+          },
         ],
         progress: [progressRow({ courseId: 'k8s' })],
       }),

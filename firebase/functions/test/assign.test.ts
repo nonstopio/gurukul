@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { assignCourses, parseAssignRequest, emailKey } from '../src/assign.js';
 import type { AssignStore } from '../src/assign.js';
 
-const kulapati = { uid: 'k', email: 'k@nonstopio.com', claims: { kulapati: true } };
+const kulapati = {
+  uid: 'k',
+  email: 'k@nonstopio.com',
+  name: ' Kavya Rao ',
+  claims: { kulapati: true },
+};
 const published = (title: string) => ({ status: 'published', title });
 const id = (course: string, email: string) => assignmentId(course, emailKey(email));
 
@@ -48,7 +53,7 @@ describe('assignCourses', () => {
       notified: 0,
     });
     expect(store.signedInUsers).toHaveBeenCalledWith(['priya@nonstopio.com', 'new@nonstopio.com']);
-    expect(store.createAssignments).toHaveBeenCalledWith('k', [
+    expect(store.createAssignments).toHaveBeenCalledWith('k', 'Kavya Rao', [
       {
         id: id('git', 'priya@nonstopio.com'),
         email: 'priya@nonstopio.com',
@@ -81,6 +86,12 @@ describe('assignCourses', () => {
     expect(mailer.send).not.toHaveBeenCalled();
   });
 
+  it('stores no assigner name when the token carries none', async () => {
+    const { store, deps } = setup();
+    await assignCourses(deps, { ...kulapati, name: undefined }, request());
+    expect(store.createAssignments).toHaveBeenCalledWith('k', null, expect.any(Array));
+  });
+
   it('never overwrites an existing assignment and counts pairs across courses', async () => {
     const existing = new Set([id('git', 'priya@nonstopio.com')]);
     const { store, mailer, deps } = setup({
@@ -96,7 +107,7 @@ describe('assignCourses', () => {
     expect(out.summary).toMatchObject({ signedIn: 1, newInvites: 2, alreadyAssigned: 1 });
     expect(out.summary.rejected).toHaveLength(2);
     expect(out.assigned).toBe(3);
-    const written = (store.createAssignments as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
+    const written = (store.createAssignments as ReturnType<typeof vi.fn>).mock.calls[0]?.[2];
     expect(written.map((d: { id: string }) => d.id)).not.toContain(
       id('git', 'priya@nonstopio.com'),
     );

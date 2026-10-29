@@ -1,3 +1,4 @@
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
 import {
   firebaseRoleAdmin,
@@ -185,6 +186,24 @@ describe('firestoreProgressStore', () => {
       0,
     );
     expect(none.commit).not.toHaveBeenCalled();
+  });
+});
+
+describe('firestoreProgressStore.signatory', () => {
+  const dbWith = (signatory: unknown) =>
+    ({ doc: () => ({ get: async () => ({ get: () => signatory }) }) }) as never;
+
+  it('reads the signatory from config/org', async () => {
+    const saved = { name: 'Rhea Sample', role: 'Dean' };
+    expect(await firestoreProgressStore(dbWith(saved)).signatory()).toEqual(saved);
+  });
+
+  it('falls back to the default when none is saved or it is malformed', async () => {
+    for (const bad of [undefined, { name: '', role: 'x' }]) {
+      expect(await firestoreProgressStore(dbWith(bad)).signatory()).toEqual(
+        DEFAULT_ORG_CONFIG.signatory,
+      );
+    }
   });
 });
 

@@ -19,7 +19,7 @@ const course = {
   version: 1,
   publishedAt: ts(1),
   rules: { sequential: false, passMark: 0.7, certificate: true, requireVideoWatch: false },
-  certificate: { title: 'Git', signatoryName: 'A', signatoryRole: 'K' },
+  certificate: { title: 'Git' },
   parvas: [
     {
       id: 'p1',
@@ -59,6 +59,7 @@ const store = (c: unknown = course, issued: string | null = 'NSG-GIT-26-0001'): 
   writeDerived: vi.fn().mockResolvedValue(undefined),
   bumpStats: vi.fn().mockResolvedValue(undefined),
   setAssignmentStatus: vi.fn().mockResolvedValue(1),
+  signatory: vi.fn().mockResolvedValue({ name: 'A', role: 'K' }),
   issueCertificate: vi.fn().mockResolvedValue(issued),
 });
 

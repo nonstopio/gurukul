@@ -223,19 +223,27 @@ service cloud.firestore {
     }
 
     // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
-    // settings. A Kulapati edits teams and reminders from the console; the domain is fixed here,
-    // as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
+    // settings and who signs certificates. A Kulapati edits all but the domain from the console; the
+    // domain is fixed here, as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
     // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
     match /config/org {
       allow read: if signedIn();
       allow create, update: if isKulapati()
-        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders'])
+        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders', 'signatory'])
         && request.resource.data.domain == 'nonstopio.com'
         && request.resource.data.teams is list
         && request.resource.data.teams.size() <= 100
         && request.resource.data.reminders is map
         && request.resource.data.reminders.keys().hasOnly(['enabled'])
-        && request.resource.data.reminders.enabled is bool;
+        && request.resource.data.reminders.enabled is bool
+        && request.resource.data.signatory is map
+        && request.resource.data.signatory.keys().hasOnly(['name', 'role'])
+        && request.resource.data.signatory.name is string
+        && request.resource.data.signatory.name.size() > 0
+        && request.resource.data.signatory.name.size() <= 120
+        && request.resource.data.signatory.role is string
+        && request.resource.data.signatory.role.size() > 0
+        && request.resource.data.signatory.role.size() <= 120;
     }
 
     match /{document=**} {
