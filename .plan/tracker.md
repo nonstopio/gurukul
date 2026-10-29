@@ -23,11 +23,11 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Kulapati console and Sanjaya  | 18   | 7    | 2       | 0          |
 | Vyasa Studio                  | 7    | 8    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
-| Global search                 | 4    | 1    | 0       | 0          |
+| Global search                 | 5    | 0    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 81   | 32   | 6       | 7          |
+| **Total**                     | 82   | 31   | 6       | 7          |
 
 ## Pick order
 
@@ -35,43 +35,42 @@ Correctness and cost first, then what learners meet, then the console and Studio
 Blocked items wait at the end until the maintainer answers their question.
 
 1. `KUL-27` — Overview pending-invite count past the newest 500 assignments
-2. `SRC-05` — draft courses in search for Acharyas
-3. `STU-11` — preview uses the real learner screens
-4. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-5. `STU-08` — "Draft vN · saved just now"
-6. `STU-10` — learner counts in the publish dialog and on course cards
-7. `STU-12` — publishing an archived course
-8. `STU-13` — structure editor polish
-9. `LRN-12` — course overview to the handoff
-10. `LRN-13` — Home to the handoff
-11. `LRN-11` — outline rail grouped by parva
-12. `LRN-10` — split layout
-13. `LRN-15` — block renderer polish
-14. `LRN-16` — check blocks reveal the right option
-15. `LRN-17` — keyboard shortcuts dialog
-16. `PRK-08` — completion screen to the handoff
-17. `AUTH-08` — sign-in screen to the handoff
-18. `SHL-03` — handoff breakpoints and the menu button
-19. `KUL-13` — bulk role change and select all
-20. `KUL-14` — Assign screen finish
-21. `KUL-19` — Needs attention, pending-invite strip, overview filters
-22. `KUL-20` — course analytics finish
-23. `KUL-22` — Roles screen polish
-24. `KUL-23` — audit log view finish
-25. `DS-05` — axe on the remaining page tests
-26. `DS-04` — shared icon set
-27. `DS-03` — `/__ui` component gallery
-28. `STU-15` — lesson editor extras
-29. `STU-16` — CodeMirror for markdown and code
-30. `OPS-11` — deeper e2e journeys
-31. `OPS-06` — Lighthouse on the preview URL
-32. `OPS-14` — trigger tests against the emulators
-33. `KUL-24` — email delivery (blocked: question 4)
-34. `KUL-25` — Acharyas see their learners (blocked: question 7)
-35. `PRK-10` — tell a learner their certificate was revoked (blocked)
-36. `OPS-18` — custom domain (blocked: question 6)
-37. `OPS-19` — licence holder (blocked: question 10)
-38. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+2. `STU-11` — preview uses the real learner screens
+3. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+4. `STU-08` — "Draft vN · saved just now"
+5. `STU-10` — learner counts in the publish dialog and on course cards
+6. `STU-12` — publishing an archived course
+7. `STU-13` — structure editor polish
+8. `LRN-12` — course overview to the handoff
+9. `LRN-13` — Home to the handoff
+10. `LRN-11` — outline rail grouped by parva
+11. `LRN-10` — split layout
+12. `LRN-15` — block renderer polish
+13. `LRN-16` — check blocks reveal the right option
+14. `LRN-17` — keyboard shortcuts dialog
+15. `PRK-08` — completion screen to the handoff
+16. `AUTH-08` — sign-in screen to the handoff
+17. `SHL-03` — handoff breakpoints and the menu button
+18. `KUL-13` — bulk role change and select all
+19. `KUL-14` — Assign screen finish
+20. `KUL-19` — Needs attention, pending-invite strip, overview filters
+21. `KUL-20` — course analytics finish
+22. `KUL-22` — Roles screen polish
+23. `KUL-23` — audit log view finish
+24. `DS-05` — axe on the remaining page tests
+25. `DS-04` — shared icon set
+26. `DS-03` — `/__ui` component gallery
+27. `STU-15` — lesson editor extras
+28. `STU-16` — CodeMirror for markdown and code
+29. `OPS-11` — deeper e2e journeys
+30. `OPS-06` — Lighthouse on the preview URL
+31. `OPS-14` — trigger tests against the emulators
+32. `KUL-24` — email delivery (blocked: question 4)
+33. `KUL-25` — Acharyas see their learners (blocked: question 7)
+34. `PRK-10` — tell a learner their certificate was revoked (blocked)
+35. `OPS-18` — custom domain (blocked: question 6)
+36. `OPS-19` — licence holder (blocked: question 10)
+37. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -223,7 +222,7 @@ Plan: `15-changelog-and-search.md` Global search.
 | `SRC-02` | Learner navigation area | done | — | `apps/web/src/navigation/areas/learner.ts`; `platform.ts` keeps the changelog and `/verify/:id` |
 | `SRC-03` | Courses and lessons in search                                | done   | —        | `apps/web/src/navigation/records.ts`, `GlobalSearch.tsx`, `Shell.tsx` (sources); loaded once on first open |
 | `SRC-04` | People in search for Kulapatis                               | done   | `KUL-11` | `apps/web/src/navigation/records.ts` (`peopleLookup`: the console's `searchUsers`), `GlobalSearch.tsx` (`lookups`: debounced prefix, newest wins), `console/LearnersPage.tsx` (`?learner=` opens the drawer) |
-| `SRC-05` | Draft courses in search for Acharyas                         | todo   | —        | The courses they can edit, opening the course editor (M5 row)                                                     |
+| `SRC-05` | Draft courses in search for Acharyas                         | done   | —        | `apps/web/src/navigation/records.ts` (`editableCourseSource`: Vyasa Studio's `listCourses`, Acharyas and Kulapatis), `Shell.tsx`; opens `/studio/courses/<id>` |
 
 ## Platform, CI and operations
 

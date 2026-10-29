@@ -60,6 +60,29 @@ function rows() {
   ];
 }
 
+describe('Courses in global search for Acharyas', () => {
+  it('finds a never-published draft and opens it in the course editor', async () => {
+    const studio = fakeStudio({ courses: rows() });
+    const app = await openApp('/', { roles: ['acharya'], studio });
+    fireEvent.click(screen.getByRole('button', { name: /Search/ }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
+    const option = await screen.findByRole('option', { name: /Brand new.*Vyasa Studio/ });
+    expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
+    expect(screen.queryByRole('option', { name: /Not mine/ })).toBeNull();
+    fireEvent.click(option);
+    await waitFor(() => expect(app.router.state.location.pathname).toBe('/studio/courses/new'));
+  });
+
+  it('is not loaded for a Shishya', async () => {
+    const studio = fakeStudio({ courses: rows() });
+    await openApp('/', { studio });
+    fireEvent.click(screen.getByRole('button', { name: /Search/ }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
+    expect(await screen.findByRole('combobox')).toBeTruthy();
+    expect(studio.data.listCourses).not.toHaveBeenCalled();
+  });
+});
+
 describe('Studio courses page', () => {
   it('lists courses with status, edits and view-only cards', async () => {
     const studio = fakeStudio({ courses: rows() });

@@ -49,7 +49,7 @@ export interface Destination {
 }
 
 /**
- * Records search can offer besides pages: courses today, people and draft courses next. Loaded
+ * Records search can offer besides pages: courses and lessons, and the courses someone may edit. Loaded
  * once, the first time the palette opens, only for the roles listed (omitted means everyone), and
  * only from data this person can already read. Matched by the same ranking as pages.
  */

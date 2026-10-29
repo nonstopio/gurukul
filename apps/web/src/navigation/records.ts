@@ -1,12 +1,14 @@
 // Record results for global search: things with an id, not pages. Each source turns data the
 // person can already read into destinations; GlobalSearch loads them on first open and ranks them
-// with the pages. A new source (draft courses) is one more function here and one more entry where
-// the sources are built (`Shell.tsx`). People are too many to load up front, so they are a
+// with the pages. A new source is one more function here and one more entry where the sources are
+// built (`Shell.tsx`). People are too many to load up front, so they are a
 // `RecordLookup` instead: looked up by prefix as the person types.
 
 import type { Course, Lesson } from '@gurukul/schema';
 import type { ConsoleData, UserRow } from '../console/types';
 import type { LearnerData } from '../data/types';
+import { canEdit } from '../studio/studioModel';
+import type { StudioCourse, StudioData } from '../studio/types';
 import { log } from '../log';
 import { allowed } from './catalog';
 import type { Destination, RecordLookup, RecordSource, Role } from './types';
@@ -51,6 +53,51 @@ export function courseDestinations(courses: readonly Course[]): Destination[] {
 /** Published and archived courses, from the same bounded query the catalogue makes. */
 export function courseSource(data: Pick<LearnerData, 'listCourses'>): RecordSource {
   return { id: 'courses', load: async () => courseDestinations(await data.listCourses()) };
+}
+
+const STATUS: Record<Course['status'], string> = {
+  draft: 'Draft',
+  published: 'Published',
+  archived: 'Archived',
+};
+
+/**
+ * Each course this person may edit, drafts never published included, opening the course editor.
+ * Titled as Vyasa Studio shows it: from the draft when there is one.
+ */
+export function editableCourseDestinations(
+  rows: readonly StudioCourse[],
+  uid: string,
+  kulapati: boolean,
+): Destination[] {
+  return rows
+    .filter((r) => canEdit(r.live, uid, kulapati))
+    .map(({ live, draft }) => {
+      const shown = draft?.course ?? live;
+      return {
+        id: `studio:${live.id}`,
+        path: `/studio/courses/${live.id}`,
+        label: shown.title,
+        areaName: 'Vyasa Studio',
+        description: `${STATUS[live.status]} · ${shown.summary}`,
+        keywords: [STATUS[live.status], 'edit', 'course'],
+        kind: 'Course',
+      };
+    });
+}
+
+/** For Acharyas and Kulapatis: Vyasa Studio's own course list (the same reads as `/studio`). */
+export function editableCourseSource(
+  data: Pick<StudioData, 'listCourses'>,
+  uid: string,
+  kulapati: boolean,
+): RecordSource {
+  return {
+    id: 'editable-courses',
+    roles: ['acharya', 'kulapati'],
+    load: async () =>
+      editableCourseDestinations(await data.listCourses(uid, kulapati), uid, kulapati),
+  };
 }
 
 /** Where a person found in search opens: the Learners page, with their drawer open. */

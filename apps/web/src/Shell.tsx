@@ -10,7 +10,8 @@ import { OfflineBanner } from './OfflineBanner';
 import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
-import { courseSource, peopleLookup } from './navigation/records';
+import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import { useStudio } from './studio/StudioProvider';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -35,9 +36,16 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
  */
 export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
   const { roles } = useSession();
+  const { uid } = useUser();
   const data = useLearnerData();
-  // Courses and lessons in search, from the catalogue's own query, made only once search opens.
-  const sources = useMemo(() => [courseSource(data)], [data]);
+  const { data: studioData } = useStudio();
+  const kulapati = roles.includes('kulapati');
+  // Courses and lessons in search, from the catalogue's own query, made only once search opens;
+  // for Acharyas and Kulapatis also the courses they may edit, from Vyasa Studio's own list.
+  const sources = useMemo(
+    () => [courseSource(data), editableCourseSource(studioData, uid, kulapati)],
+    [data, studioData, uid, kulapati],
+  );
   // People for Kulapatis, by the Learners page's own prefix search, as they type.
   const { data: consoleData } = useConsole();
   const lookups = useMemo(() => [peopleLookup(consoleData)], [consoleData]);

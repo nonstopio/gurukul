@@ -50,6 +50,10 @@ title, and, for Kulapatis, anyone who has signed in, by the start of their name 
 - People (Kulapatis only) come from a `RecordLookup`: the Learners page's own `searchUsers` prefix
   query (two bounded reads), run from two characters once typing pauses for 250 ms, newest answer
   only. A person opens `/kulapati/learners?learner=<uid>`, which opens their learner drawer.
+- Courses someone may edit (Acharyas and Kulapatis) come from Vyasa Studio's own `listCourses`,
+  the reads `/studio` makes, loaded with the other sources; drafts never published are included,
+  titled from the draft, and each opens the course editor. A Kulapati may edit every course, so
+  finds every course.
 
 **Later (proposed, needs review):**
 
@@ -58,7 +62,7 @@ title, and, for Kulapatis, anyone who has signed in, by the start of their name 
 | M1 | Real roles from the session; sidebar generated from the same metadata |
 | M2 | Courses and lessons as results (from published course documents, filtered client-side) — built |
 | M4 | Kulapati: people by name or email — built |
-| M5 | Acharya: their draft courses |
+| M5 | Acharya: their draft courses — built |
 
 Content results stay client-side over data the person can already read; no search service is
 needed at Gurukul's size. Revisit only if the catalogue outgrows a few thousand items.

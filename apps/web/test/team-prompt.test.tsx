@@ -7,7 +7,9 @@ import type { ProfileMirror } from '../src/auth/service';
 import { ConsoleProvider } from '../src/console/ConsoleProvider';
 import { DataProvider } from '../src/data/DataProvider';
 import { appRoutes } from '../src/routes';
+import { StudioProvider } from '../src/studio/StudioProvider';
 import { fakeConsole } from './fake-console';
+import { fakeStudio } from './fake-studio';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
@@ -23,9 +25,11 @@ async function home(
     <AuthProvider service={f.service}>
       <DataProvider data={data.data}>
         <ConsoleProvider {...fakeConsole({})}>
-          <ToastProvider>
-            <RouterProvider router={router} />
-          </ToastProvider>
+          <StudioProvider {...fakeStudio()}>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </StudioProvider>
         </ConsoleProvider>
       </DataProvider>
     </AuthProvider>,

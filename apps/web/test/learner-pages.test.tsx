@@ -8,7 +8,9 @@ import { DataProvider } from '../src/data/DataProvider';
 import type { AssignmentRow } from '../src/data/types';
 import { ParikshaProvider } from '../src/pariksha/ParikshaProvider';
 import { appRoutes } from '../src/routes';
+import { StudioProvider } from '../src/studio/StudioProvider';
 import { fakeConsole } from './fake-console';
+import { fakeStudio } from './fake-studio';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
@@ -22,11 +24,13 @@ async function open(path: string, data = fakeData()) {
     <AuthProvider service={f.service}>
       <DataProvider data={data.data}>
         <ConsoleProvider {...fakeConsole({})}>
-          <ParikshaProvider service={fakePariksha()}>
-            <ToastProvider>
-              <RouterProvider router={router} />
-            </ToastProvider>
-          </ParikshaProvider>
+          <StudioProvider {...fakeStudio()}>
+            <ParikshaProvider service={fakePariksha()}>
+              <ToastProvider>
+                <RouterProvider router={router} />
+              </ToastProvider>
+            </ParikshaProvider>
+          </StudioProvider>
         </ConsoleProvider>
       </DataProvider>
     </AuthProvider>,

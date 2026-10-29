@@ -4,6 +4,8 @@ import type { UserRow } from '../src/console/types';
 import {
   courseDestinations,
   courseSource,
+  editableCourseDestinations,
+  editableCourseSource,
   findRecords,
   learnerPath,
   loadRecords,
@@ -12,6 +14,7 @@ import {
 } from '../src/navigation/records';
 import type { Destination, RecordLookup, RecordSource } from '../src/navigation/types';
 import { lesson, makeCourse } from './fake-data';
+import { draftDoc } from './fake-studio';
 
 const dest = (id: string): Destination => ({
   id,
@@ -76,6 +79,55 @@ describe('courseSource', () => {
     expect(source.roles).toBeUndefined();
     expect((await source.load()).length).toBe(5);
     expect(listCourses).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('editableCourseDestinations', () => {
+  const rows = [
+    {
+      live: makeCourse({ id: 'new', title: 'Old title', status: 'draft', acharyaIds: ['u1'] }),
+      draft: draftDoc(makeCourse({ id: 'new', title: 'Brand new', summary: 'Still writing.' })),
+    },
+    { live: makeCourse({ acharyaIds: ['u1'] }), draft: null },
+    { live: makeCourse({ id: 'other', title: 'Not mine', acharyaIds: ['x'] }), draft: null },
+  ];
+
+  it('lists the courses this Acharya edits, titled from the draft, opening the editor', () => {
+    const out = editableCourseDestinations(rows, 'u1', false);
+    expect(out).toEqual([
+      {
+        id: 'studio:new',
+        path: '/studio/courses/new',
+        label: 'Brand new',
+        areaName: 'Vyasa Studio',
+        description: 'Draft · Still writing.',
+        keywords: ['Draft', 'edit', 'course'],
+        kind: 'Course',
+      },
+      expect.objectContaining({
+        id: 'studio:git',
+        label: 'Git, the NonStop Way',
+        description: 'Published · Version control for teams.',
+      }),
+    ]);
+  });
+
+  it('gives a Kulapati every course, as Vyasa Studio does', () => {
+    expect(editableCourseDestinations(rows, 'k1', true).map((d) => d.id)).toEqual([
+      'studio:new',
+      'studio:git',
+      'studio:other',
+    ]);
+  });
+});
+
+describe('editableCourseSource', () => {
+  it("is for Acharyas and Kulapatis and reads Vyasa Studio's course list", async () => {
+    const listCourses = vi.fn().mockResolvedValue([{ live: makeCourse(), draft: null }]);
+    const source = editableCourseSource({ listCourses }, 'u1', true);
+    expect(source.roles).toEqual(['acharya', 'kulapati']);
+    expect((await source.load()).map((d) => d.path)).toEqual(['/studio/courses/git']);
+    expect(listCourses).toHaveBeenCalledWith('u1', true);
   });
 });
 
