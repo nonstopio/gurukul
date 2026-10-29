@@ -125,7 +125,11 @@ export function VerifyPage() {
               <Callout
                 tone={c.revoked ? 'warning' : 'tip'}
                 title={
-                  c.revoked ? 'This certificate has been revoked' : 'This certificate is genuine'
+                  c.revoked
+                    ? c.revokedAt
+                      ? `Revoked on ${longDate(c.revokedAt)}`
+                      : 'This certificate has been revoked'
+                    : 'This certificate is genuine'
                 }
               >
                 <p>

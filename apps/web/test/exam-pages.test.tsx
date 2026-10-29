@@ -750,11 +750,24 @@ describe('Verify (public)', () => {
       signedIn: false,
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'Revoked' })).toBeTruthy();
+    expect(screen.getByText('This certificate has been revoked')).toBeTruthy();
     unmount();
     await openApp('/verify/NOPE', { signedIn: false });
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Certificate not found' }),
     ).toBeTruthy();
+  });
+
+  it('says when a certificate was revoked', async () => {
+    await openApp('/verify/X', {
+      data: fakeData({
+        certificates: [
+          certificateRow({ id: 'X', revoked: true, revokedAt: new Date('2026-12-02T06:00:00Z') }),
+        ],
+      }),
+      signedIn: false,
+    });
+    expect(await screen.findByText('Revoked on 2 December 2026')).toBeTruthy();
   });
 
   it('has no axe violations', async () => {

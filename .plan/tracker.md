@@ -19,7 +19,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Foundations                   | 7    | 0    | 0       | 0          |
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 9    | 7    | 0       | 0          |
-| Parikshas and certificates    | 7    | 2    | 1       | 0          |
+| Parikshas and certificates    | 8    | 1    | 1       | 0          |
 | Kulapati console and Sanjaya  | 16   | 8    | 2       | 0          |
 | Vyasa Studio                  | 7    | 8    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
@@ -27,56 +27,55 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 75   | 37   | 6       | 7          |
+| **Total**                     | 76   | 36   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `PRK-09` — revocation date on certificates
-2. `KUL-18` — org Pariksha KPIs and a true overdue count
-3. `KUL-21` — daily roll-up repairs course counters
-4. `SRC-02` — learner navigation area
-5. `SRC-03` — courses and lessons in search
-6. `SRC-04` — people in search for Kulapatis
-7. `SRC-05` — draft courses in search for Acharyas
-8. `STU-11` — preview uses the real learner screens
-9. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-10. `STU-08` — "Draft vN · saved just now"
-11. `STU-10` — learner counts in the publish dialog and on course cards
-12. `STU-12` — publishing an archived course
-13. `STU-13` — structure editor polish
-14. `LRN-12` — course overview to the handoff
-15. `LRN-13` — Home to the handoff
-16. `LRN-11` — outline rail grouped by parva
-17. `LRN-10` — split layout
-18. `LRN-15` — block renderer polish
-19. `LRN-16` — check blocks reveal the right option
-20. `LRN-17` — keyboard shortcuts dialog
-21. `PRK-08` — completion screen to the handoff
-22. `AUTH-08` — sign-in screen to the handoff
-23. `SHL-03` — handoff breakpoints and the menu button
-24. `KUL-13` — bulk role change and select all
-25. `KUL-14` — Assign screen finish
-26. `KUL-19` — Needs attention, pending-invite strip, overview filters
-27. `KUL-20` — course analytics finish
-28. `KUL-22` — Roles screen polish
-29. `KUL-23` — audit log view finish
-30. `DS-05` — axe on the remaining page tests
-31. `DS-04` — shared icon set
-32. `DS-03` — `/__ui` component gallery
-33. `STU-15` — lesson editor extras
-34. `STU-16` — CodeMirror for markdown and code
-35. `OPS-11` — deeper e2e journeys
-36. `OPS-06` — Lighthouse on the preview URL
-37. `OPS-14` — trigger tests against the emulators
-38. `KUL-24` — email delivery (blocked: question 4)
-39. `KUL-25` — Acharyas see their learners (blocked: question 7)
-40. `PRK-10` — tell a learner their certificate was revoked (blocked)
-41. `OPS-18` — custom domain (blocked: question 6)
-42. `OPS-19` — licence holder (blocked: question 10)
-43. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `KUL-18` — org Pariksha KPIs and a true overdue count
+2. `KUL-21` — daily roll-up repairs course counters
+3. `SRC-02` — learner navigation area
+4. `SRC-03` — courses and lessons in search
+5. `SRC-04` — people in search for Kulapatis
+6. `SRC-05` — draft courses in search for Acharyas
+7. `STU-11` — preview uses the real learner screens
+8. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+9. `STU-08` — "Draft vN · saved just now"
+10. `STU-10` — learner counts in the publish dialog and on course cards
+11. `STU-12` — publishing an archived course
+12. `STU-13` — structure editor polish
+13. `LRN-12` — course overview to the handoff
+14. `LRN-13` — Home to the handoff
+15. `LRN-11` — outline rail grouped by parva
+16. `LRN-10` — split layout
+17. `LRN-15` — block renderer polish
+18. `LRN-16` — check blocks reveal the right option
+19. `LRN-17` — keyboard shortcuts dialog
+20. `PRK-08` — completion screen to the handoff
+21. `AUTH-08` — sign-in screen to the handoff
+22. `SHL-03` — handoff breakpoints and the menu button
+23. `KUL-13` — bulk role change and select all
+24. `KUL-14` — Assign screen finish
+25. `KUL-19` — Needs attention, pending-invite strip, overview filters
+26. `KUL-20` — course analytics finish
+27. `KUL-22` — Roles screen polish
+28. `KUL-23` — audit log view finish
+29. `DS-05` — axe on the remaining page tests
+30. `DS-04` — shared icon set
+31. `DS-03` — `/__ui` component gallery
+32. `STU-15` — lesson editor extras
+33. `STU-16` — CodeMirror for markdown and code
+34. `OPS-11` — deeper e2e journeys
+35. `OPS-06` — Lighthouse on the preview URL
+36. `OPS-14` — trigger tests against the emulators
+37. `KUL-24` — email delivery (blocked: question 4)
+38. `KUL-25` — Acharyas see their learners (blocked: question 7)
+39. `PRK-10` — tell a learner their certificate was revoked (blocked)
+40. `OPS-18` — custom domain (blocked: question 6)
+41. `OPS-19` — licence holder (blocked: question 10)
+42. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -147,7 +146,7 @@ Plan: `06-pariksha-and-certificates.md`, `design-handoff/01-learner.md` §05–�
 | `PRK-06` | Pariksha answers survive a reload                                                          | done    | —       | `apps/web/src/pariksha/draftStore.ts` (answers, verdicts and the draw kept in localStorage per learner and Pariksha), `apps/web/src/pariksha/model.ts` (`restoreQuestions`, `answerLetters`), `apps/web/src/pariksha/ParikshaPage.tsx` (exit confirmation, Enter, options locked while checking). Saved per browser, not across devices |
 | `PRK-07` | Result page survives a reload                                                              | done    | —       | `apps/web/src/pariksha/ResultPage.tsx` (router state after Finish, else the latest attempt; "Continue to Parva n", "Revisit lesson: {title}", live `Retake` countdown), `apps/web/src/pariksha/model.ts` (`reviewOfAttempt`, `formatCountdown`, `parvaNumber`), `apps/web/src/data/firebase.ts` (`latestAttempt`), attempts index in `firebase/firestore.indexes.json`. A reloaded review names the learner's answers, not the right options |
 | `PRK-08` | Completion screen to the handoff                                                           | todo    | —       | "Add to LinkedIn" (missing here), time invested, certificate thumbnail, "Up next", chrome background and enter animation                                                  |
-| `PRK-09` | Revocation date on certificates                                                            | todo    | —       | Store `revokedAt` in `revokeCertificate`; `/verify` says "Revoked on …"                                                                                                   |
+| `PRK-09` | Revocation date on certificates                                                            | done    | —       | `firebase/functions/src/stores.ts` (`setRevoked` stamps `revokedAt`, null on restore), `packages/schema/src/certificate.ts`, `apps/web/src/data/firebase.ts`, `apps/web/src/certificates/pages.tsx` ("Revoked on …"). Certificates revoked earlier have no date and keep the old wording |
 | `PRK-10` | Tell a learner their certificate was revoked                                               | blocked | —       | Open question in `06-pariksha-and-certificates.md`; also needs email (`KUL-24`)                                                                                           |
 
 ## Kulapati console and Sanjaya

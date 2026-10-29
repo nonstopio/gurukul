@@ -157,6 +157,7 @@ describe('firebaseLearnerData', () => {
       signatoryName: 'K',
       signatoryRole: 'R',
       revoked: true,
+      revokedAt: ts(9),
     };
     store.docs.set('certificates/X', raw);
     expect(await data.getCertificate('nope')).toBeNull();
@@ -165,7 +166,12 @@ describe('firebaseLearnerData', () => {
       learnerName: 'Priya',
       revoked: true,
       issuedAt: new Date(5),
+      revokedAt: new Date(9),
     });
+    store.docs.set('certificates/Z', { ...raw, revokedAt: undefined });
+    expect(await data.getCertificate('Z')).toMatchObject({ revoked: true, revokedAt: null });
+    store.docs.set('certificates/V', { ...raw, revoked: false, revokedAt: ts(9) });
+    expect(await data.getCertificate('V')).toMatchObject({ revoked: false, revokedAt: null });
     store.queryDocs = [
       {
         id: 'Y',

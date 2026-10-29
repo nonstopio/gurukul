@@ -24,6 +24,7 @@ export interface CertificateDraft {
   signatoryName: string;
   signatoryRole: string;
   revoked: false;
+  revokedAt: null;
 }
 
 /** India time, as the changelog: a certificate issued late on 31 December UTC is next year's. */
@@ -66,13 +67,14 @@ export function planCertificate(
       signatoryName: grant.signatoryName,
       signatoryRole: grant.signatoryRole,
       revoked: false,
+      revokedAt: null,
     },
   };
 }
 
 /** The Admin SDK calls `revokeCertificate` needs. */
 export interface CertificateAdmin {
-  /** Sets `revoked` on the certificate; false when there is no such certificate. */
+  /** Sets `revoked` and stamps `revokedAt` (null on restore); false when there is no such certificate. */
   setRevoked(id: string, revoked: boolean): Promise<boolean>;
   audit(entry: {
     action: 'certificate.revoke' | 'certificate.restore';

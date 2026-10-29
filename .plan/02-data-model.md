@@ -180,6 +180,7 @@ type Certificate = {
   issuedAt: Timestamp;
   signatoryName: string; signatoryRole: string;
   revoked: boolean;
+  revokedAt?: Timestamp | null; // set by revokeCertificate, null on restore; absent on older revocations
 };
 ```
 

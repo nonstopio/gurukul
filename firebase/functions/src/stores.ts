@@ -227,7 +227,7 @@ export function firestoreCertificateAdmin(db: Firestore): CertificateAdmin {
     async setRevoked(id, revoked) {
       const ref = db.doc(`certificates/${id}`);
       if (!(await ref.get()).exists) return false;
-      await ref.update({ revoked });
+      await ref.update({ revoked, revokedAt: revoked ? FieldValue.serverTimestamp() : null });
       return true;
     },
     async audit(entry) {

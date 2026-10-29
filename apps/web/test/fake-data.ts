@@ -32,6 +32,7 @@ export const certificateRow = (over: Partial<CertificateRow> = {}): CertificateR
   signatoryName: 'The Kulapati',
   signatoryRole: 'NonStop Academy',
   revoked: false,
+  revokedAt: null,
   ...over,
 });
 

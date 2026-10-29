@@ -111,6 +111,11 @@ describe('document shapes', () => {
     };
     expect(certificateSchema.safeParse(cert).success).toBe(true);
     expect(certificateSchema.safeParse({ ...cert, id: 'x' }).success).toBe(false);
+    expect(certificateSchema.safeParse({ ...cert, revoked: true, revokedAt: ts(2) }).success).toBe(
+      true,
+    );
+    expect(certificateSchema.safeParse({ ...cert, revokedAt: null }).success).toBe(true);
+    expect(certificateSchema.safeParse({ ...cert, revokedAt: 'yesterday' }).success).toBe(false);
   });
 
   it('validates progress', () => {
