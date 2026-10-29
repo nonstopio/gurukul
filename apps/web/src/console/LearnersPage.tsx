@@ -125,12 +125,12 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const query = useDebounced(search, SEARCH_DELAY_MS);
   const [team, setTeam] = useState('');
   const [role, setRole] = useState('');
-  const [courseId, setCourseId] = useState('');
+  const [params, setParams] = useSearchParams();
+  const [courseId, setCourseId] = useState(params.get('course') ?? '');
   const [page, setPage] = useState(1);
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [selected, setSelected] = useState<string[]>([]);
   const [open, setOpen] = useState<LearnerRow | null>(null);
-  const [params, setParams] = useSearchParams();
   const linked = params.get('learner');
 
   // `?learner=<uid>` (a person picked in global search) opens their drawer, then leaves the URL.

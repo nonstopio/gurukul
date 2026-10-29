@@ -12,11 +12,14 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { countItems } from '../learn/model';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { usePeopleSearch } from './usePeopleSearch';
+
+const lessonLabel = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
 
 interface Prefill {
   emails?: string[];
@@ -39,6 +42,9 @@ export function AssignPage() {
   const [busy, setBusy] = useState(false);
   const people = usePeopleSearch(data);
   const [team, setTeam] = useState('');
+  const [teamCount, setTeamCount] = useState<{ team: string; size: number } | null>(null);
+  const teamSize = teamCount?.team === team ? teamCount.size : null;
+  const [dragging, setDragging] = useState(false);
   const [known, setKnown] = useState<{
     signedIn: ReadonlySet<string>;
     assigned: ReadonlySet<string>;
@@ -61,6 +67,19 @@ export function AssignPage() {
     };
   }, [data, emails, courseIds]);
 
+  useEffect(() => {
+    if (!team) return;
+    let live = true;
+    void data.usersInTeam(team).then((rows) => live && setTeamCount({ team, size: rows.length }));
+    return () => {
+      live = false;
+    };
+  }, [data, team]);
+
+  const readCsv = async (file: File | undefined) => {
+    if (file) add(parseCsvEmails(await file.text()));
+  };
+
   const classify = (email: string) => classifyEmails([email], known)[0] as ClassifiedEmail;
   const classified = classifyEmails(emails, known);
   const summary = summarize(classified);
@@ -79,11 +98,17 @@ export function AssignPage() {
         reminder,
         notify,
       });
+      const people = res.summary.signedIn + res.summary.newInvites;
+      const pending = res.summary.newInvites;
       toast.show(
-        `Assigned to ${res.summary.signedIn + res.summary.newInvites} people (${res.summary.newInvites} pending invites)`,
+        `Assigned to ${people} ${people === 1 ? 'person' : 'people'} (${pending} pending ${pending === 1 ? 'invite' : 'invites'})`,
         { tone: 'success' },
       );
-      void navigate('/kulapati/learners');
+      void navigate(
+        courseIds.length === 1
+          ? `/kulapati/learners?course=${encodeURIComponent(courseIds[0] as string)}`
+          : '/kulapati/learners',
+      );
     } catch {
       toast.show('Could not assign. Nothing was changed; try again.', { tone: 'danger' });
       setBusy(false);
@@ -115,7 +140,9 @@ export function AssignPage() {
                           }
                         />{' '}
                         <strong>{c.title}</strong>
-                        <span className="items__kind">{c.estimatedMinutes} min</span>
+                        <span className="items__kind">
+                          {lessonLabel(countItems(c).lessons)} · {c.estimatedMinutes} min
+                        </span>
                       </label>
                     </li>
                   ))}
@@ -171,15 +198,18 @@ export function AssignPage() {
                       id: 'csv',
                       label: 'Upload CSV',
                       panel: (
-                        <Input
-                          label="CSV file (emails in the first column)"
-                          type="file"
-                          accept=".csv,text/csv"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) add(parseCsvEmails(await file.text()));
-                          }}
-                        />
+                        <div className={dragging ? 'dropzone dropzone--over' : 'dropzone'}>
+                          <p>Drop a CSV file here, or choose one.</p>
+                          <Input
+                            label="CSV file (emails in the first column)"
+                            type="file"
+                            accept=".csv,text/csv"
+                            onDragEnter={() => setDragging(true)}
+                            onDragLeave={() => setDragging(false)}
+                            onDrop={() => setDragging(false)}
+                            onChange={(e) => void readCsv(e.target.files?.[0])}
+                          />
+                        </div>
                       ),
                     },
                     {
@@ -199,6 +229,13 @@ export function AssignPage() {
                               </option>
                             ))}
                           </Select>
+                          {team ? (
+                            <p className="items__kind" aria-live="polite">
+                              {teamSize === null
+                                ? 'Counting…'
+                                : `${teamSize} ${teamSize === 1 ? 'person' : 'people'} in ${team}`}
+                            </p>
+                          ) : null}
                           <Button
                             variant="secondary"
                             disabled={!team}

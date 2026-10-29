@@ -39,6 +39,9 @@ Inputs supported by the UI: search people, paste emails (comma, space, new
 line), CSV upload (first column of emails, header optional), whole team (from
 `users.team`). The summary panel previews the classification **before**
 submitting by running the same pure classifier client-side.
+Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
+file. After assigning exactly one course the console opens Learners filtered to it
+(`/kulapati/learners?course=<id>`).
 
 ## Email notifications
 

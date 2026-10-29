@@ -104,6 +104,13 @@ describe('Learners', () => {
     );
   });
 
+  it('opens already filtered to the course in the address', async () => {
+    const c = setup();
+    await openApp('/kulapati/learners?course=git', { ...kulapati, console: c });
+    await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
+    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('git');
+  });
+
   it('filters by search, team, course and role', async () => {
     const c = setup({ found: [users[1] as UserRow], team: [users[0] as UserRow] });
     await openApp('/kulapati/learners', { ...kulapati, console: c });

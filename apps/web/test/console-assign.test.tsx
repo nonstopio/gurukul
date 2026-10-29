@@ -9,6 +9,12 @@ const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
 const PATH = '/kulapati/assign';
 const draft = makeCourse({ id: 'draft', title: 'Draft course', status: 'draft' });
 const sql = makeCourse({ id: 'sql', title: 'SQL basics' });
+const base = makeCourse();
+const one = makeCourse({
+  id: 'one',
+  title: 'One lesson',
+  parvas: [{ id: 'p1', title: 'Only', items: base.parvas.flatMap((p) => p.items).slice(0, 1) }],
+});
 
 function setup(over: Parameters<typeof fakeConsole>[0] = {}) {
   const c = fakeConsole({ teams: ['QA'], ...over });
@@ -105,8 +111,9 @@ describe('Assign courses', () => {
         notify: false,
       }),
     );
-    expect(await screen.findByText('Assigned to 2 people (1 pending invites)')).toBeTruthy();
+    expect(await screen.findByText('Assigned to 2 people (1 pending invite)')).toBeTruthy();
     await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    expect(router.state.location.search).toBe('?course=git');
   });
 
   it('sends no deadline when none is set', async () => {
@@ -226,5 +233,61 @@ describe('Assign courses', () => {
     fireEvent.click(add);
     await waitFor(() => expect(c.data.usersInTeam).toHaveBeenCalledWith('QA'));
     expect(await screen.findByText(/q2@nonstopio.com/)).toBeTruthy();
+  });
+});
+
+describe('Assign screen details', () => {
+  it('shows lesson counts, a team size and a CSV drop zone, and plain toast wording', async () => {
+    const c = setup({ team: [userRow(1, { email: 'q1@nonstopio.com' })] });
+    c.service.assignCourses = vi.fn().mockResolvedValue({
+      summary: { signedIn: 1, newInvites: 2, alreadyAssigned: 0, rejected: [] },
+      assigned: 3,
+      notified: 0,
+    });
+    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    expect((await screen.findAllByText(/4 lessons · /)).length).toBe(2);
+    fireEvent.click(screen.getByRole('tab', { name: 'Whole team' }));
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    expect(await screen.findByText('1 person in QA')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload CSV' }));
+    const zone = screen.getByText('Drop a CSV file here, or choose one.').parentElement as Element;
+    const input = screen.getByLabelText(/CSV file/);
+    fireEvent.dragEnter(input);
+    expect(zone.className).toContain('dropzone--over');
+    fireEvent.dragLeave(input);
+    expect(zone.className).not.toContain('dropzone--over');
+    fireEvent.dragEnter(input);
+    fireEvent.drop(input);
+    expect(zone.className).not.toContain('dropzone--over');
+    const csv = new File(['d@nonstopio.com\n'], 'p.csv', { type: 'text/csv' });
+    Object.defineProperty(csv, 'text', { value: async () => 'd@nonstopio.com\n' });
+    fireEvent.change(input, { target: { files: [csv] } });
+    expect(await screen.findByText(/d@nonstopio.com/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Git, the NonStop Way/));
+    fireEvent.click(screen.getByLabelText(/SQL basics/));
+    fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
+    expect(await screen.findByText('Assigned to 3 people (2 pending invites)')).toBeTruthy();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    expect(router.state.location.search).toBe('');
+  });
+
+  it('names a single pending invite in the singular', async () => {
+    const c = setup();
+    c.service.assignCourses = vi.fn().mockResolvedValue({
+      summary: { signedIn: 0, newInvites: 1, alreadyAssigned: 0, rejected: [] },
+      assigned: 1,
+      notified: 0,
+    });
+    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    await addEmails('a@nonstopio.com');
+    fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
+    expect(await screen.findByText('Assigned to 1 person (1 pending invite)')).toBeTruthy();
+  });
+
+  it('says "1 lesson" for a one-lesson course', async () => {
+    await openApp(PATH, { ...kulapati, console: setup(), data: fakeData({ courses: [one] }) });
+    expect(await screen.findByText(/1 lesson · /)).toBeTruthy();
   });
 });

@@ -1552,3 +1552,14 @@ a.items__row:hover {
   color: var(--text-body);
   font-size: var(--text-sm);
 }
+.dropzone {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-xl);
+}
+.dropzone--over {
+  border-color: var(--accent, currentColor);
+  background: var(--surface);
+}
