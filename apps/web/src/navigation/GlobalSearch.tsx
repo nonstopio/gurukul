@@ -7,7 +7,7 @@
 // pages; an empty query lists pages only. People (Kulapatis only) come from `lookups`, read by
 // prefix once typing pauses, newest answer only, like the Learners page's own search.
 
-import { CommandPalette } from '@gurukul/ui';
+import { CommandPalette, SearchIcon } from '@gurukul/ui';
 import {
   createContext,
   useCallback,
@@ -191,19 +191,7 @@ export function SearchTrigger() {
       aria-expanded={search.open}
       aria-keyshortcuts={search.shortcut === '⌘K' ? 'Meta+K' : 'Control+K'}
     >
-      <svg
-        aria-hidden="true"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </svg>
+      <SearchIcon />
       <span>Search</span>
       <kbd aria-hidden="true">{search.shortcut}</kbd>
     </button>

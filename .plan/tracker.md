@@ -17,26 +17,22 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations | 7 | 0 | 0 | 0 |
-| Sign-in, roles and shell | 12 | 0 | 1 | 0 |
-| Learner experience | 18 | 0 | 1 | 0 |
+| Sign-in, roles and shell | 13 | 0 | 0 | 0 |
+| Learner experience | 19 | 0 | 0 | 0 |
 | Parikshas and certificates | 10 | 0 | 0 | 0 |
 | Kulapati console and Sanjaya | 32 | 0 | 0 | 0 |
 | Vyasa Studio | 17 | 0 | 0 | 0 |
-| Design system | 5 | 1 | 0 | 0 |
+| Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 19 | 0 | 0 | 9 |
 | First course: Git | 4 | 0 | 0 | 2 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 131 | 1 | 2 | 11 |
+| **Total** | 134 | 0 | 0 | 11 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
-Two items are blocked on a maintainer answer (`LRN-20`, `AUTH-10`).
-
-1. `LRN-20` — Preview certificate on the course overview (blocked)
-2. `AUTH-10` — Sign-in: contact link and quote (blocked)
-3. `DS-04` — shared icon set
+Nothing left to pick: every remaining item is a maintainer action.
 
 ## Foundations
 
@@ -67,7 +63,7 @@ Plan: `03-auth-and-roles.md`, `design-handoff/00-shared-patterns.md`, `design-ha
 | `AUTH-07` | Sign-in works on mobile Safari and fails politely                        | done   | —       | `apps/web/src/auth/service.ts` (`prefersRedirect`, `finishRedirect`, cancel and blocked-popup handling), `AuthProvider.tsx` (`deniedMessage`, `wrongAccount`), `SignInPage.tsx`; auth domain switch is `OPS-21` |
 | `AUTH-08` | Sign-in screen to the handoff | done | — | `apps/web/src/auth/SignInPage.tsx`, `styles.css` (`.signin*`): two-pane hero, benefits, invite Callout, footnote. Left: `AUTH-09` |
 | `AUTH-09` | Sign-in states | done | — | Google mark, busy state (disabled, `aria-busy`, "Signing in…") and a quote line: `apps/web/src/auth/SignInPage.tsx`, `styles.css` (`.signin__quote`), `apps/web/test/App.test.tsx`. The inline `role=alert` message stays as the error state. Left: `AUTH-10` |
-| `AUTH-10` | Sign-in: contact link and quote | blocked | — | Needs the maintainer: the contact address for the sign-in help link, and confirmation or replacement of the Sanskrit quote ("Knowledge gives humility") chosen without the handoff text. An error Toast with retry is dropped unless `Toast` gains an action slot; the inline alert already covers it |
+| `AUTH-10` | Sign-in: contact link and quote | done | — | Maintainer chose `gurukul@nonstopio.com` for the help link and kept the quote ("Knowledge gives humility"): `apps/web/src/auth/SignInPage.tsx` (mailto footnote), `styles.css` (`.signin__footnote a`), `apps/web/test/App.test.tsx`. No error Toast with retry: the inline alert covers it |
 | `SHL-01`  | Skip link, focus on route change, retry on load errors                   | done   | —       | "Skip to content" and focus/announce on navigation in `apps/web/src/Shell.tsx` + `src/routeFocus.ts`; Retry from `useAsync` (`src/data/useAsync.ts`) on the load-error callout (`src/learn/ui.tsx`); `test/route-focus.test.tsx` |
 | `SHL-02`  | Focused shell for lesson, Pariksha and result                            | done   | —       | `FocusedShell` (top bar only) and `Frame` (search, skip link, route focus above both layouts) in `apps/web/src/Shell.tsx`, `FOCUSED` in `src/routes.tsx`; one `h1` each (`TopBar titleAs="p"`, `packages/ui/src/TopBar.tsx`); `ProgressBar caption` "60% · 3 / 5"; `test/focused-shell.test.tsx` |
 | `SHL-03` | Handoff breakpoints and the menu button | done | — | `apps/web/src/Shell.tsx` (Menu button), `styles.css` (stacks below 808px, menu button below 560px). Not yet checked by eye at 390px and 700px |
@@ -92,7 +88,7 @@ Plan: `05-learner-experience.md`, `design-handoff/01-learner.md` §02–§04, M2
 | `LRN-18` | Course overview: hero band and due date | done | — | Hero band and due date: `apps/web/src/CoursePage.tsx` (`--cover-forest` band with title, summary, meta, due-date chip from `myAssignments`; the page still opens if that call fails), `styles.css`, `apps/web/test/learner-pages.test.tsx`. Left: `LRN-20` |
 | `LRN-13` | Home to the handoff | done | — | `apps/web/src/HomePage.tsx`, `learn/model.ts` (`statusLine`, `upNext`, `recentActivity`), `learn/ui.tsx` (`CoverTile`), `styles.css`. Left: assigned-by, `LRN-19` |
 | `LRN-19` | Assigned-by on the Home continue card | done | — | `assignedByName` stored on the assignment by the assign function (caller's token name; optional, so older assignments show nothing), shown on the Home continue card: `packages/schema/src/assignment.ts`, `firebase/functions/src/{assign,stores}.ts`, `apps/web/src/data/{types,firebase}.ts`, `HomePage.tsx`; `02-data-model.md` |
-| `LRN-20` | Preview certificate on the course overview | blocked | — | Needs a plan decision: does it get a route, and what does the certificate show before it is earned (sample data, the learner's name)? Not built |
+| `LRN-20` | Preview certificate on the course overview | done | — | Dropped by the maintainer (2026-10-29): no preview, so nothing that looks like a certificate exists before one is earned. Nothing built |
 | `LRN-14` | Retired and "New lessons added" states                                   | done   | —        | `apps/web/src/learn/model.ts` (`isRetired`, `hasNewLessons`), `learn/ui.tsx` (`RetiredNote`), `HomePage.tsx`, `CoursePage.tsx`, `LessonPage.tsx`, `pariksha/ParikshaPage.tsx` (closed for retired); `firebase/functions/src/grading.ts` refuses archived with `CRS_1004` (`packages/schema/src/api.ts`) |
 | `LRN-15` | Block renderer polish | done | — | `packages/schema/src/course.ts` (optional video `title` and `caption`), `packages/ui/src/CodeBlock.tsx` (`copyable`), `apps/web/src/player/blocks.tsx`, `TrackedVideo.tsx`, `styles.css`; file-row icon. Studio inputs for the new fields: `STU-17` |
 | `LRN-16` | Check blocks reveal the right option | done | — | Schema v3: optional `check.correct` (`packages/schema/src/course.ts`, `migrations/steps.ts`), publish check in `draft.ts`, player in `player/blocks.tsx`, Studio radio in `studio/blocks/CheckEditor.tsx`, `studio/lessonEdit.ts`; seed keyed in `firebase/seed/src/git-course.ts`. Live courses at schemaVersion 2 need an Acharya to mark answers before the next publish |
@@ -129,7 +125,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-06` | Sanjaya overview: active learners, assignments, weekly chart, funnel, CSV export | done | —        | `apps/web/src/console/OverviewPage.tsx`, `console/model.ts`                                                                                                                          |
 | `KUL-07` | Course analytics: funnel, parva drop-off, hardest questions                  | done    | —        | `apps/web/src/console/CourseAnalyticsPage.tsx`                                                                                                                                       |
 | `KUL-08` | Counter triggers and the daily org roll-up                                   | done    | —        | `firebase/functions/src/analytics.ts`                                                                                                                                                |
-| `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Queued only: delivery is `KUL-24`                                                                                                    |
+| `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Sent through the Gmail mailer (`KUL-24`)                                                                                                    |
 | `KUL-10` | Learners table: pending invites and filters that combine                     | done    | —        | `apps/web/src/console/LearnersPage.tsx`, `model.ts` (`filterPeople`, `onTab`, `tabCounts`, `allPage`). Counts past 500: `KUL-26`                                                     |
 | `KUL-11` | People search by name                                                        | done    | —        | `apps/web/src/console/firebase.ts` (`searchUsers`: `email` and `nameLower` prefixes), `usePeopleSearch.ts` (newest answer wins), `model.ts` (`filterPeople`); `nameLower` set by `firebase/functions/src/profile.ts`, backfilled at sign-in (`apps/web/src/firestore.ts`), kept in step by `firestore.rules` |
 | `KUL-12` | Learner drawer completeness | done | — | `apps/web/src/console/LearnerDrawer.tsx`, `model.ts` (`drawerCourses`, `parikshaTitle`), `firebase.ts` (`assignmentsFor`, `attemptsFor`: score, verdict and date only) |
@@ -188,7 +184,7 @@ Plan: `04-design-system.md`.
 | `DS-02` | axe in component tests; tokens test                      | done   | —       | `packages/ui/test/axe.ts`, `packages/ui/test/tokens.test.ts`                                                                   |
 | `DS-03` | `/__ui` component gallery | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx`, `devRoutes()` in `routes.tsx` (dev builds only), axe test `apps/web/test/ui-gallery.test.tsx` |
 | `DS-06` | Gallery: Sidebar, TopBar, VideoBlock, Certificate | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx` (Sidebar, SidebarGroup, NavItem, TopBar, VideoBlock, a normal and a revoked long-name Certificate in size-capped frames), `ui-gallery.css`; axe-checked in `apps/web/test/ui-gallery.test.tsx` |
-| `DS-04` | Shared icon set                                          | todo   | —       | `packages/ui/icons` does not exist; about twenty one-off inline SVGs move onto stroke icon components (`aria-hidden` by default) |
+| `DS-04` | Shared icon set | done | — | `packages/ui/src/Icon.tsx` (`Icon` base, 16-grid stroke, `aria-hidden` unless `label`; 19 named icons in use), `packages/ui/test/icons.test.tsx`, gallery section in `apps/web/src/ui-gallery/`, recipe in `.claude/skills/gurukul-design/references/components.md`. Brand marks, data graphics, the seal and filled diagrams stay inline |
 | `DS-05` | axe on the remaining page tests | done | — | `apps/web/test/ChangelogPage.test.tsx`, `apps/web/test/GlobalSearch.test.tsx` (`axeViolations` from `apps/web/test/axe.ts`) |
 
 ## Global search

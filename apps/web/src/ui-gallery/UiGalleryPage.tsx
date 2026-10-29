@@ -1,6 +1,25 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
+  AlertIcon,
+  BookIcon,
+  CheckIcon,
+  ChecklistIcon,
+  ChevronRightIcon,
+  CodeIcon,
+  CopyIcon,
+  EmbedIcon,
+  FileIcon,
+  ImageIcon,
+  InfoIcon,
+  LightbulbIcon,
+  LockIcon,
+  PlayIcon,
+  SearchIcon,
+  StarIcon,
+  TextIcon,
+  TrashIcon,
+  XIcon,
   BarChart,
   BlockFrame,
   Breadcrumb,
@@ -67,6 +86,27 @@ const QUIZ_STATES: Array<[QuizOptionState, 'A' | 'B' | 'C' | 'D']> = [
   ['locked', 'D'],
 ];
 const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'pariksha'];
+const ICONS = {
+  AlertIcon,
+  BookIcon,
+  CheckIcon,
+  ChecklistIcon,
+  ChevronRightIcon,
+  CodeIcon,
+  CopyIcon,
+  EmbedIcon,
+  FileIcon,
+  ImageIcon,
+  InfoIcon,
+  LightbulbIcon,
+  LockIcon,
+  PlayIcon,
+  SearchIcon,
+  StarIcon,
+  TextIcon,
+  TrashIcon,
+  XIcon,
+};
 const TOAST_TONES: ToastTone[] = ['info', 'success', 'danger'];
 const FUNNEL = [
   { label: 'Started', value: 120 },
@@ -465,6 +505,16 @@ export function UiGalleryPage() {
             What they learn.
           </Stepper.Step>
         </div>
+      </Section>
+      <Section id="icons" title="Icons">
+        <ul className="ui-gallery__list ui-gallery__icons">
+          {Object.entries(ICONS).map(([name, Glyph]) => (
+            <li key={name}>
+              <Glyph size={20} />
+              {name}
+            </li>
+          ))}
+        </ul>
       </Section>
       <Section id="content" title="Content">
         {TYPE_KINDS.map((k) => (

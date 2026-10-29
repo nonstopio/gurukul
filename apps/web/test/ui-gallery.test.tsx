@@ -25,6 +25,7 @@ describe('/__ui component gallery', () => {
     for (const name of [
       'Button',
       'Chip',
+      'Icons',
       'Sidebar and top bar',
       'Video and certificate',
       'Pariksha',

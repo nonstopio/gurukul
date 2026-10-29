@@ -1,4 +1,4 @@
-import { Button, Callout } from '@gurukul/ui';
+import { BookIcon, Button, Callout, CheckIcon, StarIcon } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
 
@@ -27,15 +27,9 @@ function GoogleMark() {
 }
 
 const BENEFITS = [
-  {
-    icon: 'M4 5h5a2 2 0 0 1 1 .3A2 2 0 0 1 11 5h5v10h-5a2 2 0 0 0-1 .3 2 2 0 0 0-1-.3H4z',
-    text: 'Courses built by NonStopians, for NonStopians',
-  },
-  { icon: 'M4 10.5l4 4 8-9', text: 'Parikshas that show what you have learned' },
-  {
-    icon: 'M10 3l2 4.5 5 .5-3.7 3.4 1 5L10 14l-4.3 2.4 1-5L3 8l5-.5z',
-    text: 'Certificates you can share and verify',
-  },
+  { Icon: BookIcon, text: 'Courses built by NonStopians, for NonStopians' },
+  { Icon: CheckIcon, text: 'Parikshas that show what you have learned' },
+  { Icon: StarIcon, text: 'Certificates you can share and verify' },
 ] as const;
 
 /**
@@ -76,19 +70,7 @@ export function SignInPage() {
           <ul className="signin__benefits">
             {BENEFITS.map((b) => (
               <li key={b.text}>
-                <svg
-                  viewBox="0 0 20 20"
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d={b.icon} />
-                </svg>
+                <b.Icon size={20} />
                 {b.text}
               </li>
             ))}
@@ -132,6 +114,10 @@ export function SignInPage() {
           Sign in with the same work email. Your courses are waiting for you.
         </Callout>
         <p className="signin__footnote">Only @nonstopio.com Google accounts can sign in.</p>
+        <p className="signin__footnote">
+          Trouble signing in? Write to{' '}
+          <a href="mailto:gurukul@nonstopio.com">gurukul@nonstopio.com</a>.
+        </p>
       </section>
     </main>
   );

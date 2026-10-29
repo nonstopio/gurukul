@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { CheckIcon, XIcon } from './Icon';
 import type { NavItemRenderProps } from './NavItem';
 import './result-row.css';
 
@@ -44,18 +45,7 @@ export function ResultRow({
       {...rest}
     >
       <span className="g-result__icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 16 16"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d={passed ? 'M3 8.5l3.5 3.5L13 4.5' : 'M4 4l8 8M12 4l-8 8'} />
-        </svg>
+        {passed ? <CheckIcon strokeWidth={1.75} /> : <XIcon strokeWidth={1.75} />}
       </span>
       <div className="g-result__body">
         <p className="g-result__question">
