@@ -114,6 +114,22 @@ describe('Overview', () => {
     expect(c.data.overdueCount).toHaveBeenCalledTimes(1);
   });
 
+  it('counts pending invites past the newest ones the page loads, once per email', async () => {
+    const c = fakeConsole({
+      assignments: [],
+      open: [
+        asg('p1@nonstopio.com', { uid: null }),
+        asg('p1@nonstopio.com', { uid: null, courseId: 'other' }),
+        asg('p2@nonstopio.com', { uid: null }),
+        asg('o@nonstopio.com', { uid: 'u9', dueAt: past }),
+      ],
+    });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    const card = (await screen.findByText('Pending invites')).parentElement as HTMLElement;
+    expect(within(card).getByText('2')).toBeTruthy();
+    expect(c.data.openAssignments).toHaveBeenCalledWith(expect.any(Date));
+  });
+
   it('shows dashes for a course nobody has started', async () => {
     await openApp('/kulapati', { ...kulapati });
     expect(await screen.findByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();

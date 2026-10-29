@@ -24,16 +24,17 @@ export function OverviewPage() {
   const learner = useLearnerData();
   const [now] = useState(() => new Date());
   const load = useCallback(async () => {
-    const [org, courses, assignments, overdue] = await Promise.all([
+    const [org, courses, assignments, open, overdue] = await Promise.all([
       data.orgStats(),
       learner.listCourses(),
       data.assignments(),
+      data.openAssignments(now),
       data.overdueCount(now),
     ]);
     const rows = await Promise.all(
       courses.map(async (course) => ({ course, stats: await data.courseStats(course.id) })),
     );
-    return { org, assignments, overdue, rows };
+    return { org, assignments, open, overdue, rows };
   }, [data, learner, now]);
   const result = useAsync(load);
 
@@ -56,9 +57,8 @@ export function OverviewPage() {
         </Link>
       </div>
       <Loaded loadable={result}>
-        {({ org, assignments, overdue, rows }) => {
-          const pending = new Set(assignments.filter((a) => a.uid === null).map((a) => a.email))
-            .size;
+        {({ org, assignments, open, overdue, rows }) => {
+          const pending = new Set(open.filter((a) => a.uid === null).map((a) => a.email)).size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
           const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
