@@ -44,7 +44,15 @@ function rows() {
     { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }) },
     { live: draftOnly, draft: draftDoc(draftOnly, { updatedAt: null }) },
     { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }) },
-    { live: makeCourse({ id: 'other', title: 'Not mine', acharyaIds: ['x'] }), draft: null },
+    {
+      live: makeCourse({
+        id: 'other',
+        title: 'Not mine',
+        acharyaIds: ['x'],
+        acharyaNames: { x: 'Rohan Das' },
+      }),
+      draft: null,
+    },
     {
       live: makeCourse({ id: 'old', title: 'Retired', status: 'archived', acharyaIds: ['x'] }),
       draft: null,
@@ -70,7 +78,8 @@ describe('Studio courses page', () => {
     expect(screen.getByText('Edited 2 h ago')).toBeTruthy();
     expect(screen.getByText('Edited just now')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Not mine' })).toBeNull();
-    expect(screen.getAllByText('View only')).toHaveLength(2);
+    expect(screen.getByText('View only — Acharya: Rohan Das')).toBeTruthy();
+    expect(screen.getByText('View only')).toBeTruthy();
     expect(screen.getByText('Archived')).toBeTruthy();
     expect(screen.getByText('Published · v2')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);

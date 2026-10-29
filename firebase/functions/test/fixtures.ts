@@ -27,7 +27,7 @@ export const pariksha = (over: object = {}) => ({
 });
 
 export const course = (parikshaOver: object = {}, over: object = {}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'git-basics',
   title: 'Git basics',
   summary: '',
@@ -36,6 +36,7 @@ export const course = (parikshaOver: object = {}, over: object = {}) => ({
   cover: { theme: 'forest', glyph: 'G' },
   outcomes: [],
   acharyaIds: [],
+  acharyaNames: {},
   status: 'published',
   version: 3,
   publishedAt: ts(1),

@@ -19,6 +19,7 @@ import {
   setRule,
 } from '../src/studio/courseEdit';
 import {
+  acharyaSummary,
   canEdit,
   changeSummary,
   collectMedia,
@@ -153,6 +154,23 @@ describe('studioModel', () => {
     expect(canEdit({ acharyaIds: ['u1'] }, 'u1', false)).toBe(true);
     expect(canEdit({ acharyaIds: ['u2'] }, 'u1', false)).toBe(false);
     expect(canEdit({ acharyaIds: [] }, 'u1', true)).toBe(true);
+  });
+
+  it('names the Acharyas, counting the ones whose name was never stored', () => {
+    const names = { u1: 'Asha Rao', u2: 'Rohan Das' };
+    expect(acharyaSummary({ acharyaIds: ['u1'], acharyaNames: names })).toEqual({
+      label: 'Acharya',
+      names: 'Asha Rao',
+    });
+    expect(acharyaSummary({ acharyaIds: ['u1', 'u2', 'x'], acharyaNames: names })).toEqual({
+      label: 'Acharyas',
+      names: 'Asha Rao, Rohan Das, 1 other',
+    });
+    expect(acharyaSummary({ acharyaIds: ['u1', 'x', 'y'], acharyaNames: names })?.names).toBe(
+      'Asha Rao, 2 others',
+    );
+    expect(acharyaSummary({ acharyaIds: ['x'], acharyaNames: names })).toBeNull();
+    expect(acharyaSummary({ acharyaIds: [], acharyaNames: {} })).toBeNull();
   });
 
   it('words relative time', () => {

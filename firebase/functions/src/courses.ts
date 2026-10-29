@@ -19,6 +19,8 @@ export interface LiveCourse {
   version: number;
   status: string;
   acharyaIds: string[];
+  /** Missing on a v1 document no role grant has touched yet. */
+  acharyaNames?: Record<string, string>;
 }
 
 export interface DraftData {
@@ -80,6 +82,10 @@ export interface CourseStore {
 const hasRole = (caller: Caller): boolean =>
   caller.claims?.acharya === true || caller.claims?.kulapati === true;
 
+/** The name Studio shows for the caller: the Google name, else the email's local part, as the profile does. */
+const displayName = (caller: Caller): string | undefined =>
+  caller.name?.trim() || caller.email?.split('@')[0] || undefined;
+
 const canEdit = (caller: Caller, live: Pick<LiveCourse, 'acharyaIds'>): boolean =>
   caller.claims?.kulapati === true || live.acharyaIds.includes(caller.uid);
 
@@ -127,7 +133,8 @@ export async function createCourse(
   const source = from === undefined || from === null ? undefined : idField('duplicateFrom', from);
   log.debug('Creating a course', { courseId: id, source: source ?? 'blank' });
 
-  const course = blankCourse({ id, title, level, theme, acharyaId: caller.uid });
+  const acharyaName = displayName(caller);
+  const course = blankCourse({ id, title, level, theme, acharyaId: caller.uid, acharyaName });
   let draft = { course, answers: {} as AnswerKeys };
   if (source !== undefined) {
     const live = await store.getLive(source);
@@ -140,7 +147,8 @@ export async function createCourse(
         ...copied.course,
         id,
         title,
-        acharyaIds: [caller.uid],
+        acharyaIds: course.acharyaIds,
+        acharyaNames: course.acharyaNames,
         status: 'draft',
         version: 0,
         publishedAt: null,
@@ -172,11 +180,12 @@ function requireEditor(
   return live;
 }
 
-/** The live document after a release: the live Acharyas are the authority, never the draft's. */
+/** The live document after a release: the live Acharyas and their names are the authority, never the draft's. */
 const released = (course: Course, live: LiveCourse, courseId: string, version: number): Course => ({
   ...course,
   id: courseId,
   acharyaIds: live.acharyaIds,
+  acharyaNames: live.acharyaNames ?? {},
   status: 'published',
   version,
   estimatedMinutes: estimateMinutes(course),

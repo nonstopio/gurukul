@@ -66,14 +66,21 @@ describe('Course editor: who and what loads', () => {
   });
 
   it('shows a view-only notice to an Acharya who may not edit, but not to a Kulapati', async () => {
-    const other = mine({ acharyaIds: ['someone'] });
+    const other = mine({ acharyaIds: ['someone', 'u9'], acharyaNames: { someone: 'Rohan Das' } });
     const view = await open({ live: other });
     expect(await screen.findByText('View only')).toBeTruthy();
+    expect(screen.getByText('Acharyas: Rohan Das, 1 other.')).toBeTruthy();
     expect(screen.queryByRole('tab', { name: 'Structure' })).toBeNull();
     expect(view.studio.data.getDraft).not.toHaveBeenCalled();
     expect(await axeViolations(document.body)).toEqual([]);
     await open({ live: other, roles: ['kulapati'] });
     expect(await ready()).toBeTruthy();
+  });
+
+  it('leaves the Acharya line out of the view-only notice when no name is known', async () => {
+    await open({ live: mine({ acharyaIds: ['someone'] }) });
+    expect(await screen.findByText('View only')).toBeTruthy();
+    expect(screen.queryByText(/^Acharyas?:/)).toBeNull();
   });
 
   it('shows loading, missing and failed drafts', async () => {
@@ -412,8 +419,12 @@ describe('Course editor: saving', () => {
 
 describe('Course editor: details, landing page, certificate', () => {
   it('edits the details panel', async () => {
-    await open({ live: mine({ acharyaIds: ['u1', 'u2'] }) });
+    await open({ live: mine({ acharyaIds: ['u1', 'u2'], acharyaNames: { u1: 'Asha Rao' } }) });
     await ready();
+    expect(screen.getByText('2 people', { exact: false })).toBeTruthy();
+    expect(screen.getByText('Asha Rao')).toBeTruthy();
+    expect(screen.getByText('u2')).toBeTruthy();
+    expect(screen.getByText('(name not recorded yet)')).toBeTruthy();
     const addr = screen.getByLabelText('Address') as HTMLInputElement;
     expect(addr.readOnly).toBe(true);
     expect(addr.value).toBe('git');

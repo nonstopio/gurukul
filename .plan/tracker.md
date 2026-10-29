@@ -21,64 +21,63 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
 | Kulapati console and Sanjaya  | 16   | 8    | 2       | 0          |
-| Vyasa Studio                  | 6    | 9    | 0       | 0          |
+| Vyasa Studio                  | 7    | 8    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 73   | 39   | 6       | 7          |
+| **Total**                     | 74   | 38   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `STU-06` — Acharya names on courses
-2. `LRN-14` — Retired and "New lessons added" states
-3. `PRK-09` — revocation date on certificates
-4. `KUL-18` — org Pariksha KPIs and a true overdue count
-5. `KUL-21` — daily roll-up repairs course counters
-6. `SRC-02` — learner navigation area
-7. `SRC-03` — courses and lessons in search
-8. `SRC-04` — people in search for Kulapatis
-9. `SRC-05` — draft courses in search for Acharyas
-10. `STU-11` — preview uses the real learner screens
-11. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-12. `STU-08` — "Draft vN · saved just now"
-13. `STU-10` — learner counts in the publish dialog and on course cards
-14. `STU-12` — publishing an archived course
-15. `STU-13` — structure editor polish
-16. `LRN-12` — course overview to the handoff
-17. `LRN-13` — Home to the handoff
-18. `LRN-11` — outline rail grouped by parva
-19. `LRN-10` — split layout
-20. `LRN-15` — block renderer polish
-21. `LRN-16` — check blocks reveal the right option
-22. `LRN-17` — keyboard shortcuts dialog
-23. `PRK-08` — completion screen to the handoff
-24. `AUTH-08` — sign-in screen to the handoff
-25. `SHL-03` — handoff breakpoints and the menu button
-26. `KUL-13` — bulk role change and select all
-27. `KUL-14` — Assign screen finish
-28. `KUL-19` — Needs attention, pending-invite strip, overview filters
-29. `KUL-20` — course analytics finish
-30. `KUL-22` — Roles screen polish
-31. `KUL-23` — audit log view finish
-32. `DS-05` — axe on the remaining page tests
-33. `DS-04` — shared icon set
-34. `DS-03` — `/__ui` component gallery
-35. `STU-15` — lesson editor extras
-36. `STU-16` — CodeMirror for markdown and code
-37. `OPS-11` — deeper e2e journeys
-38. `OPS-06` — Lighthouse on the preview URL
-39. `OPS-14` — trigger tests against the emulators
-40. `KUL-24` — email delivery (blocked: question 4)
-41. `KUL-25` — Acharyas see their learners (blocked: question 7)
-42. `PRK-10` — tell a learner their certificate was revoked (blocked)
-43. `OPS-18` — custom domain (blocked: question 6)
-44. `OPS-19` — licence holder (blocked: question 10)
-45. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `LRN-14` — Retired and "New lessons added" states
+2. `PRK-09` — revocation date on certificates
+3. `KUL-18` — org Pariksha KPIs and a true overdue count
+4. `KUL-21` — daily roll-up repairs course counters
+5. `SRC-02` — learner navigation area
+6. `SRC-03` — courses and lessons in search
+7. `SRC-04` — people in search for Kulapatis
+8. `SRC-05` — draft courses in search for Acharyas
+9. `STU-11` — preview uses the real learner screens
+10. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+11. `STU-08` — "Draft vN · saved just now"
+12. `STU-10` — learner counts in the publish dialog and on course cards
+13. `STU-12` — publishing an archived course
+14. `STU-13` — structure editor polish
+15. `LRN-12` — course overview to the handoff
+16. `LRN-13` — Home to the handoff
+17. `LRN-11` — outline rail grouped by parva
+18. `LRN-10` — split layout
+19. `LRN-15` — block renderer polish
+20. `LRN-16` — check blocks reveal the right option
+21. `LRN-17` — keyboard shortcuts dialog
+22. `PRK-08` — completion screen to the handoff
+23. `AUTH-08` — sign-in screen to the handoff
+24. `SHL-03` — handoff breakpoints and the menu button
+25. `KUL-13` — bulk role change and select all
+26. `KUL-14` — Assign screen finish
+27. `KUL-19` — Needs attention, pending-invite strip, overview filters
+28. `KUL-20` — course analytics finish
+29. `KUL-22` — Roles screen polish
+30. `KUL-23` — audit log view finish
+31. `DS-05` — axe on the remaining page tests
+32. `DS-04` — shared icon set
+33. `DS-03` — `/__ui` component gallery
+34. `STU-15` — lesson editor extras
+35. `STU-16` — CodeMirror for markdown and code
+36. `OPS-11` — deeper e2e journeys
+37. `OPS-06` — Lighthouse on the preview URL
+38. `OPS-14` — trigger tests against the emulators
+39. `KUL-24` — email delivery (blocked: question 4)
+40. `KUL-25` — Acharyas see their learners (blocked: question 7)
+41. `PRK-10` — tell a learner their certificate was revoked (blocked)
+42. `OPS-18` — custom domain (blocked: question 6)
+43. `OPS-19` — licence holder (blocked: question 10)
+44. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -196,7 +195,7 @@ Plan: `08-vyasa-studio.md`, `design-handoff/03-vyasa-studio.md`, M5.
 | `STU-03` | Structure editor: keyboard drag list, add, delete with learner count     | done   | —       | `apps/web/src/studio/StructureTab.tsx`, `packages/ui/src/DragList.tsx`                                                                                       |
 | `STU-04` | Lesson editor: every block editor, toolbar, settings, publish validation | done   | —       | `apps/web/src/studio/LessonEditorPage.tsx`, `studio/blocks/`                                                                                                  |
 | `STU-05` | Pariksha builder, question health, question bank, media library, preview | done   | —       | `apps/web/src/studio/ParikshaBuilderPage.tsx`, `QuestionBankPage.tsx`, `MediaPage.tsx`, `PreviewPage.tsx`                                                    |
-| `STU-06` | Acharya names on courses                                                 | todo   | —       | "View only — Acharya: …" has no name and the access list shows uids, because `users` is private. Store names on the course; `02-data-model.md` changes with it |
+| `STU-06` | Acharya names on courses | done | — | `packages/schema/src/course.ts` (`acharyaNames`, v2 migration in `migrations/steps.ts`), `firebase/functions/src/courses.ts`, `stores.ts` `applyCourseGrants`, `apps/web/src/studio/studioModel.ts` `acharyaSummary` |
 | `STU-07` | Acharyas see every course                                                | done   | —       | `firebase/firestore.rules` (`courses/{id}` read: any Acharya; `drafts/`, `versions/` still the course's own), `apps/web/src/studio/firebase.ts` `listCourses` |
 | `STU-08` | "Draft vN · saved just now"                                              | todo   | —       | Today "Saved" / "Saving…"; relative time from the draft's `updatedAt`                                                                                         |
 | `STU-09` | Failed saves are kept; leaving with unsaved edits asks                   | todo   | —       | Keep a failed save locally and offer to restore it; block in-app navigation while dirty                                                                       |

@@ -9,7 +9,14 @@ import { Loaded } from '../learn/ui';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { StudioCourse } from './types';
-import { canEdit, inTab, relativeTime, tabCounts, unpublishedEdits } from './studioModel';
+import {
+  acharyaSummary,
+  canEdit,
+  inTab,
+  relativeTime,
+  tabCounts,
+  unpublishedEdits,
+} from './studioModel';
 import type { CourseTab } from './studioModel';
 
 const STATUS = {
@@ -134,6 +141,7 @@ function CourseCard({
   const editing = canEdit(live, uid, kulapati);
   const edits = unpublishedEdits(row);
   const shownCounts = countItems(shown);
+  const acharyas = acharyaSummary(live);
   return (
     <li>
       <Card as="article" className="sc-card">
@@ -187,7 +195,7 @@ function CourseCard({
                   <rect x="3" y="7" width="10" height="6.5" rx="1.5" />
                   <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
                 </svg>{' '}
-                View only
+                {acharyas ? `View only — ${acharyas.label}: ${acharyas.names}` : 'View only'}
               </span>
             )}
           </div>

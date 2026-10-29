@@ -6,6 +6,8 @@ import type { RoleClaims } from './roles.js';
 export interface Caller {
   uid: string;
   email?: string | undefined;
+  /** The Google account's display name, when the token carries one. */
+  name?: string | undefined;
   claims: RoleClaims | undefined;
 }
 

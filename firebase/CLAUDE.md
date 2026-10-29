@@ -49,12 +49,13 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
   20 hours via `lastRemindedAt`), and
-  `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds`, existing courses only).
+  `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds` and the profile's display name
+  into `acharyaNames` on every granted course, existing courses only).
 - Vyasa Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`
   (Acharya or Kulapati; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
-  source draft with its answers; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
+  source draft with its answers; the creator's Google name goes into `acharyaNames`; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
   Acharya or Kulapati; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
-  `acharyaIds` always win; both run `upgradeCourse` on the stored course first; publish is gated by
+  `acharyaIds` and `acharyaNames` always win; both run `upgradeCourse` on the stored course first; publish is gated by
   `validateForPublish` and fails `CRS_1003` with `details.issues`; rollback republishes a snapshot as a new
   version and resets the draft), `archiveCourse` (Kulapati-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`

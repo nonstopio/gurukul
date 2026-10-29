@@ -1212,7 +1212,7 @@ const estimatedMinutes = parvas
   .reduce((sum, item) => sum + (item.type === 'lesson' ? item.minutes : 0), 0);
 
 export const gitCourse: Course = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'git-the-nonstop-way',
   title: 'Git, the NonStop Way',
   summary:
@@ -1233,6 +1233,7 @@ export const gitCourse: Course = {
     'Follow a team workflow with rebase, branch naming and release tags',
   ],
   acharyaIds: [],
+  acharyaNames: {},
   status: 'published',
   version: 1,
   publishedAt: null,

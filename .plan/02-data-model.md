@@ -31,7 +31,7 @@ document limit. `schemaVersion` lets the shape evolve with tested migrations.
 
 ```ts
 type Course = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;                    // = slug, stable forever
   title: string;
   summary: string;               // one sentence, shown on cards
@@ -40,6 +40,7 @@ type Course = {
   cover: { theme: 'forest' | 'sand' | 'sky' | 'stone'; glyph: string };
   outcomes: string[];            // "What you will learn"
   acharyaIds: string[];          // uids who may edit
+  acharyaNames: Record<string, string>; // uid → display name, for Studio (v2); `users` is private
   status: 'draft' | 'published' | 'archived';
   version: number;               // increments on publish
   publishedAt: Timestamp | null;

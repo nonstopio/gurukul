@@ -60,7 +60,7 @@ export const lesson = (id: string, over: object = {}) => ({
 
 export function makeCourse(over: Partial<Course> = {}): Course {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'git',
     title: 'Git, the NonStop Way',
     summary: 'Version control for teams.',
@@ -69,6 +69,7 @@ export function makeCourse(over: Partial<Course> = {}): Course {
     cover: { theme: 'forest', glyph: 'G' },
     outcomes: ['Commit with confidence'],
     acharyaIds: [],
+    acharyaNames: {},
     status: 'published',
     version: 1,
     publishedAt: null,

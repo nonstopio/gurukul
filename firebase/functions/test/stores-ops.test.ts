@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import {
   firebaseRoleAdmin,
   firestoreBackupPort,
@@ -17,6 +18,7 @@ vi.mock('firebase-admin/firestore', () => ({
     increment: (n: number) => `+${n}`,
     arrayUnion: (v: string) => `union:${v}`,
     arrayRemove: (v: string) => `remove:${v}`,
+    delete: () => 'DELETE',
   },
   Timestamp: { fromMillis: (ms: number) => `ts:${ms}` },
   FieldPath: class {
@@ -47,34 +49,65 @@ describe('firebaseRoleAdmin course grants', () => {
     expect(await admin.getGrantedCourseIds('u')).toEqual([]);
   });
 
-  it('stores the list and updates acharyaIds only on courses that exist', async () => {
+  const grantDb = (snaps: unknown[]) => {
     const batch = batchOf();
-    const snaps = [
-      { exists: true, ref: 'courses/new' },
-      { exists: false, ref: 'courses/ghost' },
-      { exists: true, ref: 'courses/old' },
-    ];
     const db = {
       doc: vi.fn((p: string) => p),
       getAll: vi.fn().mockResolvedValue(snaps),
       batch: vi.fn().mockReturnValue(batch),
     } as never;
-    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new', 'ghost'], {
+    return { batch, db, getAll: (db as { getAll: Mock }).getAll };
+  };
+  const name = { parts: ['acharyaNames', 'u'] };
+
+  it('stores the list and updates acharyaIds and names only on courses that exist', async () => {
+    const { batch, db, getAll } = grantDb([
+      { get: (k: string) => (k === 'displayName' ? 'Asha Rao' : undefined) },
+      { exists: true, ref: 'courses/new' },
+      { exists: false, ref: 'courses/ghost' },
+      { exists: true, ref: 'courses/kept' },
+      { exists: true, ref: 'courses/old' },
+    ]);
+    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new', 'ghost', 'kept'], {
       added: ['new', 'ghost'],
       removed: ['old'],
     });
+    expect(getAll).toHaveBeenCalledWith(
+      'users/u',
+      'courses/new',
+      'courses/ghost',
+      'courses/kept',
+      'courses/old',
+    );
     expect(batch.set).toHaveBeenCalledWith(
       'users/u',
-      { grantedCourseIds: ['new', 'ghost'] },
+      { grantedCourseIds: ['new', 'ghost', 'kept'] },
       { merge: true },
     );
-    expect(batch.update).toHaveBeenCalledTimes(2);
-    expect(batch.update).toHaveBeenCalledWith('courses/new', { acharyaIds: 'union:u' });
-    expect(batch.update).toHaveBeenCalledWith('courses/old', { acharyaIds: 'remove:u' });
+    expect(batch.update).toHaveBeenCalledTimes(3);
+    for (const course of ['courses/new', 'courses/kept']) {
+      expect(batch.update).toHaveBeenCalledWith(course, 'acharyaIds', 'union:u', name, 'Asha Rao');
+    }
+    expect(batch.update).toHaveBeenCalledWith(
+      'courses/old',
+      'acharyaIds',
+      'remove:u',
+      name,
+      'DELETE',
+    );
     expect(batch.commit).toHaveBeenCalledOnce();
   });
 
-  it('only stores the list when no course is added or removed', async () => {
+  it('grants without a name when the person has no profile name', async () => {
+    const { batch, db } = grantDb([{ get: () => undefined }, { exists: true, ref: 'courses/new' }]);
+    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new'], {
+      added: ['new'],
+      removed: [],
+    });
+    expect(batch.update).toHaveBeenCalledWith('courses/new', { acharyaIds: 'union:u' });
+  });
+
+  it('only stores the list when no course is granted or removed', async () => {
     const batch = batchOf();
     const db = {
       doc: vi.fn((p: string) => p),

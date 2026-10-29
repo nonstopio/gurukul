@@ -26,6 +26,7 @@ export interface AuthedRequest {
         uid: string;
         token: RoleClaims & {
           email?: string | undefined;
+          name?: string | undefined;
           email_verified?: boolean | undefined;
           firebase?: { sign_in_provider?: string | undefined } | undefined;
         };
@@ -66,7 +67,7 @@ function requireVerified(request: AuthedRequest): Caller {
   ) {
     throw new ApiException('AUTH_1002');
   }
-  return { uid, email: token.email, claims: token };
+  return { uid, email: token.email, name: token.name, claims: token };
 }
 
 const requireLearner = (request: AuthedRequest): string => requireVerified(request).uid;

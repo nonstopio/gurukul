@@ -113,7 +113,7 @@ export const parvaSchema = z.object({
 });
 export type Parva = z.infer<typeof parvaSchema>;
 
-export const COURSE_SCHEMA_VERSION = 1;
+export const COURSE_SCHEMA_VERSION = 2;
 
 export const courseSchema = z.object({
   schemaVersion: z.literal(COURSE_SCHEMA_VERSION),
@@ -128,6 +128,10 @@ export const courseSchema = z.object({
   }),
   outcomes: z.array(text(200)).max(12),
   acharyaIds: z.array(z.string()).max(50),
+  /** Display names keyed by uid, so Studio can name a course's Acharyas without reading private `users`. */
+  acharyaNames: z
+    .record(z.string(), z.string().max(120))
+    .refine((names) => Object.keys(names).length <= 50, { message: 'at most 50 names' }),
   status: z.enum(['draft', 'published', 'archived']),
   version: z.number().int().min(0),
   publishedAt: timestamp.nullable(),

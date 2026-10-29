@@ -12,9 +12,12 @@ const LEVELS: Array<[Course['level'], string]> = [
 /** The right-hand panel of the Structure tab: course details, learning rules and who may edit. */
 export function DetailsPanel({
   course,
+  acharyas,
   update,
 }: {
   course: Course;
+  /** The live course: who may edit is its `acharyaIds`, never the draft's copy. */
+  acharyas: Pick<Course, 'acharyaIds' | 'acharyaNames'>;
   update: (edit: (w: Working) => Working) => void;
 }) {
   return (
@@ -104,13 +107,17 @@ export function DetailsPanel({
           Acharyas with edit access
         </h2>
         <p className="sc-help">
-          {course.acharyaIds.length} {course.acharyaIds.length === 1 ? 'person' : 'people'}. A
+          {acharyas.acharyaIds.length} {acharyas.acharyaIds.length === 1 ? 'person' : 'people'}. A
           Kulapati changes this list in the console.
         </p>
         <ul className="sc-ids">
-          {course.acharyaIds.map((id) => (
+          {acharyas.acharyaIds.map((id) => (
             <li key={id}>
-              <code>{id}</code>
+              {acharyas.acharyaNames[id] ?? (
+                <>
+                  <code>{id}</code> <span className="sc-help">(name not recorded yet)</span>
+                </>
+              )}
             </li>
           ))}
         </ul>

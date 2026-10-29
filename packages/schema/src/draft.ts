@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { courseSchema } from './course';
+import { COURSE_SCHEMA_VERSION, courseSchema } from './course';
 import type { Block, Course, Item, Question } from './course';
 import { isEmbedAllowed, videoEmbedUrl } from './media';
 import { itemsOf } from './progress';
@@ -41,9 +41,11 @@ export function blankCourse(init: {
   level: Course['level'];
   theme: Course['cover']['theme'];
   acharyaId: string;
+  /** The creator's display name; left out when unknown, and Studio falls back to "an Acharya". */
+  acharyaName?: string | undefined;
 }): Course {
   return {
-    schemaVersion: 1,
+    schemaVersion: COURSE_SCHEMA_VERSION,
     id: init.id,
     title: init.title,
     summary: '',
@@ -52,6 +54,7 @@ export function blankCourse(init: {
     cover: { theme: init.theme, glyph: init.title.trim().charAt(0).toUpperCase() || 'G' },
     outcomes: [],
     acharyaIds: [init.acharyaId],
+    acharyaNames: init.acharyaName ? { [init.acharyaId]: init.acharyaName } : {},
     status: 'draft',
     version: 0,
     publishedAt: null,

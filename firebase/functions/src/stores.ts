@@ -71,16 +71,36 @@ export function firebaseRoleAdmin(auth: Auth, db: Firestore): RoleAdmin {
     async getGrantedCourseIds(uid) {
       return ((await db.doc(`users/${uid}`).get()).get('grantedCourseIds') ?? []) as string[];
     },
-    async applyCourseGrants(uid, grantedCourseIds, { added, removed }) {
-      const touched = [...added, ...removed];
-      const refs = touched.map((id) => db.doc(`courses/${id}`));
-      const snaps = refs.length === 0 ? [] : await db.getAll(...refs);
+    async applyCourseGrants(uid, grantedCourseIds, { removed }) {
+      // Every granted course, not only the added ones, so re-saving a grant fills in a missing name.
+      const touched = [...grantedCourseIds, ...removed];
+      const snaps =
+        touched.length === 0
+          ? []
+          : await db.getAll(
+              db.doc(`users/${uid}`),
+              ...touched.map((id) => db.doc(`courses/${id}`)),
+            );
+      const [profile, ...courses] = snaps;
+      const name = profile?.get('displayName') as string | undefined;
       const batch = db.batch();
       batch.set(db.doc(`users/${uid}`), { grantedCourseIds }, { merge: true });
-      snaps.forEach((snap, i) => {
+      courses.forEach((snap, i) => {
         if (!snap.exists) return;
-        const grant = i < added.length ? FieldValue.arrayUnion(uid) : FieldValue.arrayRemove(uid);
-        batch.update(snap.ref, { acharyaIds: grant });
+        const nameField = new FieldPath('acharyaNames', uid);
+        if (i >= grantedCourseIds.length) {
+          batch.update(
+            snap.ref,
+            'acharyaIds',
+            FieldValue.arrayRemove(uid),
+            nameField,
+            FieldValue.delete(),
+          );
+        } else if (name === undefined) {
+          batch.update(snap.ref, { acharyaIds: FieldValue.arrayUnion(uid) });
+        } else {
+          batch.update(snap.ref, 'acharyaIds', FieldValue.arrayUnion(uid), nameField, name);
+        }
       });
       await batch.commit();
     },
