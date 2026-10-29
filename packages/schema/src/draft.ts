@@ -122,6 +122,10 @@ function blockIssues(itemId: string, b: Block): PublishIssue[] {
         out.push(issue('block.check.prompt', 'A check question has no question text.'));
       if (b.options.filter((o) => !blank(o)).length < 2)
         out.push(issue('block.check.options', 'A check question needs at least two answers.'));
+      if (b.correct === undefined || blank(b.options[b.correct] ?? ''))
+        out.push(
+          issue('block.check.correct', 'A check question needs one answer marked as right.'),
+        );
       if (blank(b.explanation))
         out.push(issue('block.check.explanation', 'A check question needs an explanation.'));
       return out;

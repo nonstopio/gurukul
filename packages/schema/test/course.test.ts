@@ -45,7 +45,7 @@ describe('blockSchema', () => {
     { type: 'image', id: 'i', url: 'https://x.test/a.png', alt: 'a' },
     { type: 'embed', id: 'e', url: 'https://x.test', title: 't' },
     { type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'a' },
-    { type: 'check', id: 'h', prompt: 'p', options: ['a', 'b'], explanation: 'e' },
+    { type: 'check', id: 'h', prompt: 'p', options: ['a', 'b'], correct: 0, explanation: 'e' },
   ];
   it.each(blocks)('accepts a $type block', (b) => {
     expect(blockSchema.safeParse(b).success).toBe(true);

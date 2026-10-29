@@ -168,6 +168,7 @@ describe('validateForPublish', () => {
       expect.arrayContaining([
         'block.check.prompt',
         'block.check.options',
+        'block.check.correct',
         'block.check.explanation',
       ]),
     );
@@ -185,10 +186,25 @@ describe('validateForPublish', () => {
       { type: 'image', id: 'i', url: 'https://x.test/a.png', alt: 'a' },
       { type: 'embed', id: 'e', url: 'https://stackblitz.com/edit/x', title: 't' },
       { type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'f' },
-      { type: 'check', id: 'h', prompt: 'p', options: ['a', 'b'], explanation: 'e' },
+      { type: 'check', id: 'h', prompt: 'p', options: ['a', 'b'], correct: 1, explanation: 'e' },
     ]) {
       expect(validateForPublish(withBlock(ok), keys), JSON.stringify(ok)).toEqual([]);
     }
+  });
+
+  it('wants the marked answer of a check to exist and have text', () => {
+    const check = (correct?: number) => ({
+      type: 'check',
+      id: 'h',
+      prompt: 'p',
+      options: ['a', 'b', ' '],
+      explanation: 'e',
+      ...(correct === undefined ? {} : { correct }),
+    });
+    for (const bad of [undefined, 2, 5]) {
+      expect(codes(withBlock(check(bad)))).toContain('block.check.correct');
+    }
+    expect(codes(withBlock(check(0)))).not.toContain('block.check.correct');
   });
 
   it('checks every question: text, answers, explanation and the key', () => {

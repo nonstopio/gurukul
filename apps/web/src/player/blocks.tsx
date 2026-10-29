@@ -26,6 +26,18 @@ export function Prose({ md }: { md: string }) {
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
+/** After reveal: the right option is marked, a wrong pick says so, the rest are closed. Without a key, all are closed. */
+function optionState(
+  correct: number | undefined,
+  picked: number | null,
+  i: number,
+  revealed: boolean,
+): 'idle' | 'locked' | 'correct' | 'incorrect' {
+  if (!revealed) return 'idle';
+  if (correct === i) return 'correct';
+  return correct !== undefined && picked === i ? 'incorrect' : 'locked';
+}
+
 /** The ungraded "check yourself" block: the answer is revealed on submit, with no network. */
 function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
   const [picked, setPicked] = useState<number | null>(null);
@@ -40,7 +52,7 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
           value={String(i)}
           letter={LETTERS[i % LETTERS.length] as (typeof LETTERS)[number]}
           checked={picked === i}
-          state={revealed ? 'locked' : 'idle'}
+          state={optionState(block.correct, picked, i, revealed)}
           onChange={() => setPicked(i)}
         >
           {option}

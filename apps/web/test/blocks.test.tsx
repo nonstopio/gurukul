@@ -161,6 +161,37 @@ describe('BlockView', () => {
     expect(screen.queryByRole('button', { name: 'Show the answer' })).toBeNull();
   });
 
+  it('marks the right option and a wrong pick when the answer is revealed', () => {
+    show({
+      type: 'check',
+      id: 'k',
+      prompt: 'Which?',
+      options: ['One', 'Two', 'Three'],
+      correct: 1,
+      explanation: 'Because two.',
+    });
+    fireEvent.click(screen.getByLabelText(/One/));
+    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
+    expect(screen.getByText('Incorrect')).toBeTruthy();
+    expect(screen.getByText('Correct')).toBeTruthy();
+    expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('marks only the right option when the pick was right', () => {
+    show({
+      type: 'check',
+      id: 'k',
+      prompt: 'Which?',
+      options: ['One', 'Two'],
+      correct: 1,
+      explanation: 'Because two.',
+    });
+    fireEvent.click(screen.getByLabelText(/Two/));
+    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
+    expect(screen.getByText('Correct')).toBeTruthy();
+    expect(screen.queryByText('Incorrect')).toBeNull();
+  });
+
   it('shows a visible notice for a block type it does not know', () => {
     show({ type: 'hologram', id: 'h' });
     expect(screen.getByRole('note').textContent).toContain('newer version');

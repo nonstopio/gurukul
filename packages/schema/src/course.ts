@@ -54,6 +54,8 @@ export const blockSchema = z.discriminatedUnion('type', [
     id,
     prompt: text(1_000),
     options: z.array(text(300)).min(2).max(6),
+    /** Index into `options` of the right answer (v3). Absent on a check written before v3. */
+    correct: z.number().int().min(0).max(5).optional(),
     explanation: text(2_000),
   }),
 ]);
@@ -115,7 +117,7 @@ export const parvaSchema = z.object({
 });
 export type Parva = z.infer<typeof parvaSchema>;
 
-export const COURSE_SCHEMA_VERSION = 2;
+export const COURSE_SCHEMA_VERSION = 3;
 
 export const courseSchema = z.object({
   schemaVersion: z.literal(COURSE_SCHEMA_VERSION),
