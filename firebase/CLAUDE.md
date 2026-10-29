@@ -38,6 +38,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   that code; `scripts/test/functions-package.test.mjs` guards it.
 - Functions are bundled with esbuild (`npm run build -w @gurukul/functions` → `lib/index.js`, `@gurukul/schema`
   and zod inlined, firebase-* external) and deployed by `deploy.yml` with Hosting and rules.
+  A dependency that uses `require` (like `google-auth-library`) must be `--external` in that build script and listed in
+  `functions/package.json`: bundled into the ESM output it fails with "Dynamic require ... is not supported", the
+  Functions emulator loads no function at all, and every e2e sign-in hangs. `npm run e2e` is what catches it.
 - `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status, and
   issues the certificate (`certificates/{NSG-COURSE-YY-NNNN}`, sequence from `counters/certificates`)
   in one transaction at 100% when `rules.certificate` is on, stamping `config/org.signatory` on it; it never issues

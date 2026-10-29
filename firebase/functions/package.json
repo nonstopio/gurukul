@@ -10,7 +10,7 @@
     "node": "22"
   },
   "scripts": {
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --sourcemap --outfile=lib/index.js --external:@google-cloud/firestore --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/*",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --sourcemap --outfile=lib/index.js --external:@google-cloud/firestore --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/* --external:google-auth-library",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
