@@ -20,10 +20,19 @@ For the maintainer. The deployment itself is described in `.plan/11-deployment-a
 Assignment, reminder and revocation emails go out through the Gmail API as `gurukul@nonstopio.com`
 (a service account with domain-wide delegation, impersonating that mailbox; scope `gmail.send`).
 Without credentials the functions log `Email skipped` at warn and send nothing, so deploys never
-depend on the mailbox. To turn it on (maintainer row OPS-25): create the mailbox, grant the service
-account delegation for the `gmail.send` scope in the Workspace admin console, and give the functions
-the key JSON as `GMAIL_CREDENTIALS` (a secret, never committed). Optional: `MAIL_FROM`,
-`MAIL_REPLY_TO` (default: the sender) and `SITE_URL` (default: the production site).
+depend on the mailbox. The key is the Secret Manager secret `GMAIL_CREDENTIALS`, declared on each
+function that sends email, so **the secret must exist before a deploy**, even as a placeholder:
+
+```bash
+firebase functions:secrets:set GMAIL_CREDENTIALS --project nonstop-gurukul   # paste: none
+```
+
+`none` (or any value that is not a key) sends nothing. The deploy service account needs the
+Secret Manager Admin role so the deploy can grant the functions read access. To turn email on
+(maintainer row OPS-25): create the mailbox, grant the service account delegation for the
+`gmail.send` scope in the Workspace admin console, run the command above again and paste the key
+JSON, then redeploy. Never commit the key. Optional: `MAIL_FROM`, `MAIL_REPLY_TO` (default: the
+sender) and `SITE_URL` (default: the production site).
 
 ## Backups
 

@@ -54,7 +54,7 @@ confirm before creating it (open question).
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL` | `production` environment secret; environment limited to `main` | `deploy.yml` |
 | `FIREBASE_SERVICE_ACCOUNT_PREVIEW` | Repository secret; service account with Firebase Hosting Admin **only** | `preview.yml` |
-| Email sender credentials (if chosen) | Cloud Secret Manager via `defineSecret` | functions |
+| `GMAIL_CREDENTIALS` (Gmail sender key) | Cloud Secret Manager via `defineSecret`, declared on each function that sends email; set once with `firebase functions:secrets:set` (a placeholder sends nothing, but the secret must exist or the deploy fails) | functions |
 
 The public web config goes in GitHub Actions **variables** (`VITE_FIREBASE_*`)
 and `apps/web/.env.local`.
@@ -81,7 +81,7 @@ custom domain are `OPS-24`.
    another domain. Preview channels keep the production auth domain, so on iOS
    sign-in is tested on production, not on previews.
 5. Create the production deploy service account (Hosting Admin, Rules Admin,
-   Datastore Index Admin; from M2 also Cloud Functions Admin, Service Account
+   Datastore Index Admin; from M2 also Cloud Functions Admin, Secret Manager Admin, Service Account
    User, Artifact Registry Writer). Create a GitHub environment `production`
    limited to the `main` branch and store the key there as
    `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL`.

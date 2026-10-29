@@ -31,7 +31,7 @@ vi.mock('firebase-functions/v2/https', () => ({
       super(message);
     }
   },
-  onCall: (fn: unknown) => fn,
+  onCall: (_options: unknown, fn: unknown) => fn,
 }));
 
 const handlers = vi.hoisted(() => ({

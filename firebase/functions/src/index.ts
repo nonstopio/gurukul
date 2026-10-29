@@ -5,6 +5,7 @@ import { createMailer } from './gmail.js';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { defineSecret } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -46,6 +47,13 @@ import {
 
 /** The cost guard (plan 11): no function scales past this many instances. */
 const MAX_INSTANCES = 5;
+
+/**
+ * The Gmail sender's service-account key (`docs/operations.md`). Secret Manager only hands a secret
+ * to the functions that declare it, so every function that sends email lists it; a deploy fails
+ * until the secret exists (a placeholder such as `none` sends nothing).
+ */
+const MAIL = { secrets: [defineSecret('GMAIL_CREDENTIALS')] };
 
 setGlobalOptions({ region: 'asia-south1', maxInstances: MAX_INSTANCES });
 initializeApp();
@@ -111,7 +119,7 @@ export const dailyRollup = onSchedule(
 
 /** 04:00 UTC daily: weekly and before-due reminders, when `config/org.reminders.enabled`. */
 export const dailyReminders = onSchedule(
-  { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1' },
+  { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1', ...MAIL },
   async () => {
     const db = getFirestore();
     await runLogged(
@@ -164,11 +172,13 @@ export const gradeAttempt = apiCallable((request) =>
 );
 
 /** Kulapati-only: revoke (or restore) a certificate. */
-export const revokeCertificate = apiCallable((request) =>
-  handleRevokeCertificate(request, {
-    admin: firestoreCertificateAdmin(getFirestore()),
-    mailer: createMailer(process.env),
-  }),
+export const revokeCertificate = apiCallable(
+  (request) =>
+    handleRevokeCertificate(request, {
+      admin: firestoreCertificateAdmin(getFirestore()),
+      mailer: createMailer(process.env),
+    }),
+  MAIL,
 );
 
 /** Kulapati-only: assign courses to people by email (optionally emailing them). */
@@ -178,7 +188,7 @@ export const assignCourses = apiCallable((request) => {
     store: firestoreAssignStore(db),
     mailer: createMailer(process.env),
   });
-});
+}, MAIL);
 
 /** Kulapati-only: open a Pariksha retake for one learner. */
 export const resetCooldown = apiCallable((request) =>
@@ -193,7 +203,7 @@ export const remindLearners = apiCallable((request) => {
     { store: firestoreReminderStore(db), mailer: createMailer(process.env) },
     Date.now,
   );
-});
+}, MAIL);
 
 /** Vyasa Studio: an Acharya or Kulapati starts a course, blank or copied from another draft. */
 export const createCourse = apiCallable((request) =>

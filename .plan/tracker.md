@@ -24,10 +24,10 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Vyasa Studio | 17 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 18 | 0 | 0 | 9 |
+| Platform, CI and operations | 19 | 0 | 0 | 9 |
 | First course: Git | 4 | 0 | 0 | 2 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 133 | 0 | 0 | 11 |
+| **Total** | 134 | 0 | 0 | 11 |
 
 ## Pick order
 
@@ -230,7 +230,8 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-21` | Auth domain for the iOS redirect                                           | maintainer | —        | `VITE_FIREBASE_AUTH_DOMAIN` = `nonstop-gurukul.web.app` (GitHub variable) and its `/__/auth/handler` in the OAuth client's redirect URIs (`11` checklist step 4) |
 | `OPS-22` | Load Firestore after sign-in; bundle budget back to 320 KB | done | — | `apps/web/src/firestore.ts` (the only importer of the Firestore SDK, a separate chunk), `lazy.ts` (`lazyPort`), `main.tsx` (loads it on first read), `auth/service.ts` (takes `watchProfile`); initial JS 181 KB gzip, budget 320 in `package.json` and `ci.yml` |
 | `OPS-24` | DNS and Hosting custom domain for `gurukul.nonstopio.com` | maintainer | `OPS-18` | Add the Hosting custom domain and the DNS records; also the Firebase Auth authorised domain |
-| `OPS-25` | Sender mailbox for email delivery | maintainer | — | `gurukul@nonstopio.com` mailbox and the service-account grant the Gmail API sender needs (`KUL-24`) |
+| `OPS-25` | Sender mailbox for email delivery | maintainer | — | `gurukul@nonstopio.com` mailbox and the service-account grant the Gmail API sender needs (`KUL-24`); before the first deploy after `OPS-28`, create the `GMAIL_CREDENTIALS` secret (placeholder `none` is fine) and give the deploy account Secret Manager Admin (`docs/operations.md`) |
+| `OPS-28` | Hand the Gmail key to the functions | done | — | `GMAIL_CREDENTIALS` was read from the environment but never declared, so no deploy could supply it: `firebase/functions/src/index.ts` (`MAIL` = `defineSecret` on `dailyReminders`, `revokeCertificate`, `assignCourses`, `remindLearners`), `api/callable.ts` (`apiCallable` takes `onCall` options), tests in `test/index.test.ts`, `callable.test.ts`; `docs/operations.md`, `.plan/11-deployment-and-cost.md` |
 | `OPS-27` | Set the `SITE_URL` repository variable | maintainer | `OPS-24` | After DNS is live, set repository variable `SITE_URL=https://gurukul.nonstopio.com`; production deploy then uses it (optionally flip the `mail.ts` fallback to the domain) |
 
 ## First course: Git
