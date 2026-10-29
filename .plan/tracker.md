@@ -20,66 +20,65 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
-| Kulapati console and Sanjaya  | 15   | 9    | 2       | 0          |
+| Kulapati console and Sanjaya  | 16   | 8    | 2       | 0          |
 | Vyasa Studio                  | 6    | 9    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 72   | 40   | 6       | 7          |
+| **Total**                     | 73   | 39   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `KUL-26` — Learners counts past the newest 500 assignments
-2. `STU-06` — Acharya names on courses
-3. `LRN-14` — Retired and "New lessons added" states
-4. `PRK-09` — revocation date on certificates
-5. `KUL-18` — org Pariksha KPIs and a true overdue count
-6. `KUL-21` — daily roll-up repairs course counters
-7. `SRC-02` — learner navigation area
-8. `SRC-03` — courses and lessons in search
-9. `SRC-04` — people in search for Kulapatis
-10. `SRC-05` — draft courses in search for Acharyas
-11. `STU-11` — preview uses the real learner screens
-12. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-13. `STU-08` — "Draft vN · saved just now"
-14. `STU-10` — learner counts in the publish dialog and on course cards
-15. `STU-12` — publishing an archived course
-16. `STU-13` — structure editor polish
-17. `LRN-12` — course overview to the handoff
-18. `LRN-13` — Home to the handoff
-19. `LRN-11` — outline rail grouped by parva
-20. `LRN-10` — split layout
-21. `LRN-15` — block renderer polish
-22. `LRN-16` — check blocks reveal the right option
-23. `LRN-17` — keyboard shortcuts dialog
-24. `PRK-08` — completion screen to the handoff
-25. `AUTH-08` — sign-in screen to the handoff
-26. `SHL-03` — handoff breakpoints and the menu button
-27. `KUL-13` — bulk role change and select all
-28. `KUL-14` — Assign screen finish
-29. `KUL-19` — Needs attention, pending-invite strip, overview filters
-30. `KUL-20` — course analytics finish
-31. `KUL-22` — Roles screen polish
-32. `KUL-23` — audit log view finish
-33. `DS-05` — axe on the remaining page tests
-34. `DS-04` — shared icon set
-35. `DS-03` — `/__ui` component gallery
-36. `STU-15` — lesson editor extras
-37. `STU-16` — CodeMirror for markdown and code
-38. `OPS-11` — deeper e2e journeys
-39. `OPS-06` — Lighthouse on the preview URL
-40. `OPS-14` — trigger tests against the emulators
-41. `KUL-24` — email delivery (blocked: question 4)
-42. `KUL-25` — Acharyas see their learners (blocked: question 7)
-43. `PRK-10` — tell a learner their certificate was revoked (blocked)
-44. `OPS-18` — custom domain (blocked: question 6)
-45. `OPS-19` — licence holder (blocked: question 10)
-46. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `STU-06` — Acharya names on courses
+2. `LRN-14` — Retired and "New lessons added" states
+3. `PRK-09` — revocation date on certificates
+4. `KUL-18` — org Pariksha KPIs and a true overdue count
+5. `KUL-21` — daily roll-up repairs course counters
+6. `SRC-02` — learner navigation area
+7. `SRC-03` — courses and lessons in search
+8. `SRC-04` — people in search for Kulapatis
+9. `SRC-05` — draft courses in search for Acharyas
+10. `STU-11` — preview uses the real learner screens
+11. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+12. `STU-08` — "Draft vN · saved just now"
+13. `STU-10` — learner counts in the publish dialog and on course cards
+14. `STU-12` — publishing an archived course
+15. `STU-13` — structure editor polish
+16. `LRN-12` — course overview to the handoff
+17. `LRN-13` — Home to the handoff
+18. `LRN-11` — outline rail grouped by parva
+19. `LRN-10` — split layout
+20. `LRN-15` — block renderer polish
+21. `LRN-16` — check blocks reveal the right option
+22. `LRN-17` — keyboard shortcuts dialog
+23. `PRK-08` — completion screen to the handoff
+24. `AUTH-08` — sign-in screen to the handoff
+25. `SHL-03` — handoff breakpoints and the menu button
+26. `KUL-13` — bulk role change and select all
+27. `KUL-14` — Assign screen finish
+28. `KUL-19` — Needs attention, pending-invite strip, overview filters
+29. `KUL-20` — course analytics finish
+30. `KUL-22` — Roles screen polish
+31. `KUL-23` — audit log view finish
+32. `DS-05` — axe on the remaining page tests
+33. `DS-04` — shared icon set
+34. `DS-03` — `/__ui` component gallery
+35. `STU-15` — lesson editor extras
+36. `STU-16` — CodeMirror for markdown and code
+37. `OPS-11` — deeper e2e journeys
+38. `OPS-06` — Lighthouse on the preview URL
+39. `OPS-14` — trigger tests against the emulators
+40. `KUL-24` — email delivery (blocked: question 4)
+41. `KUL-25` — Acharyas see their learners (blocked: question 7)
+42. `PRK-10` — tell a learner their certificate was revoked (blocked)
+43. `OPS-18` — custom domain (blocked: question 6)
+44. `OPS-19` — licence holder (blocked: question 10)
+45. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -184,7 +183,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-23` | Audit log view finish                                                        | todo    | —        | Paging past 100, a detail column, names instead of uids; `assign` entries record who was assigned                                                                                   |
 | `KUL-24` | Email delivery                                                               | blocked | —        | Question 4: the code queues for the Trigger Email extension, the plan recommends the Gmail API. Then: sender, `from`/`replyTo`, HTML template, configurable site URL              |
 | `KUL-25` | Acharyas see their learners                                                  | blocked | —        | Question 7. Course analytics is Kulapati-only; names need a rules change                                                                                                            |
-| `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | todo    | —        | Tab counts and the pending list come from the newest 500 assignments; per-person counts need counters kept by the functions                                                          |
+| `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | done    | —        | `apps/web/src/console/firebase.ts` (`openAssignments`), `LearnersPage.tsx`, `model.ts`; index `status`+`dueAt`                                                                       |
 
 ## Vyasa Studio
 

@@ -135,6 +135,16 @@ describe('assignments', () => {
     ]);
     expect(store.queries[1]).toContainEqual({ orderBy: ['assignedAt', 'desc'] });
   });
+
+  it('reads every pending and every overdue assignment, each once', async () => {
+    const now = new Date(10);
+    const b = d('a2', { email: 'b@nonstopio.com', uid: 'u2', courseId: 'git', status: 'started' });
+    store.queue = [[a], [a, b]];
+    expect((await data.openAssignments(now)).map((x) => x.id)).toEqual(['a1', 'a2']);
+    expect(store.queries[0]).toContainEqual({ where: ['uid', '==', null] });
+    expect(store.queries[1]).toContainEqual({ where: ['status', 'in', ['assigned', 'started']] });
+    expect(store.queries[1]).toContainEqual({ where: ['dueAt', '<', now] });
+  });
 });
 
 describe('users', () => {

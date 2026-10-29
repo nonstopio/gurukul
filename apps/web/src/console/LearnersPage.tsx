@@ -25,6 +25,7 @@ import {
   buildLearnerRows,
   filterPeople,
   isFiltered,
+  mergeAssignments,
   onTab,
   peopleFromAssignments,
   searchPrefix,
@@ -74,12 +75,14 @@ export function LearnersPage() {
   const [now] = useState(() => new Date());
   const meta = useAsync(
     useCallback(async () => {
-      const [assignments, courses, teams, total] = await Promise.all([
+      const [newest, open, courses, teams, total] = await Promise.all([
         data.assignments(),
+        data.openAssignments(now),
         learner.listCourses(),
         data.teams(),
         data.userCount(),
       ]);
+      const assignments = mergeAssignments(newest, open);
       const people = peopleFromAssignments(assignments);
       const pending = onTab(people, 'pending', assignments, now);
       const counts: Record<LearnerTab, number> = {
@@ -106,7 +109,7 @@ interface Meta {
   courses: Course[];
   teams: string[];
   total: number;
-  /** Everyone in the newest assignments, and the pending invites among them. */
+  /** Everyone in the newest, pending and overdue assignments, and the pending invites among them. */
   people: Person[];
   pending: Person[];
   counts: Record<LearnerTab, number>;

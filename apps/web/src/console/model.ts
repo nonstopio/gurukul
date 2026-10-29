@@ -124,6 +124,15 @@ export interface Person {
   user: UserRow | null;
 }
 
+/** The newest assignments plus the open (pending and overdue) ones, each assignment once. */
+export function mergeAssignments(
+  newest: readonly AssignmentFull[],
+  open: readonly AssignmentFull[],
+): AssignmentFull[] {
+  const ids = new Set(newest.map((a) => a.id));
+  return [...newest, ...open.filter((a) => !ids.has(a.id))];
+}
+
 /** One person per email in these assignments, sorted by email. */
 export function peopleFromAssignments(assignments: readonly AssignmentFull[]): Person[] {
   const byEmail = new Map<string, string | null>();

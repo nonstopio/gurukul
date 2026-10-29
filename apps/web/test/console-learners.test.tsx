@@ -70,6 +70,27 @@ describe('Learners', () => {
     expect(await screen.findByText('No learners match these filters.')).toBeTruthy();
   });
 
+  it('counts pending invites and overdue people past the newest assignments', async () => {
+    const old = new Date('2025-01-01T00:00:00Z');
+    const c = setup({
+      open: [
+        asg('older@nonstopio.com', { assignedAt: old }),
+        asg('user2@nonstopio.com', { uid: 'u2', dueAt: late, assignedAt: old }),
+        asg('new@nonstopio.com'),
+      ],
+    });
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Priya');
+    expect(c.data.openAssignments).toHaveBeenCalledWith(expect.any(Date));
+    expect(screen.getByRole('tab', { name: 'All (4)' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Pending invite (2)' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Overdue (2)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (2)' }));
+    expect(await screen.findByText('older@nonstopio.com')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Overdue (2)' }));
+    expect(await screen.findByText('Rohan')).toBeTruthy();
+  });
+
   it('lists pending invites on "All", after everyone who signed in', async () => {
     await openApp('/kulapati/learners', { ...kulapati, console: setup() });
     const table = await screen.findByRole('table', { name: 'Learners' });
