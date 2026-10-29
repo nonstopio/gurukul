@@ -490,6 +490,19 @@ describe('Lesson player', () => {
       expect(screen.queryByText(why)).toBeNull();
     });
 
+    it('puts the first video of a split lesson in a media column, and no other layout', async () => {
+      const split = await openWith([
+        lesson('v', { layout: 'split', blocks: [drive] }),
+        lesson('w'),
+      ]);
+      await screen.findByRole('heading', { level: 1 });
+      expect(split.container.querySelector('.article--split > .article__media')).toBeTruthy();
+      split.unmount();
+      const stacked = await openWith([lesson('v', { blocks: [drive] }), lesson('w')]);
+      await screen.findByRole('heading', { level: 1 });
+      expect(stacked.container.querySelector('.article__media')).toBeNull();
+    });
+
     it('waits for the video on any lesson when the course requires watching', async () => {
       await openWith([lesson('v', { blocks: [drive] }), lesson('w')], true);
       expect((await markComplete()).disabled).toBe(true);

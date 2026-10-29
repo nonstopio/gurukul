@@ -180,6 +180,8 @@ function Player({
     )
     .filter((i) => i.type === 'lesson').length;
   const done = s === 'done';
+  const splitVideoId =
+    lesson.layout === 'split' ? lesson.blocks.find((b) => b.type === 'video')?.id : undefined;
   const watching = needsWatching(lesson, course.rules.requireVideoWatch);
   const videosDone = videosOf(lesson).every((v) => watched[`${lesson.id}/${v.id}`]);
   const waitingFor = done
@@ -233,9 +235,19 @@ function Player({
           </p>
           {isRetired(course) ? <RetiredNote /> : null}
           {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
-          {lesson.blocks.map((b) => (
-            <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
-          ))}
+          {lesson.blocks.map((b) => {
+            const view = (
+              <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
+            );
+            // Split layout: the first video sits beside the text and stays in view (≥1100px).
+            return b.id === splitVideoId ? (
+              <div key={b.id} className="article__media">
+                {view}
+              </div>
+            ) : (
+              view
+            );
+          })}
           <div ref={endRef} aria-hidden="true" />
           {waitingFor ? (
             <p id="complete-hint" className="article__hint">

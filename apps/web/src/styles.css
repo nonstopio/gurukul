@@ -556,6 +556,24 @@ a.items__row:hover {
   max-width: 680px;
   font-size: var(--text-lg);
 }
+/* Split: the first video takes 55% on the left and stays in view while the text scrolls. */
+@media (min-width: 1100px) {
+  .article--split {
+    grid-template-columns: 55fr 45fr;
+    column-gap: var(--space-8);
+    max-width: 1280px;
+  }
+  .article--split > * {
+    grid-column: 2;
+  }
+  .article--split > .article__media {
+    grid-column: 1;
+    grid-row: 1 / span 40;
+    position: sticky;
+    top: var(--space-6);
+    align-self: start;
+  }
+}
 .article__kicker {
   margin: 0;
   color: var(--accent);
