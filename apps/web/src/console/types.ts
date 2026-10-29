@@ -67,6 +67,15 @@ export interface AttemptSummary {
   at: Date | null;
 }
 
+/** One person who started a course, as its Acharya sees them: a name and how far they got. */
+export interface CourseLearner {
+  uid: string;
+  /** Empty when the name was not recorded (a learner who started before names were kept). */
+  displayName: string;
+  percent: number;
+  lastActiveAt: Date | null;
+}
+
 export interface UserPage {
   rows: UserRow[];
   /** Pass back to get the next page; null on the last one. */
@@ -81,6 +90,12 @@ export interface UserPage {
 export interface ConsoleData {
   orgStats(): Promise<OrgStats>;
   courseStats(courseId: string): Promise<CourseStats>;
+  /**
+   * Who started one course, newest activity first (capped at 100): names from
+   * `courses/{id}/learners`, progress from the course's progress documents. The rules let the
+   * course's own Acharyas and Kulapatis read both.
+   */
+  courseLearners(courseId: string): Promise<CourseLearner[]>;
   /** Pending invites and assignments for one course (or all, newest first, capped). */
   assignments(filter?: { courseId?: string }): Promise<AssignmentFull[]>;
   /**

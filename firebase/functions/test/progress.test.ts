@@ -59,6 +59,7 @@ const store = (c: unknown = course, issued: string | null = 'NSG-GIT-26-0001'): 
   writeDerived: vi.fn().mockResolvedValue(undefined),
   bumpStats: vi.fn().mockResolvedValue(undefined),
   setAssignmentStatus: vi.fn().mockResolvedValue(1),
+  recordLearner: vi.fn().mockResolvedValue(undefined),
   issueCertificate: vi.fn().mockResolvedValue(issued),
 });
 
@@ -78,7 +79,14 @@ describe('handleProgressWrite', () => {
       expect.objectContaining({ started: 1, completed: 0 }),
     );
     expect(s.setAssignmentStatus).toHaveBeenCalledWith('u', 'git', 'started');
+    expect(s.recordLearner).toHaveBeenCalledWith('u', 'git');
     expect(s.writeDerived).not.toHaveBeenCalled();
+  });
+
+  it('records the learner on the start only, not on later writes', async () => {
+    const s = store();
+    await run(s, 'u_git', progress(), progress({ completedItemIds: ['l1'] }));
+    expect(s.recordLearner).not.toHaveBeenCalled();
   });
 
   it('treats an unreadable previous document as a start', async () => {

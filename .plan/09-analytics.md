@@ -44,5 +44,10 @@ is user-initiated.
 ## Privacy
 
 Learners see only their own data. Acharyas see aggregates for their courses
-and (decision pending) learner names. No analytics or tracking scripts on the
+and, for their own courses only, the names of the people who started them (decided). Names come from
+`courses/{id}/learners/{uid}` (`{displayName, startedAt}`), written by the progress trigger when a
+learner starts; the rules let that course's Acharyas and Kulapatis read it, so an Acharya never
+reads a profile (`users/`), an email or another course. Vyasa Studio's Analytics tab lists them with
+their progress. A name is copied once, at the start, so a later rename shows on the Kulapati
+console but not there; learners who started before this was kept show as "Name not recorded". No analytics or tracking scripts on the
 site; no third-party cookies.

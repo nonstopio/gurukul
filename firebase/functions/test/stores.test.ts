@@ -102,6 +102,21 @@ describe('firestoreProgressStore', () => {
     expect(update).toHaveBeenNthCalledWith(2, { percent: 100, completedAt: 'NOW' });
   });
 
+  it('records who started a course under its learners, with the name from the profile', async () => {
+    const set = vi.fn().mockResolvedValue(undefined);
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ get: () => 'Priya Rao' })
+      .mockResolvedValueOnce({ get: () => undefined });
+    const doc = vi.fn((p: string) => (p.startsWith('users/') ? { get } : { set }));
+    const store = firestoreProgressStore({ doc } as never);
+    await store.recordLearner('priya', 'git');
+    await store.recordLearner('ghost', 'git');
+    expect(doc).toHaveBeenCalledWith('courses/git/learners/priya');
+    expect(set).toHaveBeenNthCalledWith(1, { displayName: 'Priya Rao', startedAt: 'NOW' });
+    expect(set).toHaveBeenNthCalledWith(2, { displayName: '', startedAt: 'NOW' });
+  });
+
   it('adds the delta to the course and org counters in one transaction', async () => {
     const set = vi.fn();
     const tx = {

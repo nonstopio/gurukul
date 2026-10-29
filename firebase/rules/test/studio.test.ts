@@ -63,6 +63,7 @@ beforeEach(async () => {
       answers: {},
     });
     await setDoc(doc(db, 'courses/wip/versions/1'), { version: 1, course: { id: 'wip' } });
+    await setDoc(doc(db, 'courses/wip/learners/priya'), { displayName: 'Priya Rao' });
     await setDoc(doc(db, 'questionBank/b1'), bankEntry('asha', { createdAt: new Date() }));
   });
 });
@@ -159,6 +160,32 @@ describe('courses/{id}/versions/{n}', () => {
     await assertFails(setDoc(doc(asha(), 'courses/wip/versions/2'), { version: 2 }));
     await assertFails(setDoc(doc(ajay(), 'courses/wip/versions/2'), { version: 2 }));
     await assertFails(deleteDoc(doc(ajay(), 'courses/wip/versions/1')));
+  });
+});
+
+describe('courses/{id}/learners/{uid}', () => {
+  it('is read by the course Acharya and a Kulapati', async () => {
+    await assertSucceeds(getDoc(doc(asha(), 'courses/wip/learners/priya')));
+    await assertSucceeds(getDocs(collection(asha(), 'courses/wip/learners')));
+    await assertSucceeds(getDoc(doc(ajay(), 'courses/wip/learners/priya')));
+  });
+  it('denies another course’s Acharya, a learner and a signed-out reader', async () => {
+    await assertFails(getDoc(doc(rohan(), 'courses/wip/learners/priya')));
+    await assertFails(getDocs(collection(rohan(), 'courses/wip/learners')));
+    await assertFails(getDoc(doc(priya(), 'courses/wip/learners/priya')));
+    await assertFails(
+      getDoc(doc(env.unauthenticatedContext().firestore(), 'courses/wip/learners/priya')),
+    );
+    await assertFails(
+      getDoc(
+        doc(as('asha', { acharya: true, email: 'a@gmail.com' }), 'courses/wip/learners/priya'),
+      ),
+    );
+  });
+  it('takes no client writes', async () => {
+    await assertFails(setDoc(doc(asha(), 'courses/wip/learners/rohan'), { displayName: 'R' }));
+    await assertFails(setDoc(doc(ajay(), 'courses/wip/learners/rohan'), { displayName: 'R' }));
+    await assertFails(deleteDoc(doc(ajay(), 'courses/wip/learners/priya')));
   });
 });
 

@@ -10,6 +10,7 @@ import type {
   ConsoleService,
   AssignmentFull,
   AuditRow,
+  CourseLearner,
   UserRow,
 } from '../src/console/types';
 
@@ -42,12 +43,15 @@ export function fakeConsole(
     settings?: Partial<OrgConfig>;
     /** Every course the Roles screen can grant, drafts included; defaults to one published course. */
     courses?: Course[];
+    /** Who started the course, for an Acharya's analytics. */
+    learners?: CourseLearner[];
   } = {},
 ) {
   const users = init.users ?? [];
   const data: ConsoleData = {
     orgStats: vi.fn().mockResolvedValue(orgStatsSchema.parse(init.org ?? {})),
     courseStats: vi.fn().mockResolvedValue(courseStatsSchema.parse(init.course ?? {})),
+    courseLearners: vi.fn().mockResolvedValue(init.learners ?? []),
     assignments: vi.fn().mockResolvedValue(init.assignments ?? []),
     openAssignments: vi.fn(async (now: Date) =>
       (init.open ?? init.assignments ?? []).filter(

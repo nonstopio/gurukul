@@ -163,6 +163,13 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
       await batch.commit();
       return changing.length;
     },
+    async recordLearner(uid, courseId) {
+      const user = await db.doc(`users/${uid}`).get();
+      await db.doc(`courses/${courseId}/learners/${uid}`).set({
+        displayName: user.get('displayName') ?? '',
+        startedAt: FieldValue.serverTimestamp(),
+      });
+    },
     async issueCertificate(progressId, grant) {
       return db.runTransaction(async (tx) => {
         const progressRef = db.doc(`progress/${progressId}`);

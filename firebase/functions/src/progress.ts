@@ -23,6 +23,11 @@ export interface ProgressStore {
     status: 'started' | 'completed',
   ): Promise<number>;
   /**
+   * Records who started the course (`courses/{id}/learners/{uid}` with their display name) so the
+   * course's Acharya can see names without reading profiles. Idempotent.
+   */
+  recordLearner(uid: string, courseId: string): Promise<void>;
+  /**
    * Issues the learner's certificate in ONE transaction: re-reads the progress document, does
    * nothing if `certificateId` is already set, else takes the next sequence number, writes
    * `certificates/{id}` and sets `progress.certificateId`. Returns the new id, or null if one existed.
@@ -56,6 +61,7 @@ export async function handleProgressWrite(
 
   log.debug('Progress changed', { uid: now.uid, courseId: now.courseId, percent: now.percent });
   const delta = planProgressStats(course, was, now, at);
+  if (delta.started === 1) await store.recordLearner(now.uid, now.courseId);
   if (delta.started === 1 || delta.completed === 1) {
     const moved = await store.setAssignmentStatus(
       now.uid,
