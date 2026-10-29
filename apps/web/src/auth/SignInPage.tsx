@@ -132,6 +132,10 @@ export function SignInPage() {
           Sign in with the same work email. Your courses are waiting for you.
         </Callout>
         <p className="signin__footnote">Only @nonstopio.com Google accounts can sign in.</p>
+        <p className="signin__footnote">
+          Trouble signing in? Write to{' '}
+          <a href="mailto:gurukul@nonstopio.com">gurukul@nonstopio.com</a>.
+        </p>
       </section>
     </main>
   );
