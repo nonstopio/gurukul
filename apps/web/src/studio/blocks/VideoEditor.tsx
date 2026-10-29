@@ -5,7 +5,7 @@ import type { BlockEditorProps } from './types';
 
 const PROVIDERS = { youtube: 'YouTube', drive: 'Google Drive', loom: 'Loom' } as const;
 
-/** Provider, address, captions and optional length of a video, with a chip that says whether the link can be embedded. */
+/** Provider, address, captions, optional title and caption, and optional length of a video, with a chip that says whether the link can be embedded. */
 export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
   const embed = videoEmbedUrl(block.provider, block.url);
   const recognised = embed !== null;
@@ -49,6 +49,18 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
         label="Captions are available"
         checked={block.captions}
         onChange={(e) => onChange({ ...block, captions: e.target.checked })}
+      />
+      <Input
+        label="Title (optional)"
+        value={block.title ?? ''}
+        maxLength={200}
+        onChange={(e) => onChange(patch(block, { title: e.target.value || undefined }))}
+      />
+      <Input
+        label="Caption (optional)"
+        value={block.caption ?? ''}
+        maxLength={300}
+        onChange={(e) => onChange(patch(block, { caption: e.target.value || undefined }))}
       />
       <Input
         label="Length in seconds (optional)"
