@@ -71,7 +71,7 @@ type Lesson = {
 };
 
 type Block =
-  | { type: 'video'; id: string; provider: 'youtube' | 'drive' | 'loom'; url: string; captions: boolean; durationSec?: number }
+  | { type: 'video'; id: string; provider: 'youtube' | 'drive' | 'loom'; url: string; captions: boolean; title?: string; caption?: string; durationSec?: number }
   | { type: 'markdown'; id: string; md: string }
   | { type: 'code'; id: string; lang: string; file?: string; code: string; copy: boolean; terminal: boolean; highlight?: string }
   | { type: 'callout'; id: string; tone: 'note' | 'tip' | 'warning'; title?: string; md: string }

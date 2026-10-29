@@ -18,6 +18,8 @@ export const blockSchema = z.discriminatedUnion('type', [
     provider: z.enum(['youtube', 'drive', 'loom']),
     url: z.url(),
     captions: z.boolean(),
+    title: text(200).optional(),
+    caption: text(300).optional(),
     durationSec: z.number().int().positive().optional(),
   }),
   z.object({ type: z.literal('markdown'), id, md: text(20_000) }),

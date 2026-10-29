@@ -12,6 +12,8 @@ export interface CodeBlockProps extends Omit<HTMLAttributes<HTMLDivElement>, 'ch
   variant?: 'code' | 'terminal';
   /** Lines to highlight, 1-based: `"2,4-6"`. Anything that is not a number or range is ignored. */
   highlight?: string;
+  /** Show the Copy button. Default: true. */
+  copyable?: boolean;
   /** Copy button text. Default: "Copy". */
   copyLabel?: string;
   /** Copy button text for two seconds after a copy. Default: "Copied". */
@@ -63,6 +65,7 @@ export function CodeBlock({
   fileName,
   variant = 'code',
   highlight,
+  copyable = true,
   copyLabel = 'Copy',
   copiedLabel = 'Copied',
   failedLabel = 'Could not copy',
@@ -93,13 +96,17 @@ export function CodeBlock({
     <div className={cx('g-code', terminal && 'g-code--terminal', className)} {...rest}>
       <div className="g-code__header">
         <span className="g-code__name">{name}</span>
-        <button type="button" className="g-code__copy" onClick={copy}>
-          <Icon path={status === 'copied' ? CHECK_ICON : COPY_ICON} />
-          {status === 'copied' ? copiedLabel : copyLabel}
-        </button>
-        <span className="g-code__status" role="status">
-          {status === 'copied' ? copiedLabel : status === 'failed' ? failedLabel : ''}
-        </span>
+        {copyable ? (
+          <>
+            <button type="button" className="g-code__copy" onClick={copy}>
+              <Icon path={status === 'copied' ? CHECK_ICON : COPY_ICON} />
+              {status === 'copied' ? copiedLabel : copyLabel}
+            </button>
+            <span className="g-code__status" role="status">
+              {status === 'copied' ? copiedLabel : status === 'failed' ? failedLabel : ''}
+            </span>
+          </>
+        ) : null}
       </div>
       {/* A scrollable region must take focus so a keyboard can scroll it (axe: scrollable-region-focusable). */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}

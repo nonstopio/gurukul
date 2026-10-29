@@ -77,7 +77,12 @@ export function BlockView({
       if (isPlaceholderVideo(block.url)) return <p>Video coming soon.</p>;
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
-        <VideoBlock src={src} title="Lesson video" href={block.url} />
+        <VideoBlock
+          src={src}
+          title={block.title ?? 'Lesson video'}
+          href={block.url}
+          caption={block.caption}
+        />
       ) : (
         <p>
           <a href={block.url} target="_blank" rel="noopener noreferrer">
@@ -92,6 +97,7 @@ export function BlockView({
       return (
         <CodeBlock
           code={block.code}
+          copyable={block.copy}
           variant={block.terminal ? 'terminal' : 'code'}
           {...(block.file ? { fileName: block.file } : {})}
           {...(block.highlight ? { highlight: block.highlight } : {})}
@@ -132,6 +138,19 @@ export function BlockView({
     case 'file':
       return (
         <a className="file-link" href={block.url} target="_blank" rel="noopener noreferrer">
+          <svg
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 1.5h5l3 3v10H4zM9 1.5v3h3" />
+          </svg>
           {block.label}
         </a>
       );

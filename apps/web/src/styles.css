@@ -629,6 +629,7 @@ a.items__row:hover {
 .file-link {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: var(--control-height);
   padding: 0 var(--space-4);
   border: 1px solid var(--border);
