@@ -1961,6 +1961,20 @@ a.items__row:hover {
   color: var(--chrome-text-strong);
   text-wrap: balance;
 }
+.signin__quote {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.signin__quote blockquote {
+  margin: 0;
+  font: 500 1.25rem / var(--leading-tight) var(--font-display);
+  color: var(--chrome-text-strong);
+}
+.signin__quote figcaption {
+  font-size: 0.8125rem;
+  color: var(--chrome-label);
+}
 .signin__benefits {
   margin: 0;
   padding: 0;
