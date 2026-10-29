@@ -4,6 +4,7 @@
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { XIcon } from './Icon';
 import './dialog.css';
 
 export interface DialogProps {
@@ -111,14 +112,7 @@ function DialogPanel({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path
-                d="M3 3l10 10M13 3L3 13"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+            <XIcon />
           </button>
         </div>
         <div className="g-dialog__body" ref={bodyRef}>

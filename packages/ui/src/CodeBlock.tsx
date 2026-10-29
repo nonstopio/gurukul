@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 import { cx } from './cx';
+import { CheckIcon, CopyIcon } from './Icon';
 import './code-block.css';
 
 export interface CodeBlockProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
@@ -37,27 +38,6 @@ export function parseHighlight(spec: string | undefined): Set<number> {
   }
   return lines;
 }
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={path} />
-    </svg>
-  );
-}
-
-const COPY_ICON = 'M5.5 5.5h7v8h-7zM3.5 10.5v-8h7';
-const CHECK_ICON = 'M3 8.5l3.5 3.5L13 4.5';
 
 /** A code listing with a header, a Copy button and optional highlighted lines. */
 export function CodeBlock({
@@ -99,7 +79,7 @@ export function CodeBlock({
         {copyable ? (
           <>
             <button type="button" className="g-code__copy" onClick={copy}>
-              <Icon path={status === 'copied' ? CHECK_ICON : COPY_ICON} />
+              {status === 'copied' ? <CheckIcon /> : <CopyIcon />}
               {status === 'copied' ? copiedLabel : copyLabel}
             </button>
             <span className="g-code__status" role="status">

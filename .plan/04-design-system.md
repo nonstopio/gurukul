@@ -50,5 +50,5 @@ later without touching components.
 
 - No Tailwind or CSS-in-JS: plain CSS with custom properties keeps tokens the
   single source and the bundle small.
-- No icon font: inline Lucide-style stroke SVG components in `packages/ui/icons`.
+- No icon font: inline Lucide-style stroke SVG components in `packages/ui/src/Icon.tsx`.
 - No chart library: the few charts are simple SVG, keeping bundle and licence surface small.

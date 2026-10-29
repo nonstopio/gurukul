@@ -22,12 +22,12 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Parikshas and certificates | 10 | 0 | 0 | 0 |
 | Kulapati console and Sanjaya | 32 | 0 | 0 | 0 |
 | Vyasa Studio | 17 | 0 | 0 | 0 |
-| Design system | 5 | 1 | 0 | 0 |
+| Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 18 | 0 | 0 | 9 |
 | First course: Git | 4 | 0 | 0 | 2 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 130 | 1 | 2 | 11 |
+| **Total** | 131 | 0 | 2 | 11 |
 
 ## Pick order
 
@@ -36,7 +36,6 @@ Two items are blocked on a maintainer answer (`LRN-20`, `AUTH-10`).
 
 1. `LRN-20` — Preview certificate on the course overview (blocked)
 2. `AUTH-10` — Sign-in: contact link and quote (blocked)
-3. `DS-04` — shared icon set
 
 ## Foundations
 
@@ -188,7 +187,7 @@ Plan: `04-design-system.md`.
 | `DS-02` | axe in component tests; tokens test                      | done   | —       | `packages/ui/test/axe.ts`, `packages/ui/test/tokens.test.ts`                                                                   |
 | `DS-03` | `/__ui` component gallery | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx`, `devRoutes()` in `routes.tsx` (dev builds only), axe test `apps/web/test/ui-gallery.test.tsx` |
 | `DS-06` | Gallery: Sidebar, TopBar, VideoBlock, Certificate | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx` (Sidebar, SidebarGroup, NavItem, TopBar, VideoBlock, a normal and a revoked long-name Certificate in size-capped frames), `ui-gallery.css`; axe-checked in `apps/web/test/ui-gallery.test.tsx` |
-| `DS-04` | Shared icon set                                          | todo   | —       | `packages/ui/icons` does not exist; about twenty one-off inline SVGs move onto stroke icon components (`aria-hidden` by default) |
+| `DS-04` | Shared icon set | done | — | `packages/ui/src/Icon.tsx` (`Icon` base, 16-grid stroke, `aria-hidden` unless `label`; 19 named icons in use), `packages/ui/test/icons.test.tsx`, gallery section in `apps/web/src/ui-gallery/`, recipe in `.claude/skills/gurukul-design/references/components.md`. Brand marks, data graphics, the seal and filled diagrams stay inline |
 | `DS-05` | axe on the remaining page tests | done | — | `apps/web/test/ChangelogPage.test.tsx`, `apps/web/test/GlobalSearch.test.tsx` (`axeViolations` from `apps/web/test/axe.ts`) |
 
 ## Global search

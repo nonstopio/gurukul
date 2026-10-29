@@ -38,6 +38,16 @@ Escape closes, Tab is held; Enter ignored while an IME composes. Options are `ta
 swallow `mousedown` so a click never steals focus. Twenty rows, then "Show N more". A
 `role="status"` region announces the count; focus returns to the opener on close.
 
+## Icon — shipped
+
+`<Icon size? label?>{paths}</Icon>` and one named component per glyph in use (`CheckIcon`, `XIcon`,
+`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and the `/__ui` gallery).
+Lucide-style stroke on a 16-unit grid: `currentColor`, 1.5 stroke, round caps and joins, 16px by default.
+Decorative (`aria-hidden="true"`) unless given `label`, which makes it `role="img"` with that name; an
+icon-only button names the button instead. Any SVG attribute (`className`, `strokeWidth`) passes through.
+Draw a new glyph in `src/Icon.tsx` only when a screen uses it; never inline a one-off stroke SVG. Brand
+marks, illustrations, charts and the seal stay their own SVG.
+
 ## Chip — shipped
 
 `<Chip tone="neutral|accent|warning|danger|info|solid">Completed</Chip>`. A `<span>`, always with a word.

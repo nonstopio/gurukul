@@ -6,6 +6,7 @@ import type {
   TextareaHTMLAttributes,
 } from 'react';
 import { cx } from './cx';
+import { AlertIcon } from './Icon';
 import './field.css';
 
 /** What a `Field` hands its control so label, hint and error are wired for assistive tech. */
@@ -53,11 +54,7 @@ export function Field({ label, hint, error, id, className, children }: FieldProp
       })}
       {error ? (
         <p className="g-field__error" id={errorId}>
-          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 4.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="11" r="0.9" fill="currentColor" />
-          </svg>
+          <AlertIcon />
           {error}
         </p>
       ) : null}
