@@ -90,6 +90,24 @@ describe('signed-in shell', () => {
     expect(document.title).toBe('Gurukul · NonStop Academy');
   });
 
+  it('opens and closes the sidebar from the menu button, and closes it after navigating', async () => {
+    await open('/');
+    const menu = screen.getByRole('button', { name: 'Menu' });
+    expect(menu.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(menu);
+    expect(menu.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById('app-sidebar')?.className).toContain('app__sidebar--open');
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
+        name: 'Changelog',
+      }),
+    );
+    await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'));
+    fireEvent.click(menu);
+    fireEvent.click(menu);
+    expect(menu.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('falls back to a friendly name without a display name', async () => {
     const f = fakeAuth();
     const router = createMemoryRouter(appRoutes(), { initialEntries: ['/'] });

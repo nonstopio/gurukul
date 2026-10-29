@@ -98,8 +98,18 @@ body {
 }
 .app {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px 1fr;
+  display: flex;
+  flex-wrap: wrap;
+}
+.app__sidebar {
+  flex: 1 1 248px;
+}
+.app__content {
+  flex: 999 1 560px;
+}
+.app__menu {
+  display: none;
+  margin-right: auto;
 }
 .app__brand {
   font: 500 var(--text-xl) / 1 var(--font-display);
@@ -149,9 +159,38 @@ body {
   font-size: var(--text-lg);
   color: var(--text);
 }
-@media (max-width: 760px) {
-  .app {
-    grid-template-columns: 1fr;
+/* Handoff breakpoints: the sidebar stacks above the content below 808px (sidebar 248 + content
+   560) with its navigation as a scrolling row, and below 560px becomes a menu button. */
+@media (max-width: 807px) {
+  .app__sidebar .g-sidebar__nav,
+  .app__sidebar .g-sidebar__group {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+  }
+  .app__sidebar .g-sidebar__nav {
+    gap: var(--space-4);
+  }
+  .app__sidebar .g-nav-item,
+  .app__sidebar .g-sidebar__label {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 559px) {
+  .app__menu {
+    display: inline-flex;
+  }
+  .app__sidebar {
+    display: none;
+  }
+  .app__sidebar--open {
+    display: flex;
+  }
+  .app__sidebar .g-sidebar__nav,
+  .app__sidebar .g-sidebar__group {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 .sr-only {
