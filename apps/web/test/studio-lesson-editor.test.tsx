@@ -56,7 +56,7 @@ describe('lesson editor: layout', () => {
       within(rail)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Lesson l4']);
+    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Pariksha I Pariksha', 'Lesson l4']);
     expect(within(rail).getByRole('link', { name: 'Lesson l1' }).getAttribute('aria-current')).toBe(
       'page',
     );
@@ -81,6 +81,31 @@ describe('lesson editor: layout', () => {
     expect(((await screen.findByLabelText('Lesson title')) as HTMLInputElement).value).toBe(
       'Lesson l2',
     );
+  });
+
+  it('lists Parikshas in the rail and opens the Pariksha builder', async () => {
+    await open();
+    const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
+    expect(
+      within(rail)
+        .getByRole('link', { name: /Pariksha I/ })
+        .getAttribute('href'),
+    ).toBe('/studio/courses/git/pariksha/q1');
+  });
+
+  it('names untitled items in the rail', async () => {
+    const course = courseWith();
+    for (const item of course.parvas.flatMap((p) => p.items))
+      if (item.id === 'l2' || item.id === 'q1') item.title = '';
+    await open(course);
+    const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
+    expect(within(rail).getByRole('link', { name: 'Untitled lesson' })).toBeTruthy();
+    expect(within(rail).getByRole('link', { name: /Untitled Pariksha/ })).toBeTruthy();
+  });
+
+  it('says so when a lesson has no blocks', async () => {
+    await open(courseWith([]));
+    expect(await screen.findByText('This lesson is empty.')).toBeTruthy();
   });
 
   it('shows a loading state, then the lesson', async () => {

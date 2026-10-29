@@ -122,6 +122,17 @@ export function addPariksha(w: Working, parvaId: string, id: string): Working {
   return appendItem(w, parvaId, pariksha);
 }
 
+/** Renames one lesson or Pariksha. The id stays, so learner progress follows the new title. */
+export function renameItem(w: Working, itemId: string, title: string): Working {
+  return withParvas(
+    w,
+    w.course.parvas.map((p) => ({
+      ...p,
+      items: p.items.map((i) => (i.id === itemId ? { ...i, title } : i)),
+    })),
+  );
+}
+
 /** Removes one lesson or Pariksha, and its answer keys. */
 export function deleteItem(w: Working, itemId: string): Working {
   const next = withParvas(

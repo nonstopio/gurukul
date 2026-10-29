@@ -336,6 +336,25 @@ describe('Course editor: structure', () => {
 
 function cleanupSingle() {}
 
+describe('Course editor: renaming items inline', () => {
+  it('renames a lesson in place and closes the field on Enter, Escape or blur', async () => {
+    await open();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Lesson l1' }));
+    const field = screen.getByRole('textbox', { name: 'Title of Lesson l1' });
+    fireEvent.change(field, { target: { value: 'Fresh' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(screen.getByRole('link', { name: 'Fresh' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Fresh' }));
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Title of Fresh' }), { key: 'a' });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Title of Fresh' }), { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'Title of Fresh' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Fresh' }));
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Title of Fresh' }));
+    expect(screen.queryByRole('textbox', { name: 'Title of Fresh' })).toBeNull();
+  });
+});
+
 describe('Course editor: dialogs close with Escape', () => {
   it('closes the delete, rollback and archive dialogs', async () => {
     await open({

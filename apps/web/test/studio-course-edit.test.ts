@@ -11,6 +11,7 @@ import {
   moveParva,
   patchCourse,
   removeOutcome,
+  renameItem,
   renameParva,
   setCertificate,
   setCoverTheme,
@@ -80,6 +81,14 @@ describe('courseEdit', () => {
     expect(renameParva(added, 'p2', 'Past').course.parvas[1]?.title).toBe('Past');
     expect(renameParva(added, 'p1', 'Start').course.parvas[1]?.title).toBe('History');
     expect(moveParva(added, 2, 0).course.parvas.map((p) => p.id)).toEqual(['parva-1', 'p1', 'p2']);
+  });
+
+  it('renames a lesson or Pariksha by id and leaves the rest', () => {
+    const items = (w: Working) => w.course.parvas.flatMap((p) => p.items);
+    const renamed = renameItem(work(), 'l1', 'Fresh');
+    expect(items(renamed).find((i) => i.id === 'l1')?.title).toBe('Fresh');
+    expect(items(renamed).find((i) => i.id === 'l2')?.title).toBe('Lesson l2');
+    expect(items(renameItem(work(), 'q1', 'Quiz')).find((i) => i.id === 'q1')?.title).toBe('Quiz');
   });
 
   it('deletes a parva with its Pariksha answer keys, and ignores an unknown one', () => {

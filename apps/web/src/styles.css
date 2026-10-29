@@ -1104,6 +1104,15 @@ a.items__row:hover {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.sc-item__input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.studio-rail__kind {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
 .sc-item__title:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
