@@ -7,11 +7,11 @@ export default {
   area: 'STUDIO',
   kind: 'fix',
   why:
-    'Preview used its own copy of the question screen, so what an Acharya checked could differ ' +
+    'Preview used its own copy of the question screen, so what an Educator checked could differ ' +
     'from what learners get. A question with more than four answers also repeated the badge ' +
     'letters A to D, in preview and for learners.',
   detail: [
-    'Preview and the learner Pariksha now share one question screen.',
+    'Preview and the learner Quiz now share one question screen.',
     'Answers are lettered A to H, and a wrong answer in preview names the right letters.',
   ],
 } satisfies ChangelogEntry;

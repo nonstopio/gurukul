@@ -1,5 +1,7 @@
 import { Button, Card, ColourSwatch, Input, Select, Textarea, Toggle } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { patchCourse, setCoverTheme, setPassMark, setRule } from './courseEdit';
 import type { Working } from './types';
 
@@ -12,14 +14,15 @@ const LEVELS: Array<[Course['level'], string]> = [
 /** The right-hand panel of the Structure tab: course details, learning rules and who may edit. */
 export function DetailsPanel({
   course,
-  acharyas,
+  educators,
   update,
 }: {
   course: Course;
-  /** The live course: who may edit is its `acharyaIds`, never the draft's copy. */
-  acharyas: Pick<Course, 'acharyaIds' | 'acharyaNames'>;
+  /** The live course: who may edit is its `educatorIds`, never the draft's copy. */
+  educators: Pick<Course, 'educatorIds' | 'educatorNames'>;
   update: (edit: (w: Working) => Working) => void;
 }) {
+  const t = useTerms();
   return (
     <aside className="sc-details" aria-label="Course details">
       <Card as="section" aria-labelledby="details-title" className="sc-panel">
@@ -62,7 +65,7 @@ export function DetailsPanel({
         </Select>
         <Input
           label="Pass mark (%)"
-          hint="Each Pariksha needs at least this score."
+          hint={`Each ${t.Quiz} needs at least this score.`}
           type="number"
           inputMode="numeric"
           min={0}
@@ -86,7 +89,7 @@ export function DetailsPanel({
           Learning rules
         </h2>
         <Toggle
-          label="Learners go in order"
+          label={`${t.Learners} go in order`}
           checked={course.rules.sequential}
           onChange={(e) => update((w) => setRule(w, 'sequential', e.target.checked))}
         />
@@ -102,18 +105,18 @@ export function DetailsPanel({
         />
       </Card>
 
-      <Card as="section" aria-labelledby="acharyas-title" className="sc-panel">
-        <h2 id="acharyas-title" className="sc-h3">
-          Acharyas with edit access
+      <Card as="section" aria-labelledby="educators-title" className="sc-panel">
+        <h2 id="educators-title" className="sc-h3">
+          {`${t.Educators} with edit access`}
         </h2>
         <p className="sc-help">
-          {acharyas.acharyaIds.length} {acharyas.acharyaIds.length === 1 ? 'person' : 'people'}. A
-          Kulapati changes this list in the console.
+          {educators.educatorIds.length} {educators.educatorIds.length === 1 ? 'person' : 'people'}.{' '}
+          {`${article(t.Admin).replace(/^a/, 'A')} changes this list in the console.`}
         </p>
         <ul className="sc-ids">
-          {acharyas.acharyaIds.map((id) => (
+          {educators.educatorIds.map((id) => (
             <li key={id}>
-              {acharyas.acharyaNames[id] ?? (
+              {educators.educatorNames[id] ?? (
                 <>
                   <code>{id}</code> <span className="sc-help">(name not recorded yet)</span>
                 </>

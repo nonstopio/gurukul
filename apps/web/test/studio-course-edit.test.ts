@@ -2,17 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   addLesson,
   addOutcome,
-  addParva,
-  addPariksha,
+  addChapter,
+  addQuiz,
   deleteItem,
-  deleteParva,
-  moveItemToParva,
+  deleteChapter,
+  moveItemToChapter,
   moveItemWithin,
-  moveParva,
+  moveChapter,
   patchCourse,
   removeOutcome,
   renameItem,
-  renameParva,
+  renameChapter,
   setCertificate,
   setCoverTheme,
   setOutcome,
@@ -20,7 +20,7 @@ import {
   setRule,
 } from '../src/studio/courseEdit';
 import {
-  acharyaSummary,
+  educatorSummary,
   canEdit,
   changeSummary,
   collectMedia,
@@ -34,6 +34,7 @@ import {
   tabCounts,
   unpublishedEdits,
 } from '../src/studio/studioModel';
+import { terms } from '../src/labels/terms';
 import type { Working } from '../src/studio/types';
 import { draftDoc } from './fake-studio';
 import { lesson, makeCourse } from './fake-data';
@@ -42,7 +43,7 @@ const work = (): Working => ({
   course: makeCourse(),
   answers: { q1: { k1: ['a'] } },
 });
-const ids = (w: Working, parva = 0) => w.course.parvas[parva]?.items.map((i) => i.id);
+const ids = (w: Working, chapter = 0) => w.course.chapters[chapter]?.items.map((i) => i.id);
 
 describe('courseEdit', () => {
   it('patches the course without touching the original', () => {
@@ -73,36 +74,40 @@ describe('courseEdit', () => {
     expect(removeOutcome(added, 0).course.outcomes).toEqual(['']);
   });
 
-  it('adds, renames and moves parvas', () => {
-    const added = addParva(work(), 'parva-1');
-    expect(added.course.parvas.map((p) => p.id)).toEqual(['p1', 'p2', 'parva-1']);
-    expect(added.course.parvas[2]).toEqual({ id: 'parva-1', title: 'New parva', items: [] });
-    expect(renameParva(added, 'p2', 'Past').course.parvas[1]?.title).toBe('Past');
-    expect(renameParva(added, 'p1', 'Start').course.parvas[1]?.title).toBe('History');
-    expect(moveParva(added, 2, 0).course.parvas.map((p) => p.id)).toEqual(['parva-1', 'p1', 'p2']);
+  it('adds, renames and moves chapters', () => {
+    const added = addChapter(work(), 'chapter-1');
+    expect(added.course.chapters.map((p) => p.id)).toEqual(['p1', 'p2', 'chapter-1']);
+    expect(added.course.chapters[2]).toEqual({ id: 'chapter-1', title: 'New chapter', items: [] });
+    expect(renameChapter(added, 'p2', 'Past').course.chapters[1]?.title).toBe('Past');
+    expect(renameChapter(added, 'p1', 'Start').course.chapters[1]?.title).toBe('History');
+    expect(moveChapter(added, 2, 0).course.chapters.map((p) => p.id)).toEqual([
+      'chapter-1',
+      'p1',
+      'p2',
+    ]);
   });
 
-  it('renames a lesson or Pariksha by id and leaves the rest', () => {
-    const items = (w: Working) => w.course.parvas.flatMap((p) => p.items);
+  it('renames a lesson or Quiz by id and leaves the rest', () => {
+    const items = (w: Working) => w.course.chapters.flatMap((p) => p.items);
     const renamed = renameItem(work(), 'l1', 'Fresh');
     expect(items(renamed).find((i) => i.id === 'l1')?.title).toBe('Fresh');
     expect(items(renamed).find((i) => i.id === 'l2')?.title).toBe('Lesson l2');
     expect(items(renameItem(work(), 'q1', 'Quiz')).find((i) => i.id === 'q1')?.title).toBe('Quiz');
   });
 
-  it('deletes a parva with its Pariksha answer keys, and ignores an unknown one', () => {
+  it('deletes a chapter with its Quiz answer keys, and ignores an unknown one', () => {
     const w = work();
-    const next = deleteParva(w, 'p2');
-    expect(next.course.parvas.map((p) => p.id)).toEqual(['p1']);
+    const next = deleteChapter(w, 'p2');
+    expect(next.course.chapters.map((p) => p.id)).toEqual(['p1']);
     expect(next.answers).toEqual({});
-    const same = deleteParva(w, 'nope');
-    expect(same.course.parvas).toHaveLength(2);
+    const same = deleteChapter(w, 'nope');
+    expect(same.course.chapters).toHaveLength(2);
     expect(same.answers).toEqual(w.answers);
   });
 
-  it('adds a lesson and a Pariksha with the defaults', () => {
+  it('adds a lesson and a Quiz with the defaults', () => {
     const withLesson = addLesson(work(), 'p1', 'lesson-9');
-    expect(withLesson.course.parvas[0]?.items.at(-1)).toEqual({
+    expect(withLesson.course.chapters[0]?.items.at(-1)).toEqual({
       type: 'lesson',
       id: 'lesson-9',
       title: 'Untitled lesson',
@@ -111,9 +116,9 @@ describe('courseEdit', () => {
       completeWhen: 'manual',
       blocks: [],
     });
-    const withExam = addPariksha(work(), 'p2', 'exam-9');
-    expect(withExam.course.parvas[1]?.items.at(-1)).toMatchObject({
-      type: 'pariksha',
+    const withExam = addQuiz(work(), 'p2', 'exam-9');
+    expect(withExam.course.chapters[1]?.items.at(-1)).toMatchObject({
+      type: 'quiz',
       id: 'exam-9',
       questionsShown: 1,
       shuffleOptions: true,
@@ -134,23 +139,23 @@ describe('courseEdit', () => {
     expect(gone.answers).toEqual({});
   });
 
-  it('reorders items inside a parva, clamped', () => {
+  it('reorders items inside a chapter, clamped', () => {
     expect(ids(moveItemWithin(work(), 'p2', 0, 2), 1)).toEqual(['q1', 'l4', 'l3']);
     expect(ids(moveItemWithin(work(), 'p2', 2, 9), 1)).toEqual(['l3', 'q1', 'l4']);
     expect(ids(moveItemWithin(work(), 'p1', 1, 0), 0)).toEqual(['l2', 'l1']);
   });
 
-  it('moves an item to the end of another parva, and ignores impossible moves', () => {
-    const moved = moveItemToParva(work(), 'l1', 'p2');
+  it('moves an item to the end of another chapter, and ignores impossible moves', () => {
+    const moved = moveItemToChapter(work(), 'l1', 'p2');
     expect(ids(moved, 0)).toEqual(['l2']);
     expect(ids(moved, 1)).toEqual(['l3', 'q1', 'l4', 'l1']);
-    const three = addParva(work(), 'p3');
-    expect(ids(moveItemToParva(three, 'l1', 'p2'), 1)).toContain('l1');
-    expect(three.course.parvas[2]?.items).toEqual([]);
+    const three = addChapter(work(), 'p3');
+    expect(ids(moveItemToChapter(three, 'l1', 'p2'), 1)).toContain('l1');
+    expect(three.course.chapters[2]?.items).toEqual([]);
     const w = work();
-    expect(moveItemToParva(w, 'l1', 'p1')).toBe(w);
-    expect(moveItemToParva(w, 'nope', 'p2')).toBe(w);
-    expect(moveItemToParva(w, 'l1', 'nope')).toBe(w);
+    expect(moveItemToChapter(w, 'l1', 'p1')).toBe(w);
+    expect(moveItemToChapter(w, 'nope', 'p2')).toBe(w);
+    expect(moveItemToChapter(w, 'l1', 'nope')).toBe(w);
   });
 });
 
@@ -159,26 +164,33 @@ describe('studioModel', () => {
   const ago = (ms: number) => new Date(now.getTime() - ms);
 
   it('says who may edit', () => {
-    expect(canEdit({ acharyaIds: ['u1'] }, 'u1', false)).toBe(true);
-    expect(canEdit({ acharyaIds: ['u2'] }, 'u1', false)).toBe(false);
-    expect(canEdit({ acharyaIds: [] }, 'u1', true)).toBe(true);
+    expect(canEdit({ educatorIds: ['u1'] }, 'u1', false)).toBe(true);
+    expect(canEdit({ educatorIds: ['u2'] }, 'u1', false)).toBe(false);
+    expect(canEdit({ educatorIds: [] }, 'u1', true)).toBe(true);
   });
 
-  it('names the Acharyas, counting the ones whose name was never stored', () => {
+  it('names the Educators, counting the ones whose name was never stored', () => {
     const names = { u1: 'Asha Rao', u2: 'Rohan Das' };
-    expect(acharyaSummary({ acharyaIds: ['u1'], acharyaNames: names })).toEqual({
-      label: 'Acharya',
+    expect(
+      educatorSummary({ educatorIds: ['u1'], educatorNames: names }, terms('generic')),
+    ).toEqual({
+      label: 'Educator',
       names: 'Asha Rao',
     });
-    expect(acharyaSummary({ acharyaIds: ['u1', 'u2', 'x'], acharyaNames: names })).toEqual({
-      label: 'Acharyas',
+    expect(
+      educatorSummary({ educatorIds: ['u1', 'u2', 'x'], educatorNames: names }, terms('generic')),
+    ).toEqual({
+      label: 'Educators',
       names: 'Asha Rao, Rohan Das, 1 other',
     });
-    expect(acharyaSummary({ acharyaIds: ['u1', 'x', 'y'], acharyaNames: names })?.names).toBe(
-      'Asha Rao, 2 others',
-    );
-    expect(acharyaSummary({ acharyaIds: ['x'], acharyaNames: names })).toBeNull();
-    expect(acharyaSummary({ acharyaIds: [], acharyaNames: {} })).toBeNull();
+    expect(
+      educatorSummary({ educatorIds: ['u1', 'x', 'y'], educatorNames: names }, terms('generic'))
+        ?.names,
+    ).toBe('Asha Rao, 2 others');
+    expect(
+      educatorSummary({ educatorIds: ['x'], educatorNames: names }, terms('generic')),
+    ).toBeNull();
+    expect(educatorSummary({ educatorIds: [], educatorNames: {} }, terms('generic'))).toBeNull();
   });
 
   it('words relative time', () => {
@@ -195,16 +207,14 @@ describe('studioModel', () => {
     expect(itemEditorPath('git', { id: 'l1', type: 'lesson' })).toBe(
       '/studio/courses/git/lessons/l1',
     );
-    expect(itemEditorPath('git', { id: 'q1', type: 'pariksha' })).toBe(
-      '/studio/courses/git/pariksha/q1',
-    );
+    expect(itemEditorPath('git', { id: 'q1', type: 'quiz' })).toBe('/studio/courses/git/quiz/q1');
   });
 
   it('classifies items for the type tile and the meta line', () => {
     const course = makeCourse();
-    const exam = course.parvas[1]?.items[1];
+    const exam = course.chapters[1]?.items[1];
     if (!exam) throw new Error('fixture');
-    expect(itemKind(exam)).toBe('pariksha');
+    expect(itemKind(exam)).toBe('quiz');
     expect(itemMeta(exam)).toBe('1 question');
     expect(itemMeta({ ...(exam as object), questions: [] } as never)).toBe('0 questions');
     expect(itemKind(lesson('a') as never)).toBe('reading');
@@ -247,7 +257,7 @@ describe('studioModel', () => {
   it('summarises changes with titles', () => {
     const live = makeCourse();
     const draft = makeCourse({
-      parvas: [
+      chapters: [
         {
           id: 'p1',
           title: 'Basics',
@@ -258,7 +268,7 @@ describe('studioModel', () => {
     expect(changeSummary(live, draft)).toEqual({
       added: ['Fresh'],
       edited: ['Renamed'],
-      removed: ['Lesson l2', 'Lesson l3', 'Pariksha I', 'Lesson l4'],
+      removed: ['Lesson l2', 'Lesson l3', 'Quiz I', 'Lesson l4'],
       courseChanged: true,
     });
     expect(changeSummary(null, draft).added).toEqual(['Renamed', 'Fresh']);
@@ -287,19 +297,19 @@ describe('studioModel', () => {
     const live = makeCourse({
       id: 'one',
       title: 'One',
-      parvas: [{ id: 'p', title: 'P', items: [lesson('a', { blocks: [] })] }],
+      chapters: [{ id: 'p', title: 'P', items: [lesson('a', { blocks: [] })] }],
     });
     const draft = makeCourse({
       id: 'one',
       title: 'One',
-      parvas: [
+      chapters: [
         {
           id: 'p',
           title: 'P',
           items: [
             lesson('a', { title: 'A', blocks: [...blocks, blocks[0]] }),
             lesson('b', { title: 'B', blocks: [blocks[0]] }),
-            makeCourse().parvas[1]?.items[1] as never,
+            makeCourse().chapters[1]?.items[1] as never,
           ],
         },
       ],
@@ -307,7 +317,9 @@ describe('studioModel', () => {
     const other = makeCourse({
       id: 'two',
       title: 'Two',
-      parvas: [{ id: 'p', title: 'P', items: [lesson('c', { title: 'C', blocks: [blocks[5]] })] }],
+      chapters: [
+        { id: 'p', title: 'P', items: [lesson('c', { title: 'C', blocks: [blocks[5]] })] },
+      ],
     });
     const found = collectMedia([
       { live, draft: draftDoc(draft) },

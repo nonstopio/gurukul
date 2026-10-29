@@ -13,8 +13,8 @@ export const question = (id: string, kind = 'single', over: object = {}) => ({
   ...over,
 });
 
-export const pariksha = (over: object = {}) => ({
-  type: 'pariksha',
+export const quiz = (over: object = {}) => ({
+  type: 'quiz',
   id: 'pk',
   title: 'Check',
   questionsShown: 2,
@@ -26,7 +26,7 @@ export const pariksha = (over: object = {}) => ({
   ...over,
 });
 
-export const course = (parikshaOver: object = {}, over: object = {}) => ({
+export const course = (quizOver: object = {}, over: object = {}) => ({
   schemaVersion: 3,
   id: 'git-basics',
   title: 'Git basics',
@@ -35,14 +35,14 @@ export const course = (parikshaOver: object = {}, over: object = {}) => ({
   level: 'foundation',
   cover: { theme: 'forest', glyph: 'G' },
   outcomes: [],
-  acharyaIds: [],
-  acharyaNames: {},
+  educatorIds: [],
+  educatorNames: {},
   status: 'published',
   version: 3,
   publishedAt: ts(1),
   rules: { sequential: false, passMark: 0.7, certificate: true, requireVideoWatch: false },
   certificate: { title: 'Git' },
-  parvas: [{ id: 'p1', title: 'P', items: [pariksha(parikshaOver)] }],
+  chapters: [{ id: 'p1', title: 'P', items: [quiz(quizOver)] }],
   estimatedMinutes: 2,
   ...over,
 });
@@ -57,7 +57,7 @@ export const progress = (pk: object | undefined = undefined, over: object = {}) 
   lastItemId: null,
   lastActiveAt: ts(1),
   completedItemIds: [],
-  pariksha: pk === undefined ? {} : { pk },
+  quiz: pk === undefined ? {} : { pk },
   percent: 0,
   completedAt: null,
   certificateId: null,

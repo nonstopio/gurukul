@@ -2,15 +2,15 @@ import { gitAnswers, gitCourse } from '../../firebase/seed/src/git-course';
 import { seedProgress } from '../support/emulators';
 import { APP_URL, GIT_COURSE } from '../support/env';
 import { expectNoSeriousViolations } from '../support/a11y';
-import { expect, signInWithGoogle, signedInAsShishya, test } from '../support/fixtures';
+import { expect, signInWithGoogle, signedInAsLearner, test } from '../support/fixtures';
 
 const asha = { email: 'asha.rao@nonstopio.com', name: 'Asha Rao' };
 
-const FINAL = 'pariksha-final';
+const FINAL = 'quiz-final';
 
 test.describe('Learner', () => {
   test('signs in, lands on Home and opens the first lesson of the Git course', async ({ page }) => {
-    await signedInAsShishya(page, asha);
+    await signedInAsLearner(page, asha);
     await expect(page.getByRole('heading', { level: 1, name: 'Namaste, Asha' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Nothing assigned yet' })).toBeVisible();
     await expectNoSeriousViolations(page);
@@ -32,7 +32,7 @@ test.describe('Learner', () => {
   });
 
   test('marks the first lesson complete and sees progress move', async ({ page }) => {
-    await signedInAsShishya(page, asha);
+    await signedInAsLearner(page, asha);
     await page.goto(`/courses/${GIT_COURSE.id}/learn/what-git-solves`);
     const progress = page.getByRole('progressbar', { name: 'Course progress' });
     await expect(progress).toHaveAttribute('aria-valuenow', '0');
@@ -58,21 +58,19 @@ test.describe('Learner', () => {
     await expect(page.getByRole('button', { name: 'Try another account' })).toBeVisible();
   });
 
-  test('passes the final Pariksha, gets a certificate and anyone can verify it', async ({
+  test('passes the final Quiz, gets a certificate and anyone can verify it', async ({
     page,
     browser,
   }) => {
-    await signedInAsShishya(page, asha);
-    // Everything before the final Pariksha is done; the journey under test starts there.
-    const items = gitCourse.parvas.flatMap((p) => p.items);
+    await signedInAsLearner(page, asha);
+    // Everything before the final Quiz is done; the journey under test starts there.
+    const items = gitCourse.chapters.flatMap((p) => p.items);
     await seedProgress(asha.email, GIT_COURSE.id, {
       lessons: items.filter((i) => i.type === 'lesson').map((i) => i.id),
-      passedParikshas: items
-        .filter((i) => i.type === 'pariksha' && i.id !== FINAL)
-        .map((i) => i.id),
+      passedQuizzes: items.filter((i) => i.type === 'quiz' && i.id !== FINAL).map((i) => i.id),
     });
 
-    await page.goto(`/courses/${GIT_COURSE.id}/pariksha/${FINAL}`);
+    await page.goto(`/courses/${GIT_COURSE.id}/quiz/${FINAL}`);
     const keys = gitAnswers[FINAL] ?? {};
     const total = Object.keys(keys).length;
     for (let n = 1; n <= total; n += 1) {
@@ -86,12 +84,12 @@ test.describe('Learner', () => {
           .click();
       }
       await page
-        .getByRole('button', { name: n === total ? 'Finish Pariksha' : 'Next question' })
+        .getByRole('button', { name: n === total ? 'Finish Quiz' : 'Next question' })
         .click();
     }
 
     await expect(
-      page.getByRole('heading', { level: 1, name: /Final Pariksha: .* cleared\./ }),
+      page.getByRole('heading', { level: 1, name: /Final Quiz: .* cleared\./ }),
     ).toBeVisible();
     await page.getByRole('link', { name: 'Finish course' }).click();
     await expect(

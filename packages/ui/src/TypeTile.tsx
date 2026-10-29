@@ -2,7 +2,7 @@ import { cx } from './cx';
 import { ChecklistIcon, CodeIcon, PlayIcon, TextIcon } from './Icon';
 import './type-tile.css';
 
-export type TypeTileKind = 'reading' | 'video' | 'code' | 'pariksha';
+export type TypeTileKind = 'reading' | 'video' | 'code' | 'quiz';
 
 export interface TypeTileProps {
   kind: TypeTileKind;
@@ -12,7 +12,7 @@ const KINDS: Record<TypeTileKind, { name: string; Glyph: typeof TextIcon }> = {
   reading: { name: 'Reading', Glyph: TextIcon },
   video: { name: 'Video', Glyph: PlayIcon },
   code: { name: 'Code', Glyph: CodeIcon },
-  pariksha: { name: 'Pariksha', Glyph: ChecklistIcon },
+  quiz: { name: 'Quiz', Glyph: ChecklistIcon },
 };
 
 /** A 30px tile that shows what kind of item a row is. The kind is also in visually hidden text. */

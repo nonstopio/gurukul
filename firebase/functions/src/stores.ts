@@ -2,7 +2,7 @@ import type { Auth } from 'firebase-admin/auth';
 import type { Firestore, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { DEFAULT_ORG_CONFIG, orgConfigSchema, progressId as progressDocId } from '@gurukul/schema';
-import { addParvaCompletions } from './analytics.js';
+import { addChapterCompletions } from './analytics.js';
 import type { AttemptStatsStore, RollupStore } from './analytics.js';
 import type { AssignStore } from './assign.js';
 import type { BackupPort } from './backup.js';
@@ -87,19 +87,19 @@ export function firebaseRoleAdmin(auth: Auth, db: Firestore): RoleAdmin {
       batch.set(db.doc(`users/${uid}`), { grantedCourseIds }, { merge: true });
       courses.forEach((snap, i) => {
         if (!snap.exists) return;
-        const nameField = new FieldPath('acharyaNames', uid);
+        const nameField = new FieldPath('educatorNames', uid);
         if (i >= grantedCourseIds.length) {
           batch.update(
             snap.ref,
-            'acharyaIds',
+            'educatorIds',
             FieldValue.arrayRemove(uid),
             nameField,
             FieldValue.delete(),
           );
         } else if (name === undefined) {
-          batch.update(snap.ref, { acharyaIds: FieldValue.arrayUnion(uid) });
+          batch.update(snap.ref, { educatorIds: FieldValue.arrayUnion(uid) });
         } else {
-          batch.update(snap.ref, 'acharyaIds', FieldValue.arrayUnion(uid), nameField, name);
+          batch.update(snap.ref, 'educatorIds', FieldValue.arrayUnion(uid), nameField, name);
         }
       });
       await batch.commit();
@@ -125,7 +125,7 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
     async bumpStats(courseId, d) {
       const courseRef = db.doc(`stats/course_${courseId}`);
       await db.runTransaction(async (tx) => {
-        const current = (await tx.get(courseRef)).get('parvaCompletions') ?? [];
+        const current = (await tx.get(courseRef)).get('chapterCompletions') ?? [];
         tx.set(
           courseRef,
           {
@@ -137,7 +137,7 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
               ? {}
               : { finishDaysHistogram: { [d.finishBucket]: FieldValue.increment(1) } }),
             // An array element cannot be incremented in place, hence the read in this transaction.
-            parvaCompletions: addParvaCompletions(current as number[], d.parvasDone),
+            chapterCompletions: addChapterCompletions(current as number[], d.chaptersDone),
           },
           { merge: true },
         );
@@ -224,8 +224,8 @@ export function firestoreGradingStore(db: Firestore): GradingStore {
         tx.set(
           progressRef,
           {
-            pariksha: {
-              [attempt.parikshaId]: { ...update, lastAttemptAt: FieldValue.serverTimestamp() },
+            quiz: {
+              [attempt.quizId]: { ...update, lastAttemptAt: FieldValue.serverTimestamp() },
             },
             lastActiveAt: FieldValue.serverTimestamp(),
           },
@@ -347,16 +347,13 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
 /** `CooldownAdmin` over the Admin SDK. */
 export function firestoreCooldownAdmin(db: Firestore): CooldownAdmin {
   return {
-    async resetCooldown(uid, courseId, parikshaId) {
+    async resetCooldown(uid, courseId, quizId) {
       const ref = db.doc(`progress/${progressDocId(uid, courseId)}`);
       const snap = await ref.get();
-      if (!snap.exists || snap.get(new FieldPath('pariksha', parikshaId)) === undefined) {
+      if (!snap.exists || snap.get(new FieldPath('quiz', quizId)) === undefined) {
         return false;
       }
-      await ref.update(
-        new FieldPath('pariksha', parikshaId, 'lastAttemptAt'),
-        Timestamp.fromMillis(0),
-      );
+      await ref.update(new FieldPath('quiz', quizId, 'lastAttemptAt'), Timestamp.fromMillis(0));
       return true;
     },
     async audit(entry) {
@@ -469,10 +466,10 @@ export function firestoreAttemptStatsStore(db: Firestore): AttemptStatsStore {
       batch.set(
         db.doc('stats/org'),
         {
-          parikshaScoreSum: FieldValue.increment(d.scoreSum),
-          parikshaScoreCount: FieldValue.increment(d.scoreCount),
-          parikshaFirstTryTotal: FieldValue.increment(d.firstTryTotal),
-          parikshaFirstTryPassed: FieldValue.increment(d.firstTryPassed),
+          quizScoreSum: FieldValue.increment(d.scoreSum),
+          quizScoreCount: FieldValue.increment(d.scoreCount),
+          quizFirstTryTotal: FieldValue.increment(d.firstTryTotal),
+          quizFirstTryPassed: FieldValue.increment(d.firstTryPassed),
         },
         { merge: true },
       );

@@ -13,14 +13,14 @@ const course = {
   level: 'foundation',
   cover: { theme: 'forest', glyph: 'G' },
   outcomes: [],
-  acharyaIds: [],
-  acharyaNames: {},
+  educatorIds: [],
+  educatorNames: {},
   status: 'published',
   version: 1,
   publishedAt: ts(1),
   rules: { sequential: false, passMark: 0.7, certificate: true, requireVideoWatch: false },
   certificate: { title: 'Git' },
-  parvas: [
+  chapters: [
     {
       id: 'p1',
       title: 'P',
@@ -45,7 +45,7 @@ const progress = (over: object = {}) => ({
   lastItemId: null,
   lastActiveAt: ts(1),
   completedItemIds: [],
-  pariksha: {},
+  quiz: {},
   percent: 0,
   completedAt: null,
   certificateId: null,
@@ -123,7 +123,7 @@ describe('handleProgressWrite', () => {
     expect(await run(s2, 'u_git', done, stamped)).toBe('unchanged');
     expect(s2.bumpStats).toHaveBeenCalledWith(
       'git',
-      expect.objectContaining({ completed: 1, assignmentsCompleted: 1, parvasDone: [] }),
+      expect.objectContaining({ completed: 1, assignmentsCompleted: 1, chaptersDone: [] }),
     );
     expect(s2.setAssignmentStatus).toHaveBeenCalledWith('u', 'git', 'completed');
   });
@@ -140,14 +140,14 @@ describe('handleProgressWrite', () => {
     expect(s.bumpStats).not.toHaveBeenCalled();
   });
 
-  it('counts the parva that just became fully done, once', async () => {
+  it('counts the chapter that just became fully done, once', async () => {
     const s = store();
     const before = progress({ completedItemIds: ['l1'], percent: 50 });
     const after = progress({ completedItemIds: ['l1', 'l2'], percent: 50 });
     await run(s, 'u_git', before, after);
     expect(s.bumpStats).toHaveBeenCalledWith(
       'git',
-      expect.objectContaining({ parvasDone: [0], lessons: 1, completed: 0 }),
+      expect.objectContaining({ chaptersDone: [0], lessons: 1, completed: 0 }),
     );
     const again = store();
     const settled = {

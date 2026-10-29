@@ -33,18 +33,18 @@ export function toProgress(data: Record<string, unknown>): ProgressRow {
     lastItemId: (data.lastItemId as string | null | undefined) ?? null,
     lastActiveAt: date(data.lastActiveAt as Ts),
     completedItemIds: (data.completedItemIds as string[] | undefined) ?? [],
-    pariksha: Object.fromEntries(
-      Object.entries(
-        (data.pariksha as Record<string, Record<string, unknown>> | undefined) ?? {},
-      ).map(([id, r]) => [
-        id,
-        {
-          best: (r.best as number | undefined) ?? 0,
-          passed: r.passed === true,
-          attempts: (r.attempts as number | undefined) ?? 0,
-          lastAttemptAt: date(r.lastAttemptAt as Ts),
-        },
-      ]),
+    quiz: Object.fromEntries(
+      Object.entries((data.quiz as Record<string, Record<string, unknown>> | undefined) ?? {}).map(
+        ([id, r]) => [
+          id,
+          {
+            best: (r.best as number | undefined) ?? 0,
+            passed: r.passed === true,
+            attempts: (r.attempts as number | undefined) ?? 0,
+            lastAttemptAt: date(r.lastAttemptAt as Ts),
+          },
+        ],
+      ),
     ),
     percent: (data.percent as number | undefined) ?? 0,
     completedAt: date(data.completedAt as Ts),
@@ -134,13 +134,13 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         cb(snap.exists() ? toProgress(snap.data()) : null),
       );
     },
-    async latestAttempt(uid, courseId, parikshaId) {
+    async latestAttempt(uid, courseId, quizId) {
       // The uid filter is what lets the rules allow the query; the path already scopes it.
       const snap = await getDocs(
         query(
           collection(db, 'progress', progressId(uid, courseId), 'attempts'),
           where('uid', '==', uid),
-          where('parikshaId', '==', parikshaId),
+          where('quizId', '==', quizId),
           orderBy('createdAt', 'desc'),
           limit(1),
         ),
@@ -174,7 +174,7 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         lastItemId: null,
         lastActiveAt: serverTimestamp(),
         completedItemIds: [],
-        pariksha: {},
+        quiz: {},
         percent: 0,
         completedAt: null,
         certificateId: null,
@@ -199,6 +199,9 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
     },
     async setTeam(uid, team) {
       await updateDoc(doc(db, 'users', uid), { team });
+    },
+    async setLabels(uid, labels) {
+      await updateDoc(doc(db, 'users', uid), { labels });
     },
   };
 }

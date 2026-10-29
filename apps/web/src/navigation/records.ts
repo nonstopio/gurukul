@@ -9,6 +9,7 @@ import type { ConsoleData, UserRow } from '../console/types';
 import type { LearnerData } from '../data/types';
 import { canEdit } from '../studio/studioModel';
 import type { StudioCourse, StudioData } from '../studio/types';
+import type { Terms } from '../labels/terms';
 import { log } from '../log';
 import { allowed } from './catalog';
 import type { Destination, RecordLookup, RecordSource, Role } from './types';
@@ -20,7 +21,7 @@ const LEVELS: Record<Course['level'], string> = {
 };
 
 /**
- * Each course, then each of its lessons, as the catalogue shows them. Parikshas are left out:
+ * Each course, then each of its lessons, as the catalogue shows them. Quizzes are left out:
  * they open from the outline, in order. A lesson still locked opens to its "Locked for now" note.
  */
 export function courseDestinations(courses: readonly Course[]): Destination[] {
@@ -34,7 +35,7 @@ export function courseDestinations(courses: readonly Course[]): Destination[] {
       keywords: [LEVELS[c.level], 'course'],
       kind: 'Course',
     },
-    ...c.parvas.flatMap((p) =>
+    ...c.chapters.flatMap((p) =>
       p.items
         .filter((i): i is Lesson => i.type === 'lesson')
         .map((l) => ({
@@ -63,22 +64,23 @@ const STATUS: Record<Course['status'], string> = {
 
 /**
  * Each course this person may edit, drafts never published included, opening the course editor.
- * Titled as Vyasa Studio shows it: from the draft when there is one.
+ * Titled as Studio shows it: from the draft when there is one.
  */
 export function editableCourseDestinations(
   rows: readonly StudioCourse[],
   uid: string,
-  kulapati: boolean,
+  admin: boolean,
+  t: Terms,
 ): Destination[] {
   return rows
-    .filter((r) => canEdit(r.live, uid, kulapati))
+    .filter((r) => canEdit(r.live, uid, admin))
     .map(({ live, draft }) => {
       const shown = draft?.course ?? live;
       return {
         id: `studio:${live.id}`,
         path: `/studio/courses/${live.id}`,
         label: shown.title,
-        areaName: 'Vyasa Studio',
+        areaName: t.Studio,
         description: `${STATUS[live.status]} · ${shown.summary}`,
         keywords: [STATUS[live.status], 'edit', 'course'],
         kind: 'Course',
@@ -86,42 +88,42 @@ export function editableCourseDestinations(
     });
 }
 
-/** For Acharyas and Kulapatis: Vyasa Studio's own course list (the same reads as `/studio`). */
+/** For Educators and Admins: Studio's own course list (the same reads as `/studio`). */
 export function editableCourseSource(
   data: Pick<StudioData, 'listCourses'>,
   uid: string,
-  kulapati: boolean,
+  admin: boolean,
+  t: Terms,
 ): RecordSource {
   return {
     id: 'editable-courses',
-    roles: ['acharya', 'kulapati'],
-    load: async () =>
-      editableCourseDestinations(await data.listCourses(uid, kulapati), uid, kulapati),
+    roles: ['educator', 'admin'],
+    load: async () => editableCourseDestinations(await data.listCourses(uid, admin), uid, admin, t),
   };
 }
 
 /** Where a person found in search opens: the Learners page, with their drawer open. */
-export const learnerPath = (uid: string) => `/kulapati/learners?learner=${encodeURIComponent(uid)}`;
+export const learnerPath = (uid: string) => `/admin/learners?learner=${encodeURIComponent(uid)}`;
 
 /** Each person by name, with their email (and team) underneath; matched by either. */
-export function personDestinations(users: readonly UserRow[]): Destination[] {
+export function personDestinations(users: readonly UserRow[], t: Terms): Destination[] {
   return users.map((u) => ({
     id: `person:${u.uid}`,
     path: learnerPath(u.uid),
     label: u.displayName || u.email,
-    areaName: 'Learners',
+    areaName: t.Learners,
     description: u.team ? `${u.email} · ${u.team}` : u.email,
     keywords: ['person', 'learner'],
     kind: 'Person',
   }));
 }
 
-/** People who signed in, for Kulapatis: the Learners page's own bounded prefix search. */
-export function peopleLookup(data: Pick<ConsoleData, 'searchUsers'>): RecordLookup {
+/** People who signed in, for Admins: the Learners page's own bounded prefix search. */
+export function peopleLookup(data: Pick<ConsoleData, 'searchUsers'>, t: Terms): RecordLookup {
   return {
     id: 'people',
-    roles: ['kulapati'],
-    find: async (prefix) => personDestinations(await data.searchUsers(prefix)),
+    roles: ['admin'],
+    find: async (prefix) => personDestinations(await data.searchUsers(prefix), t),
   };
 }
 

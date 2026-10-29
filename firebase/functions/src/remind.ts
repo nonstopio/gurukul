@@ -1,4 +1,4 @@
-import { requireKulapati } from './errors.js';
+import { requireAdmin } from './errors.js';
 import type { AuditEntry, Caller } from './errors.js';
 import { log } from './logging/log.js';
 import { buildReminderEmail } from './mail.js';
@@ -61,7 +61,7 @@ function perPerson(
   return { due, skipped: new Set(considered.map((c) => c.email)).size - due.length };
 }
 
-/** A Kulapati asked: one email to each person with something unfinished, not reminded today. */
+/** An Admin asked: one email to each person with something unfinished, not reminded today. */
 export function selectManual(
   candidates: readonly ReminderCandidate[],
   now: number,
@@ -75,7 +75,7 @@ export function selectManual(
  * The daily run, over incomplete mandatory assignments only. `weekly`: due 7 days after the last
  * reminder (the assignment date stands in before the first). `beforeDue`: the due date is within
  * 3 days, or past. `none` is never reminded. A person gets one email for everything due, and none
- * if anything of theirs was reminded today, by this run or by a Kulapati.
+ * if anything of theirs was reminded today, by this run or by an Admin.
  */
 export function selectScheduled(
   candidates: readonly ReminderCandidate[],
@@ -135,7 +135,7 @@ export async function remindLearners(
   data: { courseId?: unknown; emails?: unknown },
   now: number,
 ): Promise<{ sent: number; skipped: number }> {
-  requireKulapati(caller, 'remindLearners');
+  requireAdmin(caller, 'remindLearners');
   const { courseId, emails } = data;
   const hasCourse = typeof courseId === 'string' && courseId !== '';
   const hasEmails = Array.isArray(emails);

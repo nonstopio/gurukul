@@ -19,7 +19,7 @@ import { applyRoleChange } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
 import { badField } from './validation.js';
 
-/** The slice of a callable request the Pariksha and certificate callables read. */
+/** The slice of a callable request the Quiz and certificate callables read. */
 export interface AuthedRequest {
   auth?:
     | {
@@ -38,7 +38,7 @@ export interface AuthedRequest {
 const asObject = (data: unknown): Record<string, unknown> =>
   typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
 
-/** `setRoles`: Kulapati-only; validates the request, then applies the change. */
+/** `setRoles`: Admin-only; validates the request, then applies the change. */
 export async function handleSetRoles(
   request: AuthedRequest,
   admin: RoleAdmin,
@@ -72,7 +72,7 @@ function requireVerified(request: AuthedRequest): Caller {
 
 const requireLearner = (request: AuthedRequest): string => requireVerified(request).uid;
 
-/** `checkAnswer`: right or wrong for one question of a Pariksha that reveals after each answer. */
+/** `checkAnswer`: right or wrong for one question of a Quiz that reveals after each answer. */
 export async function handleCheckAnswer(
   request: AuthedRequest,
   store: GradingStore,
@@ -81,7 +81,7 @@ export async function handleCheckAnswer(
   return checkAnswer(store, uid, asObject(request.data));
 }
 
-/** `gradeAttempt`: scores and records one Pariksha attempt. */
+/** `gradeAttempt`: scores and records one Quiz attempt. */
 export async function handleGradeAttempt(
   request: AuthedRequest,
   store: GradingStore,
@@ -91,7 +91,7 @@ export async function handleGradeAttempt(
   return gradeAttempt(store, uid, asObject(request.data), now());
 }
 
-/** `revokeCertificate`: Kulapati-only; revokes (or restores) a certificate and audits it. */
+/** `revokeCertificate`: Admin-only; revokes (or restores) a certificate and audits it. */
 export async function handleRevokeCertificate(
   request: AuthedRequest,
   deps: { admin: CertificateAdmin; mailer: Mailer },
@@ -105,13 +105,13 @@ export async function handleRevokeCertificate(
   );
 }
 
-/** The caller of a console callable; whether they are a Kulapati is decided by the operation. */
+/** The caller of a console callable; whether they are an Admin is decided by the operation. */
 function requireCaller(request: AuthedRequest): Caller {
   if (!request.auth) throw new ApiException('AUTH_1001');
   return { uid: request.auth.uid, email: request.auth.token.email, claims: request.auth.token };
 }
 
-/** `assignCourses`: Kulapati-only; assigns courses to people by email, optionally emailing them. */
+/** `assignCourses`: Admin-only; assigns courses to people by email, optionally emailing them. */
 export async function handleAssignCourses(
   request: AuthedRequest,
   deps: { store: AssignStore; mailer: Mailer },
@@ -120,7 +120,7 @@ export async function handleAssignCourses(
   return assignCourses(deps, caller, asObject(request.data));
 }
 
-/** `resetCooldown`: Kulapati-only; opens a retake for one learner. */
+/** `resetCooldown`: Admin-only; opens a retake for one learner. */
 export async function handleResetCooldown(
   request: AuthedRequest,
   admin: CooldownAdmin,
@@ -129,7 +129,7 @@ export async function handleResetCooldown(
   return resetCooldown(admin, caller, asObject(request.data));
 }
 
-/** `remindLearners`: Kulapati-only; queues reminders for unfinished assignments. */
+/** `remindLearners`: Admin-only; queues reminders for unfinished assignments. */
 export async function handleRemindLearners(
   request: AuthedRequest,
   deps: { store: ReminderStore; mailer: Mailer },
@@ -139,7 +139,7 @@ export async function handleRemindLearners(
   return remindLearners(deps, caller, asObject(request.data), now());
 }
 
-/** `createCourse`: an Acharya or Kulapati starts a course, blank or copied from another draft. */
+/** `createCourse`: an Educator or Admin starts a course, blank or copied from another draft. */
 export async function handleCreateCourse(
   request: AuthedRequest,
   store: CourseStore,
@@ -163,7 +163,7 @@ export async function handleRollbackCourse(
   return rollbackCourse(store, requireVerified(request), asObject(request.data));
 }
 
-/** `archiveCourse`: Kulapati-only; retires or restores a course. */
+/** `archiveCourse`: Admin-only; retires or restores a course. */
 export async function handleArchiveCourse(
   request: AuthedRequest,
   store: CourseStore,

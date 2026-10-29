@@ -7,10 +7,10 @@ export default {
   area: 'LEARN',
   kind: 'feature',
   why:
-    'A course that lands on you from a Kulapati is easier to prioritise when you know who asked. ' +
+    'A course that lands on you from an Admin is easier to prioritise when you know who asked. ' +
     'The name now sits on the continue card instead of leaving you to ask around.',
   detail: [
-    'New assignments show "Assigned by" and the Kulapati name on the Home continue card.',
+    'New assignments show "Assigned by" and the Admin name on the Home continue card.',
     'Assignments made before this change carry no name, so they show nothing there.',
   ],
 } satisfies ChangelogEntry;

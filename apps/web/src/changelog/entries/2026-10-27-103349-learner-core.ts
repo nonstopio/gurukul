@@ -12,10 +12,10 @@ export default {
     'were on.',
   detail: [
     'Home shows a continue card, your assigned courses ordered by mandatory and due date, or the catalogue when nothing is assigned.',
-    'Each course has an outline with Done, Up next and Locked states; in a sequential course the next parva opens when the previous one is finished.',
+    'Each course has an outline with Done, Up next and Locked states; in a sequential course the next chapter opens when the previous one is finished.',
     'Lessons render video, notes, code with a copy button, callouts, images and ungraded check questions. J and K move between lessons.',
     'Your progress is saved as a set, so finishing lessons in two tabs never loses either one.',
     'The first course, Git, the NonStop Way, is written and can be loaded with npm run seed. Its videos and NonStop-specific conventions are marked as placeholders to replace.',
-    'Parikshas are listed in the outline but open in the next release.',
+    'Quizzes are listed in the outline but open in the next release.',
   ],
 } satisfies ChangelogEntry;

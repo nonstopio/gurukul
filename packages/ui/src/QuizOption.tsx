@@ -33,7 +33,7 @@ const VERDICT: Record<'correct' | 'incorrect', { text: string; Icon: typeof Chec
 };
 
 /**
- * One answer to a Pariksha question. A real radio or checkbox inside its label, so the keyboard
+ * One answer to a Quiz question. A real radio or checkbox inside its label, so the keyboard
  * and screen readers work as they do natively. The verdict is spoken and written, never colour alone.
  */
 export function QuizOption({

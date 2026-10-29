@@ -11,14 +11,14 @@ Defined in `apps/web/src/changelog/vocabulary.ts` as `AREAS`. `satisfies Changel
 unknown key a type error, so a typo fails `npm run typecheck` rather than shipping an entry no
 filter can find.
 
-| Key        | Label                    | Use for                                                        |
-| ---------- | ------------------------ | -------------------------------------------------------------- |
-| `LEARN`    | Learning                 | The learner player, course list, progress, the Shishya's view  |
-| `PARIKSHA` | Parikshas & certificates | Checkpoints, grading, retries, certificates                    |
-| `KULAPATI` | Kulapati console         | Admin: assignments, roles, reports                             |
-| `STUDIO`   | Vyasa Studio             | Acharya authoring: courses, parvas, blocks, question banks     |
-| `DESIGN`   | Design system            | `packages/ui` changes a user would see across screens          |
-| `PLATFORM` | Platform                 | Sign-in, access, the changelog itself, anything spanning areas |
+| Key        | Label                  | Use for                                                        |
+| ---------- | ---------------------- | -------------------------------------------------------------- |
+| `LEARN`    | Learning               | The learner player, course list, progress, the Learner's view  |
+| `QUIZ`     | Quizzes & certificates | Checkpoints, grading, retries, certificates                    |
+| `ADMIN`    | Admin console          | Admin: assignments, roles, reports                             |
+| `STUDIO`   | Studio                 | Educator authoring: courses, chapters, blocks, question banks  |
+| `DESIGN`   | Design system          | `packages/ui` changes a user would see across screens          |
+| `PLATFORM` | Platform               | Sign-in, access, the changelog itself, anything spanning areas |
 
 Prefer the most specific area. `PLATFORM` is for what genuinely spans areas, not for "unsure".
 
@@ -93,10 +93,10 @@ export default {
   date: '2026-11-03',
   id: 'GH-57',
   title: 'Certificates show the course title as it is today',
-  area: 'PARIKSHA',
+  area: 'QUIZ',
   kind: 'fix',
   why:
-    'After an Acharya renamed a course, learners downloaded certificates whose title matched ' +
+    'After an Educator renamed a course, learners downloaded certificates whose title matched ' +
     'nothing on their dashboard, and asked whether they had finished the wrong course.',
   detail: ['Open any certificate: the title now follows the course.'],
 } satisfies ChangelogEntry;

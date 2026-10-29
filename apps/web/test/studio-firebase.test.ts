@@ -55,8 +55,8 @@ import { cleanForFirestore, firebaseStudioData } from '../src/studio/firebase';
 
 const data = firebaseStudioData({} as never);
 const ts = (ms: number) => ({ toDate: () => new Date(ms), toMillis: () => ms });
-const live = (id: string, acharyaIds: string[] = [], over: object = {}) => ({
-  ...makeCourse({ id, acharyaIds }),
+const live = (id: string, educatorIds: string[] = [], over: object = {}) => ({
+  ...makeCourse({ id, educatorIds }),
   publishedAt: ts(1),
   ...over,
 });
@@ -99,7 +99,7 @@ describe('cleanForFirestore', () => {
 });
 
 describe('listCourses', () => {
-  it('lets a Kulapati see everything and reads the draft of each course', async () => {
+  it('lets an Admin see everything and reads the draft of each course', async () => {
     store.queue = [[d('git', live('git')), d('sql', live('sql', ['u9']))]];
     store.docs.set('courses/git/drafts/current', draft());
     const rows = await data.listCourses('k1', true);
@@ -110,7 +110,7 @@ describe('listCourses', () => {
     expect(store.queries).toHaveLength(1);
   });
 
-  it('shows an Acharya every course, unpublished ones too, reading drafts only where they may edit', async () => {
+  it('shows an Educator every course, unpublished ones too, reading drafts only where they may edit', async () => {
     store.queue = [
       [
         d('git', live('git', ['u1'])),
@@ -184,7 +184,7 @@ describe('drafts', () => {
     const wip = { ...makeCourse(), title: '', summary: '', publishedAt: null };
     store.docs.set('courses/wip/drafts/current', { rev: 2, course: wip, answers: {} });
     expect((await data.getDraft('wip'))?.course.title).toBe('');
-    for (const bad of [null, 'text', {}, { parvas: 'x' }]) {
+    for (const bad of [null, 'text', {}, { chapters: 'x' }]) {
       store.docs.set('courses/bad/drafts/current', { rev: 1, course: bad });
       await expect(data.getDraft('bad')).rejects.toThrow('not a course');
     }

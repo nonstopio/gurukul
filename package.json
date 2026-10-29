@@ -32,7 +32,7 @@
     "validate:navigation": "npm run -s validate:navigation -w @gurukul/web --",
     "tracker": "node scripts/tracker.mjs",
     "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\"",
-    "grant-kulapati": "tsx scripts/grant-kulapati.mjs",
+    "grant-admin": "tsx scripts/grant-admin.mjs",
     "seed": "npm run seed -w @gurukul/seed --",
     "check:bundle": "node scripts/check-bundle-size.mjs apps/web/dist 320"
   },

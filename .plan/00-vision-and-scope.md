@@ -14,9 +14,30 @@ certificate at the end — built for NonStop and open-sourced.
 
 | Who | Can |
 |---|---|
-| **Shishya** (every NonStopian) | Sign in with Google, see assigned courses, learn lesson by lesson, resume where they left off, clear Parikshas, earn and share certificates |
-| **Acharya** (educator) | Create and edit the courses a Kulapati grants them, entirely in the browser: parvas, lessons, content blocks, Parikshas; publish new versions; see their courses' analytics |
-| **Kulapati** (admin) | Everything an Acharya can, on every course; assign courses to people or to emails not yet signed in, in bulk; grant roles; see organisation analytics |
+| **Learner** (every NonStopian) | Sign in with Google, see assigned courses, learn lesson by lesson, resume where they left off, clear Quizzes, earn and share certificates |
+| **Educator** | Create and edit the courses an Admin grants them, entirely in the browser: chapters, lessons, content blocks, Quizzes; publish new versions; see their courses' analytics |
+| **Admin** | Everything an Educator can, on every course; assign courses to people or to emails not yet signed in, in bulk; grant roles; see organisation analytics |
+
+## Names: two label sets
+
+The code, the data, the routes and the role claims use one plain vocabulary: Learner, Educator,
+Admin, Chapter, Quiz, Studio, Analytics. What a person *reads* comes from a **label set** they
+pick on their first sign-in and can switch from the sidebar at any time:
+
+| Generic (code and the `generic` set) | `gurukul` set | Meaning |
+|---|---|---|
+| Learner | Shishya | Everyone signed in |
+| Educator | Acharya | Builds the courses they are granted |
+| Admin | Kulapati | Runs the platform: assigns, grants roles, sees every report |
+| Chapter | Parva | A part of a course |
+| Quiz | Pariksha | The checkpoint at the end of a chapter |
+| Studio | Vyasa Studio | Where courses are built |
+| Analytics | Sanjaya | The Admin's overview of the organisation |
+
+The choice lives on the profile (`users/{uid}.labels`); until it is made, every page waits on
+the choice screen. The Gurukul names live in one file, `apps/web/src/labels/terms.ts`, so the
+project can be adopted without them. Text written by the server (emails, API messages) and the
+changelog's history use the generic names. "Gurukul" stays the product's name in both sets.
 
 ## Principles
 
@@ -36,14 +57,14 @@ certificate at the end — built for NonStop and open-sourced.
 
 - Google sign-in restricted to `@nonstopio.com`.
 - Learner: home, catalogue, course overview, lesson player (video, markdown,
-  code, callout, image, embed, file blocks), progress and resume, Parikshas,
+  code, callout, image, embed, file blocks), progress and resume, Quizzes,
   results, completion, certificate (view, PDF download, verification page,
   LinkedIn add link).
-- Kulapati console: overview analytics, learners table, bulk assignment
+- Admin console: overview analytics, learners table, bulk assignment
   (pick people, paste emails, CSV, whole team), due dates, reminders by email,
   roles and course grants, per-course analytics.
-- Vyasa Studio: course list, structure editor (drag reorder), lesson block
-  editor with three layouts, Pariksha builder, drafts and versioned publishing,
+- Studio: course list, structure editor (drag reorder), lesson block
+  editor with three layouts, Quiz builder, drafts and versioned publishing,
   preview as learner.
 - First course: **Git, the NonStop Way** (see `14-first-course-git.md`).
 
@@ -63,6 +84,6 @@ certificate at the end — built for NonStop and open-sourced.
 ## Success after the first quarter
 
 - Every new joiner is assigned Git on day one and finishes it within 30 days.
-- Kulapatis stop tracking training in spreadsheets.
-- At least two courses besides Git authored by Acharyas without engineering help.
+- Admins stop tracking training in spreadsheets.
+- At least two courses besides Git authored by Educators without engineering help.
 - Firebase bill: $0.

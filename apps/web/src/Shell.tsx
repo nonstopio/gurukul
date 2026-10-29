@@ -6,21 +6,30 @@ import { useSession, useUser } from './auth/AuthProvider';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
 import { PageLoading } from './learn/ui';
+import { LabelSwitch } from './labels/LabelChoice';
+import { terms } from './labels/terms';
+import type { Terms } from './labels/terms';
+import { useTerms } from './labels/useTerms';
 import { OfflineBanner } from './OfflineBanner';
 import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
+import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
-export function titleFor(path: string, areas: readonly AreaNavigation[] = AREAS): string {
+export function titleFor(
+  path: string,
+  areas: readonly AreaNavigation[] = AREAS,
+  t: Terms = terms('generic'),
+): string {
   const target = path.replace(/\/+$/, '') || '/';
   const page = areas.flatMap((a) => a.pages).find((p) => p.path === target);
   if (!page) return 'Gurukul · NonStop Academy';
-  return page.path === '/' ? 'Gurukul · NonStop Academy' : `${page.label} · Gurukul`;
+  return page.path === '/' ? 'Gurukul · NonStop Academy' : `${localize(page.label, t)} · Gurukul`;
 }
 
 /** Groups what this person can open by area, in catalog order. */
@@ -40,21 +49,22 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const { uid } = useUser();
   const data = useLearnerData();
   const { data: studioData } = useStudio();
-  const kulapati = roles.includes('kulapati');
+  const admin = roles.includes('admin');
   // Courses and lessons in search, from the catalogue's own query, made only once search opens;
-  // for Acharyas and Kulapatis also the courses they may edit, from Vyasa Studio's own list.
+  // for Educators and Admins also the courses they may edit, from Studio's own list.
+  const t = useTerms();
   const sources = useMemo(
-    () => [courseSource(data), editableCourseSource(studioData, uid, kulapati)],
-    [data, studioData, uid, kulapati],
+    () => [courseSource(data), editableCourseSource(studioData, uid, admin, t)],
+    [data, studioData, uid, admin, t],
   );
-  // People for Kulapatis, by the Learners page's own prefix search, as they type.
+  // People for Admins, by the Learners page's own prefix search, as they type.
   const { data: consoleData } = useConsole();
-  const lookups = useMemo(() => [peopleLookup(consoleData)], [consoleData]);
+  const lookups = useMemo(() => [peopleLookup(consoleData, t)], [consoleData, t]);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   useEffect(() => {
-    document.title = titleFor(pathname, areas);
-  }, [pathname, areas]);
+    document.title = titleFor(pathname, areas, t);
+  }, [pathname, areas, t]);
   const root = useRef<HTMLDivElement>(null);
   const arrived = useRef(false);
   const [announcement, setAnnouncement] = useState('');
@@ -104,7 +114,11 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const { roles, signOut } = useSession();
   const user = useUser();
   const { pathname } = useLocation();
-  const groups = useMemo(() => groupByArea(destinationsFor(areas, roles)), [areas, roles]);
+  const t = useTerms();
+  const groups = useMemo(
+    () => groupByArea(destinationsFor(areas, roles).map((d) => localizePage(d, t))),
+    [areas, roles, t],
+  );
   // Below 560px the sidebar is a menu the button opens; it closes again when a page is picked.
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -118,6 +132,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
         footer={
           <div className="app__user">
             <span>{user.displayName ?? user.email}</span>
+            <LabelSwitch />
             <Button variant="chrome" onClick={() => void signOut()}>
               Sign out
             </Button>
@@ -168,7 +183,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
 }
 
 /**
- * The focused layout for the lesson, Pariksha and result: no sidebar, so the page's own dark
+ * The focused layout for the lesson, Quiz and result: no sidebar, so the page's own dark
  * `TopBar` (back link, course title, progress) is the only chrome. Search stays on Ctrl K / ⌘K.
  */
 export function FocusedShell() {

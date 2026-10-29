@@ -7,7 +7,7 @@ export default {
   area: 'LEARN',
   kind: 'feature',
   why:
-    'The J and K keys in a lesson and the number keys in a Pariksha worked, but nothing told you ' +
+    'The J and K keys in a lesson and the number keys in a Quiz worked, but nothing told you ' +
     'they were there.',
   detail: [
     'Press ? on any page to list them; Escape closes the list.',

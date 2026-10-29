@@ -5,17 +5,17 @@ import type { AreaNavigation } from '../src/navigation/types';
 const learn: AreaNavigation = {
   slug: 'learn',
   name: 'Learning',
-  keywords: ['shishya'],
+  keywords: ['learner'],
   pages: [
     { id: 'home', path: '/', label: 'Home', description: 'Start', keywords: ['start'] },
-    { id: 'drafts', path: '/drafts', label: 'Drafts', roles: ['acharya'] },
+    { id: 'drafts', path: '/drafts', label: 'Drafts', roles: ['educator'] },
   ],
 };
 const console_: AreaNavigation = {
-  slug: 'kulapati',
-  name: 'Kulapati console',
-  roles: ['kulapati'],
-  pages: [{ id: 'learners', path: '/kulapati/learners', label: 'Learners' }],
+  slug: 'admin',
+  name: 'Admin console',
+  roles: ['admin'],
+  pages: [{ id: 'learners', path: '/admin/learners', label: 'Learners' }],
 };
 
 describe('collectAreas', () => {
@@ -25,31 +25,31 @@ describe('collectAreas', () => {
         './areas/b.ts': { navigation: console_ },
         './areas/a.ts': { navigation: learn },
       }).map((a) => a.slug),
-    ).toEqual(['learn', 'kulapati']);
+    ).toEqual(['learn', 'admin']);
   });
 });
 
 describe('destinationsFor', () => {
-  it('shows a shishya only what everyone may open', () => {
-    expect(destinationsFor([learn, console_], ['shishya'])).toEqual([
+  it('shows a learner only what everyone may open', () => {
+    expect(destinationsFor([learn, console_], ['learner'])).toEqual([
       {
         id: 'home',
         path: '/',
         label: 'Home',
         areaName: 'Learning',
         description: 'Start',
-        keywords: ['shishya', 'start'],
+        keywords: ['learner', 'start'],
       },
     ]);
   });
 
   it('adds pages and areas a role unlocks', () => {
-    expect(destinationsFor([learn, console_], ['shishya', 'acharya']).map((d) => d.id)).toEqual([
+    expect(destinationsFor([learn, console_], ['learner', 'educator']).map((d) => d.id)).toEqual([
       'home',
       'drafts',
     ]);
-    const kulapati = destinationsFor([learn, console_], ['shishya', 'kulapati']);
-    expect(kulapati.map((d) => d.id)).toEqual(['home', 'learners']);
-    expect(kulapati[1]).toMatchObject({ description: '', keywords: [] });
+    const admin = destinationsFor([learn, console_], ['learner', 'admin']);
+    expect(admin.map((d) => d.id)).toEqual(['home', 'learners']);
+    expect(admin[1]).toMatchObject({ description: '', keywords: [] });
   });
 });

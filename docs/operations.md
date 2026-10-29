@@ -2,14 +2,14 @@
 
 For the maintainer. The deployment itself is described in `.plan/11-deployment-and-cost.md`.
 
-## First sign-in and the first Kulapati
+## First sign-in and the first Admin
 
 1. Create the Firebase project (Blaze plan with a budget alert, region `asia-south1`) and enable
    Google sign-in. Put the public web config in `apps/web/.env.local` (see `.env.example`).
 2. Deploy from `main` through `deploy.yml`. Never deploy to production from a laptop.
 3. Sign in once with your `@nonstopio.com` account so your account exists.
 4. Run, once, on your machine with an admin credential:
-   `npm run grant-kulapati -- you@nonstopio.com`, then sign out and in again.
+   `npm run grant-admin -- you@nonstopio.com`, then sign out and in again.
 5. Load the first course into the emulator with `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed`,
    or into production with `npm run seed -- --production` (needs `GCLOUD_PROJECT`). It also creates
    `config/org` with the defaults (no teams, reminders off) when it is missing, and never touches
@@ -67,8 +67,8 @@ decision: `.plan/11-deployment-and-cost.md`, `.plan/13-open-questions.md` questi
 
 ## Running the end-to-end tests
 
-`e2e/` holds Playwright tests of the three journeys (a learner, a Kulapati, an Acharya in Vyasa
-Studio) and an axe accessibility scan of Home, the course page, the Kulapati overview and the Studio
+`e2e/` holds Playwright tests of the three journeys (a learner, an Admin, an Educator in Studio
+Studio) and an axe accessibility scan of Home, the course page, the Admin overview and the Studio
 course list. They drive the real built app against the Firebase emulators (Auth, Firestore,
 Functions; project `demo-gurukul`), never production. Needs Node 22 and Java 21.
 
@@ -84,7 +84,7 @@ first. Before each test the emulators are cleared and the seeded course is put b
 
 - Sign-in goes through the Auth emulator's fake Google popup ("Add new account", email, display
   name). The emulator marks those accounts as verified, so the app's verified-email check passes
-  without extra setup. A Kulapati or Acharya is made by setting custom claims on the account and the
+  without extra setup. An Admin or Educator is made by setting custom claims on the account and the
   `roles` mirror on `users/{uid}` through the emulators' REST API (`e2e/support/emulators.ts`), the
   same two writes the `setRoles` function makes.
 - Set `PW_CHROMIUM_PATH` to use a Chromium you already have instead of the downloaded one. Set

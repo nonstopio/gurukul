@@ -65,7 +65,7 @@ describe('new blocks', () => {
 });
 
 describe('editing a lesson', () => {
-  it('finds lessons and ignores parikshas', () => {
+  it('finds lessons and ignores quizzes', () => {
     const course = makeCourse();
     expect(lessonsOf(course).map((l) => l.id)).toEqual(['l1', 'l2', 'l3', 'l4']);
     expect(findLesson(course, 'l2')?.id).toBe('l2');
@@ -78,7 +78,7 @@ describe('editing a lesson', () => {
     expect(findLesson(next, 'l2')?.title).toBe('New');
     expect(findLesson(next, 'l1')?.title).toBe('Lesson l1');
     expect(findLesson(course, 'l2')?.title).toBe('Lesson l2');
-    expect(next.parvas[1]?.items[1]).toBe(course.parvas[1]?.items[1]);
+    expect(next.chapters[1]?.items[1]).toBe(course.chapters[1]?.items[1]);
     expect(editLesson(course, 'nope', (l) => ({ ...l, title: 'X' }))).toEqual(course);
   });
 

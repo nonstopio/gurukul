@@ -42,11 +42,11 @@ describe('the error catalog', () => {
   });
 });
 
-describe('the Pariksha lock code', () => {
-  it('raises PRK_1003 as a 403 naming the Pariksha', () => {
+describe('the Quiz lock code', () => {
+  it('raises PRK_1003 as a 403 naming the Quiz', () => {
     const res = apiFail([new ApiException('PRK_1003', ['pk'])], 't');
     expect(res.status).toBe(403);
-    expect(res.errors[0]?.developerMessage).toBe("Pariksha 'pk' is locked for this learner.");
+    expect(res.errors[0]?.developerMessage).toBe("Quiz 'pk' is locked for this learner.");
     expect(res.errors[0]?.retryable).toBe(false);
     expect(apiResponseSchema(z.unknown()).parse(res).errors[0]?.code).toBe('PRK_1003');
   });
@@ -58,7 +58,7 @@ describe('the course codes', () => {
       ['CRS_1002', 409, "A course with id 'git' already exists."],
       ['CRS_1003', 400, "Course 'git' failed the publish checks; see details.issues."],
       ['CRS_2002', 404, "Course 'git' has no version 4."],
-      ['CRS_1004', 400, "Course 'git' is archived; it takes no new Pariksha attempts."],
+      ['CRS_1004', 400, "Course 'git' is archived; it takes no new Quiz attempts."],
     ] as const;
     for (const [code, status, dev] of cases) {
       const res = apiFail([new ApiException(code, ['git', '4'], { issues: [] })], 't');

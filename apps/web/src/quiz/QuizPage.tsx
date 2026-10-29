@@ -1,5 +1,5 @@
 import { itemStates, itemsOf } from '@gurukul/schema';
-import type { Course, Pariksha, Question } from '@gurukul/schema';
+import type { Course, Quiz, Question } from '@gurukul/schema';
 import {
   Button,
   Callout,
@@ -28,19 +28,20 @@ import {
   sameAnswer,
 } from './model';
 import { QuestionFields } from './QuestionFields';
-import { useParikshaService } from './ParikshaProvider';
+import { useQuizService } from './QuizProvider';
 import { CooldownError } from './service';
 import type { CheckAnswerResult } from './service';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 
-const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
+const EMPTY = { completedItemIds: [], quiz: {}, lastItemId: null };
 
 /**
  * One question per screen. Each answer is kept in this browser as the learner checks it or moves on
  * (`draftStore`), so a reload carries on; the server grades and records the attempt at Finish.
  */
-export function ParikshaPage() {
-  const { courseId = '', parikshaId = '' } = useParams();
+export function QuizPage() {
+  const { courseId = '', quizId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
   const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
@@ -50,10 +51,10 @@ export function ParikshaPage() {
   return (
     <Loaded loadable={result}>
       {(course) => {
-        const pariksha = course ? itemsOf(course).find((i) => i.id === parikshaId) : undefined;
-        if (!course || pariksha?.type !== 'pariksha') return <Navigate to="/courses" replace />;
+        const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
+        if (!course || quiz?.type !== 'quiz') return <Navigate to="/courses" replace />;
         return progress === undefined ? null : (
-          <Exam course={course} pariksha={pariksha} progress={progress} />
+          <Exam course={course} quiz={quiz} progress={progress} />
         );
       }}
     </Loaded>
@@ -62,29 +63,30 @@ export function ParikshaPage() {
 
 function Exam({
   course,
-  pariksha,
+  quiz,
   progress,
 }: {
   course: Course;
-  pariksha: Pariksha;
+  quiz: Quiz;
   progress: ProgressRow | null;
 }) {
   const [now] = useState(() => new Date());
+  const t = useTerms();
   const states = itemStates(course, progress ?? EMPTY);
   const back = (
     <Link className={topBarBackClass} to={`/courses/${course.id}`}>
-      Exit Pariksha
+      {`Exit ${t.Quiz}`}
     </Link>
   );
-  const lastAttemptAt = progress?.pariksha[pariksha.id]?.lastAttemptAt ?? null;
-  const wait = cooldownRemaining(lastAttemptAt, pariksha.cooldownMinutes, now);
+  const lastAttemptAt = progress?.quiz[quiz.id]?.lastAttemptAt ?? null;
+  const wait = cooldownRemaining(lastAttemptAt, quiz.cooldownMinutes, now);
   // Grading refuses a retired course, so do not let the learner answer questions it cannot score.
   if (isRetired(course)) {
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
         <main className="page">
-          <h1 className="page__title">{pariksha.title}</h1>
+          <h1 className="page__title">{quiz.title}</h1>
           <RetiredNote />
           <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
             Back to the outline
@@ -93,12 +95,12 @@ function Exam({
       </>
     );
   }
-  if (states[pariksha.id] === 'locked' || wait > 0) {
+  if (states[quiz.id] === 'locked' || wait > 0) {
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
         <main className="page">
-          <h1 className="page__title">{pariksha.title}</h1>
+          <h1 className="page__title">{quiz.title}</h1>
           <Callout tone="note" title={wait > 0 ? 'Retake not open yet' : 'Locked for now'}>
             <p>
               {wait > 0
@@ -113,31 +115,32 @@ function Exam({
       </>
     );
   }
-  return <Questions course={course} pariksha={pariksha} lastAttemptAt={lastAttemptAt} />;
+  return <Questions course={course} quiz={quiz} lastAttemptAt={lastAttemptAt} />;
 }
 
-/** The questions themselves; mounted only once the Pariksha is open, so the draw happens once. */
+/** The questions themselves; mounted only once the Quiz is open, so the draw happens once. */
 function Questions({
   course,
-  pariksha,
+  quiz,
   lastAttemptAt,
 }: {
   course: Course;
-  pariksha: Pariksha;
+  quiz: Quiz;
   lastAttemptAt: Date | null;
 }) {
-  const service = useParikshaService();
+  const service = useQuizService();
   const navigate = useNavigate();
   const toast = useToast();
+  const t = useTerms();
   const uid = useUser().uid;
-  const [key] = useState(() => draftKey(uid, course.id, pariksha.id));
+  const [key] = useState(() => draftKey(uid, course.id, quiz.id));
   // A draft from before the last graded attempt belongs to that attempt, not this one.
   const [start] = useState(() => {
     const saved = readDraft(key);
     const fresh = saved && saved.startedAt > (lastAttemptAt?.getTime() ?? 0) ? saved : null;
-    const restored = fresh ? restoreQuestions(pariksha, fresh.order) : null;
+    const restored = fresh ? restoreQuestions(quiz, fresh.order) : null;
     if (fresh && restored) return { draft: fresh, questions: restored };
-    const questions = pickQuestions(pariksha);
+    const questions = pickQuestions(quiz);
     const draft = {
       startedAt: Date.now(),
       order: drawOrder(questions),
@@ -172,8 +175,8 @@ function Questions({
   const checked = feedback[question.id];
   const last = index === questions.length - 1;
   const multiple = question.kind === 'multiple';
-  const reveals = pariksha.revealAnswers === 'each';
-  const base = { courseId: course.id, parikshaId: pariksha.id };
+  const reveals = quiz.revealAnswers === 'each';
+  const base = { courseId: course.id, quizId: quiz.id };
   const outline = `/courses/${course.id}`;
   const unsaved = !sameAnswer(picked, saved[question.id] ?? []);
 
@@ -220,7 +223,7 @@ function Questions({
         answers: selected,
       });
       clearDraft(key);
-      void navigate(`/courses/${course.id}/pariksha/${pariksha.id}/result`, {
+      void navigate(`/courses/${course.id}/quiz/${quiz.id}/result`, {
         state: { result: attempt, questions, answers: selected },
       });
     } catch (e) {
@@ -241,7 +244,7 @@ function Questions({
     return picked.includes(id) ? ('incorrect' as const) : ('locked' as const);
   };
   const needsCheck = reveals && !checked;
-  const primary = needsCheck ? 'Check answer' : last ? 'Finish Pariksha' : 'Next question';
+  const primary = needsCheck ? 'Check answer' : last ? `Finish ${t.Quiz}` : 'Next question';
   const ready = !busy && picked.length > 0;
   const onPrimary = () => {
     if (needsCheck) void check();
@@ -278,7 +281,7 @@ function Questions({
         setLeaving(true);
       }}
     >
-      Exit Pariksha
+      {`Exit ${t.Quiz}`}
     </Link>
   );
 
@@ -291,7 +294,7 @@ function Questions({
         status={<span>Answers are saved on this device as you go</span>}
       />
       <main className="page exam">
-        <h1 className="exam__title">{pariksha.title}</h1>
+        <h1 className="exam__title">{quiz.title}</h1>
         <p className="article__kicker">
           Question {index + 1} of {questions.length}
         </p>
@@ -323,9 +326,9 @@ function Questions({
         ) : null}
         <footer className="exam__footer">
           <p>
-            Pass mark {Math.round((pariksha.passMark ?? course.rules.passMark) * 100)}% ·{' '}
-            {pariksha.cooldownMinutes > 0
-              ? `Retakes allowed after ${pariksha.cooldownMinutes} minutes`
+            Pass mark {Math.round((quiz.passMark ?? course.rules.passMark) * 100)}% ·{' '}
+            {quiz.cooldownMinutes > 0
+              ? `Retakes allowed after ${quiz.cooldownMinutes} minutes`
               : 'Retakes allowed straight away'}
           </p>
           <div className="exam__actions">
@@ -342,7 +345,7 @@ function Questions({
       </main>
       <Dialog
         open={leaving}
-        title="Leave this Pariksha?"
+        title={`Leave this ${t.Quiz}?`}
         onClose={() => setLeaving(false)}
         footer={
           <>

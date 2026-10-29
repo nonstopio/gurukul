@@ -29,14 +29,14 @@ export interface AttemptResult {
 
 export interface CheckAnswerRequest {
   courseId: string;
-  parikshaId: string;
+  quizId: string;
   questionId: string;
   selected: string[];
 }
 
 export interface GradeAttemptRequest {
   courseId: string;
-  parikshaId: string;
+  quizId: string;
   questionIds: string[];
   answers: Record<string, string[]>;
 }
@@ -50,14 +50,14 @@ export class CooldownError extends Error {
 
 /**
  * Grading happens on the server, where the answer key lives; the browser only sends choices and
- * receives verdicts. A port, so screens are tested with a fake and `firebaseParikshaService` is real.
+ * receives verdicts. A port, so screens are tested with a fake and `firebaseQuizService` is real.
  */
-export interface ParikshaService {
+export interface QuizService {
   checkAnswer(request: CheckAnswerRequest): Promise<CheckAnswerResult>;
   gradeAttempt(request: GradeAttemptRequest): Promise<AttemptResult>;
 }
 
-export function firebaseParikshaService(functions: Functions): ParikshaService {
+export function firebaseQuizService(functions: Functions): QuizService {
   return {
     checkAnswer: (request) =>
       callApi<CheckAnswerRequest, CheckAnswerResult>(functions, 'checkAnswer', request),

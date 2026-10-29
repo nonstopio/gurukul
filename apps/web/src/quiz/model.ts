@@ -1,6 +1,6 @@
 import { itemsOf } from '@gurukul/schema';
 import type { QuizOptionLetter } from '@gurukul/ui';
-import type { Course, Item, Pariksha, Question } from '@gurukul/schema';
+import type { Course, Item, Quiz, Question } from '@gurukul/schema';
 import type { AttemptRow } from '../data/types';
 import type { CheckAnswerResult, QuestionResult } from './service';
 
@@ -16,20 +16,20 @@ export function shuffle<T>(list: readonly T[], rng: () => number = Math.random):
 
 /**
  * The questions a learner sees: a random subset of `questionsShown` from the pool (all of it when
- * the pool is no larger), with options shuffled when the Pariksha asks for it. Never mutates the course.
+ * the pool is no larger), with options shuffled when the Quiz asks for it. Never mutates the course.
  */
-export function pickQuestions(pariksha: Pariksha, rng: () => number = Math.random): Question[] {
+export function pickQuestions(quiz: Quiz, rng: () => number = Math.random): Question[] {
   const picked =
-    pariksha.questions.length > pariksha.questionsShown
-      ? shuffle(pariksha.questions, rng).slice(0, pariksha.questionsShown)
-      : [...pariksha.questions];
-  return pariksha.shuffleOptions
+    quiz.questions.length > quiz.questionsShown
+      ? shuffle(quiz.questions, rng).slice(0, quiz.questionsShown)
+      : [...quiz.questions];
+  return quiz.shuffleOptions
     ? picked.map((q) => ({ ...q, options: shuffle(q.options, rng) }))
     : picked;
 }
 
-/** A Pariksha in progress, kept in the browser so a reload carries on where it stopped. */
-export interface ParikshaDraft {
+/** A Quiz in progress, kept in the browser so a reload carries on where it stopped. */
+export interface QuizDraft {
   /** Epoch ms of the draw. A draft older than the last graded attempt is stale. */
   startedAt: number;
   /** The questions drawn, in order, with their options in the order shown. */
@@ -42,21 +42,18 @@ export interface ParikshaDraft {
 }
 
 /** The draw as ids, for a draft. */
-export function drawOrder(questions: readonly Question[]): ParikshaDraft['order'] {
+export function drawOrder(questions: readonly Question[]): QuizDraft['order'] {
   return questions.map((q) => ({ id: q.id, optionIds: q.options.map((o) => o.id) }));
 }
 
 /**
- * The questions of a saved draw, options in their saved order; null when the Pariksha has changed
+ * The questions of a saved draw, options in their saved order; null when the Quiz has changed
  * since (a question or option is gone or added), so the learner gets a fresh draw instead.
  */
-export function restoreQuestions(
-  pariksha: Pariksha,
-  order: ParikshaDraft['order'],
-): Question[] | null {
+export function restoreQuestions(quiz: Quiz, order: QuizDraft['order']): Question[] | null {
   const out: Question[] = [];
   for (const saved of order) {
-    const q = pariksha.questions.find((x) => x.id === saved.id);
+    const q = quiz.questions.find((x) => x.id === saved.id);
     if (!q || q.options.length !== saved.optionIds.length) return null;
     const options = saved.optionIds.map((id) => q.options.find((o) => o.id === id));
     if (options.some((o) => !o)) return null;
@@ -68,8 +65,8 @@ export function restoreQuestions(
 const isRecord = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Whatever came out of storage has the shape of a draft. */
-export function isDraft(value: unknown): value is ParikshaDraft {
-  const d = value as Partial<ParikshaDraft> | null;
+export function isDraft(value: unknown): value is QuizDraft {
+  const d = value as Partial<QuizDraft> | null;
   return [
     typeof d?.startedAt === 'number',
     typeof d?.index === 'number',
@@ -141,11 +138,11 @@ export interface AttemptReview {
  * course (one removed since is left out); explanations show as `gradeAttempt` would reveal them. The
  * right options are never stored in the browser's reach, so this review names only the learner's.
  */
-export function reviewOfAttempt(pariksha: Pariksha, attempt: AttemptRow): AttemptReview {
+export function reviewOfAttempt(quiz: Quiz, attempt: AttemptRow): AttemptReview {
   const reveal =
-    pariksha.revealAnswers === 'each' || (pariksha.revealAnswers === 'onPass' && attempt.passed);
+    quiz.revealAnswers === 'each' || (quiz.revealAnswers === 'onPass' && attempt.passed);
   const questions = attempt.questionIds.flatMap(
-    (id) => pariksha.questions.find((q) => q.id === id) ?? [],
+    (id) => quiz.questions.find((q) => q.id === id) ?? [],
   );
   return {
     score: attempt.score,
@@ -161,21 +158,21 @@ export function reviewOfAttempt(pariksha: Pariksha, attempt: AttemptRow): Attemp
   };
 }
 
-/** The 1-based number of the parva holding `itemId`; 0 when no parva does. */
-export function parvaNumber(course: Pick<Course, 'parvas'>, itemId: string): number {
-  return course.parvas.findIndex((p) => p.items.some((i) => i.id === itemId)) + 1;
+/** The 1-based number of the chapter holding `itemId`; 0 when no chapter does. */
+export function chapterNumber(course: Pick<Course, 'chapters'>, itemId: string): number {
+  return course.chapters.findIndex((p) => p.items.some((i) => i.id === itemId)) + 1;
 }
 
 /** The item after `itemId` in reading order, if any. */
-export function itemAfter(course: Pick<Course, 'parvas'>, itemId: string): Item | undefined {
+export function itemAfter(course: Pick<Course, 'chapters'>, itemId: string): Item | undefined {
   const items = itemsOf(course);
   return items[items.findIndex((i) => i.id === itemId) + 1];
 }
 
-/** Where to open an item: a lesson in the player, a Pariksha in its own screen. */
+/** Where to open an item: a lesson in the player, a Quiz in its own screen. */
 export function itemPath(courseId: string, item: Pick<Item, 'id' | 'type'>): string {
-  return item.type === 'pariksha'
-    ? `/courses/${courseId}/pariksha/${item.id}`
+  return item.type === 'quiz'
+    ? `/courses/${courseId}/quiz/${item.id}`
     : `/courses/${courseId}/learn/${item.id}`;
 }
 

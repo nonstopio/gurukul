@@ -16,12 +16,13 @@ import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
-import { formatCountdown, itemAfter, itemPath, parvaNumber, reviewOfAttempt } from './model';
+import { formatCountdown, itemAfter, itemPath, chapterNumber, reviewOfAttempt } from './model';
 import type { AttemptReview } from './model';
 import type { AttemptResult } from './service';
 
-/** What the Pariksha screen hands over, so the review needs no second round trip. */
+/** What the Quiz screen hands over, so the review needs no second round trip. */
 export interface ResultState {
   result: AttemptResult;
   questions: Question[];
@@ -32,15 +33,16 @@ const text = (q: Question, ids: readonly string[]) =>
   ids.map((id) => q.options.find((o) => o.id === id)?.text ?? id).join(', ') || 'No answer';
 
 /**
- * The score, pass or not, the review with explanations (as the Pariksha allows), and what next.
- * Straight after Finish the Pariksha screen hands the graded result over; opened any other way (a
+ * The score, pass or not, the review with explanations (as the Quiz allows), and what next.
+ * Straight after Finish the Quiz screen hands the graded result over; opened any other way (a
  * reload, a bookmark, another device) the page reads the learner's latest recorded attempt.
  */
 export function ResultPage() {
-  const { courseId = '', parikshaId = '' } = useParams();
+  const { courseId = '', quizId = '' } = useParams();
   const state = useLocation().state as ResultState | null;
   const data = useLearnerData();
   const uid = useUser().uid;
+  const t = useTerms();
   const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
   const result = useAsync(
     useCallback(
@@ -49,15 +51,15 @@ export function ResultPage() {
           data.getCourse(courseId),
           state
             ? null
-            : data.latestAttempt(uid, courseId, parikshaId).catch(() => {
+            : data.latestAttempt(uid, courseId, quizId).catch(() => {
                 log.warn('Latest attempt unreadable, showing the summary', {
                   courseId,
-                  parikshaId,
+                  quizId,
                 });
                 return null;
               }),
         ]),
-      [data, uid, courseId, parikshaId, state],
+      [data, uid, courseId, quizId, state],
     ),
   );
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
@@ -65,11 +67,11 @@ export function ResultPage() {
   return (
     <Loaded loadable={result}>
       {([course, attempt]) => {
-        const pariksha = course ? itemsOf(course).find((i) => i.id === parikshaId) : undefined;
-        if (!course || pariksha?.type !== 'pariksha') {
+        const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
+        if (!course || quiz?.type !== 'quiz') {
           return (
             <main className="page">
-              <h1 className="page__title">This Pariksha does not exist.</h1>
+              <h1 className="page__title">{`This ${t.Quiz} does not exist.`}</h1>
               <Link className={buttonClass('secondary')} to="/courses">
                 Browse the catalogue
               </Link>
@@ -79,16 +81,16 @@ export function ResultPage() {
         const review: AttemptReview | null = state
           ? { ...state.result, questions: state.questions, answers: state.answers }
           : attempt
-            ? reviewOfAttempt(pariksha, attempt)
+            ? reviewOfAttempt(quiz, attempt)
             : null;
-        const saved = progress?.pariksha[pariksha.id];
+        const saved = progress?.quiz[quiz.id];
         const score = review?.score ?? saved?.best ?? 0;
         const passed = review?.passed ?? saved?.passed ?? false;
-        const nextItem = itemAfter(course, pariksha.id);
-        const nextParva = nextItem ? parvaNumber(course, nextItem.id) : 0;
+        const nextItem = itemAfter(course, quiz.id);
+        const nextChapter = nextItem ? chapterNumber(course, nextItem.id) : 0;
         const opensAt =
           state?.result.nextAttemptAt ??
-          (saved?.lastAttemptAt?.getTime() ?? 0) + pariksha.cooldownMinutes * 60_000;
+          (saved?.lastAttemptAt?.getTime() ?? 0) + quiz.cooldownMinutes * 60_000;
         const titleOf = (id: string | undefined) =>
           itemsOf(course).find((i) => i.id === id && i.type === 'lesson')?.title;
         const firstWrong = review?.results.find((r) => !r.correct);
@@ -108,13 +110,13 @@ export function ResultPage() {
             />
             <main className="page">
               <Card className="score">
-                <ProgressRing value={score * 100} label={`${pariksha.title} score`} size={148} />
+                <ProgressRing value={score * 100} label={`${quiz.title} score`} size={148} />
                 <div>
                   <Chip tone={passed ? 'accent' : 'warning'}>
                     {passed ? 'Passed' : 'Not passed yet'}
                   </Chip>
                   <h1 className="page__title">
-                    {passed ? `${pariksha.title} cleared.` : 'Not this time.'}
+                    {passed ? `${quiz.title} cleared.` : 'Not this time.'}
                   </h1>
                   <p>
                     {review
@@ -133,9 +135,9 @@ export function ResultPage() {
                       >
                         {!nextItem
                           ? 'Finish course'
-                          : nextParva === parvaNumber(course, pariksha.id)
+                          : nextChapter === chapterNumber(course, quiz.id)
                             ? 'Continue'
-                            : `Continue to Parva ${nextParva}`}
+                            : `Continue to ${t.Chapter} ${nextChapter}`}
                       </Link>
                     ) : (
                       <Link
@@ -149,10 +151,7 @@ export function ResultPage() {
                         Revisit lessons
                       </Link>
                     )}
-                    <Retake
-                      opensAt={opensAt}
-                      to={`/courses/${course.id}/pariksha/${pariksha.id}`}
-                    />
+                    <Retake opensAt={opensAt} to={`/courses/${course.id}/quiz/${quiz.id}`} />
                   </div>
                 </div>
               </Card>

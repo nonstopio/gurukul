@@ -27,9 +27,9 @@ design handoff (`design-handoff/`).
 - Rules for `users`, `assignments` (read), `config`.
 
 **Exit:** a NonStop account signs in and lands on an empty Home; a Gmail
-account is refused; a Kulapati sees the console nav; rules tests cover every rule.
+account is refused; an Admin sees the console nav; rules tests cover every rule.
 
-## M2 · Learner core (~2 weeks) — built; Pariksha items stay locked until M3
+## M2 · Learner core (~2 weeks) — built; Quiz items stay locked until M3
 
 - Seed script: the Git course (from `14-first-course-git.md`) into the emulator and production.
 - Home, Catalogue, Course overview, Lesson player with all block renderers and
@@ -39,40 +39,40 @@ account is refused; a Kulapati sees the console nav; rules tests cover every rul
 
 **Exit:** a learner can take every Git lesson end to end and resume on another device.
 
-## M3 · Parikshas and certificates (~1.5 weeks) — built
+## M3 · Quizzes and certificates (~1.5 weeks) — built
 
-- `checkAnswer`, `gradeAttempt` with cooldowns; Pariksha and Result screens.
+- `checkAnswer`, `gradeAttempt` with cooldowns; Quiz and Result screens.
 - Sequential unlocking.
 - Certificate issue trigger, certificate page + print PDF, public `/verify/:id`, LinkedIn link.
 - Completion screen.
 
 **Exit:** a learner earns a verifiable Git certificate; answer keys never reach the browser (asserted by a test).
 
-## M4 · Kulapati console (~2 weeks) — built, including the audit log view and CSV export; email sending waits on open question 4
+## M4 · Admin console (~2 weeks) — built, including the audit log view and CSV export; email sending waits on open question 4
 
 - Learners table (with pending invites), filters, pagination, bulk actions.
 - Assign flow: search, paste, CSV, team; client-side preview; `assignCourses`.
 - Email notifications and daily reminders (option chosen in open questions).
-- Roles & access screen; Sanjaya overview; course analytics; CSV export.
+- Roles & access screen; Analytics overview; course analytics; CSV export.
 
-**Exit:** a Kulapati assigns Git to 20 emails (5 not yet signed in) and sees them appear as they sign in.
+**Exit:** an Admin assigns Git to 20 emails (5 not yet signed in) and sees them appear as they sign in.
 
-## M5 · Vyasa Studio (~2.5 weeks)
+## M5 · Studio (~2.5 weeks)
 
 - Courses list with grants; course editor with keyboard drag list; lesson
-  editor with every block editor and validation; Pariksha builder.
+  editor with every block editor and validation; Quiz builder.
 - Drafts with autosave and conflict check; `publishCourse`; versions and rollback; preview as learner.
 - Audit log; question bank.
 
-**Exit:** an Acharya builds and publishes a second course without engineering help.
+**Exit:** an Educator builds and publishes a second course without engineering help.
 
-**Status:** built (drafts, editors, Pariksha builder, versions, rollback, preview, question bank). Verified by unit tests; not yet used by a real Acharya.
+**Status:** built (drafts, editors, Quiz builder, versions, rollback, preview, question bank). Verified by unit tests; not yet used by a real Educator.
 
 ## M6 · Hardening and launch (~1 week)
 
 - Playwright e2e for the three journeys; axe scans; Lighthouse CI.
 - Rules coverage gate; budget and alerts verified; backups (scheduled Firestore export — needs a Storage bucket, so decide or skip).
-- Docs: user guide for Kulapatis and Acharyas.
+- Docs: user guide for Admins and Educators.
 - Launch: assign Git to everyone.
 
 **Status:** e2e, axe, Lighthouse CI on the built sign-in page, weekly backup function and docs are built. The rules coverage gate runs with `npm run test:rules`. Lighthouse also runs on the preview URL. Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.

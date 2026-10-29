@@ -1,6 +1,6 @@
 ---
 name: writing-changelog-entries
-description: Use when a change alters what a learner, Acharya or Kulapati sees or can do in Gurukul, when the changelog nudge hook asks whether an entry is owed, when a change to apps/web/src, packages/ui/src, firebase/firestore.rules or firebase/functions/src has no file under apps/web/src/changelog/entries, when an entry's `why` restates its title, when an area does not fit the AREAS map, or when a change feels too small to write up.
+description: Use when a change alters what a learner, Educator or Admin sees or can do in Gurukul, when the changelog nudge hook asks whether an entry is owed, when a change to apps/web/src, packages/ui/src, firebase/firestore.rules or firebase/functions/src has no file under apps/web/src/changelog/entries, when an entry's `why` restates its title, when an area does not fit the AREAS map, or when a change feels too small to write up.
 ---
 
 # Writing a changelog entry
@@ -36,7 +36,7 @@ ChangelogEntry;`. Replace every line of the template; the tests reject leftovers
 | `date`   | `YYYY-MM-DD`. Must equal the date at the front of the file name                |
 | `id`     | The GitHub issue or PR (`GH-42`), or a short UPPER-KEBAB tag. Never `GH-0000`  |
 | `title`  | What is now true, in the user's words                                          |
-| `area`   | `LEARN` `PARIKSHA` `KULAPATI` `STUDIO` `DESIGN` `PLATFORM`; see `reference.md` |
+| `area`   | `LEARN` `QUIZ` `ADMIN` `STUDIO` `DESIGN` `PLATFORM`; see `reference.md`        |
 | `kind`   | `feature` `fix` `security` `ops` `docs` `chore`. `feature`, not `feat`         |
 | `why`    | Required. The reason said out loud; never the title again                      |
 | `detail` | Optional. What someone will notice: a string, or an array of non-empty strings |
@@ -60,7 +60,7 @@ Never rename an entry once it exists: the file name is its order and its release
 | Two entries in the same second                | Pick a different second; the tests and the pre-commit check reject it |
 | Adding `version: '1.2.0'`                     | Delete it. Releases come from tags                                    |
 
-Good `why`: _"A learner who failed a Pariksha could not tell whether the retry was locked or
+Good `why`: _"A learner who failed a Quiz could not tell whether the retry was locked or
 broken; the button just did nothing for 24 hours."_ Bad: _"The retry cooldown message was added."_
 
 ## Red Flags - STOP

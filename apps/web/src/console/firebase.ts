@@ -53,7 +53,7 @@ function toUser(uid: string, d: Record<string, unknown>): UserRow {
     email: (d.email as string | undefined) ?? '',
     displayName: (d.displayName as string | undefined) ?? '',
     team: (d.team as string | null | undefined) ?? null,
-    roles: (d.roles as string[] | undefined) ?? ['shishya'],
+    roles: (d.roles as string[] | undefined) ?? ['learner'],
     grantedCourseIds: (d.grantedCourseIds as string[] | undefined) ?? [],
     createdAt: date(d.createdAt as Ts),
   };
@@ -190,13 +190,13 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
       );
       return snap.docs.map((d) => toAssignment(d.id, d.data()));
     },
-    async attemptsFor(uid, courseId, parikshaId) {
+    async attemptsFor(uid, courseId, quizId) {
       // Same shape as the learner's own latest-attempt query, so it uses the same index.
       const snap = await getDocs(
         query(
           collection(db, 'progress', progressId(uid, courseId), 'attempts'),
           where('uid', '==', uid),
-          where('parikshaId', '==', parikshaId),
+          where('quizId', '==', quizId),
           orderBy('createdAt', 'desc'),
           limit(ATTEMPT_LIMIT),
         ),
@@ -205,7 +205,7 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         const a = d.data();
         return {
           id: d.id,
-          parikshaId: a.parikshaId as string,
+          quizId: a.quizId as string,
           score: (a.score as number | undefined) ?? 0,
           passed: a.passed === true,
           at: date(a.createdAt as Ts),

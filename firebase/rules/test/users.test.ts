@@ -38,7 +38,7 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), 'users/priya'), {
       displayName: 'Priya',
       team: null,
-      roles: ['shishya'],
+      roles: ['learner'],
     });
     await setDoc(doc(ctx.firestore(), 'config/org'), {
       domain: 'nonstopio.com',
@@ -59,13 +59,13 @@ describe('users/{uid}', () => {
     await assertSucceeds(getDoc(doc(db, 'users/priya')));
   });
 
-  it("does not let a shishya read someone else's profile", async () => {
+  it("does not let a learner read someone else's profile", async () => {
     const db = nonstop('rohan');
     await assertFails(getDoc(doc(db, 'users/priya')));
   });
 
-  it('lets a kulapati read any profile', async () => {
-    const db = nonstop('ajay', { kulapati: true });
+  it('lets an admin read any profile', async () => {
+    const db = nonstop('ajay', { admin: true });
     await assertSucceeds(getDoc(doc(db, 'users/priya')));
   });
 
@@ -74,12 +74,12 @@ describe('users/{uid}', () => {
     await assertFails(getDoc(doc(db, 'users/priya')));
   });
 
-  it('denies a kulapati claim on a non-NonStop or unverified account', async () => {
+  it('denies an admin claim on a non-NonStop or unverified account', async () => {
     await assertFails(
-      getDoc(doc(nonstop('ajay', { kulapati: true, email: 'ajay@gmail.com' }), 'users/priya')),
+      getDoc(doc(nonstop('ajay', { admin: true, email: 'ajay@gmail.com' }), 'users/priya')),
     );
     await assertFails(
-      getDoc(doc(nonstop('ajay', { kulapati: true, email_verified: false }), 'users/priya')),
+      getDoc(doc(nonstop('ajay', { admin: true, email_verified: false }), 'users/priya')),
     );
   });
 
@@ -126,9 +126,21 @@ describe('users/{uid}', () => {
     await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: null }));
   });
 
+  it('lets a person pick which names the app shows them', async () => {
+    const db = nonstop('priya');
+    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { labels: 'gurukul' }));
+    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { labels: 'generic' }));
+  });
+
+  it('denies an unknown label set', async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { labels: 'klingon' }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { labels: true }));
+  });
+
   it("denies changing roles, granted courses or anyone else's profile", async () => {
     const db = nonstop('priya');
-    await assertFails(updateDoc(doc(db, 'users/priya'), { roles: ['kulapati'] }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { roles: ['admin'] }));
     await assertFails(
       updateDoc(doc(db, 'users/priya'), {
         displayName: 'P',
@@ -143,7 +155,7 @@ describe('users/{uid}', () => {
       }),
     );
     await assertFails(
-      updateDoc(doc(nonstop('ajay', { kulapati: true }), 'users/priya'), {
+      updateDoc(doc(nonstop('ajay', { admin: true }), 'users/priya'), {
         displayName: 'X',
         nameLower: 'x',
       }),
@@ -183,7 +195,7 @@ describe('users/{uid}', () => {
     await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: 'Dev' }));
   });
 
-  it('keeps a team the Kulapati later removed through a name change', async () => {
+  it('keeps a team the Admin later removed through a name change', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), 'users/priya'), { team: 'Retired team' });
     });
@@ -198,7 +210,7 @@ describe('users/{uid}', () => {
 
 describe('everything else', () => {
   it('is closed by default', async () => {
-    const db = nonstop('ajay', { kulapati: true });
+    const db = nonstop('ajay', { admin: true });
     await assertFails(getDoc(doc(db, 'unknown/thing')));
     await assertFails(setDoc(doc(db, 'unknown/thing'), { title: 'Git' }));
   });

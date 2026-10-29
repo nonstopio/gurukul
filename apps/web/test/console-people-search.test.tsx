@@ -8,7 +8,7 @@ const person = (uid: string): UserRow => ({
   email: `${uid}@nonstopio.com`,
   displayName: uid,
   team: null,
-  roles: ['shishya'],
+  roles: ['learner'],
   grantedCourseIds: [],
   createdAt: null,
 });

@@ -1,10 +1,10 @@
 import { ApiException, itemStates, itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
-import type { Course, Pariksha, ParikshaResult, Question } from '@gurukul/schema';
+import type { Course, Quiz, QuizResult, Question } from '@gurukul/schema';
 import { log } from './logging/log.js';
 import { badField } from './validation.js';
 
 /** What a learner's best/passed/attempts become after one more attempt. */
-export interface ParikshaUpdate {
+export interface QuizUpdate {
   best: number;
   passed: boolean;
   attempts: number;
@@ -14,7 +14,7 @@ export interface ParikshaUpdate {
 export interface AttemptRecord {
   uid: string;
   courseId: string;
-  parikshaId: string;
+  quizId: string;
   score: number;
   correctCount: number;
   total: number;
@@ -30,19 +30,19 @@ export interface AttemptRecord {
 export interface GradingStore {
   /** The course document, or undefined when it does not exist. */
   getCourse(courseId: string): Promise<unknown | undefined>;
-  /** `courses/{id}/private/answers`: `{ [parikshaId]: { [questionId]: optionIds } }`. */
+  /** `courses/{id}/private/answers`: `{ [quizId]: { [questionId]: optionIds } }`. */
   getAnswers(courseId: string): Promise<unknown | undefined>;
   /** `progress/{uid}_{courseId}`, or undefined when the learner has not started. */
   getProgress(uid: string, courseId: string): Promise<unknown | undefined>;
   /**
    * One transaction: `decide` sees the progress document as it is inside the transaction and
-   * returns the new Pariksha result (or throws); the adapter then writes the attempt and that
+   * returns the new Quiz result (or throws); the adapter then writes the attempt and that
    * result, stamping `lastAttemptAt` and `lastActiveAt`. Returns the new attempt's id and the result it wrote.
    */
   recordAttempt(
     attempt: AttemptRecord,
-    decide: (progress: unknown | undefined) => ParikshaUpdate,
-  ): Promise<{ attemptId: string; update: ParikshaUpdate }>;
+    decide: (progress: unknown | undefined) => QuizUpdate,
+  ): Promise<{ attemptId: string; update: QuizUpdate }>;
 }
 
 export interface AttemptResult {
@@ -77,12 +77,12 @@ export function isCorrect(kind: Question['kind'], selected: string[], key: strin
   return chosen.size === wanted.size && [...chosen].every((id) => wanted.has(id));
 }
 
-/** The published course, its Pariksha and that Pariksha's answer key. Rejects unknown ids. */
+/** The published course, its Quiz and that Quiz's answer key. Rejects unknown ids. */
 async function load(
   store: GradingStore,
   courseId: string,
-  parikshaId: string,
-): Promise<{ course: Course; pariksha: Pariksha }> {
+  quizId: string,
+): Promise<{ course: Course; quiz: Quiz }> {
   const raw = await store.getCourse(courseId);
   if (raw === undefined) throw new ApiException('CRS_2001', [courseId]);
   let course: Course;
@@ -94,26 +94,24 @@ async function load(
   // A retired course keeps its progress and certificates but takes no new attempts.
   if (course.status === 'archived') throw new ApiException('CRS_1004', [courseId]);
   if (course.status !== 'published') throw new ApiException('CRS_1001', [courseId]);
-  const pariksha = itemsOf(course).find(
-    (i): i is Pariksha => i.type === 'pariksha' && i.id === parikshaId,
-  );
-  if (!pariksha) throw new ApiException('PRK_2001', [parikshaId, courseId]);
-  return { course, pariksha };
+  const quiz = itemsOf(course).find((i): i is Quiz => i.type === 'quiz' && i.id === quizId);
+  if (!quiz) throw new ApiException('PRK_2001', [quizId, courseId]);
+  return { course, quiz };
 }
 
 async function loadKey(
   store: GradingStore,
   courseId: string,
-  parikshaId: string,
+  quizId: string,
 ): Promise<Record<string, unknown>> {
   const all = (await store.getAnswers(courseId)) as
     Record<string, Record<string, unknown> | undefined> | undefined;
-  const key = all?.[parikshaId];
-  if (!key) throw new ApiException('PRK_3001', ['Pariksha', parikshaId]);
+  const key = all?.[quizId];
+  if (!key) throw new ApiException('PRK_3001', ['Quiz', quizId]);
   return key;
 }
 
-/** The answer key of one question, read from the Pariksha's key. */
+/** The answer key of one question, read from the Quiz's key. */
 function keyOf(key: Record<string, unknown>, questionId: string): string[] {
   const ids = key[questionId];
   if (!isStringArray(ids)) {
@@ -123,29 +121,28 @@ function keyOf(key: Record<string, unknown>, questionId: string): string[] {
 }
 
 /**
- * `checkAnswer`: right or wrong for ONE question, only when the Pariksha reveals after each answer.
+ * `checkAnswer`: right or wrong for ONE question, only when the Quiz reveals after each answer.
  * Records nothing; the key is read server-side and only echoed back because the author allowed it.
  */
 export async function checkAnswer(
   store: GradingStore,
   uid: string,
-  data: { courseId?: unknown; parikshaId?: unknown; questionId?: unknown; selected?: unknown },
+  data: { courseId?: unknown; quizId?: unknown; questionId?: unknown; selected?: unknown },
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
-  const { courseId, parikshaId, questionId, selected } = data;
+  const { courseId, quizId, questionId, selected } = data;
   if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
-  if (!isNonEmptyString(parikshaId))
-    throw badField('parikshaId', parikshaId, 'must be a Pariksha id');
+  if (!isNonEmptyString(quizId)) throw badField('quizId', quizId, 'must be a Quiz id');
   if (!isNonEmptyString(questionId))
     throw badField('questionId', questionId, 'must be a question id');
   if (!isStringArray(selected))
     throw badField('selected', selected, 'must be a list of option ids');
-  log.debug('Checking an answer', { uid, courseId, parikshaId, questionId });
-  const { course, pariksha } = await load(store, courseId, parikshaId);
-  if (pariksha.revealAnswers !== 'each') throw new ApiException('PRK_1001', [parikshaId]);
-  const question = pariksha.questions.find((q) => q.id === questionId);
+  log.debug('Checking an answer', { uid, courseId, quizId, questionId });
+  const { course, quiz } = await load(store, courseId, quizId);
+  if (quiz.revealAnswers !== 'each') throw new ApiException('PRK_1001', [quizId]);
+  const question = quiz.questions.find((q) => q.id === questionId);
   if (!question) throw new ApiException('VAL_1003', ['question', questionId]);
-  checkUnlocked(course, await store.getProgress(uid, courseId), parikshaId);
-  const correctOptionIds = keyOf(await loadKey(store, courseId, parikshaId), questionId);
+  checkUnlocked(course, await store.getProgress(uid, courseId), quizId);
+  const correctOptionIds = keyOf(await loadKey(store, courseId, quizId), questionId);
   return {
     correct: isCorrect(question.kind, selected, correctOptionIds),
     correctOptionIds,
@@ -154,29 +151,29 @@ export async function checkAnswer(
 }
 
 /**
- * Throws `PRK_1003` when the learner's progress still locks this Pariksha, by the same `itemStates`
+ * Throws `PRK_1003` when the learner's progress still locks this Quiz, by the same `itemStates`
  * the outline shows. Progress that is missing or unreadable counts as nothing done. Checking outside
  * the grading transaction is safe: completions and passes only ever add, so a lock never returns.
  */
-export function checkUnlocked(course: Course, progressRaw: unknown, parikshaId: string): void {
+export function checkUnlocked(course: Course, progressRaw: unknown, quizId: string): void {
   const parsed = progressSchema.safeParse(progressRaw);
-  const state = parsed.success ? parsed.data : { completedItemIds: [], pariksha: {} };
-  if (itemStates(course, state)[parikshaId] === 'locked') {
-    throw new ApiException('PRK_1003', [parikshaId]);
+  const state = parsed.success ? parsed.data : { completedItemIds: [], quiz: {} };
+  if (itemStates(course, state)[quizId] === 'locked') {
+    throw new ApiException('PRK_1003', [quizId]);
   }
 }
 
-/** The learner's Pariksha result so far; throws when they have not started or are cooling down. */
+/** The learner's Quiz result so far; throws when they have not started or are cooling down. */
 export function checkCooldown(
   progressRaw: unknown,
   courseId: string,
-  parikshaId: string,
+  quizId: string,
   cooldownMinutes: number,
   now: number,
-): ParikshaResult | undefined {
+): QuizResult | undefined {
   const progress = progressSchema.safeParse(progressRaw);
   if (!progress.success) throw new ApiException('PRK_2002', [courseId]);
-  const previous = progress.data.pariksha[parikshaId];
+  const previous = progress.data.quiz[quizId];
   if (previous) {
     const next = previous.lastAttemptAt.toMillis() + cooldownMinutes * 60_000;
     if (now < next) {
@@ -188,10 +185,10 @@ export function checkCooldown(
 
 /** One more attempt on top of the previous result: best never drops, passed never reverts. */
 export function nextResult(
-  previous: ParikshaResult | undefined,
+  previous: QuizResult | undefined,
   score: number,
   passed: boolean,
-): ParikshaUpdate {
+): QuizUpdate {
   return {
     best: Math.max(previous?.best ?? 0, score),
     passed: (previous?.passed ?? false) || passed,
@@ -203,13 +200,12 @@ export function nextResult(
 export async function gradeAttempt(
   store: GradingStore,
   uid: string,
-  data: { courseId?: unknown; parikshaId?: unknown; questionIds?: unknown; answers?: unknown },
+  data: { courseId?: unknown; quizId?: unknown; questionIds?: unknown; answers?: unknown },
   now: number,
 ): Promise<AttemptResult> {
-  const { courseId, parikshaId, questionIds, answers } = data;
+  const { courseId, quizId, questionIds, answers } = data;
   if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
-  if (!isNonEmptyString(parikshaId))
-    throw badField('parikshaId', parikshaId, 'must be a Pariksha id');
+  if (!isNonEmptyString(quizId)) throw badField('quizId', quizId, 'must be a Quiz id');
   if (!isStringArray(questionIds)) {
     throw badField('questionIds', questionIds, 'must be a list of question ids');
   }
@@ -222,27 +218,27 @@ export async function gradeAttempt(
     throw badField('answers', answers, 'must map question ids to lists of option ids');
   }
   const given = answers as Record<string, string[]>;
-  log.debug('Grading started', { uid, courseId, parikshaId, questionCount: questionIds.length });
-  const { course, pariksha } = await load(store, courseId, parikshaId);
+  log.debug('Grading started', { uid, courseId, quizId, questionCount: questionIds.length });
+  const { course, quiz } = await load(store, courseId, quizId);
 
-  const shown = Math.min(pariksha.questionsShown, pariksha.questions.length);
-  const known = new Set(pariksha.questions.map((q) => q.id));
+  const shown = Math.min(quiz.questionsShown, quiz.questions.length);
+  const known = new Set(quiz.questions.map((q) => q.id));
   if (
     new Set(questionIds).size !== questionIds.length ||
     questionIds.length !== shown ||
     !questionIds.every((id) => known.has(id)) ||
     !Object.keys(given).every((id) => questionIds.includes(id))
   ) {
-    throw new ApiException('PRK_1002', ['the questions are not this Pariksha’s draw']);
+    throw new ApiException('PRK_1002', ['the questions are not this Quiz’s draw']);
   }
 
   // Cheap rejection first: a learner cooling down costs one progress read, not the answer key.
   const progress = await store.getProgress(uid, courseId);
-  checkCooldown(progress, courseId, parikshaId, pariksha.cooldownMinutes, now);
-  checkUnlocked(course, progress, parikshaId);
+  checkCooldown(progress, courseId, quizId, quiz.cooldownMinutes, now);
+  checkUnlocked(course, progress, quizId);
 
-  const key = await loadKey(store, courseId, parikshaId);
-  const byId = new Map(pariksha.questions.map((q) => [q.id, q]));
+  const key = await loadKey(store, courseId, quizId);
+  const byId = new Map(quiz.questions.map((q) => [q.id, q]));
   const graded = questionIds.map((questionId) => {
     const question = byId.get(questionId) as Question;
     const correctOptionIds = keyOf(key, questionId);
@@ -255,13 +251,13 @@ export async function gradeAttempt(
   const correctCount = graded.filter((g) => g.correct).length;
   const total = graded.length;
   const score = correctCount / total;
-  const passed = score >= (pariksha.passMark ?? course.rules.passMark);
+  const passed = score >= (quiz.passMark ?? course.rules.passMark);
 
   const { attemptId, update } = await store.recordAttempt(
     {
       uid,
       courseId,
-      parikshaId,
+      quizId,
       score,
       correctCount,
       total,
@@ -272,16 +268,11 @@ export async function gradeAttempt(
       courseVersion: course.version,
     },
     (raw) =>
-      nextResult(
-        checkCooldown(raw, courseId, parikshaId, pariksha.cooldownMinutes, now),
-        score,
-        passed,
-      ),
+      nextResult(checkCooldown(raw, courseId, quizId, quiz.cooldownMinutes, now), score, passed),
   );
 
-  log.info('Attempt graded', { uid, attemptId, courseId, parikshaId, passed, correctCount, total });
-  const reveal =
-    pariksha.revealAnswers === 'each' || (pariksha.revealAnswers === 'onPass' && passed);
+  log.info('Attempt graded', { uid, attemptId, courseId, quizId, passed, correctCount, total });
+  const reveal = quiz.revealAnswers === 'each' || (quiz.revealAnswers === 'onPass' && passed);
   return {
     attemptId,
     score,
@@ -296,6 +287,6 @@ export async function gradeAttempt(
         ? { correctOptionIds: g.correctOptionIds, explanation: g.question.explanation }
         : {}),
     })),
-    nextAttemptAt: pariksha.cooldownMinutes > 0 ? now + pariksha.cooldownMinutes * 60_000 : null,
+    nextAttemptAt: quiz.cooldownMinutes > 0 ? now + quiz.cooldownMinutes * 60_000 : null,
   };
 }

@@ -17,7 +17,7 @@ unreachable race. See `.claude/rules/coverage.md`.
 | Cloud Functions | Vitest; pure modules directly, triggers (the real exports, run with `.run(event)`) against the Firestore emulator | `firebase/functions/test`, `firebase/functions/emulator-test` (`npm run test:triggers`) | `test` + `rules` jobs |
 | Security rules | `@firebase/rules-unit-testing` | `firebase/rules/test` | `rules` job |
 | End to end (built) | Playwright against emulators + built app | `e2e/` | `e2e` job |
-| Accessibility | axe-core per component and page; Playwright axe on Home, the course page, the Kulapati overview and the Studio course list (built) | as above | as above |
+| Accessibility | axe-core per component and page; Playwright axe on Home, the course page, the Admin overview and the Studio course list (built) | as above | as above |
 
 Rules coverage: every `allow` has an allowed and a denied test, and
 `npm run test:rules` fails if any rule expression was never evaluated. Each test
@@ -36,7 +36,7 @@ circuit skipped counts as never evaluated.
 | `rules` | Java 21 + Firestore emulator, rules tests and trigger tests (`npm run test:triggers`) |
 | `build` | App and functions build, then the bundle-size budget |
 | `lighthouse` | Lighthouse CI on the built sign-in page |
-| `e2e` | Java 21 + Playwright (Chromium) against the built app and the Auth, Firestore and Functions emulators: the learner, Kulapati and Acharya journeys plus an axe scan of four pages (`e2e/`, run with `npm run e2e`; see `docs/operations.md`) |
+| `e2e` | Java 21 + Playwright (Chromium) against the built app and the Auth, Firestore and Functions emulators: the learner, Admin and Educator journeys plus an axe scan of four pages (`e2e/`, run with `npm run e2e`; see `docs/operations.md`) |
 | `ci` | Passes only if all the above passed; branch protection requires it |
 
 Other workflows:

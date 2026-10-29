@@ -7,7 +7,7 @@ export default {
   area: 'PLATFORM',
   kind: 'feature',
   why:
-    'As Gurukul grows into a learner app, a Kulapati console and Vyasa Studio, finding a page by ' +
+    'As Gurukul grows into a learner app, an Admin console and Studio, finding a page by ' +
     'clicking through menus gets slower for everyone. One search box that knows every page you are ' +
     'allowed to open is faster than any menu.',
   detail: [

@@ -14,7 +14,7 @@ Cloud Functions (2nd gen, asia-south1, Node 22; firebase/functions/src/index.ts)
   │             assignCourses, resetCooldown, remindLearners,
   │             createCourse, publishCourse, rollbackCourse, archiveCourse
   ├─ Firestore triggers: onProgressWritten (percent, completion, certificate,
-  │             stats, assignment status), onAttemptCreated (Sanjaya counters)
+  │             stats, assignment status), onAttemptCreated (Analytics counters)
   └─ Scheduled: dailyRollup (03:00 UTC), dailyReminders (04:00 UTC),
                 weeklyBackup (Sunday 02:00 UTC)
 ```
@@ -51,17 +51,17 @@ src/
   data/                      DataProvider: typed Firestore access for the learner pages
   learn/                     learner models and shared learner UI
   player/                    block renderers (one per block type)
-  pariksha/                  ParikshaPage, ResultPage and their provider
+  quiz/                  QuizPage, ResultPage and their provider
   certificates/              certificate view and the public verify page
-  console/                   Kulapati console: Overview, Learners, Assign, Roles, Audit, CourseAnalytics
-  studio/                    Vyasa Studio: course list, course and lesson editors, Pariksha builder,
+  console/                   Admin console: Overview, Learners, Assign, Roles, Audit, CourseAnalytics
+  studio/                    Studio: course list, course and lesson editors, Quiz builder,
                              question bank, media, preview, versions; block and question editors
   changelog/, navigation/    /changelog and global search (15-changelog-and-search.md)
   log.ts                     the one log helper (17-logging.md)
 ```
 
 Each area's pages get their data from a React provider (`DataProvider`, `ConsoleProvider`,
-`StudioProvider`, `ParikshaProvider`) over a plain service interface, so tests pass a fake service
+`StudioProvider`, `QuizProvider`) over a plain service interface, so tests pass a fake service
 instead of Firebase.
 
 Routing: React Router (data router). Role-gated route groups render a "not
@@ -83,7 +83,7 @@ profile document before rendering Home, so assignments appear immediately.
 subscribes to `progress/{uid}_{courseId}`. "Mark complete" writes
 `completedItemIds` (arrayUnion) and `lastItemId`; rules allow only those fields.
 
-**Pariksha.** Client calls `gradeAttempt({courseId, parikshaId, answers})` →
+**Quiz.** Client calls `gradeAttempt({courseId, quizId, answers})` →
 function reads the answer key from `courses/{id}/private/answers`, checks the
 cooldown, scores, writes the attempt and the best score into progress, returns
 per-question results (with explanations if configured).

@@ -13,7 +13,7 @@ scope is always an area from the table below, and commitlint rejects anything el
 
 | Scope       | Covers                                                             |
 | ----------- | ------------------------------------------------------------------ |
-| `web`       | `apps/web`: the learner app, Kulapati console, Vyasa Studio        |
+| `web`       | `apps/web`: the learner app, Admin console, Studio                 |
 | `ui`        | `packages/ui`: tokens and shared components                        |
 | `functions` | `firebase/functions`                                               |
 | `rules`     | `firebase/firestore.rules`, indexes and the rules tests            |
@@ -103,7 +103,7 @@ list. That part is review and this skill.
 
 `type/scope/description-in-kebab-case`, the same three parts as the commit:
 
-- `feat/web/pariksha-retry`
+- `feat/web/quiz-retry`
 - `chore/claude/port-hooks-and-skills`
 
 Nothing enforces branch names today.

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   attemptSchema,
   isItemDone,
-  isParvaPassed,
+  isChapterPassed,
   itemStates,
   itemsOf,
   progressId,
@@ -10,9 +10,9 @@ import {
   resumeItemId,
   type ProgressState,
 } from '../src';
-import { itemAt, makeCourse, parvaAt, ts } from './fixtures';
+import { itemAt, makeCourse, chapterAt, ts } from './fixtures';
 
-const none: ProgressState = { completedItemIds: [], pariksha: {} };
+const none: ProgressState = { completedItemIds: [], quiz: {} };
 const passed = { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) };
 const failed = { best: 0.2, passed: false, attempts: 1, lastAttemptAt: ts(1) };
 
@@ -27,38 +27,38 @@ describe('progress helpers', () => {
     expect(itemsOf(course).map((i) => i.id)).toEqual(['l1', 'q1', 'l2', 'l3']);
   });
 
-  it('counts lessons by completion and Parikshas by passing', () => {
+  it('counts lessons by completion and Quizzes by passing', () => {
     expect(isItemDone(itemAt(course, 0), { ...none, completedItemIds: ['l1'] })).toBe(true);
-    expect(isItemDone(itemAt(course, 1), { ...none, pariksha: { q1: passed } })).toBe(true);
-    expect(isItemDone(itemAt(course, 1), { ...none, pariksha: { q1: failed } })).toBe(false);
+    expect(isItemDone(itemAt(course, 1), { ...none, quiz: { q1: passed } })).toBe(true);
+    expect(isItemDone(itemAt(course, 1), { ...none, quiz: { q1: failed } })).toBe(false);
     expect(isItemDone(itemAt(course, 1), none)).toBe(false);
   });
 
   it('computes the percent and ignores ids that no longer exist', () => {
     expect(progressPercent(course, none)).toBe(0);
     expect(
-      progressPercent(course, { completedItemIds: ['l1', 'gone'], pariksha: { q1: passed } }),
+      progressPercent(course, { completedItemIds: ['l1', 'gone'], quiz: { q1: passed } }),
     ).toBe(50);
     expect(
-      progressPercent(course, { completedItemIds: ['l1', 'l2', 'l3'], pariksha: { q1: passed } }),
+      progressPercent(course, { completedItemIds: ['l1', 'l2', 'l3'], quiz: { q1: passed } }),
     ).toBe(100);
   });
 
   it('is 0 for a course with no items', () => {
-    expect(progressPercent({ parvas: [] }, none)).toBe(0);
+    expect(progressPercent({ chapters: [] }, none)).toBe(0);
   });
 });
 
 describe('itemStates', () => {
   const course = makeCourse();
-  const twoParvas = (sequential: boolean, blocksNext = true) => {
+  const twoChapters = (sequential: boolean, blocksNext = true) => {
     const c = makeCourse({
       rules: { sequential, passMark: 0.7, certificate: true, requireVideoWatch: false },
     });
     const p = itemAt(c, 1);
-    if (p.type === 'pariksha') p.blocksNext = blocksNext;
-    const [first] = c.parvas;
-    c.parvas.push({
+    if (p.type === 'quiz') p.blocksNext = blocksNext;
+    const [first] = c.chapters;
+    c.chapters.push({
       id: 'p2',
       title: 'Next',
       items: [{ ...itemAt(c, 0), id: 'n1' }],
@@ -66,7 +66,7 @@ describe('itemStates', () => {
     return { c, first };
   };
 
-  it('marks the first unfinished item current and locks what a blocking Pariksha guards', () => {
+  it('marks the first unfinished item current and locks what a blocking Quiz guards', () => {
     expect(itemStates(course, none)).toEqual({
       l1: 'current',
       q1: 'todo',
@@ -81,8 +81,8 @@ describe('itemStates', () => {
     });
   });
 
-  it('unlocks after the Pariksha is passed', () => {
-    expect(itemStates(course, { completedItemIds: ['l1'], pariksha: { q1: passed } })).toEqual({
+  it('unlocks after the Quiz is passed', () => {
+    expect(itemStates(course, { completedItemIds: ['l1'], quiz: { q1: passed } })).toEqual({
       l1: 'done',
       q1: 'done',
       l2: 'current',
@@ -90,48 +90,48 @@ describe('itemStates', () => {
     });
   });
 
-  it('does not lock behind a Pariksha that does not block', () => {
-    const { c } = twoParvas(false, false);
+  it('does not lock behind a Quiz that does not block', () => {
+    const { c } = twoChapters(false, false);
     expect(itemStates(c, { ...none, completedItemIds: ['l1'] }).l2).toBe('todo');
   });
 
-  it('locks the next parva until the previous parva’s Pariksha is passed, only when sequential', () => {
-    const seq = twoParvas(true).c;
+  it('locks the next chapter until the previous chapter’s Quiz is passed, only when sequential', () => {
+    const seq = twoChapters(true).c;
     expect(itemStates(seq, none).n1).toBe('locked');
     expect(itemStates(seq, { ...none, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('locked');
-    expect(itemStates(seq, { completedItemIds: ['l1'], pariksha: { q1: passed } }).n1).toBe('todo');
-    expect(itemStates(twoParvas(false).c, none).n1).toBe('todo');
+    expect(itemStates(seq, { completedItemIds: ['l1'], quiz: { q1: passed } }).n1).toBe('todo');
+    expect(itemStates(twoChapters(false).c, none).n1).toBe('todo');
   });
 
-  it('locks the next parva of a parva without a Pariksha until all its lessons are done', () => {
-    const { c } = twoParvas(true);
-    const first = parvaAt(c, 0);
+  it('locks the next chapter of a chapter without a Quiz until all its lessons are done', () => {
+    const { c } = twoChapters(true);
+    const first = chapterAt(c, 0);
     first.items = first.items.filter((i) => i.type === 'lesson');
     expect(itemStates(c, { ...none, completedItemIds: ['l1', 'l2'] }).n1).toBe('locked');
     expect(itemStates(c, { ...none, completedItemIds: ['l1', 'l2', 'l3'] }).n1).toBe('current');
   });
 
-  it('keeps a finished item done even inside a locked parva', () => {
-    const seq = twoParvas(true).c;
+  it('keeps a finished item done even inside a locked chapter', () => {
+    const seq = twoChapters(true).c;
     expect(itemStates(seq, { ...none, completedItemIds: ['n1'] }).n1).toBe('done');
   });
 });
 
-describe('isParvaPassed', () => {
-  const parva = parvaAt(makeCourse(), 0);
-  it('needs every Pariksha passed when the parva has one', () => {
-    expect(isParvaPassed(parva, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(false);
-    expect(isParvaPassed(parva, { completedItemIds: [], pariksha: { q1: passed } })).toBe(true);
+describe('isChapterPassed', () => {
+  const chapter = chapterAt(makeCourse(), 0);
+  it('needs every Quiz passed when the chapter has one', () => {
+    expect(isChapterPassed(chapter, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(false);
+    expect(isChapterPassed(chapter, { completedItemIds: [], quiz: { q1: passed } })).toBe(true);
     expect(
-      isParvaPassed(parva, { completedItemIds: [], pariksha: { q1: { passed: false } } }),
+      isChapterPassed(chapter, { completedItemIds: [], quiz: { q1: { passed: false } } }),
     ).toBe(false);
   });
 
-  it('needs every lesson done when the parva has no Pariksha, and nothing when empty', () => {
-    const lessons = { items: parva.items.filter((i) => i.type === 'lesson') };
-    expect(isParvaPassed(lessons, { ...none, completedItemIds: ['l1', 'l2'] })).toBe(false);
-    expect(isParvaPassed(lessons, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(true);
-    expect(isParvaPassed({ items: [] }, none)).toBe(true);
+  it('needs every lesson done when the chapter has no Quiz, and nothing when empty', () => {
+    const lessons = { items: chapter.items.filter((i) => i.type === 'lesson') };
+    expect(isChapterPassed(lessons, { ...none, completedItemIds: ['l1', 'l2'] })).toBe(false);
+    expect(isChapterPassed(lessons, { ...none, completedItemIds: ['l1', 'l2', 'l3'] })).toBe(true);
+    expect(isChapterPassed({ items: [] }, none)).toBe(true);
   });
 });
 
@@ -149,18 +149,18 @@ describe('resumeItemId', () => {
   it('falls back to the first item when everything is done, and to null for an empty course', () => {
     const all = {
       completedItemIds: ['l1', 'l2', 'l3'],
-      pariksha: { q1: passed },
+      quiz: { q1: passed },
       lastItemId: null,
     };
     expect(resumeItemId(course, all)).toBe('l1');
     expect(
-      resumeItemId({ parvas: [], rules: course.rules }, { ...none, lastItemId: null }),
+      resumeItemId({ chapters: [], rules: course.rules }, { ...none, lastItemId: null }),
     ).toBeNull();
   });
 });
 
 describe('attemptSchema', () => {
-  const base = { uid: 'u', courseId: 'git', parikshaId: 'pk', score: 0.5 };
+  const base = { uid: 'u', courseId: 'git', quizId: 'pk', score: 0.5 };
 
   it('defaults results for attempts recorded before they were stored', () => {
     expect(attemptSchema.parse(base).results).toEqual([]);

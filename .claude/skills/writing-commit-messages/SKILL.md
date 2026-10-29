@@ -25,7 +25,7 @@ Every commit, every PR title, every new branch.
 
 | Change                              | Commit                                            | Branch                      |
 | ----------------------------------- | ------------------------------------------------- | --------------------------- |
-| Learners can retry a Pariksha       | `feat(web): learners can retry a pariksha`        | `feat/web/pariksha-retry`   |
+| Learners can retry a Quiz           | `feat(web): learners can retry a quiz`            | `feat/web/quiz-retry`       |
 | Rules stop learners setting a score | `fix(rules): learners cannot set their own score` | `fix/rules/no-self-scoring` |
 | Hooks gained tests                  | `test(claude): hooks have tests`                  | `test/claude/hook-tests`    |
 
@@ -47,12 +47,12 @@ Every commit, every PR title, every new branch.
 | Mistake                                     | Instead                                                       |
 | ------------------------------------------- | ------------------------------------------------------------- |
 | `Fix certificate title after course rename` | `fix(web): certificates follow the course title`              |
-| `feat: add retry`                           | `feat(web): learners can retry a pariksha`                    |
+| `feat: add retry`                           | `feat(web): learners can retry a quiz`                        |
 | `feat(frontend): …`, `feat(Web): …`         | A scope from the list, lower-case                             |
 | `docs(docs): update readme`                 | `docs(repo): …` or `docs(plan): …` — the scope is the subject |
 | `chore(ui,web): …`                          | One scope. Split the commit, or pick the main one             |
-| `feat(web): Added retry`                    | `feat(web): learners can retry a pariksha`                    |
-| Branch `ajay/retry-fix`                     | `fix/web/pariksha-retry`                                      |
+| `feat(web): Added retry`                    | `feat(web): learners can retry a quiz`                        |
+| Branch `ajay/retry-fix`                     | `fix/web/quiz-retry`                                          |
 
 ## Red Flags - STOP
 

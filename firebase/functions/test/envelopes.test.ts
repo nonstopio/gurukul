@@ -60,7 +60,7 @@ type Call = (request: unknown) => Promise<unknown>;
 const envelope = apiResponseSchema(z.unknown());
 
 const callables = [
-  ['setRoles', index.setRoles, handlers.setRoles, { roles: ['acharya'] }],
+  ['setRoles', index.setRoles, handlers.setRoles, { roles: ['educator'] }],
   ['checkAnswer', index.checkAnswer, handlers.checkAnswer, { correct: true }],
   ['gradeAttempt', index.gradeAttempt, handlers.gradeAttempt, { score: 1 }],
   ['revokeCertificate', index.revokeCertificate, handlers.revokeCertificate, { revoked: true }],

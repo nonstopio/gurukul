@@ -4,25 +4,27 @@ import { useCallback, useState } from 'react';
 import { userMessageOf } from '../api';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
 
-/** Published versions, newest first, with roll back; and for a Kulapati, archive and restore. */
+/** Published versions, newest first, with roll back; and for an Admin, archive and restore. */
 export function VersionsTab({
   course,
-  kulapati,
+  admin,
   onRolledBack,
   onArchived,
 }: {
   /** The live course. */
   course: Course;
-  kulapati: boolean;
+  admin: boolean;
   /** Called with the new version after a roll back, so the editor can reload. */
   onRolledBack: (version: number) => void;
   onArchived: (status: 'archived' | 'published') => void;
 }) {
   const { data, service } = useStudio();
   const toast = useToast();
+  const t = useTerms();
   const [target, setTarget] = useState<number | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -98,13 +100,13 @@ export function VersionsTab({
         }
       </Loaded>
 
-      {kulapati && course.status !== 'draft' ? (
+      {admin && course.status !== 'draft' ? (
         <div className="sc-archive">
           <h3 className="sc-h3">{archived ? 'This course is archived' : 'Retire this course'}</h3>
           <p className="sc-help">
             {archived
-              ? 'Learners cannot open it. Restore it to make the live version available again.'
-              : 'Archiving hides it from the catalogue. Learners who started it keep their progress.'}
+              ? `${t.Learners} cannot open it. Restore it to make the live version available again.`
+              : `Archiving hides it from the catalogue. ${t.Learners} who started it keep their progress.`}
           </p>
           {archived ? (
             <Button variant="secondary" disabled={busy} onClick={() => void archive(false)}>
@@ -135,8 +137,7 @@ export function VersionsTab({
           }
         >
           <p>
-            Version {target} is published again as a new version, and your draft is reset to it.
-            Learners keep their progress, matched by lesson id.
+            {`Version ${target} is published again as a new version, and your draft is reset to it. ${t.Learners} keep their progress, matched by lesson id.`}
           </p>
           <Callout tone="warning" title="Unpublished edits are replaced">
             <p>Anything in your draft that is not in version {target} will be lost.</p>

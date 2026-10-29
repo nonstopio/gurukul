@@ -4,7 +4,7 @@ export default {
   date: '2026-10-29',
   id: 'ASSIGN-PARTIAL-FAILURES',
   title: 'Assigning tells you exactly what did not go through, and previews each course',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'fix',
   why:
     'One failed write used to look like the whole assignment failed, so you could not tell who had ' +

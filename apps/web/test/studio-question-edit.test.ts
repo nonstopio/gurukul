@@ -6,7 +6,7 @@ import {
   addQuestion,
   bankEntry,
   changeKind,
-  findPariksha,
+  findQuiz,
   importFromBank,
   firstTryPercent,
   isLowFirstTry,
@@ -23,7 +23,7 @@ import {
   setAnswerText,
   syncKey,
   toggleCorrect,
-  updatePariksha,
+  updateQuiz,
   updateQuestion,
 } from '../src/studio/questionEdit';
 import type { Keyed } from '../src/studio/questionEdit';
@@ -266,17 +266,17 @@ describe('settings values', () => {
 describe('edits on the working copy', () => {
   const work = (): Working => {
     const course = makeCourse();
-    const p = findPariksha(course, 'q1');
+    const p = findQuiz(course, 'q1');
     if (!p) throw new Error('fixture');
     p.questions = [q({ id: 'k1' }), q({ id: 'k2' }), q({ id: 'k3' })];
     p.questionsShown = 3;
     return { course, answers: { q1: { k1: ['o1'], k2: ['o2'], k3: ['o3'] } } };
   };
-  const ids = (w: Working) => findPariksha(w.course, 'q1')?.questions.map((x) => x.id);
+  const ids = (w: Working) => findQuiz(w.course, 'q1')?.questions.map((x) => x.id);
 
-  it('finds a Pariksha by id and not a lesson', () => {
-    expect(findPariksha(makeCourse(), 'q1')?.title).toBe('Pariksha I');
-    expect(findPariksha(makeCourse(), 'l1')).toBeNull();
+  it('finds a Quiz by id and not a lesson', () => {
+    expect(findQuiz(makeCourse(), 'q1')?.title).toBe('Quiz I');
+    expect(findQuiz(makeCourse(), 'l1')).toBeNull();
   });
 
   it('updates a question and its key together, without mutating', () => {
@@ -285,9 +285,9 @@ describe('edits on the working copy', () => {
       question: { ...k.question, prompt: 'New' },
       key: ['o3'],
     }));
-    expect(findPariksha(out.course, 'q1')?.questions[1]?.prompt).toBe('New');
+    expect(findQuiz(out.course, 'q1')?.questions[1]?.prompt).toBe('New');
     expect(out.answers.q1).toEqual({ k1: ['o1'], k2: ['o3'], k3: ['o3'] });
-    expect(findPariksha(w.course, 'q1')?.questions[1]?.prompt).toBe('Which?');
+    expect(findQuiz(w.course, 'q1')?.questions[1]?.prompt).toBe('Which?');
     expect(w.answers.q1?.k2).toEqual(['o2']);
   });
 
@@ -301,7 +301,7 @@ describe('edits on the working copy', () => {
     expect(out.answers).toEqual({ q1: { k1: ['o2'] } });
   });
 
-  it('changes nothing for an unknown Pariksha or question', () => {
+  it('changes nothing for an unknown Quiz or question', () => {
     const w = work();
     expect(updateQuestion(w, 'nope', 'k1', (k) => k)).toBe(w);
     expect(updateQuestion(w, 'q1', 'nope', (k) => k)).toBe(w);
@@ -318,20 +318,20 @@ describe('edits on the working copy', () => {
     const out = removeQuestion(work(), 'q1', 'k2');
     expect(ids(out)).toEqual(['k1', 'k3']);
     expect(out.answers.q1).toEqual({ k1: ['o1'], k3: ['o3'] });
-    expect(findPariksha(out.course, 'q1')?.questionsShown).toBe(2);
+    expect(findQuiz(out.course, 'q1')?.questionsShown).toBe(2);
   });
 
   it('keeps questions shown when it still fits, and at least one when none remain', () => {
     const w = work();
-    updatePariksha(w, 'q1', (p) => ({ ...p, questionsShown: 1 }));
-    const few = updatePariksha(w, 'q1', (p) => ({ ...p, questionsShown: 1 }));
-    expect(findPariksha(removeQuestion(few, 'q1', 'k1').course, 'q1')?.questionsShown).toBe(1);
+    updateQuiz(w, 'q1', (p) => ({ ...p, questionsShown: 1 }));
+    const few = updateQuiz(w, 'q1', (p) => ({ ...p, questionsShown: 1 }));
+    expect(findQuiz(removeQuestion(few, 'q1', 'k1').course, 'q1')?.questionsShown).toBe(1);
     let none = w;
     for (const id of ['k1', 'k2', 'k3']) none = removeQuestion(none, 'q1', id);
-    expect(findPariksha(none.course, 'q1')?.questionsShown).toBe(1);
+    expect(findQuiz(none.course, 'q1')?.questionsShown).toBe(1);
   });
 
-  it('removes a key even when the Pariksha had none stored', () => {
+  it('removes a key even when the Quiz had none stored', () => {
     const w = work();
     w.answers = {};
     expect(removeQuestion(w, 'q1', 'k1').answers).toEqual({ q1: {} });
@@ -343,8 +343,8 @@ describe('edits on the working copy', () => {
     expect(out.answers.q1?.k1).toEqual(['o1']);
   });
 
-  it('updates the Pariksha settings', () => {
-    const out = updatePariksha(work(), 'q1', (p) => ({ ...p, title: 'Final' }));
-    expect(findPariksha(out.course, 'q1')?.title).toBe('Final');
+  it('updates the Quiz settings', () => {
+    const out = updateQuiz(work(), 'q1', (p) => ({ ...p, title: 'Final' }));
+    expect(findQuiz(out.course, 'q1')?.title).toBe('Final');
   });
 });

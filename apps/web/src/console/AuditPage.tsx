@@ -2,17 +2,19 @@ import { Button, DataTable, EmptyState } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
-import { longDate } from '../pariksha/model';
+import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
 import { auditDetail, auditLabel } from './model';
 import type { AuditCursor, AuditRow } from './types';
 
 const PAGE_SIZE = 50;
 
-/** `/kulapati/audit`: Kulapati and Acharya actions, newest first, read-only. Entries come from functions. */
+/** `/admin/audit`: Admin and Educator actions, newest first, read-only. Entries come from functions. */
 export function AuditPage() {
   const { data } = useConsole();
+  const t = useTerms();
   const first = useAsync(useCallback(() => data.auditPage(null, PAGE_SIZE), [data]));
   const [later, setLater] = useState<{ rows: AuditRow[]; cursor: AuditCursor | null } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ export function AuditPage() {
 
   return (
     <main className="page console">
-      <p className="article__kicker">Kulapati</p>
+      <p className="article__kicker">{t.Admin}</p>
       <h1 className="page__title">Audit log</h1>
       <p>Every recorded action, newest first. Nothing here can be edited.</p>
       <Loaded loadable={first}>
@@ -57,12 +59,12 @@ export function AuditPage() {
                 columns={[
                   { id: 'when', header: 'When', cell: (r) => (r.at ? longDate(r.at) : '—') },
                   { id: 'who', header: 'Who', cell: (r) => r.by },
-                  { id: 'what', header: 'Action', cell: (r) => auditLabel(r.action) },
+                  { id: 'what', header: 'Action', cell: (r) => auditLabel(r.action, t) },
                   { id: 'target', header: 'Target', cell: (r) => r.target ?? '—' },
                   {
                     id: 'detail',
                     header: 'Detail',
-                    cell: (r) => auditDetail(r.action, r.detail) ?? '—',
+                    cell: (r) => auditDetail(r.action, r.detail, t) ?? '—',
                   },
                 ]}
               />

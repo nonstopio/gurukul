@@ -15,7 +15,7 @@ const dest = (id: string, label: string, over: Partial<Destination> = {}): Desti
 const catalog = [
   dest('home', 'Home', { keywords: ['start'] }),
   dest('changelog', 'Changelog', { keywords: ['release notes'], description: 'Every change' }),
-  dest('learners', 'Learners', { areaName: 'Kulapati console' }),
+  dest('learners', 'Learners', { areaName: 'Admin console' }),
   dest('blog', 'Dialog box', { areaName: 'Studio', keywords: ['notebook'] }),
 ];
 const ids = (q: string) => searchDestinations(indexDestinations(catalog), q).map((d) => d.id);
@@ -41,7 +41,7 @@ describe('searchDestinations', () => {
   });
 
   it('matches every term along the area and label path', () => {
-    expect(ids('kulapati learn')).toEqual(['learners']);
+    expect(ids('admin learn')).toEqual(['learners']);
     expect(ids('gurukul home')).toEqual(['home']);
   });
 

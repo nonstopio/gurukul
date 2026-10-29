@@ -4,7 +4,7 @@ export default {
   date: '2026-10-29',
   id: 'LEARNERS-COUNTS-ALL-INVITES',
   title: 'Learners counts every pending invite and every overdue learner',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'fix',
   why:
     'The Pending invite and Overdue tabs only looked at the newest 500 assignments, so someone ' +

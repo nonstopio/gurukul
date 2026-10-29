@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { NeedsAttention } from './NeedsAttention';
@@ -21,9 +22,10 @@ function downloadCsv(name: string, text: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Sanjaya: the numbers a Kulapati checks first. Every figure comes from a counter document. */
+/** Analytics: the numbers an Admin checks first. Every figure comes from a counter document. */
 export function OverviewPage() {
   const { data } = useConsole();
+  const t = useTerms();
   const learner = useLearnerData();
   const [now] = useState(() => new Date());
   const [range, setRange] = useState<DateRange>('all');
@@ -53,10 +55,10 @@ export function OverviewPage() {
       failed,
       people,
       courseTitles: new Map(courses.map((c) => [c.id, c.title])),
-      parikshaTitles: new Map(
+      quizTitles: new Map(
         courses.flatMap((c) =>
           itemsOf(c)
-            .filter((i) => i.type === 'pariksha')
+            .filter((i) => i.type === 'quiz')
             .map((i) => [`${c.id}/${i.id}`, (i as { title: string }).title] as const),
         ),
       ),
@@ -68,19 +70,19 @@ export function OverviewPage() {
 
   return (
     <main className="page console">
-      <p className="article__kicker">Kulapati · Sanjaya</p>
+      <p className="article__kicker">{`${t.Admin} · ${t.Analytics}`}</p>
       <h1 className="page__title">Overview</h1>
       <div className="cert-actions">
-        <Link className={buttonClass('primary')} to="/kulapati/assign">
+        <Link className={buttonClass('primary')} to="/admin/assign">
           Assign courses
         </Link>
-        <Link className={buttonClass('secondary')} to="/kulapati/learners">
-          Learners
+        <Link className={buttonClass('secondary')} to="/admin/learners">
+          {t.Learners}
         </Link>
-        <Link className={buttonClass('secondary')} to="/kulapati/roles">
+        <Link className={buttonClass('secondary')} to="/admin/roles">
           Roles & access
         </Link>
-        <Link className={buttonClass('secondary')} to="/kulapati/audit">
+        <Link className={buttonClass('secondary')} to="/admin/audit">
           Audit log
         </Link>
       </div>
@@ -91,15 +93,17 @@ export function OverviewPage() {
           const quiet = series.every((s) => s.value === 0);
           const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
           const done = pct(org.assignmentsCompleted, org.assignmentsTotal);
-          const avgScore = pct(org.parikshaScoreSum, org.parikshaScoreCount);
-          const firstTry = pct(org.parikshaFirstTryPassed, org.parikshaFirstTryTotal);
+          const avgScore = pct(org.quizScoreSum, org.quizScoreCount);
+          const firstTry = pct(org.quizFirstTryPassed, org.quizFirstTryTotal);
           return (
             <>
               <div className="stats">
                 <StatCard
-                  label="Active learners (30 days)"
+                  label={`Active ${t.learners} (30 days)`}
                   value={org.usersTotal > 0 ? String(org.activeLearners30d) : '—'}
-                  sub={org.usersTotal > 0 ? `of ${org.usersTotal} signed in` : 'No learners yet'}
+                  sub={
+                    org.usersTotal > 0 ? `of ${org.usersTotal} signed in` : `No ${t.learners} yet`
+                  }
                 />
                 <StatCard
                   label="Assignments completed"
@@ -107,18 +111,18 @@ export function OverviewPage() {
                   sub={`${org.assignmentsCompleted} of ${org.assignmentsTotal}`}
                 />
                 <StatCard
-                  label="Average Pariksha score"
+                  label={`Average ${t.Quiz} score`}
                   value={avgScore === null ? '—' : `${avgScore}%`}
                   sub={
-                    org.parikshaScoreCount > 0
-                      ? `Over ${org.parikshaScoreCount} graded attempts`
+                    org.quizScoreCount > 0
+                      ? `Over ${org.quizScoreCount} graded attempts`
                       : 'No attempts yet'
                   }
                 />
                 <StatCard
                   label="First-try pass rate"
                   value={firstTry === null ? '—' : `${firstTry}%`}
-                  sub={`${org.parikshaFirstTryPassed} of ${org.parikshaFirstTryTotal} first attempts`}
+                  sub={`${org.quizFirstTryPassed} of ${org.quizFirstTryTotal} first attempts`}
                 />
                 <StatCard
                   label="Overdue assignments"
@@ -146,9 +150,9 @@ export function OverviewPage() {
                 </Select>
                 <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
                   <option value="">All teams</option>
-                  {teams.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {teams.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
                     </option>
                   ))}
                 </Select>
@@ -212,7 +216,7 @@ export function OverviewPage() {
                         return (
                           <tr key={course.id}>
                             <th scope="row">
-                              <Link to={`/kulapati/courses/${course.id}`}>{course.title}</Link>
+                              <Link to={`/admin/courses/${course.id}`}>{course.title}</Link>
                               <span className="items__kind">{itemsOf(course).length} items</span>
                             </th>
                             <td>{stats.assigned}</td>

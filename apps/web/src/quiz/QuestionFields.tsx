@@ -5,8 +5,8 @@ import { Prose } from '../player/blocks';
 import { letterOf } from './model';
 
 /**
- * One question as a learner answers it: prompt, code, lettered options. The learner's Pariksha and
- * Vyasa Studio's preview both render it, so the preview cannot drift from the real screen.
+ * One question as a learner answers it: prompt, code, lettered options. The learner's Quiz and
+ * Studio's preview both render it, so the preview cannot drift from the real screen.
  */
 export function QuestionFields({
   question,

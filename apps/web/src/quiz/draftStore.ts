@@ -1,17 +1,17 @@
 import { log } from '../log';
 import { isDraft } from './model';
-import type { ParikshaDraft } from './model';
+import type { QuizDraft } from './model';
 
 /**
- * A Pariksha in progress lives in this browser's localStorage, one key per learner and Pariksha,
+ * A Quiz in progress lives in this browser's localStorage, one key per learner and Quiz,
  * so a reload or a closed tab carries on where it stopped. Storage can be full or switched off
- * (private windows); then the Pariksha still works, it just starts over after a reload.
+ * (private windows); then the Quiz still works, it just starts over after a reload.
  */
-export function draftKey(uid: string, courseId: string, parikshaId: string): string {
-  return `gurukul:pariksha:${uid}:${courseId}:${parikshaId}`;
+export function draftKey(uid: string, courseId: string, quizId: string): string {
+  return `gurukul:quiz:${uid}:${courseId}:${quizId}`;
 }
 
-export function readDraft(key: string): ParikshaDraft | null {
+export function readDraft(key: string): QuizDraft | null {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
     return isDraft(value) ? value : null;
@@ -20,11 +20,11 @@ export function readDraft(key: string): ParikshaDraft | null {
   }
 }
 
-export function writeDraft(key: string, draft: ParikshaDraft): void {
+export function writeDraft(key: string, draft: QuizDraft): void {
   try {
     localStorage.setItem(key, JSON.stringify(draft));
   } catch (e) {
-    log.warn('Saving Pariksha answers failed', { reason: e instanceof Error ? e.name : 'unknown' });
+    log.warn('Saving Quiz answers failed', { reason: e instanceof Error ? e.name : 'unknown' });
   }
 }
 

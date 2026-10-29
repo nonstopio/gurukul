@@ -38,17 +38,17 @@ const asha = {
   uid: 'asha',
   email: 'asha@nonstopio.com',
   name: 'Asha Rao',
-  claims: { acharya: true },
+  claims: { educator: true },
 };
-const rohan = { uid: 'rohan', email: 'rohan@nonstopio.com', claims: { acharya: true } };
-const ajay = { uid: 'ajay', email: 'ajay@nonstopio.com', claims: { kulapati: true } };
+const rohan = { uid: 'rohan', email: 'rohan@nonstopio.com', claims: { educator: true } };
+const ajay = { uid: 'ajay', email: 'ajay@nonstopio.com', claims: { admin: true } };
 const priya = { uid: 'priya', email: 'priya@nonstopio.com', claims: {} };
 
 const validCourse = (over: object = {}) =>
-  course({}, { summary: 'Learn git', acharyaIds: ['asha'], ...over }) as unknown as Course;
+  course({}, { summary: 'Learn git', educatorIds: ['asha'], ...over }) as unknown as Course;
 const draftOf = (over: Partial<DraftData> = {}): DraftData => ({
   rev: 4,
-  course: validCourse({ title: 'Draft title', acharyaIds: ['intruder'] }),
+  course: validCourse({ title: 'Draft title', educatorIds: ['intruder'] }),
   answers: answerKey,
   ...over,
 });
@@ -62,7 +62,7 @@ interface Fake {
 }
 function fake(state: Partial<ReleaseState> & { drafts?: boolean; taken?: boolean } = {}): Fake {
   const live: LiveCourse | undefined =
-    'live' in state ? state.live : { version: 2, status: 'published', acharyaIds: ['asha'] };
+    'live' in state ? state.live : { version: 2, status: 'published', educatorIds: ['asha'] };
   const draft = 'draft' in state ? state.draft : draftOf();
   const out: Fake = {
     created: [],
@@ -106,12 +106,12 @@ describe('createCourse', () => {
         id: 'git-basics',
         status: 'draft',
         version: 0,
-        acharyaIds: ['asha'],
-        acharyaNames: { asha: 'Asha Rao' },
+        educatorIds: ['asha'],
+        educatorNames: { asha: 'Asha Rao' },
       },
       draft: {
         answers: {},
-        course: { title: 'Git basics', acharyaIds: ['asha'], acharyaNames: { asha: 'Asha Rao' } },
+        course: { title: 'Git basics', educatorIds: ['asha'], educatorNames: { asha: 'Asha Rao' } },
       },
     });
     expect(f.audits).toEqual([
@@ -122,14 +122,14 @@ describe('createCourse', () => {
   it.each([
     ['a blank Google name', { ...asha, name: '  ' }, { asha: 'asha' }],
     ['no Google name', { ...asha, name: undefined }, { asha: 'asha' }],
-    ['no name or email', { uid: 'asha', claims: { acharya: true } }, {}],
+    ['no name or email', { uid: 'asha', claims: { educator: true } }, {}],
   ])('names the creator by the email local part, or not at all: %s', async (_, caller, names) => {
     const f = fake();
     await createCourse(f.store, caller, request);
-    expect((f.created[0] as { course: Course }).course.acharyaNames).toEqual(names);
+    expect((f.created[0] as { course: Course }).course.educatorNames).toEqual(names);
   });
 
-  it('lets a Kulapati create too, and treats a null duplicateFrom as none', async () => {
+  it('lets an Admin create too, and treats a null duplicateFrom as none', async () => {
     const f = fake();
     await createCourse(f.store, ajay, { ...request, duplicateFrom: null });
     expect(f.store.getLive).not.toHaveBeenCalled();
@@ -177,14 +177,14 @@ describe('createCourse', () => {
     expect(draft.course).toMatchObject({
       id: 'git-basics',
       title: 'Git basics',
-      acharyaIds: ['asha'],
-      acharyaNames: { asha: 'Asha Rao' },
+      educatorIds: ['asha'],
+      educatorNames: { asha: 'Asha Rao' },
       status: 'draft',
       version: 0,
       publishedAt: null,
       summary: 'kept',
     });
-    expect(live.parvas).toEqual([]);
+    expect(live.chapters).toEqual([]);
     expect(f.audits).toEqual([
       {
         action: 'course.create',
@@ -195,7 +195,7 @@ describe('createCourse', () => {
     ]);
   });
 
-  it('lets a Kulapati copy any course but not an Acharya of another one', async () => {
+  it('lets an Admin copy any course but not an Educator of another one', async () => {
     await expect(
       createCourse(fake().store, ajay, { ...request, duplicateFrom: 'old' }),
     ).resolves.toBeDefined();
@@ -217,23 +217,23 @@ describe('createCourse', () => {
 });
 
 describe('restrictAnswers', () => {
-  it('drops keys of questions and Parikshas that no longer exist', () => {
+  it('drops keys of questions and Quizzes that no longer exist', () => {
     const answers: AnswerKeys = { pk: { ...answerKey.pk, gone: ['a'] }, ghost: { q: ['a'] } };
     expect(restrictAnswers(validCourse(), answers)).toEqual(answerKey);
   });
   it('ignores lessons', () => {
     const lesson = { type: 'lesson', id: 'l1', title: 'L', minutes: 5, blocks: [] };
     const base = validCourse();
-    const withLesson = { ...base, parvas: [{ id: 'p', title: 'P', items: [lesson] }] } as never;
+    const withLesson = { ...base, chapters: [{ id: 'p', title: 'P', items: [lesson] }] } as never;
     expect(restrictAnswers(withLesson, answerKey)).toEqual({});
   });
-  it('keeps a Pariksha with no answers as an empty entry', () => {
+  it('keeps a Quiz with no answers as an empty entry', () => {
     expect(restrictAnswers(validCourse(), {})).toEqual({ pk: {} });
   });
 });
 
 describe('publishCourse', () => {
-  it('publishes the draft as the next version, with the live Acharyas and restricted answers', async () => {
+  it('publishes the draft as the next version, with the live Educators and restricted answers', async () => {
     const f = fake({ draft: draftOf({ answers: { pk: { ...answerKey.pk, stale: ['a'] } } }) });
     const data = await publishCourse(f.store, asha, { courseId: 'git-basics' });
     expect(envelope.parse(apiOk(data)).data).toEqual({ version: 3 });
@@ -244,8 +244,8 @@ describe('publishCourse', () => {
       title: 'Draft title',
       status: 'published',
       version: 3,
-      acharyaIds: ['asha'],
-      acharyaNames: {},
+      educatorIds: ['asha'],
+      educatorNames: {},
       estimatedMinutes: 0,
     });
     expect(plan.answers).toEqual(answerKey);
@@ -263,7 +263,7 @@ describe('publishCourse', () => {
     expect(f.plans[0]?.plan.course.title).toBe('Upgraded title');
   });
 
-  it('lets a Kulapati publish any course', async () => {
+  it('lets an Admin publish any course', async () => {
     await expect(publishCourse(fake().store, ajay, { courseId: 'c' })).resolves.toEqual({
       version: 3,
     });
@@ -302,7 +302,7 @@ describe('publishCourse', () => {
 
 describe('rollbackCourse', () => {
   const snapshot: VersionData = {
-    course: validCourse({ title: 'Old title', version: 1, acharyaIds: ['gone'] }),
+    course: validCourse({ title: 'Old title', version: 1, educatorIds: ['gone'] }),
     answers: answerKey,
   };
 
@@ -312,8 +312,8 @@ describe('rollbackCourse', () => {
       live: {
         version: 2,
         status: 'published',
-        acharyaIds: ['asha'],
-        acharyaNames: { asha: 'Asha Rao' },
+        educatorIds: ['asha'],
+        educatorNames: { asha: 'Asha Rao' },
       },
     });
     const data = await rollbackCourse(f.store, asha, { courseId: 'git-basics', version: 1 });
@@ -323,8 +323,8 @@ describe('rollbackCourse', () => {
       title: 'Old title',
       status: 'published',
       version: 3,
-      acharyaIds: ['asha'],
-      acharyaNames: { asha: 'Asha Rao' },
+      educatorIds: ['asha'],
+      educatorNames: { asha: 'Asha Rao' },
     });
     expect(plan.answers).toEqual(answerKey);
     expect(plan.resetDraft).toEqual({ rev: 5, course: snapshot.course, answers: answerKey });
@@ -402,7 +402,7 @@ describe('archiveCourse', () => {
     ]);
   });
 
-  it('refuses an Acharya', async () => {
+  it('refuses an Educator', async () => {
     const f = fake();
     await expect(
       archiveCourse(f.store, asha, { courseId: 'c', archived: true }),
@@ -416,7 +416,7 @@ describe('archiveCourse', () => {
     await expect(
       archiveCourse(fake({ live: undefined }).store, ajay, { courseId: 'c', archived: true }),
     ).rejects.toMatchObject({ code: 'CRS_2001' });
-    const never = fake({ live: { version: 0, status: 'draft', acharyaIds: [] } });
+    const never = fake({ live: { version: 0, status: 'draft', educatorIds: [] } });
     const e = (await archiveCourse(never.store, ajay, { courseId: 'c', archived: false }).catch(
       (x: unknown) => x,
     )) as ApiException;

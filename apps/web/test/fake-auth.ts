@@ -10,7 +10,7 @@ export const NONSTOP: AuthUser = {
 };
 
 /** A controllable AuthService: tests push users and profiles in and read the calls out. */
-export function fakeAuth(claims: { acharya?: boolean; kulapati?: boolean } = {}) {
+export function fakeAuth(claims: { educator?: boolean; admin?: boolean } = {}) {
   let userCb: (u: AuthUser | null) => void = () => {};
   let profileCb: (p: ProfileMirror | null) => void = () => {};
   const service: AuthService = {
@@ -30,6 +30,7 @@ export function fakeAuth(claims: { acharya?: boolean; kulapati?: boolean } = {})
   return {
     service,
     emitUser: (u: AuthUser | null) => userCb(u),
-    emitProfile: (p: ProfileMirror | null) => profileCb(p),
+    /** A profile without `labels` gets `generic`; pass `labels: undefined` for "not picked yet". */
+    emitProfile: (p: ProfileMirror | null) => profileCb(p && { labels: 'generic', ...p }),
   };
 }

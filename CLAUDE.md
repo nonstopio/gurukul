@@ -1,17 +1,18 @@
 # Working on Gurukul
 
 Gurukul is NonStop io's open-source learning platform (NonStop Academy):
-Google sign-in, courses made of parvas and lessons, Pariksha checkpoints,
-certificates, a Kulapati (admin) console and Vyasa Studio for Acharyas
-(educators). This is the contributor contract for agents working in this
-repository. Read the nearest nested `CLAUDE.md` before editing `apps/`,
-`packages/` or `firebase/`.
+Google sign-in, courses made of chapters and lessons, Quiz checkpoints,
+certificates, an Admin console and a Studio for Educators. People pick
+Gurukul names (Shishya, Kulapati, Pariksha) or plain English for what they
+read; code always uses the plain names (`apps/web/src/labels/`). This is
+the contributor contract for agents working in this repository. Read the
+nearest nested `CLAUDE.md` before editing `apps/`, `packages/` or `firebase/`.
 
 ## Repository map
 
 | Path                                                 | Responsibility                                                                                                                                                                                                                                                                                                                               |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web/`                                          | The React + Vite app: learner, Kulapati console, Vyasa Studio. Deployed to Firebase Hosting                                                                                                                                                                                                                                                  |
+| `apps/web/`                                          | The React + Vite app: learner, Admin console, Studio. Deployed to Firebase Hosting                                                                                                                                                                                                                                                           |
 | `apps/web/src/changelog/`                            | The changelog: one file per entry, releases derived from git tags. Rendered at `/changelog`                                                                                                                                                                                                                                                  |
 | `apps/web/src/navigation/`                           | Global search (⌘K / Ctrl-K): per-area metadata, record sources, matcher, validator                                                                                                                                                                                                                                                           |
 | `packages/ui/`                                       | Design system: `tokens.css`, `Button`, `CommandPalette`                                                                                                                                                                                                                                                                                      |
@@ -43,7 +44,7 @@ other task, take the next item with the `pick-up-next` skill.
 
 **One file in `apps/web/src/changelog/entries/`, in the same commit as the change.**
 `npm run changelog:new -- "a few words"` names it (`YYYY-MM-DD-HHMMSS-slug.ts`, India time). One
-per change a learner, Acharya or Kulapati would notice, not one per commit; none for tooling,
+per change a learner, Educator or Admin would notice, not one per commit; none for tooling,
 tests or refactors nobody can see. Write the **why**, not the title again. Never write a version:
 releases come from the `release-*` tag each production deploy pushes. Skill:
 `writing-changelog-entries`.
@@ -108,7 +109,7 @@ one; if a hook cannot run, say so. Check they are on with `git config core.hooks
 - One course, one document. The learner player is a generic renderer over the
   course object; nothing in the player is course-specific. See `.claude/rules/course-object.md`.
 - Security rules are the access gate; the UI only reflects them. Roles are
-  custom claims (`acharya`, `kulapati`); everyone signed in is a Shishya.
+  custom claims (`educator`, `admin`); everyone signed in is a Learner.
 - Only `@nonstopio.com` Google accounts sign in. Assignments are keyed by email
   so people can be assigned before their first sign-in.
 - Quiz answer keys never reach the browser; grading runs in a Cloud Function.

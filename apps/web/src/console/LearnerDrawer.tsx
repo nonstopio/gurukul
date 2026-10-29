@@ -6,7 +6,7 @@ import type { CertificateRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { log } from '../log';
-import { longDate } from '../pariksha/model';
+import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
 import { drawerCourses } from './model';
 import type { DrawerCourse, LearnerRow } from './model';
@@ -31,7 +31,7 @@ function CourseStatus({ c }: { c: DrawerCourse }) {
 
 /**
  * The learner drawer: every course assigned to this person (started or not, with its due date)
- * and every course they opened, each attempted Pariksha by title with its recent attempts, and
+ * and every course they opened, each attempted Quiz by title with its recent attempts, and
  * their certificates. A pending invite shows its assignments. Revoking a certificate asks first.
  */
 export function LearnerDrawer({
@@ -61,7 +61,7 @@ export function LearnerDrawer({
       const attempts = new Map<string, AttemptSummary[]>();
       await Promise.all(
         list.flatMap((c) =>
-          c.parikshas.map(async (p) => {
+          c.quizzes.map(async (p) => {
             attempts.set(
               `${c.courseId}/${p.id}`,
               await data.attemptsFor(uid as string, c.courseId, p.id),
@@ -107,7 +107,7 @@ export function LearnerDrawer({
                     {c.percent === null ? null : (
                       <ProgressBar value={c.percent} label={`${c.title} progress`} />
                     )}
-                    {c.parikshas.map((p) => (
+                    {c.quizzes.map((p) => (
                       <section key={p.id} aria-label={`${p.title} attempts`}>
                         <p>
                           <strong>{p.title}</strong> · {p.attempts}{' '}
@@ -130,7 +130,7 @@ export function LearnerDrawer({
                                 service.resetCooldown({
                                   uid: row.uid as string,
                                   courseId: c.courseId,
-                                  parikshaId: p.id,
+                                  quizId: p.id,
                                 }),
                               'Retake opened',
                               'resetCooldown',

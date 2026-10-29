@@ -7,7 +7,7 @@ export default {
   area: 'STUDIO',
   kind: 'feature',
   why:
-    'Acharyas had to leave the editor to check a video link, reached for the mouse to add every ' +
+    'Educators had to leave the editor to check a video link, reached for the mouse to add every ' +
     'block, and could only see that a question was hard, not how hard.',
   detail: [
     'A video block shows a 16:9 preview as soon as its link is recognised.',

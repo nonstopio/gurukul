@@ -1,4 +1,4 @@
-import type { Course, Pariksha, Question } from '@gurukul/schema';
+import type { Course, Quiz, Question } from '@gurukul/schema';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { BankQuestion, Working } from '../src/studio/types';
@@ -24,11 +24,11 @@ const question = (id: string, over: Partial<Question> = {}): Question => ({
 const answers = () => ({ q1: { k1: ['k1a'], k2: ['k2b'], k3: ['k3c'] } });
 function courseWith(questions = [question('k1'), question('k2'), question('k3')]): Course {
   const course = makeCourse();
-  const p = course.parvas[1]?.items[1];
-  if (p?.type === 'pariksha') Object.assign(p, { questions, questionsShown: 2 });
+  const p = course.chapters[1]?.items[1];
+  if (p?.type === 'quiz') Object.assign(p, { questions, questionsShown: 2 });
   return course;
 }
-const PATH = '/studio/courses/git/pariksha/q1';
+const PATH = '/studio/courses/git/quiz/q1';
 async function open(
   opts: {
     course?: Course;
@@ -46,7 +46,7 @@ async function open(
       bank: opts.bank ?? [],
     });
   const view = await openApp(opts.path ?? PATH, {
-    roles: ['acharya'],
+    roles: ['educator'],
     studio,
     ...(opts.console ? { console: opts.console } : {}),
   });
@@ -55,7 +55,7 @@ async function open(
 }
 const saved = (studio: ReturnType<typeof fakeStudio>) => {
   const work = vi.mocked(studio.data.saveDraft).mock.lastCall?.[1] as Working;
-  const p = work.course.parvas.flatMap((x) => x.items).find((i) => i.id === 'q1') as Pariksha;
+  const p = work.course.chapters.flatMap((x) => x.items).find((i) => i.id === 'q1') as Quiz;
   return { work, p, keys: work.answers.q1 };
 };
 const saveNow = async () => {
@@ -77,7 +77,7 @@ const bankQuestion = (over: Partial<BankQuestion> = {}): BankQuestion => ({
   ...over,
 });
 
-describe('Pariksha builder: layout', () => {
+describe('Quiz builder: layout', () => {
   it('lists the questions with the first one open, and shows the settings', async () => {
     await open();
     expect(screen.getByRole('heading', { name: '3 questions' })).toBeTruthy();
@@ -136,12 +136,10 @@ describe('Pariksha builder: layout', () => {
   });
 });
 
-describe('Pariksha builder: states', () => {
-  it('says so when the Pariksha does not exist', async () => {
-    await open({ path: '/studio/courses/git/pariksha/nope' });
-    expect(
-      await screen.findByRole('heading', { name: 'This Pariksha does not exist' }),
-    ).toBeTruthy();
+describe('Quiz builder: states', () => {
+  it('says so when the Quiz does not exist', async () => {
+    await open({ path: '/studio/courses/git/quiz/nope' });
+    expect(await screen.findByRole('heading', { name: 'This Quiz does not exist' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to the course' })).toBeTruthy();
   });
 
@@ -166,7 +164,7 @@ describe('Pariksha builder: states', () => {
   });
 });
 
-describe('Pariksha builder: editing a question', () => {
+describe('Quiz builder: editing a question', () => {
   it('edits the prompt, code, explanation and revisit link', async () => {
     const { studio } = await open();
     change('Question (Markdown)', 'What is HEAD?');
@@ -294,7 +292,7 @@ describe('Pariksha builder: editing a question', () => {
   });
 });
 
-describe('Pariksha builder: a draft without answer keys', () => {
+describe('Quiz builder: a draft without answer keys', () => {
   it('shows nothing marked correct and asks for it', async () => {
     await open({ answers: {} });
     expect((screen.getByLabelText('Answer 1 is correct') as HTMLInputElement).checked).toBe(false);
@@ -311,7 +309,7 @@ describe('Pariksha builder: a draft without answer keys', () => {
   });
 });
 
-describe('Pariksha builder: the question list', () => {
+describe('Quiz builder: the question list', () => {
   it('adds a question and opens it', async () => {
     const { studio } = await open();
     fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
@@ -386,16 +384,16 @@ describe('Pariksha builder: the question list', () => {
   });
 });
 
-describe('Pariksha builder: settings', () => {
+describe('Quiz builder: settings', () => {
   it('changes the title, pass mark, questions shown, cooldown, toggles and reveal rule', async () => {
     const { studio } = await open();
-    change('Pariksha title', 'Final check');
+    change('Quiz title', 'Final check');
     change('Pass mark (%)', '80');
     change('Questions shown', '3');
     change('Cooldown between attempts (minutes)', '30');
     fireEvent.click(screen.getByRole('switch', { name: 'Shuffle answer order' }));
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Learners must pass to open the next parva' }),
+      screen.getByRole('switch', { name: 'Learners must pass to open the next chapter' }),
     );
     change('Reveal answers', 'never');
     await saveNow();
@@ -426,7 +424,7 @@ describe('Pariksha builder: settings', () => {
   });
 });
 
-describe('Pariksha builder: question bank', () => {
+describe('Quiz builder: question bank', () => {
   it('saves the question and its key to the bank, with tags, without the revisit link', async () => {
     const { studio } = await open();
     change('Tags for the question bank', 'Git, basics, git');
@@ -465,7 +463,7 @@ describe('Pariksha builder: question bank', () => {
     const items = within(dialog).getAllByRole('listitem');
     expect(items).toHaveLength(1);
     fireEvent.click(
-      within(items[0] as HTMLElement).getByRole('button', { name: 'Add to this Pariksha' }),
+      within(items[0] as HTMLElement).getByRole('button', { name: 'Add to this Quiz' }),
     );
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('heading', { name: '4 questions' })).toBeTruthy();

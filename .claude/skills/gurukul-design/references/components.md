@@ -67,7 +67,7 @@ in the middle (hidden from assistive tech, the role already says it).
 ## Card — shipped
 
 `<Card as="div|section|article|li" highlighted?>`. `--surface`, 1px `--border`, `--radius-xl`,
-`--space-5` padding, no shadow. `highlighted` (the current parva) swaps to `--accent-soft` ground,
+`--space-5` padding, no shadow. `highlighted` (the current chapter) swaps to `--accent-soft` ground,
 `--accent-line` border and `--accent-soft-text`. Give a `section` an `aria-label` so it is a landmark.
 
 ## Sidebar, SidebarGroup and NavItem — shipped
@@ -96,7 +96,7 @@ Router use: `render` receives the anchor props (`className`, `aria-current`, `ch
 
 ## TopBar (focused mode) — shipped
 
-`<TopBar title titleAs? back? status? actions? />`. Used by the lesson player, Pariksha, result and
+`<TopBar title titleAs? back? status? actions? />`. Used by the lesson player, Quiz, result and
 editors: a `<header>` on `--chrome`, wrapping flex row. `title` is the page `h1`, Fraunces `--text-lg`
 `--chrome-text-strong`; `titleAs="p"` when the page below carries its own `h1` (one per page). A
 `ProgressBar` in `status` draws 6px on `--chrome-active` with a mint fill and chrome-text caption. `back` is any node; give a link or button `className={topBarBackClass}` for the
@@ -310,7 +310,7 @@ Focus ring is on the card (`:has(:focus-visible)`). Border and ground animate on
 A review row, an `<li>` (put rows in a `<ul>` or a Card). 28px pass (`--success` on `--success-soft`) or fail
 (`--danger` on `--danger-soft`) icon, hidden from assistive tech; the question is prefixed with a visually
 hidden "Correct." or "Incorrect.". "Your answer" is struck through (`<s>`) when wrong; "Correct answer" shows
-only when `correctAnswer` is given (omit it when the Pariksha does not reveal answers); `children` is the
+only when `correctAnswer` is given (omit it when the Quiz does not reveal answers); `children` is the
 explanation slot; `revisit` is a 44px link, with the same `render` escape hatch as NavItem for a router.
 
 ## Breadcrumb — shipped
@@ -377,5 +377,5 @@ border 2px.
 labels, each a 44px swatch (`--cover-forest|sand|sky|stone`) with its name beneath. Checked: `--accent` ring plus
 a check icon, never colour alone. Focus draws the ring on the swatch. The cover roles live in `tokens.css` and `tokens.ts`.
 
-`<TypeTile kind="reading|video|code|pariksha">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
-hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Pariksha `--warning-soft`.
+`<TypeTile kind="reading|video|code|quiz">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
+hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Quiz `--warning-soft`.

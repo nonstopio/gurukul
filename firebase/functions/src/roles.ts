@@ -6,19 +6,19 @@ import { invalid, missing } from './validation.js';
  * users/{uid}.roles. Security rules read the claims; the UI reads the mirror.
  * See .plan/03-auth-and-roles.md.
  */
-export type Role = 'shishya' | 'acharya' | 'kulapati';
+export type Role = 'learner' | 'educator' | 'admin';
 
 /** Claim keys set by the role-grant function. */
 export interface RoleClaims {
-  acharya?: boolean;
-  kulapati?: boolean;
+  educator?: boolean;
+  admin?: boolean;
 }
 
-/** Every signed-in person is a Shishya; the other roles are granted. */
+/** Every signed-in person is a Learner; the other roles are granted. */
 export function rolesFromClaims(claims: RoleClaims | undefined): Role[] {
-  const roles: Role[] = ['shishya'];
-  if (claims?.acharya === true) roles.push('acharya');
-  if (claims?.kulapati === true) roles.push('kulapati');
+  const roles: Role[] = ['learner'];
+  if (claims?.educator === true) roles.push('educator');
+  if (claims?.admin === true) roles.push('admin');
   return roles;
 }
 
@@ -28,11 +28,11 @@ export function isAllowedEmail(email: string | undefined, domain = 'nonstopio.co
   return email.toLowerCase().endsWith(`@${domain}`);
 }
 
-/** What a Kulapati asks `setRoles` to change on one person. Omitted keys stay as they are. */
+/** What an Admin asks `setRoles` to change on one person. Omitted keys stay as they are. */
 export interface RoleChange {
-  acharya?: boolean;
-  kulapati?: boolean;
-  /** The courses this person may edit as an Acharya; replaces the previous list. At most 50. */
+  educator?: boolean;
+  admin?: boolean;
+  /** The courses this person may edit as an Educator; replaces the previous list. At most 50. */
   grantedCourseIds?: string[];
 }
 
@@ -51,8 +51,8 @@ const isCourseIdList = (v: unknown): v is string[] =>
   v.every((id) => typeof id === 'string' && id !== '' && !id.includes('/'));
 
 /**
- * Decides a role change. Only a Kulapati on a NonStop account may grant or revoke, and a Kulapati
- * cannot remove their own Kulapati role, so the platform can never lock itself out. Returns the
+ * Decides a role change. Only an Admin on a NonStop account may grant or revoke, and an Admin
+ * cannot remove their own Admin role, so the platform can never lock itself out. Returns the
  * complete claims to write and the `roles` mirror for `users/{uid}`.
  */
 export function planRoleChange(
@@ -61,10 +61,10 @@ export function planRoleChange(
   current: RoleClaims | undefined,
   change: RoleChange,
 ): RolePlan {
-  if (!isAllowedEmail(caller.email) || caller.claims?.kulapati !== true) {
+  if (!isAllowedEmail(caller.email) || caller.claims?.admin !== true) {
     throw new ApiException('AUTH_2001', ['setRoles']);
   }
-  for (const field of ['acharya', 'kulapati'] as const) {
+  for (const field of ['educator', 'admin'] as const) {
     if (change[field] !== undefined && typeof change[field] !== 'boolean') {
       throw invalid(field, 'must be true or false');
     }
@@ -73,16 +73,16 @@ export function planRoleChange(
     throw invalid('grantedCourseIds', `must be at most ${MAX_GRANTED_COURSES} course ids`);
   }
   if (
-    change.acharya === undefined &&
-    change.kulapati === undefined &&
+    change.educator === undefined &&
+    change.admin === undefined &&
     change.grantedCourseIds === undefined
   ) {
-    throw missing('acharya, kulapati or grantedCourseIds');
+    throw missing('educator, admin or grantedCourseIds');
   }
-  if (caller.uid === targetUid && change.kulapati === false) throw new ApiException('USR_1001');
+  if (caller.uid === targetUid && change.admin === false) throw new ApiException('USR_1001');
   const claims = {
-    acharya: change.acharya ?? current?.acharya === true,
-    kulapati: change.kulapati ?? current?.kulapati === true,
+    educator: change.educator ?? current?.educator === true,
+    admin: change.admin ?? current?.admin === true,
   };
   return {
     claims,

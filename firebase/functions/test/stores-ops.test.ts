@@ -58,9 +58,9 @@ describe('firebaseRoleAdmin course grants', () => {
     } as never;
     return { batch, db, getAll: (db as { getAll: Mock }).getAll };
   };
-  const name = { parts: ['acharyaNames', 'u'] };
+  const name = { parts: ['educatorNames', 'u'] };
 
-  it('stores the list and updates acharyaIds and names only on courses that exist', async () => {
+  it('stores the list and updates educatorIds and names only on courses that exist', async () => {
     const { batch, db, getAll } = grantDb([
       { get: (k: string) => (k === 'displayName' ? 'Asha Rao' : undefined) },
       { exists: true, ref: 'courses/new' },
@@ -86,11 +86,11 @@ describe('firebaseRoleAdmin course grants', () => {
     );
     expect(batch.update).toHaveBeenCalledTimes(3);
     for (const course of ['courses/new', 'courses/kept']) {
-      expect(batch.update).toHaveBeenCalledWith(course, 'acharyaIds', 'union:u', name, 'Asha Rao');
+      expect(batch.update).toHaveBeenCalledWith(course, 'educatorIds', 'union:u', name, 'Asha Rao');
     }
     expect(batch.update).toHaveBeenCalledWith(
       'courses/old',
-      'acharyaIds',
+      'educatorIds',
       'remove:u',
       name,
       'DELETE',
@@ -104,7 +104,7 @@ describe('firebaseRoleAdmin course grants', () => {
       added: ['new'],
       removed: [],
     });
-    expect(batch.update).toHaveBeenCalledWith('courses/new', { acharyaIds: 'union:u' });
+    expect(batch.update).toHaveBeenCalledWith('courses/new', { educatorIds: 'union:u' });
   });
 
   it('only stores the list when no course is granted or removed', async () => {
@@ -269,17 +269,17 @@ describe('firestoreCooldownAdmin', () => {
     return { db: { doc, collection: vi.fn().mockReturnValue({ add }) } as never, update, add, doc };
   };
 
-  it('sets lastAttemptAt of that Pariksha to epoch 0', async () => {
+  it('sets lastAttemptAt of that Quiz to epoch 0', async () => {
     const { db, update, doc } = dbWith({ exists: true, get: () => ({ attempts: 1 }) });
     expect(await firestoreCooldownAdmin(db).resetCooldown('u', 'git', 'pk')).toBe(true);
     expect(doc).toHaveBeenCalledWith('progress/u_git');
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ parts: ['pariksha', 'pk', 'lastAttemptAt'] }),
+      expect.objectContaining({ parts: ['quiz', 'pk', 'lastAttemptAt'] }),
       'ts:0',
     );
   });
 
-  it('reports a missing progress document or Pariksha entry, changing nothing', async () => {
+  it('reports a missing progress document or Quiz entry, changing nothing', async () => {
     for (const snap of [{ exists: false }, { exists: true, get: () => undefined }]) {
       const { db, update } = dbWith(snap);
       expect(await firestoreCooldownAdmin(db).resetCooldown('u', 'git', 'pk')).toBe(false);
@@ -431,10 +431,10 @@ describe('firestoreAttemptStatsStore', () => {
     expect(batch.set).toHaveBeenCalledWith(
       'stats/org',
       {
-        parikshaScoreSum: '+0.5',
-        parikshaScoreCount: '+1',
-        parikshaFirstTryTotal: '+1',
-        parikshaFirstTryPassed: '+0',
+        quizScoreSum: '+0.5',
+        quizScoreCount: '+1',
+        quizFirstTryTotal: '+1',
+        quizFirstTryPassed: '+0',
       },
       { merge: true },
     );
@@ -501,10 +501,10 @@ describe('firestoreRollupStore', () => {
       assignmentsCompleted: 4,
       started: 5,
       completed: 6,
-      parikshaScoreSum: 7,
-      parikshaScoreCount: 8,
-      parikshaFirstTryTotal: 9,
-      parikshaFirstTryPassed: 10,
+      quizScoreSum: 7,
+      quizScoreCount: 8,
+      quizFirstTryTotal: 9,
+      quizFirstTryPassed: 10,
     };
     await store.writeOrgCounts(counts);
     expect(doc).toHaveBeenCalledWith('stats/org');
@@ -516,7 +516,7 @@ describe('firestoreRollupStore', () => {
       certified: 0,
       scoreSum: 0,
       scoreCount: 0,
-      parvaCompletions: [],
+      chapterCompletions: [],
       questionFirstTry: {},
       finishDaysSum: 0,
       finishDaysHistogram: {},
@@ -616,7 +616,7 @@ describe('firestoreCourseStore', () => {
     } as never;
     return { db, tx, updates, add };
   }
-  const live = { version: 2, status: 'published', acharyaIds: ['asha'] };
+  const live = { version: 2, status: 'published', educatorIds: ['asha'] };
   const draft = { rev: 4, course: { id: 'c' }, answers: { pk: { q: ['a'] } } };
   const plan = {
     version: 3,

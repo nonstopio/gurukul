@@ -12,7 +12,7 @@ export default {
     'with a newer block would not open, although the player already had a notice for that case.',
   detail: [
     'A lesson with a block this version of the app does not understand opens as usual and shows "This content needs a newer version of the app." where that block would be.',
-    'A course that cannot be read at all is left out of the course lists for learners and in Vyasa Studio; every other course still loads.',
+    'A course that cannot be read at all is left out of the course lists for learners and in Studio; every other course still loads.',
     'Publishing or rolling back a course brings a draft or snapshot saved in an older format up to date first.',
   ],
 } satisfies ChangelogEntry;

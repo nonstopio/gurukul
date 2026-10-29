@@ -13,6 +13,6 @@ export default {
     'Lessons of a course you have opened keep loading without a connection.',
     'Mark complete moves on at once; your progress saves on this device and syncs when you are back online.',
     'A banner under the top bar says when you are offline.',
-    'Parikshas still need a connection, because they are graded on the server.',
+    'Quizzes still need a connection, because they are graded on the server.',
   ],
 } satisfies ChangelogEntry;

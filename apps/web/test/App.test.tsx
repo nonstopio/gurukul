@@ -9,22 +9,22 @@ import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
 import { fakeConsole } from './fake-console';
 import { fakeStudio } from './fake-studio';
-import { fakePariksha } from './fake-pariksha';
+import { fakeQuiz } from './fake-quiz';
 
-async function open(path: string, claims: { acharya?: boolean; kulapati?: boolean } = {}) {
+async function open(path: string, claims: { educator?: boolean; admin?: boolean } = {}) {
   const f = fakeAuth(claims);
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
   const view = render(
     <App
       service={f.service}
       data={fakeData().data}
-      pariksha={fakePariksha()}
+      quiz={fakeQuiz()}
       console={fakeConsole()}
       studio={fakeStudio()}
       router={router}
     />,
   );
-  const roles = ['shishya', ...Object.keys(claims)];
+  const roles = ['learner', ...Object.keys(claims)];
   await act(async () => {
     f.emitUser(NONSTOP);
     await Promise.resolve();
@@ -40,7 +40,7 @@ describe('App gate', () => {
       <App
         service={f.service}
         data={fakeData().data}
-        pariksha={fakePariksha()}
+        quiz={fakeQuiz()}
         console={fakeConsole()}
         studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
@@ -62,7 +62,7 @@ describe('App gate', () => {
       <App
         service={f.service}
         data={fakeData().data}
-        pariksha={fakePariksha()}
+        quiz={fakeQuiz()}
         console={fakeConsole()}
         studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
@@ -86,7 +86,7 @@ describe('sign-in pending state', () => {
       <App
         service={f.service}
         data={fakeData().data}
-        pariksha={fakePariksha()}
+        quiz={fakeQuiz()}
         console={fakeConsole()}
         studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}
@@ -125,7 +125,7 @@ describe('sign-in pending state', () => {
 });
 
 describe('signed-in shell', () => {
-  it('lands on an empty Home and offers only what a Shishya may open', async () => {
+  it('lands on an empty Home and offers only what a Learner may open', async () => {
     await open('/');
     expect(await screen.findByRole('heading', { level: 1, name: 'Namaste, Priya' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Main' });
@@ -162,7 +162,7 @@ describe('signed-in shell', () => {
       <App
         service={f.service}
         data={fakeData().data}
-        pariksha={fakePariksha()}
+        quiz={fakeQuiz()}
         console={fakeConsole()}
         studio={fakeStudio()}
         router={router}
@@ -172,27 +172,27 @@ describe('signed-in shell', () => {
       f.emitUser({ ...NONSTOP, displayName: null });
       await Promise.resolve();
     });
-    act(() => f.emitProfile({ roles: ['shishya'], displayName: '', team: null }));
+    act(() => f.emitProfile({ roles: ['learner'], displayName: '', team: null }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Namaste' })).toBeTruthy();
     expect(screen.getByText('priya@nonstopio.com')).toBeTruthy();
   });
 
-  it('shows a Kulapati the console and the studio in the sidebar', async () => {
-    await open('/kulapati', { kulapati: true });
+  it('shows an Admin the console and the studio in the sidebar', async () => {
+    await open('/admin', { admin: true });
     await waitFor(() => screen.getByRole('link', { name: 'Overview' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Studio' })).toBeTruthy();
     expect(document.title).toBe('Overview · Gurukul');
   });
 
-  it('lets an Acharya into the studio but not the console link', async () => {
-    await open('/studio', { acharya: true });
+  it('lets an Educator into the studio but not the console link', async () => {
+    await open('/studio', { educator: true });
     await waitFor(() => screen.getByRole('heading', { level: 1, name: 'Courses' }));
     expect(screen.queryByRole('link', { name: 'Overview' })).toBeNull();
   });
 
-  it('shows not-allowed, not a redirect, to a Shishya at the console', async () => {
-    await open('/kulapati');
+  it('shows not-allowed, not a redirect, to a Learner at the console', async () => {
+    await open('/admin');
     expect(screen.getByRole('heading', { name: /do not have access/ })).toBeTruthy();
   });
 
@@ -285,7 +285,7 @@ describe('accessibility', () => {
       <App
         service={f.service}
         data={fakeData().data}
-        pariksha={fakePariksha()}
+        quiz={fakeQuiz()}
         console={fakeConsole()}
         studio={fakeStudio()}
         router={createMemoryRouter(appRoutes())}

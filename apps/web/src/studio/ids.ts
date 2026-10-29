@@ -1,5 +1,5 @@
 /**
- * A new stable id for a parva, lesson, block, question or option: 8 random hex characters, lower
+ * A new stable id for a chapter, lesson, block, question or option: 8 random hex characters, lower
  * case, unique enough within one course. Ids never change once created: learner progress points at
  * them. `random` is injectable so tests are deterministic.
  */

@@ -38,7 +38,7 @@ const store = (over: object = {}): GradingStore => ({
   }),
   ...over,
 });
-const check = { courseId: 'git-basics', parikshaId: 'pk', questionId: 'q1', selected: ['a'] };
+const check = { courseId: 'git-basics', quizId: 'pk', questionId: 'q1', selected: ['a'] };
 
 describe('learner callables sign-in check', () => {
   const calls = [
@@ -100,7 +100,7 @@ describe('handleCheckAnswer', () => {
 describe('handleGradeAttempt', () => {
   const data = {
     courseId: 'git-basics',
-    parikshaId: 'pk',
+    quizId: 'pk',
     questionIds: ['q1', 'q2'],
     answers: { q1: ['a'] },
   };
@@ -134,13 +134,13 @@ describe('handleRevokeCertificate', () => {
     },
     mailer: { send: vi.fn().mockResolvedValue(undefined) },
   });
-  const kulapati = {
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', kulapati: true } },
+  const adminCaller = {
+    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
     data: { id: 'NSG-GIT-26-0001' },
   };
 
-  it('revokes for a Kulapati', async () => {
-    expect(await handleRevokeCertificate(kulapati, admin())).toEqual({
+  it('revokes for an Admin', async () => {
+    expect(await handleRevokeCertificate(adminCaller, admin())).toEqual({
       id: 'NSG-GIT-26-0001',
       revoked: true,
     });
@@ -152,12 +152,12 @@ describe('handleRevokeCertificate', () => {
     });
     await expect(
       handleRevokeCertificate(
-        { ...kulapati, auth: { uid: 'x', token: { email: 'x@nonstopio.com' } } },
+        { ...adminCaller, auth: { uid: 'x', token: { email: 'x@nonstopio.com' } } },
         admin(),
       ),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
     await expect(
-      handleRevokeCertificate({ ...kulapati, data: undefined }, admin()),
+      handleRevokeCertificate({ ...adminCaller, data: undefined }, admin()),
     ).rejects.toMatchObject({
       code: 'VAL_1001',
     });
@@ -166,19 +166,19 @@ describe('handleRevokeCertificate', () => {
       ...base,
       admin: { ...base.admin, setRevoked: vi.fn().mockRejectedValue(new Error('boom')) },
     };
-    await expect(handleRevokeCertificate(kulapati, broken)).rejects.toThrow('boom');
+    await expect(handleRevokeCertificate(adminCaller, broken)).rejects.toThrow('boom');
   });
 });
 
 describe('console callables', () => {
-  const asKulapati = (data: unknown): AuthedRequest => ({
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', kulapati: true } },
+  const asAdmin = (data: unknown): AuthedRequest => ({
+    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
     data,
   });
   const signedOutRequest: AuthedRequest = { data: {} };
   const learnerReq: AuthedRequest = {
     auth: { uid: 'u', token: { email: 'u@nonstopio.com' } },
-    data: { uid: 'u', courseId: 'git', parikshaId: 'pk', courseIds: ['git'] },
+    data: { uid: 'u', courseId: 'git', quizId: 'pk', courseIds: ['git'] },
   };
 
   it('assignCourses signs the caller in, maps a refusal to its code and returns the result', async () => {
@@ -193,7 +193,7 @@ describe('console callables', () => {
     };
     const deps = { store: assignStore, mailer };
     const ok = await handleAssignCourses(
-      asKulapati({
+      asAdmin({
         courseIds: ['git'],
         emails: ['a@nonstopio.com'],
         dueAt: null,
@@ -210,13 +210,13 @@ describe('console callables', () => {
     await expect(handleAssignCourses(learnerReq, deps)).rejects.toMatchObject({
       code: 'AUTH_2001',
     });
-    await expect(handleAssignCourses(asKulapati(undefined), deps)).rejects.toMatchObject({
+    await expect(handleAssignCourses(asAdmin(undefined), deps)).rejects.toMatchObject({
       code: 'VAL_1001',
     });
     assignStore.courses.mockRejectedValueOnce(new Error('boom'));
     await expect(
       handleAssignCourses(
-        asKulapati({
+        asAdmin({
           courseIds: ['git'],
           emails: ['a@nonstopio.com'],
           dueAt: null,
@@ -235,7 +235,7 @@ describe('console callables', () => {
       audit: vi.fn().mockResolvedValue(undefined),
     };
     expect(
-      await handleResetCooldown(asKulapati({ uid: 'u', courseId: 'git', parikshaId: 'pk' }), admin),
+      await handleResetCooldown(asAdmin({ uid: 'u', courseId: 'git', quizId: 'pk' }), admin),
     ).toEqual({ ok: true });
     await expect(handleResetCooldown(signedOutRequest, admin)).rejects.toMatchObject({
       code: 'AUTH_1001',
@@ -244,7 +244,7 @@ describe('console callables', () => {
       code: 'AUTH_2001',
     });
     admin.resetCooldown.mockResolvedValueOnce(false);
-    await expect(handleResetCooldown(asKulapati(learnerReq.data), admin)).rejects.toMatchObject({
+    await expect(handleResetCooldown(asAdmin(learnerReq.data), admin)).rejects.toMatchObject({
       code: 'PRK_2001',
     });
   });
@@ -260,7 +260,7 @@ describe('console callables', () => {
       audit: vi.fn().mockResolvedValue(undefined),
     };
     const deps = { store, mailer: { send: vi.fn() } };
-    expect(await handleRemindLearners(asKulapati({ courseId: 'git' }), deps, () => 5)).toEqual({
+    expect(await handleRemindLearners(asAdmin({ courseId: 'git' }), deps, () => 5)).toEqual({
       sent: 0,
       skipped: 0,
     });
@@ -274,7 +274,7 @@ describe('console callables', () => {
 });
 
 describe('Studio callables', () => {
-  const live = { version: 1, status: 'published', acharyaIds: ['u'] };
+  const live = { version: 1, status: 'published', educatorIds: ['u'] };
   const studio = (): CourseStore => ({
     getLive: vi.fn().mockResolvedValue(live),
     getDraft: vi.fn().mockResolvedValue(undefined),
@@ -288,8 +288,8 @@ describe('Studio callables', () => {
     name: 'Uma Iyer',
     email_verified: true,
     firebase: { sign_in_provider: 'google.com' },
-    acharya: true,
-    kulapati: true,
+    educator: true,
+    admin: true,
   };
   const as = (data: unknown) => learner({ auth: { uid: 'u', token }, data });
   const calls = [
@@ -317,7 +317,7 @@ describe('Studio callables', () => {
     ).toEqual({ courseId: 't' });
     expect(s.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        course: expect.objectContaining({ acharyaNames: { u: 'Uma Iyer' } }),
+        course: expect.objectContaining({ educatorNames: { u: 'Uma Iyer' } }),
       }),
     );
     expect(await handlePublishCourse(as({ courseId: 'c' }), s)).toEqual({ version: 2 });

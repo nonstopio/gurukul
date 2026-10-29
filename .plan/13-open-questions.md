@@ -8,10 +8,10 @@ Each has a recommendation. Answer inline or in the review.
 | 2 | Firestore location: `asia-south1` (Mumbai)? It cannot change later. | Yes, asia-south1 | M1 |
 | 3 | Domain lock: rules-only, or also Identity Platform blocking function? | **Resolved as built:** rules-only. `signedIn()` in `firebase/firestore.rules` requires a verified `@nonstopio.com` Google account; there is no blocking function. Revisit if Gmail accounts become noise | M1 |
 | 4 | Email for assignments and reminders: Gmail API via a NonStop mailbox, SMTP extension, or none in v1? | **Resolved:** Gmail API from a function, sender `gurukul@nonstopio.com`. Built as `KUL-24` | M4 |
-| 5 | Who signs certificates (name, role)? | **Resolved:** the signatory is a setting in the Kulapati console, not code (`GIT-05`) | M3 |
+| 5 | Who signs certificates (name, role)? | **Resolved:** the signatory is a setting in the Admin console, not code (`GIT-05`) | M3 |
 | 6 | Public name and URL: `nonstop-gurukul.web.app`, or a custom domain like `academy.nonstopio.com`? | **Resolved:** custom domain `gurukul.nonstopio.com` (`OPS-18`, DNS in `OPS-24`) | M6 |
-| 7 | Should Acharyas see learner names in course analytics? | **Resolved:** yes, for their own courses only (`KUL-25`) | M4 |
-| 8 | Teams list: where does a learner's team come from? | **Resolved as recommended, built:** the list lives in `config/org.teams`, which a Kulapati edits in Org settings (`/kulapati/settings`); Home asks a learner with no team to pick one, and the rules accept only a listed team (or none) on `users/{uid}.team` | M1 |
+| 7 | Should Educators see learner names in course analytics? | **Resolved:** yes, for their own courses only (`KUL-25`) | M4 |
+| 8 | Teams list: where does a learner's team come from? | **Resolved as recommended, built:** the list lives in `config/org.teams`, which an Admin edits in Org settings (`/admin/settings`); Home asks a learner with no team to pick one, and the rules accept only a listed team (or none) on `users/{uid}.team` | M1 |
 | 9 | Self-enrolment in unassigned courses? | Yes, all published courses are open to every NonStopian | M2 |
 | 10 | Licence holder line: "NonStop io Technologies" correct legal name? | **Resolved:** "NonStop io Technologies Pvt. Ltd.", now in `LICENSE` | before going public |
 | 11 | Staging project for previews instead of sharing production data? | Not for v1; add if previews cause trouble | — |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import type { AssignmentRow, ProgressRow } from '../src/data/types';
+import { terms } from '../src/labels/terms';
 import {
   agoLabel,
   recentActivity,
@@ -22,14 +23,14 @@ const course = (id: string, title = id): Course =>
   ({
     id,
     title,
-    parvas: [
+    chapters: [
       {
         id: 'p',
         title: 'P',
         items: [
           { type: 'lesson', id: `${id}-l1` },
           { type: 'lesson', id: `${id}-l2` },
-          { type: 'pariksha', id: `${id}-q1` },
+          { type: 'quiz', id: `${id}-q1` },
         ],
       },
     ],
@@ -49,7 +50,7 @@ const progress = (over: Partial<ProgressRow> = {}): ProgressRow => ({
   lastItemId: null,
   lastActiveAt: null,
   completedItemIds: [],
-  pariksha: {},
+  quiz: {},
   percent: 0,
   completedAt: null,
   certificateId: null,
@@ -60,7 +61,7 @@ describe('percentFor and countItems', () => {
   it('uses the shared helper, and 0 before a course is started', () => {
     expect(percentFor(course('x'), null)).toBe(0);
     expect(percentFor(course('x'), progress({ completedItemIds: ['x-l1'] }))).toBe(33);
-    expect(countItems(course('x'))).toEqual({ lessons: 2, parikshas: 1 });
+    expect(countItems(course('x'))).toEqual({ lessons: 2, quizzes: 1 });
   });
 });
 
@@ -168,7 +169,7 @@ describe('isRetired and hasNewLessons', () => {
     const done = (completedItemIds: string[], completedAt: Date | null) =>
       ({
         completedItemIds,
-        pariksha: { 'git-q1': { passed: true } },
+        quiz: { 'git-q1': { passed: true } },
         completedAt,
       }) as unknown as ProgressRow;
     const at = new Date('2026-03-01T00:00:00Z');
@@ -184,14 +185,14 @@ describe('Home status, up next and recent activity', () => {
     id: 'git',
     title: 'Git',
     rules: { sequential: false },
-    parvas: [
+    chapters: [
       {
         id: 'p1',
         title: 'Basics',
         items: [
           { type: 'lesson', id: 'l1', title: 'Init' },
           { type: 'lesson', id: 'l2', title: 'Commit' },
-          { type: 'pariksha', id: 'q1', title: 'Check' },
+          { type: 'quiz', id: 'q1', title: 'Check' },
         ],
       },
     ],
@@ -202,34 +203,38 @@ describe('Home status, up next and recent activity', () => {
     lastItemId: null,
     lastActiveAt: new Date('2026-01-05'),
     completedItemIds: [],
-    pariksha: {},
+    quiz: {},
     percent: 0,
     completedAt: null,
     certificateId: null,
     ...over,
   });
 
-  it('names the percent and what is left in the parva', () => {
-    expect(statusLine(c, p({ completedItemIds: ['l1'] }))).toBe(
-      'You are 33% through Git. 2 items left to finish the Basics parva.',
+  it('names the percent and what is left in the chapter', () => {
+    expect(statusLine(c, p({ completedItemIds: ['l1'] }), terms('generic'))).toBe(
+      'You are 33% through Git. 2 items left to finish the Basics chapter.',
     );
-    expect(statusLine(c, p({ completedItemIds: ['l1', 'l2'] }))).toContain('One item left');
+    expect(statusLine(c, p({ completedItemIds: ['l1', 'l2'] }), terms('generic'))).toContain(
+      'One item left',
+    );
   });
 
-  it('drops the parva sentence when nothing is left or nothing exists', () => {
-    const done = p({ completedItemIds: ['l1', 'l2'], pariksha: { q1: { passed: true } as never } });
-    expect(statusLine(c, done)).toBe('You are 100% through Git.');
-    expect(statusLine({ ...c, parvas: [] } as Course, p())).toBe('You are 0% through Git.');
-    expect(upNext({ ...c, parvas: [] } as Course, p())).toBeNull();
+  it('drops the chapter sentence when nothing is left or nothing exists', () => {
+    const done = p({ completedItemIds: ['l1', 'l2'], quiz: { q1: { passed: true } as never } });
+    expect(statusLine(c, done, terms('generic'))).toBe('You are 100% through Git.');
+    expect(statusLine({ ...c, chapters: [] } as Course, p(), terms('generic'))).toBe(
+      'You are 0% through Git.',
+    );
+    expect(upNext({ ...c, chapters: [] } as Course, p())).toBeNull();
     expect(upNext(c, p({ lastItemId: 'l2' }))?.item.title).toBe('Commit');
   });
 
-  it('merges certificates, completions, Pariksha attempts and activity, newest first', () => {
+  it('merges certificates, completions, Quiz attempts and activity, newest first', () => {
     const events = recentActivity(
       [c, { ...c, id: 'sql', title: 'SQL' } as Course],
       [
         p({
-          pariksha: {
+          quiz: {
             q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: new Date('2026-01-07') },
             gone: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date('2026-01-08') },
             q2: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
@@ -249,21 +254,21 @@ describe('Home status, up next and recent activity', () => {
     expect(recentActivity([c], [p()], [], 0)).toEqual([]);
   });
 
-  it('finds the parva of an item in a later parva, and words failed and untimed events', () => {
+  it('finds the chapter of an item in a later chapter, and words failed and untimed events', () => {
     const two = {
       ...c,
-      parvas: [
-        ...c.parvas,
+      chapters: [
+        ...c.chapters,
         { id: 'p2', title: 'More', items: [{ type: 'lesson', id: 'l9', title: 'Rebase' }] },
       ],
     } as unknown as Course;
-    expect(upNext(two, p({ lastItemId: 'l9' }))?.parva.title).toBe('More');
+    expect(upNext(two, p({ lastItemId: 'l9' }))?.chapter.title).toBe('More');
     const events = recentActivity(
       [c],
       [
         p({
           lastActiveAt: null,
-          pariksha: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
+          quiz: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
         }),
       ],
       [],

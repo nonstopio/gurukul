@@ -102,7 +102,7 @@ describe('selectScheduled', () => {
     expect(out.skipped).toBe(0);
   });
 
-  it('sends one email per person, none if a Kulapati reminded them today, and caps by people', () => {
+  it('sends one email per person, none if an Admin reminded them today, and caps by people', () => {
     const p = { email: 'p@nonstopio.com' };
     const q = { email: 'q@nonstopio.com' };
     const r = { email: 'r@nonstopio.com' };
@@ -122,7 +122,7 @@ describe('selectScheduled', () => {
   });
 });
 
-const kulapati = { uid: 'k', email: 'k@nonstopio.com', claims: { kulapati: true } };
+const admin = { uid: 'k', email: 'k@nonstopio.com', claims: { admin: true } };
 function setup(over: Partial<ReminderStore> = {}, enabled = true) {
   const store: ReminderStore = {
     forCourse: vi.fn().mockResolvedValue([cand('a'), cand('b', { lastRemindedAt: NOW - 1000 })]),
@@ -141,7 +141,7 @@ function setup(over: Partial<ReminderStore> = {}, enabled = true) {
 describe('remindLearners', () => {
   it('reminds the course’s unfinished learners, skipping one reminded today', async () => {
     const { store, mailer, deps } = setup();
-    expect(await remindLearners(deps, kulapati, { courseId: 'git' }, NOW)).toEqual({
+    expect(await remindLearners(deps, admin, { courseId: 'git' }, NOW)).toEqual({
       sent: 1,
       skipped: 1,
     });
@@ -163,12 +163,7 @@ describe('remindLearners', () => {
   it('reminds the given emails (normalised), narrowed to the course when one is given', async () => {
     const { store, deps } = setup();
     expect(
-      await remindLearners(
-        deps,
-        kulapati,
-        { emails: [' C@NonStopIO.com ', 'c@nonstopio.com'] },
-        NOW,
-      ),
+      await remindLearners(deps, admin, { emails: [' C@NonStopIO.com ', 'c@nonstopio.com'] }, NOW),
     ).toEqual({ sent: 2, skipped: 0 });
     expect(store.forEmails).toHaveBeenCalledWith(['c@nonstopio.com']);
     expect(store.audit).toHaveBeenCalledWith(
@@ -178,7 +173,7 @@ describe('remindLearners', () => {
     expect(
       await remindLearners(
         narrowed.deps,
-        kulapati,
+        admin,
         { courseId: 'git', emails: ['c@nonstopio.com'] },
         NOW,
       ),
@@ -188,7 +183,7 @@ describe('remindLearners', () => {
 
   it('falls back to the course id when the title is unknown', async () => {
     const { mailer, deps } = setup({ courseTitles: vi.fn().mockResolvedValue({}) });
-    await remindLearners(deps, kulapati, { courseId: 'git' }, NOW);
+    await remindLearners(deps, admin, { courseId: 'git' }, NOW);
     expect(mailer.send).toHaveBeenCalledWith(
       expect.objectContaining({ subject: 'Reminder: git is waiting for you' }),
     );
@@ -198,7 +193,7 @@ describe('remindLearners', () => {
     const { store, mailer, deps } = setup({
       forCourse: vi.fn().mockResolvedValue([cand('b', { lastRemindedAt: NOW - 1000 })]),
     });
-    expect(await remindLearners(deps, kulapati, { courseId: 'git' }, NOW)).toEqual({
+    expect(await remindLearners(deps, admin, { courseId: 'git' }, NOW)).toEqual({
       sent: 0,
       skipped: 1,
     });
@@ -206,7 +201,7 @@ describe('remindLearners', () => {
     expect(store.markReminded).not.toHaveBeenCalled();
   });
 
-  it('refuses a non-Kulapati and bad requests', async () => {
+  it('refuses a non-Admin and bad requests', async () => {
     const { deps } = setup();
     await expect(
       remindLearners(
@@ -225,7 +220,7 @@ describe('remindLearners', () => {
       [{ emails: 'a@nonstopio.com' }, 'VAL_1002', 'emails'],
       [{ courseId: 'git', emails: new Array(1001).fill('a@nonstopio.com') }, 'VAL_1004', 'emails'],
     ] as const) {
-      await expect(remindLearners(deps, kulapati, bad, NOW)).rejects.toMatchObject({
+      await expect(remindLearners(deps, admin, bad, NOW)).rejects.toMatchObject({
         code,
         details: { field },
       });

@@ -93,14 +93,11 @@ export async function uidOf(email: string): Promise<string> {
 }
 
 /**
- * Makes a signed-in person an Acharya and/or Kulapati, the way the `setRoles` function does: custom
+ * Makes a signed-in person an Educator and/or Admin, the way the `setRoles` function does: custom
  * claims on the Auth account, and the `roles` mirror on `users/{uid}`. The running app notices the
  * mirror change and refreshes its token, so no reload is needed.
  */
-export async function grantRoles(
-  email: string,
-  roles: Array<'acharya' | 'kulapati'>,
-): Promise<void> {
+export async function grantRoles(email: string, roles: Array<'educator' | 'admin'>): Promise<void> {
   const uid = await uidOf(email);
   const claims = Object.fromEntries(roles.map((r) => [r, true]));
   await call(
@@ -112,7 +109,7 @@ export async function grantRoles(
     },
     'Setting custom claims',
   );
-  const values = ['shishya', ...roles].map((stringValue) => ({ stringValue }));
+  const values = ['learner', ...roles].map((stringValue) => ({ stringValue }));
   await call(
     `${DOCS}/users/${uid}?updateMask.fieldPaths=roles`,
     {
@@ -126,18 +123,18 @@ export async function grantRoles(
 
 /**
  * Writes a learner's progress document straight into the emulator, so a journey can start at the
- * last Pariksha instead of clicking through twenty-two lessons. The `percent` is left at 0: the
+ * last Quiz instead of clicking through twenty-two lessons. The `percent` is left at 0: the
  * progress trigger recomputes it from the course, as it does for a real write.
  */
 export async function seedProgress(
   email: string,
   courseId: string,
-  done: { lessons: string[]; passedParikshas: string[] },
+  done: { lessons: string[]; passedQuizzes: string[] },
 ): Promise<void> {
   const uid = await uidOf(email);
   const now = { timestampValue: new Date().toISOString() };
   const passed = Object.fromEntries(
-    done.passedParikshas.map((id) => [
+    done.passedQuizzes.map((id) => [
       id,
       {
         mapValue: {
@@ -161,7 +158,7 @@ export async function seedProgress(
     completedItemIds: {
       arrayValue: { values: done.lessons.map((stringValue) => ({ stringValue })) },
     },
-    pariksha: { mapValue: { fields: passed } },
+    quiz: { mapValue: { fields: passed } },
     percent: { integerValue: '0' },
     completedAt: { nullValue: null },
     certificateId: { nullValue: null },

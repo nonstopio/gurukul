@@ -20,12 +20,12 @@ const HEADINGS: Record<MediaKind, string> = {
 export function MediaPage() {
   const { data } = useStudio();
   const { uid } = useUser();
-  const kulapati = useSession().roles.includes('kulapati');
+  const admin = useSession().roles.includes('admin');
   const toast = useToast();
   const result = useAsync(
     useCallback(
-      () => data.listCourses(uid, kulapati).then((rows) => collectMedia(rows)),
-      [data, uid, kulapati],
+      () => data.listCourses(uid, admin).then((rows) => collectMedia(rows)),
+      [data, uid, admin],
     ),
   );
 

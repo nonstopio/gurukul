@@ -130,8 +130,8 @@ describe('firebaseAuthService', () => {
   });
 
   it('reads claims from the token, optionally forcing a refresh', async () => {
-    auth.currentUser.getIdTokenResult.mockResolvedValueOnce({ claims: { kulapati: true } });
-    expect(await svc().claims({} as never, true)).toEqual({ kulapati: true });
+    auth.currentUser.getIdTokenResult.mockResolvedValueOnce({ claims: { admin: true } });
+    expect(await svc().claims({} as never, true)).toEqual({ admin: true });
     expect(auth.currentUser.getIdTokenResult).toHaveBeenCalledWith(true);
     auth.currentUser.getIdTokenResult.mockResolvedValueOnce(undefined);
     expect(await svc().claims({} as never, false)).toEqual({});

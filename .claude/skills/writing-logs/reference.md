@@ -2,7 +2,7 @@
 
 ## Standard field names
 
-`uid`, `courseId`, `itemId`, `parikshaId`, `questionId`, `attemptId`, `assignmentId`,
+`uid`, `courseId`, `itemId`, `quizId`, `questionId`, `attemptId`, `assignmentId`,
 `credentialId`, `emailPrefix`, `count`, `durationMs`, `status`, `source`, `reason`, `code`,
 `traceId` — exported as `STANDARD_LOG_FIELDS` from `@gurukul/schema`. One name per concept.
 

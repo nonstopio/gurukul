@@ -19,10 +19,10 @@ npm run emulators             # Auth, Firestore, Functions, Hosting on a demo pr
 For a real Firebase project, copy `apps/web/.env.example` to
 `apps/web/.env.local` and fill in the web config. Never commit `.env.local`.
 
-Setting up a new environment (the first Kulapati, seeding the first course,
+Setting up a new environment (the first Admin, seeding the first course,
 backups, email) is in [`docs/operations.md`](docs/operations.md). The first
-Kulapati is granted once, by the maintainer, with
-`npm run grant-kulapati -- you@nonstopio.com`; never from CI.
+Admin is granted once, by the maintainer, with
+`npm run grant-admin -- you@nonstopio.com`; never from CI.
 
 ## Checks
 
@@ -45,7 +45,7 @@ must pass before merge.
 
 1. Branch from `main`. One concern per PR.
 2. If the change alters scope, data shape, roles or cost, update `.plan/` first.
-3. Conventional Commit title with an area scope: `feat(web): learners can retry a pariksha`.
+3. Conventional Commit title with an area scope: `feat(web): learners can retry a quiz`.
    Scopes: `web` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps` `repo`.
    The `commit-msg` hook and CI enforce it; see the `writing-commit-messages` skill.
 4. Fill the template, including how you checked the change.

@@ -18,7 +18,7 @@ export interface ProfileDoc {
   nameLower: string;
   photoURL: string | null;
   team: null;
-  roles: ['shishya'];
+  roles: ['learner'];
   grantedCourseIds: [];
 }
 
@@ -39,7 +39,7 @@ export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
     nameLower: nameKey(displayName),
     photoURL: user.photoURL ?? null,
     team: null,
-    roles: ['shishya'],
+    roles: ['learner'],
     grantedCourseIds: [],
   };
 }

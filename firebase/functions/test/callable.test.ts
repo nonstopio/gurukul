@@ -59,12 +59,12 @@ describe('apiCallable success', () => {
   });
 
   it('returns the data inside a valid envelope', async () => {
-    const out = await call(() => ({ roles: ['shishya'] }))({});
+    const out = await call(() => ({ roles: ['learner'] }))({});
     const parsed = failureEnvelope.parse(out);
     expect(parsed).toMatchObject({
       status: 200,
       success: true,
-      data: { roles: ['shishya'] },
+      data: { roles: ['learner'] },
       errors: [],
     });
   });

@@ -3,7 +3,7 @@ import type { Working } from './types';
 
 /**
  * A draft that could not be saved, kept in this browser so a dropped connection or a closed tab
- * does not lose an Acharya's edits. One key per person and course; `rev` is the draft revision the
+ * does not lose an Educator's edits. One key per person and course; `rev` is the draft revision the
  * edits were made on, so a backup is only offered back while the stored draft is still that one.
  * Storage can be full or switched off (private windows); then there is simply no backup.
  */

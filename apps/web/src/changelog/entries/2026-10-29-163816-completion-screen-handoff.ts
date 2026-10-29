@@ -4,7 +4,7 @@ export default {
   date: '2026-10-29',
   id: 'COMPLETION-SCREEN-HANDOFF',
   title: 'Finishing a course lands on a celebration screen with your next step ready',
-  area: 'PARIKSHA',
+  area: 'QUIZ',
   kind: 'feature',
   why:
     'The moment someone finishes a course is when they most want to share it and least know what ' +

@@ -60,19 +60,19 @@ describe('openFirestore', () => {
     const cb = vi.fn();
     openFirestore({} as never, false).watchProfile('u', cb);
     state.snapCb?.({ exists: () => false });
-    state.snapCb?.({ exists: () => true, data: () => ({ roles: ['shishya'] }) });
+    state.snapCb?.({ exists: () => true, data: () => ({ roles: ['learner'] }) });
     expect(cb).toHaveBeenNthCalledWith(1, null);
-    expect(cb).toHaveBeenNthCalledWith(2, { roles: ['shishya'] });
+    expect(cb).toHaveBeenNthCalledWith(2, { roles: ['learner'] });
   });
 
   it('fills in the lower-cased name a profile lacks, once per watch', () => {
     const cb = vi.fn();
     openFirestore({} as never, false).watchProfile('u', cb);
     const snap = (data: object) => ({ exists: () => true, ref: 'users/u', data: () => data });
-    state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['shishya'] }));
-    state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['shishya'] }));
+    state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['learner'] }));
+    state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['learner'] }));
     expect(state.updates).toEqual([['users/u', { nameLower: 'ananya rao' }]]);
-    expect(cb).toHaveBeenCalledWith({ displayName: 'Ananya Rao', roles: ['shishya'] });
+    expect(cb).toHaveBeenCalledWith({ displayName: 'Ananya Rao', roles: ['learner'] });
   });
 
   it('leaves a profile whose lower-cased name is already in step', () => {
@@ -80,7 +80,7 @@ describe('openFirestore', () => {
     state.snapCb?.({
       exists: () => true,
       ref: 'users/u',
-      data: () => ({ displayName: 'Ravi', nameLower: 'ravi', roles: ['shishya'] }),
+      data: () => ({ displayName: 'Ravi', nameLower: 'ravi', roles: ['learner'] }),
     });
     expect(state.updates).toEqual([]);
   });

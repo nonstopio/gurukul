@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { AttemptResult, ParikshaService } from '../src/pariksha/service';
+import type { AttemptResult, QuizService } from '../src/quiz/service';
 
 export const attemptResult = (over: Partial<AttemptResult> = {}): AttemptResult => ({
   attemptId: 'att1',
@@ -13,7 +13,7 @@ export const attemptResult = (over: Partial<AttemptResult> = {}): AttemptResult 
   ...over,
 });
 
-export function fakePariksha(over: Partial<ParikshaService> = {}): ParikshaService {
+export function fakeQuiz(over: Partial<QuizService> = {}): QuizService {
   return {
     checkAnswer: vi
       .fn()

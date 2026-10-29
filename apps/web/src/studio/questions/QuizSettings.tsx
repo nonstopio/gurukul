@@ -1,30 +1,32 @@
-import type { Pariksha } from '@gurukul/schema';
+import type { Quiz } from '@gurukul/schema';
 import { Callout, Input, Select, Toggle } from '@gurukul/ui';
 import { parseCooldown, parsePassMark, parseShown, passMarkText } from '../questionEdit';
 import { patch } from '../patch';
+import { useTerms } from '../../labels/useTerms';
 
-const REVEAL: Array<{ value: Pariksha['revealAnswers']; label: string }> = [
+const REVEAL: Array<{ value: Quiz['revealAnswers']; label: string }> = [
   { value: 'each', label: 'After each question' },
   { value: 'onPass', label: 'Only after passing' },
   { value: 'never', label: 'Never' },
 ];
 
 /** Pass mark, how many questions are drawn, cooldown, shuffling and when answers are revealed. */
-export function ParikshaSettings({
-  pariksha,
+export function QuizSettings({
+  quiz,
   coursePassPercent,
   onChange,
 }: {
-  pariksha: Pariksha;
-  /** The course's pass mark as a percentage, shown as the placeholder when this Pariksha has none. */
+  quiz: Quiz;
+  /** The course's pass mark as a percentage, shown as the placeholder when this Quiz has none. */
   coursePassPercent: number;
-  onChange: (edit: (p: Pariksha) => Pariksha) => void;
+  onChange: (edit: (p: Quiz) => Quiz) => void;
 }) {
+  const t = useTerms();
   return (
     <div className="studio-fields">
       <Input
-        label="Pariksha title"
-        value={pariksha.title}
+        label={`${t.Quiz} title`}
+        value={quiz.title}
         onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
       />
       <Input
@@ -34,16 +36,16 @@ export function ParikshaSettings({
         min={0}
         max={100}
         placeholder={String(coursePassPercent)}
-        value={passMarkText(pariksha.passMark)}
+        value={passMarkText(quiz.passMark)}
         onChange={(e) => onChange((p) => patch(p, { passMark: parsePassMark(e.target.value) }))}
       />
       <Input
         label="Questions shown"
-        hint={`Drawn at random from the ${pariksha.questions.length} below.`}
+        hint={`Drawn at random from the ${quiz.questions.length} below.`}
         type="number"
         min={1}
-        max={Math.max(pariksha.questions.length, 1)}
-        value={pariksha.questionsShown}
+        max={Math.max(quiz.questions.length, 1)}
+        value={quiz.questionsShown}
         onChange={(e) =>
           onChange((p) => ({
             ...p,
@@ -55,26 +57,26 @@ export function ParikshaSettings({
         label="Cooldown between attempts (minutes)"
         type="number"
         min={0}
-        value={pariksha.cooldownMinutes}
+        value={quiz.cooldownMinutes}
         onChange={(e) =>
           onChange((p) => ({ ...p, cooldownMinutes: parseCooldown(e.target.value) }))
         }
       />
       <Toggle
         label="Shuffle answer order"
-        checked={pariksha.shuffleOptions}
+        checked={quiz.shuffleOptions}
         onChange={(e) => onChange((p) => ({ ...p, shuffleOptions: e.target.checked }))}
       />
       <Toggle
-        label="Learners must pass to open the next parva"
-        checked={pariksha.blocksNext}
+        label={`${t.Learners} must pass to open the next ${t.chapter}`}
+        checked={quiz.blocksNext}
         onChange={(e) => onChange((p) => ({ ...p, blocksNext: e.target.checked }))}
       />
       <Select
         label="Reveal answers"
-        value={pariksha.revealAnswers}
+        value={quiz.revealAnswers}
         onChange={(e) =>
-          onChange((p) => ({ ...p, revealAnswers: e.target.value as Pariksha['revealAnswers'] }))
+          onChange((p) => ({ ...p, revealAnswers: e.target.value as Quiz['revealAnswers'] }))
         }
       >
         {REVEAL.map((r) => (
@@ -84,8 +86,7 @@ export function ParikshaSettings({
         ))}
       </Select>
       <Callout tone="note" title="Answers stay on the server">
-        Answers are graded on the server and stored apart from the course, so learners never receive
-        them in their browser.
+        {`Answers are graded on the server and stored apart from the course, so ${t.learners} never receive them in their browser.`}
       </Callout>
     </div>
   );

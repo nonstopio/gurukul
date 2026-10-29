@@ -1,6 +1,6 @@
 ---
 name: gurukul-design
-description: Use when building, restyling or reviewing any NonStop Gurukul screen or component — the learner app, Kulapati console, Vyasa Studio, certificates — so colour, type, shape, motion, accessibility and voice stay consistent.
+description: Use when building, restyling or reviewing any NonStop Gurukul screen or component — the learner app, Admin console, Studio, certificates — so colour, type, shape, motion, accessibility and voice stay consistent.
 ---
 
 # Gurukul design system
@@ -9,7 +9,9 @@ Gurukul looks like a modern product with a little ceremony: light working
 surfaces, a dark ink chrome (sidebars, top bars), one NonStop green accent,
 Inter for everything you read and click, Fraunces for titles and moments that
 matter (course names, the certificate), and JetBrains Mono for code. The
-Mahabharata shows up in **words** (Shishya, Parva, Pariksha), not in ornament.
+Mahabharata shows up in **words**, not in ornament: a person picks the Gurukul label set
+(Shishya, Parva, Pariksha) or plain English (Learner, Chapter, Quiz). Never type a role or area
+name into copy: take it from `useTerms()` (`apps/web/src/labels/`).
 
 **Values live in `packages/ui/src/tokens.css`.** This file states the rules; the
 CSS states the numbers. When they disagree the CSS is right and this file is
@@ -33,7 +35,7 @@ design canvas.
 | 10  | Text ≥ 4.5:1 on its ground (3:1 at 24px+)                                       | `--g-gray-400` captions                            |
 | 11  | Real elements: `<button>`, `<a href>`, `<input>` + `<label>`                    | a clickable `<div>`                                |
 | 12  | No emoji, no gradient washes, no left-border accent cards                       | `🎉 Course complete!`                              |
-| 13  | Sentence case; Sanskrit term paired with English on first sight                 | `MY LEARNING`, "Pariksha" with no hint of "quiz"   |
+| 13  | Sentence case; role and area names from `useTerms()`, never typed in copy       | `MY LEARNING`, a literal "Admin" in a button label |
 | 14  | Motion on `--ease`, 120–320ms, reduced motion honoured                          | a bounce, a looping shimmer                        |
 
 ## Colour
@@ -56,14 +58,14 @@ Two kinds of surface:
 
 ## Type
 
-| Use                       | Family                                   | Size / weight                                  |
-| ------------------------- | ---------------------------------------- | ---------------------------------------------- |
-| Page title                | Fraunces 500                             | `--text-3xl`–`--text-4xl`, `--leading-tight`   |
-| Course and section titles | Fraunces 500                             | `--text-xl`–`--text-2xl`                       |
-| Body, lesson prose        | Inter 400                                | `--text-md` (lessons 16.5px), `--leading-body` |
-| UI, tables, buttons       | Inter 500/600                            | `--text-sm`                                    |
-| Micro labels (`PARVA 3`)  | Inter 600, uppercase, `--tracking-label` | `--text-xs`                                    |
-| Code                      | JetBrains Mono 400                       | 13–14px                                        |
+| Use                        | Family                                   | Size / weight                                  |
+| -------------------------- | ---------------------------------------- | ---------------------------------------------- |
+| Page title                 | Fraunces 500                             | `--text-3xl`–`--text-4xl`, `--leading-tight`   |
+| Course and section titles  | Fraunces 500                             | `--text-xl`–`--text-2xl`                       |
+| Body, lesson prose         | Inter 400                                | `--text-md` (lessons 16.5px), `--leading-body` |
+| UI, tables, buttons        | Inter 500/600                            | `--text-sm`                                    |
+| Micro labels (`CHAPTER 3`) | Inter 600, uppercase, `--tracking-label` | `--text-xs`                                    |
+| Code                       | JetBrains Mono 400                       | 13–14px                                        |
 
 Load all three from one Google Fonts `css2` link with `display=swap`.
 
@@ -98,12 +100,12 @@ Recipes, states and accessibility notes: `references/components.md`.
 
 ## Voice
 
-- Plain English first, Sanskrit as flavour: "Pariksha II · Branching & merging",
-  "Kulapati console". The first time a term appears on a screen, the English
-  role is nearby ("Acharya · Educator").
+- Role and area names come from the person's label set: `${t.Quiz} II · Branching & merging`
+  reads "Quiz II" or "Pariksha II". Mid-sentence use the lower-case key (`t.learners`);
+  `article(t.admin)` gives "an Admin" or "a Kulapati".
 - Specific over generic: "Resume — Resolving merge conflicts", not "Continue".
 - No invented numbers in UI copy or empty states. Missing data says so.
-- Encouraging, never cute: "Pariksha II cleared." not "Woohoo!".
+- Encouraging, never cute: "Quiz II cleared." not "Woohoo!".
 
 ## Checklist before a UI PR
 

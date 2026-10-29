@@ -5,11 +5,11 @@ import { isEmbedAllowed, videoEmbedUrl } from './media';
 import { itemsOf } from './progress';
 import { timestamp } from './timestamp';
 
-/** Quiz answer keys as the Studio keeps them in a draft: `{ [parikshaId]: { [questionId]: optionIds } }`. */
+/** Quiz answer keys as the Studio keeps them in a draft: `{ [quizId]: { [questionId]: optionIds } }`. */
 export type AnswerKeys = Record<string, Record<string, string[]>>;
 
 /**
- * `courses/{id}/drafts/current`: the course being edited plus its answer keys (Acharyas need them
+ * `courses/{id}/drafts/current`: the course being edited plus its answer keys (Educators need them
  * to edit). `rev` goes up by one on every save; a save that does not carry the current rev is a
  * conflict. The keys move to `private/answers` only when the course is published.
  */
@@ -34,15 +34,15 @@ export function slugify(title: string): string {
     .replace(/-+$/g, '');
 }
 
-/** A blank draft course for a new slug; the creator is its first Acharya. */
+/** A blank draft course for a new slug; the creator is its first Educator. */
 export function blankCourse(init: {
   id: string;
   title: string;
   level: Course['level'];
   theme: Course['cover']['theme'];
-  acharyaId: string;
-  /** The creator's display name; left out when unknown, and Studio falls back to "an Acharya". */
-  acharyaName?: string | undefined;
+  educatorId: string;
+  /** The creator's display name; left out when unknown, and Studio falls back to "an Educator". */
+  educatorName?: string | undefined;
 }): Course {
   return {
     schemaVersion: COURSE_SCHEMA_VERSION,
@@ -53,27 +53,27 @@ export function blankCourse(init: {
     level: init.level,
     cover: { theme: init.theme, glyph: init.title.trim().charAt(0).toUpperCase() || 'G' },
     outcomes: [],
-    acharyaIds: [init.acharyaId],
-    acharyaNames: init.acharyaName ? { [init.acharyaId]: init.acharyaName } : {},
+    educatorIds: [init.educatorId],
+    educatorNames: init.educatorName ? { [init.educatorId]: init.educatorName } : {},
     status: 'draft',
     version: 0,
     publishedAt: null,
     rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
     certificate: { title: init.title },
-    parvas: [],
+    chapters: [],
     estimatedMinutes: 0,
   };
 }
 
 /** Total lesson minutes: what `estimatedMinutes` is set to on publish. */
-export function estimateMinutes(course: Pick<Course, 'parvas'>): number {
+export function estimateMinutes(course: Pick<Course, 'chapters'>): number {
   return itemsOf(course).reduce((sum, i) => sum + (i.type === 'lesson' ? i.minutes : 0), 0);
 }
 
 export interface PublishIssue {
   /** Stable machine code, e.g. `block.image.alt`. */
   code: string;
-  /** What to fix, in words an Acharya understands. */
+  /** What to fix, in words an Educator understands. */
   message: string;
   itemId?: string;
   blockId?: string;
@@ -159,7 +159,7 @@ function questionIssues(
 }
 
 /**
- * Everything that stops a course being published, in the order an Acharya would fix it. The same
+ * Everything that stops a course being published, in the order an Educator would fix it. The same
  * function runs in the Studio (inline messages) and in `publishCourse` (the gate), so they agree.
  * An empty list means publishable.
  */
@@ -199,16 +199,16 @@ function contentIssues(course: Course, answers: AnswerKeys): PublishIssue[] {
       });
     seen.add(id);
   };
-  course.parvas.forEach((p) => {
+  course.chapters.forEach((p) => {
     dupe(p.id);
-    if (blank(p.title)) out.push({ code: 'parva.title', message: 'A parva needs a title.' });
+    if (blank(p.title)) out.push({ code: 'chapter.title', message: 'A chapter needs a title.' });
   });
   for (const item of items) {
     dupe(item.id, item.id);
     if (blank(item.title))
       out.push({
         code: 'item.title',
-        message: 'A lesson or Pariksha needs a title.',
+        message: 'A lesson or Quiz needs a title.',
         itemId: item.id,
       });
     if (item.type === 'lesson') {
@@ -221,13 +221,13 @@ function contentIssues(course: Course, answers: AnswerKeys): PublishIssue[] {
     } else {
       if (item.questions.length === 0)
         out.push({
-          code: 'pariksha.empty',
-          message: 'A Pariksha needs at least one question.',
+          code: 'quiz.empty',
+          message: 'A Quiz needs at least one question.',
           itemId: item.id,
         });
       if (item.questionsShown > item.questions.length) {
         out.push({
-          code: 'pariksha.shown',
+          code: 'quiz.shown',
           message: 'It shows more questions than it has.',
           itemId: item.id,
         });
@@ -245,7 +245,7 @@ export interface CourseDiff {
   added: string[];
   removed: string[];
   edited: string[];
-  /** Course-level fields (title, summary, rules, parva order…) differ. */
+  /** Course-level fields (title, summary, rules, chapter order…) differ. */
   courseChanged: boolean;
 }
 
@@ -268,7 +268,11 @@ export function diffCourses(published: Course | null, draft: Course): CourseDiff
   const after = new Map(itemsOf(draft).map((i) => [i.id, stable(i)]));
   const strip = (c: Course) => ({
     ...c,
-    parvas: c.parvas.map((p) => ({ id: p.id, title: p.title, items: p.items.map((i) => i.id) })),
+    chapters: c.chapters.map((p) => ({
+      id: p.id,
+      title: p.title,
+      items: p.items.map((i) => i.id),
+    })),
     version: 0,
     publishedAt: null,
     status: 'x',

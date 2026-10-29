@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { log } from '../src/log';
 import type { UserRow } from '../src/console/types';
+import { terms } from '../src/labels/terms';
 import {
   courseDestinations,
   courseSource,
@@ -16,6 +17,8 @@ import type { Destination, RecordLookup, RecordSource } from '../src/navigation/
 import { lesson, makeCourse } from './fake-data';
 import { draftDoc } from './fake-studio';
 
+const GENERIC = terms('generic');
+
 const dest = (id: string): Destination => ({
   id,
   path: `/${id}`,
@@ -27,7 +30,7 @@ const dest = (id: string): Destination => ({
 });
 
 describe('courseDestinations', () => {
-  it('lists each course, then its lessons with their parva, and leaves Parikshas out', () => {
+  it('lists each course, then its lessons with their chapter, and leaves Quizzes out', () => {
     const out = courseDestinations([makeCourse()]);
     expect(out.map((d) => d.id)).toEqual([
       'course:git',
@@ -61,7 +64,7 @@ describe('courseDestinations', () => {
       id: 'old',
       status: 'archived',
       level: 'advanced',
-      parvas: [{ id: 'p', title: 'Only', items: [lesson('lab', { kindLabel: 'Lab' })] }],
+      chapters: [{ id: 'p', title: 'Only', items: [lesson('lab', { kindLabel: 'Lab' })] }],
     });
     const [c, l] = courseDestinations([course]);
     expect(c).toMatchObject({
@@ -85,21 +88,21 @@ describe('courseSource', () => {
 describe('editableCourseDestinations', () => {
   const rows = [
     {
-      live: makeCourse({ id: 'new', title: 'Old title', status: 'draft', acharyaIds: ['u1'] }),
+      live: makeCourse({ id: 'new', title: 'Old title', status: 'draft', educatorIds: ['u1'] }),
       draft: draftDoc(makeCourse({ id: 'new', title: 'Brand new', summary: 'Still writing.' })),
     },
-    { live: makeCourse({ acharyaIds: ['u1'] }), draft: null },
-    { live: makeCourse({ id: 'other', title: 'Not mine', acharyaIds: ['x'] }), draft: null },
+    { live: makeCourse({ educatorIds: ['u1'] }), draft: null },
+    { live: makeCourse({ id: 'other', title: 'Not mine', educatorIds: ['x'] }), draft: null },
   ];
 
-  it('lists the courses this Acharya edits, titled from the draft, opening the editor', () => {
-    const out = editableCourseDestinations(rows, 'u1', false);
+  it('lists the courses this Educator edits, titled from the draft, opening the editor', () => {
+    const out = editableCourseDestinations(rows, 'u1', false, GENERIC);
     expect(out).toEqual([
       {
         id: 'studio:new',
         path: '/studio/courses/new',
         label: 'Brand new',
-        areaName: 'Vyasa Studio',
+        areaName: 'Studio',
         description: 'Draft · Still writing.',
         keywords: ['Draft', 'edit', 'course'],
         kind: 'Course',
@@ -112,8 +115,8 @@ describe('editableCourseDestinations', () => {
     ]);
   });
 
-  it('gives a Kulapati every course, as Vyasa Studio does', () => {
-    expect(editableCourseDestinations(rows, 'k1', true).map((d) => d.id)).toEqual([
+  it('gives an Admin every course, as Studio does', () => {
+    expect(editableCourseDestinations(rows, 'k1', true, GENERIC).map((d) => d.id)).toEqual([
       'studio:new',
       'studio:git',
       'studio:other',
@@ -122,10 +125,10 @@ describe('editableCourseDestinations', () => {
 });
 
 describe('editableCourseSource', () => {
-  it("is for Acharyas and Kulapatis and reads Vyasa Studio's course list", async () => {
+  it("is for Educators and Admins and reads Studio's course list", async () => {
     const listCourses = vi.fn().mockResolvedValue([{ live: makeCourse(), draft: null }]);
-    const source = editableCourseSource({ listCourses }, 'u1', true);
-    expect(source.roles).toEqual(['acharya', 'kulapati']);
+    const source = editableCourseSource({ listCourses }, 'u1', true, GENERIC);
+    expect(source.roles).toEqual(['educator', 'admin']);
     expect((await source.load()).map((d) => d.path)).toEqual(['/studio/courses/git']);
     expect(listCourses).toHaveBeenCalledWith('u1', true);
   });
@@ -133,9 +136,9 @@ describe('editableCourseSource', () => {
 
 describe('loadRecords', () => {
   it('loads only the sources these roles may use', async () => {
-    const people: RecordSource = { id: 'people', roles: ['kulapati'], load: vi.fn() };
+    const people: RecordSource = { id: 'people', roles: ['admin'], load: vi.fn() };
     const all: RecordSource = { id: 'all', load: async () => [dest('a')] };
-    expect(await loadRecords([people, all], ['shishya'])).toEqual([dest('a')]);
+    expect(await loadRecords([people, all], ['learner'])).toEqual([dest('a')]);
     expect(people.load).not.toHaveBeenCalled();
   });
 
@@ -144,7 +147,7 @@ describe('loadRecords', () => {
     const failed = Object.assign(new Error('nope'), { code: 'unavailable' });
     const broken: RecordSource = { id: 'broken', load: () => Promise.reject(failed) };
     const fine: RecordSource = { id: 'fine', load: async () => [dest('b')] };
-    expect(await loadRecords([broken, fine], ['shishya'])).toEqual([dest('b')]);
+    expect(await loadRecords([broken, fine], ['learner'])).toEqual([dest('b')]);
     expect(warn).toHaveBeenCalledWith('Search records not loaded', {
       source: 'broken',
       code: 'unavailable',
@@ -166,13 +169,16 @@ const person = (over: Partial<UserRow> = {}): UserRow => ({
 
 describe('personDestinations', () => {
   it('names each person, with their email and team beneath, opening their drawer', () => {
-    const [a, b] = personDestinations([
-      person({ team: 'Mobile' }),
-      person({ uid: 'u/2', displayName: '', email: 'no.name@example.com' }),
-    ]);
+    const [a, b] = personDestinations(
+      [
+        person({ team: 'Mobile' }),
+        person({ uid: 'u/2', displayName: '', email: 'no.name@example.com' }),
+      ],
+      GENERIC,
+    );
     expect(a).toEqual({
       id: 'person:u1',
-      path: '/kulapati/learners?learner=u1',
+      path: '/admin/learners?learner=u1',
       label: 'Asha Rao',
       areaName: 'Learners',
       description: 'asha.rao@example.com · Mobile',
@@ -184,15 +190,15 @@ describe('personDestinations', () => {
       description: 'no.name@example.com',
       path: learnerPath('u/2'),
     });
-    expect(learnerPath('u/2')).toBe('/kulapati/learners?learner=u%2F2');
+    expect(learnerPath('u/2')).toBe('/admin/learners?learner=u%2F2');
   });
 });
 
 describe('peopleLookup', () => {
-  it('is for Kulapatis and reads the console people search by prefix', async () => {
+  it('is for Admins and reads the console people search by prefix', async () => {
     const searchUsers = vi.fn().mockResolvedValue([person()]);
-    const lookup = peopleLookup({ searchUsers });
-    expect(lookup.roles).toEqual(['kulapati']);
+    const lookup = peopleLookup({ searchUsers }, GENERIC);
+    expect(lookup.roles).toEqual(['admin']);
     expect((await lookup.find('as')).map((d) => d.id)).toEqual(['person:u1']);
     expect(searchUsers).toHaveBeenCalledWith('as');
   });

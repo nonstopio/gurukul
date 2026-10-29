@@ -9,12 +9,12 @@ vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const live = makeCourse({ acharyaIds: ['u1'], version: 3 });
+const live = makeCourse({ educatorIds: ['u1'], version: 3 });
 
 async function open(rev = 5) {
   const studio = fakeStudio({ draft: draftDoc(live, { rev }) });
   const app = await openApp(`/studio/courses/${live.id}`, {
-    roles: ['acharya'],
+    roles: ['educator'],
     studio,
     data: fakeData({ courses: [live] }),
   });
@@ -45,7 +45,7 @@ describe('Unsaved edits in the course editor', () => {
   it('says only "saved" when the draft has no save time', async () => {
     const studio = fakeStudio({ draft: draftDoc(live, { rev: 2, updatedAt: null }) });
     await openApp(`/studio/courses/${live.id}`, {
-      roles: ['acharya'],
+      roles: ['educator'],
       studio,
       data: fakeData({ courses: [live] }),
     });
@@ -74,7 +74,7 @@ describe('Unsaved edits in the course editor', () => {
     expect(second.studio.data.saveDraft).toHaveBeenCalled();
   });
 
-  it('lets the Acharya discard the kept edits', async () => {
+  it('lets the Educator discard the kept edits', async () => {
     localStorage.setItem(
       backupKey('u1', live.id),
       JSON.stringify({ rev: 5, savedAt: 1, work: { course: live, answers: {} } }),

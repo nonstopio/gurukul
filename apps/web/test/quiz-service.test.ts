@@ -12,23 +12,23 @@ vi.mock('firebase/functions', () => ({
 }));
 
 import { ApiClientError } from '../src/api';
-import { CooldownError, firebaseParikshaService } from '../src/pariksha/service';
+import { CooldownError, firebaseQuizService } from '../src/quiz/service';
 
-const service = firebaseParikshaService({} as never);
-const req = { courseId: 'g', parikshaId: 'p', questionIds: [], answers: {} };
+const service = firebaseQuizService({} as never);
+const req = { courseId: 'g', quizId: 'p', questionIds: [], answers: {} };
 const cooldown = (details: Record<string, unknown>) => ({
   code: 'functions/resource-exhausted',
   details: apiFail([new ApiException('PRK_4001', ['soon'], details)], 'trace'),
 });
 
-describe('firebaseParikshaService', () => {
+describe('firebaseQuizService', () => {
   it('unwraps the envelope data of checkAnswer and gradeAttempt', async () => {
     callables.fn('checkAnswer').mockResolvedValue({ data: apiOk({ correct: true }) });
     callables.fn('gradeAttempt').mockResolvedValue({ data: apiOk({ score: 1 }) });
     expect(
       await service.checkAnswer({
         courseId: 'g',
-        parikshaId: 'p',
+        quizId: 'p',
         questionId: 'q',
         selected: ['a'],
       }),
@@ -65,7 +65,7 @@ describe('firebaseParikshaService', () => {
     callables.fn('checkAnswer').mockRejectedValueOnce({ code: 'functions/unavailable' });
     expect(
       await service
-        .checkAnswer({ courseId: 'g', parikshaId: 'p', questionId: 'q', selected: [] })
+        .checkAnswer({ courseId: 'g', quizId: 'p', questionId: 'q', selected: [] })
         .catch((e) => e),
     ).toMatchObject({ code: 'GEN_5003', status: 503, retryable: true });
   });

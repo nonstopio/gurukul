@@ -1,5 +1,5 @@
 import { ApiException, certificateSchema, courseCode, credentialId } from '@gurukul/schema';
-import { requireKulapati } from './errors.js';
+import { requireAdmin } from './errors.js';
 import type { Caller } from './errors.js';
 import { buildRevokedEmail } from './mail.js';
 import type { Mailer } from './mail.js';
@@ -100,14 +100,14 @@ export interface CertificateAdmin {
   }): Promise<void>;
 }
 
-/** Revokes (or restores) a certificate. Only a Kulapati on a NonStop account may; it stays verifiable as revoked. */
+/** Revokes (or restores) a certificate. Only an Admin on a NonStop account may; it stays verifiable as revoked. */
 export async function revokeCertificate(
   deps: { admin: CertificateAdmin; mailer: Mailer },
   caller: Caller,
   data: { id?: unknown; revoked?: unknown },
 ): Promise<{ id: string; revoked: boolean }> {
   const { admin } = deps;
-  requireKulapati(caller, 'revokeCertificate');
+  requireAdmin(caller, 'revokeCertificate');
   const id = certificateSchema.shape.id.safeParse(data.id);
   if (!id.success) throw badField('id', data.id, 'must be a certificate id like NSG-GIT-26-0001');
   const revoked = data.revoked ?? true;

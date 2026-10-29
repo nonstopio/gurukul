@@ -1,5 +1,5 @@
 import { itemsOf } from '@gurukul/schema';
-import type { AnswerKeys, Pariksha } from '@gurukul/schema';
+import type { AnswerKeys, Quiz } from '@gurukul/schema';
 import {
   Button,
   Callout,
@@ -11,9 +11,11 @@ import {
 } from '@gurukul/ui';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { answerLetters } from '../pariksha/model';
-import { QuestionFields } from '../pariksha/QuestionFields';
+import { answerLetters } from '../quiz/model';
+import { QuestionFields } from '../quiz/QuestionFields';
 import { BlockView, Prose } from '../player/blocks';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { itemEditorPath, nameOf } from './studioModel';
 import { useDraft } from './useDraft';
 
@@ -29,6 +31,7 @@ export function isCorrect(picked: readonly string[], key: readonly string[]): bo
 export function PreviewPage() {
   const { courseId = '', itemId = '' } = useParams();
   const draft = useDraft(courseId);
+  const t = useTerms();
   const editor = `/studio/courses/${courseId}`;
   const back = (
     <Link className={topBarBackClass} to={editor}>
@@ -56,7 +59,7 @@ export function PreviewPage() {
           headingAs="h2"
           action={
             <Link className={buttonClass('secondary')} to="/studio">
-              Back to Vyasa Studio
+              {`Back to ${t.Studio}`}
             </Link>
           }
         >
@@ -93,13 +96,13 @@ export function PreviewPage() {
         back={back}
         actions={
           <Link className={buttonClass('secondary')} to={itemEditorPath(courseId, item)}>
-            Edit this {item.type === 'lesson' ? 'lesson' : 'Pariksha'}
+            {`Edit this ${item.type === 'lesson' ? 'lesson' : t.Quiz}`}
           </Link>
         }
       />
       <div className="sc-banner">
         <Callout tone="note" title="Preview — progress is not saved" role="status">
-          <p>This is your draft as a learner would see it. Nothing you do here is recorded.</p>
+          <p>{`This is your draft as ${article(t.learner)} would see it. Nothing you do here is recorded.`}</p>
         </Callout>
       </div>
       <div className="player">
@@ -119,7 +122,7 @@ export function PreviewPage() {
         </nav>
         <main className={item.type === 'lesson' ? `article article--${item.layout}` : 'article'}>
           <p className="article__kicker">
-            {item.type === 'lesson' ? 'Lesson' : 'Pariksha'} {index + 1} of {items.length}
+            {`${item.type === 'lesson' ? 'Lesson' : t.Quiz} ${index + 1} of ${items.length}`}
           </p>
           <h1 className="article__title">{nameOf(item.title, 'Untitled')}</h1>
           {item.type === 'lesson' ? (
@@ -130,7 +133,7 @@ export function PreviewPage() {
               ))}
             </>
           ) : (
-            <PreviewExam key={item.id} courseId={courseId} pariksha={item} answers={answers} />
+            <PreviewExam key={item.id} courseId={courseId} quiz={item} answers={answers} />
           )}
           <footer className="article__footer">
             {prev ? (
@@ -150,29 +153,30 @@ export function PreviewPage() {
   );
 }
 
-/** A Pariksha, one question at a time, graded here against the draft's answer keys. */
+/** A Quiz, one question at a time, graded here against the draft's answer keys. */
 function PreviewExam({
   courseId,
-  pariksha,
+  quiz,
   answers,
 }: {
   courseId: string;
-  pariksha: Pariksha;
+  quiz: Quiz;
   answers: AnswerKeys;
 }) {
+  const t = useTerms();
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const total = pariksha.questions.length;
-  const question = pariksha.questions[index];
+  const total = quiz.questions.length;
+  const question = quiz.questions[index];
 
   if (total === 0) {
     return (
       <EmptyState
-        title="This Pariksha has no questions yet"
+        title={`This ${t.Quiz} has no questions yet`}
         headingAs="h2"
         action={
-          <Link className={buttonClass('secondary')} to={itemEditorPath(courseId, pariksha)}>
+          <Link className={buttonClass('secondary')} to={itemEditorPath(courseId, quiz)}>
             Add questions
           </Link>
         }
@@ -182,8 +186,8 @@ function PreviewExam({
     );
   }
   if (!question) {
-    const right = pariksha.questions.filter((q) =>
-      isCorrect(picked[q.id] as string[], answers[pariksha.id]?.[q.id] ?? []),
+    const right = quiz.questions.filter((q) =>
+      isCorrect(picked[q.id] as string[], answers[quiz.id]?.[q.id] ?? []),
     ).length;
     return (
       <div className="exam">
@@ -206,7 +210,7 @@ function PreviewExam({
     );
   }
 
-  const key = answers[pariksha.id]?.[question.id] ?? [];
+  const key = answers[quiz.id]?.[question.id] ?? [];
   const mine = picked[question.id] ?? [];
   const done = checked[question.id] === true;
   const multiple = question.kind === 'multiple';

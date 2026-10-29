@@ -16,12 +16,13 @@ import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { countItems, dueLabel, hasNewLessons, isRetired, percentFor } from './learn/model';
-import { itemPath } from './pariksha/model';
+import { itemPath } from './quiz/model';
 import { Loaded, RetiredNote } from './learn/ui';
-import { openParvasKey, readOpenParvas, writeOpenParvas } from './learn/openParvas';
+import { openChaptersKey, readOpenChapters, writeOpenChapters } from './learn/openChapters';
 import { Prose } from './player/blocks';
+import { useTerms } from './labels/useTerms';
 
-const NO_PROGRESS = { completedItemIds: [], pariksha: {}, lastItemId: null };
+const NO_PROGRESS = { completedItemIds: [], quiz: {}, lastItemId: null };
 
 const STATE_LABEL: Record<ItemState, string> = {
   done: 'Done',
@@ -71,14 +72,14 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
   );
 }
 
-/** The Pariksha that gates a locked item: the nearest earlier one that blocks what follows. */
+/** The Quiz that gates a locked item: the nearest earlier one that blocks what follows. */
 function unlockHint(course: Course, itemId: string): string {
   const items = itemsOf(course);
   const at = items.findIndex((i) => i.id === itemId);
   const gate = items
     .slice(0, at)
     .reverse()
-    .find((i) => i.type === 'pariksha' && i.blocksNext);
+    .find((i) => i.type === 'quiz' && i.blocksNext);
   return gate ? `Pass ${gate.title} to unlock` : 'Finish the earlier lessons to unlock';
 }
 
@@ -101,22 +102,25 @@ function Overview({
   const resumeTitle = itemsOf(course).find((i) => i.id === resume)?.title;
   const counts = countItems(course);
   const percent = percentFor(course, progress);
-  const currentParva = course.parvas.find((p) => p.items.some((i) => states[i.id] === 'current'));
-  const storeKey = openParvasKey(uid, course.id);
-  const [open, setOpen] = useState(() => readOpenParvas(storeKey));
+  const currentChapter = course.chapters.find((p) =>
+    p.items.some((i) => states[i.id] === 'current'),
+  );
+  const storeKey = openChaptersKey(uid, course.id);
+  const [open, setOpen] = useState(() => readOpenChapters(storeKey));
   const toggle = (id: string, expanded: boolean) => {
     const next = { ...open, [id]: !expanded };
     setOpen(next);
-    writeOpenParvas(storeKey, next);
+    writeOpenChapters(storeKey, next);
   };
-  const acharyas = Object.values(course.acharyaNames);
+  const educators = Object.values(course.educatorNames);
+  const t = useTerms();
   const due = dueAt
     ? {
         ...dueLabel(dueAt, now()),
         date: dueAt.toLocaleDateString('en-IN', { dateStyle: 'medium' }),
       }
     : null;
-  const isOpen = (id: string) => open[id] ?? id === currentParva?.id;
+  const isOpen = (id: string) => open[id] ?? id === currentChapter?.id;
 
   return (
     <main>
@@ -133,8 +137,8 @@ function Overview({
           <h1 className="course-hero__title">{course.title}</h1>
           <p className="course-hero__summary">{course.summary}</p>
           <p className="course-hero__meta">
-            {course.parvas.length} parvas · {counts.lessons} lessons · {counts.parikshas} Parikshas
-            · {course.estimatedMinutes} min
+            {course.chapters.length} {t.chapters} · {counts.lessons} lessons · {counts.quizzes}{' '}
+            {t.Quizzes}· {course.estimatedMinutes} min
             {course.rules.certificate ? ' · Certificate' : ''}
             {isRetired(course) ? ' · Retired' : ''}
           </p>
@@ -178,34 +182,37 @@ function Overview({
         <div className="course__layout">
           <section aria-labelledby="outline-title">
             <h2 id="outline-title">Outline</h2>
-            {course.parvas.map((parva, n) => {
-              const expanded = isOpen(parva.id);
-              const done = parva.items.filter((i) => states[i.id] === 'done').length;
+            {course.chapters.map((chapter, n) => {
+              const expanded = isOpen(chapter.id);
+              const done = chapter.items.filter((i) => states[i.id] === 'done').length;
               return (
-                <Card as="section" key={parva.id} className="parva">
-                  <h3 className="parva__title">
+                <Card as="section" key={chapter.id} className="chapter">
+                  <h3 className="chapter__title">
                     <button
                       type="button"
-                      className="parva__toggle"
+                      className="chapter__toggle"
                       aria-expanded={expanded}
-                      aria-controls={`parva-${parva.id}`}
-                      onClick={() => toggle(parva.id, expanded)}
+                      aria-controls={`chapter-${chapter.id}`}
+                      onClick={() => toggle(chapter.id, expanded)}
                     >
-                      <span className="parva__label">Parva {n + 1}</span> {parva.title}
-                      <span className="parva__count">
-                        {done}/{parva.items.length}
+                      <span className="chapter__label">
+                        {t.Chapter} {n + 1}
+                      </span>{' '}
+                      {chapter.title}
+                      <span className="chapter__count">
+                        {done}/{chapter.items.length}
                       </span>
                     </button>
                   </h3>
                   {expanded ? (
-                    <ul id={`parva-${parva.id}`} className="items">
-                      {parva.items.map((item) => {
+                    <ul id={`chapter-${chapter.id}`} className="items">
+                      {chapter.items.map((item) => {
                         const s = states[item.id] as ItemState;
                         const label = (
                           <>
                             <span>{item.title}</span>
                             <span className="items__kind">
-                              {item.type === 'lesson' ? `${item.minutes} min` : 'Pariksha'}
+                              {item.type === 'lesson' ? `${item.minutes} min` : t.Quiz}
                             </span>
                             {STATE_LABEL[s] ? (
                               <Chip tone={s === 'done' ? 'accent' : 'neutral'}>
@@ -244,18 +251,20 @@ function Overview({
               <dl className="course__stats">
                 <dt>Lessons</dt>
                 <dd>{counts.lessons}</dd>
-                <dt>Parikshas</dt>
-                <dd>{counts.parikshas}</dd>
+                <dt>{t.Quizzes}</dt>
+                <dd>{counts.quizzes}</dd>
               </dl>
-              <p>Pass mark {Math.round(course.rules.passMark * 100)}% on each Pariksha.</p>
+              <p>
+                Pass mark {Math.round(course.rules.passMark * 100)}% on each {t.Quiz}.
+              </p>
             </Card>
-            {acharyas.length > 0 ? (
-              <Card as="section" aria-labelledby="acharya-title">
-                <h2 id="acharya-title">
-                  {acharyas.length === 1 ? 'Your Acharya' : 'Your Acharyas'}
+            {educators.length > 0 ? (
+              <Card as="section" aria-labelledby="educator-title">
+                <h2 id="educator-title">
+                  {`Your ${educators.length === 1 ? t.Educator : t.Educators}`}
                 </h2>
                 <ul>
-                  {acharyas.map((name) => (
+                  {educators.map((name) => (
                     <li key={name}>{name}</li>
                   ))}
                 </ul>

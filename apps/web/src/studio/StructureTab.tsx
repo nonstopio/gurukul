@@ -5,16 +5,18 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
   addLesson,
-  addParva,
-  addPariksha,
+  addChapter,
+  addQuiz,
   deleteItem,
-  deleteParva,
-  moveItemToParva,
+  deleteChapter,
+  moveItemToChapter,
   moveItemWithin,
-  moveParva,
+  moveChapter,
   renameItem,
-  renameParva,
+  renameChapter,
 } from './courseEdit';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { newId } from './ids';
 import { itemEditorPath, itemKind, itemMeta, nameOf } from './studioModel';
@@ -22,7 +24,7 @@ import { useStudio } from './StudioProvider';
 import type { Working } from './types';
 
 type Confirm = {
-  kind: 'parva' | 'item';
+  kind: 'chapter' | 'item';
   id: string;
   title: string;
   count: number;
@@ -30,7 +32,7 @@ type Confirm = {
   learners: number | null;
 } | null;
 
-/** The course outline: parvas you can reorder, and the lessons and Parikshas inside them. */
+/** The course outline: chapters you can reorder, and the lessons and Quizzes inside them. */
 export function StructureTab({
   course,
   live,
@@ -41,6 +43,7 @@ export function StructureTab({
   live: Course | null;
   update: (edit: (w: Working) => Working) => void;
 }) {
+  const t = useTerms();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<Confirm>(null);
   const { data } = useStudio();
@@ -58,7 +61,7 @@ export function StructureTab({
   };
 
   const remove = ({ kind, id }: NonNullable<Confirm>) => {
-    update((w) => (kind === 'parva' ? deleteParva(w, id) : deleteItem(w, id)));
+    update((w) => (kind === 'chapter' ? deleteChapter(w, id) : deleteItem(w, id)));
     setConfirm(null);
   };
 
@@ -71,70 +74,70 @@ export function StructureTab({
           </h2>
           <p className="sc-help">
             {version > 0
-              ? `Learners on v${version} keep their progress — matched by lesson id.`
-              : 'Learners keep their progress by lesson id, so renaming and moving are safe.'}
+              ? `${t.Learners} on v${version} keep their progress — matched by lesson id.`
+              : `${t.Learners} keep their progress by lesson id, so renaming and moving are safe.`}
           </p>
         </div>
-        <Button variant="secondary" onClick={() => update((w) => addParva(w, newId('parva')))}>
-          Add parva
+        <Button variant="secondary" onClick={() => update((w) => addChapter(w, newId('chapter')))}>
+          {`Add ${t.chapter}`}
         </Button>
       </div>
-      {course.parvas.length === 0 ? (
-        <Callout tone="tip" title="Start with a parva">
-          <p>A parva is a chapter. Add one, then put lessons and Parikshas inside it.</p>
+      {course.chapters.length === 0 ? (
+        <Callout tone="tip" title={`Start with ${article(t.chapter)}`}>
+          <p>{`A ${t.chapter} groups lessons. Add one, then put lessons and ${t.Quizzes} inside it.`}</p>
         </Callout>
       ) : (
         <DragList
-          label="Parvas"
-          className="sc-parvas"
-          items={course.parvas}
+          label={t.Chapters}
+          className="sc-chapters"
+          items={course.chapters}
           itemKey={(p) => p.id}
-          itemLabel={(p) => nameOf(p.title, 'Untitled parva')}
-          onMove={(from, to) => update((w) => moveParva(w, from, to))}
-          renderItem={(parva, { index, handle }) => {
-            const open = !collapsed[parva.id];
-            const minutes = parva.items.reduce(
+          itemLabel={(p) => nameOf(p.title, `Untitled ${t.chapter}`)}
+          onMove={(from, to) => update((w) => moveChapter(w, from, to))}
+          renderItem={(chapter, { index, handle }) => {
+            const open = !collapsed[chapter.id];
+            const minutes = chapter.items.reduce(
               (s, i) => s + (i.type === 'lesson' ? i.minutes : 0),
               0,
             );
             return (
-              <Card as="section" className="sc-parva" aria-label={`Parva ${index + 1}`}>
-                <div className="sc-parva__head">
+              <Card as="section" className="sc-chapter" aria-label={`${t.Chapter} ${index + 1}`}>
+                <div className="sc-chapter__head">
                   {handle}
-                  <span className="sc-parva__no">Parva {index + 1}</span>
+                  <span className="sc-chapter__no">{`${t.Chapter} ${index + 1}`}</span>
                   {open ? (
                     <input
-                      className="g-control sc-parva__input"
-                      aria-label={`Title of parva ${index + 1}`}
-                      value={parva.title}
+                      className="g-control sc-chapter__input"
+                      aria-label={`Title of ${t.chapter} ${index + 1}`}
+                      value={chapter.title}
                       maxLength={160}
-                      onChange={(e) => update((w) => renameParva(w, parva.id, e.target.value))}
+                      onChange={(e) => update((w) => renameChapter(w, chapter.id, e.target.value))}
                     />
                   ) : (
-                    <span className="sc-parva__title">{parva.title}</span>
+                    <span className="sc-chapter__title">{chapter.title}</span>
                   )}
-                  <span className="sc-parva__meta">
-                    {parva.items.length} {parva.items.length === 1 ? 'item' : 'items'} · {minutes}{' '}
-                    min
+                  <span className="sc-chapter__meta">
+                    {chapter.items.length} {chapter.items.length === 1 ? 'item' : 'items'} ·{' '}
+                    {minutes} min
                   </span>
                   <Button
                     variant="ghost"
                     aria-expanded={open}
-                    aria-controls={`parva-body-${parva.id}`}
-                    onClick={() => setCollapsed({ ...collapsed, [parva.id]: open })}
+                    aria-controls={`chapter-body-${chapter.id}`}
+                    onClick={() => setCollapsed({ ...collapsed, [chapter.id]: open })}
                   >
                     {open ? 'Collapse' : 'Expand'}{' '}
-                    <span className="sr-only">parva {index + 1}</span>
+                    <span className="sr-only">{`${t.chapter} ${index + 1}`}</span>
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label={`Delete parva ${nameOf(parva.title, 'Untitled parva')}`}
+                    aria-label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
                     onClick={() =>
                       setConfirm({
-                        kind: 'parva',
-                        id: parva.id,
-                        title: parva.title,
-                        count: parva.items.length,
+                        kind: 'chapter',
+                        id: chapter.id,
+                        title: chapter.title,
+                        count: chapter.items.length,
                         learners: null,
                       })
                     }
@@ -143,26 +146,28 @@ export function StructureTab({
                   </Button>
                 </div>
                 {open ? (
-                  <div id={`parva-body-${parva.id}`} className="sc-parva__body">
-                    {parva.items.length === 0 ? (
+                  <div id={`chapter-body-${chapter.id}`} className="sc-chapter__body">
+                    {chapter.items.length === 0 ? (
                       <p className="sc-help">Nothing here yet.</p>
                     ) : (
                       <DragList
-                        label={`Items in ${nameOf(parva.title, 'Untitled parva')}`}
+                        label={`Items in ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
                         className="sc-items"
-                        items={parva.items}
+                        items={chapter.items}
                         itemKey={(i) => i.id}
                         itemLabel={(i) => nameOf(i.title, 'Untitled')}
-                        onMove={(from, to) => update((w) => moveItemWithin(w, parva.id, from, to))}
+                        onMove={(from, to) =>
+                          update((w) => moveItemWithin(w, chapter.id, from, to))
+                        }
                         renderItem={(item, ctx) => (
                           <ItemRow
                             item={item}
                             courseId={course.id}
                             handle={ctx.handle}
                             diff={diff}
-                            others={course.parvas.filter((p) => p.id !== parva.id)}
+                            others={course.chapters.filter((p) => p.id !== chapter.id)}
                             onMoveTo={(target) =>
-                              update((w) => moveItemToParva(w, item.id, target))
+                              update((w) => moveItemToChapter(w, item.id, target))
                             }
                             onRename={(title) => update((w) => renameItem(w, item.id, title))}
                             onDelete={() => askDelete(item)}
@@ -170,18 +175,18 @@ export function StructureTab({
                         )}
                       />
                     )}
-                    <div className="sc-parva__add">
+                    <div className="sc-chapter__add">
                       <Button
                         variant="ghost"
-                        onClick={() => update((w) => addLesson(w, parva.id, newId('lesson')))}
+                        onClick={() => update((w) => addLesson(w, chapter.id, newId('lesson')))}
                       >
-                        + Lesson <span className="sr-only">in parva {index + 1}</span>
+                        + Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                       <Button
                         variant="ghost"
-                        onClick={() => update((w) => addPariksha(w, parva.id, newId('pariksha')))}
+                        onClick={() => update((w) => addQuiz(w, chapter.id, newId('quiz')))}
                       >
-                        + Pariksha <span className="sr-only">in parva {index + 1}</span>
+                        + {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                     </div>
                   </div>
@@ -195,7 +200,7 @@ export function StructureTab({
         <Dialog
           open
           onClose={() => setConfirm(null)}
-          title={confirm.kind === 'parva' ? 'Delete this parva?' : 'Delete this item?'}
+          title={confirm.kind === 'chapter' ? `Delete this ${t.chapter}?` : 'Delete this item?'}
           footer={
             <>
               <Button variant="secondary" onClick={() => setConfirm(null)}>
@@ -207,12 +212,12 @@ export function StructureTab({
         >
           <p>
             “{confirm.title}”
-            {confirm.kind === 'parva' && confirm.count > 0
+            {confirm.kind === 'chapter' && confirm.count > 0
               ? ` and its ${confirm.count} ${confirm.count === 1 ? 'item' : 'items'} will be removed from the draft.`
               : ' will be removed from the draft.'}{' '}
             {confirm.learners !== null && confirm.learners > 0
-              ? `${confirm.learners} ${confirm.learners === 1 ? 'learner has' : 'learners have'} completed it; they `
-              : 'Learners who completed it '}
+              ? `${confirm.learners} ${confirm.learners === 1 ? `${t.learner} has` : `${t.learners} have`} completed it; they `
+              : `${t.Learners} who completed it `}
             keep their progress record.
           </p>
         </Dialog>
@@ -235,11 +240,12 @@ function ItemRow({
   courseId: string;
   handle: React.ReactNode;
   diff: CourseDiff;
-  others: Course['parvas'];
-  onMoveTo: (parvaId: string) => void;
+  others: Course['chapters'];
+  onMoveTo: (chapterId: string) => void;
   onRename: (title: string) => void;
   onDelete: () => void;
 }) {
+  const t = useTerms();
   const title = nameOf(item.title, 'Untitled');
   const [renaming, setRenaming] = useState(false);
   return (
@@ -275,7 +281,7 @@ function ItemRow({
       <span className="sc-item__meta">{itemMeta(item)}</span>
       {others.length > 0 ? (
         <label className="sc-item__move">
-          <span className="sr-only">Move {title} to another parva</span>
+          <span className="sr-only">{`Move ${title} to another ${t.chapter}`}</span>
           <select
             className="g-control g-control--select"
             value=""
@@ -286,7 +292,7 @@ function ItemRow({
             </option>
             {others.map((p) => (
               <option key={p.id} value={p.id}>
-                {nameOf(p.title, 'Untitled parva')}
+                {nameOf(p.title, `Untitled ${t.chapter}`)}
               </option>
             ))}
           </select>

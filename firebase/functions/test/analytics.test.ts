@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   activeWindowStart,
-  addParvaCompletions,
+  addChapterCompletions,
   emptyDelta,
   handleAttemptCreated,
   isEmptyDelta,
@@ -16,11 +16,11 @@ import { course as fixtureCourse, progress as fixtureProgress } from './fixtures
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) });
 const DAY = 86_400_000;
 const lesson = (id: string) => ({ type: 'lesson', id }) as never;
-const pariksha = (id: string) => ({ type: 'pariksha', id }) as never;
+const quiz = (id: string) => ({ type: 'quiz', id }) as never;
 const course = {
-  parvas: [
+  chapters: [
     { id: 'p1', items: [lesson('l1'), lesson('l2')] },
-    { id: 'p2', items: [lesson('l3'), pariksha('pk')] },
+    { id: 'p2', items: [lesson('l3'), quiz('pk')] },
     { id: 'p3', items: [] },
   ],
 } as never;
@@ -33,7 +33,7 @@ const progress = (over: object = {}) =>
     lastItemId: null,
     lastActiveAt: ts(0),
     completedItemIds: [],
-    pariksha: {},
+    quiz: {},
     percent: 0,
     completedAt: null,
     certificateId: null,
@@ -48,7 +48,7 @@ describe('planProgressStats', () => {
     expect(isEmptyDelta(d)).toBe(false);
   });
 
-  it('counts the lessons that became done and the parva they finished', () => {
+  it('counts the lessons that became done and the chapter they finished', () => {
     const d = planProgressStats(
       course,
       progress({ completedItemIds: ['l1'] }),
@@ -56,18 +56,18 @@ describe('planProgressStats', () => {
       AT,
     );
     expect(d.lessons).toBe(2);
-    expect(d.parvasDone).toEqual([0]);
+    expect(d.chaptersDone).toEqual([0]);
     expect(d.started).toBe(0);
   });
 
-  it('counts a Pariksha pass toward its parva but not as a lesson', () => {
+  it('counts a Quiz pass toward its chapter but not as a lesson', () => {
     const before = progress({ completedItemIds: ['l1', 'l2', 'l3'] });
     const after = progress({
       completedItemIds: ['l1', 'l2', 'l3'],
-      pariksha: { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
+      quiz: { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
     });
     const d = planProgressStats(course, before, after, AT);
-    expect(d.parvasDone).toEqual([1]);
+    expect(d.chaptersDone).toEqual([1]);
     expect(d.lessons).toBe(0);
   });
 
@@ -96,7 +96,7 @@ describe('planProgressStats', () => {
   it('counts nothing when nothing changed, even when everything is done', () => {
     const all = progress({
       completedItemIds: ['l1', 'l2', 'l3'],
-      pariksha: { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
+      quiz: { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
     });
     expect(isEmptyDelta(planProgressStats(course, all, all, AT))).toBe(true);
   });
@@ -109,7 +109,7 @@ describe('planProgressStats', () => {
       { completed: 1 },
       { certified: 1 },
       { finishDays: 1 },
-      { parvasDone: [0] },
+      { chaptersDone: [0] },
       { lessons: 1 },
       { assignmentsCompleted: 1 },
     ]) {
@@ -118,11 +118,11 @@ describe('planProgressStats', () => {
   });
 });
 
-describe('addParvaCompletions', () => {
+describe('addChapterCompletions', () => {
   it('increments in place and pads with zeros', () => {
-    expect(addParvaCompletions([2, 1], [1])).toEqual([2, 2]);
-    expect(addParvaCompletions([], [2, 0, 2])).toEqual([1, 0, 2]);
-    expect(addParvaCompletions([1], [])).toEqual([1]);
+    expect(addChapterCompletions([2, 1], [1])).toEqual([2, 2]);
+    expect(addChapterCompletions([], [2, 0, 2])).toEqual([1, 0, 2]);
+    expect(addChapterCompletions([1], [])).toEqual([1]);
   });
 });
 
@@ -130,7 +130,7 @@ describe('handleAttemptCreated', () => {
   const attempt = {
     uid: 'u',
     courseId: 'git',
-    parikshaId: 'pk',
+    quizId: 'pk',
     score: 0.5,
     results: [
       { questionId: 'q1', correct: true },
@@ -142,7 +142,7 @@ describe('handleAttemptCreated', () => {
     bumpAttemptStats: vi.fn().mockResolvedValue(undefined),
   });
   const withAttempts = (attempts: number) =>
-    progress({ pariksha: { pk: { best: 0.5, passed: false, attempts, lastAttemptAt: ts(1) } } });
+    progress({ quiz: { pk: { best: 0.5, passed: false, attempts, lastAttemptAt: ts(1) } } });
 
   it('counts the score and, for the first attempt, each question and the first try', async () => {
     const s = store(withAttempts(1));
@@ -202,7 +202,7 @@ describe('recountFromSource', () => {
     data: {
       uid: 'u',
       courseId: 'git',
-      parikshaId: 'pk',
+      quizId: 'pk',
       score: 0.5,
       passed: false,
       results: [
@@ -213,7 +213,7 @@ describe('recountFromSource', () => {
     },
   });
 
-  it('starts every known course at zero, one slot per parva', () => {
+  it('starts every known course at zero, one slot per chapter', () => {
     const r = recountFromSource(courses, [], []);
     expect(r.courses).toEqual({
       git: {
@@ -222,7 +222,7 @@ describe('recountFromSource', () => {
         certified: 0,
         scoreSum: 0,
         scoreCount: 0,
-        parvaCompletions: [0, 0, 0],
+        chapterCompletions: [0, 0, 0],
         questionFirstTry: {},
         finishDaysSum: 0,
         finishDaysHistogram: {},
@@ -231,14 +231,14 @@ describe('recountFromSource', () => {
     expect(r.org).toEqual({
       started: 0,
       completed: 0,
-      parikshaScoreSum: 0,
-      parikshaScoreCount: 0,
-      parikshaFirstTryTotal: 0,
-      parikshaFirstTryPassed: 0,
+      quizScoreSum: 0,
+      quizScoreCount: 0,
+      quizFirstTryTotal: 0,
+      quizFirstTryPassed: 0,
     });
   });
 
-  it('counts starts, completions, certificates, finish days and finished parvas from progress', () => {
+  it('counts starts, completions, certificates, finish days and finished chapters from progress', () => {
     const passed = { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } };
     const r = recountFromSource(
       courses,
@@ -248,7 +248,7 @@ describe('recountFromSource', () => {
         progress({
           uid: 'w',
           completedItemIds: ['l1', 'l2', 'l3'],
-          pariksha: passed,
+          quiz: passed,
           startedAt: ts(DAY),
           completedAt: ts(3 * DAY),
           certificateId: 'NSG-GIT-26-0001',
@@ -265,7 +265,7 @@ describe('recountFromSource', () => {
       certified: 1,
       finishDaysSum: 2,
       finishDaysHistogram: { '0': 1, '2': 1 },
-      parvaCompletions: [2, 1, 0],
+      chapterCompletions: [2, 1, 0],
     });
     expect(r.org).toMatchObject({ started: 4, completed: 2 });
   });
@@ -285,7 +285,7 @@ describe('recountFromSource', () => {
         attempt('d', 10, { uid: 'v', score: 0, results: [] }),
         attempt('c', 10, { uid: 'v', passed: true }),
         attempt('z', 10, { uid: 'v', score: 0, results: [] }),
-        attempt('e', 5, { uid: 'v', parikshaId: 'other', score: 0, results: undefined }),
+        attempt('e', 5, { uid: 'v', quizId: 'other', score: 0, results: undefined }),
         attempt('f', 1, { courseId: 'gone' }),
         { id: 'g', createdAtMs: 0, data: { nope: 1 } },
       ],
@@ -296,10 +296,10 @@ describe('recountFromSource', () => {
       questionFirstTry: { q1: { correct: 2, total: 2 }, q2: { correct: 0, total: 2 } },
     });
     expect(r.org).toMatchObject({
-      parikshaScoreSum: 2,
-      parikshaScoreCount: 7,
-      parikshaFirstTryTotal: 3,
-      parikshaFirstTryPassed: 1,
+      quizScoreSum: 2,
+      quizScoreCount: 7,
+      quizFirstTryTotal: 3,
+      quizFirstTryPassed: 1,
     });
   });
 });
@@ -320,7 +320,7 @@ describe('runDailyRollup', () => {
       {
         id: 'a',
         createdAtMs: 1,
-        data: { uid: 'u', courseId: 'git-basics', parikshaId: 'pk', score: 1, passed: true },
+        data: { uid: 'u', courseId: 'git-basics', quizId: 'pk', score: 1, passed: true },
       },
     ]),
     writeOrgCounts: vi.fn().mockResolvedValue(undefined),
@@ -342,10 +342,10 @@ describe('runDailyRollup', () => {
       assignmentsCompleted: 90,
       started: 1,
       completed: 0,
-      parikshaScoreSum: 1,
-      parikshaScoreCount: 1,
-      parikshaFirstTryTotal: 1,
-      parikshaFirstTryPassed: 1,
+      quizScoreSum: 1,
+      quizScoreCount: 1,
+      quizFirstTryTotal: 1,
+      quizFirstTryPassed: 1,
     };
     expect(summary).toEqual({ ...org, courses: 1, progressDocs: 1, attempts: 1, rosterWrites: 1 });
     expect(s.roster).toHaveBeenCalledWith('git-basics');
@@ -363,7 +363,7 @@ describe('runDailyRollup', () => {
       certified: 0,
       scoreSum: 1,
       scoreCount: 1,
-      parvaCompletions: [0],
+      chapterCompletions: [0],
       questionFirstTry: {},
       finishDaysSum: 0,
       finishDaysHistogram: {},

@@ -4,18 +4,21 @@ import { userMessageOf } from '../api';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { ConfirmDialog } from './ConfirmDialog';
 import { KIND_LABELS, matchBank } from './questionEdit';
 import { useStudio } from './StudioProvider';
 import type { BankQuestion } from './types';
 
-/** `/studio/bank`: every question saved for reuse, searchable; the creator or a Kulapati may delete one. */
+/** `/studio/bank`: every question saved for reuse, searchable; the creator or an Admin may delete one. */
 export function QuestionBankPage() {
   const { data } = useStudio();
   const { uid } = useUser();
   const { roles } = useSession();
   const toast = useToast();
+  const t = useTerms();
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<BankQuestion | null>(null);
@@ -25,7 +28,7 @@ export function QuestionBankPage() {
       return data.questionBank();
     }, [data, reload]),
   );
-  const kulapati = roles.includes('kulapati');
+  const admin = roles.includes('admin');
 
   const remove = async (entry: BankQuestion) => {
     setDeleting(null);
@@ -44,15 +47,14 @@ export function QuestionBankPage() {
     <main className="page studio-bank">
       <h1 className="page__title">Question bank</h1>
       <p className="studio-muted">
-        Questions saved from any Pariksha, ready to reuse. To change one, save the question again
-        from the Pariksha where you edited it.
+        {`Questions saved from any ${t.Quiz}, ready to reuse. To change one, save the question again from the ${t.Quiz} where you edited it.`}
       </p>
       <Loaded loadable={bank}>
         {(all) => {
           if (all.length === 0) {
             return (
               <EmptyState headingAs="h2" title="The question bank is empty">
-                Open a Pariksha and choose Save to question bank on a question to add it here.
+                {`Open ${article(t.Quiz)} and choose Save to question bank on a question to add it here.`}
               </EmptyState>
             );
           }
@@ -97,7 +99,7 @@ export function QuestionBankPage() {
                             ))}
                           </ul>
                         </details>
-                        {entry.createdBy === uid || kulapati ? (
+                        {entry.createdBy === uid || admin ? (
                           <Button variant="ghost" onClick={() => setDeleting(entry)}>
                             Delete
                           </Button>
@@ -118,7 +120,7 @@ export function QuestionBankPage() {
           onClose={() => setDeleting(null)}
           onConfirm={() => void remove(deleting)}
         >
-          Pariksha that already use a copy keep it. Only the bank entry is removed.
+          {`${t.Quizzes} that already use a copy keep it. Only the bank entry is removed.`}
         </ConfirmDialog>
       ) : null}
     </main>

@@ -11,8 +11,8 @@ export interface RoleAdmin {
   /** `users/{uid}.grantedCourseIds`, or an empty list when there is none. */
   getGrantedCourseIds(uid: string): Promise<string[]>;
   /**
-   * Stores the new list on the profile and, in one batch, adds the uid to `acharyaIds` (and the
-   * profile's display name to `acharyaNames`) of every granted course, and removes both from each
+   * Stores the new list on the profile and, in one batch, adds the uid to `educatorIds` (and the
+   * profile's display name to `educatorNames`) of every granted course, and removes both from each
    * removed one. Course documents that do not exist are skipped, never created.
    */
   applyCourseGrants(
@@ -65,10 +65,10 @@ export async function applyRoleChange(
 }
 
 /**
- * The one-off bootstrap behind `npm run grant-kulapati -- you@nonstopio.com`: makes the first
- * Kulapati. Run once with an admin credential on the maintainer's machine, never in CI.
+ * The one-off bootstrap behind `npm run grant-admin -- you@nonstopio.com`: makes the first
+ * Admin. Run once with an admin credential on the maintainer's machine, never in CI.
  */
-export async function grantKulapati(
+export async function grantAdmin(
   deps: {
     uidForEmail(email: string): Promise<string>;
     admin: RoleAdmin;
@@ -77,11 +77,11 @@ export async function grantKulapati(
 ): Promise<string> {
   const target = email?.trim().toLowerCase();
   if (!target?.endsWith('@nonstopio.com')) {
-    throw new Error('Usage: npm run grant-kulapati -- you@nonstopio.com');
+    throw new Error('Usage: npm run grant-admin -- you@nonstopio.com');
   }
   const uid = await deps.uidForEmail(target);
   const current = await deps.admin.getClaims(uid);
-  const claims = { acharya: current?.acharya === true, kulapati: true };
+  const claims = { educator: current?.educator === true, admin: true };
   const plan: RolePlan = { claims, roles: rolesFromClaims(claims) };
   await deps.admin.setClaims(uid, plan.claims);
   await deps.admin.mirrorRoles(uid, plan);

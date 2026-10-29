@@ -13,31 +13,31 @@ vi.mock('../src/log', () => ({
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
 
 function rows() {
-  const live = makeCourse({ id: 'git', title: 'Git', acharyaIds: ['u1'], version: 2 });
+  const live = makeCourse({ id: 'git', title: 'Git', educatorIds: ['u1'], version: 2 });
   const edited = makeCourse({
     id: 'git',
     title: 'Git',
-    acharyaIds: ['u1'],
+    educatorIds: ['u1'],
     version: 2,
-    parvas: [{ id: 'p1', title: 'Basics', items: [lesson('l1', { title: 'Changed' })] }],
+    chapters: [{ id: 'p1', title: 'Basics', items: [lesson('l1', { title: 'Changed' })] }],
   });
   const draftOnly = makeCourse({
     id: 'new',
     title: 'Brand new',
     status: 'draft',
     version: 0,
-    acharyaIds: ['u1'],
+    educatorIds: ['u1'],
   });
   const one = makeCourse({
     id: 'one',
     title: 'One edit',
-    acharyaIds: ['u1'],
-    parvas: [{ id: 'p1', title: 'Basics', items: [lesson('l1')] }],
+    educatorIds: ['u1'],
+    chapters: [{ id: 'p1', title: 'Basics', items: [lesson('l1')] }],
   });
   const oneDraft = makeCourse({
     ...one,
     title: 'One edit',
-    parvas: one.parvas,
+    chapters: one.chapters,
     summary: 'Changed',
   });
   return [
@@ -48,32 +48,32 @@ function rows() {
       live: makeCourse({
         id: 'other',
         title: 'Not mine',
-        acharyaIds: ['x'],
-        acharyaNames: { x: 'Rohan Das' },
+        educatorIds: ['x'],
+        educatorNames: { x: 'Rohan Das' },
       }),
       draft: null,
     },
     {
-      live: makeCourse({ id: 'old', title: 'Retired', status: 'archived', acharyaIds: ['x'] }),
+      live: makeCourse({ id: 'old', title: 'Retired', status: 'archived', educatorIds: ['x'] }),
       draft: null,
     },
   ];
 }
 
-describe('Courses in global search for Acharyas', () => {
+describe('Courses in global search for Educators', () => {
   it('finds a never-published draft and opens it in the course editor', async () => {
     const studio = fakeStudio({ courses: rows() });
-    const app = await openApp('/', { roles: ['acharya'], studio });
+    const app = await openApp('/', { roles: ['educator'], studio });
     fireEvent.click(screen.getByRole('button', { name: /Search/ }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
-    const option = await screen.findByRole('option', { name: /Brand new.*Vyasa Studio/ });
+    const option = await screen.findByRole('option', { name: /Brand new.*Studio/ });
     expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
     expect(screen.queryByRole('option', { name: /Not mine/ })).toBeNull();
     fireEvent.click(option);
     await waitFor(() => expect(app.router.state.location.pathname).toBe('/studio/courses/new'));
   });
 
-  it('is not loaded for a Shishya', async () => {
+  it('is not loaded for a Learner', async () => {
     const studio = fakeStudio({ courses: rows() });
     await openApp('/', { studio });
     fireEvent.click(screen.getByRole('button', { name: /Search/ }));
@@ -86,9 +86,9 @@ describe('Courses in global search for Acharyas', () => {
 describe('Studio courses page', () => {
   it('lists courses with status, edits and view-only cards', async () => {
     const studio = fakeStudio({ courses: rows() });
-    await openApp('/studio', { roles: ['acharya'], studio });
+    await openApp('/studio', { roles: ['educator'], studio });
     expect(await screen.findByRole('heading', { name: 'Courses' })).toBeTruthy();
-    expect(screen.getByText(/parva by parva/)).toBeTruthy();
+    expect(screen.getByText(/chapter by chapter/)).toBeTruthy();
     expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
     expect(await screen.findByRole('tab', { name: 'All (5)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Published (3)' })).toBeTruthy();
@@ -103,7 +103,7 @@ describe('Studio courses page', () => {
     expect(screen.getByText('1 learner')).toBeTruthy();
     expect(screen.getByText('Edited just now')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Not mine' })).toBeNull();
-    expect(screen.getByText('View only — Acharya: Rohan Das')).toBeTruthy();
+    expect(screen.getByText('View only — Educator: Rohan Das')).toBeTruthy();
     expect(screen.getByText('View only')).toBeTruthy();
     expect(screen.getByText('Archived')).toBeTruthy();
     expect(screen.getByText('Published · v2')).toBeTruthy();
@@ -112,7 +112,7 @@ describe('Studio courses page', () => {
 
   it('filters by tab and explains an empty tab', async () => {
     const studio = fakeStudio({ courses: [rows()[0] as never] });
-    await openApp('/studio', { roles: ['acharya'], studio });
+    await openApp('/studio', { roles: ['educator'], studio });
     fireEvent.click(await screen.findByRole('tab', { name: 'Drafts (0)' }));
     expect(screen.getByRole('heading', { name: 'No drafts' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Published (1)' }));
@@ -120,17 +120,17 @@ describe('Studio courses page', () => {
   });
 
   it('shows an empty state with no courses, and a load failure', async () => {
-    await openApp('/studio', { roles: ['acharya'], studio: fakeStudio() });
+    await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
     expect(await screen.findByRole('heading', { name: 'No courses yet' })).toBeTruthy();
     const broken = fakeStudio();
     broken.data.listCourses = vi.fn().mockRejectedValue(new Error('offline'));
-    await openApp('/studio', { roles: ['kulapati'], studio: broken });
+    await openApp('/studio', { roles: ['admin'], studio: broken });
     expect(await screen.findAllByText('This did not load')).not.toHaveLength(0);
     expect(broken.data.listCourses).toHaveBeenCalledWith('u1', true);
   });
 
   async function openDialog(studio = fakeStudio({ courses: rows() })) {
-    const app = await openApp('/studio', { roles: ['acharya'], studio, data: fakeData() });
+    const app = await openApp('/studio', { roles: ['educator'], studio, data: fakeData() });
     fireEvent.click(await screen.findByRole('button', { name: 'New course' }));
     return { ...app, studio };
   }
@@ -204,7 +204,7 @@ describe('Studio courses page', () => {
   });
 
   it('opens the dialog from the "Start a new course" card; submit does nothing while incomplete', async () => {
-    await openApp('/studio', { roles: ['acharya'], studio: fakeStudio({ courses: rows() }) });
+    await openApp('/studio', { roles: ['educator'], studio: fakeStudio({ courses: rows() }) });
     fireEvent.click(await screen.findByRole('button', { name: /Start a new course/ }));
     const dialog = screen.getByRole('dialog');
     await act(async () => {
@@ -214,7 +214,7 @@ describe('Studio courses page', () => {
   });
 
   it('offers the empty-state button to create', async () => {
-    await openApp('/studio', { roles: ['acharya'], studio: fakeStudio() });
+    await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
     await screen.findByRole('heading', { name: 'No courses yet' });
     const buttons = screen.getAllByRole('button', { name: 'New course' });
     fireEvent.click(buttons[1] as HTMLElement);

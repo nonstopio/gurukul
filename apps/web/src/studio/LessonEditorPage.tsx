@@ -33,12 +33,14 @@ import {
 import { newId } from './ids';
 import { patch } from './patch';
 import { itemEditorPath } from './studioModel';
+import type { Terms } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import type { Working } from './types';
 import { useDraft } from './useDraft';
 import type { DraftApi } from './useDraft';
 
-const COMPLETION: Array<{ value: Lesson['completeWhen']; label: string }> = [
-  { value: 'manual', label: 'The learner marks it done' },
+const completion = (t: Terms): Array<{ value: Lesson['completeWhen']; label: string }> => [
+  { value: 'manual', label: `The ${t.learner} marks it done` },
   { value: 'video90', label: 'After 90% of the video' },
   { value: 'scrolled', label: 'After scrolling to the end' },
 ];
@@ -69,6 +71,7 @@ function LessonEditor({
   courseId: string;
   lessonId: string;
 }) {
+  const terms = useTerms();
   const [selected, setSelected] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
@@ -110,7 +113,7 @@ function LessonEditor({
 
   const lesson = findLesson(work.course, lessonId);
   const crumbs = [
-    { label: 'Studio', render: (p: object) => <Link to="/studio" {...p} /> },
+    { label: terms.Studio, render: (p: object) => <Link to="/studio" {...p} /> },
     {
       label: work.course.title,
       render: (p: object) => <Link to={`/studio/courses/${courseId}`} {...p} />,
@@ -168,15 +171,15 @@ function LessonEditor({
         draft={draft}
         actions={
           <PreviewLink draft={draft} to={`/studio/courses/${courseId}/preview/${lessonId}`}>
-            Preview as learner
+            {`Preview as ${terms.learner}`}
           </PreviewLink>
         }
       />
       <div className="studio-cols">
         <nav className="studio-rail" aria-label="Lessons in this course">
-          <h2 className="studio-micro">Lessons and Parikshas</h2>
+          <h2 className="studio-micro">{`Lessons and ${terms.Quizzes}`}</h2>
           <ul>
-            {work.course.parvas
+            {work.course.chapters
               .flatMap((p) => p.items)
               .map((i) => (
                 <li key={i.id}>
@@ -184,9 +187,10 @@ function LessonEditor({
                     to={itemEditorPath(courseId, i)}
                     aria-current={i.id === lessonId ? 'page' : undefined}
                   >
-                    {i.title || (i.type === 'lesson' ? 'Untitled lesson' : 'Untitled Pariksha')}
-                    {i.type === 'pariksha' ? (
-                      <span className="studio-rail__kind"> Pariksha</span>
+                    {i.title ||
+                      (i.type === 'lesson' ? 'Untitled lesson' : `Untitled ${terms.Quiz}`)}
+                    {i.type === 'quiz' ? (
+                      <span className="studio-rail__kind">{` ${terms.Quiz}`}</span>
                     ) : null}
                   </Link>
                 </li>
@@ -265,7 +269,7 @@ function LessonEditor({
               edit((l) => ({ ...l, completeWhen: e.target.value as Lesson['completeWhen'] }))
             }
           >
-            {COMPLETION.map((c) => (
+            {completion(terms).map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>

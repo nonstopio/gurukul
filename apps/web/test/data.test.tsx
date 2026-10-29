@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useConsole } from '../src/console/ConsoleProvider';
 import { useLearnerData } from '../src/data/DataProvider';
-import { useParikshaService } from '../src/pariksha/ParikshaProvider';
+import { useQuizService } from '../src/quiz/QuizProvider';
 
 describe('useLearnerData', () => {
   it('throws a clear error outside the provider', () => {
@@ -16,14 +16,14 @@ describe('useLearnerData', () => {
     console.error = spy;
   });
 
-  it('useParikshaService throws outside its provider', () => {
+  it('useQuizService throws outside its provider', () => {
     function Probe() {
-      useParikshaService();
+      useQuizService();
       return null;
     }
     const spy = console.error;
     console.error = () => {};
-    expect(() => render(<Probe />)).toThrow(/inside <ParikshaProvider>/);
+    expect(() => render(<Probe />)).toThrow(/inside <QuizProvider>/);
     console.error = spy;
   });
 

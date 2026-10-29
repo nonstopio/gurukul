@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { assignCourses, parseAssignRequest, emailKey } from '../src/assign.js';
 import type { AssignStore } from '../src/assign.js';
 
-const kulapati = {
+const admin = {
   uid: 'k',
   email: 'k@nonstopio.com',
   name: ' Kavya Rao ',
-  claims: { kulapati: true },
+  claims: { admin: true },
 };
 const published = (title: string) => ({ status: 'published', title });
 const id = (course: string, email: string) => assignmentId(course, emailKey(email));
@@ -38,7 +38,7 @@ const request = (over: Record<string, unknown> = {}) => ({
 describe('assignCourses', () => {
   it('assigns, stamps the uid of people who already signed in and reports the summary', async () => {
     const { store, mailer, deps } = setup();
-    const out = await assignCourses(deps, kulapati, request({ dueAt: 5000 }));
+    const out = await assignCourses(deps, admin, request({ dueAt: 5000 }));
     expect(out).toEqual({
       summary: {
         signedIn: 1,
@@ -89,7 +89,7 @@ describe('assignCourses', () => {
 
   it('stores no assigner name when the token carries none', async () => {
     const { store, deps } = setup();
-    await assignCourses(deps, { ...kulapati, name: undefined }, request());
+    await assignCourses(deps, { ...admin, name: undefined }, request());
     expect(store.createAssignments).toHaveBeenCalledWith('k', null, expect.any(Array));
   });
 
@@ -102,7 +102,7 @@ describe('assignCourses', () => {
     });
     const out = await assignCourses(
       deps,
-      kulapati,
+      admin,
       request({ courseIds: ['git', 'sql', 'git'], notify: true, dueAt: Date.UTC(2026, 10, 1) }),
     );
     expect(out.summary).toMatchObject({ signedIn: 1, newInvites: 2, alreadyAssigned: 1 });
@@ -129,7 +129,7 @@ describe('assignCourses', () => {
     });
     const out = await assignCourses(
       deps,
-      kulapati,
+      admin,
       request({ courseIds: ['git', 'sql'], notify: true }),
     );
     expect(out.assigned).toBe(3);
@@ -151,7 +151,7 @@ describe('assignCourses', () => {
           docs.map((d) => d.id),
         ),
     });
-    const out = await assignCourses(deps, kulapati, request({ notify: true }));
+    const out = await assignCourses(deps, admin, request({ notify: true }));
     expect(out).toMatchObject({ assigned: 0, notified: 0 });
     expect(out.failed).toHaveLength(2);
     expect(store.bumpAssigned).not.toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe('assignCourses', () => {
     const { store, mailer, deps } = setup({
       existingAssignmentIds: vi.fn().mockImplementation(async (ids: string[]) => new Set(ids)),
     });
-    const out = await assignCourses(deps, kulapati, request({ notify: true }));
+    const out = await assignCourses(deps, admin, request({ notify: true }));
     expect(out).toMatchObject({ assigned: 0, notified: 0 });
     expect(out.summary.alreadyAssigned).toBe(2);
     expect(store.createAssignments).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe('assignCourses', () => {
       [{ git: { status: 'draft', title: 'Git' } }, 'CRS_1001'],
     ] as const) {
       const { store, deps } = setup({ courses: vi.fn().mockResolvedValue(found) });
-      await expect(assignCourses(deps, kulapati, request())).rejects.toMatchObject({
+      await expect(assignCourses(deps, admin, request())).rejects.toMatchObject({
         code,
         params: ['git'],
       });
@@ -188,21 +188,17 @@ describe('assignCourses', () => {
     }
   });
 
-  it('refuses anyone but a Kulapati', async () => {
+  it('refuses anyone but an Admin', async () => {
     const { store, deps } = setup();
     await expect(
       assignCourses(
         deps,
-        { uid: 'x', email: 'x@nonstopio.com', claims: { acharya: true } },
+        { uid: 'x', email: 'x@nonstopio.com', claims: { educator: true } },
         request(),
       ),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
     await expect(
-      assignCourses(
-        deps,
-        { uid: 'x', email: 'x@gmail.com', claims: { kulapati: true } },
-        request(),
-      ),
+      assignCourses(deps, { uid: 'x', email: 'x@gmail.com', claims: { admin: true } }, request()),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
     expect(store.courses).not.toHaveBeenCalled();
   });

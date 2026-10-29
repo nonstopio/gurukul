@@ -10,12 +10,12 @@ import {
   validateForPublish,
 } from '../src';
 import type { AnswerKeys, Course } from '../src';
-import { firstQuestion, itemAt, makeCourse, parvaAt, ts } from './fixtures';
+import { firstQuestion, itemAt, makeCourse, chapterAt, ts } from './fixtures';
 
 const keys: AnswerKeys = { q1: { k1: ['a'] } };
 const good = () => {
   const c = makeCourse();
-  for (const item of c.parvas.flatMap((p) => p.items)) {
+  for (const item of c.chapters.flatMap((p) => p.items)) {
     if (item.type === 'lesson' && item.blocks.length === 0) {
       item.blocks = [{ type: 'markdown', id: `${item.id}-b`, md: 'text' }];
     }
@@ -41,17 +41,17 @@ describe('blankCourse and estimateMinutes', () => {
       title: 'SQL basics',
       level: 'foundation',
       theme: 'sky',
-      acharyaId: 'u1',
-      acharyaName: 'Asha Rao',
+      educatorId: 'u1',
+      educatorName: 'Asha Rao',
     });
     expect(courseSchema.safeParse(c).success).toBe(true);
     expect(c).toMatchObject({
       status: 'draft',
       version: 0,
-      acharyaIds: ['u1'],
-      acharyaNames: { u1: 'Asha Rao' },
+      educatorIds: ['u1'],
+      educatorNames: { u1: 'Asha Rao' },
       cover: { theme: 'sky', glyph: 'S' },
-      parvas: [],
+      chapters: [],
     });
     expect(estimateMinutes(c)).toBe(0);
     const unnamed = blankCourse({
@@ -59,10 +59,10 @@ describe('blankCourse and estimateMinutes', () => {
       title: '  ',
       level: 'advanced',
       theme: 'sand',
-      acharyaId: 'u',
+      educatorId: 'u',
     });
     expect(unnamed.cover.glyph).toBe('G');
-    expect(unnamed.acharyaNames).toEqual({});
+    expect(unnamed.educatorNames).toEqual({});
   });
 
   it('sums lesson minutes only', () => {
@@ -87,7 +87,7 @@ describe('validateForPublish', () => {
     c.summary = '';
     expect(codes(c)).toEqual(expect.arrayContaining(['course.title', 'course.summary']));
     const empty = good();
-    empty.parvas = [];
+    empty.chapters = [];
     expect(codes(empty)).toContain('course.empty');
   });
 
@@ -100,10 +100,10 @@ describe('validateForPublish', () => {
     const whole = good();
     (whole as { title: unknown }).title = 5;
     expect(validateForPublish(whole, keys).every((i) => i.code === 'schema')).toBe(true);
-    const root = { ...good(), parvas: 'x' } as unknown as Course;
+    const root = { ...good(), chapters: 'x' } as unknown as Course;
     expect(
       validateForPublish(root, keys).some(
-        (i) => i.code === 'schema' && i.message.startsWith('parvas'),
+        (i) => i.code === 'schema' && i.message.startsWith('chapters'),
       ),
     ).toBe(true);
   });
@@ -116,15 +116,17 @@ describe('validateForPublish', () => {
 
   it('flags titles, an empty lesson and repeated ids', () => {
     const c = good();
-    parvaAt(c, 0).title = '';
+    chapterAt(c, 0).title = '';
     const lesson = itemAt(c, 0);
     lesson.title = '';
     if (lesson.type === 'lesson') lesson.blocks = [];
-    expect(codes(c)).toEqual(expect.arrayContaining(['parva.title', 'item.title', 'lesson.empty']));
+    expect(codes(c)).toEqual(
+      expect.arrayContaining(['chapter.title', 'item.title', 'lesson.empty']),
+    );
     const dup = good();
-    parvaAt(dup, 0).items.push({ ...itemAt(dup, 0) });
+    chapterAt(dup, 0).items.push({ ...itemAt(dup, 0) });
     expect(codes(dup)).toContain('id.duplicate');
-    dup.parvas.push({ ...parvaAt(dup, 0) });
+    dup.chapters.push({ ...chapterAt(dup, 0) });
     expect(validateForPublish(dup, keys).some((i) => i.code === 'id.duplicate' && !i.itemId)).toBe(
       true,
     );
@@ -210,7 +212,7 @@ describe('validateForPublish', () => {
   it('checks every question: text, answers, explanation and the key', () => {
     const c = good();
     const p = itemAt(c, 1);
-    if (p.type !== 'pariksha') throw new Error('fixture');
+    if (p.type !== 'quiz') throw new Error('fixture');
     const q = p.questions[0] as unknown as Record<string, unknown>;
     q.prompt = '';
     q.explanation = '';
@@ -231,14 +233,14 @@ describe('validateForPublish', () => {
     expect(validateForPublish(multi, { q1: { k1: ['a', 'b'] } })).toEqual([]);
   });
 
-  it('flags an empty Pariksha and one that shows too many questions', () => {
+  it('flags an empty Quiz and one that shows too many questions', () => {
     const c = good();
     const p = itemAt(c, 1);
-    if (p.type === 'pariksha') {
+    if (p.type === 'quiz') {
       p.questions = [];
       p.questionsShown = 3;
     }
-    expect(codes(c)).toEqual(expect.arrayContaining(['pariksha.empty', 'pariksha.shown']));
+    expect(codes(c)).toEqual(expect.arrayContaining(['quiz.empty', 'quiz.shown']));
   });
 });
 
@@ -264,18 +266,18 @@ describe('diffCourses and countUnpublished', () => {
     const draft = JSON.parse(JSON.stringify(live)) as Course;
     const l1 = itemAt(draft, 0);
     l1.title = 'Renamed';
-    parvaAt(draft, 0).items.splice(2, 1);
-    parvaAt(draft, 0).items.push({ ...itemAt(live, 2), id: 'new' });
+    chapterAt(draft, 0).items.splice(2, 1);
+    chapterAt(draft, 0).items.push({ ...itemAt(live, 2), id: 'new' });
     draft.summary = 'Changed';
     const d = diffCourses(live, draft);
     expect(d).toEqual({ added: ['new'], removed: ['l2'], edited: ['l1'], courseChanged: true });
     expect(countUnpublished(d)).toBe(4);
   });
 
-  it('counts a reordered parva as a course-level change', () => {
+  it('counts a reordered chapter as a course-level change', () => {
     const live = good();
     const draft = JSON.parse(JSON.stringify(live)) as Course;
-    parvaAt(draft, 0).items.reverse();
+    chapterAt(draft, 0).items.reverse();
     expect(diffCourses(live, draft).courseChanged).toBe(true);
   });
 });

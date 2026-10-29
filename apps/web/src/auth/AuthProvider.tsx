@@ -1,5 +1,5 @@
 import { isAllowedEmail, rolesFromClaims } from '@gurukul/schema';
-import type { Role } from '@gurukul/schema';
+import type { LabelSet, Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthService, AuthUser, SignInOptions } from './service';
@@ -13,6 +13,8 @@ export interface Session {
   roles: Role[];
   /** The team on the profile (`users/{uid}.team`); `null` until the person picks one. */
   team: string | null;
+  /** Which names the app shows (`users/{uid}.labels`); `null` until the person picks. */
+  labels: LabelSet | null;
   /** Why sign-in failed, or why a non-NonStop account was signed back out. */
   error: string | null;
   /** The last account Google returned was not a NonStop io one: offer to choose another. */
@@ -28,6 +30,14 @@ export function useSession(): Session {
   const session = useContext(Ctx);
   if (!session) throw new Error('useSession must be used inside <AuthProvider>');
   return session;
+}
+
+/**
+ * The label set to render with. Outside a session (the public verify page, a component rendered
+ * on its own in a test) and before the person picks, the generic names.
+ */
+export function useLabelSet(): LabelSet {
+  return useContext(Ctx)?.labels ?? 'generic';
 }
 
 /** The signed-in person. Only used inside `RequireSession`, so a missing user is a bug, not a state. */
@@ -56,8 +66,9 @@ export const RETRY_MESSAGE = 'Sign-in did not finish. Try again.';
 export function AuthProvider({ service, children }: { service: AuthService; children: ReactNode }) {
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [roles, setRoles] = useState<Role[]>(['shishya']);
+  const [roles, setRoles] = useState<Role[]>(['learner']);
   const [team, setTeam] = useState<string | null>(null);
+  const [labels, setLabels] = useState<LabelSet | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wrongAccount, setWrongAccount] = useState(false);
   const stopProfile = useRef<() => void>(() => {});
@@ -75,8 +86,9 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       stopProfile.current = () => {};
       if (!u) {
         setUser(null);
-        setRoles(['shishya']);
+        setRoles(['learner']);
         setTeam(null);
+        setLabels(null);
         setStatus('signedOut');
         return;
       }
@@ -106,6 +118,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
           });
         }
         setTeam(profile.team ?? null);
+        setLabels(profile.labels ?? null);
         setStatus('ready');
       });
     });
@@ -121,6 +134,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       user,
       roles,
       team,
+      labels,
       error,
       wrongAccount,
       signIn: async (options) => {
@@ -134,7 +148,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       },
       signOut: () => service.signOut(),
     }),
-    [status, user, roles, team, error, wrongAccount, service],
+    [status, user, roles, team, labels, error, wrongAccount, service],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

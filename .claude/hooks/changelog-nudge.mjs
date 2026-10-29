@@ -9,7 +9,7 @@
 //  The changelog (apps/web/src/changelog/) lives in the repo so an entry travels with the code it
 //  describes and a pull request without one is visible in review. That only works if writing one
 //  is a step rather than a habit: habits do not survive a busy afternoon, and an agent has no
-//  habits at all. The moment a learner-facing screen, a Kulapati control, a Studio editor, a rules
+//  habits at all. The moment a learner-facing screen, an Admin control, a Studio editor, a rules
 //  decision or a function's behaviour changes is the cheapest moment to ask.
 //
 //  IT STOPS ONCE THE ENTRY EXISTS
@@ -42,7 +42,7 @@ import {
 
 const ENTRIES = 'apps/web/src/changelog/entries';
 
-/** Shipped code whose behaviour a learner, Acharya or Kulapati could notice. */
+/** Shipped code whose behaviour a learner, Educator or Admin could notice. */
 function watched(rel) {
   const shipped =
     rel.startsWith('apps/web/src/') ||
@@ -83,8 +83,8 @@ await run(async () => {
   if (!firstTime('changelog-nudge', payload.session_id)) return;
 
   sayAfter(
-    `This session has changed ${rel} and added no changelog entry. If a learner, Acharya or ` +
-      'Kulapati would notice this change (a screen, a control, a label, a default, a message, ' +
+    `This session has changed ${rel} and added no changelog entry. If a learner, Educator or ` +
+      'Admin would notice this change (a screen, a control, a label, a default, a message, ' +
       'who can see or do what), one entry is owed under apps/web/src/changelog/entries/, in this ' +
       'same change. Scaffold it with `npm run changelog:new -- "a few words"` and follow the ' +
       'writing-changelog-entries skill; it also says when none is owed, which is the answer for ' +

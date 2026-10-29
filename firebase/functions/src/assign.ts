@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { ApiException, assignmentId, classifyEmails, summarize } from '@gurukul/schema';
 import type { AssignSummary, ClassifiedEmail, Reminder } from '@gurukul/schema';
-import { requireKulapati } from './errors.js';
+import { requireAdmin } from './errors.js';
 import type { AuditEntry, Caller } from './errors.js';
 import { log } from './logging/log.js';
 import { buildAssignedEmail } from './mail.js';
@@ -108,7 +108,7 @@ export async function assignCourses(
   caller: Caller,
   data: Record<string, unknown>,
 ): Promise<AssignResult> {
-  requireKulapati(caller, 'assignCourses');
+  requireAdmin(caller, 'assignCourses');
   const req = parseAssignRequest(data);
   const { store } = deps;
   log.debug('Assigning courses', { count: req.emails.length, courseCount: req.courseIds.length });

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Loadable } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import type { DraftApi } from './useDraft';
 import type { Working } from './types';
 
@@ -14,6 +15,7 @@ export function DraftGate({
   draft: Pick<DraftApi, 'status' | 'work'>;
   children: (work: Working) => ReactNode;
 }) {
+  const t = useTerms();
   if (draft.status === 'missing') {
     return (
       <EmptyState
@@ -25,7 +27,7 @@ export function DraftGate({
           </Link>
         }
       >
-        It may not exist, or you may not be one of its Acharyas.
+        {`It may not exist, or you may not be one of its ${t.Educators}.`}
       </EmptyState>
     );
   }

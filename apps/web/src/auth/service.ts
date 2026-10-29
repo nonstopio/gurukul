@@ -6,6 +6,7 @@ import {
   signInWithRedirect,
   signOut,
 } from 'firebase/auth';
+import type { LabelSet } from '@gurukul/schema';
 import type { Firebase } from '../firebase';
 
 /** A signed-in Firebase user, reduced to what the app reads. */
@@ -22,6 +23,8 @@ export interface ProfileMirror {
   roles: string[];
   displayName: string;
   team: string | null;
+  /** Unset until the person picks which names the app shows them. */
+  labels?: LabelSet | undefined;
 }
 
 export interface SignInOptions {
@@ -63,7 +66,7 @@ export interface AuthService {
   finishRedirect(): Promise<void>;
   signOut(): Promise<void>;
   /** Role claims from the ID token; `refresh` forces a new token so fresh claims apply. */
-  claims(user: AuthUser, refresh: boolean): Promise<{ acharya?: boolean; kulapati?: boolean }>;
+  claims(user: AuthUser, refresh: boolean): Promise<{ educator?: boolean; admin?: boolean }>;
   watchProfile(uid: string, cb: (p: ProfileMirror | null) => void): () => void;
 }
 
@@ -107,7 +110,7 @@ export function firebaseAuthService(
     signOut: () => signOut(auth),
     async claims(_user, refresh) {
       const token = await auth.currentUser?.getIdTokenResult(refresh);
-      return (token?.claims ?? {}) as { acharya?: boolean; kulapati?: boolean };
+      return (token?.claims ?? {}) as { educator?: boolean; admin?: boolean };
     },
     watchProfile,
   };

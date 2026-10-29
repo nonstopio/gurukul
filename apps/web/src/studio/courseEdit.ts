@@ -1,5 +1,5 @@
 import { moveItem } from '@gurukul/ui';
-import type { Course, Item, Lesson, Pariksha, Parva } from '@gurukul/schema';
+import type { Course, Item, Lesson, Quiz, Chapter } from '@gurukul/schema';
 import type { Working } from './types';
 
 /**
@@ -8,15 +8,15 @@ import type { Working } from './types';
  * progress points at item ids, so an id is never reused or rewritten here.
  */
 
-const withParvas = (w: Working, parvas: Parva[]): Working => ({
+const withChapters = (w: Working, chapters: Chapter[]): Working => ({
   ...w,
-  course: { ...w.course, parvas },
+  course: { ...w.course, chapters },
 });
 
-const idsIn = (parvas: readonly Parva[]): string[] =>
-  parvas.flatMap((p) => p.items.map((i) => i.id));
+const idsIn = (chapters: readonly Chapter[]): string[] =>
+  chapters.flatMap((p) => p.items.map((i) => i.id));
 
-/** The answer keys without the given Pariksha ids: deleted Parikshas leave no orphaned keys. */
+/** The answer keys without the given Quiz ids: deleted Quizzes leave no orphaned keys. */
 const withoutKeys = (answers: Working['answers'], ids: readonly string[]): Working['answers'] =>
   Object.fromEntries(Object.entries(answers).filter(([id]) => !ids.includes(id)));
 
@@ -61,39 +61,39 @@ export function removeOutcome(w: Working, index: number): Working {
   return patchCourse(w, { outcomes: w.course.outcomes.filter((_, i) => i !== index) });
 }
 
-export function addParva(w: Working, id: string): Working {
-  return withParvas(w, [...w.course.parvas, { id, title: 'New parva', items: [] }]);
+export function addChapter(w: Working, id: string): Working {
+  return withChapters(w, [...w.course.chapters, { id, title: 'New chapter', items: [] }]);
 }
 
-export function renameParva(w: Working, parvaId: string, title: string): Working {
-  return withParvas(
+export function renameChapter(w: Working, chapterId: string, title: string): Working {
+  return withChapters(
     w,
-    w.course.parvas.map((p) => (p.id === parvaId ? { ...p, title } : p)),
+    w.course.chapters.map((p) => (p.id === chapterId ? { ...p, title } : p)),
   );
 }
 
-/** Removes a parva with everything in it, and the answer keys of its Parikshas. */
-export function deleteParva(w: Working, parvaId: string): Working {
-  const gone = w.course.parvas.find((p) => p.id === parvaId);
-  const next = withParvas(
+/** Removes a chapter with everything in it, and the answer keys of its Quizzes. */
+export function deleteChapter(w: Working, chapterId: string): Working {
+  const gone = w.course.chapters.find((p) => p.id === chapterId);
+  const next = withChapters(
     w,
-    w.course.parvas.filter((p) => p.id !== parvaId),
+    w.course.chapters.filter((p) => p.id !== chapterId),
   );
   return { ...next, answers: withoutKeys(w.answers, gone ? idsIn([gone]) : []) };
 }
 
-export function moveParva(w: Working, from: number, to: number): Working {
-  return withParvas(w, moveItem(w.course.parvas, from, to));
+export function moveChapter(w: Working, from: number, to: number): Working {
+  return withChapters(w, moveItem(w.course.chapters, from, to));
 }
 
-const appendItem = (w: Working, parvaId: string, item: Item): Working =>
-  withParvas(
+const appendItem = (w: Working, chapterId: string, item: Item): Working =>
+  withChapters(
     w,
-    w.course.parvas.map((p) => (p.id === parvaId ? { ...p, items: [...p.items, item] } : p)),
+    w.course.chapters.map((p) => (p.id === chapterId ? { ...p, items: [...p.items, item] } : p)),
   );
 
-/** An empty lesson at the end of a parva: stacked, completed by hand, five minutes. */
-export function addLesson(w: Working, parvaId: string, id: string): Working {
+/** An empty lesson at the end of a chapter: stacked, completed by hand, five minutes. */
+export function addLesson(w: Working, chapterId: string, id: string): Working {
   const lesson: Lesson = {
     type: 'lesson',
     id,
@@ -103,15 +103,15 @@ export function addLesson(w: Working, parvaId: string, id: string): Working {
     completeWhen: 'manual',
     blocks: [],
   };
-  return appendItem(w, parvaId, lesson);
+  return appendItem(w, chapterId, lesson);
 }
 
-/** An empty Pariksha at the end of a parva, with the defaults most courses want. */
-export function addPariksha(w: Working, parvaId: string, id: string): Working {
-  const pariksha: Pariksha = {
-    type: 'pariksha',
+/** An empty Quiz at the end of a chapter, with the defaults most courses want. */
+export function addQuiz(w: Working, chapterId: string, id: string): Working {
+  const quiz: Quiz = {
+    type: 'quiz',
     id,
-    title: 'Untitled Pariksha',
+    title: 'Untitled Quiz',
     questionsShown: 1,
     shuffleOptions: true,
     cooldownMinutes: 10,
@@ -119,50 +119,50 @@ export function addPariksha(w: Working, parvaId: string, id: string): Working {
     blocksNext: true,
     questions: [],
   };
-  return appendItem(w, parvaId, pariksha);
+  return appendItem(w, chapterId, quiz);
 }
 
-/** Renames one lesson or Pariksha. The id stays, so learner progress follows the new title. */
+/** Renames one lesson or Quiz. The id stays, so learner progress follows the new title. */
 export function renameItem(w: Working, itemId: string, title: string): Working {
-  return withParvas(
+  return withChapters(
     w,
-    w.course.parvas.map((p) => ({
+    w.course.chapters.map((p) => ({
       ...p,
       items: p.items.map((i) => (i.id === itemId ? { ...i, title } : i)),
     })),
   );
 }
 
-/** Removes one lesson or Pariksha, and its answer keys. */
+/** Removes one lesson or Quiz, and its answer keys. */
 export function deleteItem(w: Working, itemId: string): Working {
-  const next = withParvas(
+  const next = withChapters(
     w,
-    w.course.parvas.map((p) => ({ ...p, items: p.items.filter((i) => i.id !== itemId) })),
+    w.course.chapters.map((p) => ({ ...p, items: p.items.filter((i) => i.id !== itemId) })),
   );
   return { ...next, answers: withoutKeys(w.answers, [itemId]) };
 }
 
-/** Reorders the items of one parva. */
-export function moveItemWithin(w: Working, parvaId: string, from: number, to: number): Working {
-  return withParvas(
+/** Reorders the items of one chapter. */
+export function moveItemWithin(w: Working, chapterId: string, from: number, to: number): Working {
+  return withChapters(
     w,
-    w.course.parvas.map((p) =>
-      p.id === parvaId ? { ...p, items: moveItem(p.items, from, to) } : p,
+    w.course.chapters.map((p) =>
+      p.id === chapterId ? { ...p, items: moveItem(p.items, from, to) } : p,
     ),
   );
 }
 
-/** Moves an item to the end of another parva. An unknown item or parva, or the same parva, changes nothing. */
-export function moveItemToParva(w: Working, itemId: string, targetParvaId: string): Working {
-  const source = w.course.parvas.find((p) => p.items.some((i) => i.id === itemId));
+/** Moves an item to the end of another chapter. An unknown item or chapter, or the same chapter, changes nothing. */
+export function moveItemToChapter(w: Working, itemId: string, targetChapterId: string): Working {
+  const source = w.course.chapters.find((p) => p.items.some((i) => i.id === itemId));
   const item = source?.items.find((i) => i.id === itemId);
-  if (!source || !item || source.id === targetParvaId) return w;
-  if (!w.course.parvas.some((p) => p.id === targetParvaId)) return w;
-  return withParvas(
+  if (!source || !item || source.id === targetChapterId) return w;
+  if (!w.course.chapters.some((p) => p.id === targetChapterId)) return w;
+  return withChapters(
     w,
-    w.course.parvas.map((p) => {
+    w.course.chapters.map((p) => {
       if (p.id === source.id) return { ...p, items: p.items.filter((i) => i.id !== itemId) };
-      return p.id === targetParvaId ? { ...p, items: [...p.items, item] } : p;
+      return p.id === targetChapterId ? { ...p, items: [...p.items, item] } : p;
     }),
   );
 }

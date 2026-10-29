@@ -7,7 +7,7 @@ import { axeViolations } from './axe';
 const items: PaletteItem[] = [
   { id: 'home', label: 'Home', sub: 'Gurukul', kind: 'Page' },
   { id: 'changelog', label: 'Changelog' },
-  { id: 'learners', label: 'Learners', sub: 'Kulapati console', kind: 'Page' },
+  { id: 'learners', label: 'Learners', sub: 'Admin console', kind: 'Page' },
 ];
 const search = (q: string) => items.filter((i) => i.label.toLowerCase().includes(q.toLowerCase()));
 
@@ -53,7 +53,7 @@ describe('CommandPalette', () => {
     expect(options().map((o) => o.textContent)).toEqual([
       'HomeGurukulPage',
       'Changelog',
-      'LearnersKulapati consolePage',
+      'LearnersAdmin consolePage',
     ]);
     expect(input.getAttribute('aria-activedescendant')).toBe(options()[0]?.id);
   });

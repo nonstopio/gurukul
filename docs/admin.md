@@ -1,6 +1,6 @@
-# Kulapati guide
+# Admin guide
 
-A Kulapati is an administrator. You see an extra **Kulapati** group in the sidebar.
+An Admin is an administrator. You see an extra **Admin** group in the sidebar.
 
 ## Overview
 
@@ -30,15 +30,15 @@ harmless; already-assigned people are skipped.
 Everyone who has signed in, plus pending invites, in tabs: All, Signed in, Pending invite, Overdue.
 Filter by name or email, team, course or role. Select people for bulk actions: assign a course, send a
 reminder (at most one a day per person), change role. Select a row to open its drawer: courses and
-progress, **Reset cooldown** for a Pariksha a learner is waiting to retake, and **Revoke** or
+progress, **Reset cooldown** for a Quiz a learner is waiting to retake, and **Revoke** or
 **Restore** a certificate (a revoked certificate stays on its verify page, marked revoked).
 
 ## Roles & access
 
-- **Shishya** (learner): everyone who signs in.
-- **Acharya** (educator): builds the courses they are granted.
-- **Kulapati** (administrator): everything above, plus assigning and roles.
+- **Learner**: everyone who signs in.
+- **Educator**: builds the courses they are granted.
+- **Admin** (administrator): everything above, plus assigning and roles.
 
-Use **Grant a role** to find someone by email, choose a role, and for an Acharya tick the courses they
-may edit. You cannot remove your own Kulapati role; ask another Kulapati. A role change reaches the
+Use **Grant a role** to find someone by email, choose a role, and for an Educator tick the courses they
+may edit. You cannot remove your own Admin role; ask another Admin. A role change reaches the
 person the next time their session refreshes.

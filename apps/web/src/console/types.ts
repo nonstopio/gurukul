@@ -55,19 +55,19 @@ export interface AuditPage {
 }
 
 /**
- * One graded Pariksha attempt as the learner drawer shows it: when, the score and the verdict.
+ * One graded Quiz attempt as the learner drawer shows it: when, the score and the verdict.
  * Deliberately not the learner's answers or the per-question results.
  */
 export interface AttemptSummary {
   id: string;
-  parikshaId: string;
+  quizId: string;
   /** 0..1 */
   score: number;
   passed: boolean;
   at: Date | null;
 }
 
-/** One person who started a course, as its Acharya sees them: a name and how far they got. */
+/** One person who started a course, as its Educator sees them: a name and how far they got. */
 export interface CourseLearner {
   uid: string;
   /** Empty when the name was not recorded (a learner who started before names were kept). */
@@ -83,7 +83,7 @@ export interface UserPage {
 }
 
 /**
- * What the Kulapati console reads, and the org settings it writes. Bounded queries only (see `firebase-cost.md`): pages of 25,
+ * What the Admin console reads, and the org settings it writes. Bounded queries only (see `firebase-cost.md`): pages of 25,
  * `limit` on every list, aggregates from the `stats` documents rather than per-learner reads.
  * A port, so screens are tested with a fake and `firebaseConsoleData` is the real thing.
  */
@@ -93,7 +93,7 @@ export interface ConsoleData {
   /**
    * Who started one course, newest activity first (capped at 100): names from
    * `courses/{id}/learners`, progress from the course's progress documents. The rules let the
-   * course's own Acharyas and Kulapatis read both.
+   * course's own Educators and Admins read both.
    */
   courseLearners(courseId: string): Promise<CourseLearner[]>;
   /** Pending invites and assignments for one course (or all, newest first, capped). */
@@ -106,7 +106,7 @@ export interface ConsoleData {
   /** How many assignments are overdue at `now`, org-wide: a count() aggregation, not loaded rows. */
   overdueCount(now: Date): Promise<number>;
   /**
-   * The newest-active progress documents (capped at 100), for finding Parikshas failed twice
+   * The newest-active progress documents (capped at 100), for finding Quizzes failed twice
    * without reading every progress document.
    */
   recentProgress(): Promise<Array<ProgressRow & { uid: string }>>;
@@ -118,16 +118,16 @@ export interface ConsoleData {
   certificatesFor(uid: string): Promise<CertificateRow[]>;
   /** Every course assigned to one email (capped), started or not: the learner drawer's list. */
   assignmentsFor(email: string): Promise<AssignmentFull[]>;
-  /** One person's newest graded attempts at one Pariksha (capped), newest first. */
-  attemptsFor(uid: string, courseId: string, parikshaId: string): Promise<AttemptSummary[]>;
+  /** One person's newest graded attempts at one Quiz (capped), newest first. */
+  attemptsFor(uid: string, courseId: string, quizId: string): Promise<AttemptSummary[]>;
   /** People who have signed in whose email or name starts with `prefix` (at most 8, email matches first). */
   searchUsers(prefix: string): Promise<UserRow[]>;
   usersInTeam(team: string): Promise<UserRow[]>;
   /** Profiles for a page of people known only by their assignments (in chunks of 30). */
   usersByUid(uids: string[]): Promise<UserRow[]>;
-  /** People holding a granted role (acharya or kulapati), for Roles & access. */
-  usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
-  /** Every course, drafts and never-published ones included (capped), for granting to an Acharya. */
+  /** People holding a granted role (educator or admin), for Roles & access. */
+  usersWithRole(role: 'educator' | 'admin'): Promise<UserRow[]>;
+  /** Every course, drafts and never-published ones included (capped), for granting to an Educator. */
   allCourses(): Promise<Course[]>;
   /**
    * Which of these emails have signed in, which already hold ALL the given courses, and which
@@ -137,7 +137,7 @@ export interface ConsoleData {
   teams(): Promise<string[]>;
   /** `config/org`, with the defaults for anything not saved yet. */
   orgSettings(): Promise<OrgConfig>;
-  /** Writes the whole of `config/org`; the rules let only a Kulapati, and only this shape. */
+  /** Writes the whole of `config/org`; the rules let only an Admin, and only this shape. */
   saveOrgSettings(settings: OrgConfig): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
   auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
@@ -168,16 +168,16 @@ export interface AssignResult {
 
 export interface SetRolesRequest {
   uid: string;
-  acharya?: boolean;
-  kulapati?: boolean;
+  educator?: boolean;
+  admin?: boolean;
   grantedCourseIds?: string[];
 }
 
-/** The Kulapati-only callable functions. */
+/** The Admin-only callable functions. */
 export interface ConsoleService {
   assignCourses(request: AssignRequest): Promise<AssignResult>;
   setRoles(request: SetRolesRequest): Promise<{ roles: string[] }>;
-  resetCooldown(request: { uid: string; courseId: string; parikshaId: string }): Promise<void>;
+  resetCooldown(request: { uid: string; courseId: string; quizId: string }): Promise<void>;
   remindLearners(request: {
     courseId?: string;
     emails?: string[];

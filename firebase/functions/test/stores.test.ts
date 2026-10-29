@@ -55,28 +55,28 @@ describe('firestoreUserStore', () => {
 describe('firebaseRoleAdmin', () => {
   it('talks to Auth and Firestore', async () => {
     const auth = {
-      getUser: vi.fn().mockResolvedValue({ customClaims: { acharya: true } }),
+      getUser: vi.fn().mockResolvedValue({ customClaims: { educator: true } }),
       setCustomUserClaims: vi.fn().mockResolvedValue(undefined),
       revokeRefreshTokens: vi.fn().mockResolvedValue(undefined),
     };
     const f = fakeDb();
     const admin = firebaseRoleAdmin(auth as never, f.db);
-    expect(await admin.getClaims('u')).toEqual({ acharya: true });
-    await admin.setClaims('u', { kulapati: true });
+    expect(await admin.getClaims('u')).toEqual({ educator: true });
+    await admin.setClaims('u', { admin: true });
     await admin.revokeTokens('u');
     await admin.mirrorRoles('u', {
-      claims: { acharya: false, kulapati: true },
-      roles: ['shishya', 'kulapati'],
+      claims: { educator: false, admin: true },
+      roles: ['learner', 'admin'],
     });
     await admin.audit({
       action: 'a',
       by: 'b',
       target: 'c',
-      detail: { acharya: false, kulapati: true },
+      detail: { educator: false, admin: true },
     });
-    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', { kulapati: true });
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', { admin: true });
     expect(auth.revokeRefreshTokens).toHaveBeenCalledWith('u');
-    expect(f.set).toHaveBeenCalledWith({ roles: ['shishya', 'kulapati'] }, { merge: true });
+    expect(f.set).toHaveBeenCalledWith({ roles: ['learner', 'admin'] }, { merge: true });
     expect(f.add).toHaveBeenCalledWith(expect.objectContaining({ action: 'a', at: 'NOW' }));
   });
 });
@@ -134,7 +134,7 @@ describe('firestoreProgressStore', () => {
       certified: 1,
       finishDays: 2.5,
       finishBucket: '3',
-      parvasDone: [1, 3],
+      chaptersDone: [1, 3],
       lessons: 4,
       week: '2026-W44',
       assignmentsCompleted: 1,
@@ -147,7 +147,7 @@ describe('firestoreProgressStore', () => {
         certified: '+1',
         finishDaysSum: '+2.5',
         finishDaysHistogram: { '3': '+1' },
-        parvaCompletions: [2, 2, 0, 1],
+        chapterCompletions: [2, 2, 0, 1],
       },
       { merge: true },
     );
@@ -163,7 +163,7 @@ describe('firestoreProgressStore', () => {
     );
   });
 
-  it('starts parvaCompletions from nothing when the course has no stats yet', async () => {
+  it('starts chapterCompletions from nothing when the course has no stats yet', async () => {
     const set = vi.fn();
     const tx = { get: vi.fn().mockResolvedValue({ get: () => undefined }), set };
     const db = {
@@ -176,7 +176,7 @@ describe('firestoreProgressStore', () => {
       certified: 0,
       finishDays: 0,
       finishBucket: null,
-      parvasDone: [],
+      chaptersDone: [],
       lessons: 0,
       week: '2026-W44',
       assignmentsCompleted: 0,
@@ -302,7 +302,7 @@ describe('firestoreGradingStore', () => {
     expect(await store.getProgress('u', 'git')).toEqual({ path: 'progress/u_git' });
   });
 
-  it('records the attempt and the Pariksha result in one transaction', async () => {
+  it('records the attempt and the Quiz result in one transaction', async () => {
     const set = vi.fn();
     const attemptRef = { id: 'att1' };
     const progressRef = { collection: () => ({ doc: () => attemptRef }) };
@@ -312,7 +312,7 @@ describe('firestoreGradingStore', () => {
       runTransaction: vi.fn((fn: (t: unknown) => unknown) => fn(tx)),
     } as never;
     const decide = vi.fn().mockReturnValue({ best: 0.8, passed: true, attempts: 2 });
-    const attempt = { uid: 'u', courseId: 'git', parikshaId: 'pk', score: 0.8 };
+    const attempt = { uid: 'u', courseId: 'git', quizId: 'pk', score: 0.8 };
     const out = await firestoreGradingStore(db).recordAttempt(attempt as never, decide);
     expect(decide).toHaveBeenCalledWith({ seen: true });
     expect(out).toEqual({ attemptId: 'att1', update: { best: 0.8, passed: true, attempts: 2 } });
@@ -320,7 +320,7 @@ describe('firestoreGradingStore', () => {
     expect(set).toHaveBeenCalledWith(
       progressRef,
       {
-        pariksha: { pk: { best: 0.8, passed: true, attempts: 2, lastAttemptAt: 'NOW' } },
+        quiz: { pk: { best: 0.8, passed: true, attempts: 2, lastAttemptAt: 'NOW' } },
         lastActiveAt: 'NOW',
       },
       { merge: true },

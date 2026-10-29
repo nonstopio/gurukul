@@ -7,7 +7,7 @@ export default {
   area: 'LEARN',
   kind: 'feature',
   why:
-    'A lesson an Acharya set to Split used to look the same as Stacked, so you scrolled the video ' +
+    'A lesson an Educator set to Split used to look the same as Stacked, so you scrolled the video ' +
     'away while reading the steps that go with it.',
   detail: [
     'On a wide screen the video takes the left side and stays in view while the text scrolls.',

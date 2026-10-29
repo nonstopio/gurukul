@@ -1,19 +1,19 @@
 import { GIT_COURSE } from '../support/env';
 import { expectNoSeriousViolations } from '../support/a11y';
 import { grantRoles } from '../support/emulators';
-import { expect, signedInAsShishya, test } from '../support/fixtures';
+import { expect, signedInAsLearner, test } from '../support/fixtures';
 
 const meera = { email: 'meera.iyer@nonstopio.com', name: 'Meera Iyer' };
 const invitees = ['new.joiner@nonstopio.com', 'second.joiner@nonstopio.com'];
 
-test.describe('Kulapati', () => {
+test.describe('Admin', () => {
   test('assigns a course to two people who have not signed in, and sees the pending invites', async ({
     page,
   }) => {
-    await signedInAsShishya(page, meera);
-    await grantRoles(meera.email, ['kulapati']);
+    await signedInAsLearner(page, meera);
+    await grantRoles(meera.email, ['admin']);
     // A fresh load picks the new claims up from the start.
-    await page.goto('/kulapati');
+    await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Lessons completed per week' })).toBeVisible();
     await expectNoSeriousViolations(page);
@@ -47,7 +47,7 @@ test.describe('Kulapati', () => {
 
     await summary.getByRole('button', { name: 'Assign to 2 people' }).click();
 
-    await expect(page).toHaveURL(/\/kulapati\/learners(\?.*)?$/);
+    await expect(page).toHaveURL(/\/admin\/learners(\?.*)?$/);
     await page.getByRole('tab', { name: /^Pending invite \(2\)/ }).click();
     const table = page.getByRole('table', { name: 'Learners' });
     for (const email of invitees) {
@@ -58,9 +58,9 @@ test.describe('Kulapati', () => {
   });
 
   test('adds teams and turns reminders on, and the settings survive a reload', async ({ page }) => {
-    await signedInAsShishya(page, meera);
-    await grantRoles(meera.email, ['kulapati']);
-    await page.goto('/kulapati/settings');
+    await signedInAsLearner(page, meera);
+    await grantRoles(meera.email, ['admin']);
+    await page.goto('/admin/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Org settings' })).toBeVisible();
     // The seed's default: no teams, reminders off.
     await expect(page.getByText('No teams yet')).toBeVisible();
@@ -94,9 +94,9 @@ test.describe('Kulapati', () => {
     await expect(prompt).toHaveCount(0);
   });
 
-  test('a Shishya cannot open the Kulapati console', async ({ page }) => {
-    await signedInAsShishya(page, { email: 'ravi.nair@nonstopio.com', name: 'Ravi Nair' });
-    await page.goto('/kulapati');
+  test('a Learner cannot open the Admin console', async ({ page }) => {
+    await signedInAsLearner(page, { email: 'ravi.nair@nonstopio.com', name: 'Ravi Nair' });
+    await page.goto('/admin');
     await expect(
       page.getByRole('heading', { name: 'You do not have access to this page.' }),
     ).toBeVisible();

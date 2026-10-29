@@ -4,7 +4,7 @@ export default {
   date: '2026-10-29',
   id: 'LEARNERS-SELECT-ALL',
   title: 'Select everyone on the Learners list, not just one page',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'feature',
   why:
     'Ticking the page only reached 25 people, so sending a reminder or changing a role for a whole ' +

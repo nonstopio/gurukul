@@ -1,4 +1,4 @@
-import type { Course, CourseStats, Pariksha, Question } from '@gurukul/schema';
+import type { Course, CourseStats, Quiz, Question } from '@gurukul/schema';
 import { moveItem } from '@gurukul/ui';
 import { newId } from './ids';
 import { patch } from './patch';
@@ -23,10 +23,9 @@ export const KIND_LABELS: Record<QuestionKind, string> = {
   codeOutput: 'What does this code print?',
 };
 
-export const findPariksha = (course: Course, parikshaId: string): Pariksha | null => {
-  for (const parva of course.parvas) {
-    for (const item of parva.items)
-      if (item.type === 'pariksha' && item.id === parikshaId) return item;
+export const findQuiz = (course: Course, quizId: string): Quiz | null => {
+  for (const chapter of course.chapters) {
+    for (const item of chapter.items) if (item.type === 'quiz' && item.id === quizId) return item;
   }
   return null;
 };
@@ -129,7 +128,7 @@ export function bankEntry(
   return { question: patch(question, { reviewItemId: undefined }), answers: key, tags };
 }
 
-/** A bank question as a new one for this Pariksha: every id is new, the key follows the new option ids. */
+/** A bank question as a new one for this Quiz: every id is new, the key follows the new option ids. */
 export function importFromBank(bank: BankQuestion, random: () => number = Math.random): Keyed {
   const ids = new Map(bank.question.options.map((o) => [o.id, newId('o', random)]));
   const options = bank.question.options.map((o) => ({ ...o, id: ids.get(o.id) as string }));
@@ -185,63 +184,58 @@ export function parseCooldown(raw: string): number {
   return Number.isFinite(n) ? Math.min(Math.max(n, 0), 10_080) : 0;
 }
 
-// ---- Edits on the working copy: the Pariksha and its answer keys change together ----
+// ---- Edits on the working copy: the Quiz and its answer keys change together ----
 
-function withPariksha(work: Working, parikshaId: string, edit: (p: Pariksha) => Pariksha): Working {
+function withQuiz(work: Working, quizId: string, edit: (p: Quiz) => Quiz): Working {
   return {
     ...work,
     course: {
       ...work.course,
-      parvas: work.course.parvas.map((parva) => ({
-        ...parva,
-        items: parva.items.map((i) => (i.type === 'pariksha' && i.id === parikshaId ? edit(i) : i)),
+      chapters: work.course.chapters.map((chapter) => ({
+        ...chapter,
+        items: chapter.items.map((i) => (i.type === 'quiz' && i.id === quizId ? edit(i) : i)),
       })),
     },
   };
 }
 
-const withKey = (
-  work: Working,
-  parikshaId: string,
-  questionId: string,
-  key: string[],
-): Working => ({
+const withKey = (work: Working, quizId: string, questionId: string, key: string[]): Working => ({
   ...work,
-  answers: { ...work.answers, [parikshaId]: { ...work.answers[parikshaId], [questionId]: key } },
+  answers: { ...work.answers, [quizId]: { ...work.answers[quizId], [questionId]: key } },
 });
 
-export const updatePariksha = withPariksha;
+export const updateQuiz = withQuiz;
 
 /** Applies `edit` to one question and its key. An unknown question changes nothing. */
 export function updateQuestion(
   work: Working,
-  parikshaId: string,
+  quizId: string,
   questionId: string,
   edit: (keyed: Keyed) => Keyed,
 ): Working {
-  const pariksha = findPariksha(work.course, parikshaId);
-  const question = pariksha?.questions.find((q) => q.id === questionId);
+  const quiz = findQuiz(work.course, quizId);
+  const question = quiz?.questions.find((q) => q.id === questionId);
   if (!question) return work;
-  const next = edit({ question, key: work.answers[parikshaId]?.[questionId] ?? [] });
-  const edited = withPariksha(work, parikshaId, (p) => ({
+  const next = edit({ question, key: work.answers[quizId]?.[questionId] ?? [] });
+  const edited = withQuiz(work, quizId, (p) => ({
     ...p,
     questions: p.questions.map((q) => (q.id === questionId ? next.question : q)),
   }));
-  return withKey(edited, parikshaId, questionId, next.key);
+  return withKey(edited, quizId, questionId, next.key);
 }
 
 /** Appends a question and records its key. */
-export function addQuestion(work: Working, parikshaId: string, keyed: Keyed): Working {
-  const added = withPariksha(work, parikshaId, (p) => ({
+export function addQuestion(work: Working, quizId: string, keyed: Keyed): Working {
+  const added = withQuiz(work, quizId, (p) => ({
     ...p,
     questions: [...p.questions, keyed.question],
   }));
-  return withKey(added, parikshaId, keyed.question.id, keyed.key);
+  return withKey(added, quizId, keyed.question.id, keyed.key);
 }
 
 /** Removes a question and its key; "questions shown" never exceeds what is left. */
-export function removeQuestion(work: Working, parikshaId: string, questionId: string): Working {
-  const removed = withPariksha(work, parikshaId, (p) => {
+export function removeQuestion(work: Working, quizId: string, questionId: string): Working {
+  const removed = withQuiz(work, quizId, (p) => {
     const questions = p.questions.filter((q) => q.id !== questionId);
     return {
       ...p,
@@ -250,15 +244,10 @@ export function removeQuestion(work: Working, parikshaId: string, questionId: st
     };
   });
   const keys = Object.fromEntries(
-    Object.entries(removed.answers[parikshaId] ?? {}).filter(([id]) => id !== questionId),
+    Object.entries(removed.answers[quizId] ?? {}).filter(([id]) => id !== questionId),
   );
-  return { ...removed, answers: { ...removed.answers, [parikshaId]: keys } };
+  return { ...removed, answers: { ...removed.answers, [quizId]: keys } };
 }
 
-export const moveQuestion = (
-  work: Working,
-  parikshaId: string,
-  from: number,
-  to: number,
-): Working =>
-  withPariksha(work, parikshaId, (p) => ({ ...p, questions: moveItem(p.questions, from, to) }));
+export const moveQuestion = (work: Working, quizId: string, from: number, to: number): Working =>
+  withQuiz(work, quizId, (p) => ({ ...p, questions: moveItem(p.questions, from, to) }));

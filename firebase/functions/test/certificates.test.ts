@@ -79,12 +79,14 @@ describe('revokeCertificate', () => {
     ...over,
   });
   const mailer = () => ({ send: vi.fn().mockResolvedValue(undefined) });
-  const kulapati = { uid: 'k', email: 'k@nonstopio.com', claims: { kulapati: true } };
+  const adminCaller = { uid: 'k', email: 'k@nonstopio.com', claims: { admin: true } };
 
   it('revokes, audits and returns the new state', async () => {
     const a = admin();
     expect(
-      await revokeCertificate({ admin: a, mailer: mailer() }, kulapati, { id: 'NSG-GIT-26-0001' }),
+      await revokeCertificate({ admin: a, mailer: mailer() }, adminCaller, {
+        id: 'NSG-GIT-26-0001',
+      }),
     ).toEqual({
       id: 'NSG-GIT-26-0001',
       revoked: true,
@@ -100,7 +102,7 @@ describe('revokeCertificate', () => {
 
   it('emails the learner the course name and a contact when it newly revokes', async () => {
     const m = mailer();
-    await revokeCertificate({ admin: admin(), mailer: m }, kulapati, { id: 'NSG-GIT-26-0001' });
+    await revokeCertificate({ admin: admin(), mailer: m }, adminCaller, { id: 'NSG-GIT-26-0001' });
     expect(m.send).toHaveBeenCalledOnce();
     const sent = m.send.mock.calls[0]?.[0];
     expect(sent.to).toBe('asha@example.com');
@@ -110,14 +112,14 @@ describe('revokeCertificate', () => {
 
   it('sends nothing on a restore or when it was already revoked', async () => {
     const m = mailer();
-    await revokeCertificate({ admin: admin(), mailer: m }, kulapati, {
+    await revokeCertificate({ admin: admin(), mailer: m }, adminCaller, {
       id: 'NSG-GIT-26-0001',
       revoked: false,
     });
     const again = admin(true, {
       setRevoked: vi.fn().mockResolvedValue({ ...cert, changed: false }),
     });
-    await revokeCertificate({ admin: again, mailer: m }, kulapati, { id: 'NSG-GIT-26-0001' });
+    await revokeCertificate({ admin: again, mailer: m }, adminCaller, { id: 'NSG-GIT-26-0001' });
     expect(m.send).not.toHaveBeenCalled();
   });
 
@@ -125,13 +127,15 @@ describe('revokeCertificate', () => {
     const m = mailer();
     const noEmail = admin(true, { emailOf: vi.fn().mockResolvedValue(null) });
     expect(
-      await revokeCertificate({ admin: noEmail, mailer: m }, kulapati, { id: 'NSG-GIT-26-0001' }),
+      await revokeCertificate({ admin: noEmail, mailer: m }, adminCaller, {
+        id: 'NSG-GIT-26-0001',
+      }),
     ).toEqual({ id: 'NSG-GIT-26-0001', revoked: true });
     expect(m.send).not.toHaveBeenCalled();
     for (const boom of [new Error('smtp down'), 'plain']) {
       const failing = { send: vi.fn().mockRejectedValue(boom) };
       expect(
-        await revokeCertificate({ admin: admin(), mailer: failing }, kulapati, {
+        await revokeCertificate({ admin: admin(), mailer: failing }, adminCaller, {
           id: 'NSG-GIT-26-0001',
         }),
       ).toEqual({ id: 'NSG-GIT-26-0001', revoked: true });
@@ -140,7 +144,7 @@ describe('revokeCertificate', () => {
 
   it('restores when revoked is false', async () => {
     const a = admin();
-    await revokeCertificate({ admin: a, mailer: mailer() }, kulapati, {
+    await revokeCertificate({ admin: a, mailer: mailer() }, adminCaller, {
       id: 'NSG-GIT-26-0001',
       revoked: false,
     });
@@ -150,13 +154,13 @@ describe('revokeCertificate', () => {
     );
   });
 
-  it('is for a Kulapati on a NonStop account only', async () => {
+  it('is for an Admin on a NonStop account only', async () => {
     const a = admin();
     for (const caller of [
-      { uid: 'x', email: 'x@nonstopio.com', claims: { acharya: true } },
+      { uid: 'x', email: 'x@nonstopio.com', claims: { educator: true } },
       { uid: 'x', email: 'x@nonstopio.com', claims: undefined },
-      { uid: 'x', email: 'x@gmail.com', claims: { kulapati: true } },
-      { uid: 'x', email: undefined, claims: { kulapati: true } },
+      { uid: 'x', email: 'x@gmail.com', claims: { admin: true } },
+      { uid: 'x', email: undefined, claims: { admin: true } },
     ]) {
       await expect(
         revokeCertificate({ admin: a, mailer: mailer() }, caller, { id: 'NSG-GIT-26-0001' }),
@@ -169,26 +173,26 @@ describe('revokeCertificate', () => {
 
   it('rejects a bad id or flag, and an unknown certificate', async () => {
     await expect(
-      revokeCertificate({ admin: admin(), mailer: mailer() }, kulapati, { id: 'nope' }),
+      revokeCertificate({ admin: admin(), mailer: mailer() }, adminCaller, { id: 'nope' }),
     ).rejects.toMatchObject({
       code: 'VAL_1002',
       details: { field: 'id' },
     });
     await expect(
-      revokeCertificate({ admin: admin(), mailer: mailer() }, kulapati, {}),
+      revokeCertificate({ admin: admin(), mailer: mailer() }, adminCaller, {}),
     ).rejects.toMatchObject({
       code: 'VAL_1001',
       details: { field: 'id' },
     });
     await expect(
-      revokeCertificate({ admin: admin(), mailer: mailer() }, kulapati, {
+      revokeCertificate({ admin: admin(), mailer: mailer() }, adminCaller, {
         id: 'NSG-GIT-26-0001',
         revoked: 'yes',
       }),
     ).rejects.toMatchObject({ code: 'VAL_1002', details: { field: 'revoked' } });
     const a = admin(false);
     await expect(
-      revokeCertificate({ admin: a, mailer: mailer() }, kulapati, { id: 'NSG-GIT-26-0001' }),
+      revokeCertificate({ admin: a, mailer: mailer() }, adminCaller, { id: 'NSG-GIT-26-0001' }),
     ).rejects.toMatchObject({
       code: 'CRT_2001',
       params: ['NSG-GIT-26-0001'],

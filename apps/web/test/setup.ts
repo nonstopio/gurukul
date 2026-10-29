@@ -6,7 +6,7 @@ import { afterEach, vi } from 'vitest';
 configure({ asyncUtilTimeout: 5000 });
 
 // Vitest runs without globals, so Testing Library cannot register its own cleanup.
-// Pariksha drafts live in localStorage; each test starts without one. One hook, in this order:
+// Quiz drafts live in localStorage; each test starts without one. One hook, in this order:
 // Vitest runs separate afterEach hooks last-first, and unmounting runs any effect still pending,
 // which can save the test's draft again after an earlier clear.
 // Some files run in the node environment, which has no localStorage.

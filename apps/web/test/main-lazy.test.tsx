@@ -16,7 +16,7 @@ vi.mock('../src/App', () => ({
   },
 }));
 vi.mock('../src/console/service', () => ({ firebaseConsoleService: vi.fn(() => ({})) }));
-vi.mock('../src/pariksha/service', () => ({ firebaseParikshaService: vi.fn(() => ({})) }));
+vi.mock('../src/quiz/service', () => ({ firebaseQuizService: vi.fn(() => ({})) }));
 vi.mock('../src/studio/service', () => ({ firebaseStudioService: vi.fn(() => ({})) }));
 vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ app: 'app', auth: {} })) }));
 vi.mock('../src/auth/service', () => ({

@@ -18,11 +18,9 @@ describe('firebaseConsoleService', () => {
     expect(await service.assignCourses({} as never)).toEqual({ from: 'assignCourses' });
     expect(await service.setRoles({ uid: 'u' })).toEqual({ from: 'setRoles' });
     expect(await service.remindLearners({ courseId: 'git' })).toEqual({ from: 'remindLearners' });
-    expect(
-      await service.resetCooldown({ uid: 'u', courseId: 'g', parikshaId: 'p' }),
-    ).toBeUndefined();
+    expect(await service.resetCooldown({ uid: 'u', courseId: 'g', quizId: 'p' })).toBeUndefined();
     expect(await service.revokeCertificate({ id: 'X' })).toBeUndefined();
-    expect(fns.resetCooldown).toHaveBeenCalledWith({ uid: 'u', courseId: 'g', parikshaId: 'p' });
+    expect(fns.resetCooldown).toHaveBeenCalledWith({ uid: 'u', courseId: 'g', quizId: 'p' });
     expect(fns.revokeCertificate).toHaveBeenCalledWith({ id: 'X' });
   });
 
@@ -36,7 +34,7 @@ describe('firebaseConsoleService', () => {
     expect(err).toMatchObject({
       code: 'USR_1001',
       status: 400,
-      userMessage: 'You cannot remove your own Kulapati role.',
+      userMessage: 'You cannot remove your own Admin role.',
     });
   });
 });

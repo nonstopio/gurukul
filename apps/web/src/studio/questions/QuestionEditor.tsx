@@ -1,6 +1,8 @@
 import type { Lesson, PublishIssue } from '@gurukul/schema';
 import { Button, Callout, Input, Select, Textarea } from '@gurukul/ui';
 import { useState } from 'react';
+import { article } from '../../labels/terms';
+import { useTerms } from '../../labels/useTerms';
 import { patch } from '../patch';
 import {
   KIND_LABELS,
@@ -47,6 +49,7 @@ export function QuestionEditor({
   onSaveToBank: (tags: string[]) => void;
 }) {
   const { question, key } = keyed;
+  const t = useTerms();
   const [tags, setTags] = useState('');
   const multiple = question.kind === 'multiple';
   const locked = question.kind === 'trueFalse';
@@ -68,7 +71,7 @@ export function QuestionEditor({
         ))}
       </Select>
       {insight ? (
-        <Callout tone="tip" title="Learners find this hard">
+        <Callout tone="tip" title={`${t.Learners} find this hard`}>
           <p>{insight}</p>
         </Callout>
       ) : null}
@@ -139,7 +142,7 @@ export function QuestionEditor({
       </fieldset>
       <Textarea
         label="Explanation"
-        hint="Shown to learners after they answer. Required."
+        hint={`Shown to ${t.learners} after they answer. Required.`}
         rows={3}
         value={question.explanation}
         error={messages(issues, 'question.explanation')}
@@ -147,7 +150,7 @@ export function QuestionEditor({
       />
       <Select
         label="Revisit link"
-        hint="The lesson a learner is sent back to when they get this wrong."
+        hint={`The lesson ${article(t.learner)} is sent back to when they get this wrong.`}
         value={question.reviewItemId ?? ''}
         onChange={(e) => edit((q) => patch(q, { reviewItemId: e.target.value || undefined }))}
       >

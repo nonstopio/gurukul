@@ -1,31 +1,29 @@
 import { countUnpublished, diffCourses, itemsOf } from '@gurukul/schema';
 import type { Block, Course, CourseDiff, Item, PublishIssue } from '@gurukul/schema';
 import type { TypeTileKind } from '@gurukul/ui';
+import type { Terms } from '../labels/terms';
 import type { StudioCourse } from './types';
 
-/** Whether this person may edit a course: a Kulapati, or one of its Acharyas. */
-export function canEdit(
-  course: Pick<Course, 'acharyaIds'>,
-  uid: string,
-  kulapati: boolean,
-): boolean {
-  return kulapati || course.acharyaIds.includes(uid);
+/** Whether this person may edit a course: an Admin, or one of its Educators. */
+export function canEdit(course: Pick<Course, 'educatorIds'>, uid: string, admin: boolean): boolean {
+  return admin || course.educatorIds.includes(uid);
 }
 
 /**
- * Who a course's Acharyas are, for "View only — Acharya: Asha Rao". Names come from the course's
- * `acharyaNames`; Acharyas granted before names were stored count as "1 other". Null when there
+ * Who a course's Educators are, for "View only — Educator: Asha Rao". Names come from the course's
+ * `educatorNames`; Educators granted before names were stored count as "1 other". Null when there
  * are none, or no name is known.
  */
-export function acharyaSummary(
-  course: Pick<Course, 'acharyaIds' | 'acharyaNames'>,
+export function educatorSummary(
+  course: Pick<Course, 'educatorIds' | 'educatorNames'>,
+  t: Terms,
 ): { label: string; names: string } | null {
-  const known = course.acharyaIds.flatMap((id) => course.acharyaNames[id] ?? []);
+  const known = course.educatorIds.flatMap((id) => course.educatorNames[id] ?? []);
   if (known.length === 0) return null;
-  const others = course.acharyaIds.length - known.length;
+  const others = course.educatorIds.length - known.length;
   if (others > 0) known.push(`${others} ${others === 1 ? 'other' : 'others'}`);
   return {
-    label: course.acharyaIds.length === 1 ? 'Acharya' : 'Acharyas',
+    label: course.educatorIds.length === 1 ? t.Educator : t.Educators,
     names: known.join(', '),
   };
 }
@@ -45,9 +43,9 @@ export function nameOf(title: string, fallback: string): string {
   return title.trim() || fallback;
 }
 
-/** What the type tile shows: a Pariksha, a lesson built around a video or code, or plain reading. */
+/** What the type tile shows: a Quiz, a lesson built around a video or code, or plain reading. */
 export function itemKind(item: Item): TypeTileKind {
-  if (item.type === 'pariksha') return 'pariksha';
+  if (item.type === 'quiz') return 'quiz';
   const types = item.blocks.map((b) => b.type);
   if (types.includes('video')) return 'video';
   return types.includes('code') ? 'code' : 'reading';
@@ -58,10 +56,10 @@ export function itemMeta(item: Item): string {
   return `${item.questions.length} ${item.questions.length === 1 ? 'question' : 'questions'}`;
 }
 
-/** The editor that opens an item: the lesson editor or the Pariksha builder. */
+/** The editor that opens an item: the lesson editor or the Quiz builder. */
 export function itemEditorPath(courseId: string, item: Pick<Item, 'id' | 'type'>): string {
-  return item.type === 'pariksha'
-    ? `/studio/courses/${courseId}/pariksha/${item.id}`
+  return item.type === 'quiz'
+    ? `/studio/courses/${courseId}/quiz/${item.id}`
     : `/studio/courses/${courseId}/lessons/${item.id}`;
 }
 

@@ -167,7 +167,7 @@ export const STANDARD_LOG_FIELDS = [
   'uid',
   'courseId',
   'itemId',
-  'parikshaId',
+  'quizId',
   'questionId',
   'attemptId',
   'assignmentId',
