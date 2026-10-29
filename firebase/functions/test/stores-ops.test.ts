@@ -7,7 +7,6 @@ import {
   firestoreAttemptStatsStore,
   firestoreCooldownAdmin,
   firestoreCourseStore,
-  firestoreMailer,
   firestoreReminderStore,
   firestoreRollupStore,
 } from '../src/stores.js';
@@ -269,21 +268,6 @@ describe('firestoreCooldownAdmin', () => {
     const { db, add } = dbWith({});
     await firestoreCooldownAdmin(db).audit({ action: 'cooldown.reset', by: 'k', detail: {} });
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ at: 'NOW' }));
-  });
-});
-
-describe('firestoreMailer', () => {
-  it('queues an outbox document in the Trigger Email shape', async () => {
-    const add = vi.fn().mockResolvedValue(undefined);
-    const collection = vi.fn().mockReturnValue({ add });
-    const db = { collection } as never;
-    await firestoreMailer(db).send({ to: 'a@example.com', subject: 'S', text: 'T' });
-    expect(collection).toHaveBeenCalledWith('mail');
-    expect(add).toHaveBeenCalledWith({
-      to: 'a@example.com',
-      message: { subject: 'S', text: 'T' },
-      createdAt: 'NOW',
-    });
   });
 });
 

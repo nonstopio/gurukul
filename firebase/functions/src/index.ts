@@ -1,6 +1,7 @@
 // Cloud Functions entry point. Each export is a thin wrapper: the decisions live in pure modules
 // (profile.ts, roles.ts, set-roles.ts) with unit tests; stores.ts adapts them to the Admin SDK.
 import firestore from '@google-cloud/firestore';
+import { createMailer } from './gmail.js';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -37,7 +38,6 @@ import {
   firestoreCooldownAdmin,
   firestoreCourseStore,
   firestoreGradingStore,
-  firestoreMailer,
   firestoreProgressStore,
   firestoreReminderStore,
   firestoreRollupStore,
@@ -119,7 +119,7 @@ export const dailyReminders = onSchedule(
       {},
       () =>
         runDailyReminders(
-          { store: firestoreReminderStore(db), mailer: firestoreMailer(db) },
+          { store: firestoreReminderStore(db), mailer: createMailer(process.env) },
           Date.now(),
         ),
       ({ sent, skipped }) => ({ fields: { count: sent, skipped } }),
@@ -173,7 +173,7 @@ export const assignCourses = apiCallable((request) => {
   const db = getFirestore();
   return handleAssignCourses(request, {
     store: firestoreAssignStore(db),
-    mailer: firestoreMailer(db),
+    mailer: createMailer(process.env),
   });
 });
 
@@ -187,7 +187,7 @@ export const remindLearners = apiCallable((request) => {
   const db = getFirestore();
   return handleRemindLearners(
     request,
-    { store: firestoreReminderStore(db), mailer: firestoreMailer(db) },
+    { store: firestoreReminderStore(db), mailer: createMailer(process.env) },
     Date.now,
   );
 });

@@ -12,7 +12,6 @@ import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
-import type { Mailer } from './mail.js';
 import type { UserStore } from './profile.js';
 import type { ProgressStore } from './progress.js';
 import type { ReminderCandidate, ReminderStore } from './remind.js';
@@ -327,21 +326,6 @@ export function firestoreCooldownAdmin(db: Firestore): CooldownAdmin {
     },
     async audit(entry) {
       await writeAudit(db, entry);
-    },
-  };
-}
-
-/**
- * `Mailer` that queues `mail/{autoId}` in the shape the Firebase "Trigger Email from Firestore"
- * extension reads (`to` plus `message.subject/text`). Nothing sends until that extension (or
- * another sender) is installed: see `mail.ts`.
- */
-export function firestoreMailer(db: Firestore): Mailer {
-  return {
-    async send({ to, subject, text }) {
-      await db
-        .collection('mail')
-        .add({ to, message: { subject, text }, createdAt: FieldValue.serverTimestamp() });
     },
   };
 }

@@ -1,8 +1,6 @@
 /**
- * Outgoing email. Messages are queued in the `mail` collection in the shape the Firebase
- * "Trigger Email from Firestore" extension reads, so turning email on is installing that extension
- * with SMTP credentials (docs/operations.md), not a code change. Until then nothing is sent
- * (.plan/13-open-questions.md, #4).
+ * Outgoing email: the messages and the `Mailer` port every function sends through. The sender
+ * that delivers them (Gmail API, as gurukul@nonstopio.com) is in `gmail.ts`.
  */
 export interface MailMessage {
   to: string;
@@ -15,10 +13,13 @@ export interface Mailer {
   send(message: MailMessage): Promise<void>;
 }
 
-const SITE = 'https://nonstop-gurukul.web.app';
+const DEFAULT_SITE = 'https://nonstop-gurukul.web.app';
+
+/** The public site address in links: `SITE_URL` when set (staging, previews), else production. */
+const siteUrl = (): string => (process.env['SITE_URL'] || DEFAULT_SITE).replace(/\/+$/, '');
 
 export const courseLink = (courseId: string): string =>
-  `${SITE}/courses/${encodeURIComponent(courseId)}`;
+  `${siteUrl()}/courses/${encodeURIComponent(courseId)}`;
 
 /** A due date as a plain, timezone-proof day, e.g. `12 Nov 2026`. */
 export function formatDue(ms: number): string {
