@@ -162,7 +162,11 @@ export async function assignCourses(
   await store.audit({
     action: 'assign',
     by: caller.uid,
-    detail: { courseIds: req.courseIds, count: docs.length },
+    detail: {
+      courseIds: req.courseIds,
+      count: docs.length,
+      emails: [...new Set(docs.map((d) => d.email))],
+    },
   });
 
   let notified = 0;

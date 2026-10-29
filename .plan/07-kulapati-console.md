@@ -16,7 +16,10 @@ analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
 - The Pending invite and Overdue tabs read every unclaimed (`uid == null`) and
   every overdue assignment, not only the newest 500, so their counts and the
   pending list are exact; reads grow with pending and overdue assignments only.
-- Bulk actions on selected rows: assign course, send reminder, change role.
+- Bulk actions on selected rows: assign course, send reminder, change role. Change role opens a
+  dialog (Shishya, Acharya, Kulapati) and calls `setRoles` once per selected person; pending
+  invites and your own account (when dropping Kulapati) are skipped and counted. Choosing Acharya
+  leaves existing course grants alone; Shishya clears them.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).
 
@@ -36,6 +39,9 @@ Inputs supported by the UI: search people, paste emails (comma, space, new
 line), CSV upload (first column of emails, header optional), whole team (from
 `users.team`). The summary panel previews the classification **before**
 submitting by running the same pure classifier client-side.
+Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
+file. After assigning exactly one course the console opens Learners filtered to it
+(`/kulapati/learners?course=<id>`).
 
 ## Email notifications
 
@@ -62,13 +68,17 @@ leaves it on the profiles that have it. One Save writes the whole document.
 
 ## Roles & access
 
-- Role cards with counts; a permission matrix (what each role can do).
-- Acharyas list with their granted courses; "Grant a role" dialog: person,
-  role, and for Acharya the courses.
+- Role cards with counts (the Learner card counts everyone who has signed in); a permission matrix
+  (what each role can do).
+- Acharyas list with their granted courses, and a Kulapatis list; "Grant a role" dialog: person,
+  then Acharya and Kulapati as independent checkboxes (a person can hold both), and for Acharya
+  the courses to edit, drafts and archived ones included.
 - All through `setRoles` (see `03-auth-and-roles.md`).
 
 ## Audit log
 
 Every Kulapati action (assign, role change, revoke, publish) writes
-`audit/{id}` from the function: who, what, when, target. Read-only in the
-console (M5).
+`audit/{id}` from the function: who, what, when, target and a `detail` map. Read-only in the
+console (M5). The view pages back through the whole history, 50 entries at a time (ordered by
+`at`, then document id); people (the doer, and the target of a role change or retake) show as
+name or email; a Detail column words `detail` (an `assign` entry records the assigned emails).

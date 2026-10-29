@@ -2,7 +2,6 @@ import { Button, Callout, Chip, Dialog, Input, useToast } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
-import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
@@ -10,9 +9,15 @@ import { useConsole } from './ConsoleProvider';
 import { usePeopleSearch } from './usePeopleSearch';
 import type { UserRow } from './types';
 
-type RoleChoice = 'shishya' | 'acharya' | 'kulapati';
+type RoleKind = 'shishya' | 'acharya' | 'kulapati';
 
-const CARDS: Array<{ role: RoleChoice; english: string; text: string }> = [
+/** The two granted roles, held independently: a person can be an Acharya, a Kulapati or both. */
+interface Held {
+  acharya: boolean;
+  kulapati: boolean;
+}
+
+const CARDS: Array<{ role: RoleKind; english: string; text: string }> = [
   {
     role: 'shishya',
     english: 'Learner',
@@ -34,40 +39,43 @@ const MATRIX: Array<[string, string, string, string]> = [
   ['See all learners and analytics', 'No', 'Own courses', 'Yes'],
 ];
 
-function currentRole(u: UserRow): RoleChoice {
-  return u.roles.includes('kulapati')
-    ? 'kulapati'
-    : u.roles.includes('acharya')
-      ? 'acharya'
-      : 'shishya';
-}
+const held = (u: UserRow): Held => ({
+  acharya: u.roles.includes('acharya'),
+  kulapati: u.roles.includes('kulapati'),
+});
+
+const STATUS_NOTE: Record<Course['status'], string> = {
+  draft: ' (not published)',
+  published: '',
+  archived: ' (archived)',
+};
 
 /** `/kulapati/roles`: who holds what, and the dialog that changes it. Everything goes through setRoles. */
 export function RolesPage() {
   const { data, service } = useConsole();
-  const learner = useLearnerData();
   const me = useUser();
   const toast = useToast();
   const [reload, setReload] = useState(0);
   const [editing, setEditing] = useState<UserRow | 'new' | null>(null);
   const result = useAsync(
     useCallback(async () => {
-      const [acharyas, kulapatis, courses] = await Promise.all([
+      const [acharyas, kulapatis, courses, everyone] = await Promise.all([
         data.usersWithRole('acharya'),
         data.usersWithRole('kulapati'),
-        learner.listCourses(),
+        data.allCourses(),
+        data.userCount(),
       ]);
-      return { acharyas, kulapatis, courses, reload };
-    }, [data, learner, reload]),
+      return { acharyas, kulapatis, courses, everyone, reload };
+    }, [data, reload]),
   );
 
-  const save = async (user: UserRow, role: RoleChoice, courseIds: string[]) => {
+  const save = async (user: UserRow, roles: Held, courseIds: string[]) => {
     try {
       await service.setRoles({
         uid: user.uid,
-        acharya: role === 'acharya',
-        kulapati: role === 'kulapati',
-        grantedCourseIds: role === 'acharya' ? courseIds : [],
+        acharya: roles.acharya,
+        kulapati: roles.kulapati,
+        grantedCourseIds: roles.acharya ? courseIds : [],
       });
       toast.show(`Updated ${user.displayName || user.email}`, { tone: 'success' });
       setEditing(null);
@@ -86,7 +94,7 @@ export function RolesPage() {
         <p>Changing a role takes effect the next time the person&apos;s session refreshes.</p>
       </Callout>
       <Loaded loadable={result}>
-        {({ acharyas, kulapatis, courses }) => (
+        {({ acharyas, kulapatis, courses, everyone }) => (
           <>
             <div className="role-cards">
               {CARDS.map((c) => (
@@ -107,7 +115,7 @@ export function RolesPage() {
                       ? acharyas.length
                       : c.role === 'kulapati'
                         ? kulapatis.length
-                        : 'Everyone'}
+                        : everyone}
                   </p>
                   <h2>{c.english}</h2>
                   <p>{c.text}</p>
@@ -171,6 +179,25 @@ export function RolesPage() {
               )}
             </section>
 
+            <section aria-labelledby="kulapatis-title" className="home-section">
+              <h2 id="kulapatis-title">Kulapatis</h2>
+              <ul className="course-list">
+                {kulapatis.map((u) => (
+                  <li key={u.uid} className="course-row">
+                    <span className="course-row__title">{u.displayName || u.email}</span>
+                    <span className="course-row__meta">{u.email}</span>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setEditing(u)}
+                      aria-label={`Edit ${u.displayName || u.email} as Kulapati`}
+                    >
+                      Edit
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
             {editing ? (
               <GrantDialog
                 key={editing === 'new' ? 'new' : editing.uid}
@@ -199,12 +226,14 @@ function GrantDialog({
   courses: readonly Course[];
   meUid: string;
   onClose: () => void;
-  onSave: (user: UserRow, role: RoleChoice, courseIds: string[]) => Promise<void>;
+  onSave: (user: UserRow, roles: Held, courseIds: string[]) => Promise<void>;
 }) {
   const { data } = useConsole();
   const [user, setUser] = useState<UserRow | null>(initial);
   const people = usePeopleSearch(data);
-  const [role, setRole] = useState<RoleChoice>(initial ? currentRole(initial) : 'acharya');
+  const [roles, setRoles] = useState<Held>(
+    initial ? held(initial) : { acharya: true, kulapati: false },
+  );
   const [courseIds, setCourseIds] = useState<string[]>(initial?.grantedCourseIds ?? []);
   const [saving, setSaving] = useState(false);
   const self = user?.uid === meUid;
@@ -220,7 +249,7 @@ function GrantDialog({
           disabled={!user || saving}
           onClick={() => {
             setSaving(true);
-            void onSave(user as UserRow, role, courseIds).finally(() => setSaving(false));
+            void onSave(user as UserRow, roles, courseIds).finally(() => setSaving(false));
           }}
         >
           Save role
@@ -245,7 +274,7 @@ function GrantDialog({
                   variant="secondary"
                   onClick={() => {
                     setUser(u);
-                    setRole(currentRole(u));
+                    setRoles(held(u));
                     setCourseIds(u.grantedCourseIds);
                   }}
                 >
@@ -258,30 +287,31 @@ function GrantDialog({
       )}
       {user ? (
         <fieldset className="dialog-fieldset">
-          <legend>Role</legend>
-          {(['shishya', 'acharya', 'kulapati'] as const).map((r) => (
-            <label key={r} className="choice">
-              <input
-                type="radio"
-                name="role"
-                value={r}
-                checked={role === r}
-                disabled={self && wasKulapati && r !== 'kulapati'}
-                onChange={() => setRole(r)}
-              />{' '}
-              {r === 'shishya'
-                ? 'Shishya (learner)'
-                : r === 'acharya'
-                  ? 'Acharya (educator)'
-                  : 'Kulapati (admin)'}
-            </label>
-          ))}
+          <legend>Roles</legend>
+          <p>Everyone is a Shishya (learner). Add either or both of the roles below.</p>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={roles.acharya}
+              onChange={(e) => setRoles({ ...roles, acharya: e.target.checked })}
+            />{' '}
+            Acharya (educator)
+          </label>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={roles.kulapati}
+              disabled={self && wasKulapati}
+              onChange={(e) => setRoles({ ...roles, kulapati: e.target.checked })}
+            />{' '}
+            Kulapati (admin)
+          </label>
           {self && wasKulapati ? (
             <p>You cannot remove your own Kulapati role. Ask another Kulapati.</p>
           ) : null}
         </fieldset>
       ) : null}
-      {user && role === 'acharya' ? (
+      {user && roles.acharya ? (
         <fieldset className="dialog-fieldset">
           <legend>Courses they may edit</legend>
           {courses.map((c) => (
@@ -296,6 +326,7 @@ function GrantDialog({
                 }
               />{' '}
               {c.title}
+              {STATUS_NOTE[c.status]}
             </label>
           ))}
         </fieldset>

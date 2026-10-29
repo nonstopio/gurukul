@@ -15,7 +15,14 @@ import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { averageDays, funnelSteps, hardestQuestions, pct } from './model';
+import {
+  WARN_BELOW_PERCENT,
+  averageDays,
+  funnelSteps,
+  hardestQuestions,
+  parikshaRows,
+  pct,
+} from './model';
 
 const prompt = (course: Course, questionId: string): string => {
   const all: Question[] = itemsOf(course).flatMap((i) =>
@@ -23,6 +30,9 @@ const prompt = (course: Course, questionId: string): string => {
   );
   return all.find((q) => q.id === questionId)?.prompt ?? questionId;
 };
+
+const studioPariksha = (courseId: string, parikshaId: string): string =>
+  `/studio/courses/${courseId}/pariksha/${parikshaId}`;
 
 /** `/kulapati/courses/:courseId`: the funnel, where learners stop and the hardest questions. */
 export function CourseAnalyticsPage() {
@@ -65,6 +75,10 @@ export function CourseAnalyticsPage() {
           const days = averageDays(stats);
           const hardest = hardestQuestions(stats);
           const parikshas = itemsOf(course).flatMap((i) => (i.type === 'pariksha' ? [i] : []));
+          const rows = parikshaRows(parikshas, stats);
+          const parikshaOf = new Map(
+            parikshas.flatMap((p) => p.questions.map((q) => [q.id, p.id] as const)),
+          );
           return (
             <>
               <Breadcrumb
@@ -80,6 +94,9 @@ export function CourseAnalyticsPage() {
                 </Chip>
               </p>
               <div className="cert-actions">
+                <Link className={buttonClass('secondary')} to={`/studio/courses/${course.id}`}>
+                  Edit in Vyasa Studio
+                </Link>
                 <Link
                   className={buttonClass('primary')}
                   to="/kulapati/assign"
@@ -127,10 +144,25 @@ export function CourseAnalyticsPage() {
                   <ol className="hardest">
                     {hardest.map((q) => (
                       <li key={q.questionId}>
-                        <span className={q.percent < 50 ? 'hardest__low' : 'hardest__mid'}>
+                        <span
+                          className={
+                            q.percent < 50
+                              ? 'hardest__low'
+                              : q.percent < WARN_BELOW_PERCENT
+                                ? 'hardest__mid'
+                                : undefined
+                          }
+                        >
                           {q.percent}% right first time
                         </span>{' '}
-                        {prompt(course, q.questionId)}
+                        {prompt(course, q.questionId)}{' '}
+                        {parikshaOf.has(q.questionId) ? (
+                          <Link
+                            to={`${studioPariksha(course.id, parikshaOf.get(q.questionId) as string)}?question=${encodeURIComponent(q.questionId)}`}
+                          >
+                            Edit question
+                          </Link>
+                        ) : null}
                       </li>
                     ))}
                   </ol>
@@ -145,13 +177,31 @@ export function CourseAnalyticsPage() {
                     <tr>
                       <th scope="col">Pariksha</th>
                       <th scope="col">Questions</th>
+                      <th scope="col">First-try answers</th>
+                      <th scope="col">Right first time</th>
+                      <th scope="col">
+                        <span className="sr-only">Edit</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {parikshas.map((p) => (
-                      <tr key={p.id}>
-                        <th scope="row">{p.title}</th>
-                        <td>{p.questions.length}</td>
+                    {rows.map((r) => (
+                      <tr key={r.id}>
+                        <th scope="row">{r.title}</th>
+                        <td>{r.questions}</td>
+                        <td>{r.answers}</td>
+                        <td
+                          className={
+                            r.percent !== null && r.percent < WARN_BELOW_PERCENT
+                              ? 'hardest__mid'
+                              : undefined
+                          }
+                        >
+                          {r.percent === null ? '—' : `${r.percent}%`}
+                        </td>
+                        <td>
+                          <Link to={studioPariksha(course.id, r.id)}>Edit this Pariksha</Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

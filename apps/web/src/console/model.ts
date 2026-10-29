@@ -1,5 +1,5 @@
 import { lastWeeks, nameKey } from '@gurukul/schema';
-import type { Course, CourseStats, OrgStats } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats, Pariksha } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import type { AssignmentFull, UserRow } from './types';
 
@@ -351,6 +351,43 @@ export function hardestQuestions(
     .slice(0, limit);
 }
 
+/** Below this first-try percentage a number is shown in the warning colour; at or above it, never. */
+export const WARN_BELOW_PERCENT = 70;
+
+/** One Pariksha's first-try results, summed over its questions' counters. */
+export interface ParikshaRow {
+  id: string;
+  title: string;
+  questions: number;
+  /** First-try answers counted across its questions. */
+  answers: number;
+  /** Whole-number share right first time, or null with no answers yet. */
+  percent: number | null;
+}
+
+/** A row per Pariksha, in course order, from the course's first-try counters. */
+export function parikshaRows(
+  parikshas: readonly Pick<Pariksha, 'id' | 'title' | 'questions'>[],
+  stats: Pick<CourseStats, 'questionFirstTry'>,
+): ParikshaRow[] {
+  return parikshas.map((p) => {
+    let correct = 0;
+    let answers = 0;
+    for (const q of p.questions) {
+      const t = stats.questionFirstTry[q.id];
+      correct += t?.correct ?? 0;
+      answers += t?.total ?? 0;
+    }
+    return {
+      id: p.id,
+      title: p.title,
+      questions: p.questions.length,
+      answers,
+      percent: pct(correct, answers),
+    };
+  });
+}
+
 /** Whole-number percentage, or null when there is nothing to divide by. */
 export function pct(part: number, whole: number): number | null {
   return whole > 0 ? Math.round((part / whole) * 100) : null;
@@ -429,4 +466,158 @@ export function addTeam(
   }
   if (teams.length >= MAX_TEAMS) return { error: `The list holds at most ${MAX_TEAMS} teams.` };
   return { teams: [...teams, team] };
+}
+
+export type DateRange = '30d' | 'quarter' | 'all';
+
+export const DATE_RANGES: ReadonlyArray<{ id: DateRange; label: string }> = [
+  { id: 'all', label: 'All time' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'quarter', label: 'Last 90 days' },
+];
+
+/** The earliest moment a range admits, or `null` for all time. */
+export function rangeStart(range: DateRange, now: Date): Date | null {
+  if (range === 'all') return null;
+  const days = range === '30d' ? 30 : 90;
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
+const within = (at: Date | null, start: Date | null): boolean =>
+  start === null || (at !== null && at.getTime() >= start.getTime());
+
+/** How many people each Needs attention list shows. */
+export const ATTENTION_LIMIT = 5;
+
+export interface OverdueEntry {
+  key: string;
+  email: string;
+  courseId: string;
+  dueAt: Date;
+}
+
+/** The longest-overdue assignments, one per person and course, whose due date is in range and whose email passes `emails`. */
+export function overdueEntries(
+  open: readonly AssignmentFull[],
+  now: Date,
+  start: Date | null,
+  emails: ReadonlySet<string> | null,
+): OverdueEntry[] {
+  return open
+    .filter((a) => isOverdue(a, now) && within(a.dueAt, start))
+    .filter((a) => emails === null || emails.has(a.email))
+    .map((a) => ({ key: a.id, email: a.email, courseId: a.courseId, dueAt: a.dueAt as Date }))
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+    .slice(0, ATTENTION_LIMIT);
+}
+
+export interface FailedEntry {
+  key: string;
+  uid: string;
+  courseId: string;
+  parikshaId: string;
+  attempts: number;
+  at: Date | null;
+}
+
+/** Parikshas a learner has attempted at least twice without passing, newest attempt first. */
+export function failedTwice(rows: ReadonlyArray<ProgressRow & { uid: string }>): FailedEntry[] {
+  return rows
+    .flatMap((row) =>
+      Object.entries(row.pariksha)
+        .filter(([, r]) => !r.passed && r.attempts >= 2)
+        .map(([parikshaId, r]) => ({
+          key: `${row.uid}/${row.courseId}/${parikshaId}`,
+          uid: row.uid,
+          courseId: row.courseId,
+          parikshaId,
+          attempts: r.attempts,
+          at: r.lastAttemptAt,
+        })),
+    )
+    .sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
+}
+
+/** Keeps the failed entries in range whose person passes `uids`, at most the list length. */
+export function visibleFailed(
+  entries: readonly FailedEntry[],
+  start: Date | null,
+  uids: ReadonlySet<string> | null,
+): FailedEntry[] {
+  return entries
+    .filter((e) => within(e.at, start) && (uids === null || uids.has(e.uid)))
+    .slice(0, ATTENTION_LIMIT);
+}
+
+export interface PendingInvite {
+  email: string;
+  invitedAt: Date | null;
+}
+
+/** Emails assigned in range who have not signed in, newest invite first, with how many there are in all. */
+export function pendingInvites(
+  open: readonly AssignmentFull[],
+  start: Date | null,
+): { shown: PendingInvite[]; total: number } {
+  const latest = new Map<string, Date | null>();
+  for (const a of open) {
+    if (a.uid !== null || !within(a.assignedAt, start)) continue;
+    const seen = latest.get(a.email);
+    if (seen === undefined || (a.assignedAt?.getTime() ?? 0) > (seen?.getTime() ?? 0)) {
+      latest.set(a.email, a.assignedAt);
+    }
+  }
+  const all = [...latest]
+    .map(([email, invitedAt]) => ({ email, invitedAt }))
+    .sort((a, b) => (b.invitedAt?.getTime() ?? 0) - (a.invitedAt?.getTime() ?? 0));
+  return { shown: all.slice(0, ATTENTION_LIMIT), total: all.length };
+}
+
+const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+const count = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+const list = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+const AUDIT_NAMES_SHOWN = 3;
+
+/** Who was assigned, e.g. "a@x.com, b@x.com and 4 more"; entries from before emails were recorded say how many. */
+const assignedWho = (detail: Record<string, unknown>): string => {
+  const emails = list(detail.emails);
+  if (emails.length === 0) return `${count(detail.count) ?? 0} assignments`;
+  const shown = emails.slice(0, AUDIT_NAMES_SHOWN).join(', ');
+  const more = emails.length - AUDIT_NAMES_SHOWN;
+  return more > 0 ? `${shown} and ${more} more` : shown;
+};
+
+/** The recorded detail of an audit entry in a short sentence; null when there is nothing to add. */
+export function auditDetail(action: string, detail: Record<string, unknown>): string | null {
+  switch (action) {
+    case 'assign': {
+      const courses = list(detail.courseIds).join(', ');
+      return `${assignedWho(detail)}${courses === '' ? '' : ` to ${courses}`}`;
+    }
+    case 'reminders.send':
+      return `Sent ${count(detail.sent) ?? 0}, skipped ${count(detail.skipped) ?? 0}${
+        text(detail.courseId) === null ? '' : ` for ${text(detail.courseId)}`
+      }`;
+    case 'roles.set':
+    case 'roles.bootstrap': {
+      const held = (['acharya', 'kulapati'] as const).filter((r) => detail[r] === true);
+      return held.length === 0 ? 'Learner only' : `Now ${held.join(' and ')}`;
+    }
+    case 'cooldown.reset':
+      return [text(detail.courseId), text(detail.parikshaId)].filter(Boolean).join(' / ') || null;
+    case 'certificate.revoke':
+    case 'certificate.restore':
+      return null;
+    case 'course.create':
+      return text(detail.duplicateFrom) === null ? null : `Copy of ${text(detail.duplicateFrom)}`;
+    case 'course.publish':
+      return count(detail.version) === null ? null : `Version ${count(detail.version)}`;
+    case 'course.rollback':
+      return `Back to version ${count(detail.restoredVersion) ?? '?'}, now version ${count(detail.version) ?? '?'}`;
+    case 'course.archive':
+      return text(detail.status);
+    default:
+      return null;
+  }
 }

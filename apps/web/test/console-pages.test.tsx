@@ -1,9 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { AssignmentFull } from '../src/console/types';
+import type { AssignmentFull, AuditRow } from '../src/console/types';
 import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
-import { fakeData, makeCourse } from './fake-data';
+import { fakeData, makeCourse, progressRow } from './fake-data';
 import { openApp } from './harness';
 
 const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
@@ -114,6 +114,22 @@ describe('Overview', () => {
     expect(c.data.overdueCount).toHaveBeenCalledTimes(1);
   });
 
+  it('counts pending invites past the newest ones the page loads, once per email', async () => {
+    const c = fakeConsole({
+      assignments: [],
+      open: [
+        asg('p1@nonstopio.com', { uid: null }),
+        asg('p1@nonstopio.com', { uid: null, courseId: 'other' }),
+        asg('p2@nonstopio.com', { uid: null }),
+        asg('o@nonstopio.com', { uid: 'u9', dueAt: past }),
+      ],
+    });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    const card = (await screen.findByText('Pending invites')).parentElement as HTMLElement;
+    expect(within(card).getByText('2')).toBeTruthy();
+    expect(c.data.openAssignments).toHaveBeenCalledWith(expect.any(Date));
+  });
+
   it('shows dashes for a course nobody has started', async () => {
     await openApp('/kulapati', { ...kulapati });
     expect(await screen.findByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
@@ -151,17 +167,49 @@ describe('Audit log', () => {
           id: 'a1',
           action: 'roles.set',
           by: 'boss@nonstopio.com',
-          target: 'u2',
+          target: 'Dev Rao',
+          detail: { acharya: true },
           at: new Date('2026-03-01T10:00:00Z'),
         },
-        { id: 'a2', action: 'odd.thing', by: 'u9', target: null, at: null },
+        { id: 'a2', action: 'odd.thing', by: 'u9', target: null, detail: {}, at: null },
       ],
     });
     const { container } = await openApp('/kulapati/audit', { ...kulapati, console: c });
     expect(await screen.findByText('Changed a role')).toBeTruthy();
     expect(screen.getByText('boss@nonstopio.com')).toBeTruthy();
+    expect(screen.getByText('Dev Rao')).toBeTruthy();
+    expect(screen.getByText('Now acharya')).toBeTruthy();
     expect(screen.getByText('odd.thing')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('loads older entries on request, and says when that fails', async () => {
+    const row = (id: string): AuditRow => ({
+      id,
+      action: 'course.publish',
+      by: 'boss@nonstopio.com',
+      target: id,
+      detail: { version: 2 },
+      at: new Date('2026-03-01T10:00:00Z'),
+    });
+    const cursor = { at: new Date('2026-03-01T10:00:00Z'), id: 'one' };
+    const c = fakeConsole();
+    c.data.auditPage = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [row('one')], nextCursor: cursor })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ rows: [row('two')], nextCursor: { ...cursor, id: 'two' } })
+      .mockResolvedValueOnce({ rows: [row('three')], nextCursor: null });
+    await openApp('/kulapati/audit', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText(/Could not load more entries/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText('two')).toBeTruthy();
+    expect(screen.queryByText(/Could not load more entries/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText('three')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Load older entries' })).toBeNull();
+    expect(c.data.auditPage).toHaveBeenLastCalledWith({ ...cursor, id: 'two' }, 50);
   });
 
   it('says so when nothing has been recorded', async () => {
@@ -193,6 +241,16 @@ describe('Course analytics', () => {
     expect(screen.getByText(/The biggest drop is between/)).toBeTruthy();
     expect(screen.getByText(/25% right first time/)).toBeTruthy();
     expect(screen.getByText('Pariksha I')).toBeTruthy();
+    expect(screen.getByText('25%').className).toBe('hardest__mid');
+    expect(screen.getByRole('link', { name: 'Edit in Vyasa Studio' }).getAttribute('href')).toBe(
+      '/studio/courses/git',
+    );
+    expect(screen.getByRole('link', { name: 'Edit this Pariksha' }).getAttribute('href')).toBe(
+      '/studio/courses/git/pariksha/q1',
+    );
+    expect(
+      screen.getAllByRole('link', { name: 'Edit question' }).map((a) => a.getAttribute('href')),
+    ).toContain('/studio/courses/git/pariksha/q1?question=k1');
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -205,11 +263,25 @@ describe('Course analytics', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  it('keeps the warning colour for a Pariksha below 70% only', async () => {
+    const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 3, total: 4 } } } });
+    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    const cells = await screen.findAllByText('75%');
+    expect(cells.every((el) => !el.className)).toBe(true);
+  });
+
+  it('uses the warning colour for a question between 50% and 70%', async () => {
+    const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 2, total: 3 } } } });
+    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    expect((await screen.findByText(/67% right first time/)).className).toBe('hardest__mid');
+  });
+
   it('names an unknown question by its id, and handles an unknown course', async () => {
     const c = fakeConsole({ course: { questionFirstTry: { zzz: { correct: 0, total: 5 } } } });
     const { unmount } = await openApp('/kulapati/courses/git', { ...kulapati, console: c });
     expect(await screen.findByText(/zzz/)).toBeTruthy();
     expect(screen.getByText(/0% right first time/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Edit question' })).toBeNull();
     unmount();
     await openApp('/kulapati/courses/nope', { ...kulapati });
     expect(await screen.findByText('This course does not exist')).toBeTruthy();
@@ -233,6 +305,62 @@ describe('Roles & access', () => {
     expect(screen.getByText('gone')).toBeTruthy();
     expect(screen.getByRole('table', { name: 'What each role can do' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('counts every person who has signed in as a Shishya, and lists the Kulapatis', async () => {
+    const nameless = userRow(8, {
+      displayName: '',
+      email: 'nameless@nonstopio.com',
+      roles: ['kulapati'],
+    });
+    const c = fakeConsole({ users: [acharya, admin, nameless], count: 42 });
+    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    const card = (await screen.findByRole('region', { name: 'Learner' })) as HTMLElement;
+    expect(within(card).getByText('42')).toBeTruthy();
+    const list = screen.getByRole('region', { name: 'Kulapatis' });
+    expect(within(list).getByText('Admin')).toBeTruthy();
+    expect(within(list).getByText('user2@nonstopio.com')).toBeTruthy();
+    expect(within(list).queryByText('Asha')).toBeNull();
+    expect(within(list).getAllByText('nameless@nonstopio.com')).toHaveLength(2);
+    fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Kulapati' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Kulapati/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u2',
+        acharya: false,
+        kulapati: false,
+        grantedCourseIds: [],
+      }),
+    );
+  });
+
+  it('keeps Acharya and Kulapati together, and offers unpublished courses to grant', async () => {
+    const draft = makeCourse({ id: 'wip', title: 'Work in progress', status: 'draft' });
+    const old = makeCourse({ id: 'old', title: 'Old course', status: 'archived' });
+    const both = userRow(7, { displayName: 'Both', roles: ['shishya', 'acharya', 'kulapati'] });
+    const c = fakeConsole({ users: [both], courses: [makeCourse(), draft, old] });
+    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Both' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      (within(dialog).getByRole('checkbox', { name: /Acharya/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+    expect(
+      (within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+    fireEvent.click(within(dialog).getByLabelText('Work in progress (not published)'));
+    fireEvent.click(within(dialog).getByLabelText('Old course (archived)'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u7',
+        acharya: true,
+        kulapati: true,
+        grantedCourseIds: ['wip', 'old'],
+      }),
+    );
   });
 
   it('says there are no Acharyas, and no courses granted', async () => {
@@ -283,13 +411,12 @@ describe('Roles & access', () => {
       target: { value: 'rav' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Acharya/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Kulapati/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
     expect(within(dialog).queryByText('Courses they may edit')).toBeNull();
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Shishya/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
@@ -332,13 +459,10 @@ describe('Roles & access', () => {
       target: { value: 'me' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
-    expect(
-      (within(dialog).getByRole('radio', { name: /Shishya/ }) as HTMLInputElement).disabled,
-    ).toBe(true);
+    const box = within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(box.checked).toBe(true);
     expect(within(dialog).getByText(/cannot remove your own Kulapati role/)).toBeTruthy();
-    expect(
-      (within(dialog).getByRole('radio', { name: /Kulapati/ }) as HTMLInputElement).checked,
-    ).toBe(true);
   });
 
   it('keeps the dialog open and says so when the change fails', async () => {
@@ -353,5 +477,126 @@ describe('Roles & access', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+describe('Overview: Needs attention', () => {
+  const failedRow = (uid: string, attempts = 2, passed = false) => ({
+    ...progressRow({
+      pariksha: { q1: { best: 0.4, passed, attempts, lastAttemptAt: new Date() } },
+    }),
+    uid,
+  });
+
+  it('lists overdue people with Nudge, failed-twice with Reset and pending invites with Resend', async () => {
+    const c = fakeConsole({
+      users: [userRow(1, { displayName: 'Asha' })],
+      assignments: [],
+      open: [
+        asg('late@nonstopio.com', { uid: 'u9', dueAt: past, status: 'started' }),
+        asg('new@nonstopio.com', { uid: null }),
+        asg('gone@nonstopio.com', { uid: 'u8', dueAt: past, courseId: 'removed' }),
+      ],
+      recent: [
+        failedRow('u1'),
+        failedRow('u2', 1),
+        failedRow('u3', 3, true),
+        {
+          ...failedRow('u4'),
+          pariksha: { zz: { best: 0.4, passed: false, attempts: 2, lastAttemptAt: new Date() } },
+        },
+      ],
+    });
+    const { container } = await openApp('/kulapati', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Nudge late@nonstopio.com' }));
+    await waitFor(() =>
+      expect(c.service.remindLearners).toHaveBeenCalledWith({ emails: ['late@nonstopio.com'] }),
+    );
+    expect(await screen.findByText('Reminder sent')).toBeTruthy();
+    expect(screen.getByText(/Pariksha I: 2 attempts, not passed/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reset User 2' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Asha' }));
+    await waitFor(() =>
+      expect(c.service.resetCooldown).toHaveBeenCalledWith({
+        uid: 'u1',
+        courseId: 'git',
+        parikshaId: 'q1',
+      }),
+    );
+    expect(await screen.findByText('Retake opened')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Resend to new@nonstopio.com' }));
+    await waitFor(() =>
+      expect(c.service.remindLearners).toHaveBeenCalledWith({ emails: ['new@nonstopio.com'] }),
+    );
+    expect(screen.getByText(/removed was due/)).toBeTruthy();
+    expect(screen.getByText(/zz: 2 attempts/)).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says so when a reminder was skipped or an action fails', async () => {
+    const c = fakeConsole({
+      assignments: [],
+      open: [asg('late@nonstopio.com', { uid: 'u9', dueAt: past, status: 'started' })],
+      recent: [failedRow('u7')],
+    });
+    vi.mocked(c.service.remindLearners).mockResolvedValueOnce({ sent: 0, skipped: 1 });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Nudge late@nonstopio.com' }));
+    expect(await screen.findByText('Already reminded today.')).toBeTruthy();
+    vi.mocked(c.service.remindLearners).mockRejectedValueOnce(new Error('x'));
+    fireEvent.click(screen.getByRole('button', { name: 'Nudge late@nonstopio.com' }));
+    expect(await screen.findByText('Could not send that. Try again.')).toBeTruthy();
+    vi.mocked(c.service.resetCooldown).mockRejectedValueOnce(new Error('x'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset u7' }));
+    expect(await screen.findByText('Could not open the retake. Try again.')).toBeTruthy();
+  });
+
+  it('shows empty lists and counts the invites past the first five', async () => {
+    const none = fakeConsole({ assignments: [] });
+    const first = await openApp('/kulapati', { ...kulapati, console: none });
+    expect(await screen.findByText('Nobody is overdue')).toBeTruthy();
+    expect(screen.getByText('Nobody is stuck')).toBeTruthy();
+    expect(screen.getByText('No pending invites')).toBeTruthy();
+    first.unmount();
+    const many = fakeConsole({
+      assignments: [],
+      open: Array.from({ length: 7 }, (_, i) => asg(`p${i}@nonstopio.com`, { assignedAt: null })),
+    });
+    await openApp('/kulapati', { ...kulapati, console: many });
+    expect(await screen.findByText('and 2 more')).toBeTruthy();
+    expect(screen.getAllByText('Not signed in yet')).toHaveLength(5);
+  });
+
+  it('narrows the lists by team and by date range', async () => {
+    const c = fakeConsole({
+      teams: ['QA'],
+      team: [userRow(1, { team: 'QA', email: 'in@nonstopio.com' })],
+      assignments: [],
+      open: [
+        asg('in@nonstopio.com', { uid: 'u1', dueAt: past, status: 'started' }),
+        asg('out@nonstopio.com', { uid: 'u2', dueAt: past, status: 'started' }),
+        asg('old@nonstopio.com', {
+          uid: 'u3',
+          dueAt: new Date('2020-01-01T00:00:00Z'),
+          status: 'started',
+        }),
+      ],
+      recent: [failedRow('u1'), failedRow('u2')],
+    });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    await screen.findByRole('button', { name: 'Nudge out@nonstopio.com' });
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Nudge out@nonstopio.com' })).toBeNull(),
+    );
+    expect(screen.getByRole('button', { name: 'Nudge in@nonstopio.com' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^Reset/ })).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: '' } });
+    await screen.findByRole('button', { name: 'Nudge old@nonstopio.com' });
+    fireEvent.change(screen.getByLabelText('Date range'), { target: { value: '30d' } });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Nudge old@nonstopio.com' })).toBeNull(),
+    );
+    expect(screen.getByRole('button', { name: 'Nudge out@nonstopio.com' })).toBeTruthy();
   });
 });

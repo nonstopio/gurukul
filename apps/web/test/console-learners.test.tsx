@@ -104,6 +104,13 @@ describe('Learners', () => {
     );
   });
 
+  it('opens already filtered to the course in the address', async () => {
+    const c = setup();
+    await openApp('/kulapati/learners?course=git', { ...kulapati, console: c });
+    await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
+    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('git');
+  });
+
   it('filters by search, team, course and role', async () => {
     const c = setup({ found: [users[1] as UserRow], team: [users[0] as UserRow] });
     await openApp('/kulapati/learners', { ...kulapati, console: c });
@@ -204,7 +211,7 @@ describe('Learners', () => {
     expect(c.data.usersInTeam).toHaveBeenCalledTimes(1);
   });
 
-  it('runs the bulk actions: assign, remind, change role and clear', async () => {
+  it('runs the bulk actions: assign, remind and clear', async () => {
     const c = setup();
     const { router } = await openApp('/kulapati/learners', { ...kulapati, console: c });
     await screen.findByText('Priya');
@@ -214,15 +221,72 @@ describe('Learners', () => {
       expect(c.service.remindLearners).toHaveBeenCalledWith({ emails: ['user1@nonstopio.com'] }),
     );
     expect(await screen.findByText('Reminders sent: 1, skipped: 0')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Change role' }).getAttribute('href')).toBe(
-      '/kulapati/roles',
-    );
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(screen.queryByText('1 selected')).toBeNull();
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Assign course' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/assign'));
     expect(router.state.location.state).toEqual({ emails: ['user1@nonstopio.com'] });
+  });
+
+  it('changes the role of everyone selected and skips pending invites', async () => {
+    const c = setup();
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByLabelText('Select Rohan'));
+    fireEvent.click(screen.getByLabelText('Select new@nonstopio.com'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    expect(screen.getByText(/Courses already granted stay/)).toBeTruthy();
+    expect(screen.getByText(/1 will be skipped: pending invites.*your own/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Kulapati (admin)'));
+    expect(
+      screen.getByText(/1 will be skipped: pending invites have no account yet\./),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Shishya (learner)'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u2',
+        acharya: false,
+        kulapati: false,
+        grantedCourseIds: [],
+      }),
+    );
+    expect(await screen.findByText('Roles changed: 1, skipped: 1')).toBeTruthy();
+    expect(screen.queryByText('2 selected')).toBeNull();
+  });
+
+  it('reports roles that could not be changed', async () => {
+    const c = setup();
+    c.service.setRoles = vi.fn().mockRejectedValue(new Error('no'));
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByLabelText('Select Rohan'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
+    expect(await screen.findByText('Roles changed: 0, skipped: 0, failed: 1')).toBeTruthy();
+  });
+
+  it('never lets you drop your own Kulapati role in a bulk change', async () => {
+    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByLabelText('Select Priya'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    expect(screen.getByRole('button', { name: 'Apply to 0 people' })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Kulapati (admin)'));
+    expect(screen.getByRole('button', { name: 'Apply to 1 person' })).toBeTruthy();
+  });
+
+  it('cannot apply a role change to nobody and can be closed', async () => {
+    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
+    fireEvent.click(await screen.findByLabelText('Select new@nonstopio.com'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    expect(
+      (screen.getByRole('button', { name: 'Apply to 0 people' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
   });
 
   it('says so when reminders fail', async () => {

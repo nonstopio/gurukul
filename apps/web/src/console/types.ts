@@ -1,4 +1,11 @@
-import type { AssignSummary, CourseStats, OrgConfig, OrgStats, Reminder } from '@gurukul/schema';
+import type {
+  AssignSummary,
+  Course,
+  CourseStats,
+  OrgConfig,
+  OrgStats,
+  Reminder,
+} from '@gurukul/schema';
 import type { CertificateRow, ProgressRow } from '../data/types';
 
 export interface UserRow {
@@ -22,13 +29,29 @@ export interface AssignmentFull {
   status: 'assigned' | 'started' | 'completed';
 }
 
-/** One entry of the audit trail. `by` is the doer's email when their profile is known, else the uid. */
+/**
+ * One entry of the audit trail. `by` is the doer's name (or email, or the uid when their profile is
+ * gone); `target` is resolved the same way when the action targets a person.
+ */
 export interface AuditRow {
   id: string;
   action: string;
   by: string;
   target: string | null;
+  /** What the function recorded about the action; shown in words by `auditDetail`. */
+  detail: Record<string, unknown>;
   at: Date | null;
+}
+
+/** Where the next audit page starts: just after the entry with this time and id. */
+export interface AuditCursor {
+  at: Date;
+  id: string;
+}
+
+export interface AuditPage {
+  rows: AuditRow[];
+  nextCursor: AuditCursor | null;
 }
 
 /**
@@ -67,6 +90,11 @@ export interface ConsoleData {
   openAssignments(now: Date): Promise<AssignmentFull[]>;
   /** How many assignments are overdue at `now`, org-wide: a count() aggregation, not loaded rows. */
   overdueCount(now: Date): Promise<number>;
+  /**
+   * The newest-active progress documents (capped at 100), for finding Parikshas failed twice
+   * without reading every progress document.
+   */
+  recentProgress(): Promise<Array<ProgressRow & { uid: string }>>;
   usersPage(after: string | null, pageSize: number): Promise<UserPage>;
   /** Total people who have signed in, for "Showing 1–25 of N". */
   userCount(): Promise<number>;
@@ -84,6 +112,8 @@ export interface ConsoleData {
   usersByUid(uids: string[]): Promise<UserRow[]>;
   /** People holding a granted role (acharya or kulapati), for Roles & access. */
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
+  /** Every course, drafts and never-published ones included (capped), for granting to an Acharya. */
+  allCourses(): Promise<Course[]>;
   /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */
   knownEmails(
     emails: string[],
@@ -94,8 +124,8 @@ export interface ConsoleData {
   orgSettings(): Promise<OrgConfig>;
   /** Writes the whole of `config/org`; the rules let only a Kulapati, and only this shape. */
   saveOrgSettings(settings: OrgConfig): Promise<void>;
-  /** The newest audit entries (capped), with each doer's email resolved. */
-  auditLog(): Promise<AuditRow[]>;
+  /** One page of audit entries, newest first, with people resolved to names. */
+  auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
 }
 
 export interface AssignRequest {

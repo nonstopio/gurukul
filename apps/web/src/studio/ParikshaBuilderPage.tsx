@@ -1,7 +1,7 @@
 import { validateForPublish } from '@gurukul/schema';
 import { Button, Card, Chip, DragList, EmptyState, buttonClass, useToast } from '@gurukul/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { userMessageOf } from '../api';
 import { useUser } from '../auth/AuthProvider';
 import { useConsole } from '../console/ConsoleProvider';
@@ -66,7 +66,8 @@ function Builder({
   const stats = useAsync(
     useCallback(() => consoleApi.data.courseStats(courseId), [consoleApi, courseId]),
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const asked = useSearchParams()[0].get('question');
+  const [selectedId, setSelectedId] = useState<string | null>(asked);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
