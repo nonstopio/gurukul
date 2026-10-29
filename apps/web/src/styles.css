@@ -1991,6 +1991,7 @@ a.items__row:hover {
   .signin__benefits {
     display: none;
   }
+}
 
 .dropzone {
   display: grid;
