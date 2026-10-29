@@ -12,7 +12,7 @@ import {
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
@@ -37,9 +37,11 @@ import {
   tabCounts,
 } from './model';
 import type { LearnerRow, LearnerTab, Person } from './model';
-import type { AssignmentFull, UserRow } from './types';
+import type { AssignmentFull, UserPage, UserRow } from './types';
 
 export const PAGE_SIZE = 25;
+/** People per read when "Select all" walks the whole list. */
+const SELECT_ALL_READ = 100;
 
 function tabItems(
   counts: Record<LearnerTab, number>,
@@ -130,6 +132,11 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const [page, setPage] = useState(1);
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [selected, setSelected] = useState<string[]>([]);
+  /** Everyone the filters match, once "Select all N" has read them; null while only a page is ticked. */
+  const [everyone, setEveryone] = useState<Person[] | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  /** Bumped whenever the view or selection changes, so a slow "Select all" read cannot land late. */
+  const view = useRef(0);
   const [open, setOpen] = useState<LearnerRow | null>(null);
   const linked = params.get('learner');
 
@@ -157,7 +164,13 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const reset = (apply: () => void) => {
     apply();
     setPage(1);
+    clearSelection();
+  };
+
+  const clearSelection = () => {
+    view.current += 1;
     setSelected([]);
+    setEveryone(null);
   };
 
   /** The set the filters narrow to, read once per filter change and reused across tabs and pages. */
@@ -234,14 +247,54 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       });
     }
     setPage(next);
-    setSelected([]);
+    clearSelection();
+  };
+
+  /**
+   * Reads every person the current filters and tab match, not only the page on screen. Filtered
+   * views already hold them; unfiltered "All" and "Signed in" read the rest of the people by cursor.
+   */
+  const selectAll = async () => {
+    const filters = { search: query, team, role, courseId };
+    const stamp = view.current;
+    setSelecting(true);
+    try {
+      let people: Person[] = [];
+      if (!isFiltered(filters) && (tab === 'all' || tab === 'signedIn')) {
+        let after: string | null = null;
+        do {
+          const next: UserPage = await data.usersPage(after, SELECT_ALL_READ);
+          people.push(...next.rows.map((u): Person => ({ email: u.email, uid: u.uid, user: u })));
+          after = next.nextCursor;
+        } while (after !== null);
+        if (tab === 'all') people.push(...meta.pending);
+      } else {
+        const narrowed = await source;
+        const matched = isFiltered(filters)
+          ? filterPeople(narrowed.users, narrowed.scope, filters, !team && !role)
+          : meta.people;
+        people = onTab(matched, tab, narrowed.scope, now);
+      }
+      if (stamp !== view.current) return;
+      setEveryone(people);
+      setSelected(people.map((p) => p.uid ?? p.email));
+    } catch (error) {
+      log.warn('Selecting every learner failed', { code: (error as { code?: unknown }).code });
+      toast.show('Could not select everyone. Try again.', { tone: 'danger' });
+    } finally {
+      setSelecting(false);
+    }
   };
 
   const rows = result.state === 'ready' ? result.value.rows : [];
   /** The tab counts of the last result, so they do not flicker while the next one loads. */
   const [counts, setCounts] = useState(meta.counts);
   if (result.state === 'ready' && result.value.counts !== counts) setCounts(result.value.counts);
-  const emails = rows.filter((r) => selected.includes(r.key)).map((r) => r.email);
+  const emails = everyone
+    ? everyone.map((p) => p.email)
+    : rows.filter((r) => selected.includes(r.key)).map((r) => r.email);
+  const shown = result.state === 'ready' ? result.value.total : 0;
+  const pageTicked = rows.length > 0 && rows.every((r) => selected.includes(r.key));
 
   const table = (
     <Loaded loadable={result}>
@@ -253,7 +306,10 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
           rowLabel={(r) => r.name}
           selectable
           selected={selected}
-          onSelectionChange={setSelected}
+          onSelectionChange={(keys) => {
+            setEveryone(null);
+            setSelected(keys);
+          }}
           onRowClick={setOpen}
           empty={<p>No learners match these filters.</p>}
           columns={[
@@ -357,6 +413,11 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       {selected.length > 0 ? (
         <div className="bulk-bar" role="region" aria-label="Bulk actions">
           <span>{selected.length} selected</span>
+          {!everyone && pageTicked && shown > rows.length ? (
+            <Button variant="chrome" disabled={selecting} onClick={() => void selectAll()}>
+              {`Select all ${shown}`}
+            </Button>
+          ) : null}
           <Button
             variant="chrome"
             onClick={() => void navigate('/kulapati/assign', { state: { emails } })}
@@ -383,14 +444,14 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
           <Button variant="chrome" onClick={() => setChangingRole(true)}>
             Change role
           </Button>
-          <Button variant="chrome" onClick={() => setSelected([])}>
+          <Button variant="chrome" onClick={clearSelection}>
             Clear
           </Button>
         </div>
       ) : null}
       {changingRole ? (
         <BulkRoleDialog
-          people={rows.filter((r) => selected.includes(r.key))}
+          people={everyone ?? rows.filter((r) => selected.includes(r.key))}
           meUid={me.uid}
           onClose={() => setChangingRole(false)}
           onApply={async (people, choice) => {
@@ -416,7 +477,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
               { tone: failed ? 'danger' : 'success' },
             );
             setChangingRole(false);
-            setSelected([]);
+            clearSelection();
             setRefresh((n) => n + 1);
           }}
         />
@@ -440,10 +501,10 @@ function BulkRoleDialog({
   onClose,
   onApply,
 }: {
-  people: LearnerRow[];
+  people: Array<{ uid: string | null }>;
   meUid: string;
   onClose: () => void;
-  onApply: (people: LearnerRow[], choice: RoleChoice) => Promise<void>;
+  onApply: (people: Array<{ uid: string | null }>, choice: RoleChoice) => Promise<void>;
 }) {
   const [choice, setChoice] = useState<RoleChoice>('acharya');
   const [saving, setSaving] = useState(false);

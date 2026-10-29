@@ -211,6 +211,136 @@ describe('Learners', () => {
     expect(c.data.usersInTeam).toHaveBeenCalledTimes(1);
   });
 
+  describe('select all across pages', () => {
+    const team = Array.from({ length: 26 }, (_, i) =>
+      userRow(i + 100, { displayName: `T${i}`, team: 'QA' }),
+    );
+    const tickPage = () => fireEvent.click(screen.getByLabelText('Select all rows on this page'));
+
+    it('selects everyone a filter matches and acts on all of them', async () => {
+      const c = setup({ team });
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await screen.findByText('Priya');
+      fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+      await screen.findByText('T0');
+      expect(screen.queryByRole('button', { name: /^Select all \d/ })).toBeNull();
+      tickPage();
+      expect(screen.getByText('25 selected')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
+      expect(await screen.findByText('26 selected')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Select all \d/ })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }));
+      await waitFor(() => expect(c.service.remindLearners).toHaveBeenCalled());
+      const sent = (c.service.remindLearners as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+        emails: string[];
+      };
+      expect(sent.emails).toHaveLength(26);
+      fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply to 26 people' }));
+      await waitFor(() => expect(c.service.setRoles).toHaveBeenCalledTimes(26));
+      expect(await screen.findByText('Roles changed: 26, skipped: 0')).toBeTruthy();
+      expect(screen.queryByText('26 selected')).toBeNull();
+    });
+
+    it('drops back to the ticked rows when one is unticked', async () => {
+      await openApp('/kulapati/learners', { ...kulapati, console: setup({ team }) });
+      await screen.findByText('Priya');
+      fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+      await screen.findByText('T0');
+      tickPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
+      await screen.findByText('26 selected');
+      fireEvent.click(screen.getByLabelText('Select T0'));
+      expect(screen.getByText('25 selected')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Select all \d/ })).toBeNull();
+    });
+
+    it('reads every person by cursor on the unfiltered list, pending invites included', async () => {
+      const many = Array.from({ length: 3 }, (_, i) =>
+        userRow(i + 10, { displayName: `Person ${i}` }),
+      );
+      const c = setup({ users: many, count: 30 });
+      c.data.usersPage = vi.fn(async (cursor: string | null) =>
+        cursor === 'cursor-1'
+          ? { rows: [userRow(99, { displayName: 'Page Two' })], nextCursor: null }
+          : { rows: many, nextCursor: 'cursor-1' },
+      );
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await screen.findByText('Person 0');
+      tickPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 31' }));
+      expect(await screen.findByText('5 selected')).toBeTruthy();
+      expect(c.data.usersPage).toHaveBeenCalledWith('cursor-1', 100);
+      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      expect(screen.queryByText('5 selected')).toBeNull();
+    });
+
+    it('leaves out pending invites on "Signed in" and reads the pending tab from memory', async () => {
+      const invited = Array.from({ length: 26 }, (_, i) => asg(`invite${i}@nonstopio.com`));
+      const c = setup({ assignments: invited });
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await screen.findByText('Priya');
+      fireEvent.click(screen.getByRole('tab', { name: 'Signed in (2)' }));
+      await screen.findByText('Rohan');
+      fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (26)' }));
+      await screen.findByText('invite0@nonstopio.com');
+      tickPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
+      expect(await screen.findByText('26 selected')).toBeTruthy();
+    });
+
+    it('selects the signed-in people only, and a course filter from memory', async () => {
+      const signed = Array.from({ length: 26 }, (_, i) =>
+        userRow(i + 200, { displayName: `S${i}` }),
+      );
+      const invited = Array.from({ length: 26 }, (_, i) => asg(`invite${i}@nonstopio.com`));
+      const c = setup({ users: signed, count: 26, assignments: invited });
+      c.data.usersPage = vi.fn(async (cursor: string | null) =>
+        cursor === null
+          ? { rows: signed.slice(0, 25), nextCursor: 'c' }
+          : { rows: signed.slice(25), nextCursor: null },
+      );
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await screen.findByText('S0');
+      fireEvent.click(screen.getByRole('tab', { name: 'Signed in (26)' }));
+      await screen.findByText('S0');
+      tickPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
+      expect(await screen.findByText('26 selected')).toBeTruthy();
+      fireEvent.click(screen.getByRole('tab', { name: /^All \(/ }));
+      fireEvent.change(screen.getByLabelText('Course'), { target: { value: 'git' } });
+      await screen.findByText('invite0@nonstopio.com');
+      tickPage();
+      fireEvent.click(await screen.findByRole('button', { name: 'Select all 26' }));
+      expect(await screen.findByText('26 selected')).toBeTruthy();
+    });
+
+    it('says so when the read fails, and a late read cannot select a changed view', async () => {
+      const many = Array.from({ length: 3 }, (_, i) =>
+        userRow(i + 10, { displayName: `Person ${i}` }),
+      );
+      const c = setup({ users: many, count: 30 });
+      let calls = 0;
+      let release: () => void = () => undefined;
+      c.data.usersPage = vi.fn(async () => {
+        calls += 1;
+        if (calls === 2) throw Object.assign(new Error('x'), { code: 'unavailable' });
+        if (calls >= 3) await new Promise<void>((r) => (release = r));
+        return { rows: many, nextCursor: null };
+      });
+      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await screen.findByText('Person 0');
+      tickPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 31' }));
+      expect(await screen.findByText('Could not select everyone. Try again.')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Select all 31' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      await act(async () => release());
+      await waitFor(() => expect(calls).toBeGreaterThanOrEqual(3));
+      expect(screen.queryByText(/ selected$/)).toBeNull();
+    });
+  });
+
   it('runs the bulk actions: assign, remind and clear', async () => {
     const c = setup();
     const { router } = await openApp('/kulapati/learners', { ...kulapati, console: c });

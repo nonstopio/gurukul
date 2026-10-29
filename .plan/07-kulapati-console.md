@@ -20,6 +20,11 @@ analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
   dialog (Shishya, Acharya, Kulapati) and calls `setRoles` once per selected person; pending
   invites and your own account (when dropping Kulapati) are skipped and counted. Choosing Acharya
   leaves existing course grants alone; Shishya clears them.
+- Ticking every row on a page offers "Select all N": everyone the filters and tab match. Filtered
+  views already hold them; unfiltered "All" and "Signed in" read the rest of the people by cursor
+  (100 per read, one document read per person, once per click). The bulk actions then use that
+  list. Role change still calls `setRoles` per person; a batch callable is the follow-up if the
+  list grows past a few hundred.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).
 
