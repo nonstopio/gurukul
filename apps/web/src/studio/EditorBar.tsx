@@ -2,6 +2,7 @@ import { Breadcrumb, Button, Callout, buttonClass, useToast } from '@gurukul/ui'
 import type { BreadcrumbItem } from '@gurukul/ui';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import type { DraftApi } from './useDraft';
 
 const TEXT = { saved: 'Saved', saving: 'Saving…', dirty: 'Unsaved changes' } as const;
@@ -17,7 +18,10 @@ export function EditorBar({
   actions,
 }: {
   crumbs: BreadcrumbItem[];
-  draft: Pick<DraftApi, 'save' | 'saveNow' | 'reload'>;
+  draft: Pick<
+    DraftApi,
+    'save' | 'saveNow' | 'reload' | 'backupAt' | 'restoreBackup' | 'discardBackup'
+  >;
   actions?: ReactNode;
 }) {
   const { save } = draft;
@@ -52,6 +56,8 @@ export function EditorBar({
           {actions}
         </div>
       </div>
+      <LeaveGuard draft={draft} />
+      <RestoreNotice draft={draft} />
       {save === 'conflict' ? (
         <Callout tone="warning" title="Someone else saved this course">
           <p>Reload to see their changes. Edits you made here since your last save are lost.</p>

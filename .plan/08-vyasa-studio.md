@@ -17,7 +17,10 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 
 - Editing writes `courses/{id}/drafts/current` (debounced autosave, ~1s, with
   a "Saved just now" indicator and a conflict warning if another editor saved
-  in between — last-write-wins with a `rev` check).
+  in between — last-write-wins with a `rev` check). A save that fails is also kept in
+  the browser's localStorage (per person and course, with the `rev` it was made on) and offered
+  back as "Restore edits" while the stored draft is still that `rev`; in-app navigation with
+  unsaved edits saves first and asks only if the save fails.
 - **Publish** calls `publishCourse({ courseId })`: validate with the schema,
   check every Pariksha has answers for every question, strip answers into
   `private/answers`, bump `version`, snapshot the old version into `versions/`.

@@ -26,6 +26,7 @@ import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
 import { acharyaSummary, canEdit } from './studioModel';
+import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import { useDraft } from './useDraft';
 import type { SaveState } from './useDraft';
 import { VersionsTab } from './VersionsTab';
@@ -260,7 +261,9 @@ function Editor({ initial, kulapati }: { initial: Course; kulapati: boolean }) {
           </>
         }
       />
+      <LeaveGuard draft={draft} />
       <main className="page studio-page">
+        <RestoreNotice draft={draft} />
         {draft.save === 'conflict' ? (
           <Callout tone="warning" title="Someone else saved this draft" role="alert">
             <p>Someone else saved this draft. Reload to continue.</p>

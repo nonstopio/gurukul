@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
 import { log } from '../log';
+import { backupKey, clearBackup, readBackup, writeBackup } from './draftBackup';
 import { DraftConflictError } from './errors';
 import { useStudio } from './StudioProvider';
 import type { DraftDoc, Working } from './types';
@@ -22,6 +23,12 @@ export interface DraftApi {
   saveNow(): Promise<boolean>;
   /** Throws away local edits and loads the stored draft (the answer to a conflict). */
   reload(): void;
+  /** When edits that failed to save last time were kept on this device, offered back; else null. */
+  backupAt: Date | null;
+  /** Puts the kept edits back into the editor as unsaved changes. */
+  restoreBackup(): void;
+  /** Forgets the kept edits. */
+  discardBackup(): void;
 }
 
 /**
@@ -61,6 +68,8 @@ export function useDraft(courseId: string): DraftApi {
   const [rev, setRev] = useState(0);
   const [save, setSave] = useState<SaveState>('saved');
   const [nonce, setNonce] = useState(0);
+  const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
+  const backupId = backupKey(uid, courseId);
   const latest = useRef<{ work: Working | null; rev: number; save: SaveState }>({
     work: null,
     rev: 0,
@@ -87,6 +96,10 @@ export function useDraft(courseId: string): DraftApi {
           setLoaded({ key, status: 'missing' });
           return;
         }
+        const kept = readBackup(backupId);
+        // Edits made on an older revision would overwrite someone else's work: drop them.
+        if (kept && kept.rev !== doc.rev) clearBackup(backupId);
+        setBackup(kept && kept.rev === doc.rev ? kept : null);
         setWork({ course: doc.course, answers: doc.answers });
         setRev(doc.rev);
         setSave('saved');
@@ -101,7 +114,7 @@ export function useDraft(courseId: string): DraftApi {
     return () => {
       live = false;
     };
-  }, [data, courseId, key]);
+  }, [data, courseId, key, backupId]);
 
   const saveNow = useCallback(async (): Promise<boolean> => {
     clearTimeout(timer.current);
@@ -125,18 +138,20 @@ export function useDraft(courseId: string): DraftApi {
       // Edits made while the save was in flight leave the draft dirty again.
       const stillDirty = latest.current.work !== current;
       setSave(stillDirty ? 'dirty' : 'saved');
+      if (!stillDirty) clearBackup(backupId);
       return !stillDirty;
     } catch (e) {
       if (e instanceof DraftConflictError) setSave('conflict');
       else {
         log.warn('Saving a draft failed', { courseId });
+        writeBackup(backupId, { rev: baseRev, savedAt: Date.now(), work: current });
         setSave('error');
       }
       return false;
     } finally {
       saving.current = false;
     }
-  }, [data, courseId, uid]);
+  }, [data, courseId, uid, backupId]);
 
   const update = useCallback(
     (edit: (w: Working) => Working) => {
@@ -166,5 +181,25 @@ export function useDraft(courseId: string): DraftApi {
     };
   }, [saveNow]);
 
-  return { status, work, rev, save, update, saveNow, reload: () => setNonce((n) => n + 1) };
+  const restoreBackup = () => {
+    if (backup) update(() => backup.work);
+    setBackup(null);
+  };
+  const discardBackup = () => {
+    clearBackup(backupId);
+    setBackup(null);
+  };
+
+  return {
+    status,
+    work,
+    rev,
+    save,
+    update,
+    saveNow,
+    reload: () => setNonce((n) => n + 1),
+    backupAt: backup ? new Date(backup.savedAt) : null,
+    restoreBackup,
+    discardBackup,
+  };
 }
