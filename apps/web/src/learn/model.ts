@@ -43,6 +43,29 @@ export function orderAssigned(rows: readonly AssignedCourse[]): AssignedCourse[]
   );
 }
 
+/** The first unfinished assigned course other than `exceptCourseId`, in Home order. */
+export function nextAssigned(
+  rows: readonly AssignedCourse[],
+  exceptCourseId: string,
+): AssignedCourse | null {
+  return (
+    orderAssigned(rows).find(
+      (r) =>
+        r.course.id !== exceptCourseId &&
+        r.assignment.status !== 'completed' &&
+        r.progress?.completedAt == null,
+    ) ?? null
+  );
+}
+
+/** "45 min", "2 h", "1 h 20 min". */
+export function durationLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
 /** The course to "continue": the most recently active one that is started but not finished. */
 export function continueCourse(
   courses: readonly Course[],

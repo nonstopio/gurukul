@@ -13,6 +13,8 @@ import {
   hasNewLessons,
   isRetired,
   orderAssigned,
+  nextAssigned,
+  durationLabel,
   percentFor,
 } from '../src/learn/model';
 
@@ -86,6 +88,29 @@ describe('orderAssigned', () => {
       'done',
       'finished-by-progress',
     ]);
+  });
+});
+
+describe('nextAssigned and durationLabel', () => {
+  const row = (id: string, a: Partial<AssignmentRow>, p: ProgressRow | null = null) => ({
+    assignment: assignment(a),
+    course: course(id),
+    progress: p,
+  });
+  it('skips the current course and finished ones, and is null when nothing is left', () => {
+    const rows = [
+      row('cur', {}),
+      row('done', { status: 'completed' }),
+      row('also-done', {}, progress({ completedAt: new Date(1) })),
+      row('next', {}),
+    ];
+    expect(nextAssigned(rows, 'cur')?.course.id).toBe('next');
+    expect(nextAssigned(rows.slice(0, 3), 'cur')).toBeNull();
+  });
+  it('formats minutes', () => {
+    expect(durationLabel(45)).toBe('45 min');
+    expect(durationLabel(120)).toBe('2 h');
+    expect(durationLabel(80)).toBe('1 h 20 min');
   });
 });
 
