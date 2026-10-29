@@ -19,10 +19,20 @@ const SEEDED_PATHS = [
   'config/org',
 ];
 
+/**
+ * One request. A 409 (`ABORTED`, "Transaction lock timeout") means a trigger from the previous test
+ * is still finishing a transaction while a reset clears the database; Firestore says to retry it.
+ */
 async function call(url: string, init: RequestInit, what: string): Promise<Response> {
-  const res = await fetch(url, init);
-  if (!res.ok) throw new Error(`${what} failed: ${res.status} ${await res.text()}`);
-  return res;
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url, init);
+    if (res.ok) return res;
+    if (res.status === 409 && attempt < 5) {
+      await new Promise((done) => setTimeout(done, 500 * attempt));
+      continue;
+    }
+    throw new Error(`${what} failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 /**
