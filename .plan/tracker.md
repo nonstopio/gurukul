@@ -16,61 +16,41 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
-| Foundations                   | 7    | 0    | 0       | 0          |
-| Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
-| Learner experience            | 9    | 7    | 0       | 0          |
-| Parikshas and certificates    | 8    | 1    | 1       | 0          |
-| Kulapati console and Sanjaya  | 18   | 7    | 2       | 0          |
-| Vyasa Studio                  | 7    | 8    | 0       | 0          |
-| Design system                 | 2    | 3    | 0       | 0          |
-| Global search                 | 5    | 0    | 0       | 0          |
-| Platform, CI and operations   | 12   | 3    | 2       | 5          |
-| First course: Git             | 3    | 0    | 1       | 2          |
-| Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 82   | 31   | 6       | 7          |
+| Foundations | 7 | 0 | 0 | 0 |
+| Sign-in, roles and shell | 11 | 1 | 0 | 0 |
+| Learner experience | 16 | 2 | 0 | 0 |
+| Parikshas and certificates | 9 | 0 | 1 | 0 |
+| Kulapati console and Sanjaya | 25 | 3 | 2 | 0 |
+| Vyasa Studio | 15 | 2 | 0 | 0 |
+| Design system | 4 | 2 | 0 | 0 |
+| Global search | 5 | 0 | 0 | 0 |
+| Platform, CI and operations | 15 | 1 | 2 | 5 |
+| First course: Git | 3 | 0 | 1 | 2 |
+| Plan upkeep | 2 | 0 | 0 | 0 |
+| **Total** | 112 | 11 | 6 | 7 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `KUL-27` — Overview pending-invite count past the newest 500 assignments
-2. `STU-11` — preview uses the real learner screens
-3. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-4. `STU-08` — "Draft vN · saved just now"
-5. `STU-10` — learner counts in the publish dialog and on course cards
-6. `STU-12` — publishing an archived course
-7. `STU-13` — structure editor polish
-8. `LRN-12` — course overview to the handoff
-9. `LRN-13` — Home to the handoff
-10. `LRN-11` — outline rail grouped by parva
-11. `LRN-10` — split layout
-12. `LRN-15` — block renderer polish
-13. `LRN-16` — check blocks reveal the right option
-14. `LRN-17` — keyboard shortcuts dialog
-15. `PRK-08` — completion screen to the handoff
-16. `AUTH-08` — sign-in screen to the handoff
-17. `SHL-03` — handoff breakpoints and the menu button
-18. `KUL-13` — bulk role change and select all
-19. `KUL-14` — Assign screen finish
-20. `KUL-19` — Needs attention, pending-invite strip, overview filters
-21. `KUL-20` — course analytics finish
-22. `KUL-22` — Roles screen polish
-23. `KUL-23` — audit log view finish
-24. `DS-05` — axe on the remaining page tests
-25. `DS-04` — shared icon set
-26. `DS-03` — `/__ui` component gallery
-27. `STU-15` — lesson editor extras
-28. `STU-16` — CodeMirror for markdown and code
-29. `OPS-11` — deeper e2e journeys
-30. `OPS-06` — Lighthouse on the preview URL
-31. `OPS-14` — trigger tests against the emulators
-32. `KUL-24` — email delivery (blocked: question 4)
-33. `KUL-25` — Acharyas see their learners (blocked: question 7)
-34. `PRK-10` — tell a learner their certificate was revoked (blocked)
-35. `OPS-18` — custom domain (blocked: question 6)
-36. `OPS-19` — licence holder (blocked: question 10)
-37. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `STU-18` — Acharya read of `stats/course_{id}` is tested
+2. `LRN-18` — Course overview: hero band, due date, preview certificate
+3. `LRN-19` — Assigned-by on the Home continue card
+4. `STU-17` — Studio video Title and Caption inputs
+5. `AUTH-09` — Sign-in states
+6. `KUL-28` — Select all N across pages on Learners
+7. `KUL-29` — Assign: partial failures and per-course preview
+8. `KUL-30` — Course analytics: median time to finish
+9. `DS-04` — shared icon set
+10. `DS-06` — Gallery: Sidebar, TopBar, VideoBlock, Certificate
+11. `OPS-23` — Harden the flaky studio lesson editor test
+12. `KUL-24` — email delivery (blocked: question 4)
+13. `KUL-25` — Acharyas see their learners (blocked: question 7)
+14. `PRK-10` — tell a learner their certificate was revoked (blocked)
+15. `OPS-18` — custom domain (blocked: question 6)
+16. `OPS-19` — licence holder (blocked: question 10)
+17. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -127,7 +107,6 @@ Plan: `05-learner-experience.md`, `design-handoff/01-learner.md` §02–§04, M2
 | `LRN-19` | Assigned-by on the Home continue card | todo | — | Learners cannot read other users, so store `assignedByName` on the assignment (`firebase/functions/src/stores.ts`, `assignmentSchema`, `AssignmentRow`, rules tests, web mapper); note in `02-data-model.md` |
 | `LRN-14` | Retired and "New lessons added" states                                   | done   | —        | `apps/web/src/learn/model.ts` (`isRetired`, `hasNewLessons`), `learn/ui.tsx` (`RetiredNote`), `HomePage.tsx`, `CoursePage.tsx`, `LessonPage.tsx`, `pariksha/ParikshaPage.tsx` (closed for retired); `firebase/functions/src/grading.ts` refuses archived with `CRS_1004` (`packages/schema/src/api.ts`) |
 | `LRN-15` | Block renderer polish | done | — | `packages/schema/src/course.ts` (optional video `title` and `caption`), `packages/ui/src/CodeBlock.tsx` (`copyable`), `apps/web/src/player/blocks.tsx`, `TrackedVideo.tsx`, `styles.css`; file-row icon. Studio inputs for the new fields: `STU-17` |
-| `STU-17` | Studio video Title and Caption inputs | todo | — | `studio/blocks/VideoEditor.tsx` offers the new optional `title` and `caption` of the video block |
 | `LRN-16` | Check blocks reveal the right option | done | — | Schema v3: optional `check.correct` (`packages/schema/src/course.ts`, `migrations/steps.ts`), publish check in `draft.ts`, player in `player/blocks.tsx`, Studio radio in `studio/blocks/CheckEditor.tsx`, `studio/lessonEdit.ts`; seed keyed in `firebase/seed/src/git-course.ts`. Live courses at schemaVersion 2 need an Acharya to mark answers before the next publish |
 | `LRN-17` | Keyboard shortcuts dialog | done | — | `apps/web/src/ShortcutsDialog.tsx`, `keys.ts` (`isTyping`), mounted in `Shell.tsx` |
 
@@ -200,7 +179,6 @@ Plan: `08-vyasa-studio.md`, `design-handoff/03-vyasa-studio.md`, M5.
 | `STU-07` | Acharyas see every course                                                | done   | —       | `firebase/firestore.rules` (`courses/{id}` read: any Acharya; `drafts/`, `versions/` still the course's own), `apps/web/src/studio/firebase.ts` `listCourses` |
 | `STU-08` | "Draft vN · saved just now" | done | — | `apps/web/src/studio/saveLabel.ts` (`useSaveLabel`: "Draft v7 · saved just now", refreshed every 30 s), `EditorBar.tsx`, `CourseEditorPage.tsx`, `useDraft.ts` (`savedAt`) |
 | `STU-09` | Failed saves are kept; leaving with unsaved edits asks | done | — | `apps/web/src/studio/draftBackup.ts`, `UnsavedGuard.tsx`, `useDraft.ts` (failed save kept in localStorage, restore offered while `rev` matches; `useBlocker` saves first, asks only if the save fails). The backup holds the working copy, answer keys included, in the Acharya's own browser |
-| `OPS-23` | Harden the flaky studio lesson editor test | todo | — | `apps/web/test/studio-lesson-editor.test.tsx` times out intermittently (1 s `findByLabelText`) under full-suite load |
 | `STU-10` | Learner counts in the publish dialog and on course cards | done | — | `apps/web/src/studio/PublishDialog.tsx` (removed lessons show completed counts), `StudioCoursesPage.tsx` (card "N learners"), `firebase.ts` (`learnersStarted`). Acharya read of `stats/course_{id}`: `STU-18` |
 | `STU-18` | Acharya read of `stats/course_{id}` is tested | todo | — | `firebase/firestore.rules` `stats/{scope}` rule uses `scope.replace('^course_', '')`; add an allowed and denied rules test for an Acharya of that course. If denied, the card count silently disappears |
 | `STU-11` | Preview uses the real learner screens | done | — | `apps/web/src/pariksha/QuestionFields.tsx` shared by Preview (`studio/PreviewPage.tsx`) and the learner Pariksha; letters A to H via `letterOf` in `pariksha/model.ts`; `QuizOptionLetter` in `packages/ui/src/QuizOption.tsx`. Preview shows every question in authored order (no draw or shuffle) on purpose |
@@ -208,6 +186,7 @@ Plan: `08-vyasa-studio.md`, `design-handoff/03-vyasa-studio.md`, M5.
 | `STU-13` | Structure editor polish | done | — | `apps/web/src/studio/StructureTab.tsx` (Rename on each item row), `courseEdit.ts` (`renameItem`), `LessonEditorPage.tsx` (rail lists Parikshas; "This lesson is empty.") |
 | `STU-15` | Lesson editor extras | done | — | `apps/web/src/studio/blocks/VideoEditor.tsx` (16:9 preview), `LessonEditorPage.tsx` ("/" opens the palette), `ParikshaBuilderPage.tsx`, `questionEdit.ts` (`firstTryPercent`) |
 | `STU-16` | CodeMirror for markdown and code | done | — | `apps/web/src/studio/blocks/CodeField.tsx`, `CodeMirrorView.tsx` (CodeMirror 6, MIT, own lazy chunk about 225 KB gzip; initial JS 187 of 320 KB). No Kotlin, Swift or Bash mode yet; "Highlight lines" not drawn |
+| `STU-17` | Studio video Title and Caption inputs | todo | — | `studio/blocks/VideoEditor.tsx` offers the new optional `title` and `caption` of the video block |
 
 ## Design system
 
@@ -254,6 +233,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-12` | CI aggregator passes only when every job succeeded                         | done       | —        | `.github/workflows/ci.yml` (`ci` job: every `needs` result must be `success`)                                                                               |
 | `OPS-13` | Dependency and docs hygiene                                                | done       | —        | `package.json` (`tsx`), `e2e/package.json` (`axe-core`), `CONTRIBUTING.md` links `docs/operations.md` for the bootstrap                                     |
 | `OPS-14` | Trigger tests against the emulators | done | — | `firebase/functions/emulator-test/triggers.test.ts`, `vitest.emulator.config.ts`, `npm run test:triggers` (CI `rules` job, pre-push). Calls the exported triggers with `.run(event)`; `firebase-functions-test` does not install with firebase-admin 14. Covers `onProgressWritten` and `onAttemptCreated` only |
+| `OPS-23` | Harden the flaky studio lesson editor test | todo | — | `apps/web/test/studio-lesson-editor.test.tsx` times out intermittently (1 s `findByLabelText`) under full-suite load |
 | `OPS-15` | Firebase project setup                                                     | maintainer | —        | `11` First-time setup checklist: Blaze and the $1 budget with alerts, Firestore in asia-south1, Google provider, web app variables, both service accounts, branch protection |
 | `OPS-16` | Backup bucket                                                              | maintainer | —        | Bucket with the 28-day lifecycle rule, `BACKUP_BUCKET` variable, IAM roles (`docs/operations.md`)                                                          |
 | `OPS-17` | First Kulapati and the production seed                                     | maintainer | —        | `npm run grant-kulapati -- you@nonstopio.com`; `npm run seed -- --production`                                                                              |
