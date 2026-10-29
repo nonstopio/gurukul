@@ -798,7 +798,7 @@ describe('Lesson player completion', () => {
       watched: progressRow({ lastItemId: 'l3', completedItemIds: ['l1', 'l2'] }),
     });
     const { router } = await openApp('/courses/git/learn/l3', { data: d });
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1'));
   });
 

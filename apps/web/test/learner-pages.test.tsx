@@ -367,7 +367,7 @@ describe('Lesson player', () => {
   it('starts the course on first open and renders the lesson', async () => {
     const d = fakeData();
     await open('/courses/git/learn/l1', d);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Lesson l1' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ })).toBeTruthy();
     expect(screen.getByText('Body of l1')).toBeTruthy();
     await waitFor(() => expect(d.data.startCourse).toHaveBeenCalled());
   });
@@ -384,21 +384,21 @@ describe('Lesson player', () => {
   it('moves the resume point when a different lesson opens', async () => {
     const d = fakeData({ watched: started() });
     await open('/courses/git/learn/l2', d);
-    await screen.findByRole('heading', { level: 1, name: 'Lesson l2' });
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
     await waitFor(() => expect(d.data.setLastItem).toHaveBeenCalledWith('u1', 'git', 'l2'));
   });
 
   it('does not rewrite the resume point when it is already there', async () => {
     const d = fakeData({ watched: started() });
     await open('/courses/git/learn/l1', d);
-    await screen.findByRole('heading', { level: 1, name: 'Lesson l1' });
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
     expect(d.data.setLastItem).not.toHaveBeenCalled();
   });
 
   it('marks complete, saves and moves to the next lesson', async () => {
     const d = fakeData({ watched: started() });
     const { router } = await open('/courses/git/learn/l1', d);
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
     expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l1');
   });
@@ -414,7 +414,7 @@ describe('Lesson player', () => {
   it('lets a finished lesson be revisited without saving again', async () => {
     const d = fakeData({ watched: started({ completedItemIds: ['l1'] }) });
     const { router } = await open('/courses/git/learn/l1', d);
-    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Next/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
     expect(d.data.completeItem).not.toHaveBeenCalled();
   });
@@ -435,7 +435,7 @@ describe('Lesson player', () => {
     const d = fakeData({ watched: started() });
     d.data.completeItem = vi.fn(() => new Promise<void>(() => {}));
     const { router } = await open('/courses/git/learn/l1', d);
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
   });
 
@@ -443,7 +443,7 @@ describe('Lesson player', () => {
     const d = fakeData({ watched: started() });
     d.data.completeItem = vi.fn().mockRejectedValue(new Error('permission-denied'));
     await open('/courses/git/learn/l1', d);
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     expect(
       await screen.findByText(
         'Could not save your progress on "Lesson l1". Open it and try again.',
@@ -473,7 +473,7 @@ describe('Lesson player', () => {
         }),
       );
     const markComplete = async () =>
-      (await screen.findByRole('button', { name: 'Mark complete' })) as HTMLButtonElement;
+      (await screen.findByRole('button', { name: /^Mark complete/ })) as HTMLButtonElement;
 
     it('waits for the video on a video90 lesson, and says why', async () => {
       await openWith([lesson('v', { completeWhen: 'video90', blocks: [drive] }), lesson('w')]);
@@ -518,7 +518,7 @@ describe('Lesson player', () => {
         fakeData({ courses: [course], watched: started({ lastItemId: 's' }) }),
       );
       const button = (await screen.findByRole('button', {
-        name: 'Mark complete',
+        name: /^Mark complete/,
       })) as HTMLButtonElement;
       await waitFor(() => expect(button.disabled).toBe(false));
     });
@@ -542,7 +542,7 @@ describe('Lesson player', () => {
         fakeData({ courses: [course], watched: started({ lastItemId: 's' }) }),
       );
       const button = (await screen.findByRole('button', {
-        name: 'Mark complete',
+        name: /^Mark complete/,
       })) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       // The observer starts in an effect that can run after the button is on screen; a notify
@@ -604,12 +604,12 @@ describe('Lesson player', () => {
   it('moves with J and K, but not while typing or with a modifier or onto a locked item', async () => {
     const d = fakeData({ watched: started({ lastItemId: 'l2', completedItemIds: ['l1'] }) });
     const { router } = await open('/courses/git/learn/l2', d);
-    await screen.findByRole('heading', { level: 1, name: 'Lesson l2' });
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
     fireEvent.keyDown(window, { key: 'k' });
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l1'));
     fireEvent.keyDown(window, { key: 'j', ctrlKey: true });
     expect(router.state.location.pathname).toBe('/courses/git/learn/l1');
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Next' }).ownerDocument.body, {
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Next/ }).ownerDocument.body, {
       key: 'x',
     });
     fireEvent.keyDown(window, { key: 'j' });
@@ -621,18 +621,53 @@ describe('Lesson player', () => {
 
   it('has no axe violations', async () => {
     const { container } = await open('/courses/git/learn/l1', fakeData({ watched: started() }));
-    await screen.findByRole('heading', { level: 1, name: 'Lesson l1' });
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('groups the rail by parva, open only on the current one, with state words', async () => {
+    await open('/courses/git/learn/l1', fakeData({ watched: started() }));
+    const rail = await screen.findByRole('navigation', { name: 'Course outline' });
+    const heads = within(rail).getAllByRole('button');
+    expect(heads.map((h) => h.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
+    expect(within(rail).queryByRole('link', { name: /^Lesson l3/ })).toBeNull();
+    expect(within(rail).getAllByText('(Locked)', { exact: false })).toBeTruthy();
+    fireEvent.click(heads[1] as HTMLElement);
+    expect(heads[1]?.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(heads[0] as HTMLElement);
+    expect(heads[0]?.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('shows the parva kicker, type and duration chips and the neighbours in the footer', async () => {
+    await open('/courses/git/learn/l1', fakeData({ watched: started() }));
+    expect(await screen.findByText('Parva 1 · Lesson 1 of 2')).toBeTruthy();
+    expect(screen.getByText('5 min')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mark complete · Lesson l2' })).toBeTruthy();
+  });
+
+  it('shows a type chip when the lesson has a kind label', async () => {
+    const course = makeCourse({
+      parvas: [{ id: 'p', title: 'P', items: [{ ...lesson('only'), kindLabel: 'Hands-on' }] }],
+    });
+    await open(
+      '/courses/git/learn/only',
+      fakeData({ courses: [course], watched: started({ lastItemId: 'only' }) }),
+    );
+    expect(await screen.findByText('Hands-on')).toBeTruthy();
   });
 
   it('highlights the current lesson in the outline rail', async () => {
     await open('/courses/git/learn/l1', fakeData({ watched: started() }));
     const rail = await screen.findByRole('navigation', { name: 'Course outline' });
-    expect(within(rail).getByRole('link', { name: 'Lesson l1' }).getAttribute('aria-current')).toBe(
-      'page',
-    );
     expect(
-      within(rail).getByRole('link', { name: 'Lesson l2' }).getAttribute('aria-current'),
+      within(rail)
+        .getByRole('link', { name: /^Lesson l1/ })
+        .getAttribute('aria-current'),
+    ).toBe('page');
+    expect(
+      within(rail)
+        .getByRole('link', { name: /^Lesson l2/ })
+        .getAttribute('aria-current'),
     ).toBeNull();
   });
 });

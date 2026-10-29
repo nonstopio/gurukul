@@ -1,8 +1,9 @@
 import { itemStates, itemsOf, resumeItemId } from '@gurukul/schema';
-import type { Course, ItemState, Lesson } from '@gurukul/schema';
+import type { Course, ItemState, Lesson, Parva } from '@gurukul/schema';
 import {
   Button,
   Callout,
+  Chip,
   ProgressBar,
   TopBar,
   buttonClass,
@@ -169,6 +170,15 @@ function Player({
   if (item.type === 'pariksha') return <Navigate to={itemPath(course.id, item)} replace />;
 
   const lesson: Lesson = item;
+  const parvaIndex = course.parvas.findIndex((p) => p.items.some((i) => i.id === itemId));
+  const parvaItems = (course.parvas[parvaIndex] as Parva).items;
+  const lessonCount = parvaItems.filter((i) => i.type === 'lesson').length;
+  const lessonsBefore = parvaItems
+    .slice(
+      0,
+      parvaItems.findIndex((i) => i.id === itemId),
+    )
+    .filter((i) => i.type === 'lesson').length;
   const done = s === 'done';
   const watching = needsWatching(lesson, course.rules.requireVideoWatch);
   const videosDone = videosOf(lesson).every((v) => watched[`${lesson.id}/${v.id}`]);
@@ -211,29 +221,16 @@ function Player({
         }
       />
       <div className="player">
-        <nav className="rail" aria-label="Course outline">
-          <ol>
-            {items.map((i) => (
-              <li key={i.id}>
-                {states[i.id] === 'locked' ? (
-                  <span aria-disabled="true">{i.title}</span>
-                ) : (
-                  <Link
-                    to={`/courses/${course.id}/learn/${i.id}`}
-                    {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
-                  >
-                    {i.title}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ol>
-        </nav>
+        <OutlineRail course={course} itemId={itemId} states={states} />
         <main className={`article article--${lesson.layout}`}>
           <p className="article__kicker">
-            Lesson {index + 1} of {items.length}
+            Parva {parvaIndex + 1} · Lesson {lessonsBefore + 1} of {lessonCount}
           </p>
           <h1 className="article__title">{lesson.title}</h1>
+          <p className="article__chips">
+            {lesson.kindLabel ? <Chip tone="accent">{lesson.kindLabel}</Chip> : null}
+            <Chip>{lesson.minutes} min</Chip>
+          </p>
           {isRetired(course) ? <RetiredNote /> : null}
           {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
           {lesson.blocks.map((b) => (
@@ -248,7 +245,8 @@ function Player({
           <footer className="article__footer">
             {prev ? (
               <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
-                Previous
+                <span aria-hidden="true">◂ </span>
+                Previous<span className="sr-only">:</span> {prev.title}
               </Link>
             ) : null}
             <Button
@@ -263,10 +261,83 @@ function Player({
                 : next
                   ? 'Mark complete'
                   : 'Finish course'}
+              {next ? ` · ${next.title}` : ''}
             </Button>
           </footer>
         </main>
       </div>
     </>
+  );
+}
+
+const STATE_GLYPH: Record<ItemState, string> = { done: '✓', current: '▶', locked: '🔒', todo: '○' };
+const STATE_WORD: Record<ItemState, string> = {
+  done: 'Done',
+  current: 'Up next',
+  locked: 'Locked',
+  todo: 'Not started',
+};
+
+/** The outline rail: one group per parva, every group closed but the current one unless opened by hand. */
+function OutlineRail({
+  course,
+  itemId,
+  states,
+}: {
+  course: Course;
+  itemId: string;
+  states: Record<string, ItemState>;
+}) {
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const isOpen = (p: Parva) => toggled[p.id] ?? p.items.some((i) => i.id === itemId);
+  return (
+    <nav className="rail" aria-label="Course outline">
+      {course.parvas.map((p, n) => {
+        const open = isOpen(p);
+        const listId = `rail-${p.id}`;
+        return (
+          <section key={p.id} className="rail__parva">
+            <button
+              type="button"
+              className="rail__head"
+              aria-expanded={open}
+              aria-controls={listId}
+              onClick={() => setToggled((t) => ({ ...t, [p.id]: !open }))}
+            >
+              <span className="rail__kicker">Parva {n + 1}</span>
+              <span>{p.title}</span>
+            </button>
+            <ol id={listId} hidden={!open}>
+              {p.items.map((i) => {
+                const st = states[i.id] as ItemState;
+                const inner = (
+                  <>
+                    <span aria-hidden="true" className={`rail__icon rail__icon--${st}`}>
+                      {STATE_GLYPH[st]}
+                    </span>
+                    {i.title}
+                    <span className="sr-only"> ({STATE_WORD[st]})</span>
+                  </>
+                );
+                return (
+                  <li key={i.id}>
+                    {st === 'locked' ? (
+                      <span aria-disabled="true">{inner}</span>
+                    ) : (
+                      <Link
+                        to={`/courses/${course.id}/learn/${i.id}`}
+                        {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
+                      >
+                        {inner}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        );
+      })}
+    </nav>
   );
 }

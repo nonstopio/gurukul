@@ -326,6 +326,7 @@ body {
 .course-row:focus-visible,
 .items__row:focus-visible,
 .parva__toggle:focus-visible,
+.rail__head:focus-visible,
 .rail a:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -482,8 +483,8 @@ a.items__row:hover {
   padding: 0;
   list-style: none;
 }
-.rail a,
-.rail span {
+.rail li a,
+.rail li > span {
   display: flex;
   align-items: center;
   min-height: var(--control-height);
@@ -492,12 +493,55 @@ a.items__row:hover {
   color: var(--text-body);
   text-decoration: none;
 }
-.rail a[aria-current='page'] {
+.rail__parva + .rail__parva {
+  margin-top: var(--space-3);
+}
+.rail__head {
+  display: grid;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.rail__head:hover {
+  background: var(--surface);
+}
+.rail__kicker {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rail__icon {
+  flex: none;
+  width: 20px;
+  margin-right: var(--space-2);
+  text-align: center;
+  font-size: 13px;
+}
+.rail__icon--done,
+.rail__icon--current {
+  color: var(--accent);
+}
+.article__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+.rail li a[aria-current='page'] {
   background: var(--surface);
   color: var(--text);
   font-weight: 600;
 }
-.rail span {
+.rail li > span {
   color: var(--text-muted);
 }
 .article {
