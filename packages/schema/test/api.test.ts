@@ -58,6 +58,7 @@ describe('the course codes', () => {
       ['CRS_1002', 409, "A course with id 'git' already exists."],
       ['CRS_1003', 400, "Course 'git' failed the publish checks; see details.issues."],
       ['CRS_2002', 404, "Course 'git' has no version 4."],
+      ['CRS_1004', 400, "Course 'git' is archived; it takes no new Pariksha attempts."],
     ] as const;
     for (const [code, status, dev] of cases) {
       const res = apiFail([new ApiException(code, ['git', '4'], { issues: [] })], 't');

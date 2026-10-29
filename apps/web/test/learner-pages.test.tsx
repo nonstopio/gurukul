@@ -103,6 +103,34 @@ describe('Home', () => {
     expect(await screen.findByText('Completed')).toBeTruthy();
   });
 
+  it('marks a retired course and one that gained lessons after it was finished', async () => {
+    await open(
+      '/',
+      fakeData({
+        courses: [makeCourse({ status: 'archived' })],
+        assignments: [assignment({ status: 'completed' })],
+        progress: [progressRow({ completedItemIds: ['l1'], completedAt: new Date() })],
+      }),
+    );
+    const row = (await screen.findByText('New lessons added')).closest('a') as HTMLElement;
+    expect(within(row).getByText('Retired')).toBeTruthy();
+    expect(within(row).getByText('Completed')).toBeTruthy();
+  });
+
+  it('marks the course to continue as retired', async () => {
+    await open(
+      '/',
+      fakeData({
+        courses: [makeCourse({ status: 'archived' })],
+        progress: [progressRow({ completedItemIds: ['l1'], lastItemId: 'l2' })],
+      }),
+    );
+    const card = (await screen.findByRole('heading', { name: 'Git, the NonStop Way' })).closest(
+      'section',
+    ) as HTMLElement;
+    expect(within(card).getByText('Retired')).toBeTruthy();
+  });
+
   it('reports a load failure in an alert', async () => {
     const d = fakeData();
     d.data.listCourses = vi.fn().mockRejectedValue(new Error('offline'));
@@ -205,10 +233,20 @@ describe('Course overview', () => {
     );
     expect(await screen.findByRole('link', { name: 'Resume — Lesson l2' })).toBeTruthy();
     expect(screen.queryByText('What you will learn')).toBeNull();
-    expect(screen.getByText(/Retired/)).toBeTruthy();
+    expect(screen.getByText('This course is retired')).toBeTruthy();
+    expect(screen.queryByText('New lessons added')).toBeNull();
     expect(
       screen.getByRole('progressbar', { name: /progress/ }).getAttribute('aria-valuenow'),
     ).toBe('20');
+  });
+
+  it('says lessons were added to a course the learner finished', async () => {
+    await open(
+      '/courses/git',
+      fakeData({ watched: progressRow({ completedItemIds: ['l1'], completedAt: new Date() }) }),
+    );
+    expect(await screen.findByText('New lessons added')).toBeTruthy();
+    expect(screen.queryByText('This course is retired')).toBeNull();
   });
 
   it('has no resume button for a course with no items', async () => {
@@ -238,6 +276,15 @@ describe('Lesson player', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Lesson l1' })).toBeTruthy();
     expect(screen.getByText('Body of l1')).toBeTruthy();
     await waitFor(() => expect(d.data.startCourse).toHaveBeenCalled());
+  });
+
+  it('says a retired course keeps its lessons open but cannot be finished', async () => {
+    await open(
+      '/courses/git/learn/l1',
+      fakeData({ courses: [makeCourse({ status: 'archived' })], watched: started() }),
+    );
+    expect(await screen.findByText('This course is retired')).toBeTruthy();
+    expect(screen.getByText('Body of l1')).toBeTruthy();
   });
 
   it('moves the resume point when a different lesson opens', async () => {

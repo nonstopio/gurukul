@@ -5,7 +5,15 @@ import { Link } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
-import { continueCourse, dueLabel, firstName, orderAssigned, percentFor } from './learn/model';
+import {
+  continueCourse,
+  dueLabel,
+  firstName,
+  hasNewLessons,
+  isRetired,
+  orderAssigned,
+  percentFor,
+} from './learn/model';
 import type { AssignedCourse } from './learn/model';
 import { TeamPrompt } from './learn/TeamPrompt';
 import { Loaded } from './learn/ui';
@@ -50,7 +58,10 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                   aria-labelledby="continue-title"
                   className="continue"
                 >
-                  <Chip tone="accent">In progress</Chip>
+                  <span className="continue__chips">
+                    <Chip tone="accent">In progress</Chip>
+                    {isRetired(current.course) ? <Chip tone="warning">Retired</Chip> : null}
+                  </span>
                   <h2 id="continue-title" className="continue__title">
                     {current.course.title}
                   </h2>
@@ -102,12 +113,16 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                               label={`${course.title} progress`}
                             />
                             <span className="course-row__meta">
+                              {isRetired(course) ? <Chip tone="warning">Retired</Chip> : null}
                               {assignment.mandatory ? <Chip tone="neutral">Mandatory</Chip> : null}
                               {due ? (
                                 <Chip tone={due.overdue ? 'danger' : 'warning'}>{due.text}</Chip>
                               ) : null}
                               {assignment.status === 'completed' ? (
                                 <Chip tone="solid">Completed</Chip>
+                              ) : null}
+                              {hasNewLessons(course, p) ? (
+                                <Chip tone="info">New lessons added</Chip>
                               ) : null}
                             </span>
                           </Link>

@@ -13,6 +13,19 @@ export function percentFor(course: Course, progress: ProgressRow | null): number
   return progress ? progressPercent(course, progress) : 0;
 }
 
+/** An archived course: learners keep their progress and certificate, but its Parikshas are closed. */
+export function isRetired(course: Pick<Course, 'status'>): boolean {
+  return course.status === 'archived';
+}
+
+/**
+ * Finished once, and the course has since gained lessons: the certificate stays, the percent drops
+ * below 100 against the current course.
+ */
+export function hasNewLessons(course: Course, progress: ProgressRow | null): boolean {
+  return progress?.completedAt != null && percentFor(course, progress) < 100;
+}
+
 /**
  * Home ordering: unfinished before finished, then mandatory first, then the earliest due date
  * (no date last), then by title.

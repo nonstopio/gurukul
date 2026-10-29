@@ -18,7 +18,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations                   | 7    | 0    | 0       | 0          |
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
-| Learner experience            | 8    | 8    | 0       | 0          |
+| Learner experience            | 9    | 7    | 0       | 0          |
 | Parikshas and certificates    | 7    | 2    | 1       | 0          |
 | Kulapati console and Sanjaya  | 16   | 8    | 2       | 0          |
 | Vyasa Studio                  | 7    | 8    | 0       | 0          |
@@ -27,57 +27,56 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 74   | 38   | 6       | 7          |
+| **Total**                     | 75   | 37   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `LRN-14` — Retired and "New lessons added" states
-2. `PRK-09` — revocation date on certificates
-3. `KUL-18` — org Pariksha KPIs and a true overdue count
-4. `KUL-21` — daily roll-up repairs course counters
-5. `SRC-02` — learner navigation area
-6. `SRC-03` — courses and lessons in search
-7. `SRC-04` — people in search for Kulapatis
-8. `SRC-05` — draft courses in search for Acharyas
-9. `STU-11` — preview uses the real learner screens
-10. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-11. `STU-08` — "Draft vN · saved just now"
-12. `STU-10` — learner counts in the publish dialog and on course cards
-13. `STU-12` — publishing an archived course
-14. `STU-13` — structure editor polish
-15. `LRN-12` — course overview to the handoff
-16. `LRN-13` — Home to the handoff
-17. `LRN-11` — outline rail grouped by parva
-18. `LRN-10` — split layout
-19. `LRN-15` — block renderer polish
-20. `LRN-16` — check blocks reveal the right option
-21. `LRN-17` — keyboard shortcuts dialog
-22. `PRK-08` — completion screen to the handoff
-23. `AUTH-08` — sign-in screen to the handoff
-24. `SHL-03` — handoff breakpoints and the menu button
-25. `KUL-13` — bulk role change and select all
-26. `KUL-14` — Assign screen finish
-27. `KUL-19` — Needs attention, pending-invite strip, overview filters
-28. `KUL-20` — course analytics finish
-29. `KUL-22` — Roles screen polish
-30. `KUL-23` — audit log view finish
-31. `DS-05` — axe on the remaining page tests
-32. `DS-04` — shared icon set
-33. `DS-03` — `/__ui` component gallery
-34. `STU-15` — lesson editor extras
-35. `STU-16` — CodeMirror for markdown and code
-36. `OPS-11` — deeper e2e journeys
-37. `OPS-06` — Lighthouse on the preview URL
-38. `OPS-14` — trigger tests against the emulators
-39. `KUL-24` — email delivery (blocked: question 4)
-40. `KUL-25` — Acharyas see their learners (blocked: question 7)
-41. `PRK-10` — tell a learner their certificate was revoked (blocked)
-42. `OPS-18` — custom domain (blocked: question 6)
-43. `OPS-19` — licence holder (blocked: question 10)
-44. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `PRK-09` — revocation date on certificates
+2. `KUL-18` — org Pariksha KPIs and a true overdue count
+3. `KUL-21` — daily roll-up repairs course counters
+4. `SRC-02` — learner navigation area
+5. `SRC-03` — courses and lessons in search
+6. `SRC-04` — people in search for Kulapatis
+7. `SRC-05` — draft courses in search for Acharyas
+8. `STU-11` — preview uses the real learner screens
+9. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+10. `STU-08` — "Draft vN · saved just now"
+11. `STU-10` — learner counts in the publish dialog and on course cards
+12. `STU-12` — publishing an archived course
+13. `STU-13` — structure editor polish
+14. `LRN-12` — course overview to the handoff
+15. `LRN-13` — Home to the handoff
+16. `LRN-11` — outline rail grouped by parva
+17. `LRN-10` — split layout
+18. `LRN-15` — block renderer polish
+19. `LRN-16` — check blocks reveal the right option
+20. `LRN-17` — keyboard shortcuts dialog
+21. `PRK-08` — completion screen to the handoff
+22. `AUTH-08` — sign-in screen to the handoff
+23. `SHL-03` — handoff breakpoints and the menu button
+24. `KUL-13` — bulk role change and select all
+25. `KUL-14` — Assign screen finish
+26. `KUL-19` — Needs attention, pending-invite strip, overview filters
+27. `KUL-20` — course analytics finish
+28. `KUL-22` — Roles screen polish
+29. `KUL-23` — audit log view finish
+30. `DS-05` — axe on the remaining page tests
+31. `DS-04` — shared icon set
+32. `DS-03` — `/__ui` component gallery
+33. `STU-15` — lesson editor extras
+34. `STU-16` — CodeMirror for markdown and code
+35. `OPS-11` — deeper e2e journeys
+36. `OPS-06` — Lighthouse on the preview URL
+37. `OPS-14` — trigger tests against the emulators
+38. `KUL-24` — email delivery (blocked: question 4)
+39. `KUL-25` — Acharyas see their learners (blocked: question 7)
+40. `PRK-10` — tell a learner their certificate was revoked (blocked)
+41. `OPS-18` — custom domain (blocked: question 6)
+42. `OPS-19` — licence holder (blocked: question 10)
+43. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -129,7 +128,7 @@ Plan: `05-learner-experience.md`, `design-handoff/01-learner.md` §02–§04, M2
 | `LRN-11` | Outline rail grouped by parva                                            | todo   | —        | Collapse all but the current parva, state icons; "PARVA n · LESSON x OF y" kicker with type and duration chips (`kindLabel`, `minutes`); footer labels with item titles                                          |
 | `LRN-12` | Course overview to the handoff                                           | todo   | `STU-06` | Render `description` markdown; due date; Acharya card; hero band; "Preview certificate"; locked-row tooltip; remember expanded parvas; link to the certificate once finished                                    |
 | `LRN-13` | Home to the handoff                                                      | todo   | —        | Status line; continue card cover, chips, assigned-by, "Up next"; 48px cover tiles; "Show all" past 10; recent-activity card                                                                                      |
-| `LRN-14` | Retired and "New lessons added" states                                   | todo   | —        | "Retired" on Home rows and in the player; `gradeAttempt` refuses archived courses, so a learner part-way through can never finish; "New lessons added" when completed and percent < 100 (`05` Edge cases)       |
+| `LRN-14` | Retired and "New lessons added" states                                   | done   | —        | `apps/web/src/learn/model.ts` (`isRetired`, `hasNewLessons`), `learn/ui.tsx` (`RetiredNote`), `HomePage.tsx`, `CoursePage.tsx`, `LessonPage.tsx`, `pariksha/ParikshaPage.tsx` (closed for retired); `firebase/functions/src/grading.ts` refuses archived with `CRS_1004` (`packages/schema/src/api.ts`) |
 | `LRN-15` | Block renderer polish                                                    | todo   | —        | Video title and caption from the block; respect `code.copy = false`; file-row icon                                                                                                                                |
 | `LRN-16` | Check blocks reveal the right option                                     | todo   | —        | The `check` block has no correct-option field, so reveal shows only the explanation. Changes the course object: `02-data-model.md`, `schemaVersion`, migration and the Studio editor together                  |
 | `LRN-17` | Keyboard shortcuts dialog                                                | todo   | —        | `?` opens a dialog listing J/K and the Pariksha keys                                                                                                                                                              |

@@ -47,3 +47,15 @@ export function PageLoading() {
     </main>
   );
 }
+
+/** What a learner sees on a retired course: what they keep and why it cannot be finished now. */
+export function RetiredNote() {
+  return (
+    <Callout tone="warning" title="This course is retired">
+      <p>
+        Your progress and any certificate are kept, and the lessons stay open to read. Its Parikshas
+        are closed, so it can no longer be finished.
+      </p>
+    </Callout>
+  );
+}
