@@ -114,6 +114,14 @@ export function PublishDialog({
         </>
       }
     >
+      {live?.status === 'archived' ? (
+        <Callout tone="warning" title="This course is archived">
+          <p>
+            Publishing makes it live again: learners see it as current instead of Retired, and its
+            Parikshas open for them again.
+          </p>
+        </Callout>
+      ) : null}
       {failure ? (
         <Callout tone="warning" title="Not published" role="alert">
           <p>{failure}</p>

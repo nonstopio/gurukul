@@ -727,6 +727,17 @@ describe('Course editor: publishing', () => {
     expect(log.warn).toHaveBeenCalledWith('Reloading the live course failed', { courseId: 'git' });
   });
 
+  it('warns in the publish dialog that publishing an archived course un-archives it', async () => {
+    await open({ live: mine({ status: 'archived' }) });
+    await ready();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(within(dialog).getByText('This course is archived')).toBeTruthy();
+    expect(within(dialog).getByText(/Publishing makes it live again/)).toBeTruthy();
+  });
+
   it('publishes a first version and can be cancelled', async () => {
     await open({ live: mine({ version: 0, status: 'draft' }) });
     await ready();
