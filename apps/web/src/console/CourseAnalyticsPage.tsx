@@ -13,6 +13,7 @@ import { useCallback } from 'react';
 import { Link, useParams } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import {
@@ -21,22 +22,21 @@ import {
   medianDays,
   funnelSteps,
   hardestQuestions,
-  parikshaRows,
+  quizRows,
   pct,
 } from './model';
 
 const prompt = (course: Course, questionId: string): string => {
-  const all: Question[] = itemsOf(course).flatMap((i) =>
-    i.type === 'pariksha' ? i.questions : [],
-  );
+  const all: Question[] = itemsOf(course).flatMap((i) => (i.type === 'quiz' ? i.questions : []));
   return all.find((q) => q.id === questionId)?.prompt ?? questionId;
 };
 
-const studioPariksha = (courseId: string, parikshaId: string): string =>
-  `/studio/courses/${courseId}/pariksha/${parikshaId}`;
+const studioQuiz = (courseId: string, quizId: string): string =>
+  `/studio/courses/${courseId}/quiz/${quizId}`;
 
-/** `/kulapati/courses/:courseId`: the funnel, where learners stop and the hardest questions. */
+/** `/admin/courses/:courseId`: the funnel, where learners stop and the hardest questions. */
 export function CourseAnalyticsPage() {
+  const t = useTerms();
   const { courseId = '' } = useParams();
   const { data } = useConsole();
   const learner = useLearnerData();
@@ -59,7 +59,7 @@ export function CourseAnalyticsPage() {
               <EmptyState
                 title="This course does not exist"
                 action={
-                  <Link className={buttonClass('secondary')} to="/kulapati">
+                  <Link className={buttonClass('secondary')} to="/admin">
                     Back to the overview
                   </Link>
                 }
@@ -70,22 +70,22 @@ export function CourseAnalyticsPage() {
           }
           const steps = funnelSteps(
             stats,
-            course.parvas.map((p) => p.title),
+            course.chapters.map((p) => p.title),
           );
           const drop = largestDrop(steps.map((s) => s.value));
           const days = averageDays(stats);
           const median = medianDays(stats);
           const hardest = hardestQuestions(stats);
-          const parikshas = itemsOf(course).flatMap((i) => (i.type === 'pariksha' ? [i] : []));
-          const rows = parikshaRows(parikshas, stats);
-          const parikshaOf = new Map(
-            parikshas.flatMap((p) => p.questions.map((q) => [q.id, p.id] as const)),
+          const quizzes = itemsOf(course).flatMap((i) => (i.type === 'quiz' ? [i] : []));
+          const rows = quizRows(quizzes, stats);
+          const quizOf = new Map(
+            quizzes.flatMap((p) => p.questions.map((q) => [q.id, p.id] as const)),
           );
           return (
             <>
               <Breadcrumb
                 items={[
-                  { label: 'Overview', render: (p) => <Link to="/kulapati" {...(p as object)} /> },
+                  { label: 'Overview', render: (p) => <Link to="/admin" {...(p as object)} /> },
                   { label: course.title },
                 ]}
               />
@@ -97,11 +97,11 @@ export function CourseAnalyticsPage() {
               </p>
               <div className="cert-actions">
                 <Link className={buttonClass('secondary')} to={`/studio/courses/${course.id}`}>
-                  Edit in Vyasa Studio
+                  {`Edit in ${t.Studio}`}
                 </Link>
                 <Link
                   className={buttonClass('primary')}
-                  to="/kulapati/assign"
+                  to="/admin/assign"
                   state={{ courseId: course.id }}
                 >
                   Assign this course
@@ -127,8 +127,8 @@ export function CourseAnalyticsPage() {
               </div>
 
               <section aria-labelledby="stop-title" className="home-section">
-                <h2 id="stop-title">Where learners stop</h2>
-                <FunnelBar label="Learner funnel" rows={steps} highlight={drop} />
+                <h2 id="stop-title">{`Where ${t.learners} stop`}</h2>
+                <FunnelBar label={`${t.Learner} funnel`} rows={steps} highlight={drop} />
                 {drop !== null && steps[drop] && steps[drop - 1] ? (
                   <p>
                     The biggest drop is between “{steps[drop - 1]?.label}” ({steps[drop - 1]?.value}
@@ -159,9 +159,9 @@ export function CourseAnalyticsPage() {
                           {q.percent}% right first time
                         </span>{' '}
                         {prompt(course, q.questionId)}{' '}
-                        {parikshaOf.has(q.questionId) ? (
+                        {quizOf.has(q.questionId) ? (
                           <Link
-                            to={`${studioPariksha(course.id, parikshaOf.get(q.questionId) as string)}?question=${encodeURIComponent(q.questionId)}`}
+                            to={`${studioQuiz(course.id, quizOf.get(q.questionId) as string)}?question=${encodeURIComponent(q.questionId)}`}
                           >
                             Edit question
                           </Link>
@@ -172,13 +172,13 @@ export function CourseAnalyticsPage() {
                 )}
               </section>
 
-              <section aria-labelledby="pariksha-title" className="home-section">
-                <h2 id="pariksha-title">Parikshas</h2>
+              <section aria-labelledby="quiz-title" className="home-section">
+                <h2 id="quiz-title">{t.Quizzes}</h2>
                 <table className="plain-table">
-                  <caption className="sr-only">Parikshas in this course</caption>
+                  <caption className="sr-only">{`${t.Quizzes} in this course`}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Pariksha</th>
+                      <th scope="col">{t.Quiz}</th>
                       <th scope="col">Questions</th>
                       <th scope="col">First-try answers</th>
                       <th scope="col">Right first time</th>
@@ -203,7 +203,7 @@ export function CourseAnalyticsPage() {
                           {r.percent === null ? '—' : `${r.percent}%`}
                         </td>
                         <td>
-                          <Link to={studioPariksha(course.id, r.id)}>Edit this Pariksha</Link>
+                          <Link to={studioQuiz(course.id, r.id)}>{`Edit this ${t.Quiz}`}</Link>
                         </td>
                       </tr>
                     ))}

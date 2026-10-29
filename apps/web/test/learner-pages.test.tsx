@@ -6,7 +6,7 @@ import { AuthProvider } from '../src/auth/AuthProvider';
 import { ConsoleProvider } from '../src/console/ConsoleProvider';
 import { DataProvider } from '../src/data/DataProvider';
 import type { AssignmentRow } from '../src/data/types';
-import { ParikshaProvider } from '../src/pariksha/ParikshaProvider';
+import { QuizProvider } from '../src/quiz/QuizProvider';
 import { appRoutes } from '../src/routes';
 import { StudioProvider } from '../src/studio/StudioProvider';
 import { fakeConsole } from './fake-console';
@@ -15,7 +15,7 @@ import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
-import { fakePariksha } from './fake-pariksha';
+import { fakeQuiz } from './fake-quiz';
 
 async function open(path: string, data = fakeData()) {
   const f = fakeAuth();
@@ -25,11 +25,11 @@ async function open(path: string, data = fakeData()) {
       <DataProvider data={data.data}>
         <ConsoleProvider {...fakeConsole({})}>
           <StudioProvider {...fakeStudio()}>
-            <ParikshaProvider service={fakePariksha()}>
+            <QuizProvider service={fakeQuiz()}>
               <ToastProvider>
                 <RouterProvider router={router} />
               </ToastProvider>
-            </ParikshaProvider>
+            </QuizProvider>
           </StudioProvider>
         </ConsoleProvider>
       </DataProvider>
@@ -39,7 +39,7 @@ async function open(path: string, data = fakeData()) {
     f.emitUser(NONSTOP);
     await Promise.resolve();
   });
-  act(() => f.emitProfile({ roles: ['shishya'], displayName: 'P', team: null }));
+  act(() => f.emitProfile({ roles: ['learner'], displayName: 'P', team: null }));
   return { ...view, router, ...data };
 }
 
@@ -175,7 +175,7 @@ describe('Home handoff details', () => {
         progress: [progressRow({ completedItemIds: ['l1'], lastItemId: 'l2' })],
       }),
     );
-    expect(await screen.findByText('Shishya · My learning')).toBeTruthy();
+    expect(await screen.findByText('Learner · My learning')).toBeTruthy();
     expect(screen.getByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
     expect(screen.getAllByText('Foundation').length).toBe(1);
     expect(screen.getAllByText(/Due in/).length).toBeGreaterThan(0);
@@ -206,7 +206,10 @@ describe('Home handoff details', () => {
 
 describe('Home with an empty course', () => {
   it('still offers a resume link for a course with no items', async () => {
-    await open('/', fakeData({ courses: [makeCourse({ parvas: [] })], progress: [progressRow()] }));
+    await open(
+      '/',
+      fakeData({ courses: [makeCourse({ chapters: [] })], progress: [progressRow()] }),
+    );
     expect(
       await screen
         .findByRole('link', { name: 'Resume lesson' })
@@ -273,7 +276,7 @@ describe('Course overview', () => {
     expect(screen.queryByText(/^Due /)).toBeNull();
   });
 
-  it('shows the outline, starts a new course and expands a collapsed parva', async () => {
+  it('shows the outline, starts a new course and expands a collapsed chapter', async () => {
     await open('/courses/git');
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
@@ -283,11 +286,11 @@ describe('Course overview', () => {
     );
     expect(screen.getByRole('link', { name: /Lesson l1/ })).toBeTruthy();
     expect(screen.getByText('What you will learn')).toBeTruthy();
-    const toggle = screen.getByRole('button', { name: /Parva 2/ });
+    const toggle = screen.getByRole('button', { name: /Chapter 2/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const row = screen.getByText('Pariksha I').closest('[aria-disabled]');
+    const row = screen.getByText('Quiz I').closest('[aria-disabled]');
     expect(row?.getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByText('Lesson l4').closest('[aria-disabled]')).toBeTruthy();
     fireEvent.click(toggle);
@@ -316,39 +319,39 @@ describe('Course overview', () => {
     ).toBe('20');
   });
 
-  it('renders the description, names the Acharyas and explains a locked row', async () => {
+  it('renders the description, names the Educators and explains a locked row', async () => {
     localStorage.clear();
     const course = makeCourse({
       description: 'Learn **Git** properly.',
-      acharyaIds: ['a1', 'a2'],
-      acharyaNames: { a1: 'Asha Rao', a2: 'Dev Nair' },
+      educatorIds: ['a1', 'a2'],
+      educatorNames: { a1: 'Asha Rao', a2: 'Dev Nair' },
     });
     await open('/courses/git', fakeData({ courses: [course] }));
     expect((await screen.findByText('Git')).tagName).toBe('STRONG');
-    expect(screen.getByRole('heading', { name: 'Your Acharyas' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your Educators' })).toBeTruthy();
     expect(screen.getByText('Asha Rao')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Parva 2/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Chapter 2/ }));
     expect(screen.getByText('Lesson l4').closest('[aria-disabled]')?.getAttribute('title')).toBe(
-      'Pass Pariksha I to unlock',
+      'Pass Quiz I to unlock',
     );
-    expect(screen.getByText('Pariksha I').closest('[aria-disabled]')?.getAttribute('title')).toBe(
+    expect(screen.getByText('Quiz I').closest('[aria-disabled]')?.getAttribute('title')).toBe(
       'Finish the earlier lessons to unlock',
     );
   });
 
-  it('names a single Acharya, hides a repeated description and remembers open parvas', async () => {
+  it('names a single Educator, hides a repeated description and remembers open chapters', async () => {
     localStorage.clear();
     const course = makeCourse({
       description: 'Version control for teams.',
-      acharyaNames: { a1: 'Asha Rao' },
+      educatorNames: { a1: 'Asha Rao' },
     });
     const first = await open('/courses/git', fakeData({ courses: [course] }));
-    expect(await screen.findByRole('heading', { name: 'Your Acharya' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Your Educator' })).toBeTruthy();
     expect(document.querySelector('.prose')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Parva 2/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Chapter 2/ }));
     first.unmount();
     await open('/courses/git', fakeData({ courses: [course] }));
-    const toggle = await screen.findByRole('button', { name: /Parva 2/ });
+    const toggle = await screen.findByRole('button', { name: /Chapter 2/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     localStorage.clear();
   });
@@ -375,7 +378,7 @@ describe('Course overview', () => {
   });
 
   it('has no resume button for a course with no items', async () => {
-    await open('/courses/git', fakeData({ courses: [makeCourse({ parvas: [] })] }));
+    await open('/courses/git', fakeData({ courses: [makeCourse({ chapters: [] })] }));
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByRole('link', { name: /Start course|Resume/ })).toBeNull();
   });
@@ -435,7 +438,7 @@ describe('Lesson player', () => {
   });
 
   it('finishes the course on the last lesson and opens the completion screen', async () => {
-    const course = makeCourse({ parvas: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
+    const course = makeCourse({ chapters: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
     const d = fakeData({ courses: [course], watched: started({ lastItemId: 'only' }) });
     const { router } = await open('/courses/git/learn/only', d);
     fireEvent.click(await screen.findByRole('button', { name: 'Finish course' }));
@@ -451,7 +454,7 @@ describe('Lesson player', () => {
   });
 
   it('labels the last finished lesson "Back to the course"', async () => {
-    const course = makeCourse({ parvas: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
+    const course = makeCourse({ chapters: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
     await open(
       '/courses/git/learn/only',
       fakeData({
@@ -496,7 +499,7 @@ describe('Lesson player', () => {
         fakeData({
           courses: [
             makeCourse({
-              parvas: [{ id: 'p', title: 'P', items: items as never }],
+              chapters: [{ id: 'p', title: 'P', items: items as never }],
               rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch },
             }),
           ],
@@ -551,7 +554,7 @@ describe('Lesson player', () => {
 
   describe('scrolled lessons', () => {
     const course = makeCourse({
-      parvas: [
+      chapters: [
         { id: 'p', title: 'P', items: [lesson('s', { completeWhen: 'scrolled' }), lesson('t')] },
       ],
     });
@@ -604,7 +607,7 @@ describe('Lesson player', () => {
 
   it('shows an empty lesson plainly', async () => {
     const course = makeCourse({
-      parvas: [{ id: 'p', title: 'P', items: [lesson('e', { blocks: [] })] }],
+      chapters: [{ id: 'p', title: 'P', items: [lesson('e', { blocks: [] })] }],
     });
     await open(
       '/courses/git/learn/e',
@@ -613,7 +616,7 @@ describe('Lesson player', () => {
     expect(await screen.findByText('This lesson is empty.')).toBeTruthy();
   });
 
-  it('explains a locked lesson, and sends a Pariksha to its own screen', async () => {
+  it('explains a locked lesson, and sends a Quiz to its own screen', async () => {
     const d = fakeData({ watched: started({ completedItemIds: ['l1', 'l2'] }) });
     const { unmount } = await open('/courses/git/learn/l4', d);
     expect(await screen.findByText('Locked for now')).toBeTruthy();
@@ -622,7 +625,7 @@ describe('Lesson player', () => {
       '/courses/git/learn/q1',
       fakeData({ watched: started({ completedItemIds: ['l1', 'l2', 'l3'] }) }),
     );
-    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/quiz/q1'));
   });
 
   it('redirects a deleted lesson to the resume point, with a toast', async () => {
@@ -635,7 +638,7 @@ describe('Lesson player', () => {
   it('redirects a deleted lesson in an empty course to the overview', async () => {
     const { router } = await open(
       '/courses/git/learn/gone',
-      fakeData({ courses: [makeCourse({ parvas: [] })], watched: started() }),
+      fakeData({ courses: [makeCourse({ chapters: [] })], watched: started() }),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
   });
@@ -658,7 +661,7 @@ describe('Lesson player', () => {
     });
     fireEvent.keyDown(window, { key: 'j' });
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
-    // l3 is in a parva that stays locked until l2 is done, so J does nothing.
+    // l3 is in a chapter that stays locked until l2 is done, so J does nothing.
     fireEvent.keyDown(window, { key: 'j' });
     expect(router.state.location.pathname).toBe('/courses/git/learn/l2');
   });
@@ -669,7 +672,7 @@ describe('Lesson player', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('groups the rail by parva, open only on the current one, with state words', async () => {
+  it('groups the rail by chapter, open only on the current one, with state words', async () => {
     await open('/courses/git/learn/l1', fakeData({ watched: started() }));
     const rail = await screen.findByRole('navigation', { name: 'Course outline' });
     const heads = within(rail).getAllByRole('button');
@@ -682,16 +685,16 @@ describe('Lesson player', () => {
     expect(heads[0]?.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('shows the parva kicker, type and duration chips and the neighbours in the footer', async () => {
+  it('shows the chapter kicker, type and duration chips and the neighbours in the footer', async () => {
     await open('/courses/git/learn/l1', fakeData({ watched: started() }));
-    expect(await screen.findByText('Parva 1 · Lesson 1 of 2')).toBeTruthy();
+    expect(await screen.findByText('Chapter 1 · Lesson 1 of 2')).toBeTruthy();
     expect(screen.getByText('5 min')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Mark complete · Lesson l2' })).toBeTruthy();
   });
 
   it('shows a type chip when the lesson has a kind label', async () => {
     const course = makeCourse({
-      parvas: [{ id: 'p', title: 'P', items: [{ ...lesson('only'), kindLabel: 'Hands-on' }] }],
+      chapters: [{ id: 'p', title: 'P', items: [{ ...lesson('only'), kindLabel: 'Hands-on' }] }],
     });
     await open(
       '/courses/git/learn/only',

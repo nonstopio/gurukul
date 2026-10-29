@@ -40,16 +40,13 @@ const SettingsPage = lazyPage(() => import('./console/SettingsPage'), 'SettingsP
 const CourseEditorPage = lazyPage(() => import('./studio/CourseEditorPage'), 'CourseEditorPage');
 const LessonEditorPage = lazyPage(() => import('./studio/LessonEditorPage'), 'LessonEditorPage');
 const MediaPage = lazyPage(() => import('./studio/MediaPage'), 'MediaPage');
-const ParikshaBuilderPage = lazyPage(
-  () => import('./studio/ParikshaBuilderPage'),
-  'ParikshaBuilderPage',
-);
+const QuizBuilderPage = lazyPage(() => import('./studio/QuizBuilderPage'), 'QuizBuilderPage');
 const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage');
 const QuestionBankPage = lazyPage(() => import('./studio/QuestionBankPage'), 'QuestionBankPage');
 const StudioCoursesPage = lazyPage(() => import('./studio/StudioCoursesPage'), 'StudioCoursesPage');
 const LessonPage = lazyPage(() => import('./LessonPage'), 'LessonPage');
-const ParikshaPage = lazyPage(() => import('./pariksha/ParikshaPage'), 'ParikshaPage');
-const ResultPage = lazyPage(() => import('./pariksha/ResultPage'), 'ResultPage');
+const QuizPage = lazyPage(() => import('./quiz/QuizPage'), 'QuizPage');
+const ResultPage = lazyPage(() => import('./quiz/ResultPage'), 'ResultPage');
 
 /**
  * The route table: one screen per path in `route-paths.ts`. Every path must also be classified in
@@ -63,79 +60,79 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/courses': <CoursesPage />,
   '/courses/:courseId': <CoursePage />,
   '/courses/:courseId/learn/:itemId': <LessonPage />,
-  '/courses/:courseId/pariksha/:parikshaId': <ParikshaPage />,
-  '/courses/:courseId/pariksha/:parikshaId/result': <ResultPage />,
+  '/courses/:courseId/quiz/:quizId': <QuizPage />,
+  '/courses/:courseId/quiz/:quizId/result': <ResultPage />,
   '/courses/:courseId/complete': <CompletePage />,
   '/certificates': <CertificatesPage />,
   '/certificates/:id': <CertificatePage />,
   '/verify/:id': <VerifyPage />,
-  '/kulapati': (
-    <RequireRole any={['kulapati']}>
+  '/admin': (
+    <RequireRole any={['admin']}>
       <OverviewPage />
     </RequireRole>
   ),
-  '/kulapati/learners': (
-    <RequireRole any={['kulapati']}>
+  '/admin/learners': (
+    <RequireRole any={['admin']}>
       <LearnersPage />
     </RequireRole>
   ),
-  '/kulapati/assign': (
-    <RequireRole any={['kulapati']}>
+  '/admin/assign': (
+    <RequireRole any={['admin']}>
       <AssignPage />
     </RequireRole>
   ),
-  '/kulapati/roles': (
-    <RequireRole any={['kulapati']}>
+  '/admin/roles': (
+    <RequireRole any={['admin']}>
       <RolesPage />
     </RequireRole>
   ),
-  '/kulapati/audit': (
-    <RequireRole any={['kulapati']}>
+  '/admin/audit': (
+    <RequireRole any={['admin']}>
       <AuditPage />
     </RequireRole>
   ),
-  '/kulapati/settings': (
-    <RequireRole any={['kulapati']}>
+  '/admin/settings': (
+    <RequireRole any={['admin']}>
       <SettingsPage />
     </RequireRole>
   ),
-  '/kulapati/courses/:courseId': (
-    <RequireRole any={['kulapati']}>
+  '/admin/courses/:courseId': (
+    <RequireRole any={['admin']}>
       <CourseAnalyticsPage />
     </RequireRole>
   ),
   '/studio': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <StudioCoursesPage />
     </RequireRole>
   ),
   '/studio/courses/:courseId': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <CourseEditorPage />
     </RequireRole>
   ),
   '/studio/courses/:courseId/lessons/:lessonId': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <LessonEditorPage />
     </RequireRole>
   ),
-  '/studio/courses/:courseId/pariksha/:parikshaId': (
-    <RequireRole any={['acharya', 'kulapati']}>
-      <ParikshaBuilderPage />
+  '/studio/courses/:courseId/quiz/:quizId': (
+    <RequireRole any={['educator', 'admin']}>
+      <QuizBuilderPage />
     </RequireRole>
   ),
   '/studio/courses/:courseId/preview/:itemId': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <PreviewPage />
     </RequireRole>
   ),
   '/studio/bank': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <QuestionBankPage />
     </RequireRole>
   ),
   '/studio/media': (
-    <RequireRole any={['acharya', 'kulapati']}>
+    <RequireRole any={['educator', 'admin']}>
       <MediaPage />
     </RequireRole>
   ),
@@ -147,8 +144,8 @@ const PUBLIC: readonly RoutePath[] = ['/verify/:id'];
 /** Pages that leave the sidebar for the focused layout: the page's own top bar is the chrome. */
 export const FOCUSED: readonly RoutePath[] = [
   '/courses/:courseId/learn/:itemId',
-  '/courses/:courseId/pariksha/:parikshaId',
-  '/courses/:courseId/pariksha/:parikshaId/result',
+  '/courses/:courseId/quiz/:quizId',
+  '/courses/:courseId/quiz/:quizId/result',
 ];
 
 /**

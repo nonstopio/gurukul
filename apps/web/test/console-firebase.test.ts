@@ -46,7 +46,7 @@ const user = (n: number) =>
     email: `u${n}@nonstopio.com`,
     displayName: `U${n}`,
     team: 'QA',
-    roles: ['shishya', 'acharya'],
+    roles: ['learner', 'educator'],
     grantedCourseIds: ['git'],
     createdAt: ts(5),
   });
@@ -64,8 +64,11 @@ describe('stats and config', () => {
     store.docs.set('stats/org', { started: 4, weekly: { '2026-W44': 9 } });
     expect(await data.orgStats()).toMatchObject({ started: 4, weekly: { '2026-W44': 9 } });
     expect(await data.courseStats('git')).toMatchObject({ assigned: 0 });
-    store.docs.set('stats/course_git', { assigned: 7, parvaCompletions: [5, 3] });
-    expect(await data.courseStats('git')).toMatchObject({ assigned: 7, parvaCompletions: [5, 3] });
+    store.docs.set('stats/course_git', { assigned: 7, chapterCompletions: [5, 3] });
+    expect(await data.courseStats('git')).toMatchObject({
+      assigned: 7,
+      chapterCompletions: [5, 3],
+    });
   });
 
   it('reads the teams list, empty when there is no config or no teams', async () => {
@@ -174,8 +177,8 @@ describe('users', () => {
 
   it('lists the people who hold a granted role', async () => {
     store.queue = [[user(1)]];
-    expect((await data.usersWithRole('acharya')).map((u) => u.uid)).toEqual(['u1']);
-    expect(store.queries[0]).toContainEqual({ where: ['roles', 'array-contains', 'acharya'] });
+    expect((await data.usersWithRole('educator')).map((u) => u.uid)).toEqual(['u1']);
+    expect(store.queries[0]).toContainEqual({ where: ['roles', 'array-contains', 'educator'] });
   });
 
   it('lists every course, drafts included, skipping one it cannot read', async () => {
@@ -196,7 +199,7 @@ describe('users', () => {
       email: '',
       displayName: '',
       team: null,
-      roles: ['shishya'],
+      roles: ['learner'],
       grantedCourseIds: [],
       createdAt: null,
     });
@@ -312,28 +315,28 @@ describe('progress, certificates and known emails', () => {
     ]);
   });
 
-  it('reads one person’s newest attempts at a Pariksha: score, verdict and date only', async () => {
+  it('reads one person’s newest attempts at a Quiz: score, verdict and date only', async () => {
     store.queue = [
       [
         d('a2', {
           uid: 'u1',
-          parikshaId: 'q1',
+          quizId: 'q1',
           score: 0.5,
           passed: true,
           createdAt: ts(9),
           answers: { k1: ['a'] },
         }),
-        d('a1', { uid: 'u1', parikshaId: 'q1' }),
+        d('a1', { uid: 'u1', quizId: 'q1' }),
       ],
     ];
     expect(await data.attemptsFor('u1', 'git', 'q1')).toEqual([
-      { id: 'a2', parikshaId: 'q1', score: 0.5, passed: true, at: new Date(9) },
-      { id: 'a1', parikshaId: 'q1', score: 0, passed: false, at: null },
+      { id: 'a2', quizId: 'q1', score: 0.5, passed: true, at: new Date(9) },
+      { id: 'a1', quizId: 'q1', score: 0, passed: false, at: null },
     ]);
     expect(store.queries[0]).toEqual([
       { collection: 'progress/u1_git/attempts' },
       { where: ['uid', '==', 'u1'] },
-      { where: ['parikshaId', '==', 'q1'] },
+      { where: ['quizId', '==', 'q1'] },
       { orderBy: ['createdAt', 'desc'] },
       { limit: 10 },
     ]);
@@ -368,7 +371,7 @@ describe('progress, certificates and known emails', () => {
           action: 'roles.set',
           by: 'boss',
           target: 'dev',
-          detail: { acharya: true },
+          detail: { educator: true },
           at: ts(9),
         }),
         d('a2', { action: 'course.publish', by: 'boss', target: 'git' }),
@@ -380,7 +383,7 @@ describe('progress, certificates and known emails', () => {
     expect(store.queries[0]).toContainEqual({ orderBy: ['at', 'desc'] });
     expect(store.queries[0]).toContainEqual({ limit: 4 });
     expect(page.rows.map((r) => [r.by, r.target, r.detail, r.at?.getTime() ?? null])).toEqual([
-      ['Boss', 'dev@nonstopio.com', { acharya: true }, 9],
+      ['Boss', 'dev@nonstopio.com', { educator: true }, 9],
       ['Boss', 'git', {}, null],
       ['gone', 'gone2', {}, 1],
     ]);

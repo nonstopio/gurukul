@@ -14,9 +14,9 @@ vi.mock('../src/log', () => ({
 }));
 
 const exam = (over: object = {}) => ({
-  type: 'pariksha' as const,
+  type: 'quiz' as const,
   id: 'q1',
-  title: 'Pariksha I',
+  title: 'Quiz I',
   questionsShown: 1,
   shuffleOptions: false,
   cooldownMinutes: 0,
@@ -52,7 +52,7 @@ const exam = (over: object = {}) => ({
 const course = (
   items: unknown[] = [lesson('l1'), exam(), lesson('l3', { layout: 'split' })],
 ): Course =>
-  makeCourse({ acharyaIds: ['u1'], parvas: [{ id: 'p', title: 'P', items: items as never }] });
+  makeCourse({ educatorIds: ['u1'], chapters: [{ id: 'p', title: 'P', items: items as never }] });
 
 async function preview(
   itemId: string,
@@ -61,7 +61,7 @@ async function preview(
 ) {
   const studio = fakeStudio({ draft: c ? draftDoc(c, { answers }) : null });
   const app = await openApp(`/studio/courses/git/preview/${itemId}`, {
-    roles: ['acharya'],
+    roles: ['educator'],
     studio,
   });
   return { ...app, studio };
@@ -124,7 +124,7 @@ describe('Preview page', () => {
   it('handles a failed load', async () => {
     const studio = fakeStudio();
     studio.data.getDraft = vi.fn().mockRejectedValue(new Error('denied'));
-    await openApp('/studio/courses/git/preview/l1', { roles: ['acharya'], studio });
+    await openApp('/studio/courses/git/preview/l1', { roles: ['educator'], studio });
     expect(await screen.findByRole('heading', { name: 'The preview did not load' })).toBeTruthy();
     expect(screen.getByText(/may not have access/)).toBeTruthy();
   });
@@ -133,18 +133,18 @@ describe('Preview page', () => {
     const studio = fakeStudio();
     let release: (v: null) => void = () => {};
     studio.data.getDraft = vi.fn(() => new Promise<DraftDoc | null>((r) => (release = r)));
-    await openApp('/studio/courses/git/preview/l1', { roles: ['acharya'], studio });
+    await openApp('/studio/courses/git/preview/l1', { roles: ['educator'], studio });
     expect(await screen.findByText('Loading the preview')).toBeTruthy();
     await act(async () => release(null));
   });
 
-  it('runs a Pariksha locally and grades against the draft keys', async () => {
+  it('runs a Quiz locally and grades against the draft keys', async () => {
     const { studio } = await preview('q1');
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
     expect(screen.getByText('git status')).toBeTruthy();
-    expect(screen.getByText('Pariksha 2 of 3')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Edit this Pariksha' }).getAttribute('href')).toBe(
-      '/studio/courses/git/pariksha/q1',
+    expect(screen.getByText('Quiz 2 of 3')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Edit this Quiz' }).getAttribute('href')).toBe(
+      '/studio/courses/git/quiz/q1',
     );
     const check = screen.getByRole('button', { name: 'Check answer' }) as HTMLButtonElement;
     expect(check.disabled).toBe(true);
@@ -202,13 +202,13 @@ describe('Preview page', () => {
     expect(screen.getByText(/You answered 0 of 2 correctly/)).toBeTruthy();
   });
 
-  it('offers a way to add questions to an empty Pariksha', async () => {
+  it('offers a way to add questions to an empty Quiz', async () => {
     await preview('q1', course([exam({ questions: [] })]));
     expect(
-      await screen.findByRole('heading', { name: 'This Pariksha has no questions yet' }),
+      await screen.findByRole('heading', { name: 'This Quiz has no questions yet' }),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Add questions' }).getAttribute('href')).toBe(
-      '/studio/courses/git/pariksha/q1',
+      '/studio/courses/git/quiz/q1',
     );
   });
 
@@ -229,11 +229,11 @@ describe('Media library', () => {
   ];
   const rows = () => [
     {
-      live: makeCourse({ id: 'git', acharyaIds: ['u1'] }),
+      live: makeCourse({ id: 'git', educatorIds: ['u1'] }),
       draft: draftDoc(
         makeCourse({
-          acharyaIds: ['u1'],
-          parvas: [
+          educatorIds: ['u1'],
+          chapters: [
             {
               id: 'p',
               title: 'P',
@@ -250,7 +250,7 @@ describe('Media library', () => {
 
   it('lists media grouped by kind with where it is used', async () => {
     await openApp('/studio/media', {
-      roles: ['acharya'],
+      roles: ['educator'],
       studio: fakeStudio({ courses: rows() }),
       data: fakeData(),
     });
@@ -269,7 +269,10 @@ describe('Media library', () => {
   });
 
   it('copies a link, and reports when it cannot', async () => {
-    await openApp('/studio/media', { roles: ['acharya'], studio: fakeStudio({ courses: rows() }) });
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: rows() }),
+    });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     fireEvent.click(await screen.findByRole('button', { name: /Copy link for Diagram/ }));
@@ -282,7 +285,7 @@ describe('Media library', () => {
   });
 
   it('shows an empty state and a failure', async () => {
-    await openApp('/studio/media', { roles: ['kulapati'], studio: fakeStudio() });
+    await openApp('/studio/media', { roles: ['admin'], studio: fakeStudio() });
     expect(await screen.findByRole('heading', { name: 'No media yet' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to courses' }).getAttribute('href')).toBe(
       '/studio',
@@ -292,7 +295,7 @@ describe('Media library', () => {
   it('shows a failure', async () => {
     const studio = fakeStudio();
     studio.data.listCourses = vi.fn().mockRejectedValue(new Error('x'));
-    await openApp('/studio/media', { roles: ['acharya'], studio });
+    await openApp('/studio/media', { roles: ['educator'], studio });
     expect(await screen.findAllByText('This did not load')).not.toHaveLength(0);
   });
 });

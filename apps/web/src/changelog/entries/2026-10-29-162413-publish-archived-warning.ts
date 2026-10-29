@@ -7,7 +7,7 @@ export default {
   area: 'STUDIO',
   kind: 'fix',
   why:
-    'Publishing quietly un-archived a retired course, so an Acharya could reopen it to learners ' +
+    'Publishing quietly un-archived a retired course, so an Educator could reopen it to learners ' +
     'without meaning to.',
   detail: ['The publish dialog says the course is archived and what publishing will do.'],
 } satisfies ChangelogEntry;

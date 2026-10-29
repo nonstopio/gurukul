@@ -7,10 +7,12 @@ import {
   setCheckCorrect,
   setCheckOption,
 } from '../lessonEdit';
+import { useTerms } from '../../labels/useTerms';
 import type { BlockEditorProps } from './types';
 
 /** An ungraded "check yourself" question: the prompt, two to six answers with the right one marked, and the explanation shown afterwards. */
 export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
+  const t = useTerms();
   return (
     <div className="studio-fields">
       <Textarea
@@ -56,7 +58,7 @@ export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
           + Add answer
         </Button>
         <p className="studio-muted">
-          A check is not graded. Choose the right answer: learners see it marked, with the
+          A check is not graded. Choose the right answer: {t.learners} see it marked, with the
           explanation, when they reveal it.
         </p>
       </fieldset>

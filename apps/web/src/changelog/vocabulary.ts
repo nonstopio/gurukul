@@ -5,9 +5,9 @@
  */
 export const AREAS = {
   LEARN: 'Learning',
-  PARIKSHA: 'Parikshas & certificates',
-  KULAPATI: 'Kulapati console',
-  STUDIO: 'Vyasa Studio',
+  QUIZ: 'Quizzes & certificates',
+  ADMIN: 'Admin console',
+  STUDIO: 'Studio',
   DESIGN: 'Design system',
   PLATFORM: 'Platform',
 } as const;

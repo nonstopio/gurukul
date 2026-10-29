@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { axeViolations } from './axe';
 import { fakeData, progressRow } from './fake-data';
-import { attemptResult } from './fake-pariksha';
+import { attemptResult } from './fake-quiz';
 import { openApp } from './harness';
 
 const progress = () =>
@@ -13,8 +13,8 @@ const headings = () => screen.getAllByRole('heading', { level: 1 }).map((h) => h
 
 // Lazy routes: load them first so a busy machine's first transform does not eat a test's wait.
 beforeAll(() =>
-  Promise.all([import('../src/LessonPage'), import('../src/pariksha/ParikshaPage')]).then(
-    () => import('../src/pariksha/ResultPage'),
+  Promise.all([import('../src/LessonPage'), import('../src/quiz/QuizPage')]).then(
+    () => import('../src/quiz/ResultPage'),
   ),
 );
 
@@ -36,30 +36,30 @@ describe('focused shell', () => {
     expect(headings()).toEqual(['Lesson l4']);
   });
 
-  it('gives the Pariksha the top bar alone and its title as the one h1', async () => {
-    await openApp('/courses/git/pariksha/q1', { data: progress() });
+  it('gives the Quiz the top bar alone and its title as the one h1', async () => {
+    await openApp('/courses/git/quiz/q1', { data: progress() });
     await screen.findByText('Question 1 of 1');
-    expect(headings()).toEqual(['Pariksha I']);
+    expect(headings()).toEqual(['Quiz I']);
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     expect(screen.getByRole('banner').textContent).toContain('Git, the NonStop Way');
   });
 
-  it('keeps one h1 on a Pariksha that is not open yet', async () => {
-    await openApp('/courses/git/pariksha/q1');
+  it('keeps one h1 on a Quiz that is not open yet', async () => {
+    await openApp('/courses/git/quiz/q1');
     await screen.findByText('Locked for now');
-    expect(headings()).toEqual(['Pariksha I']);
+    expect(headings()).toEqual(['Quiz I']);
   });
 
   it('gives the result the top bar, with the way back to the outline', async () => {
     await openApp(
       {
-        pathname: '/courses/git/pariksha/q1/result',
+        pathname: '/courses/git/quiz/q1/result',
         state: { result: attemptResult(), questions: [], answers: {} },
       },
       { data: progress() },
     );
-    await screen.findByRole('heading', { level: 1, name: 'Pariksha I cleared.' });
-    expect(headings()).toEqual(['Pariksha I cleared.']);
+    await screen.findByRole('heading', { level: 1, name: 'Quiz I cleared.' });
+    expect(headings()).toEqual(['Quiz I cleared.']);
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Course outline' }).getAttribute('href')).toBe(
       '/courses/git',

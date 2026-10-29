@@ -4,7 +4,7 @@
 // through context. Destinations come from the per-area metadata in `areas/*.ts`, filtered to what
 // this person can open BEFORE matching, so nothing inaccessible is ever ranked or shown. Record
 // results (courses and lessons) come from `sources`, loaded once on first open and ranked with the
-// pages; an empty query lists pages only. People (Kulapatis only) come from `lookups`, read by
+// pages; an empty query lists pages only. People (Admins only) come from `lookups`, read by
 // prefix once typing pauses, newest answer only, like the Learners page's own search.
 
 import { CommandPalette, SearchIcon } from '@gurukul/ui';
@@ -20,8 +20,10 @@ import {
 import type { ReactNode } from 'react';
 import { SEARCH_DELAY_MS, searchPrefix } from '../console/model';
 import { useDebounced } from '../data/useDebounced';
+import { useTerms } from '../labels/useTerms';
 import { allowed, destinationsFor } from './catalog';
 import { AREAS } from './index';
+import { localizePage } from './localize';
 import { findRecords, loadRecords } from './records';
 import { indexDestinations, normalize, searchDestinations } from './search';
 import type { AreaNavigation, Destination, RecordLookup, RecordSource, Role } from './types';
@@ -45,24 +47,24 @@ export const isMac = (nav: Pick<Navigator, 'platform' | 'userAgent'> = navigator
 export interface GlobalSearchProviderProps {
   children: ReactNode;
   navigate: (path: string) => void;
-  /** The signed-in person's roles. Until sign-in lands (M1) everyone is a Shishya. */
+  /** The signed-in person's roles. Until sign-in lands (M1) everyone is a Learner. */
   roles?: readonly Role[];
   areas?: readonly AreaNavigation[];
   /** Record results (courses today), loaded the first time the palette opens. */
   sources?: readonly RecordSource[];
-  /** Records looked up as the person types (people, for Kulapatis). */
+  /** Records looked up as the person types (people, for Admins). */
   lookups?: readonly RecordLookup[];
   mac?: boolean;
 }
 
-const SHISHYA: readonly Role[] = ['shishya'];
+const LEARNER: readonly Role[] = ['learner'];
 const NO_SOURCES: readonly RecordSource[] = [];
 const NO_LOOKUPS: readonly RecordLookup[] = [];
 
 export function GlobalSearchProvider({
   children,
   navigate,
-  roles = SHISHYA,
+  roles = LEARNER,
   areas = AREAS,
   sources = NO_SOURCES,
   lookups = NO_LOOKUPS,
@@ -93,14 +95,16 @@ export function GlobalSearchProvider({
     [found, mine, prefix],
   );
 
+  // Pages read in the person's names; records name their own area (see `records.ts`).
+  const t = useTerms();
   const index = useMemo(
     () =>
       indexDestinations([
-        ...destinationsFor(areas, roles),
+        ...destinationsFor(areas, roles).map((d) => localizePage(d, t)),
         ...(records.scope === scope ? records.list : []),
         ...people,
       ]),
-    [areas, roles, records, scope, people],
+    [areas, roles, records, scope, people, t],
   );
 
   // Once per scope, and only when someone actually opens search: no reads before that.

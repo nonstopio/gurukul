@@ -1,8 +1,10 @@
 import { Dialog } from '@gurukul/ui';
 import { useEffect, useState } from 'react';
 import { isTyping } from './keys';
+import type { Terms } from './labels/terms';
+import { useTerms } from './labels/useTerms';
 
-const GROUPS: { heading: string; rows: { keys: string[]; does: string }[] }[] = [
+const groups = (t: Terms): { heading: string; rows: { keys: string[]; does: string }[] }[] => [
   {
     heading: 'Anywhere',
     rows: [
@@ -18,7 +20,7 @@ const GROUPS: { heading: string; rows: { keys: string[]; does: string }[] }[] = 
     ],
   },
   {
-    heading: 'In a Pariksha',
+    heading: `In a ${t.Quiz}`,
     rows: [
       { keys: ['1', '2', '3', '4'], does: 'Choose that option' },
       { keys: ['A', 'B', 'C', 'D'], does: 'Choose that option' },
@@ -30,6 +32,7 @@ const GROUPS: { heading: string; rows: { keys: string[]; does: string }[] }[] = 
 /** `?` opens the list of keyboard shortcuts; Escape closes it. Mounted once, in the signed-in frame. */
 export function ShortcutsDialog() {
   const [open, setOpen] = useState(false);
+  const t = useTerms();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
@@ -42,7 +45,7 @@ export function ShortcutsDialog() {
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} title="Keyboard shortcuts">
-      {GROUPS.map((g) => (
+      {groups(t).map((g) => (
         <section key={g.heading} className="shortcuts__group">
           <h3 className="shortcuts__heading">{g.heading}</h3>
           <dl className="shortcuts__list">

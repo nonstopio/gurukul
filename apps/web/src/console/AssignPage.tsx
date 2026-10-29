@@ -15,6 +15,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { countItems } from '../learn/model';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { usePeopleSearch } from './usePeopleSearch';
@@ -27,9 +28,10 @@ interface Prefill {
   courseId?: string;
 }
 
-/** `/kulapati/assign`: pick courses, pick people, set a deadline; the preview is what will happen. */
+/** `/admin/assign`: pick courses, pick people, set a deadline; the preview is what will happen. */
 export function AssignPage() {
   const { data, service } = useConsole();
+  const t = useTerms();
   const learner = useLearnerData();
   const navigate = useNavigate();
   const toast = useToast();
@@ -117,8 +119,8 @@ export function AssignPage() {
     );
     void navigate(
       courseIds.length === 1
-        ? `/kulapati/learners?course=${encodeURIComponent(courseIds[0] as string)}`
-        : '/kulapati/learners',
+        ? `/admin/learners?course=${encodeURIComponent(courseIds[0] as string)}`
+        : '/admin/learners',
     );
   };
 
@@ -154,7 +156,7 @@ export function AssignPage() {
 
   return (
     <main className="page console">
-      <p className="article__kicker">Kulapati</p>
+      <p className="article__kicker">{t.Admin}</p>
       <h1 className="page__title">Assign courses</h1>
       <Loaded loadable={result}>
         {({ courses, teams }) => (
@@ -311,7 +313,7 @@ export function AssignPage() {
                   onChange={(e) => setMandatory(e.target.checked)}
                 />
                 <Toggle
-                  label="Email learners now"
+                  label={`Email ${t.learners} now`}
                   checked={notify}
                   onChange={(e) => setNotify(e.target.checked)}
                 />

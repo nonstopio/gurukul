@@ -1,10 +1,10 @@
 import type { AreaNavigation } from '../types';
 
-/** What every signed-in Shishya opens: Home, the catalogue, a course and its lessons, certificates. */
+/** What every signed-in Learner opens: Home, the catalogue, a course and its lessons, certificates. */
 export const navigation = {
   slug: 'learner',
   name: 'Learning',
-  keywords: ['learn', 'shishya'],
+  keywords: ['learn', 'learner'],
   pages: [
     {
       id: 'home',
@@ -25,7 +25,7 @@ export const navigation = {
       path: '/certificates',
       label: 'Certificates',
       description: 'Certificates you have earned',
-      keywords: ['credential', 'diploma', 'siddhi', 'download'],
+      keywords: ['credential', 'diploma', 'completion', 'download'],
     },
   ],
   unlisted: {
@@ -33,11 +33,11 @@ export const navigation = {
     '/courses/:courseId/learn/:itemId': {
       context: 'needs a course and a lesson id; reached from the outline',
     },
-    '/courses/:courseId/pariksha/:parikshaId': {
-      context: 'needs a course and a Pariksha id; reached from the outline',
+    '/courses/:courseId/quiz/:quizId': {
+      context: 'needs a course and a Quiz id; reached from the outline',
     },
-    '/courses/:courseId/pariksha/:parikshaId/result': {
-      context: 'needs the attempt just made; reached after a Pariksha',
+    '/courses/:courseId/quiz/:quizId/result': {
+      context: 'needs the attempt just made; reached after a Quiz',
     },
     '/courses/:courseId/complete': { context: 'needs a course id; reached after the last item' },
     '/certificates/:id': { context: 'needs a credential id; reached from Certificates' },

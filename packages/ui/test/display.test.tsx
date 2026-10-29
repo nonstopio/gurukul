@@ -75,8 +75,8 @@ describe('ProgressBar', () => {
 
 describe('ProgressRing', () => {
   it('exposes value and name, and draws the arc proportionally', () => {
-    const { container } = render(<ProgressRing value={25} label="Parva progress" />);
-    const ring = screen.getByRole('progressbar', { name: 'Parva progress' });
+    const { container } = render(<ProgressRing value={25} label="Chapter progress" />);
+    const ring = screen.getByRole('progressbar', { name: 'Chapter progress' });
     expect(ring.getAttribute('aria-valuenow')).toBe('25');
     const fill = container.querySelector('.g-ring__fill') as SVGCircleElement;
     const circumference = Number(fill.getAttribute('stroke-dasharray'));
@@ -106,11 +106,11 @@ describe('Card', () => {
 
   it('can be highlighted and rendered as another element', () => {
     render(
-      <Card as="section" highlighted className="x" aria-label="Current parva">
+      <Card as="section" highlighted className="x" aria-label="Current chapter">
         Body
       </Card>,
     );
-    const card = screen.getByRole('region', { name: 'Current parva' });
+    const card = screen.getByRole('region', { name: 'Current chapter' });
     expect(card.className).toBe('g-card g-card--highlighted x');
   });
 });
@@ -153,11 +153,11 @@ describe('EmptyState', () => {
         action={<button type="button">Browse</button>}
         className="x"
       >
-        Ask a Kulapati.
+        Ask an Admin.
       </EmptyState>,
     );
     expect(screen.getByRole('heading', { level: 2 })).toBeTruthy();
-    expect(screen.getByText('Ask a Kulapati.')).toBeTruthy();
+    expect(screen.getByText('Ask an Admin.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Browse' })).toBeTruthy();
     expect(screen.getByTestId('i').parentElement?.getAttribute('aria-hidden')).toBe('true');
   });
@@ -194,7 +194,7 @@ describe('display components accessibility', () => {
       <main>
         <Chip>Draft</Chip>
         <ProgressBar value={40} label="Course progress" />
-        <ProgressRing value={60} label="Parva progress" />
+        <ProgressRing value={60} label="Chapter progress" />
         <Card highlighted as="section" aria-label="Current">
           Body
         </Card>

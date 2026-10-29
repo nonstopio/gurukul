@@ -9,7 +9,8 @@ import { useAsync } from '../data/useAsync';
 import { durationLabel, nextAssigned } from '../learn/model';
 import type { AssignedCourse } from '../learn/model';
 import { Loaded } from '../learn/ui';
-import { linkedInUrl, longDate } from '../pariksha/model';
+import { linkedInUrl, longDate } from '../quiz/model';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 
 /** The address links point at: `VITE_SITE_URL` when set (the custom domain), else where the app is open. */
@@ -150,6 +151,7 @@ export function VerifyPage() {
 /** `/certificates`: mine, newest first. */
 export function CertificatesPage() {
   const data = useLearnerData();
+  const t = useTerms();
   const uid = useUser().uid;
   const result = useAsync(useCallback(() => data.myCertificates(uid), [data, uid]));
   return (
@@ -159,7 +161,7 @@ export function CertificatesPage() {
         {(list) =>
           list.length === 0 ? (
             <EmptyState title="No certificates yet">
-              Finish a course and pass its Parikshas to earn one.
+              {`Finish a course and pass its ${t.Quizzes} to earn one.`}
             </EmptyState>
           ) : (
             <ul className="course-list">
@@ -249,12 +251,13 @@ function UpNextCard({ courseId }: { courseId: string }) {
   );
 }
 
-/** `/courses/:courseId/complete`: the Siddhi screen, reached after the last item. */
+/** `/courses/:courseId/complete`: the Completion screen, reached after the last item. */
 export function CompletePage() {
   const { courseId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
   const toast = useToast();
+  const t = useTerms();
   const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
   const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
@@ -282,12 +285,12 @@ export function CompletePage() {
                   </Link>
                 }
               >
-                Finish every lesson and pass every Pariksha to complete the course.
+                {`Finish every lesson and pass every ${t.Quiz} to complete the course.`}
               </EmptyState>
             );
           }
-          const parikshas = itemsOf(course).filter((i) => i.type === 'pariksha');
-          const best = parikshas.map((p) => progress.pariksha[p.id]?.best ?? 0);
+          const quizzes = itemsOf(course).filter((i) => i.type === 'quiz');
+          const best = quizzes.map((p) => progress.quiz[p.id]?.best ?? 0);
           const average = best.length
             ? Math.round((best.reduce((a, b) => a + b, 0) / best.length) * 100)
             : null;
@@ -295,7 +298,7 @@ export function CompletePage() {
           return (
             <div className="complete__panel">
               <div className="complete__main">
-                <p className="complete__kicker">Siddhi · Course complete</p>
+                <p className="complete__kicker">Course complete</p>
                 <h1 className="complete__title">{course.title}, done.</h1>
                 <dl className="complete__stats">
                   <div>
@@ -304,7 +307,7 @@ export function CompletePage() {
                   </div>
                   {average !== null ? (
                     <div>
-                      <dt>Pariksha average</dt>
+                      <dt>{`${t.Quiz} average`}</dt>
                       <dd>{`${average}%`}</dd>
                     </div>
                   ) : null}

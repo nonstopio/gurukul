@@ -41,12 +41,12 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, 'courses/git'), { status: 'published', acharyaIds: ['asha'] });
+    await setDoc(doc(db, 'courses/git'), { status: 'published', educatorIds: ['asha'] });
     await setDoc(doc(db, 'progress/priya_git'), { uid: 'priya', courseId: 'git' });
     await setDoc(doc(db, attempt), {
       uid: 'priya',
       courseId: 'git',
-      parikshaId: 'pk',
+      quizId: 'pk',
       score: 0.5,
     });
     await setDoc(doc(db, 'certificates/NSG-GIT-26-0001'), cert('NSG-GIT-26-0001', 'priya'));
@@ -59,26 +59,26 @@ afterAll(async () => {
 });
 
 describe('progress/{id}/attempts/{attemptId}', () => {
-  it('lets the learner, a Kulapati and the course’s Acharya read an attempt', async () => {
+  it('lets the learner, an Admin and the course’s Educator read an attempt', async () => {
     await assertSucceeds(getDoc(doc(as('priya'), attempt)));
-    await assertSucceeds(getDoc(doc(as('root', { kulapati: true }), attempt)));
-    await assertSucceeds(getDoc(doc(as('asha', { acharya: true }), attempt)));
+    await assertSucceeds(getDoc(doc(as('root', { admin: true }), attempt)));
+    await assertSucceeds(getDoc(doc(as('asha', { educator: true }), attempt)));
   });
 
-  it('denies other learners, other Acharyas, a bare claim without the course and signed-out users', async () => {
+  it('denies other learners, other Educators, a bare claim without the course and signed-out users', async () => {
     await assertFails(getDoc(doc(as('ravi'), attempt)));
-    await assertFails(getDoc(doc(as('bhav', { acharya: true }), attempt)));
+    await assertFails(getDoc(doc(as('bhav', { educator: true }), attempt)));
     await assertFails(getDoc(doc(as('asha'), attempt)));
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), attempt)));
   });
 
-  it('lets the learner query their latest attempt at a Pariksha, and nobody query without the uid', async () => {
+  it('lets the learner query their latest attempt at a Quiz, and nobody query without the uid', async () => {
     const latest = (db: ReturnType<typeof as>, uid?: string) =>
       getDocs(
         query(
           collection(db, 'progress/priya_git/attempts'),
           ...(uid ? [where('uid', '==', uid)] : []),
-          where('parikshaId', '==', 'pk'),
+          where('quizId', '==', 'pk'),
           orderBy('createdAt', 'desc'),
           limit(1),
         ),
@@ -88,23 +88,23 @@ describe('progress/{id}/attempts/{attemptId}', () => {
     await assertFails(latest(as('ravi'), 'priya'));
   });
 
-  it('lets a Kulapati query a learner’s attempt history (the learner drawer), and not another learner', async () => {
+  it('lets an Admin query a learner’s attempt history (the learner drawer), and not another learner', async () => {
     const history = (db: ReturnType<typeof as>) =>
       getDocs(
         query(
           collection(db, 'progress/priya_git/attempts'),
           where('uid', '==', 'priya'),
-          where('parikshaId', '==', 'pk'),
+          where('quizId', '==', 'pk'),
           orderBy('createdAt', 'desc'),
           limit(10),
         ),
       );
-    await assertSucceeds(history(as('root', { kulapati: true })));
+    await assertSucceeds(history(as('root', { admin: true })));
     await assertFails(history(as('ravi')));
   });
 
-  it('denies every client write, even from the owner or a Kulapati', async () => {
-    for (const db of [as('priya'), as('root', { kulapati: true })]) {
+  it('denies every client write, even from the owner or an Admin', async () => {
+    for (const db of [as('priya'), as('root', { admin: true })]) {
       await assertFails(setDoc(doc(db, 'progress/priya_git/attempts/a2'), { uid: 'priya' }));
       await assertFails(updateDoc(doc(db, attempt), { score: 1 }));
       await assertFails(deleteDoc(doc(db, attempt)));
@@ -120,15 +120,15 @@ describe('certificates/{id}', () => {
     await assertSucceeds(getDoc(doc(as('ravi'), id)));
   });
 
-  it('lets an owner list their own and a Kulapati list any', async () => {
+  it('lets an owner list their own and an Admin list any', async () => {
     const mine = query(collection(as('priya'), 'certificates'), where('uid', '==', 'priya'));
     await assertSucceeds(getDocs(mine));
     const theirs = query(
-      collection(as('root', { kulapati: true }), 'certificates'),
+      collection(as('root', { admin: true }), 'certificates'),
       where('uid', '==', 'ravi'),
     );
     await assertSucceeds(getDocs(theirs));
-    await assertSucceeds(getDocs(collection(as('root', { kulapati: true }), 'certificates')));
+    await assertSucceeds(getDocs(collection(as('root', { admin: true }), 'certificates')));
   });
 
   it('denies listing someone else’s, listing everything, and listing signed out', async () => {
@@ -141,10 +141,10 @@ describe('certificates/{id}', () => {
     );
   });
 
-  it('denies every client write, even from the owner, a Kulapati or a signed-out user', async () => {
+  it('denies every client write, even from the owner, an Admin or a signed-out user', async () => {
     for (const db of [
       as('priya'),
-      as('root', { kulapati: true }),
+      as('root', { admin: true }),
       env.unauthenticatedContext().firestore(),
     ]) {
       await assertFails(
@@ -157,8 +157,8 @@ describe('certificates/{id}', () => {
 });
 
 describe('counters/{doc}', () => {
-  it('is closed to every client, Kulapatis included', async () => {
-    for (const db of [as('priya'), as('root', { kulapati: true })]) {
+  it('is closed to every client, Admins included', async () => {
+    for (const db of [as('priya'), as('root', { admin: true })]) {
       await assertFails(getDoc(doc(db, 'counters/certificates')));
       await assertFails(setDoc(doc(db, 'counters/certificates'), { '2026': 0 }));
     }

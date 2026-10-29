@@ -11,7 +11,7 @@ export interface ProgressStore {
   course(courseId: string): Promise<unknown | undefined>;
   /** Writes the derived fields; `completed` stamps `completedAt` with the server time. */
   writeDerived(progressId: string, derived: { percent: number; completed: boolean }): Promise<void>;
-  /** Adds the delta to the `stats/org` and `stats/course_{id}` counters Sanjaya reads. */
+  /** Adds the delta to the `stats/org` and `stats/course_{id}` counters Analytics reads. */
   bumpStats(courseId: string, delta: ProgressStatsDelta): Promise<void>;
   /**
    * Moves this learner's assignments for the course to `status`; returns how many actually
@@ -26,7 +26,7 @@ export interface ProgressStore {
   signatory(): Promise<{ name: string; role: string }>;
   /**
    * Records who started the course (`courses/{id}/learners/{uid}` with their display name) so the
-   * course's Acharya can see names without reading profiles. Idempotent.
+   * course's Educator can see names without reading profiles. Idempotent.
    */
   recordLearner(uid: string, courseId: string): Promise<void>;
   /**

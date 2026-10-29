@@ -1,6 +1,8 @@
 import { lastWeeks, nameKey } from '@gurukul/schema';
-import type { Course, CourseStats, OrgStats, Pariksha } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats, Quiz } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
+import { article } from '../labels/terms';
+import type { Terms } from '../labels/terms';
 import type { AssignmentFull, UserRow } from './types';
 
 export type LearnerStatus = 'active' | 'invited';
@@ -231,10 +233,10 @@ export function allPage(
   };
 }
 
-/** One Pariksha a learner has attempted, as the drawer lists it. */
-export interface DrawerPariksha {
+/** One Quiz a learner has attempted, as the drawer lists it. */
+export interface DrawerQuiz {
   id: string;
-  /** The Pariksha's title in the current course, or its id when it no longer exists. */
+  /** The Quiz's title in the current course, or its id when it no longer exists. */
   title: string;
   attempts: number;
   /** 0..1 */
@@ -253,21 +255,20 @@ export interface DrawerCourse {
   /** Progress 0–100, or null when the learner has not opened the course yet. */
   percent: number | null;
   completed: boolean;
-  parikshas: DrawerPariksha[];
+  quizzes: DrawerQuiz[];
 }
 
-/** A Pariksha's title in this course, or `null` when the course has none by that id. */
-export function parikshaTitle(course: Pick<Course, 'parvas'> | undefined, id: string) {
-  for (const parva of course?.parvas ?? []) {
-    for (const item of parva.items)
-      if (item.type === 'pariksha' && item.id === id) return item.title;
+/** A Quiz's title in this course, or `null` when the course has none by that id. */
+export function quizTitle(course: Pick<Course, 'chapters'> | undefined, id: string) {
+  for (const chapter of course?.chapters ?? []) {
+    for (const item of chapter.items) if (item.type === 'quiz' && item.id === id) return item.title;
   }
   return null;
 }
 
 /**
  * Every course in one person's drawer: each assignment (started or not, with its due date) and
- * each course they opened without one. Assigned courses come first, soonest due first; Parikshas
+ * each course they opened without one. Assigned courses come first, soonest due first; Quizzes
  * appear once attempted, by title.
  */
 export function drawerCourses(
@@ -294,11 +295,11 @@ export function drawerCourses(
         mandatory: assignment?.mandatory === true,
         percent: prog ? prog.percent : null,
         completed: assignment?.status === 'completed' || (prog?.completedAt ?? null) !== null,
-        parikshas: Object.entries(prog?.pariksha ?? {})
+        quizzes: Object.entries(prog?.quiz ?? {})
           .filter(([, r]) => r.attempts > 0)
           .map(([id, r]) => ({
             id,
-            title: parikshaTitle(course, id) ?? id,
+            title: quizTitle(course, id) ?? id,
             attempts: r.attempts,
             best: r.best,
             passed: r.passed,
@@ -321,15 +322,15 @@ export function weeklySeries(stats: Pick<OrgStats, 'weekly'>, now: Date, n = 12)
   }));
 }
 
-/** The funnel for "where learners stop": assigned → started → each parva → completed. */
+/** The funnel for "where learners stop": assigned → started → each chapter → completed. */
 export function funnelSteps(
   stats: CourseStats,
-  parvaTitles: readonly string[],
+  chapterTitles: readonly string[],
 ): Array<{ label: string; value: number }> {
   return [
     { label: 'Assigned', value: stats.assigned },
     { label: 'Started', value: stats.started },
-    ...parvaTitles.map((title, i) => ({ label: title, value: stats.parvaCompletions[i] ?? 0 })),
+    ...chapterTitles.map((title, i) => ({ label: title, value: stats.chapterCompletions[i] ?? 0 })),
     { label: 'Completed', value: stats.completed },
   ];
 }
@@ -354,8 +355,8 @@ export function hardestQuestions(
 /** Below this first-try percentage a number is shown in the warning colour; at or above it, never. */
 export const WARN_BELOW_PERCENT = 70;
 
-/** One Pariksha's first-try results, summed over its questions' counters. */
-export interface ParikshaRow {
+/** One Quiz's first-try results, summed over its questions' counters. */
+export interface QuizRow {
   id: string;
   title: string;
   questions: number;
@@ -365,12 +366,12 @@ export interface ParikshaRow {
   percent: number | null;
 }
 
-/** A row per Pariksha, in course order, from the course's first-try counters. */
-export function parikshaRows(
-  parikshas: readonly Pick<Pariksha, 'id' | 'title' | 'questions'>[],
+/** A row per Quiz, in course order, from the course's first-try counters. */
+export function quizRows(
+  quizzes: readonly Pick<Quiz, 'id' | 'title' | 'questions'>[],
   stats: Pick<CourseStats, 'questionFirstTry'>,
-): ParikshaRow[] {
-  return parikshas.map((p) => {
+): QuizRow[] {
+  return quizzes.map((p) => {
     let correct = 0;
     let answers = 0;
     for (const q of p.questions) {
@@ -415,22 +416,22 @@ export function medianDays(stats: Pick<CourseStats, 'finishDaysHistogram'>): num
 }
 
 /** Plain-English names for the audit actions the functions write. */
-const AUDIT_LABELS: Record<string, string> = {
+const auditLabels = (t: Terms): Record<string, string> => ({
   assign: 'Assigned courses',
   'reminders.send': 'Sent reminders',
   'roles.set': 'Changed a role',
-  'roles.bootstrap': 'Granted the first Kulapati role',
-  'cooldown.reset': 'Opened a Pariksha retake',
+  'roles.bootstrap': `Granted the first ${t.Admin} role`,
+  'cooldown.reset': `Opened ${article(t.Quiz)} retake`,
   'certificate.revoke': 'Revoked a certificate',
   'certificate.restore': 'Restored a certificate',
   'course.create': 'Created a course',
   'course.publish': 'Published a course',
   'course.rollback': 'Rolled a course back',
   'course.archive': 'Archived or restored a course',
-};
+});
 
 /** The audit action in words; an action this build does not know is shown as written. */
-export const auditLabel = (action: string): string => AUDIT_LABELS[action] ?? action;
+export const auditLabel = (action: string, t: Terms): string => auditLabels(t)[action] ?? action;
 
 /** One CSV cell. A leading `=`, `+`, `-` or `@` would run as a formula in a spreadsheet, so it is defused. */
 function csvCell(value: string): string {
@@ -529,22 +530,22 @@ export interface FailedEntry {
   key: string;
   uid: string;
   courseId: string;
-  parikshaId: string;
+  quizId: string;
   attempts: number;
   at: Date | null;
 }
 
-/** Parikshas a learner has attempted at least twice without passing, newest attempt first. */
+/** Quizzes a learner has attempted at least twice without passing, newest attempt first. */
 export function failedTwice(rows: ReadonlyArray<ProgressRow & { uid: string }>): FailedEntry[] {
   return rows
     .flatMap((row) =>
-      Object.entries(row.pariksha)
+      Object.entries(row.quiz)
         .filter(([, r]) => !r.passed && r.attempts >= 2)
-        .map(([parikshaId, r]) => ({
-          key: `${row.uid}/${row.courseId}/${parikshaId}`,
+        .map(([quizId, r]) => ({
+          key: `${row.uid}/${row.courseId}/${quizId}`,
           uid: row.uid,
           courseId: row.courseId,
-          parikshaId,
+          quizId,
           attempts: r.attempts,
           at: r.lastAttemptAt,
         })),
@@ -603,7 +604,11 @@ const assignedWho = (detail: Record<string, unknown>): string => {
 };
 
 /** The recorded detail of an audit entry in a short sentence; null when there is nothing to add. */
-export function auditDetail(action: string, detail: Record<string, unknown>): string | null {
+export function auditDetail(
+  action: string,
+  detail: Record<string, unknown>,
+  t: Terms,
+): string | null {
   switch (action) {
     case 'assign': {
       const courses = list(detail.courseIds).join(', ');
@@ -615,11 +620,11 @@ export function auditDetail(action: string, detail: Record<string, unknown>): st
       }`;
     case 'roles.set':
     case 'roles.bootstrap': {
-      const held = (['acharya', 'kulapati'] as const).filter((r) => detail[r] === true);
-      return held.length === 0 ? 'Learner only' : `Now ${held.join(' and ')}`;
+      const held = (['educator', 'admin'] as const).filter((r) => detail[r] === true);
+      return held.length === 0 ? `${t.Learner} only` : `Now ${held.map((r) => t[r]).join(' and ')}`;
     }
     case 'cooldown.reset':
-      return [text(detail.courseId), text(detail.parikshaId)].filter(Boolean).join(' / ') || null;
+      return [text(detail.courseId), text(detail.quizId)].filter(Boolean).join(' / ') || null;
     case 'certificate.revoke':
     case 'certificate.restore':
       return null;

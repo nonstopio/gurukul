@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { diffGrants, isAllowedEmail, planRoleChange, rolesFromClaims } from '../src/roles.js';
 
 describe('rolesFromClaims', () => {
-  it('makes everyone a shishya and adds granted roles', () => {
-    expect(rolesFromClaims(undefined)).toEqual(['shishya']);
-    expect(rolesFromClaims({ acharya: true })).toEqual(['shishya', 'acharya']);
-    expect(rolesFromClaims({ acharya: true, kulapati: true })).toEqual([
-      'shishya',
-      'acharya',
-      'kulapati',
+  it('makes everyone a learner and adds granted roles', () => {
+    expect(rolesFromClaims(undefined)).toEqual(['learner']);
+    expect(rolesFromClaims({ educator: true })).toEqual(['learner', 'educator']);
+    expect(rolesFromClaims({ educator: true, admin: true })).toEqual([
+      'learner',
+      'educator',
+      'admin',
     ]);
-    expect(rolesFromClaims({ kulapati: false })).toEqual(['shishya']);
+    expect(rolesFromClaims({ admin: false })).toEqual(['learner']);
   });
 });
 
@@ -24,77 +24,75 @@ describe('isAllowedEmail', () => {
   });
 });
 
-const kulapati = { uid: 'k', email: 'k@nonstopio.com', claims: { kulapati: true } };
+const admin = { uid: 'k', email: 'k@nonstopio.com', claims: { admin: true } };
 
 describe('planRoleChange', () => {
   it('merges the change into the current claims', () => {
-    expect(planRoleChange(kulapati, 'u', undefined, { acharya: true })).toEqual({
-      claims: { acharya: true, kulapati: false },
-      roles: ['shishya', 'acharya'],
+    expect(planRoleChange(admin, 'u', undefined, { educator: true })).toEqual({
+      claims: { educator: true, admin: false },
+      roles: ['learner', 'educator'],
     });
-    expect(planRoleChange(kulapati, 'u', { acharya: true }, { kulapati: true })).toEqual({
-      claims: { acharya: true, kulapati: true },
-      roles: ['shishya', 'acharya', 'kulapati'],
+    expect(planRoleChange(admin, 'u', { educator: true }, { admin: true })).toEqual({
+      claims: { educator: true, admin: true },
+      roles: ['learner', 'educator', 'admin'],
     });
     expect(
-      planRoleChange(kulapati, 'u', { acharya: true, kulapati: true }, { acharya: false }).claims,
+      planRoleChange(admin, 'u', { educator: true, admin: true }, { educator: false }).claims,
     ).toEqual({
-      acharya: false,
-      kulapati: true,
+      educator: false,
+      admin: true,
     });
   });
 
-  it('refuses a caller who is not a NonStop Kulapati', () => {
+  it('refuses a caller who is not a NonStop Admin', () => {
     const denied = (caller: Parameters<typeof planRoleChange>[0]) => () =>
-      planRoleChange(caller, 'u', undefined, { acharya: true });
+      planRoleChange(caller, 'u', undefined, { educator: true });
     const refused = expect.objectContaining({ code: 'AUTH_2001', params: ['setRoles'] });
-    expect(denied({ uid: 'a', email: 'a@nonstopio.com', claims: { acharya: true } })).toThrowError(
+    expect(denied({ uid: 'a', email: 'a@nonstopio.com', claims: { educator: true } })).toThrowError(
       refused,
     );
     expect(denied({ uid: 'a', email: 'a@nonstopio.com', claims: undefined })).toThrowError(refused);
-    expect(denied({ uid: 'a', email: 'a@gmail.com', claims: { kulapati: true } })).toThrowError(
+    expect(denied({ uid: 'a', email: 'a@gmail.com', claims: { admin: true } })).toThrowError(
       refused,
     );
-    expect(denied({ uid: 'a', claims: { kulapati: true } })).toThrowError(refused);
+    expect(denied({ uid: 'a', claims: { admin: true } })).toThrowError(refused);
   });
 
   it('refuses an empty or non-boolean change', () => {
-    const plan = (c: object) => () => planRoleChange(kulapati, 'u', undefined, c);
+    const plan = (c: object) => () => planRoleChange(admin, 'u', undefined, c);
     expect(plan({})).toThrowError(expect.objectContaining({ code: 'VAL_1001' }));
-    expect(plan({ acharya: 'yes' })).toThrowError(
-      expect.objectContaining({ code: 'VAL_1002', details: { field: 'acharya' } }),
+    expect(plan({ educator: 'yes' })).toThrowError(
+      expect.objectContaining({ code: 'VAL_1002', details: { field: 'educator' } }),
     );
-    expect(plan({ kulapati: 1 })).toThrowError(
-      expect.objectContaining({ code: 'VAL_1002', details: { field: 'kulapati' } }),
+    expect(plan({ admin: 1 })).toThrowError(
+      expect.objectContaining({ code: 'VAL_1002', details: { field: 'admin' } }),
     );
   });
 
-  it('refuses removing your own Kulapati role, but not your own Acharya role', () => {
-    expect(() => planRoleChange(kulapati, 'k', kulapati.claims, { kulapati: false })).toThrowError(
+  it('refuses removing your own Admin role, but not your own Educator role', () => {
+    expect(() => planRoleChange(admin, 'k', admin.claims, { admin: false })).toThrowError(
       expect.objectContaining({ code: 'USR_1001' }),
     );
-    expect(planRoleChange(kulapati, 'k', kulapati.claims, { acharya: true }).claims.kulapati).toBe(
-      true,
-    );
+    expect(planRoleChange(admin, 'k', admin.claims, { educator: true }).claims.admin).toBe(true);
   });
 });
 
 describe('planRoleChange course grants', () => {
   it('carries a de-duplicated grant list, alone or with a role', () => {
     expect(
-      planRoleChange(kulapati, 'u', undefined, { grantedCourseIds: ['git', 'sql', 'git'] }),
+      planRoleChange(admin, 'u', undefined, { grantedCourseIds: ['git', 'sql', 'git'] }),
     ).toEqual({
-      claims: { acharya: false, kulapati: false },
-      roles: ['shishya'],
+      claims: { educator: false, admin: false },
+      roles: ['learner'],
       grantedCourseIds: ['git', 'sql'],
     });
     expect(
-      planRoleChange(kulapati, 'u', undefined, { acharya: true, grantedCourseIds: [] }),
-    ).toMatchObject({ roles: ['shishya', 'acharya'], grantedCourseIds: [] });
+      planRoleChange(admin, 'u', undefined, { educator: true, grantedCourseIds: [] }),
+    ).toMatchObject({ roles: ['learner', 'educator'], grantedCourseIds: [] });
   });
 
   it('leaves the plan without grants when none were given', () => {
-    expect(planRoleChange(kulapati, 'u', undefined, { acharya: true })).not.toHaveProperty(
+    expect(planRoleChange(admin, 'u', undefined, { educator: true })).not.toHaveProperty(
       'grantedCourseIds',
     );
   });
@@ -107,7 +105,7 @@ describe('planRoleChange course grants', () => {
     ['more than 50', Array.from({ length: 51 }, (_, i) => `c${i}`)],
   ])('rejects grants that are %s', (_n, ids) => {
     expect(() =>
-      planRoleChange(kulapati, 'u', undefined, { grantedCourseIds: ids as never }),
+      planRoleChange(admin, 'u', undefined, { grantedCourseIds: ids as never }),
     ).toThrowError(
       expect.objectContaining({ code: 'VAL_1002', details: { field: 'grantedCourseIds' } }),
     );
@@ -116,7 +114,7 @@ describe('planRoleChange course grants', () => {
   it('accepts exactly 50 grants', () => {
     const ids = Array.from({ length: 50 }, (_, i) => `c${i}`);
     expect(
-      planRoleChange(kulapati, 'u', undefined, { grantedCourseIds: ids }).grantedCourseIds,
+      planRoleChange(admin, 'u', undefined, { grantedCourseIds: ids }).grantedCourseIds,
     ).toHaveLength(50);
   });
 });

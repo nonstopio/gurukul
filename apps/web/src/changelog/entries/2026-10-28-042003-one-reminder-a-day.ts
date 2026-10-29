@@ -4,7 +4,7 @@ export default {
   date: '2026-10-28',
   id: 'ONE-REMINDER',
   title: 'Reminder emails come once a day at most, and only for mandatory courses',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'fix',
   why:
     'Someone with three unfinished courses could get three reminder emails on the same morning, ' +
@@ -13,7 +13,7 @@ export default {
   detail: [
     'The daily reminder only covers mandatory assignments; optional ones are never chased automatically.',
     'A person with several courses due gets one email listing them all, each with its due date.',
-    'Anyone already reminded today, by the daily run or by a Kulapati, is left alone until tomorrow.',
+    'Anyone already reminded today, by the daily run or by an Admin, is left alone until tomorrow.',
     '"Reminders sent" in the Learners screen now counts people emailed, not assignments.',
   ],
 } satisfies ChangelogEntry;

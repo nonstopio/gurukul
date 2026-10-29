@@ -85,7 +85,7 @@ const QUIZ_STATES: Array<[QuizOptionState, 'A' | 'B' | 'C' | 'D']> = [
   ['incorrect', 'C'],
   ['locked', 'D'],
 ];
-const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'pariksha'];
+const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'quiz'];
 const ICONS = {
   AlertIcon,
   BookIcon,
@@ -110,9 +110,9 @@ const ICONS = {
 const TOAST_TONES: ToastTone[] = ['info', 'success', 'danger'];
 const FUNNEL = [
   { label: 'Started', value: 120 },
-  { label: 'Finished Parva 1', value: 96 },
-  { label: 'Finished Parva 2', value: 52 },
-  { label: 'Passed Pariksha', value: 48 },
+  { label: 'Finished Chapter 1', value: 96 },
+  { label: 'Finished Chapter 2', value: 52 },
+  { label: 'Passed Quiz', value: 48 },
 ];
 const MONTHS = [
   { label: 'Jul', value: 12 },
@@ -287,7 +287,7 @@ function Quiz() {
 function Data() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>(['a']);
-  const [items, setItems] = useState(['Intro', 'Basics', 'Pariksha']);
+  const [items, setItems] = useState(['Intro', 'Basics', 'Quiz']);
   const [note, setNote] = useState('');
   return (
     <>
@@ -412,7 +412,7 @@ function Media() {
           credentialId="GK-EXAMPLE-0001"
           verifyUrl="gurukul.example.com/verify/example"
           signatoryName="Meera Iyer"
-          signatoryRole="Kulapati"
+          signatoryRole="Admin"
         />
       </div>
       <div className="ui-gallery__frame ui-gallery__frame--cert">
@@ -424,7 +424,7 @@ function Media() {
           credentialId="GK-EXAMPLE-0002"
           verifyUrl="gurukul.example.com/verify/example"
           signatoryName="Meera Iyer"
-          signatoryRole="Kulapati"
+          signatoryRole="Admin"
         />
       </div>
     </>
@@ -468,7 +468,7 @@ export function UiGalleryPage() {
       </Section>
       <Section id="surfaces" title="Card, callout, empty state">
         <Card>A card</Card>
-        <Card highlighted>The current parva</Card>
+        <Card highlighted>The current chapter</Card>
         {CALLOUT_TONES.map((t) => (
           <Callout key={t} tone={t} title={`A ${t}`}>
             Body text for the {t} callout.
@@ -535,7 +535,7 @@ export function UiGalleryPage() {
       <Section id="media" title="Video and certificate">
         <Media />
       </Section>
-      <Section id="quiz" title="Pariksha">
+      <Section id="quiz" title="Quiz">
         <Quiz />
       </Section>
       <Section id="data" title="Tables, lists and charts">

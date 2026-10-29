@@ -23,6 +23,7 @@ import {
 import type { AssignedCourse } from './learn/model';
 import { TeamPrompt } from './learn/TeamPrompt';
 import { CoverTile, Loaded } from './learn/ui';
+import { useTerms } from './labels/useTerms';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
@@ -48,10 +49,11 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   }, [data, uid]);
   const result = useAsync(load);
   const name = firstName(user.displayName);
+  const t = useTerms();
 
   return (
     <main className="page">
-      <p className="page__kicker">Shishya · My learning</p>
+      <p className="page__kicker">{`${t.Learner} · My learning`}</p>
       <h1 className="page__title">{name ? `Namaste, ${name}` : 'Namaste'}</h1>
       {team === null ? <TeamPrompt /> : null}
       <Loaded loadable={result}>
@@ -70,7 +72,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
           return (
             <>
               {current ? (
-                <p className="page__status">{statusLine(current.course, current.progress)}</p>
+                <p className="page__status">{statusLine(current.course, current.progress, t)}</p>
               ) : null}
               {current ? (
                 <Card

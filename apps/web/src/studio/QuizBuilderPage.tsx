@@ -6,25 +6,27 @@ import { userMessageOf } from '../api';
 import { useUser } from '../auth/AuthProvider';
 import { useConsole } from '../console/ConsoleProvider';
 import { useAsync } from '../data/useAsync';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DraftGate } from './DraftGate';
 import { EditorBar, PreviewLink } from './EditorBar';
 import { lessonsOf } from './lessonEdit';
 import { ImportDialog } from './questions/ImportDialog';
-import { ParikshaSettings } from './questions/ParikshaSettings';
+import { QuizSettings } from './questions/QuizSettings';
 import { QuestionEditor } from './questions/QuestionEditor';
 import {
   addQuestion,
   bankEntry,
-  findPariksha,
+  findQuiz,
   firstTryPercent,
   importFromBank,
   isLowFirstTry,
   moveQuestion,
   newQuestion,
   removeQuestion,
-  updatePariksha,
+  updateQuiz,
   updateQuestion,
 } from './questionEdit';
 import type { Keyed } from './questionEdit';
@@ -33,16 +35,14 @@ import type { BankQuestion, Working } from './types';
 import { useDraft } from './useDraft';
 import type { DraftApi } from './useDraft';
 
-/** `/studio/courses/:courseId/pariksha/:parikshaId`: question list, question editor and Pariksha settings. */
-export function ParikshaBuilderPage() {
-  const { courseId = '', parikshaId = '' } = useParams();
+/** `/studio/courses/:courseId/quiz/:quizId`: question list, question editor and Quiz settings. */
+export function QuizBuilderPage() {
+  const { courseId = '', quizId = '' } = useParams();
   const draft = useDraft(courseId);
   return (
     <main className="page studio-editor">
       <DraftGate draft={draft}>
-        {(work) => (
-          <Builder draft={draft} work={work} courseId={courseId} parikshaId={parikshaId} />
-        )}
+        {(work) => <Builder draft={draft} work={work} courseId={courseId} quizId={quizId} />}
       </DraftGate>
     </main>
   );
@@ -52,16 +52,17 @@ function Builder({
   draft,
   work,
   courseId,
-  parikshaId,
+  quizId,
 }: {
   draft: DraftApi;
   work: Working;
   courseId: string;
-  parikshaId: string;
+  quizId: string;
 }) {
   const { data } = useStudio();
   const { uid } = useUser();
   const toast = useToast();
+  const t = useTerms();
   const consoleApi = useConsole();
   const stats = useAsync(
     useCallback(() => consoleApi.data.courseStats(courseId), [consoleApi, courseId]),
@@ -72,22 +73,22 @@ function Builder({
   const [deleting, setDeleting] = useState<string | null>(null);
   const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
 
-  const pariksha = findPariksha(work.course, parikshaId);
+  const quiz = findQuiz(work.course, quizId);
   const crumbs = [
-    { label: 'Studio', render: (p: object) => <Link to="/studio" {...p} /> },
+    { label: t.Studio, render: (p: object) => <Link to="/studio" {...p} /> },
     {
       label: work.course.title,
       render: (p: object) => <Link to={`/studio/courses/${courseId}`} {...p} />,
     },
-    { label: pariksha?.title || 'Pariksha' },
+    { label: quiz?.title || t.Quiz },
   ];
-  if (!pariksha) {
+  if (!quiz) {
     return (
       <>
         <EditorBar crumbs={crumbs} draft={draft} />
         <EmptyState
           headingAs="h2"
-          title="This Pariksha does not exist"
+          title={`This ${t.Quiz} does not exist`}
           action={
             <Link className={buttonClass('secondary')} to={`/studio/courses/${courseId}`}>
               Back to the course
@@ -101,14 +102,14 @@ function Builder({
   }
 
   const firstTry = stats.state === 'ready' ? stats.value : null;
-  const current = pariksha.questions.find((q) => q.id === selectedId) ?? pariksha.questions[0];
+  const current = quiz.questions.find((q) => q.id === selectedId) ?? quiz.questions[0];
   const keyed: Keyed | null = current
-    ? { question: current, key: work.answers[parikshaId]?.[current.id] ?? [] }
+    ? { question: current, key: work.answers[quizId]?.[current.id] ?? [] }
     : null;
-  const count = pariksha.questions.length;
+  const count = quiz.questions.length;
 
   const add = (made: Keyed) => {
-    draft.update((w) => addQuestion(w, parikshaId, made));
+    draft.update((w) => addQuestion(w, quizId, made));
     setSelectedId(made.question.id);
   };
   const importOne = (bank: BankQuestion) => {
@@ -117,7 +118,7 @@ function Builder({
     toast.show('Added from the question bank', { tone: 'success' });
   };
   const saveToBank = async (entry: Keyed, tags: string[]) => {
-    const ids = { courseId, parikshaId, questionId: entry.question.id };
+    const ids = { courseId, quizId, questionId: entry.question.id };
     try {
       await data.addToBank(bankEntry(entry, tags), uid);
       log.info('Question saved to the bank', ids);
@@ -133,7 +134,7 @@ function Builder({
   const insightFor = (questionId: string): string | null => {
     const tries = firstTry?.questionFirstTry[questionId];
     return tries && isLowFirstTry(firstTry, questionId)
-      ? `${Math.round((tries.correct / tries.total) * 100)}% of learners got this right first time (${tries.total} tries). Check the wording and the explanation.`
+      ? `${Math.round((tries.correct / tries.total) * 100)}% of ${t.learners} got this right first time (${tries.total} tries). Check the wording and the explanation.`
       : null;
   };
 
@@ -143,8 +144,8 @@ function Builder({
         crumbs={crumbs}
         draft={draft}
         actions={
-          <PreviewLink draft={draft} to={`/studio/courses/${courseId}/preview/${parikshaId}`}>
-            Try it as a learner
+          <PreviewLink draft={draft} to={`/studio/courses/${courseId}/preview/${quizId}`}>
+            {`Try it as ${article(t.learner)}`}
           </PreviewLink>
         }
       />
@@ -160,10 +161,10 @@ function Builder({
           </div>
           <DragList
             label="Questions"
-            items={pariksha.questions}
+            items={quiz.questions}
             itemKey={(q) => q.id}
             itemLabel={(q) => `question: ${q.prompt.slice(0, 40)}`}
-            onMove={(from, to) => draft.update((w) => moveQuestion(w, parikshaId, from, to))}
+            onMove={(from, to) => draft.update((w) => moveQuestion(w, quizId, from, to))}
             renderItem={(q, { index, handle }) => (
               <div className="studio-qrow" data-current={q.id === current?.id || undefined}>
                 {handle}
@@ -177,7 +178,10 @@ function Builder({
                   <span className="studio-qrow__text">{q.prompt}</span>
                 </button>
                 {firstTryPercent(firstTry, q.id) !== null ? (
-                  <span className="studio-qrow__pct" title="Learners who got this right first time">
+                  <span
+                    className="studio-qrow__pct"
+                    title={`${t.Learners} who got this right first time`}
+                  >
                     {firstTryPercent(firstTry, q.id)}% first try
                   </span>
                 ) : null}
@@ -199,11 +203,11 @@ function Builder({
               keyed={keyed}
               lessons={lessonsOf(work.course)}
               issues={issues.filter(
-                (i) => i.itemId === parikshaId && i.questionId === keyed.question.id,
+                (i) => i.itemId === quizId && i.questionId === keyed.question.id,
               )}
               insight={insightFor(keyed.question.id)}
               onEdit={(edit) =>
-                draft.update((w) => updateQuestion(w, parikshaId, keyed.question.id, edit))
+                draft.update((w) => updateQuestion(w, quizId, keyed.question.id, edit))
               }
               onDelete={() => setDeleting(keyed.question.id)}
               onSaveToBank={(tags) => void saveToBank(keyed, tags)}
@@ -214,16 +218,16 @@ function Builder({
               title="No questions yet"
               action={<Button onClick={() => add(newQuestion())}>Add the first question</Button>}
             >
-              A Pariksha needs at least one question before it can be published.
+              {`A ${t.Quiz} needs at least one question before it can be published.`}
             </EmptyState>
           )}
         </Card>
 
-        <Card as="section" className="studio-qsettings" aria-label="Pariksha settings">
-          <ParikshaSettings
-            pariksha={pariksha}
+        <Card as="section" className="studio-qsettings" aria-label={`${t.Quiz} settings`}>
+          <QuizSettings
+            quiz={quiz}
             coursePassPercent={Math.round(work.course.rules.passMark * 100)}
-            onChange={(edit) => draft.update((w) => updatePariksha(w, parikshaId, edit))}
+            onChange={(edit) => draft.update((w) => updateQuiz(w, quizId, edit))}
           />
         </Card>
       </div>
@@ -234,7 +238,7 @@ function Builder({
           confirmLabel="Delete question"
           onClose={() => setDeleting(null)}
           onConfirm={() => {
-            draft.update((w) => removeQuestion(w, parikshaId, deleting));
+            draft.update((w) => removeQuestion(w, quizId, deleting));
             setDeleting(null);
           }}
         >

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Pariksha } from '@gurukul/schema';
+import type { Quiz } from '@gurukul/schema';
 import {
   answerLetters,
   cooldownRemaining,
@@ -9,7 +9,7 @@ import {
   sameAnswer,
   formatCountdown,
   formatWait,
-  parvaNumber,
+  chapterNumber,
   reviewOfAttempt,
   itemAfter,
   itemPath,
@@ -17,7 +17,7 @@ import {
   longDate,
   pickQuestions,
   shuffle,
-} from '../src/pariksha/model';
+} from '../src/quiz/model';
 import { attemptRow, makeCourse } from './fake-data';
 
 const q = (id: string) => ({
@@ -31,8 +31,8 @@ const q = (id: string) => ({
   ],
   explanation: '',
 });
-const pariksha = (over: Partial<Pariksha> = {}): Pariksha => ({
-  type: 'pariksha',
+const quiz = (over: Partial<Quiz> = {}): Quiz => ({
+  type: 'quiz',
   id: 'p',
   title: 'P',
   questionsShown: 2,
@@ -63,12 +63,12 @@ describe('shuffle', () => {
 
 describe('pickQuestions', () => {
   it('draws questionsShown from a larger pool', () => {
-    const picked = pickQuestions(pariksha(), () => 0);
+    const picked = pickQuestions(quiz(), () => 0);
     expect(picked).toHaveLength(2);
     expect(new Set(picked.map((x) => x.id)).size).toBe(2);
   });
   it('shows the whole pool, in order, when it is no larger than questionsShown', () => {
-    expect(pickQuestions(pariksha({ questionsShown: 4 })).map((x) => x.id)).toEqual([
+    expect(pickQuestions(quiz({ questionsShown: 4 })).map((x) => x.id)).toEqual([
       '1',
       '2',
       '3',
@@ -76,16 +76,16 @@ describe('pickQuestions', () => {
     ]);
   });
   it('shuffles options only when asked, without touching the course', () => {
-    const p = pariksha({ shuffleOptions: true, questionsShown: 4 });
+    const p = quiz({ shuffleOptions: true, questionsShown: 4 });
     const out = pickQuestions(p, () => 0);
     expect(out[0]?.options.map((o) => o.id)).toEqual(['b', 'c', 'a']);
     expect(p.questions[0]?.options.map((o) => o.id)).toEqual(['a', 'b', 'c']);
     expect(
-      pickQuestions(pariksha({ questionsShown: 4 }), () => 0)[0]?.options.map((o) => o.id),
+      pickQuestions(quiz({ questionsShown: 4 }), () => 0)[0]?.options.map((o) => o.id),
     ).toEqual(['a', 'b', 'c']);
   });
   it('defaults to Math.random', () => {
-    expect(pickQuestions(pariksha())).toHaveLength(2);
+    expect(pickQuestions(quiz())).toHaveLength(2);
     expect(seq(0.5)()).toBe(0.5);
   });
 });
@@ -115,7 +115,7 @@ describe('items and links', () => {
     expect(itemAfter(course, 'l1')?.id).toBe('l2');
     expect(itemAfter(course, 'l4')).toBeUndefined();
     expect(itemPath('git', { id: 'l1', type: 'lesson' })).toBe('/courses/git/learn/l1');
-    expect(itemPath('git', { id: 'q1', type: 'pariksha' })).toBe('/courses/git/pariksha/q1');
+    expect(itemPath('git', { id: 'q1', type: 'quiz' })).toBe('/courses/git/quiz/q1');
   });
 
   it('builds the LinkedIn certification link', () => {
@@ -144,7 +144,7 @@ describe('items and links', () => {
 
 describe('drafts', () => {
   it('records a draw by id and restores it with the options in the saved order', () => {
-    const p = pariksha();
+    const p = quiz();
     const order = drawOrder([{ ...q('2'), options: [...q('2').options].reverse() }, q('1')]);
     expect(order).toEqual([
       { id: '2', optionIds: ['c', 'b', 'a'] },
@@ -155,8 +155,8 @@ describe('drafts', () => {
     expect(restored?.[0]?.options.map((o) => o.text)).toEqual(['C', 'B', 'A']);
   });
 
-  it('gives up on a draw the Pariksha no longer matches', () => {
-    const p = pariksha();
+  it('gives up on a draw the Quiz no longer matches', () => {
+    const p = quiz();
     expect(restoreQuestions(p, [])).toBeNull();
     expect(restoreQuestions(p, [{ id: 'gone', optionIds: ['a', 'b', 'c'] }])).toBeNull();
     expect(restoreQuestions(p, [{ id: '1', optionIds: ['a', 'b'] }])).toBeNull();
@@ -195,11 +195,11 @@ describe('formatCountdown', () => {
   });
 });
 
-describe('parvaNumber', () => {
-  it('numbers parvas from one, and gives 0 for an item no parva holds', () => {
-    expect(parvaNumber(makeCourse(), 'l1')).toBe(1);
-    expect(parvaNumber(makeCourse(), 'q1')).toBe(2);
-    expect(parvaNumber(makeCourse(), 'nope')).toBe(0);
+describe('chapterNumber', () => {
+  it('numbers chapters from one, and gives 0 for an item no chapter holds', () => {
+    expect(chapterNumber(makeCourse(), 'l1')).toBe(1);
+    expect(chapterNumber(makeCourse(), 'q1')).toBe(2);
+    expect(chapterNumber(makeCourse(), 'nope')).toBe(0);
   });
 });
 
@@ -213,7 +213,7 @@ describe('reviewOfAttempt', () => {
       { questionId: '1', correct: false },
     ],
   });
-  const withExplanations = pariksha({
+  const withExplanations = quiz({
     questions: ['1', '2'].map((id) => ({ ...q(id), explanation: `Why ${id}` })),
   });
 
@@ -232,6 +232,6 @@ describe('reviewOfAttempt', () => {
     ).toEqual(['Why 2', undefined, 'Why 1']);
     const never = { ...withExplanations, revealAnswers: 'never' as const };
     expect(reviewOfAttempt(never, attempt).results.some((r) => r.explanation)).toBe(false);
-    expect(reviewOfAttempt(pariksha(), attempt).results.some((r) => r.explanation)).toBe(false);
+    expect(reviewOfAttempt(quiz(), attempt).results.some((r) => r.explanation)).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 # 05 · Learner experience
 
-Screens: Sign in, Home, Course overview, Lesson player, Pariksha, Result,
+Screens: Sign in, Home, Course overview, Lesson player, Quiz, Result,
 Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`.
 
 ## Journey
@@ -11,16 +11,16 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    assigned courses (mandatory first, then by due date), and recent activity.
    A learner with no team (and a teams list in Org settings) is asked to pick
    one, so "whole team" assignments and the team filter reach them.
-3. **Course overview** shows description, outcomes, the parva list with
+3. **Course overview** shows description, outcomes, the chapter list with
    per-item state, progress ring, due date and the resume button.
 4. **Lesson player** renders the lesson's blocks in its layout; the outline
    rail shows where you are. "Mark complete" saves and moves to the next item.
-5. **Pariksha** after a parva: one question per screen, answer feedback as
+5. **Quiz** after a chapter: one question per screen, answer feedback as
    configured, each answer saved in the browser as it is checked or left
    (with the draw and any verdict shown), so a reload carries on. The server
    records the attempt only at Finish; another device starts afresh.
 6. **Result**: score, pass/fail, review with explanations and "Revisit lesson:
-   {title}" links; next parva unlocks on pass ("Continue to Parva n"), and a
+   {title}" links; next chapter unlocks on pass ("Continue to Chapter n"), and a
    cooldown counts down live to Retake. Opened again (reload, bookmark, another
    device) it reads the latest recorded attempt; that review names the
    learner's answers but not the right options, which only `gradeAttempt`
@@ -32,15 +32,15 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 
 - The resume point is `lastItemId`. "Resume" opens it; if that item was
   deleted in a newer version, resume opens the first incomplete item.
-- Item states: done, current, available, locked (sequential courses: a parva
-  is locked until the previous parva's Pariksha is passed, or all its lessons
+- Item states: done, current, available, locked (sequential courses: a chapter
+  is locked until the previous chapter's Quiz is passed, or all its lessons
   done if it has none).
 - Opening a lesson sets `lastItemId`; it is **not** completed until the rule
   in `completeWhen` is met.
 - Progress percent is computed by a function and also locally (same pure
   helper from `@gurukul/schema`) so the UI updates instantly.
 - Offline: Firestore's local cache keeps the last opened course readable;
-  completion writes queue and sync. Parikshas need a connection (they call a function).
+  completion writes queue and sync. Quizzes need a connection (they call a function).
 
 ## Catalogue
 
@@ -61,7 +61,7 @@ Google Drive, CodeSandbox, StackBlitz).
 | Case | Behaviour |
 |---|---|
 | No assignments yet | Home shows the catalogue with a friendly empty state |
-| Course archived after assignment | Shown as "Retired" on Home, the course page and in the player; progress and certificate kept, lessons stay readable. Its Parikshas are closed: the Pariksha screen says so instead of drawing questions, and `checkAnswer`/`gradeAttempt` refuse it with `CRS_1004`, so it can no longer be finished |
+| Course archived after assignment | Shown as "Retired" on Home, the course page and in the player; progress and certificate kept, lessons stay readable. Its Quizzes are closed: the Quiz screen says so instead of drawing questions, and `checkAnswer`/`gradeAttempt` refuse it with `CRS_1004`, so it can no longer be finished |
 | Course gets new lessons after completion | Certificate kept; course shows "New lessons added" on its Home row and page (`completedAt` set and the percent against the current course below 100) |
 | Video blocked by network | Fallback link to open the video in a new tab |
 | Video must be watched (`video90`, or `rules.requireVideoWatch` and the lesson has a video) | YouTube (IFrame API) and Loom (player.js) count the seconds actually played; "Mark complete" enables at 90%, seeking ahead does not count. Drive has no player API, and a player that has not answered 15 s after loading is treated the same: the learner confirms with "I have watched the video". Watch progress is not saved; reopening the lesson starts again |

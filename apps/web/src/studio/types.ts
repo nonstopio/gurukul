@@ -45,7 +45,7 @@ export interface BankQuestion {
  */
 export interface StudioData {
   /** Every course the person can see: published and archived ones, plus the drafts they may edit. */
-  listCourses(uid: string, kulapati: boolean): Promise<StudioCourse[]>;
+  listCourses(uid: string, admin: boolean): Promise<StudioCourse[]>;
   getDraft(courseId: string): Promise<DraftDoc | null>;
   /** Saves with `baseRev`; throws `DraftConflictError` when the stored rev has moved on. */
   saveDraft(courseId: string, work: Working, baseRev: number, uid: string): Promise<number>;
@@ -54,7 +54,7 @@ export interface StudioData {
   questionBank(): Promise<BankQuestion[]>;
   addToBank(entry: Omit<BankQuestion, 'id' | 'createdBy'>, uid: string): Promise<string>;
   removeFromBank(id: string): Promise<void>;
-  /** How many learners have completed this lesson (one count query; Kulapati and the course's Acharyas may run it). */
+  /** How many learners have completed this lesson (one count query; Admin and the course's Educators may run it). */
   completedCount(courseId: string, lessonId: string): Promise<number>;
 }
 

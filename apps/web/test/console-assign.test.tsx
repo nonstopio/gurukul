@@ -6,15 +6,15 @@ import { fakeData, makeCourse } from './fake-data';
 import { openApp } from './harness';
 import type { KnownEmails } from '../src/console/types';
 
-const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
-const PATH = '/kulapati/assign';
+const admin = { roles: ['admin'] as Array<'admin'> };
+const PATH = '/admin/assign';
 const draft = makeCourse({ id: 'draft', title: 'Draft course', status: 'draft' });
 const sql = makeCourse({ id: 'sql', title: 'SQL basics' });
 const base = makeCourse();
 const one = makeCourse({
   id: 'one',
   title: 'One lesson',
-  parvas: [{ id: 'p1', title: 'Only', items: base.parvas.flatMap((p) => p.items).slice(0, 1) }],
+  chapters: [{ id: 'p1', title: 'Only', items: base.chapters.flatMap((p) => p.items).slice(0, 1) }],
 });
 
 function setup(over: Parameters<typeof fakeConsole>[0] = {}) {
@@ -39,7 +39,7 @@ async function addEmails(...emails: string[]) {
 describe('Assign courses', () => {
   it('lists only published courses and keeps the button off until there is something to assign', async () => {
     const c = setup();
-    const { container } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    const { container } = await openApp(PATH, { ...admin, console: c, data: data() });
     expect(await screen.findByLabelText(/Git, the NonStop Way/)).toBeTruthy();
     expect(screen.getByLabelText(/SQL basics/)).toBeTruthy();
     expect(screen.queryByLabelText(/Draft course/)).toBeNull();
@@ -51,7 +51,7 @@ describe('Assign courses', () => {
 
   it('classifies pasted emails and previews exactly what will happen', async () => {
     const c = setup();
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails(
       'a@nonstopio.com',
@@ -81,7 +81,7 @@ describe('Assign courses', () => {
 
   it('speaks of one person and one course in the singular, several courses by count', async () => {
     const c = setup();
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     expect(await screen.findByRole('button', { name: 'Assign to 1 person' })).toBeTruthy();
@@ -95,7 +95,7 @@ describe('Assign courses', () => {
 
   it('assigns with the deadline, reminder and toggles, then opens the learners list', async () => {
     const c = setup();
-    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    const { router } = await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com', 'new@nonstopio.com');
     fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
@@ -114,13 +114,13 @@ describe('Assign courses', () => {
       }),
     );
     expect(await screen.findByText('Assigned to 2 people (1 pending invite)')).toBeTruthy();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/learners'));
     expect(router.state.location.search).toBe('?course=git');
   });
 
   it('sends no deadline when none is set', async () => {
     const c = setup();
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     fireEvent.click(await screen.findByRole('button', { name: 'Assign to 1 person' }));
@@ -134,7 +134,7 @@ describe('Assign courses', () => {
   it('stays put and says nothing was changed when assigning fails', async () => {
     const c = setup();
     c.service.assignCourses = vi.fn().mockRejectedValue(new Error('x'));
-    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    const { router } = await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     fireEvent.click(await screen.findByRole('button', { name: 'Assign to 1 person' }));
@@ -151,7 +151,7 @@ describe('Assign courses', () => {
     const c = setup();
     await openApp(
       { pathname: PATH, state: { emails: ['a@nonstopio.com'], courseId: 'git' } },
-      { ...kulapati, console: c, data: data() },
+      { ...admin, console: c, data: data() },
     );
     expect(
       ((await screen.findByLabelText(/Git, the NonStop Way/)) as HTMLInputElement).checked,
@@ -163,7 +163,7 @@ describe('Assign courses', () => {
     const c = setup();
     await openApp(
       { pathname: PATH, state: { emails: ['a@nonstopio.com'], courseId: 'gone' } },
-      { ...kulapati, console: c, data: data() },
+      { ...admin, console: c, data: data() },
     );
     expect(await screen.findByText(/person will get this course/)).toBeTruthy();
   });
@@ -179,7 +179,7 @@ describe('Assign courses', () => {
         assigned: new Set(),
         byCourse: {},
       });
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     release({ signedIn: new Set(), assigned: new Set(['a@nonstopio.com']), byCourse: {} });
@@ -193,7 +193,7 @@ describe('Assign courses', () => {
         userRow(8, { displayName: '', email: 'sam@nonstopio.com' }),
       ],
     });
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     await screen.findByLabelText(/Git, the NonStop Way/);
     fireEvent.change(screen.getByLabelText('Search by name or email'), { target: { value: 'r' } });
     expect(c.data.searchUsers).not.toHaveBeenCalled();
@@ -211,7 +211,7 @@ describe('Assign courses', () => {
 
   it('shows the paste hint, reads a CSV, and ignores an empty file choice', async () => {
     const c = setup();
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     await screen.findByLabelText(/Git, the NonStop Way/);
     fireEvent.click(screen.getByRole('tab', { name: 'Paste emails' }));
     expect(screen.getByText(/Paste a list into the box above/)).toBeTruthy();
@@ -228,7 +228,7 @@ describe('Assign courses', () => {
     const c = setup({
       team: [userRow(1, { email: 'q1@nonstopio.com' }), userRow(2, { email: 'q2@nonstopio.com' })],
     });
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     await screen.findByLabelText(/Git, the NonStop Way/);
     fireEvent.click(screen.getByRole('tab', { name: 'Whole team' }));
     const add = screen.getByRole('button', {
@@ -251,7 +251,7 @@ describe('Assign screen details', () => {
       notified: 0,
       failed: [],
     });
-    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    const { router } = await openApp(PATH, { ...admin, console: c, data: data() });
     expect((await screen.findAllByText(/4 lessons · /)).length).toBe(2);
     fireEvent.click(screen.getByRole('tab', { name: 'Whole team' }));
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
@@ -275,7 +275,7 @@ describe('Assign screen details', () => {
     fireEvent.click(screen.getByLabelText(/SQL basics/));
     fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
     expect(await screen.findByText('Assigned to 3 people (2 pending invites)')).toBeTruthy();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/learners'));
     expect(router.state.location.search).toBe('');
   });
 
@@ -287,7 +287,7 @@ describe('Assign screen details', () => {
       notified: 0,
       failed: [],
     });
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
@@ -295,7 +295,7 @@ describe('Assign screen details', () => {
   });
 
   it('says "1 lesson" for a one-lesson course', async () => {
-    await openApp(PATH, { ...kulapati, console: setup(), data: fakeData({ courses: [one] }) });
+    await openApp(PATH, { ...admin, console: setup(), data: fakeData({ courses: [one] }) });
     expect(await screen.findByText(/1 lesson · /)).toBeTruthy();
   });
 });
@@ -303,7 +303,7 @@ describe('Assign screen details', () => {
 describe('Assign: partial failures and per-course preview', () => {
   it('previews each course on its own when several are chosen', async () => {
     const c = setup();
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     fireEvent.click(screen.getByLabelText(/SQL basics/));
     await addEmails('a@nonstopio.com', 'c@nonstopio.com');
@@ -332,7 +332,7 @@ describe('Assign: partial failures and per-course preview', () => {
       })
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValue({ summary, assigned: 1, notified: 0, failed: [] });
-    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    const { router } = await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com', 'b@nonstopio.com');
     fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
@@ -343,7 +343,7 @@ describe('Assign: partial failures and per-course preview', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Could not retry. Try again.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/learners'));
     expect(c.service.assignCourses).toHaveBeenLastCalledWith(
       expect.objectContaining({ courseIds: ['gone'], emails: ['b@nonstopio.com'] }),
     );
@@ -360,7 +360,7 @@ describe('Assign: partial failures and per-course preview', () => {
       notified: 0,
       failed: [{ email: 'a@nonstopio.com', courseId: 'git' }],
     });
-    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    await openApp(PATH, { ...admin, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
     fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));

@@ -19,7 +19,7 @@ export interface ResultRowProps extends Omit<HTMLAttributes<HTMLLIElement>, 'chi
   question: ReactNode;
   /** What the learner answered. Struck through when `passed` is false. */
   yourAnswer: ReactNode;
-  /** The right answer. Omit it when the Pariksha does not reveal answers. */
+  /** The right answer. Omit it when the Quiz does not reveal answers. */
   correctAnswer?: ReactNode;
   /** The explanation slot. Omit it when there is none. */
   children?: ReactNode;
@@ -27,7 +27,7 @@ export interface ResultRowProps extends Omit<HTMLAttributes<HTMLLIElement>, 'chi
   revisit?: ResultRowRevisit;
 }
 
-/** One question in the Pariksha review. A list item: put rows inside a `<ul>`. */
+/** One question in the Quiz review. A list item: put rows inside a `<ul>`. */
 export function ResultRow({
   passed,
   question,

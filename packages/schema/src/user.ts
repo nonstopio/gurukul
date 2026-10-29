@@ -1,8 +1,16 @@
 import { z } from 'zod';
 import { timestamp } from './timestamp';
 
-export const roleSchema = z.enum(['shishya', 'acharya', 'kulapati']);
+export const roleSchema = z.enum(['learner', 'educator', 'admin']);
 export type Role = z.infer<typeof roleSchema>;
+
+/**
+ * Which names the app shows a person: `generic` (Learner, Educator, Admin, Chapter, Quiz) or
+ * `gurukul` (Shishya, Acharya, Kulapati, Parva, Pariksha). Display only: code and data always use
+ * the generic names. Unset until the person picks one on first sign-in.
+ */
+export const labelSetSchema = z.enum(['generic', 'gurukul']);
+export type LabelSet = z.infer<typeof labelSetSchema>;
 
 export const userSchema = z.object({
   email: z.email(),
@@ -14,6 +22,7 @@ export const userSchema = z.object({
   nameLower: z.string().max(120).optional(),
   photoURL: z.string().nullable(),
   team: z.string().max(80).nullable(),
+  labels: labelSetSchema.optional(),
   roles: z.array(roleSchema).min(1),
   grantedCourseIds: z.array(z.string()),
   createdAt: timestamp,
@@ -42,15 +51,15 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
 
 /** Claim keys set by the `setRoles` function. */
 export interface RoleClaims {
-  acharya?: boolean;
-  kulapati?: boolean;
+  educator?: boolean;
+  admin?: boolean;
 }
 
-/** Every signed-in person is a Shishya; the other roles are granted. */
+/** Every signed-in person is a Learner; the other roles are granted. */
 export function rolesFromClaims(claims: RoleClaims | undefined): Role[] {
-  const roles: Role[] = ['shishya'];
-  if (claims?.acharya === true) roles.push('acharya');
-  if (claims?.kulapati === true) roles.push('kulapati');
+  const roles: Role[] = ['learner'];
+  if (claims?.educator === true) roles.push('educator');
+  if (claims?.admin === true) roles.push('admin');
   return roles;
 }
 

@@ -4,6 +4,7 @@ import type { Course, PublishIssue } from '@gurukul/schema';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiClientError, userMessageOf } from '../api';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
 import { changeSummary, issuesFromDetails, itemEditorPath, nameOf } from './studioModel';
@@ -24,6 +25,7 @@ export function PublishDialog({
 }) {
   const { service, data } = useStudio();
   const toast = useToast();
+  const t = useTerms();
   const courseId = work.course.id;
   const next = (live?.version ?? 0) + 1;
   const [busy, setBusy] = useState(false);
@@ -62,7 +64,7 @@ export function PublishDialog({
     setFailure(null);
     try {
       const { version } = await service.publishCourse({ courseId });
-      toast.show(`Published v${version}. Learners see it now.`, { tone: 'success' });
+      toast.show(`Published v${version}. ${t.Learners} see it now.`, { tone: 'success' });
       onPublished(version);
       onClose();
     } catch (e) {
@@ -117,8 +119,7 @@ export function PublishDialog({
       {live?.status === 'archived' ? (
         <Callout tone="warning" title="This course is archived">
           <p>
-            Publishing makes it live again: learners see it as current instead of Retired, and its
-            Parikshas open for them again.
+            {`Publishing makes it live again: ${t.learners} see it as current instead of Retired, and its ${t.Quizzes} open for them again.`}
           </p>
         </Callout>
       ) : null}
@@ -129,7 +130,7 @@ export function PublishDialog({
       ) : null}
       <section aria-labelledby="changes-title" className="sc-changes">
         <h3 id="changes-title" className="sc-h3">
-          What changes for learners
+          {`What changes for ${t.learners}`}
         </h3>
         {live === null ? (
           <p>This is the first publication: everything in the draft goes live.</p>
@@ -137,13 +138,15 @@ export function PublishDialog({
           <p>Nothing has changed since v{live.version}.</p>
         ) : (
           <>
-            {summary.courseChanged ? <p>Course details or the order of parvas changed.</p> : null}
+            {summary.courseChanged ? (
+              <p>{`Course details or the order of ${t.chapters} changed.`}</p>
+            ) : null}
             {list('Added', summary.added)}
             {list('Edited', summary.edited)}
             {list('Removed', summary.removed, removedIds)}
             {summary.removed.length > 0 ? (
               <p className="sc-help">
-                Learners who completed a removed item keep their progress record.
+                {`${t.Learners} who completed a removed item keep their progress record.`}
               </p>
             ) : null}
           </>

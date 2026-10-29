@@ -5,17 +5,19 @@ import type { FormEvent } from 'react';
 import { useAsync } from '../data/useAsync';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { useConsole } from './ConsoleProvider';
 import { addTeam } from './model';
 
-/** `/kulapati/settings`: the teams learners pick from and whether the daily reminders run. */
+/** `/admin/settings`: the teams learners pick from and whether the daily reminders run. */
 export function SettingsPage() {
   const { data } = useConsole();
+  const t = useTerms();
   const result = useAsync(useCallback(() => data.orgSettings(), [data]));
 
   return (
     <main className="page console">
-      <p className="article__kicker">Kulapati</p>
+      <p className="article__kicker">{t.Admin}</p>
       <h1 className="page__title">Org settings</h1>
       <Loaded loadable={result}>{(saved) => <SettingsForm saved={saved} />}</Loaded>
     </main>
@@ -24,6 +26,7 @@ export function SettingsPage() {
 
 function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
   const { data } = useConsole();
+  const terms = useTerms();
   const toast = useToast();
   const [saved, setSaved] = useState(initial);
   const [teams, setTeams] = useState(initial.teams);
@@ -73,8 +76,8 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
       <section aria-labelledby="teams-title" className="home-section">
         <h2 id="teams-title">Teams</h2>
         <p>
-          Learners pick their team from this list. Learners filters by it, and Assign courses can
-          assign a whole team. Removing a team leaves it on the profiles that already have it.
+          {`${terms.Learners} pick their team from this list. ${terms.Learners} filters by it, and Assign courses can assign a whole team.`}{' '}
+          Removing a team leaves it on the profiles that already have it.
         </p>
         {teams.length === 0 ? (
           <EmptyState title="No teams yet">Add the first team below.</EmptyState>
@@ -113,7 +116,7 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
         <p>
           A daily run at 04:00 UTC (09:30 in India) sends the reminders each mandatory course was
           assigned with, weekly or before it is due, as at most one email per person a day. Off,
-          nobody is reminded automatically; you can still remind people from Learners.
+          nobody is reminded automatically; you can still remind people from {terms.Learners}.
         </p>
         <Toggle
           label="Send daily reminders"

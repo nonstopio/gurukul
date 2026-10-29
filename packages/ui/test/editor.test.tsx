@@ -134,7 +134,7 @@ describe('TypeTile', () => {
     ['reading', 'Reading'],
     ['video', 'Video'],
     ['code', 'Code'],
-    ['pariksha', 'Pariksha'],
+    ['quiz', 'Quiz'],
   ] as const)('%s carries its name as text', async (kind, name) => {
     const { container } = render(<TypeTile kind={kind} />);
     expect(screen.getByText(name)).toBeTruthy();

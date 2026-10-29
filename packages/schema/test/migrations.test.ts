@@ -5,13 +5,13 @@ import { makeCourse } from './fixtures';
 
 const withBlocks = (blocks: unknown[]) => {
   const course = makeCourse();
-  const [parva] = course.parvas;
-  const [lesson] = parva?.items ?? [];
+  const [chapter] = course.chapters;
+  const [lesson] = chapter?.items ?? [];
   if (lesson?.type === 'lesson') lesson.blocks = blocks as Lesson['blocks'];
   return course;
 };
-const blocksOf = (course: { parvas: { items: unknown[] }[] } | null) =>
-  (course?.parvas[0]?.items[0] as Lesson | undefined)?.blocks;
+const blocksOf = (course: { chapters: { items: unknown[] }[] } | null) =>
+  (course?.chapters[0]?.items[0] as Lesson | undefined)?.blocks;
 
 describe('upgradeCourse', () => {
   const steps = {
@@ -19,13 +19,13 @@ describe('upgradeCourse', () => {
     2: (c: Record<string, unknown>) => ({ ...c, title: `${String(c.title)} v3` }),
   };
 
-  it('v1 to v2 adds empty acharyaNames and keeps names a role grant already wrote', () => {
+  it('v1 to v2 adds empty educatorNames and keeps names a role grant already wrote', () => {
     const v1: Record<string, unknown> = { ...makeCourse(), schemaVersion: 1 };
-    delete v1.acharyaNames;
-    expect(upgradeCourse(v1)).toMatchObject({ schemaVersion: 3, acharyaNames: {} });
-    expect(migrateCourse(v1).acharyaNames).toEqual({});
-    expect(upgradeCourse({ ...v1, acharyaNames: { u1: 'Asha' } })).toMatchObject({
-      acharyaNames: { u1: 'Asha' },
+    delete v1.educatorNames;
+    expect(upgradeCourse(v1)).toMatchObject({ schemaVersion: 3, educatorNames: {} });
+    expect(migrateCourse(v1).educatorNames).toEqual({});
+    expect(upgradeCourse({ ...v1, educatorNames: { u1: 'Asha' } })).toMatchObject({
+      educatorNames: { u1: 'Asha' },
     });
     expect(Object.keys(MIGRATIONS)).toEqual(['1', '2']);
   });
@@ -122,7 +122,7 @@ describe('readCourse', () => {
     ['a broken course field', { ...makeCourse(), title: '' }],
     [
       'an unknown item type',
-      { ...makeCourse(), parvas: [{ id: 'p1', title: 'P', items: [{ type: 'lab', id: 'x' }] }] },
+      { ...makeCourse(), chapters: [{ id: 'p1', title: 'P', items: [{ type: 'lab', id: 'x' }] }] },
     ],
   ])('gives null for a course it cannot read at all: %s', (_, raw) => {
     expect(readCourse(raw)).toBeNull();

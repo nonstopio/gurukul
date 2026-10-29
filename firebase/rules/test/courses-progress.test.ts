@@ -26,7 +26,7 @@ const newProgress = (uid: string, courseId = 'git', over: Record<string, unknown
   lastItemId: null,
   lastActiveAt: serverTimestamp(),
   completedItemIds: [],
-  pariksha: {},
+  quiz: {},
   percent: 0,
   completedAt: null,
   certificateId: null,
@@ -42,11 +42,11 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'courses/git'), {
       status: 'published',
-      acharyaIds: ['asha'],
+      educatorIds: ['asha'],
       title: 'Git',
     });
-    await setDoc(doc(db, 'courses/wip'), { status: 'draft', acharyaIds: ['asha'], title: 'WIP' });
-    await setDoc(doc(db, 'courses/old'), { status: 'archived', acharyaIds: [], title: 'Old' });
+    await setDoc(doc(db, 'courses/wip'), { status: 'draft', educatorIds: ['asha'], title: 'WIP' });
+    await setDoc(doc(db, 'courses/old'), { status: 'archived', educatorIds: [], title: 'Old' });
     await setDoc(doc(db, 'courses/git/private/answers'), { q: { a: ['a'] } });
     await setDoc(doc(db, 'progress/priya_git'), {
       uid: 'priya',
@@ -54,7 +54,7 @@ beforeEach(async () => {
       courseVersion: 1,
       completedItemIds: ['l1'],
       lastItemId: 'l1',
-      pariksha: {},
+      quiz: {},
       percent: 10,
     });
   });
@@ -68,46 +68,42 @@ describe('courses/{id}', () => {
     await assertSucceeds(getDoc(doc(as('priya'), 'courses/git')));
     await assertSucceeds(getDoc(doc(as('priya'), 'courses/old')));
   });
-  it('hides a never-published course from learners but not from any Acharya or a Kulapati', async () => {
+  it('hides a never-published course from learners but not from any Educator or an Admin', async () => {
     await assertFails(getDoc(doc(as('priya'), 'courses/wip')));
-    await assertFails(getDoc(doc(as('priya', { acharya: false }), 'courses/wip')));
+    await assertFails(getDoc(doc(as('priya', { educator: false }), 'courses/wip')));
     await assertFails(
-      getDoc(doc(as('rohan', { acharya: true, email: 'r@gmail.com' }), 'courses/wip')),
+      getDoc(doc(as('rohan', { educator: true, email: 'r@gmail.com' }), 'courses/wip')),
     );
-    await assertSucceeds(getDoc(doc(as('rohan', { acharya: true }), 'courses/wip')));
-    await assertSucceeds(getDoc(doc(as('asha', { acharya: true }), 'courses/wip')));
-    await assertSucceeds(getDoc(doc(as('ajay', { kulapati: true }), 'courses/wip')));
+    await assertSucceeds(getDoc(doc(as('rohan', { educator: true }), 'courses/wip')));
+    await assertSucceeds(getDoc(doc(as('asha', { educator: true }), 'courses/wip')));
+    await assertSucceeds(getDoc(doc(as('ajay', { admin: true }), 'courses/wip')));
   });
   it('denies signed-out and non-NonStop reads', async () => {
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'courses/git')));
     await assertFails(getDoc(doc(as('priya', { email: 'p@gmail.com' }), 'courses/git')));
   });
-  it('denies every client write, even a Kulapati', async () => {
-    await assertFails(
-      updateDoc(doc(as('ajay', { kulapati: true }), 'courses/git'), { title: 'X' }),
-    );
-    await assertFails(setDoc(doc(as('asha', { acharya: true }), 'courses/new'), { title: 'X' }));
+  it('denies every client write, even an Admin', async () => {
+    await assertFails(updateDoc(doc(as('ajay', { admin: true }), 'courses/git'), { title: 'X' }));
+    await assertFails(setDoc(doc(as('asha', { educator: true }), 'courses/new'), { title: 'X' }));
   });
   it('never exposes the answer keys, to anyone', async () => {
-    await assertFails(getDoc(doc(as('ajay', { kulapati: true }), 'courses/git/private/answers')));
-    await assertFails(getDoc(doc(as('asha', { acharya: true }), 'courses/git/private/answers')));
-    await assertFails(
-      setDoc(doc(as('ajay', { kulapati: true }), 'courses/git/private/answers'), {}),
-    );
+    await assertFails(getDoc(doc(as('ajay', { admin: true }), 'courses/git/private/answers')));
+    await assertFails(getDoc(doc(as('asha', { educator: true }), 'courses/git/private/answers')));
+    await assertFails(setDoc(doc(as('ajay', { admin: true }), 'courses/git/private/answers'), {}));
   });
 });
 
 describe('progress/{uid_courseId} read', () => {
-  it('lets the owner, a Kulapati and the course Acharya read it', async () => {
+  it('lets the owner, an Admin and the course Educator read it', async () => {
     await assertSucceeds(getDoc(doc(as('priya'), 'progress/priya_git')));
-    await assertSucceeds(getDoc(doc(as('ajay', { kulapati: true }), 'progress/priya_git')));
-    await assertSucceeds(getDoc(doc(as('asha', { acharya: true }), 'progress/priya_git')));
+    await assertSucceeds(getDoc(doc(as('ajay', { admin: true }), 'progress/priya_git')));
+    await assertSucceeds(getDoc(doc(as('asha', { educator: true }), 'progress/priya_git')));
   });
-  it("denies another learner, another course's Acharya and signed-out readers", async () => {
+  it("denies another learner, another course's Educator and signed-out readers", async () => {
     await assertSucceeds(getDoc(doc(as('rohan'), 'progress/rohan_git')));
     await assertFails(getDoc(doc(as('rohan'), 'progress/priya_git')));
     await assertFails(getDoc(doc(as('rohan'), 'progress/priya_unborn')));
-    await assertFails(getDoc(doc(as('rohan', { acharya: true }), 'progress/priya_git')));
+    await assertFails(getDoc(doc(as('rohan', { educator: true }), 'progress/priya_git')));
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'progress/priya_git')));
   });
 });
@@ -141,7 +137,7 @@ describe('progress create', () => {
     await assertFails(
       setDoc(
         doc(db, 'progress/rohan_git'),
-        newProgress('rohan', 'git', { pariksha: { q1: { passed: true } } }),
+        newProgress('rohan', 'git', { quiz: { q1: { passed: true } } }),
       ),
     );
     await assertFails(
@@ -205,14 +201,14 @@ describe('progress update', () => {
     await assertFails(append(['l1', 'l1']));
     await assertFails(append(['l2', 'l1']));
   });
-  it('denies setting percent, Pariksha results or a certificate', async () => {
+  it('denies setting percent, Quiz results or a certificate', async () => {
     const db = as('priya');
     await assertFails(
       updateDoc(doc(db, 'progress/priya_git'), { percent: 100, lastActiveAt: serverTimestamp() }),
     );
     await assertFails(
       updateDoc(doc(db, 'progress/priya_git'), {
-        pariksha: { q: { passed: true } },
+        quiz: { q: { passed: true } },
         lastActiveAt: serverTimestamp(),
       }),
     );
@@ -231,7 +227,7 @@ describe('progress update', () => {
       }),
     );
     await assertFails(
-      updateDoc(doc(as('ajay', { kulapati: true }), 'progress/priya_git'), {
+      updateDoc(doc(as('ajay', { admin: true }), 'progress/priya_git'), {
         lastItemId: 'l9',
         lastActiveAt: serverTimestamp(),
       }),

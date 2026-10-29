@@ -4,7 +4,7 @@ export default {
   date: '2026-10-29',
   id: 'OVERVIEW-PENDING-INVITES',
   title: 'Overview counts every pending invite, not just recent ones',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'fix',
   why:
     'The Pending invites card only looked at the newest 500 assignments, so once the org grew ' +

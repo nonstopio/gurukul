@@ -1,6 +1,7 @@
 import { isItemDone, itemsOf, progressPercent, resumeItemId } from '@gurukul/schema';
 import type { Course, Item } from '@gurukul/schema';
 import type { AssignmentRow, CertificateRow, ProgressRow } from '../data/types';
+import type { Terms } from '../labels/terms';
 
 export interface AssignedCourse {
   assignment: AssignmentRow;
@@ -13,7 +14,7 @@ export function percentFor(course: Course, progress: ProgressRow | null): number
   return progress ? progressPercent(course, progress) : 0;
 }
 
-/** An archived course: learners keep their progress and certificate, but its Parikshas are closed. */
+/** An archived course: learners keep their progress and certificate, but its Quizzes are closed. */
 export function isRetired(course: Pick<Course, 'status'>): boolean {
   return course.status === 'archived';
 }
@@ -96,11 +97,11 @@ export function firstName(displayName: string | null | undefined): string {
   return displayName?.trim().split(/\s+/)[0] ?? '';
 }
 
-export function countItems(course: Pick<Course, 'parvas'>) {
+export function countItems(course: Pick<Course, 'chapters'>) {
   const items = itemsOf(course);
   return {
     lessons: items.filter((i) => i.type === 'lesson').length,
-    parikshas: items.filter((i) => i.type === 'pariksha').length,
+    quizzes: items.filter((i) => i.type === 'quiz').length,
   };
 }
 
@@ -113,40 +114,40 @@ export const LEVEL_LABELS: Record<Course['level'], string> = {
 /** Past this many assigned courses, Home shows the first ones and a "Show all" button. */
 export const ASSIGNED_PREVIEW = 10;
 
-/** The item a learner resumes at, with the parva it sits in; null for a course with no items. */
+/** The item a learner resumes at, with the chapter it sits in; null for a course with no items. */
 export function upNext(
   course: Course,
   progress: ProgressRow,
-): { item: Item; parva: Course['parvas'][number] } | null {
+): { item: Item; chapter: Course['chapters'][number] } | null {
   const id = resumeItemId(course, progress);
-  for (const parva of course.parvas) {
-    const item = parva.items.find((i) => i.id === id);
-    if (item) return { item, parva };
+  for (const chapter of course.chapters) {
+    const item = chapter.items.find((i) => i.id === id);
+    if (item) return { item, chapter };
   }
   return null;
 }
 
-/** "You are 44% through Git. One lesson left to finish the Basics parva." */
-export function statusLine(course: Course, progress: ProgressRow): string {
+/** "You are 44% through Git. One lesson left to finish the Basics chapter." */
+export function statusLine(course: Course, progress: ProgressRow, t: Terms): string {
   const lead = `You are ${percentFor(course, progress)}% through ${course.title}.`;
   const next = upNext(course, progress);
   if (!next) return lead;
-  const left = next.parva.items.filter((i) => !isItemDone(i, progress)).length;
+  const left = next.chapter.items.filter((i) => !isItemDone(i, progress)).length;
   if (left === 0) return lead;
   const count = left === 1 ? 'One item' : `${left} items`;
-  return `${lead} ${count} left to finish the ${next.parva.title} parva.`;
+  return `${lead} ${count} left to finish the ${next.chapter.title} ${t.chapter}.`;
 }
 
 export interface Activity {
   id: string;
-  kind: 'completed' | 'certificate' | 'pariksha' | 'active';
+  kind: 'completed' | 'certificate' | 'quiz' | 'active';
   text: string;
   at: Date;
 }
 
 /**
  * The newest events across my progress and certificates (no separate log in v1): finishing a
- * course, a certificate, a Pariksha attempt, last activity in a course still open.
+ * course, a certificate, a Quiz attempt, last activity in a course still open.
  */
 export function recentActivity(
   courses: readonly Course[],
@@ -181,12 +182,12 @@ export function recentActivity(
         at: p.lastActiveAt,
       });
     }
-    for (const [parikshaId, result] of Object.entries(p.pariksha)) {
-      const title = itemsOf(course).find((i) => i.id === parikshaId)?.title;
+    for (const [quizId, result] of Object.entries(p.quiz)) {
+      const title = itemsOf(course).find((i) => i.id === quizId)?.title;
       if (!title || !result.lastAttemptAt) continue;
       events.push({
-        id: `pariksha-${course.id}-${parikshaId}`,
-        kind: 'pariksha',
+        id: `quiz-${course.id}-${quizId}`,
+        kind: 'quiz',
         text: `${result.passed ? 'Passed' : 'Attempted'} ${title}`,
         at: result.lastAttemptAt,
       });

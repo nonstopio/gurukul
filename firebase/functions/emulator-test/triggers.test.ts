@@ -21,7 +21,7 @@ const progress = (over: object = {}) => ({
   lastItemId: null,
   lastActiveAt: at(1),
   completedItemIds: [],
-  pariksha: {},
+  quiz: {},
   percent: 0,
   completedAt: null,
   certificateId: null,
@@ -58,7 +58,7 @@ describe('onProgressWritten', () => {
     await db().doc('courses/git-basics').set(liveCourse());
     await db().doc('users/u1').set({ displayName: 'Asha Rao', email: 'asha@example.com' });
     await db().doc('assignments/a1').set({ uid: 'u1', courseId: 'git-basics', status: 'assigned' });
-    const after = progress({ pariksha: { pk: passed } });
+    const after = progress({ quiz: { pk: passed } });
     await db().doc(`progress/${ID}`).set(after);
 
     await progressWritten(undefined, after);
@@ -82,7 +82,7 @@ describe('onProgressWritten', () => {
 
   it('is idempotent: its own write re-triggers it and nothing is issued or counted twice', async () => {
     await db().doc('courses/git-basics').set(liveCourse());
-    const first = progress({ pariksha: { pk: passed } });
+    const first = progress({ quiz: { pk: passed } });
     await db().doc(`progress/${ID}`).set(first);
     await progressWritten(undefined, first);
 
@@ -111,7 +111,7 @@ describe('onAttemptCreated', () => {
   const attempt = (over: object = {}) => ({
     uid: 'u1',
     courseId: 'git-basics',
-    parikshaId: 'pk',
+    quizId: 'pk',
     score: 0.5,
     passed: false,
     results: [{ questionId: 'q1', correct: true }],
@@ -126,7 +126,7 @@ describe('onAttemptCreated', () => {
   it('adds the score and the first-try counters to the course and org stats', async () => {
     await db()
       .doc(`progress/${ID}`)
-      .set(progress({ pariksha: { pk: { ...passed, passed: false, attempts: 1 } } }));
+      .set(progress({ quiz: { pk: { ...passed, passed: false, attempts: 1 } } }));
 
     await attemptCreated(attempt());
     await attemptCreated(attempt({ score: 1, passed: true }));
@@ -137,9 +137,9 @@ describe('onAttemptCreated', () => {
       questionFirstTry: { q1: { correct: 2, total: 2 } },
     });
     expect((await db().doc('stats/org').get()).data()).toMatchObject({
-      parikshaScoreCount: 2,
-      parikshaFirstTryTotal: 2,
-      parikshaFirstTryPassed: 1,
+      quizScoreCount: 2,
+      quizFirstTryTotal: 2,
+      quizFirstTryPassed: 1,
     });
   });
 

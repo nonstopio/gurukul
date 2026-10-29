@@ -1,10 +1,10 @@
 import type { AreaNavigation } from '../types';
 
-/** Vyasa Studio, where Acharyas build courses, questions and media. */
+/** Studio, where Educators build courses, questions and media. */
 export const navigation = {
   slug: 'studio',
-  name: 'Vyasa Studio',
-  roles: ['acharya', 'kulapati'],
+  name: 'Studio',
+  roles: ['educator', 'admin'],
   keywords: ['author', 'educator', 'build'],
   pages: [
     {
@@ -12,13 +12,13 @@ export const navigation = {
       path: '/studio',
       label: 'Studio',
       description: 'Build and publish courses',
-      keywords: ['courses', 'author', 'edit', 'create', 'vyasa'],
+      keywords: ['courses', 'author', 'edit', 'create', 'studio'],
     },
     {
       id: 'studio-bank',
       path: '/studio/bank',
       label: 'Question bank',
-      description: 'Reusable Pariksha questions',
+      description: 'Reusable Quiz questions',
       keywords: ['questions', 'quiz', 'import'],
     },
     {
@@ -34,8 +34,8 @@ export const navigation = {
     '/studio/courses/:courseId/lessons/:lessonId': {
       context: 'needs a course and a lesson id; reached from the course editor',
     },
-    '/studio/courses/:courseId/pariksha/:parikshaId': {
-      context: 'needs a course and a Pariksha id; reached from the course editor',
+    '/studio/courses/:courseId/quiz/:quizId': {
+      context: 'needs a course and a Quiz id; reached from the course editor',
     },
     '/studio/courses/:courseId/preview/:itemId': {
       context: 'needs a course and an item id; reached from the editors',

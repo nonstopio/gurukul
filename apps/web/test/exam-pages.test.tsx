@@ -1,11 +1,11 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
-import { draftKey } from '../src/pariksha/draftStore';
-import { CooldownError } from '../src/pariksha/service';
+import { draftKey } from '../src/quiz/draftStore';
+import { CooldownError } from '../src/quiz/service';
 import { axeViolations } from './axe';
 import { attemptRow, certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
-import { attemptResult, fakePariksha } from './fake-pariksha';
+import { attemptResult, fakeQuiz } from './fake-quiz';
 import { openApp } from './harness';
 
 const question = (id: string, over: object = {}) => ({
@@ -22,16 +22,16 @@ const question = (id: string, over: object = {}) => ({
   ...over,
 });
 
-function courseWith(pariksha: object = {}, questions = [question('k1'), question('k2')]): Course {
+function courseWith(quiz: object = {}, questions = [question('k1'), question('k2')]): Course {
   const c = makeCourse();
-  const p = c.parvas[1]?.items[1];
-  if (p?.type === 'pariksha')
-    Object.assign(p, { questions, questionsShown: questions.length, ...pariksha });
+  const p = c.chapters[1]?.items[1];
+  if (p?.type === 'quiz')
+    Object.assign(p, { questions, questionsShown: questions.length, ...quiz });
   return c;
 }
 const unlocked = (over = {}) =>
   progressRow({ completedItemIds: ['l1', 'l2', 'l3'], lastItemId: 'l3', ...over });
-const PATH = '/courses/git/pariksha/q1';
+const PATH = '/courses/git/quiz/q1';
 const data = (course = courseWith(), watched = unlocked()) =>
   fakeData({ courses: [course], watched });
 /**
@@ -45,21 +45,21 @@ const effectsRun = () => act(() => new Promise<void>((resolve) => setImmediate(r
 // them does not use up the first test's one-second wait for the screen.
 beforeAll(() =>
   Promise.all([
-    import('../src/pariksha/ParikshaPage'),
-    import('../src/pariksha/ResultPage'),
+    import('../src/quiz/QuizPage'),
+    import('../src/quiz/ResultPage'),
     import('../src/certificates/pages'),
     import('../src/LessonPage'),
   ]),
 );
 
-describe('Pariksha screen', () => {
+describe('Quiz screen', () => {
   it('asks one question at a time and checks each answer when answers are revealed', async () => {
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi
         .fn()
         .mockResolvedValue({ correct: false, correctOptionIds: ['b'], explanation: 'Beta wins.' }),
     });
-    await openApp(PATH, { data: data(courseWith({ cooldownMinutes: 10 })), pariksha });
+    await openApp(PATH, { data: data(courseWith({ cooldownMinutes: 10 })), quiz });
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
     expect(screen.getByText(/Retakes allowed after 10 minutes/)).toBeTruthy();
     const primary = screen.getByRole('button', { name: 'Check answer' }) as HTMLButtonElement;
@@ -68,9 +68,9 @@ describe('Pariksha screen', () => {
     fireEvent.click(primary);
     expect(await screen.findByText('Not quite — the answer is B.')).toBeTruthy();
     expect(screen.getByText('Beta wins.', { exact: false })).toBeTruthy();
-    expect(pariksha.checkAnswer).toHaveBeenCalledWith({
+    expect(quiz.checkAnswer).toHaveBeenCalledWith({
       courseId: 'git',
-      parikshaId: 'q1',
+      quizId: 'q1',
       questionId: 'k1',
       selected: ['a'],
     });
@@ -84,7 +84,7 @@ describe('Pariksha screen', () => {
   });
 
   it('submits at the end and shows the result', async () => {
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi
         .fn()
         .mockResolvedValue({ correct: true, correctOptionIds: ['a'], explanation: 'Yes.' }),
@@ -102,21 +102,19 @@ describe('Pariksha screen', () => {
         }),
       ),
     });
-    const { router } = await openApp(PATH, { data: data(), pariksha });
+    const { router } = await openApp(PATH, { data: data(), quiz });
     for (const label of [/Alpha/, /Alpha/]) {
       await screen.findByText(/Question \d of 2/);
       fireEvent.click(screen.getByLabelText(label));
       const check = screen.getByRole('button', { name: 'Check answer' });
       fireEvent.click(check);
       await screen.findByRole('status');
-      fireEvent.click(screen.getByRole('button', { name: /Next question|Finish Pariksha/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Next question|Finish Quiz/ }));
     }
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1/result'),
-    );
-    expect(pariksha.gradeAttempt).toHaveBeenCalledWith({
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/quiz/q1/result'));
+    expect(quiz.gradeAttempt).toHaveBeenCalledWith({
       courseId: 'git',
-      parikshaId: 'q1',
+      quizId: 'q1',
       questionIds: ['k1', 'k2'],
       answers: { k1: ['a'], k2: ['a'] },
     });
@@ -136,8 +134,8 @@ describe('Pariksha screen', () => {
       question('k1', { kind: 'multiple', code: 'git status' }),
       question('k2'),
     ]);
-    const pariksha = fakePariksha();
-    await openApp(PATH, { data: data(course), pariksha });
+    const quiz = fakeQuiz();
+    await openApp(PATH, { data: data(course), quiz });
     await screen.findByText('Question 1 of 2');
     expect(screen.getByText(/Retakes allowed straight away/)).toBeTruthy();
     expect(screen.getByText(/Pass mark 50%/)).toBeTruthy();
@@ -146,11 +144,11 @@ describe('Pariksha screen', () => {
     fireEvent.click(screen.getByLabelText(/Beta/));
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
-    expect(pariksha.checkAnswer).not.toHaveBeenCalled();
+    expect(quiz.checkAnswer).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText(/Gamma/));
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
     await waitFor(() =>
-      expect(pariksha.gradeAttempt).toHaveBeenCalledWith(
+      expect(quiz.gradeAttempt).toHaveBeenCalledWith(
         expect.objectContaining({ answers: { k1: ['b'], k2: ['c'] } }),
       ),
     );
@@ -187,14 +185,14 @@ describe('Pariksha screen', () => {
   });
 
   it('keeps the selection and says so when a check or the submit fails', async () => {
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi.fn().mockRejectedValue(new Error('offline')),
       gradeAttempt: vi
         .fn()
         .mockRejectedValueOnce(new CooldownError(null))
         .mockRejectedValueOnce(new Error('x')),
     });
-    await openApp(PATH, { data: data(courseWith({}, [question('k1')])), pariksha });
+    await openApp(PATH, { data: data(courseWith({}, [question('k1')])), quiz });
     await screen.findByText('Question 1 of 1');
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
@@ -203,23 +201,23 @@ describe('Pariksha screen', () => {
   });
 
   it('reports a rejected submission', async () => {
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       gradeAttempt: vi
         .fn()
         .mockRejectedValueOnce(new CooldownError(null))
         .mockRejectedValueOnce(new Error('x')),
     });
     const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
-    await openApp(PATH, { data: data(course), pariksha });
+    await openApp(PATH, { data: data(course), quiz });
     await screen.findByText('Question 1 of 1');
     fireEvent.click(screen.getByLabelText(/Alpha/));
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
     expect(await screen.findByText(/retake is not open yet/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
     expect(await screen.findByText('Could not submit your answers. Try again.')).toBeTruthy();
   });
 
-  it('closes the Pariksha of a retired course instead of drawing questions', async () => {
+  it('closes the Quiz of a retired course instead of drawing questions', async () => {
     const course = courseWith();
     course.status = 'archived';
     await openApp(PATH, { data: data(course) });
@@ -230,7 +228,7 @@ describe('Pariksha screen', () => {
     );
   });
 
-  it('explains a locked Pariksha and an unfinished cooldown', async () => {
+  it('explains a locked Quiz and an unfinished cooldown', async () => {
     const { unmount } = await openApp(PATH, {
       data: data(courseWith(), progressRow({ lastItemId: 'l1' })),
     });
@@ -241,7 +239,7 @@ describe('Pariksha screen', () => {
       data: data(
         courseWith({ cooldownMinutes: 10 }),
         unlocked({
-          pariksha: { q1: { best: 0.2, passed: false, attempts: 1, lastAttemptAt: recent } },
+          quiz: { q1: { best: 0.2, passed: false, attempts: 1, lastAttemptAt: recent } },
         }),
       ),
     });
@@ -262,23 +260,23 @@ describe('Pariksha screen', () => {
     expect(await screen.findByText('Locked for now')).toBeTruthy();
   });
 
-  it('sends an unknown Pariksha or course to the catalogue', async () => {
-    const { router, unmount } = await openApp('/courses/git/pariksha/nope', { data: data() });
+  it('sends an unknown Quiz or course to the catalogue', async () => {
+    const { router, unmount } = await openApp('/courses/git/quiz/nope', { data: data() });
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses'));
     unmount();
-    const second = await openApp('/courses/zzz/pariksha/q1', { data: data() });
+    const second = await openApp('/courses/zzz/quiz/q1', { data: data() });
     await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses'));
   });
 
   it('names every right letter, and none when the verdict names unknown options', async () => {
     const course = courseWith({}, [question('k1', { kind: 'multiple' }), question('k2')]);
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi
         .fn()
         .mockResolvedValueOnce({ correct: false, correctOptionIds: ['c', 'a'], explanation: '' })
         .mockResolvedValueOnce({ correct: false, correctOptionIds: ['zzz'], explanation: '' }),
     });
-    await openApp(PATH, { data: data(course), pariksha });
+    await openApp(PATH, { data: data(course), quiz });
     await screen.findByText('Question 1 of 2');
     fireEvent.click(screen.getByLabelText(/Beta/));
     fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
@@ -290,12 +288,12 @@ describe('Pariksha screen', () => {
   });
 
   it('checks with Enter, then advances with Enter, and leaves Enter on a button to the button', async () => {
-    const { pariksha } = await openApp(PATH, { data: data() });
+    const { quiz } = await openApp(PATH, { data: data() });
     await screen.findByText('Question 1 of 2');
     await effectsRun(); // the key listener
     const main = document.body.querySelector('main') as HTMLElement;
     fireEvent.keyDown(main, { key: 'Enter' });
-    expect(pariksha.checkAnswer).not.toHaveBeenCalled();
+    expect(quiz.checkAnswer).not.toHaveBeenCalled();
     fireEvent.keyDown(main, { key: '1' });
     fireEvent.keyDown(main, { key: 'Enter' });
     expect(await screen.findByText('Correct.')).toBeTruthy();
@@ -310,10 +308,10 @@ describe('Pariksha screen', () => {
 
   it('locks the options while an answer is being checked', async () => {
     let resolve: (v: unknown) => void = () => {};
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi.fn().mockReturnValue(new Promise((r) => (resolve = r))),
     });
-    await openApp(PATH, { data: data(), pariksha });
+    await openApp(PATH, { data: data(), quiz });
     await screen.findByText('Question 1 of 2');
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
@@ -326,12 +324,12 @@ describe('Pariksha screen', () => {
 
   it('carries on after a reload with the same questions, answers and verdicts', async () => {
     const course = courseWith({}, [question('k1'), question('k2'), question('k3')]);
-    const pariksha = fakePariksha({
+    const quiz = fakeQuiz({
       checkAnswer: vi
         .fn()
         .mockResolvedValue({ correct: false, correctOptionIds: ['b'], explanation: 'Beta.' }),
     });
-    const first = await openApp(PATH, { data: data(course), pariksha });
+    const first = await openApp(PATH, { data: data(course), quiz });
     await screen.findByText('Question 1 of 3');
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
@@ -340,7 +338,7 @@ describe('Pariksha screen', () => {
     fireEvent.click(screen.getByLabelText(/Gamma/)); // picked, never checked
     first.unmount();
 
-    await openApp(PATH, { data: data(course), pariksha });
+    await openApp(PATH, { data: data(course), quiz });
     expect(await screen.findByText('Question 2 of 3')).toBeTruthy();
     expect((screen.getByLabelText(/Gamma/) as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
@@ -357,7 +355,7 @@ describe('Pariksha screen', () => {
     await effectsRun(); // the draft save
     expect(localStorage.getItem(key)).not.toBeNull();
     fireEvent.click(screen.getByLabelText(/Alpha/));
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
     await waitFor(() => expect(localStorage.getItem(key)).toBeNull());
     first.unmount();
 
@@ -374,13 +372,13 @@ describe('Pariksha screen', () => {
     // Older than the last graded attempt: that attempt's draft, so a fresh start.
     draft(Date.now() - 3_600_000, order);
     const graded = unlocked({
-      pariksha: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
+      quiz: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
     });
     const second = await openApp(PATH, { data: data(two, graded) });
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
     expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(false);
     second.unmount();
-    // The Acharya removed a question since: a fresh start too.
+    // The Educator removed a question since: a fresh start too.
     draft(Date.now(), [{ id: 'gone', optionIds: ['a'] }]);
     await openApp(PATH, { data: data(two) });
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
@@ -390,25 +388,25 @@ describe('Pariksha screen', () => {
     const { router, unmount } = await openApp(PATH, { data: data() });
     await screen.findByText('Question 1 of 2');
     fireEvent.click(screen.getByLabelText(/Alpha/));
-    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Leave this Pariksha?' });
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Quiz' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave this Quiz?' });
     await act(async () => {});
     fireEvent.keyDown(dialog, { key: '2' });
     expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Quiz' }));
     fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(router.state.location.pathname).toBe(PATH);
-    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Quiz' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
     unmount();
 
     const second = await openApp(PATH, { data: data() });
     await screen.findByText('Question 1 of 2');
-    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Quiz' }));
     await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses/git'));
   });
 
@@ -420,7 +418,7 @@ describe('Pariksha screen', () => {
 });
 
 describe('Result screen', () => {
-  const RESULT = '/courses/git/pariksha/q1/result';
+  const RESULT = '/courses/git/quiz/q1/result';
   const passedState = {
     result: attemptResult({ correctCount: 1, total: 1 }),
     questions: [question('k1')],
@@ -429,9 +427,7 @@ describe('Result screen', () => {
 
   it('celebrates a pass and continues to the next lesson', async () => {
     await openApp({ pathname: RESULT, state: passedState }, { data: data() });
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Pariksha I cleared.' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Quiz I cleared.' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe(
       '/courses/git/learn/l4',
     );
@@ -439,9 +435,9 @@ describe('Result screen', () => {
     expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
   });
 
-  it('finishes the course when the Pariksha is the last item', async () => {
+  it('finishes the course when the Quiz is the last item', async () => {
     const c = courseWith();
-    c.parvas[1]?.items.pop();
+    c.chapters[1]?.items.pop();
     await openApp({ pathname: RESULT, state: passedState }, { data: data(c) });
     expect(
       await screen
@@ -450,12 +446,12 @@ describe('Result screen', () => {
     ).toBe('/courses/git/complete');
   });
 
-  it('continues to the next parva by number when the Pariksha ends its parva', async () => {
+  it('continues to the next chapter by number when the Quiz ends its chapter', async () => {
     const c = courseWith();
-    const moved = c.parvas[1]?.items.pop();
-    c.parvas.push({ id: 'p3', title: 'Remotes', items: moved ? [moved] : [] });
+    const moved = c.chapters[1]?.items.pop();
+    c.chapters.push({ id: 'p3', title: 'Remotes', items: moved ? [moved] : [] });
     await openApp({ pathname: RESULT, state: passedState }, { data: data(c) });
-    const link = await screen.findByRole('link', { name: 'Continue to Parva 3' });
+    const link = await screen.findByRole('link', { name: 'Continue to Chapter 3' });
     expect(link.getAttribute('href')).toBe('/courses/git/learn/l4');
   });
 
@@ -478,7 +474,7 @@ describe('Result screen', () => {
       ],
     });
     const watched = unlocked({
-      pariksha: {
+      quiz: {
         q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date(Date.now() - 60_000) },
       },
     });
@@ -525,7 +521,7 @@ describe('Result screen', () => {
     expect(await screen.findByText('Your best score is 0%.')).toBeTruthy();
     expect(warn).toHaveBeenCalledWith('Latest attempt unreadable, showing the summary', {
       courseId: 'git',
-      parikshaId: 'q1',
+      quizId: 'q1',
     });
     warn.mockRestore();
   });
@@ -552,7 +548,7 @@ describe('Result screen', () => {
 
   it('shows a saved summary when there is no attempt to review', async () => {
     const saved = unlocked({
-      pariksha: {
+      quiz: {
         q1: {
           best: 0.8,
           passed: true,
@@ -566,7 +562,7 @@ describe('Result screen', () => {
     expect(screen.queryByText('Review')).toBeNull();
   });
 
-  it('handles no saved attempt, a missing Pariksha and answers that were not revealed', async () => {
+  it('handles no saved attempt, a missing Quiz and answers that were not revealed', async () => {
     const { unmount } = await openApp(RESULT, { data: data() });
     expect(await screen.findByText('Your best score is 0%.')).toBeTruthy();
     unmount();
@@ -587,8 +583,8 @@ describe('Result screen', () => {
     );
     expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
     second.unmount();
-    await openApp('/courses/git/pariksha/nope/result', { data: data() });
-    expect(await screen.findByText('This Pariksha does not exist.')).toBeTruthy();
+    await openApp('/courses/git/quiz/nope/result', { data: data() });
+    expect(await screen.findByText('This Quiz does not exist.')).toBeTruthy();
   });
 
   it('names an unknown option by its id, and an unknown course plainly', async () => {
@@ -596,13 +592,13 @@ describe('Result screen', () => {
     const { unmount } = await openApp({ pathname: RESULT, state: odd }, { data: data() });
     expect(await screen.findByText('zzz')).toBeTruthy();
     unmount();
-    await openApp('/courses/zzz/pariksha/q1/result', { data: data() });
-    expect(await screen.findByText('This Pariksha does not exist.')).toBeTruthy();
+    await openApp('/courses/zzz/quiz/q1/result', { data: data() });
+    expect(await screen.findByText('This Quiz does not exist.')).toBeTruthy();
   });
 
   it('has no axe violations', async () => {
     const { container } = await openApp({ pathname: RESULT, state: passedState }, { data: data() });
-    await screen.findByRole('heading', { level: 1, name: 'Pariksha I cleared.' });
+    await screen.findByRole('heading', { level: 1, name: 'Quiz I cleared.' });
     expect(await axeViolations(container)).toEqual([]);
   });
 });
@@ -611,7 +607,7 @@ describe('Course complete', () => {
   const done = (over = {}) =>
     progressRow({
       completedItemIds: ['l1', 'l2', 'l3', 'l4'],
-      pariksha: { q1: { best: 0.9, passed: true, attempts: 1, lastAttemptAt: null } },
+      quiz: { q1: { best: 0.9, passed: true, attempts: 1, lastAttemptAt: null } },
       percent: 100,
       completedAt: new Date('2026-11-09T00:00:00Z'),
       certificateId: 'NSG-GIT-26-0001',
@@ -714,14 +710,14 @@ describe('Course complete', () => {
     unmount();
     const c = courseWith();
     c.rules.certificate = false;
-    c.parvas[1]?.items.splice(1, 1);
+    c.chapters[1]?.items.splice(1, 1);
     await openApp('/courses/git/complete', { data: data(c, done()) });
-    await screen.findByText('Siddhi · Course complete');
+    await screen.findByText('Course complete');
     expect(screen.queryByText('Your certificate')).toBeNull();
-    expect(screen.queryByText('Pariksha average')).toBeNull();
+    expect(screen.queryByText('Quiz average')).toBeNull();
   });
 
-  it('counts a Pariksha with no saved result as zero in the average', async () => {
+  it('counts a Quiz with no saved result as zero in the average', async () => {
     const saved = progressRow({
       completedItemIds: ['l1', 'l2', 'l3', 'l4'],
       percent: 100,
@@ -842,7 +838,7 @@ describe('Verify (public)', () => {
 describe('Lesson player completion', () => {
   it('goes back to the outline from the last lesson while other items are unfinished', async () => {
     const c = courseWith();
-    c.parvas = [{ id: 'p', title: 'P', items: c.parvas[0]?.items.slice(0, 2) ?? [] }];
+    c.chapters = [{ id: 'p', title: 'P', items: c.chapters[0]?.items.slice(0, 2) ?? [] }];
     const d = fakeData({
       courses: [c],
       watched: progressRow({ lastItemId: 'l2', completedItemIds: [] }),
@@ -852,13 +848,13 @@ describe('Lesson player completion', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
   });
 
-  it('opens the Pariksha after the last lesson of a parva and the course page when unfinished', async () => {
+  it('opens the Quiz after the last lesson of a chapter and the course page when unfinished', async () => {
     const d = fakeData({
       watched: progressRow({ lastItemId: 'l3', completedItemIds: ['l1', 'l2'] }),
     });
     const { router } = await openApp('/courses/git/learn/l3', { data: d });
     fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/quiz/q1'));
   });
 
   it('finishes into the completion screen when everything else is done', async () => {
@@ -866,7 +862,7 @@ describe('Lesson player completion', () => {
       watched: progressRow({
         lastItemId: 'l4',
         completedItemIds: ['l1', 'l2', 'l3'],
-        pariksha: { q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: null } },
+        quiz: { q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: null } },
       }),
     });
     const { router } = await openApp('/courses/git/learn/l4', { data: d });

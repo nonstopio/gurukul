@@ -15,10 +15,10 @@ function workspace() {
 describe('changelog-new.sh', () => {
   it('creates a correctly named entry whose date matches its name', () => {
     const dir = workspace();
-    const res = sh('changelog-new.sh', { cwd: dir, args: ['Learners can RETRY a Pariksha!'] });
+    const res = sh('changelog-new.sh', { cwd: dir, args: ['Learners can RETRY a Quiz!'] });
     assert.equal(res.status, 0, res.stderr);
     const [file] = readdirSync(path.join(dir, ENTRIES));
-    assert.match(file, /^\d{4}-\d{2}-\d{2}-\d{6}-learners-can-retry-a-pariksha\.ts$/);
+    assert.match(file, /^\d{4}-\d{2}-\d{2}-\d{6}-learners-can-retry-a-quiz\.ts$/);
     assert.equal(res.stdout.trim(), `${ENTRIES}/${file}`);
     const src = readFileSync(path.join(dir, ENTRIES, file), 'utf8');
     assert.match(src, new RegExp(`date: '${file.slice(0, 10)}'`));

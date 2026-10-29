@@ -11,9 +11,9 @@ export interface Caller {
   claims: RoleClaims | undefined;
 }
 
-/** Only a Kulapati on a NonStop account may run the console operations (`AUTH_2001`). */
-export function requireKulapati(caller: Caller, action: string): void {
-  if (!isAllowedEmail(caller.email) || caller.claims?.kulapati !== true) {
+/** Only an Admin on a NonStop account may run the console operations (`AUTH_2001`). */
+export function requireAdmin(caller: Caller, action: string): void {
+  if (!isAllowedEmail(caller.email) || caller.claims?.admin !== true) {
     throw new ApiException('AUTH_2001', [action]);
   }
 }

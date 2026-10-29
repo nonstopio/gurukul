@@ -1,8 +1,9 @@
 import { Button, EmptyState, useToast } from '@gurukul/ui';
 import { useCallback } from 'react';
 import { useAsync } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
-import { longDate } from '../pariksha/model';
+import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
 import { overdueEntries, pendingInvites, visibleFailed } from './model';
 import type { FailedEntry } from './model';
@@ -14,13 +15,13 @@ export interface AttentionInput {
   /** Profiles of the people in `failed`, by uid. */
   people: Map<string, UserRow>;
   courseTitles: Map<string, string>;
-  /** `courseId/parikshaId` to the Pariksha's title. */
-  parikshaTitles: Map<string, string>;
+  /** `courseId/quizId` to the Quiz's title. */
+  quizTitles: Map<string, string>;
   now: Date;
 }
 
 /**
- * Who needs a nudge: the longest-overdue assignments, Parikshas failed twice and pending invites,
+ * Who needs a nudge: the longest-overdue assignments, Quizzes failed twice and pending invites,
  * five of each. The date range and team narrow all three; a pending invite has no team yet, so
  * the team filter leaves that list alone.
  */
@@ -34,6 +35,7 @@ export function NeedsAttention({
   team: string;
 }) {
   const { data, service } = useConsole();
+  const t = useTerms();
   const toast = useToast();
   const loadMembers = useCallback(
     async () => (team === '' ? null : data.usersInTeam(team)),
@@ -50,12 +52,10 @@ export function NeedsAttention({
       () => toast.show('Could not send that. Try again.', { tone: 'danger' }),
     );
   const reset = (entry: FailedEntry) =>
-    service
-      .resetCooldown({ uid: entry.uid, courseId: entry.courseId, parikshaId: entry.parikshaId })
-      .then(
-        () => toast.show('Retake opened', { tone: 'success' }),
-        () => toast.show('Could not open the retake. Try again.', { tone: 'danger' }),
-      );
+    service.resetCooldown({ uid: entry.uid, courseId: entry.courseId, quizId: entry.quizId }).then(
+      () => toast.show('Retake opened', { tone: 'success' }),
+      () => toast.show('Could not open the retake. Try again.', { tone: 'danger' }),
+    );
 
   return (
     <section aria-labelledby="attention-title" className="home-section">
@@ -99,9 +99,7 @@ export function NeedsAttention({
               <div>
                 <h3>Failed twice</h3>
                 {failed.length === 0 ? (
-                  <EmptyState title="Nobody is stuck">
-                    No one has failed a Pariksha twice.
-                  </EmptyState>
+                  <EmptyState title="Nobody is stuck">{`No one has failed a ${t.Quiz} twice.`}</EmptyState>
                 ) : (
                   <ul className="attention__list">
                     {failed.map((e) => {
@@ -112,9 +110,8 @@ export function NeedsAttention({
                           <span>
                             <strong>{name}</strong>
                             <span className="attention__reason attention__reason--warning">
-                              {input.parikshaTitles.get(`${e.courseId}/${e.parikshaId}`) ??
-                                e.parikshaId}
-                              : {e.attempts} attempts, not passed
+                              {input.quizTitles.get(`${e.courseId}/${e.quizId}`) ?? e.quizId}:{' '}
+                              {e.attempts} attempts, not passed
                             </span>
                           </span>
                           <Button

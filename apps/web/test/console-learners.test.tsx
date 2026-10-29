@@ -7,7 +7,7 @@ import { fakeConsole, userRow } from './fake-console';
 import { certificateRow, progressRow } from './fake-data';
 import { openApp } from './harness';
 
-const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
+const admin = { roles: ['admin'] as Array<'admin'> };
 const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
   id: `${email}-${over.courseId ?? 'git'}`,
   email,
@@ -21,7 +21,7 @@ const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull 
 });
 const late = new Date(Date.now() - 5 * 86_400_000);
 const users = [
-  userRow(1, { displayName: 'Priya', team: 'QA', roles: ['shishya', 'acharya'] }),
+  userRow(1, { displayName: 'Priya', team: 'QA', roles: ['learner', 'educator'] }),
   userRow(2, { displayName: 'Rohan' }),
 ];
 const assignments = [
@@ -36,7 +36,7 @@ function setup(over: Parameters<typeof fakeConsole>[0] = {}) {
 describe('Learners', () => {
   it('lists people with their courses, status and tab counts', async () => {
     const c = setup();
-    const { container } = await openApp('/kulapati/learners', { ...kulapati, console: c });
+    const { container } = await openApp('/admin/learners', { ...admin, console: c });
     expect(await screen.findByText('Priya')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'All (3)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Signed in (2)' })).toBeTruthy();
@@ -44,12 +44,12 @@ describe('Learners', () => {
     expect(screen.getByRole('tab', { name: 'Overdue (1)' })).toBeTruthy();
     expect(screen.getAllByText('1 · 0 done').length).toBeGreaterThan(0);
     expect(screen.getByText('Overdue')).toBeTruthy();
-    expect(screen.getByText('Acharya')).toBeTruthy();
+    expect(screen.getByText('Educator')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 
   it('shows pending invites and overdue people on their own tabs', async () => {
-    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await openApp('/admin/learners', { ...admin, console: setup() });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
     expect(await screen.findByText('new@nonstopio.com')).toBeTruthy();
@@ -64,7 +64,7 @@ describe('Learners', () => {
       users: [],
       count: 0,
     });
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     expect(await screen.findByText(/Invited$/)).toBeTruthy();
     expect(c.data.usersPage).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('tab', { name: 'Signed in (0)' }));
@@ -80,7 +80,7 @@ describe('Learners', () => {
         asg('new@nonstopio.com'),
       ],
     });
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     expect(c.data.openAssignments).toHaveBeenCalledWith(expect.any(Date));
     expect(screen.getByRole('tab', { name: 'All (4)' })).toBeTruthy();
@@ -93,7 +93,7 @@ describe('Learners', () => {
   });
 
   it('lists pending invites on "All", after everyone who signed in', async () => {
-    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await openApp('/admin/learners', { ...admin, console: setup() });
     const table = await screen.findByRole('table', { name: 'Learners' });
     await within(table).findByText('new@nonstopio.com');
     const rows = within(table)
@@ -106,14 +106,14 @@ describe('Learners', () => {
 
   it('opens already filtered to the course in the address', async () => {
     const c = setup();
-    await openApp('/kulapati/learners?course=git', { ...kulapati, console: c });
+    await openApp('/admin/learners?course=git', { ...admin, console: c });
     await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
     expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('git');
   });
 
   it('filters by search, team, course and role', async () => {
     const c = setup({ found: [users[1] as UserRow], team: [users[0] as UserRow] });
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'ro' } });
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'rohan' } });
@@ -131,7 +131,7 @@ describe('Learners', () => {
     expect(await screen.findByText('Priya')).toBeTruthy();
     expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' });
     fireEvent.change(screen.getByLabelText('Course'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'acharya' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'educator' } });
     await screen.findByText('Priya');
     expect(screen.queryByText('Rohan')).toBeNull();
     expect(screen.queryByText('new@nonstopio.com')).toBeNull();
@@ -139,17 +139,17 @@ describe('Learners', () => {
 
   it('combines filters with each other and with the tab', async () => {
     const team = [
-      userRow(1, { displayName: 'Priya', team: 'QA', roles: ['shishya', 'acharya'] }),
+      userRow(1, { displayName: 'Priya', team: 'QA', roles: ['learner', 'educator'] }),
       userRow(3, { displayName: 'Meera', team: 'QA' }),
     ];
     const c = setup({ team });
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
     expect(await screen.findByText('Meera')).toBeTruthy();
     expect(await screen.findByRole('tab', { name: 'All (2)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Overdue (1)' })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'acharya' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'educator' } });
     expect(await screen.findByRole('tab', { name: 'All (1)' })).toBeTruthy();
     expect(screen.queryByText('Meera')).toBeNull();
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } });
@@ -165,7 +165,7 @@ describe('Learners', () => {
 
   it('reads the names of people on a course or overdue page that only assignments mention', async () => {
     const c = setup();
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Rohan');
     fireEvent.click(screen.getByRole('tab', { name: 'Overdue (1)' }));
     expect(await screen.findByText('Priya')).toBeTruthy();
@@ -183,7 +183,7 @@ describe('Learners', () => {
         ? { rows: [userRow(99, { displayName: 'Page Two' })], nextCursor: null }
         : { rows: many, nextCursor: 'cursor-1' },
     );
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Showing 1–25 of 31');
     await screen.findByText('Person 0');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -199,7 +199,7 @@ describe('Learners', () => {
       userRow(i + 100, { displayName: `T${i}`, team: 'QA' }),
     );
     const c = setup({ team });
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
     await screen.findByText('T0');
@@ -219,7 +219,7 @@ describe('Learners', () => {
 
     it('selects everyone a filter matches and acts on all of them', async () => {
       const c = setup({ team });
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Priya');
       fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
       await screen.findByText('T0');
@@ -243,7 +243,7 @@ describe('Learners', () => {
     });
 
     it('drops back to the ticked rows when one is unticked', async () => {
-      await openApp('/kulapati/learners', { ...kulapati, console: setup({ team }) });
+      await openApp('/admin/learners', { ...admin, console: setup({ team }) });
       await screen.findByText('Priya');
       fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
       await screen.findByText('T0');
@@ -265,7 +265,7 @@ describe('Learners', () => {
           ? { rows: [userRow(99, { displayName: 'Page Two' })], nextCursor: null }
           : { rows: many, nextCursor: 'cursor-1' },
       );
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Person 0');
       tickPage();
       fireEvent.click(screen.getByRole('button', { name: 'Select all 31' }));
@@ -278,7 +278,7 @@ describe('Learners', () => {
     it('leaves out pending invites on "Signed in" and reads the pending tab from memory', async () => {
       const invited = Array.from({ length: 26 }, (_, i) => asg(`invite${i}@nonstopio.com`));
       const c = setup({ assignments: invited });
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Priya');
       fireEvent.click(screen.getByRole('tab', { name: 'Signed in (2)' }));
       await screen.findByText('Rohan');
@@ -300,7 +300,7 @@ describe('Learners', () => {
           ? { rows: signed.slice(0, 25), nextCursor: 'c' }
           : { rows: signed.slice(25), nextCursor: null },
       );
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('S0');
       fireEvent.click(screen.getByRole('tab', { name: 'Signed in (26)' }));
       await screen.findByText('S0');
@@ -328,7 +328,7 @@ describe('Learners', () => {
         if (calls >= 3) await new Promise<void>((r) => (release = r));
         return { rows: many, nextCursor: null };
       });
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Person 0');
       tickPage();
       fireEvent.click(screen.getByRole('button', { name: 'Select all 31' }));
@@ -343,7 +343,7 @@ describe('Learners', () => {
 
   it('runs the bulk actions: assign, remind and clear', async () => {
     const c = setup();
-    const { router } = await openApp('/kulapati/learners', { ...kulapati, console: c });
+    const { router } = await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }));
@@ -355,13 +355,13 @@ describe('Learners', () => {
     expect(screen.queryByText('1 selected')).toBeNull();
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Assign course' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/assign'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/assign'));
     expect(router.state.location.state).toEqual({ emails: ['user1@nonstopio.com'] });
   });
 
   it('changes the role of everyone selected and skips pending invites', async () => {
     const c = setup();
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByLabelText('Select new@nonstopio.com'));
@@ -370,15 +370,15 @@ describe('Learners', () => {
     expect(
       screen.getByText(/1 will be skipped: pending invites have no account yet\./),
     ).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'remove' } });
+    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'remove' } });
     expect(screen.getByText(/1 will be skipped: pending invites.*your own/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'add' } });
+    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'add' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u2',
-        acharya: true,
-        kulapati: true,
+        educator: true,
+        admin: true,
       }),
     );
     expect(await screen.findByText('Roles changed: 1, skipped: 1')).toBeTruthy();
@@ -388,7 +388,7 @@ describe('Learners', () => {
   it('reports roles that could not be changed', async () => {
     const c = setup();
     c.service.setRoles = vi.fn().mockRejectedValue(new Error('no'));
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
@@ -396,48 +396,48 @@ describe('Learners', () => {
     expect(await screen.findByText('Roles changed: 0, skipped: 0, failed: 1')).toBeTruthy();
   });
 
-  it('never lets you drop your own Kulapati role in a bulk change', async () => {
-    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+  it('never lets you drop your own Admin role in a bulk change', async () => {
+    await openApp('/admin/learners', { ...admin, console: setup() });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'remove' } });
+    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'remove' } });
     expect(screen.getByRole('button', { name: 'Apply to 0 people' })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'keep' } });
+    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'keep' } });
     expect(screen.getByRole('button', { name: 'Apply to 1 person' })).toBeTruthy();
   });
 
-  it('removes Acharya on its own and clears the granted courses, leaving Kulapati alone', async () => {
+  it('removes Educator on its own and clears the granted courses, leaving Admin alone', async () => {
     const c = setup();
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Acharya (educator)'), { target: { value: 'remove' } });
+    fireEvent.change(screen.getByLabelText('Educator'), { target: { value: 'remove' } });
     expect(screen.getByText(/also clears their granted courses/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u2',
-        acharya: false,
+        educator: false,
         grantedCourseIds: [],
       }),
     );
   });
 
   it('will not apply a role change that changes nothing', async () => {
-    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await openApp('/admin/learners', { ...admin, console: setup() });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Acharya (educator)'), { target: { value: 'keep' } });
+    fireEvent.change(screen.getByLabelText('Educator'), { target: { value: 'keep' } });
     expect(
       (screen.getByRole('button', { name: 'Apply to 1 person' }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
   it('cannot apply a role change to nobody and can be closed', async () => {
-    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await openApp('/admin/learners', { ...admin, console: setup() });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
     fireEvent.click(await screen.findByLabelText('Select new@nonstopio.com'));
@@ -451,7 +451,7 @@ describe('Learners', () => {
   it('says so when reminders fail', async () => {
     const c = setup();
     c.service.remindLearners = vi.fn().mockRejectedValue(new Error('x'));
-    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Send reminder' }));
@@ -479,7 +479,7 @@ describe('Learners', () => {
           ...progressRow({
             courseId: 'git',
             percent: 40,
-            pariksha: {
+            quiz: {
               q1: { best: 0.5, passed: false, attempts: 2, lastAttemptAt: null },
               q2: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
               gone: { best: 1, passed: true, attempts: 1, lastAttemptAt: null },
@@ -489,19 +489,19 @@ describe('Learners', () => {
         },
         { ...progressRow({ courseId: 'unknown-course', percent: 10 }), uid: 'u1' },
       ]);
-      c.data.attemptsFor = vi.fn(async (_uid: string, _courseId: string, parikshaId: string) =>
-        parikshaId === 'q1'
+      c.data.attemptsFor = vi.fn(async (_uid: string, _courseId: string, quizId: string) =>
+        quizId === 'q1'
           ? [
               {
                 id: 'a2',
-                parikshaId,
+                quizId,
                 score: 0.5,
                 passed: false,
                 at: new Date('2026-03-04T00:00:00Z'),
               },
-              { id: 'a1', parikshaId, score: 0.25, passed: false, at: null },
+              { id: 'a1', quizId, score: 0.25, passed: false, at: null },
             ]
-          : [{ id: 'a3', parikshaId, score: 1, passed: true, at: null }],
+          : [{ id: 'a3', quizId, score: 1, passed: true, at: null }],
       );
       c.data.certificatesFor = vi
         .fn()
@@ -513,7 +513,7 @@ describe('Learners', () => {
     };
 
     const openPriya = async (c: ReturnType<typeof detail>) => {
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       fireEvent.click(await screen.findByText('Priya'));
       const dialog = await screen.findByRole('dialog');
       await within(dialog).findByText('Certificates');
@@ -539,11 +539,11 @@ describe('Learners', () => {
       ).toBeTruthy();
     });
 
-    it('shows Pariksha attempts by title, newest first, and resets a cooldown', async () => {
+    it('shows Quiz attempts by title, newest first, and resets a cooldown', async () => {
       const c = detail();
       const dialog = await openPriya(c);
-      const q1 = within(dialog).getByRole('region', { name: 'Pariksha I attempts' });
-      expect(q1.textContent).toContain('Pariksha I · 2 attempts · best 50% · Not passed yet');
+      const q1 = within(dialog).getByRole('region', { name: 'Quiz I attempts' });
+      expect(q1.textContent).toContain('Quiz I · 2 attempts · best 50% · Not passed yet');
       expect(
         within(q1)
           .getAllByRole('listitem')
@@ -555,12 +555,12 @@ describe('Learners', () => {
       expect(within(dialog).queryByText(/q1|q2/)).toBeNull();
       expect(c.data.attemptsFor).toHaveBeenCalledWith('u1', 'git', 'q1');
       expect(c.data.attemptsFor).toHaveBeenCalledTimes(2);
-      fireEvent.click(within(q1).getByRole('button', { name: 'Reset cooldown for Pariksha I' }));
+      fireEvent.click(within(q1).getByRole('button', { name: 'Reset cooldown for Quiz I' }));
       await waitFor(() =>
         expect(c.service.resetCooldown).toHaveBeenCalledWith({
           uid: 'u1',
           courseId: 'git',
-          parikshaId: 'q1',
+          quizId: 'q1',
         }),
       );
       expect(await screen.findByText('Retake opened')).toBeTruthy();
@@ -601,7 +601,7 @@ describe('Learners', () => {
 
     it('shows a pending invite’s assignments without reading progress, and closes with Escape', async () => {
       const c = detail();
-      const { container } = await openApp('/kulapati/learners', { ...kulapati, console: c });
+      const { container } = await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Priya');
       fireEvent.click(screen.getByRole('tab', { name: 'Pending invite (1)' }));
       fireEvent.click(await screen.findByText('new@nonstopio.com'));
@@ -623,7 +623,7 @@ describe('Learners', () => {
 
     it('says so when a person has no courses at all', async () => {
       const c = setup({ assignments: [] });
-      await openApp('/kulapati/learners', { ...kulapati, console: c });
+      await openApp('/admin/learners', { ...admin, console: c });
       fireEvent.click(await screen.findByText('Rohan'));
       const dialog = await screen.findByRole('dialog');
       expect(await within(dialog).findByText('No courses assigned or started.')).toBeTruthy();
@@ -643,22 +643,22 @@ describe('Learners', () => {
 
     it('opens the drawer of the person in the link, then drops it from the URL', async () => {
       const c = setup();
-      const { router } = await openApp('/kulapati/learners?learner=u2', {
-        ...kulapati,
+      const { router } = await openApp('/admin/learners?learner=u2', {
+        ...admin,
         console: c,
       });
       const dialog = await screen.findByRole('dialog', { name: 'Rohan' });
       expect(within(dialog).getByText('user2@nonstopio.com')).toBeTruthy();
       expect(c.data.usersByUid).toHaveBeenCalledWith(['u2']);
       expect(router.state.location.search).toBe('');
-      expect(router.state.location.pathname).toBe('/kulapati/learners');
+      expect(router.state.location.pathname).toBe('/admin/learners');
     });
 
     it('says so when the person is not found, or cannot be read', async () => {
       const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
       const c = setup();
-      const { router } = await openApp('/kulapati/learners?learner=gone', {
-        ...kulapati,
+      const { router } = await openApp('/admin/learners?learner=gone', {
+        ...admin,
         console: c,
       });
       expect(await screen.findByText('That person was not found.')).toBeTruthy();
@@ -666,7 +666,7 @@ describe('Learners', () => {
       c.data.usersByUid = vi
         .fn()
         .mockRejectedValue(Object.assign(new Error('x'), { code: 'denied' }));
-      await act(() => router.navigate('/kulapati/learners?learner=u1'));
+      await act(() => router.navigate('/admin/learners?learner=u1'));
       expect(await screen.findByText('Could not open that learner. Try again.')).toBeTruthy();
       expect(warn).toHaveBeenCalledWith('Linked learner not loaded', { code: 'denied' });
       warn.mockRestore();
@@ -683,13 +683,13 @@ describe('Learners', () => {
         .mockReturnValueOnce(first.promise)
         .mockReturnValueOnce(second.promise)
         .mockReturnValueOnce(third.promise);
-      const { router } = await openApp('/kulapati/learners?learner=u1', {
-        ...kulapati,
+      const { router } = await openApp('/admin/learners?learner=u1', {
+        ...admin,
         console: c,
       });
       await screen.findByText('Priya');
-      await act(() => router.navigate('/kulapati/learners?learner=u9'));
-      await act(() => router.navigate('/kulapati/learners?learner=u2'));
+      await act(() => router.navigate('/admin/learners?learner=u9'));
+      await act(() => router.navigate('/admin/learners?learner=u2'));
       await act(async () => third.resolve([users[1] as UserRow]));
       await act(async () => first.resolve([users[0] as UserRow]));
       await act(async () => second.reject(new Error('late')));

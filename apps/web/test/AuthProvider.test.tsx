@@ -28,7 +28,7 @@ const setup = (claims = {}) => {
   render(
     <AuthProvider service={f.service}>
       <Probe />
-      <RequireRole any={['kulapati']}>
+      <RequireRole any={['admin']}>
         <p>console</p>
       </RequireRole>
     </AuthProvider>,
@@ -39,9 +39,9 @@ const setup = (claims = {}) => {
 describe('AuthProvider', () => {
   it('starts loading, then signedOut with no user', () => {
     const f = setup();
-    expect(out()).toBe('loading|shishya|');
+    expect(out()).toBe('loading|learner|');
     act(() => f.emitUser(null));
-    expect(out()).toBe('signedOut|shishya|');
+    expect(out()).toBe('signedOut|learner|');
     expect(screen.queryByText('console')).toBeNull();
   });
 
@@ -52,16 +52,16 @@ describe('AuthProvider', () => {
     act(() => f.emitProfile(null));
     expect(out()?.startsWith('loading')).toBe(true);
     await waitFor(() => expect(f.service.claims).toHaveBeenCalled());
-    act(() => f.emitProfile({ roles: ['shishya'], displayName: 'P', team: null }));
-    expect(out()).toBe('ready|shishya|');
+    act(() => f.emitProfile({ roles: ['learner'], displayName: 'P', team: null }));
+    expect(out()).toBe('ready|learner|');
     expect(f.service.claims).toHaveBeenCalledTimes(1);
   });
 
-  it('takes roles from claims and lets a Kulapati into the console', async () => {
-    const f = setup({ kulapati: true });
+  it('takes roles from claims and lets an Admin into the console', async () => {
+    const f = setup({ admin: true });
     act(() => f.emitUser(NONSTOP));
-    act(() => f.emitProfile({ roles: ['shishya', 'kulapati'], displayName: 'P', team: null }));
-    await waitFor(() => expect(out()).toBe('ready|shishya,kulapati|'));
+    act(() => f.emitProfile({ roles: ['learner', 'admin'], displayName: 'P', team: null }));
+    await waitFor(() => expect(out()).toBe('ready|learner,admin|'));
     expect(screen.getByText('console')).toBeTruthy();
   });
 
@@ -69,14 +69,14 @@ describe('AuthProvider', () => {
     const f = setup({});
     act(() => f.emitUser(NONSTOP));
     await waitFor(() => expect(f.service.claims).toHaveBeenCalledTimes(1));
-    act(() => f.emitProfile({ roles: ['shishya', 'acharya'], displayName: 'P', team: null }));
+    act(() => f.emitProfile({ roles: ['learner', 'educator'], displayName: 'P', team: null }));
     await waitFor(() => expect(f.service.claims).toHaveBeenCalledWith(NONSTOP, true));
   });
 
   it('shows the not-allowed page to someone without the role', async () => {
     const f = setup();
     act(() => f.emitUser(NONSTOP));
-    act(() => f.emitProfile({ roles: ['shishya'], displayName: 'P', team: null }));
+    act(() => f.emitProfile({ roles: ['learner'], displayName: 'P', team: null }));
     expect(screen.getByRole('heading', { name: /do not have access/ })).toBeTruthy();
   });
 
@@ -87,7 +87,7 @@ describe('AuthProvider', () => {
   ])('signs %j straight back out with a message', (user) => {
     const f = setup();
     act(() => f.emitUser(user));
-    expect(out()).toBe(`denied|shishya|${deniedMessage(user.email)}`);
+    expect(out()).toBe(`denied|learner|${deniedMessage(user.email)}`);
     expect(screen.getByTestId('wrong').textContent).toBe('true');
     expect(f.service.signOut).toHaveBeenCalled();
     expect(f.service.watchProfile).not.toHaveBeenCalled();
@@ -116,14 +116,14 @@ describe('AuthProvider', () => {
       </AuthProvider>,
     );
     act(() => f.emitUser(null));
-    await waitFor(() => expect(out()).toBe(`signedOut|shishya|${RETRY_MESSAGE}`));
+    await waitFor(() => expect(out()).toBe(`signedOut|learner|${RETRY_MESSAGE}`));
   });
 
   it('signs out through the service and drops the profile watch on sign-out', async () => {
     const f = setup();
     act(() => f.emitUser(NONSTOP));
     act(() => f.emitUser(null));
-    expect(out()).toBe('signedOut|shishya|');
+    expect(out()).toBe('signedOut|learner|');
     screen.getByText('out').click();
     expect(f.service.signOut).toHaveBeenCalled();
   });
@@ -133,10 +133,10 @@ describe('AuthProvider', () => {
     f.service.signIn = (() => Promise.reject(new Error('popup closed'))) as never;
     act(() => f.emitUser(null));
     await act(async () => screen.getByText('in').click());
-    expect(out()).toBe(`signedOut|shishya|${RETRY_MESSAGE}`);
+    expect(out()).toBe(`signedOut|learner|${RETRY_MESSAGE}`);
     f.service.signIn = (() => Promise.resolve()) as never;
     await act(async () => screen.getByText('in').click());
-    expect(out()).toBe('signedOut|shishya|');
+    expect(out()).toBe('signedOut|learner|');
   });
 
   it('useUser throws unless somebody is signed in', () => {

@@ -1,5 +1,7 @@
 import { Button, Card, Input, Textarea } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
+import { article } from '../labels/terms';
+import { useTerms } from '../labels/useTerms';
 import { addOutcome, patchCourse, removeOutcome, setCertificate, setOutcome } from './courseEdit';
 import type { Working } from './types';
 
@@ -9,6 +11,7 @@ const MAX_OUTCOMES = 12;
 
 /** The page learners see before they start: a description and what they will be able to do. */
 export function LandingTab({ course, update }: { course: Course; update: Update }) {
+  const t = useTerms();
   return (
     <section className="sc-tab" aria-labelledby="landing-title">
       <h2 id="landing-title" className="sc-h2">
@@ -26,7 +29,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
       </Card>
       <Card as="section" aria-labelledby="outcomes-title" className="sc-panel">
         <h3 id="outcomes-title" className="sc-h3">
-          What learners will be able to do
+          {`What ${t.learners} will be able to do`}
         </h3>
         {course.outcomes.length === 0 ? <p className="sc-help">No outcomes yet.</p> : null}
         <ul className="sc-outcomes">
@@ -63,6 +66,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
 /** What the certificate says. Who signs it is an org setting. */
 export function CertificateTab({ course, update }: { course: Course; update: Update }) {
   const c = course.certificate;
+  const t = useTerms();
   return (
     <section className="sc-tab" aria-labelledby="cert-title">
       <h2 id="cert-title" className="sc-h2">
@@ -81,7 +85,7 @@ export function CertificateTab({ course, update }: { course: Course; update: Upd
           onChange={(e) => update((w) => setCertificate(w, { title: e.target.value }))}
         />
         <p className="sc-help">
-          The signatory printed on certificates is set by a Kulapati in Org settings.
+          {`The signatory printed on certificates is set by ${article(t.Admin)} in Org settings.`}
         </p>
       </Card>
     </section>

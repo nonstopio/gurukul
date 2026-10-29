@@ -1,5 +1,5 @@
 import { itemStates, itemsOf, resumeItemId } from '@gurukul/schema';
-import type { Course, ItemState, Lesson, Parva } from '@gurukul/schema';
+import type { Course, ItemState, Lesson, Chapter } from '@gurukul/schema';
 import {
   Button,
   Callout,
@@ -17,14 +17,15 @@ import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { isRetired, percentFor } from './learn/model';
-import { itemPath } from './pariksha/model';
+import { itemPath } from './quiz/model';
 import { Loaded, RetiredNote } from './learn/ui';
 import { BlockView } from './player/blocks';
 import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
 import { isTyping } from './keys';
+import { useTerms } from './labels/useTerms';
 
-const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
+const EMPTY = { completedItemIds: [], quiz: {}, lastItemId: null };
 
 export { isTyping };
 
@@ -82,6 +83,7 @@ function Player({
   const data = useLearnerData();
   const navigate = useNavigate();
   const toast = useToast();
+  const t = useTerms();
   const items = itemsOf(course);
   const index = items.findIndex((i) => i.id === itemId);
   const item = items[index];
@@ -155,7 +157,7 @@ function Player({
         <main className="page">
           <h1 className="page__title">{item.title}</h1>
           <Callout tone="note" title="Locked for now">
-            <p>Finish the earlier items, and pass any Pariksha before this one, to open it.</p>
+            <p>{`Finish the earlier items, and pass any ${t.Quiz} before this one, to open it.`}</p>
           </Callout>
           <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
             Back to the outline
@@ -164,16 +166,16 @@ function Player({
       </>
     );
   }
-  if (item.type === 'pariksha') return <Navigate to={itemPath(course.id, item)} replace />;
+  if (item.type === 'quiz') return <Navigate to={itemPath(course.id, item)} replace />;
 
   const lesson: Lesson = item;
-  const parvaIndex = course.parvas.findIndex((p) => p.items.some((i) => i.id === itemId));
-  const parvaItems = (course.parvas[parvaIndex] as Parva).items;
-  const lessonCount = parvaItems.filter((i) => i.type === 'lesson').length;
-  const lessonsBefore = parvaItems
+  const chapterIndex = course.chapters.findIndex((p) => p.items.some((i) => i.id === itemId));
+  const chapterItems = (course.chapters[chapterIndex] as Chapter).items;
+  const lessonCount = chapterItems.filter((i) => i.type === 'lesson').length;
+  const lessonsBefore = chapterItems
     .slice(
       0,
-      parvaItems.findIndex((i) => i.id === itemId),
+      chapterItems.findIndex((i) => i.id === itemId),
     )
     .filter((i) => i.type === 'lesson').length;
   const done = s === 'done';
@@ -223,7 +225,7 @@ function Player({
         <OutlineRail course={course} itemId={itemId} states={states} />
         <main className={`article article--${lesson.layout}`}>
           <p className="article__kicker">
-            Parva {parvaIndex + 1} · Lesson {lessonsBefore + 1} of {lessonCount}
+            {t.Chapter} {chapterIndex + 1} · Lesson {lessonsBefore + 1} of {lessonCount}
           </p>
           <h1 className="article__title">{lesson.title}</h1>
           <p className="article__chips">
@@ -287,7 +289,7 @@ const STATE_WORD: Record<ItemState, string> = {
   todo: 'Not started',
 };
 
-/** The outline rail: one group per parva, every group closed but the current one unless opened by hand. */
+/** The outline rail: one group per chapter, every group closed but the current one unless opened by hand. */
 function OutlineRail({
   course,
   itemId,
@@ -298,22 +300,25 @@ function OutlineRail({
   states: Record<string, ItemState>;
 }) {
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const isOpen = (p: Parva) => toggled[p.id] ?? p.items.some((i) => i.id === itemId);
+  const t = useTerms();
+  const isOpen = (p: Chapter) => toggled[p.id] ?? p.items.some((i) => i.id === itemId);
   return (
     <nav className="rail" aria-label="Course outline">
-      {course.parvas.map((p, n) => {
+      {course.chapters.map((p, n) => {
         const open = isOpen(p);
         const listId = `rail-${p.id}`;
         return (
-          <section key={p.id} className="rail__parva">
+          <section key={p.id} className="rail__chapter">
             <button
               type="button"
               className="rail__head"
               aria-expanded={open}
               aria-controls={listId}
-              onClick={() => setToggled((t) => ({ ...t, [p.id]: !open }))}
+              onClick={() => setToggled((was) => ({ ...was, [p.id]: !open }))}
             >
-              <span className="rail__kicker">Parva {n + 1}</span>
+              <span className="rail__kicker">
+                {t.Chapter} {n + 1}
+              </span>
               <span>{p.title}</span>
             </button>
             <ol id={listId} hidden={!open}>

@@ -17,15 +17,15 @@ import {
 import { ts } from './fixtures';
 
 describe('roles', () => {
-  it('makes everyone a shishya and adds granted roles', () => {
-    expect(rolesFromClaims(undefined)).toEqual(['shishya']);
-    expect(rolesFromClaims({ acharya: true })).toEqual(['shishya', 'acharya']);
-    expect(rolesFromClaims({ acharya: true, kulapati: true })).toEqual([
-      'shishya',
-      'acharya',
-      'kulapati',
+  it('makes everyone a learner and adds granted roles', () => {
+    expect(rolesFromClaims(undefined)).toEqual(['learner']);
+    expect(rolesFromClaims({ educator: true })).toEqual(['learner', 'educator']);
+    expect(rolesFromClaims({ educator: true, admin: true })).toEqual([
+      'learner',
+      'educator',
+      'admin',
     ]);
-    expect(rolesFromClaims({ acharya: false, kulapati: false })).toEqual(['shishya']);
+    expect(rolesFromClaims({ educator: false, admin: false })).toEqual(['learner']);
   });
 
   it('allows only the NonStop domain, in any letter case', () => {
@@ -47,7 +47,7 @@ describe('document shapes', () => {
         displayName: 'A',
         photoURL: null,
         team: null,
-        roles: ['shishya'],
+        roles: ['learner'],
         grantedCourseIds: [],
         createdAt: ts(1),
       }).success,
@@ -59,11 +59,22 @@ describe('document shapes', () => {
         nameLower: nameKey('Ananya Rao'),
         photoURL: null,
         team: null,
-        roles: ['shishya'],
+        roles: ['learner'],
         grantedCourseIds: [],
         createdAt: ts(1),
       }).data?.nameLower,
     ).toBe('ananya rao');
+    const base = {
+      email: 'a@nonstopio.com',
+      displayName: 'A',
+      photoURL: null,
+      team: null,
+      roles: ['learner'],
+      grantedCourseIds: [],
+      createdAt: ts(1),
+    };
+    expect(userSchema.safeParse({ ...base, labels: 'gurukul' }).data?.labels).toBe('gurukul');
+    expect(userSchema.safeParse({ ...base, labels: 'other' }).success).toBe(false);
     expect(orgConfigSchema.safeParse(DEFAULT_ORG_CONFIG).success).toBe(true);
     expect(orgConfigSchema.safeParse({ ...DEFAULT_ORG_CONFIG, domain: '' }).success).toBe(false);
   });
@@ -130,7 +141,7 @@ describe('document shapes', () => {
       lastItemId: null,
       lastActiveAt: ts(1),
       completedItemIds: [],
-      pariksha: { q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
+      quiz: { q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } },
       percent: 0,
       completedAt: null,
       certificateId: null,

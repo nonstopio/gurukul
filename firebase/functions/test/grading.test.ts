@@ -9,7 +9,7 @@ import {
 } from '../src/grading.js';
 import type { GradingStore } from '../src/grading.js';
 import { migrateCourse } from '@gurukul/schema';
-import { answerKey, course, pariksha, progress, ts } from './fixtures.js';
+import { answerKey, course, quiz, progress, ts } from './fixtures.js';
 
 const NOW = 1_000_000_000_000;
 
@@ -32,7 +32,7 @@ const grade = (s: GradingStore, data: object = {}) =>
     'u',
     {
       courseId: 'git-basics',
-      parikshaId: 'pk',
+      quizId: 'pk',
       questionIds: ['q1', 'q2'],
       answers: { q1: ['a'], q2: ['b', 'a'] },
       ...data,
@@ -67,7 +67,7 @@ describe('isCorrect', () => {
 });
 
 describe('checkAnswer', () => {
-  const data = { courseId: 'git-basics', parikshaId: 'pk', questionId: 'q1', selected: ['a'] };
+  const data = { courseId: 'git-basics', quizId: 'pk', questionId: 'q1', selected: ['a'] };
 
   it('says right or wrong and gives the key and the explanation', async () => {
     expect(await checkAnswer(store(), 'u', data)).toEqual({
@@ -86,7 +86,7 @@ describe('checkAnswer', () => {
   it('rejects malformed requests', async () => {
     for (const bad of [
       [{ ...data, courseId: '' }, 'VAL_1002', 'courseId'],
-      [{ ...data, parikshaId: 1 }, 'VAL_1002', 'parikshaId'],
+      [{ ...data, quizId: 1 }, 'VAL_1002', 'quizId'],
       [{ ...data, questionId: undefined }, 'VAL_1001', 'questionId'],
       [{ ...data, selected: 'a' }, 'VAL_1002', 'selected'],
       [{ ...data, selected: [1] }, 'VAL_1002', 'selected'],
@@ -123,8 +123,8 @@ describe('checkAnswer', () => {
     );
   });
 
-  it('rejects unknown Pariksha and question ids', async () => {
-    await rejects(checkAnswer(store(), 'u', { ...data, parikshaId: 'nope' }), 'PRK_2001');
+  it('rejects unknown Quiz and question ids', async () => {
+    await rejects(checkAnswer(store(), 'u', { ...data, quizId: 'nope' }), 'PRK_2001');
     await rejects(checkAnswer(store(), 'u', { ...data, questionId: 'nope' }), 'VAL_1003');
   });
 
@@ -152,13 +152,13 @@ describe('checkAnswer', () => {
   });
 });
 
-/** A sequential course whose Pariksha `pk` sits in a second parva, behind a lesson-only first one. */
+/** A sequential course whose Quiz `pk` sits in a second chapter, behind a lesson-only first one. */
 const lockedCourse = () =>
   course(
     {},
     {
       rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
-      parvas: [
+      chapters: [
         {
           id: 'p0',
           title: 'First',
@@ -174,13 +174,13 @@ const lockedCourse = () =>
             },
           ],
         },
-        { id: 'p1', title: 'P', items: [pariksha()] },
+        { id: 'p1', title: 'P', items: [quiz()] },
       ],
     },
   );
 
 describe('checkUnlocked', () => {
-  it('refuses a Pariksha the outline shows as locked, and allows it once the parva before is passed', () => {
+  it('refuses a Quiz the outline shows as locked, and allows it once the chapter before is passed', () => {
     expect(() => checkUnlocked(migrateCourse(lockedCourse()), progress(), 'pk')).toThrow(
       expect.objectContaining({ code: 'PRK_1003', params: ['pk'] }),
     );
@@ -200,12 +200,12 @@ describe('checkUnlocked', () => {
     expect(() => checkUnlocked(migrateCourse(course()), undefined, 'pk')).not.toThrow();
   });
 
-  it('keeps checkAnswer and gradeAttempt off a locked Pariksha without reading the key', async () => {
+  it('keeps checkAnswer and gradeAttempt off a locked Quiz without reading the key', async () => {
     const s = store({ getCourse: vi.fn().mockResolvedValue(lockedCourse()) });
     await rejects(
       checkAnswer(s, 'u', {
         courseId: 'git-basics',
-        parikshaId: 'pk',
+        quizId: 'pk',
         questionId: 'q1',
         selected: ['a'],
       }),
@@ -283,7 +283,7 @@ describe('gradeAttempt', () => {
       {
         uid: 'u',
         courseId: 'git-basics',
-        parikshaId: 'pk',
+        quizId: 'pk',
         score: 1,
         correctCount: 2,
         total: 2,
@@ -300,7 +300,7 @@ describe('gradeAttempt', () => {
     );
   });
 
-  it('counts unanswered questions as incorrect and uses the Pariksha pass mark over the course one', async () => {
+  it('counts unanswered questions as incorrect and uses the Quiz pass mark over the course one', async () => {
     const half = store({
       getCourse: vi.fn().mockResolvedValue(course({ passMark: 0.5 })),
     });
@@ -332,8 +332,8 @@ describe('gradeAttempt', () => {
   it('rejects malformed requests', async () => {
     for (const [bad, code, field] of [
       [{ courseId: 1 }, 'VAL_1002', 'courseId'],
-      [{ parikshaId: '' }, 'VAL_1002', 'parikshaId'],
-      [{ parikshaId: undefined }, 'VAL_1001', 'parikshaId'],
+      [{ quizId: '' }, 'VAL_1002', 'quizId'],
+      [{ quizId: undefined }, 'VAL_1001', 'quizId'],
       [{ questionIds: 'q1' }, 'VAL_1002', 'questionIds'],
       [{ answers: null }, 'VAL_1002', 'answers'],
       [{ answers: 'x' }, 'VAL_1002', 'answers'],
@@ -345,12 +345,12 @@ describe('gradeAttempt', () => {
     }
   });
 
-  it('rejects unknown courses and Parikshas', async () => {
+  it('rejects unknown courses and Quizzes', async () => {
     await rejects(grade(store({ getCourse: vi.fn().mockResolvedValue(undefined) })), 'CRS_2001');
-    await rejects(grade(store(), { parikshaId: 'nope' }), 'PRK_2001');
+    await rejects(grade(store(), { quizId: 'nope' }), 'PRK_2001');
   });
 
-  it('rejects a question list that is not the Pariksha’s', async () => {
+  it('rejects a question list that is not the Quiz’s', async () => {
     for (const bad of [
       { questionIds: ['q1', 'q1'], answers: {} },
       { questionIds: ['q1'], answers: {} },

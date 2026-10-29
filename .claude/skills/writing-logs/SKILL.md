@@ -13,7 +13,7 @@ rules are lint-enforced. Standard: `.plan/17-logging.md`.
 
 ```ts
 log.info('Certificate issued', { credentialId, courseId });
-log.error('Grading failed', err, { courseId, parikshaId });
+log.error('Grading failed', err, { courseId, quizId });
 ```
 
 ## When to Use

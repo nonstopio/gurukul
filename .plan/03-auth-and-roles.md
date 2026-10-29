@@ -24,48 +24,48 @@
 
 | Role | How you get it | Stored as |
 |---|---|---|
-| Shishya | Signing in | implicit |
-| Acharya | A Kulapati grants it, with a list of course ids | claim `acharya: true` + `users/{uid}.grantedCourseIds` |
-| Kulapati | Another Kulapati grants it (bootstrap below) | claim `kulapati: true` |
+| Learner | Signing in | implicit |
+| Educator | An Admin grants it, with a list of course ids | claim `educator: true` + `users/{uid}.grantedCourseIds` |
+| Admin | Another Admin grants it (bootstrap below) | claim `admin: true` |
 
 - Claims are set only by the `setRoles` callable, which checks the caller is a
-  Kulapati, writes the claims, mirrors `roles` on `users/{uid}` and revokes the
+  Admin, writes the claims, mirrors `roles` on `users/{uid}` and revokes the
   user's refresh tokens so the new claims apply within an hour (the app forces
   a token refresh when it sees the mirror change).
-- Per-course edit rights (which courses an Acharya may edit) are stored in
-  `courses/{id}.acharyaIds`, checked by rules on the draft document. Claims
+- Per-course edit rights (which courses an Educator may edit) are stored in
+  `courses/{id}.educatorIds`, checked by rules on the draft document. Claims
   stay small; course lists do not go in the token.
-- A Kulapati cannot remove their own Kulapati role (no lock-out).
+- An Admin cannot remove their own Admin role (no lock-out).
 
-**Bootstrap:** the first Kulapati is set with a one-off script,
-`npm run grant-kulapati -- you@nonstopio.com`, run once with an admin
+**Bootstrap:** the first Admin is set with a one-off script,
+`npm run grant-admin -- you@nonstopio.com`, run once with an admin
 credential on the maintainer's machine. Documented in `docs/operations.md`,
 linked from CONTRIBUTING, never in CI.
 
 ## Route gating in the app
 
 `useSession()` returns `{ user, roles, status }` from the ID token claims.
-`<RequireRole role="kulapati">` wraps console routes; Studio routes need
-`acharya` or `kulapati`. Gating in the UI is convenience only — rules are the
+`<RequireRole role="admin">` wraps console routes; Studio routes need
+`educator` or `admin`. Gating in the UI is convenience only — rules are the
 enforcement and are tested for each role.
 
 ## Rules outline
 
 ```
 function signedIn()     { request.auth != null && token.email_verified && email ends @nonstopio.com }
-function isKulapati()   { signedIn() && token.kulapati == true }
-function isAcharyaOf(c) { signedIn() && token.acharya == true && request.auth.uid in get(/courses/$(c)).data.acharyaIds }
+function isAdmin()   { signedIn() && token.admin == true }
+function isEducatorOf(c) { signedIn() && token.educator == true && request.auth.uid in get(/courses/$(c)).data.educatorIds }
 
-users/{uid}                 read: self || kulapati;  update: self, only displayName/team
-courses/{c}                 read: signedIn && status == 'published' || isAcharyaOf(c) || isKulapati
-courses/{c}/drafts/{d}      read, write: isAcharyaOf(c) || isKulapati   (shape validated)
-courses/{c}/versions/{n}    read: isAcharyaOf(c) || isKulapati
+users/{uid}                 read: self || admin;  update: self, only displayName/team
+courses/{c}                 read: signedIn && status == 'published' || isEducatorOf(c) || isAdmin
+courses/{c}/drafts/{d}      read, write: isEducatorOf(c) || isAdmin   (shape validated)
+courses/{c}/versions/{n}    read: isEducatorOf(c) || isAdmin
 courses/{c}/private/{d}     none
-assignments/{a}             read: resource.data.uid == auth.uid || isKulapati
-progress/{uid_c}            read: owner || kulapati || isAcharyaOf(c)
+assignments/{a}             read: resource.data.uid == auth.uid || isAdmin
+progress/{uid_c}            read: owner || admin || isEducatorOf(c)
                             update: owner, only completedItemIds (arrayUnion of known ids), lastItemId, lastActiveAt
 certificates/{id}           read: true
-stats/{s}                   read: kulapati (or acharya of that course)
+stats/{s}                   read: admin (or educator of that course)
 ```
 
 Every line gets an allow and a deny test (`10-testing-and-ci.md`).
@@ -74,4 +74,4 @@ Every line gets an allow and a deny test (`10-testing-and-ci.md`).
 
 - ~~Use Identity Platform blocking functions, or rules-only domain lock?~~ Resolved: rules-only, as
   built (`13-open-questions.md` question 3).
-- Should Acharyas see learner names in their course analytics, or only aggregates?
+- Should Educators see learner names in their course analytics, or only aggregates?

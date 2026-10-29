@@ -19,9 +19,11 @@ import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { useDebounced } from '../data/useDebounced';
+import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
+import { article } from '../labels/terms';
 import { log } from '../log';
-import { longDate } from '../pariksha/model';
+import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
 import { LearnerDrawer } from './LearnerDrawer';
 import {
@@ -63,9 +65,10 @@ const TABS: Array<{ id: LearnerTab; label: string }> = [
   { id: 'overdue', label: 'Overdue' },
 ];
 
-/** `/kulapati/learners`: everyone who signed in plus pending invites, with filters and bulk actions. */
+/** `/admin/learners`: everyone who signed in plus pending invites, with filters and bulk actions. */
 export function LearnersPage() {
   const { data } = useConsole();
+  const t = useTerms();
   const learner = useLearnerData();
   const [now] = useState(() => new Date());
   const meta = useAsync(
@@ -92,8 +95,8 @@ export function LearnersPage() {
 
   return (
     <main className="page console">
-      <p className="article__kicker">Kulapati</p>
-      <h1 className="page__title">Learners</h1>
+      <p className="article__kicker">{t.Admin}</p>
+      <h1 className="page__title">{t.Learners}</h1>
       <Loaded loadable={meta}>{(m) => <Learners meta={m} now={now} />}</Loaded>
     </main>
   );
@@ -117,6 +120,7 @@ interface Meta {
  */
 function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const { data, service } = useConsole();
+  const terms = useTerms();
   const navigate = useNavigate();
   const toast = useToast();
   const me = useUser();
@@ -153,13 +157,14 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       },
       (error: unknown) => {
         log.warn('Linked learner not loaded', { code: (error as { code?: unknown }).code });
-        if (current) toast.show('Could not open that learner. Try again.', { tone: 'danger' });
+        if (current)
+          toast.show(`Could not open that ${terms.learner}. Try again.`, { tone: 'danger' });
       },
     );
     return () => {
       current = false;
     };
-  }, [data, linked, now, setParams, toast]);
+  }, [data, linked, now, setParams, toast, terms.learner]);
 
   const reset = (apply: () => void) => {
     apply();
@@ -181,7 +186,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       team
         ? data.usersInTeam(team)
         : role
-          ? data.usersWithRole(role as 'acharya' | 'kulapati')
+          ? data.usersWithRole(role as 'educator' | 'admin')
           : prefix
             ? data.searchUsers(prefix)
             : null,
@@ -300,7 +305,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
     <Loaded loadable={result}>
       {({ total, nextCursor }) => (
         <DataTable<LearnerRow>
-          caption="Learners"
+          caption={terms.Learners}
           rows={rows}
           rowKey={(r) => r.key}
           rowLabel={(r) => r.name}
@@ -311,11 +316,11 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
             setSelected(keys);
           }}
           onRowClick={setOpen}
-          empty={<p>No learners match these filters.</p>}
+          empty={<p>{`No ${terms.learners} match these filters.`}</p>}
           columns={[
             {
               id: 'learner',
-              header: 'Learner',
+              header: terms.Learner,
               cell: (r) => (
                 <span>
                   <strong>{r.name}</strong>
@@ -333,8 +338,10 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
               id: 'role',
               header: 'Role',
               cell: (r) =>
-                r.roles.filter((x) => x !== 'shishya').join(', ') ||
-                (r.status === 'invited' ? '—' : 'Shishya'),
+                r.roles
+                  .filter((x) => x !== 'learner')
+                  .map((x) => terms[x as 'educator' | 'admin'])
+                  .join(', ') || (r.status === 'invited' ? '—' : terms.Learner),
             },
             { id: 'courses', header: 'Courses', cell: (r) => `${r.assigned} · ${r.done} done` },
             {
@@ -400,12 +407,12 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         </Select>
         <Select label="Role" value={role} onChange={(e) => reset(() => setRole(e.target.value))}>
           <option value="">All roles</option>
-          <option value="acharya">Acharya</option>
-          <option value="kulapati">Kulapati</option>
+          <option value="educator">{terms.Educator}</option>
+          <option value="admin">{terms.Admin}</option>
         </Select>
       </div>
       <Tabs
-        label="Learner groups"
+        label={`${terms.Learner} groups`}
         value={tab}
         onValueChange={(id) => reset(() => setTab(id as LearnerTab))}
         tabs={tabItems(counts, tab, table)}
@@ -420,7 +427,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
           ) : null}
           <Button
             variant="chrome"
-            onClick={() => void navigate('/kulapati/assign', { state: { emails } })}
+            onClick={() => void navigate('/admin/assign', { state: { emails } })}
           >
             Assign course
           </Button>
@@ -462,7 +469,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
                 await service.setRoles({
                   uid: p.uid as string,
                   ...change,
-                  ...(change.acharya === false ? { grantedCourseIds: [] } : {}),
+                  ...(change.educator === false ? { grantedCourseIds: [] } : {}),
                 });
                 changed += 1;
               } catch (e) {
@@ -490,16 +497,16 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
 
 /** What to do to one role for everyone selected. */
 type RoleAction = 'keep' | 'add' | 'remove';
-/** The roles to change; a role left out stays as it is. Acharya and Kulapati are independent. */
-type BulkRoleChange = { acharya?: boolean; kulapati?: boolean };
+/** The roles to change; a role left out stays as it is. Educator and Admin are independent. */
+type BulkRoleChange = { educator?: boolean; admin?: boolean };
 
-const flag = (key: 'acharya' | 'kulapati', a: RoleAction): BulkRoleChange =>
+const flag = (key: 'educator' | 'admin', a: RoleAction): BulkRoleChange =>
   a === 'keep' ? {} : { [key]: a === 'add' };
 
 /**
- * Adds or removes Acharya and Kulapati on everyone selected, each on its own, as the Roles screen
- * does. Everyone is a Shishya, so there is no third role to pick. Pending invites have no account
- * yet and your own account cannot lose Kulapati, so those are skipped and counted, not failed.
+ * Adds or removes Educator and Admin on everyone selected, each on its own, as the Roles screen
+ * does. Everyone is a Learner, so there is no third role to pick. Pending invites have no account
+ * yet and your own account cannot lose Admin, so those are skipped and counted, not failed.
  */
 function BulkRoleDialog({
   people,
@@ -512,15 +519,14 @@ function BulkRoleDialog({
   onClose: () => void;
   onApply: (people: Array<{ uid: string | null }>, change: BulkRoleChange) => Promise<void>;
 }) {
-  const [acharya, setAcharya] = useState<RoleAction>('add');
-  const [kulapati, setKulapati] = useState<RoleAction>('keep');
+  const t = useTerms();
+  const [educator, setEducator] = useState<RoleAction>('add');
+  const [admin, setAdmin] = useState<RoleAction>('keep');
   const [saving, setSaving] = useState(false);
-  const eligible = people.filter(
-    (p) => p.uid !== null && !(p.uid === meUid && kulapati === 'remove'),
-  );
+  const eligible = people.filter((p) => p.uid !== null && !(p.uid === meUid && admin === 'remove'));
   const skipped = people.length - eligible.length;
-  const nothingToChange = acharya === 'keep' && kulapati === 'keep';
-  const change: BulkRoleChange = { ...flag('acharya', acharya), ...flag('kulapati', kulapati) };
+  const nothingToChange = educator === 'keep' && admin === 'keep';
+  const change: BulkRoleChange = { ...flag('educator', educator), ...flag('admin', admin) };
   return (
     <Dialog
       open
@@ -538,33 +544,37 @@ function BulkRoleDialog({
         </Button>
       }
     >
-      <p>Everyone is a Shishya. Acharya and Kulapati are separate: change either or both.</p>
+      <p>
+        {`Everyone is ${article(t.Learner)}. ${t.Educator} and ${t.Admin} are separate: change either or both.`}
+      </p>
       <Select
-        label="Acharya (educator)"
-        value={acharya}
-        onChange={(e) => setAcharya(e.target.value as RoleAction)}
+        label={t.Educator}
+        value={educator}
+        onChange={(e) => setEducator(e.target.value as RoleAction)}
       >
         <option value="keep">Leave as it is</option>
-        <option value="add">Make Acharya</option>
-        <option value="remove">Remove Acharya</option>
+        <option value="add">{`Make ${t.Educator}`}</option>
+        <option value="remove">{`Remove ${t.Educator}`}</option>
       </Select>
       <Select
-        label="Kulapati (admin)"
-        value={kulapati}
-        onChange={(e) => setKulapati(e.target.value as RoleAction)}
+        label={t.Admin}
+        value={admin}
+        onChange={(e) => setAdmin(e.target.value as RoleAction)}
       >
         <option value="keep">Leave as it is</option>
-        <option value="add">Make Kulapati</option>
-        <option value="remove">Remove Kulapati</option>
+        <option value="add">{`Make ${t.Admin}`}</option>
+        <option value="remove">{`Remove ${t.Admin}`}</option>
       </Select>
-      {acharya === 'add' ? (
+      {educator === 'add' ? (
         <p>Courses already granted stay as they are. Grant more on Roles &amp; access.</p>
       ) : null}
-      {acharya === 'remove' ? <p>Removing Acharya also clears their granted courses.</p> : null}
+      {educator === 'remove' ? (
+        <p>{`Removing ${t.Educator} also clears their granted courses.`}</p>
+      ) : null}
       {skipped > 0 ? (
         <p>
           {skipped} will be skipped: pending invites have no account yet
-          {kulapati === 'remove' ? ', and you cannot remove your own Kulapati role' : ''}.
+          {admin === 'remove' ? `, and you cannot remove your own ${t.Admin} role` : ''}.
         </p>
       ) : null}
     </Dialog>

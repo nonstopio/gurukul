@@ -88,9 +88,9 @@ export const questionSchema = z.object({
 });
 export type Question = z.infer<typeof questionSchema>;
 
-export const parikshaSchema = z
+export const quizSchema = z
   .object({
-    type: z.literal('pariksha'),
+    type: z.literal('quiz'),
     id,
     title: z.string().min(1).max(160),
     passMark: z.number().min(0).max(1).optional(),
@@ -105,17 +105,17 @@ export const parikshaSchema = z
     message: 'questionsShown cannot exceed the number of questions',
     path: ['questionsShown'],
   });
-export type Pariksha = z.infer<typeof parikshaSchema>;
+export type Quiz = z.infer<typeof quizSchema>;
 
-export const itemSchema = z.union([lessonSchema, parikshaSchema]);
-export type Item = Lesson | Pariksha;
+export const itemSchema = z.union([lessonSchema, quizSchema]);
+export type Item = Lesson | Quiz;
 
-export const parvaSchema = z.object({
+export const chapterSchema = z.object({
   id,
   title: z.string().min(1).max(160),
   items: z.array(itemSchema).max(60),
 });
-export type Parva = z.infer<typeof parvaSchema>;
+export type Chapter = z.infer<typeof chapterSchema>;
 
 export const COURSE_SCHEMA_VERSION = 3;
 
@@ -131,9 +131,9 @@ export const courseSchema = z.object({
     glyph: z.string().max(8),
   }),
   outcomes: z.array(text(200)).max(12),
-  acharyaIds: z.array(z.string()).max(50),
-  /** Display names keyed by uid, so Studio can name a course's Acharyas without reading private `users`. */
-  acharyaNames: z
+  educatorIds: z.array(z.string()).max(50),
+  /** Display names keyed by uid, so Studio can name a course's Educators without reading private `users`. */
+  educatorNames: z
     .record(z.string(), z.string().max(120))
     .refine((names) => Object.keys(names).length <= 50, { message: 'at most 50 names' }),
   status: z.enum(['draft', 'published', 'archived']),
@@ -148,7 +148,7 @@ export const courseSchema = z.object({
   certificate: z.object({
     title: z.string().max(160),
   }),
-  parvas: z.array(parvaSchema).max(30),
+  chapters: z.array(chapterSchema).max(30),
   estimatedMinutes: z.number().int().min(0),
 });
 export type Course = z.infer<typeof courseSchema>;

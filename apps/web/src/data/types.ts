@@ -1,4 +1,4 @@
-import type { Course } from '@gurukul/schema';
+import type { Course, LabelSet } from '@gurukul/schema';
 
 /** One of my assignments, with dates already as `Date` so screens never touch Firestore types. */
 export interface AssignmentRow {
@@ -18,7 +18,7 @@ export interface ProgressRow {
   lastItemId: string | null;
   lastActiveAt: Date | null;
   completedItemIds: string[];
-  pariksha: Record<
+  quiz: Record<
     string,
     { best: number; passed: boolean; attempts: number; lastAttemptAt: Date | null }
   >;
@@ -27,7 +27,7 @@ export interface ProgressRow {
   certificateId: string | null;
 }
 
-/** One graded Pariksha attempt, as `gradeAttempt` recorded it: what the result page rebuilds its review from. */
+/** One graded Quiz attempt, as `gradeAttempt` recorded it: what the result page rebuilds its review from. */
 export interface AttemptRow {
   id: string;
   /** 0..1 */
@@ -74,8 +74,8 @@ export interface LearnerData {
     courseId: string,
     cb: (progress: ProgressRow | null) => void,
   ): () => void;
-  /** My most recent graded attempt at one Pariksha, or `null` before the first. */
-  latestAttempt(uid: string, courseId: string, parikshaId: string): Promise<AttemptRow | null>;
+  /** My most recent graded attempt at one Quiz, or `null` before the first. */
+  latestAttempt(uid: string, courseId: string, quizId: string): Promise<AttemptRow | null>;
   /** One certificate by id; readable without signing in. */
   getCertificate(id: string): Promise<CertificateRow | null>;
   /** My certificates, newest first. */
@@ -86,8 +86,10 @@ export interface LearnerData {
   completeItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** Moves the resume point. */
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
-  /** The teams a Kulapati listed in Org settings (`config/org.teams`); empty before any. */
+  /** The teams an Admin listed in Org settings (`config/org.teams`); empty before any. */
   orgTeams(): Promise<string[]>;
   /** Sets my team (`users/{uid}.team`); the rules accept only a listed team, or `null`. */
   setTeam(uid: string, team: string | null): Promise<void>;
+  /** Which names the app shows this person (`users/{uid}.labels`). */
+  setLabels(uid: string, labels: LabelSet): Promise<void>;
 }

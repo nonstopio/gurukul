@@ -56,7 +56,7 @@ honest and the body is still the contract:
 | 403 | `permission-denied` | Signed in, not allowed |
 | 404 | `not-found` | Nothing there |
 | 409 | `already-exists` | Conflict |
-| 429 | `resource-exhausted` | Too many, or too soon (a Pariksha cooldown) |
+| 429 | `resource-exhausted` | Too many, or too soon (a Quiz cooldown) |
 | 500 | `internal` | Our bug |
 | 503 | `unavailable` | A dependency is down |
 
@@ -71,17 +71,17 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 
 | Callable | Who | `data` |
 |---|---|---|
-| `setRoles` | Kulapati | `{ roles: string[] }` |
+| `setRoles` | Admin | `{ roles: string[] }` |
 | `checkAnswer` | Learner | `{ correct: boolean, correctOptionIds: string[], explanation: string }` |
 | `gradeAttempt` | Learner | `AttemptResult`: `{ attemptId, score, correctCount, total, passed, best, results[], nextAttemptAt }` |
-| `revokeCertificate` | Kulapati | `{ id: string, revoked: boolean }` |
-| `assignCourses` | Kulapati | `{ summary: AssignSummary, assigned: number, notified: number, failed: { email, courseId }[] }` |
-| `resetCooldown` | Kulapati | `{ ok: true }` |
-| `remindLearners` | Kulapati | `{ sent: number, skipped: number }` |
-| `createCourse` | Acharya, Kulapati | `{ courseId: string }` (`CRS_1002` when the slug is taken) |
-| `publishCourse` | Course Acharya, Kulapati | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems) |
-| `rollbackCourse` | Course Acharya, Kulapati | `{ version: number }`, the new version (`CRS_2002` for an unknown snapshot) |
-| `archiveCourse` | Kulapati | `{ status: 'published' \| 'archived' }` |
+| `revokeCertificate` | Admin | `{ id: string, revoked: boolean }` |
+| `assignCourses` | Admin | `{ summary: AssignSummary, assigned: number, notified: number, failed: { email, courseId }[] }` |
+| `resetCooldown` | Admin | `{ ok: true }` |
+| `remindLearners` | Admin | `{ sent: number, skipped: number }` |
+| `createCourse` | Educator, Admin | `{ courseId: string }` (`CRS_1002` when the slug is taken) |
+| `publishCourse` | Course Educator, Admin | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems) |
+| `rollbackCourse` | Course Educator, Admin | `{ version: number }`, the new version (`CRS_2002` for an unknown snapshot) |
+| `archiveCourse` | Admin | `{ status: 'published' \| 'archived' }` |
 
 A cooldown refusal (`PRK_4001`) carries `details: { nextAttemptAt: <epoch ms> }` and the ISO time as
 its developer-message parameter.
@@ -90,7 +90,7 @@ its developer-message parameter.
 
 `PREFIX_NNNN`, defined once in `ERROR_CODES` (`packages/schema/src/api.ts`). Prefixes: `AUTH`
 (sign-in and permission), `VAL` (validation), `USR` (people and roles), `CRS` (courses), `PRK`
-(Parikshas), `CRT` (certificates), `GEN` (system). `retryable` is true only for transient or system
+(Quizzes), `CRT` (certificates), `GEN` (system). `retryable` is true only for transient or system
 problems (5xx, 429). Each entry has a title, category, status, a friendly `userMessage` and a
 `developerMessage` template (`%s` placeholders). Tests assert every entry is complete and that no
 user message carries a placeholder.

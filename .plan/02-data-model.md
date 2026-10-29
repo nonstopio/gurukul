@@ -8,19 +8,19 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Kulapati | self: `displayName`, `nameLower`, `team` only; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null` |
-| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); every Acharya and Kulapati in any status, so Vyasa Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
-| `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Acharyas granted the course, Kulapati | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
-| `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Acharyas, Kulapati | never |
-| `courses/{courseId}/private/answers` | Pariksha answer keys | never | never |
-| `assignments/{assignmentId}` | Who must take what, by when | the assignee (by uid), Kulapati | never (function) |
-| `progress/{uid}_{courseId}` | One learner's state in one course | owner, Kulapati, granted Acharyas | owner: append item ids, set `lastItemId` |
-| `progress/{uid}_{courseId}/attempts/{attemptId}` | Each graded Pariksha attempt | owner, Kulapati, granted Acharyas | never (function) |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Admin | self: `displayName`, `nameLower`, `team`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null` |
+| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
+| `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
+| `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
+| `courses/{courseId}/private/answers` | Quiz answer keys | never | never |
+| `assignments/{assignmentId}` | Who must take what, by when | the assignee (by uid), Admin | never (function) |
+| `progress/{uid}_{courseId}` | One learner's state in one course | owner, Admin, granted Educators | owner: append item ids, set `lastItemId` |
+| `progress/{uid}_{courseId}/attempts/{attemptId}` | Each graded Quiz attempt | owner, Admin, granted Educators | never (function) |
 | `certificates/{credentialId}` | Issued certificates | **public** (verification) | never (function) |
-| `stats/{scope}` | Counters for Sanjaya (`org`, `course_{id}`) | Kulapati, granted Acharyas | never (function) |
-| `audit/{id}` | Who did what (assign, role change, revoke, publish) | Kulapati | never (function) |
-| `questionBank/{id}` (M5) | Reusable Pariksha questions, answers included | Acharyas, Kulapati | Acharyas, Kulapati |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Kulapati (Org settings) |
+| `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
+| `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
+| `questionBank/{id}` (M5) | Reusable Quiz questions, answers included | Educators, Admin | Educators, Admin |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings) |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
 
@@ -39,25 +39,25 @@ type Course = {
   level: 'foundation' | 'intermediate' | 'advanced';
   cover: { theme: 'forest' | 'sand' | 'sky' | 'stone'; glyph: string };
   outcomes: string[];            // "What you will learn"
-  acharyaIds: string[];          // uids who may edit
-  acharyaNames: Record<string, string>; // uid → display name, for Studio (v2); `users` is private
+  educatorIds: string[];          // uids who may edit
+  educatorNames: Record<string, string>; // uid → display name, for Studio (v2); `users` is private
   status: 'draft' | 'published' | 'archived';
   version: number;               // increments on publish
   publishedAt: Timestamp | null;
   rules: {
-    sequential: boolean;         // parvas unlock in order
+    sequential: boolean;         // chapters unlock in order
     passMark: number;            // 0..1, default 0.7
     certificate: boolean;
     requireVideoWatch: boolean;  // every lesson with a video: mark-complete enables at 90% watched
   };
   certificate: { title: string };  // the signatory is `config/org.signatory`, not per course
-  parvas: Parva[];
+  chapters: Chapter[];
   estimatedMinutes: number;      // derived on publish
 };
 
-type Parva = { id: string; title: string; items: Item[] };
+type Chapter = { id: string; title: string; items: Item[] };
 
-type Item = Lesson | Pariksha;
+type Item = Lesson | Quiz;
 
 type Lesson = {
   type: 'lesson';
@@ -80,8 +80,8 @@ type Block =
   | { type: 'file'; id: string; url: string; label: string }
   | { type: 'check'; id: string; prompt: string; options: string[]; correct?: number; explanation: string }; // ungraded, answer inline; `correct` indexes `options` (v3, required to publish)
 
-type Pariksha = {
-  type: 'pariksha';
+type Quiz = {
+  type: 'quiz';
   id: string;
   title: string;
   passMark?: number;             // overrides course rules
@@ -104,7 +104,7 @@ type Question = {
 };
 ```
 
-**Answer key** (`courses/{id}/private/answers`): `{ [parikshaId]: { [questionId]: string[] } }` — option ids.
+**Answer key** (`courses/{id}/private/answers`): `{ [quizId]: { [questionId]: string[] } }` — option ids.
 
 ## Progress
 
@@ -116,14 +116,14 @@ type Progress = {
   lastItemId: string | null;     // the resume point
   lastActiveAt: Timestamp;
   completedItemIds: string[];    // lessons the learner marked complete
-  pariksha: Record<string, { best: number; passed: boolean; attempts: number; lastAttemptAt: Timestamp }>;
+  quiz: Record<string, { best: number; passed: boolean; attempts: number; lastAttemptAt: Timestamp }>;
   percent: number;               // written by the function, not the client
   completedAt: Timestamp | null;
   certificateId: string | null;
 };
 ```
 
-Percent = (completed lessons + passed Parikshas) ÷ (lessons + Parikshas) in the
+Percent = (completed lessons + passed Quizzes) ÷ (lessons + Quizzes) in the
 **current** published version. Ids that no longer exist are ignored; new items
 added in a later version simply count as not done. A learner who already holds
 a certificate keeps it when a course gains lessons.
@@ -137,7 +137,7 @@ type User = {
   nameLower?: string;            // displayName lower-cased (`nameKey`), for search by name
   photoURL: string | null;
   team: string | null;
-  roles: Array<'shishya' | 'acharya' | 'kulapati'>;   // mirror of the claims
+  roles: Array<'learner' | 'educator' | 'admin'>;   // mirror of the claims
   grantedCourseIds: string[];
   createdAt: Timestamp;
 };
@@ -193,7 +193,7 @@ the certificate, the course and the date — no email.
 - `assignments`: `uid ASC, dueAt ASC`; `courseId ASC, status ASC`; `email ASC, uid ASC`
 - `progress`: `courseId ASC, percent DESC`; `courseId ASC, lastActiveAt DESC`
 - `certificates`: `uid ASC, issuedAt DESC`
-- `attempts` (per progress document): `uid ASC, parikshaId ASC, createdAt DESC` — the result page's latest attempt
+- `attempts` (per progress document): `uid ASC, quizId ASC, createdAt DESC` — the result page's latest attempt
 
 ## Migrations
 

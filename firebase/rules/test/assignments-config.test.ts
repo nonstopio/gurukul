@@ -42,22 +42,20 @@ describe('assignments/{id}', () => {
     await assertFails(getDoc(doc(as('rohan'), 'assignments/git__abc')));
     await assertFails(getDoc(doc(as('rohan'), 'assignments/git__def')));
   });
-  it('lets a kulapati read any assignment', async () => {
-    await assertSucceeds(getDoc(doc(as('ajay', { kulapati: true }), 'assignments/git__def')));
+  it('lets an admin read any assignment', async () => {
+    await assertSucceeds(getDoc(doc(as('ajay', { admin: true }), 'assignments/git__def')));
   });
   it('denies signed-out reads and every client write', async () => {
     await assertFails(
       getDoc(doc(env.unauthenticatedContext().firestore(), 'assignments/git__abc')),
     );
-    await assertFails(
-      setDoc(doc(as('ajay', { kulapati: true }), 'assignments/x'), { uid: 'ajay' }),
-    );
+    await assertFails(setDoc(doc(as('ajay', { admin: true }), 'assignments/x'), { uid: 'ajay' }));
     await assertFails(updateDoc(doc(as('priya'), 'assignments/git__abc'), { status: 'completed' }));
   });
 });
 
 describe('config/org', () => {
-  const kulapati = () => as('ajay', { kulapati: true });
+  const admin = () => as('ajay', { admin: true });
   const valid = {
     domain: 'nonstopio.com',
     teams: ['QA', 'Dev'],
@@ -72,21 +70,21 @@ describe('config/org', () => {
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'config/org')));
     await assertFails(getDoc(doc(as('priya', { email: 'p@gmail.com' }), 'config/org')));
   });
-  it('lets a kulapati create it and save teams, reminders and the signatory', async () => {
+  it('lets an admin create it and save teams, reminders and the signatory', async () => {
     await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/org')));
-    await assertSucceeds(setDoc(doc(kulapati(), 'config/org'), valid));
+    await assertSucceeds(setDoc(doc(admin(), 'config/org'), valid));
     await assertSucceeds(
-      updateDoc(doc(kulapati(), 'config/org'), { teams: [], 'reminders.enabled': false }),
+      updateDoc(doc(admin(), 'config/org'), { teams: [], 'reminders.enabled': false }),
     );
     await assertSucceeds(
-      updateDoc(doc(kulapati(), 'config/org'), {
+      updateDoc(doc(admin(), 'config/org'), {
         signatory: { name: 'Ravi Sample', role: 'Dean' },
       }),
     );
   });
-  it('denies writes by a learner or an acharya', async () => {
+  it('denies writes by a learner or an educator', async () => {
     await assertFails(updateDoc(doc(as('priya'), 'config/org'), { teams: [] }));
-    await assertFails(setDoc(doc(as('priya', { acharya: true }), 'config/org'), valid));
+    await assertFails(setDoc(doc(as('priya', { educator: true }), 'config/org'), valid));
   });
   it('denies a bad shape: extra keys, another domain, wrong types, too many teams', async () => {
     const bad = [
@@ -108,11 +106,11 @@ describe('config/org', () => {
       { ...valid, signatory: { name: 1, role: 'Dean' } },
       { ...valid, signatory: { name: 'Asha', role: 1 } },
     ];
-    for (const data of bad) await assertFails(setDoc(doc(kulapati(), 'config/org'), data));
+    for (const data of bad) await assertFails(setDoc(doc(admin(), 'config/org'), data));
   });
   it('denies deleting it, and any other config document', async () => {
-    await assertFails(deleteDoc(doc(kulapati(), 'config/org')));
-    await assertFails(setDoc(doc(kulapati(), 'config/other'), valid));
+    await assertFails(deleteDoc(doc(admin(), 'config/org')));
+    await assertFails(setDoc(doc(admin(), 'config/other'), valid));
     await assertFails(getDoc(doc(as('priya'), 'config/other')));
   });
 });

@@ -1,5 +1,6 @@
 import { videoEmbedUrl } from '@gurukul/schema';
 import { Chip, Input, Select, Toggle } from '@gurukul/ui';
+import { useTerms } from '../../labels/useTerms';
 import { patch } from '../patch';
 import type { BlockEditorProps } from './types';
 
@@ -9,6 +10,7 @@ const PROVIDERS = { youtube: 'YouTube', drive: 'Google Drive', loom: 'Loom' } as
 export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
   const embed = videoEmbedUrl(block.provider, block.url);
   const recognised = embed !== null;
+  const t = useTerms();
   return (
     <div className="studio-fields">
       <Select
@@ -36,7 +38,7 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
         )}
         {recognised ? null : (
           <span className="studio-muted">
-            Learners will see a plain link to open it in a new tab.
+            {`${t.Learners} will see a plain link to open it in a new tab.`}
           </span>
         )}
       </p>

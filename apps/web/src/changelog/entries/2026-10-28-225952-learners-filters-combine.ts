@@ -4,7 +4,7 @@ export default {
   date: '2026-10-28',
   id: 'LEARNERS-FILTERS-COMBINE',
   title: 'Learners filters work together, and "All" includes pending invites',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'fix',
   why:
     'Asking "who in QA is overdue on Git?" used to quietly answer a different question: only the ' +

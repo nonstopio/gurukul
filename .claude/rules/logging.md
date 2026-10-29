@@ -17,10 +17,10 @@ Use the `writing-logs` skill whenever you add or change a log statement. Full st
 - **Levels:** `debug` entry points, decisions and payloads (off in deployed environments); `info`
   completed operations; `warn` refused rules, retries, fallbacks; `error` a failure, always with the
   `Error` object, and **once** — the API wrapper logs thrown errors, lower layers throw instead.
-- **Standard field names**, lowerCamelCase: `uid`, `courseId`, `itemId`, `parikshaId`, `questionId`,
+- **Standard field names**, lowerCamelCase: `uid`, `courseId`, `itemId`, `quizId`, `questionId`,
   `attemptId`, `assignmentId`, `credentialId`, `emailPrefix`, `count`, `durationMs`, `status`,
   `source`, `reason`, `code`, `traceId`.
-- **Never log** passwords, tokens, API keys or service-account material at any level; **Pariksha
+- **Never log** passwords, tokens, API keys or service-account material at any level; **Quiz
   answer keys or correct option ids** at any level; a learner's name, email, phone, date of birth or
   address at INFO and above — log `uid` and ids instead. Full request or response bodies and whole
   DTOs go on a `log.debug` beside the INFO/ERROR line, never on it.

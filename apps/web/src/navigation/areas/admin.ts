@@ -1,50 +1,50 @@
 import type { AreaNavigation } from '../types';
 
-/** The Kulapati (admin) console: everyone, assignments, roles, the audit log and org settings. */
+/** The Admin console: everyone, assignments, roles, the audit log and org settings. */
 export const navigation = {
-  slug: 'kulapati',
-  name: 'Kulapati console',
-  roles: ['kulapati'],
+  slug: 'admin',
+  name: 'Admin console',
+  roles: ['admin'],
   keywords: ['admin', 'console', 'manage'],
   pages: [
     {
-      id: 'kulapati-overview',
-      path: '/kulapati',
+      id: 'admin-overview',
+      path: '/admin',
       label: 'Overview',
-      description: 'Sanjaya: activity, completion and the course funnel',
-      keywords: ['admin', 'console', 'analytics', 'sanjaya', 'dashboard'],
+      description: 'Analytics: activity, completion and the course funnel',
+      keywords: ['admin', 'console', 'analytics', 'dashboard'],
     },
     {
-      id: 'kulapati-learners',
-      path: '/kulapati/learners',
+      id: 'admin-learners',
+      path: '/admin/learners',
       label: 'Learners',
       description: 'Everyone who signed in, plus pending invites',
       keywords: ['people', 'invites', 'overdue', 'reminder', 'progress'],
     },
     {
-      id: 'kulapati-assign',
-      path: '/kulapati/assign',
+      id: 'admin-assign',
+      path: '/admin/assign',
       label: 'Assign courses',
       description: 'Give courses to people, teams or a pasted list of emails',
       keywords: ['assign', 'invite', 'csv', 'deadline', 'due date'],
     },
     {
-      id: 'kulapati-roles',
-      path: '/kulapati/roles',
+      id: 'admin-roles',
+      path: '/admin/roles',
       label: 'Roles & access',
-      description: 'Who is an Acharya or a Kulapati',
-      keywords: ['permissions', 'grant', 'acharya', 'admin'],
+      description: 'Who has Educator and Admin roles',
+      keywords: ['permissions', 'grant', 'educator', 'admin'],
     },
     {
-      id: 'kulapati-audit',
-      path: '/kulapati/audit',
+      id: 'admin-audit',
+      path: '/admin/audit',
       label: 'Audit log',
       description: 'Who assigned, granted, revoked or published what, and when',
       keywords: ['history', 'trail', 'log', 'activity', 'changes'],
     },
     {
-      id: 'kulapati-settings',
-      path: '/kulapati/settings',
+      id: 'admin-settings',
+      path: '/admin/settings',
       label: 'Org settings',
       description: 'The teams learners pick from, daily reminders and who signs certificates',
       keywords: [
@@ -60,6 +60,6 @@ export const navigation = {
     },
   ],
   unlisted: {
-    '/kulapati/courses/:courseId': { context: 'needs a course id; reached from the overview' },
+    '/admin/courses/:courseId': { context: 'needs a course id; reached from the overview' },
   },
 } satisfies AreaNavigation;

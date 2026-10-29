@@ -38,8 +38,8 @@ describe('Field controls', () => {
   it('Select renders its options and is labelled', () => {
     render(
       <Select label="Role" error="Pick one" defaultValue="b">
-        <option value="a">Shishya</option>
-        <option value="b">Acharya</option>
+        <option value="a">Learner</option>
+        <option value="b">Educator</option>
       </Select>,
     );
     const select = screen.getByRole('combobox', { name: 'Role' }) as HTMLSelectElement;
@@ -71,7 +71,7 @@ describe('Field controls', () => {
         <Input label="Name" hint="Your full name" />
         <Input label="Email" error="Enter a valid email" />
         <Select label="Role">
-          <option>Shishya</option>
+          <option>Learner</option>
         </Select>
         <Textarea label="Notes" />
       </form>,

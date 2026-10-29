@@ -7,7 +7,7 @@ export interface SeedDb {
   createIfMissing(path: string, data: unknown): Promise<boolean>;
 }
 
-/** `{ [parikshaId]: { [questionId]: optionIds } }`, the shape of `courses/{id}/private/answers`. */
+/** `{ [quizId]: { [questionId]: optionIds } }`, the shape of `courses/{id}/private/answers`. */
 export type AnswerKeys = Record<string, Record<string, string[]>>;
 
 export interface SeedInput {
@@ -23,27 +23,27 @@ export interface SeedResult {
 
 const ONE_CORRECT_OPTION = new Set(['single', 'trueFalse', 'codeOutput']);
 
-/** Every way the answer key fails to match the course's Parikshas, as readable sentences. */
+/** Every way the answer key fails to match the course's Quizzes, as readable sentences. */
 export function answerKeyProblems(course: Course, answers: AnswerKeys): string[] {
   const problems: string[] = [];
-  const parikshas = course.parvas.flatMap((parva) =>
-    parva.items.flatMap((item) => (item.type === 'pariksha' ? [item] : [])),
+  const quizzes = course.chapters.flatMap((chapter) =>
+    chapter.items.flatMap((item) => (item.type === 'quiz' ? [item] : [])),
   );
 
-  for (const parikshaId of Object.keys(answers)) {
-    if (!parikshas.some((p) => p.id === parikshaId)) {
-      problems.push(`answer key names unknown pariksha "${parikshaId}"`);
+  for (const quizId of Object.keys(answers)) {
+    if (!quizzes.some((p) => p.id === quizId)) {
+      problems.push(`answer key names unknown quiz "${quizId}"`);
     }
   }
-  for (const pariksha of parikshas) {
-    const keys = answers[pariksha.id] ?? {};
+  for (const quiz of quizzes) {
+    const keys = answers[quiz.id] ?? {};
     for (const questionId of Object.keys(keys)) {
-      if (!pariksha.questions.some((q) => q.id === questionId)) {
-        problems.push(`answer key names unknown question "${pariksha.id}/${questionId}"`);
+      if (!quiz.questions.some((q) => q.id === questionId)) {
+        problems.push(`answer key names unknown question "${quiz.id}/${questionId}"`);
       }
     }
-    for (const question of pariksha.questions) {
-      const where = `${pariksha.id}/${question.id}`;
+    for (const question of quiz.questions) {
+      const where = `${quiz.id}/${question.id}`;
       const correct = keys[question.id] ?? [];
       if (correct.length === 0) {
         problems.push(`question "${where}" has no answer key`);
@@ -86,7 +86,7 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
 
 /**
  * Writes the default `config/org` (no teams, reminders off, a fictional signatory) when there is none. Never overwrites:
- * once a Kulapati has saved teams or switched reminders on, re-seeding keeps their settings.
+ * once an Admin has saved teams or switched reminders on, re-seeding keeps their settings.
  */
 export async function seedOrgConfig(db: SeedDb): Promise<{ path: string; created: boolean }> {
   const path = 'config/org';

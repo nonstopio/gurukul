@@ -18,29 +18,30 @@ service cloud.firestore {
         && request.auth.token.email.lower().matches('.*@nonstopio[.]com$');
     }
 
-    function isKulapati() {
-      return signedIn() && request.auth.token.kulapati == true;
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
     }
 
-    // An Acharya may edit only the courses that list them in `acharyaIds` (the claim alone is not
+    // An Educator may edit only the courses that list them in `educatorIds` (the claim alone is not
     // enough; per-course grants stay out of the token). Costs one read, so use it sparingly.
-    function isAcharyaOf(courseId) {
+    function isEducatorOf(courseId) {
       return signedIn()
-        && request.auth.token.acharya == true
-        && request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.acharyaIds;
+        && request.auth.token.educator == true
+        && request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.educatorIds;
     }
 
-    // A person reads their own profile (a Kulapati reads any) and may change only their display
+    // A person reads their own profile (an Admin reads any) and may change only their display
     // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
     // `nameLower` (people search by name) moves with the display name: a write touching either
     // must leave it equal to the display name lower-cased, so it never goes stale. A new team must
     // be on `config/org.teams` (or `null`); that read is paid only when the team changes, so a team
-    // the Kulapati later removes stays on the profile through name edits.
+    // the Admin later removes stays on the profile through name edits.
     match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'nameLower', 'team'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'nameLower', 'team', 'labels'])
+        && request.resource.data.get('labels', 'generic') in ['generic', 'gurukul']
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 120
         && (request.resource.data.team == null
@@ -54,29 +55,29 @@ service cloud.firestore {
     }
 
     // Assignments are keyed by email and stamped with the uid at first sign-in. The assignee
-    // reads their own; a Kulapati reads all. Writes go through the assignCourses function.
+    // reads their own; an Admin reads all. Writes go through the assignCourses function.
     match /assignments/{assignmentId} {
-      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
     // The published course object. Everyone signed in reads published and archived courses
     // (archived ones show as "Retired"); a never-published one (`status: 'draft'`) is readable by
-    // every Acharya and Kulapati, so Vyasa Studio lists every course. It holds no answer keys and
-    // no unpublished edits: those live in `drafts/` below, which stays the course's own Acharyas'.
+    // every Educator and Admin, so Studio lists every course. It holds no answer keys and
+    // no unpublished edits: those live in `drafts/` below, which stays the course's own Educators'.
     // Only the publish function writes.
     match /courses/{courseId} {
       allow read: if signedIn()
         && (resource.data.status in ['published', 'archived']
-            || isKulapati()
-            || request.auth.token.acharya == true);
+            || isAdmin()
+            || request.auth.token.educator == true);
       allow write: if false;
 
-      // The Studio's working copy: course plus answer keys (an Acharya needs them to edit). Saved
+      // The Studio's working copy: course plus answer keys (an Educator needs them to edit). Saved
       // by the author with a rev check, one step at a time. Created and deleted by functions only.
       match /drafts/{draftId} {
-        allow read: if isKulapati() || isAcharyaOf(courseId);
-        allow update: if (isKulapati() || isAcharyaOf(courseId))
+        allow read: if isAdmin() || isEducatorOf(courseId);
+        allow update: if (isAdmin() || isEducatorOf(courseId))
           && request.resource.data.keys().hasOnly(['rev', 'updatedAt', 'updatedBy', 'course', 'answers'])
           && request.resource.data.rev is int
           && request.resource.data.rev == resource.data.rev + 1
@@ -84,52 +85,52 @@ service cloud.firestore {
           && request.resource.data.updatedAt == request.time
           && request.resource.data.course is map
           && request.resource.data.course.id == courseId
-          && request.resource.data.course.parvas is list
-          && request.resource.data.course.parvas.size() <= 30
+          && request.resource.data.course.chapters is list
+          && request.resource.data.course.chapters.size() <= 30
           && request.resource.data.answers is map;
         allow create, delete: if false;
       }
 
       // One snapshot per publish, so any version can be rolled back to. Written by functions only.
       match /versions/{version} {
-        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow read: if isAdmin() || isEducatorOf(courseId);
         allow write: if false;
       }
 
       // Who has started this course, by name: `{displayName}` per learner, written by the progress
-      // trigger when they start. It is how an Acharya sees learner names for their own course
+      // trigger when they start. It is how an Educator sees learner names for their own course
       // without being able to read anyone's profile. Written by functions only.
       match /learners/{uid} {
-        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow read: if isAdmin() || isEducatorOf(courseId);
         allow write: if false;
       }
 
-      // Pariksha answer keys never reach a browser. Grading runs in a function (Admin SDK).
+      // Quiz answer keys never reach a browser. Grading runs in a function (Admin SDK).
       match /private/{doc} {
         allow read, write: if false;
       }
     }
 
-    // The shared question bank: any Acharya or Kulapati reads and adds; the creator or a Kulapati
+    // The shared question bank: any Educator or Admin reads and adds; the creator or an Admin
     // removes. Entries are never edited. Learners have no access.
     match /questionBank/{entryId} {
-      allow read: if signedIn() && (request.auth.token.acharya == true || request.auth.token.kulapati == true);
+      allow read: if signedIn() && (request.auth.token.educator == true || request.auth.token.admin == true);
       allow create: if signedIn()
-        && (request.auth.token.acharya == true || request.auth.token.kulapati == true)
+        && (request.auth.token.educator == true || request.auth.token.admin == true)
         && request.resource.data.keys().hasOnly(['question', 'answers', 'tags', 'createdBy', 'createdAt'])
         && request.resource.data.question is map
         && request.resource.data.answers is list
         && request.resource.data.tags is list
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time;
-      allow delete: if isKulapati()
-        || (signedIn() && request.auth.token.acharya == true && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin()
+        || (signedIn() && request.auth.token.educator == true && resource.data.createdBy == request.auth.uid);
       allow update: if false;
     }
 
     // One learner's state in one course, `{uid}_{courseId}`. The learner creates it (starting or
     // self-enrolling in a published course) and may only append completed lesson ids and move the
-    // resume point; percent, Pariksha results and certificates are written by functions.
+    // resume point; percent, Quiz results and certificates are written by functions.
     match /progress/{progressId} {
       // `completedItemIds` only grows the way arrayUnion(itemId) grows it: unchanged, or the same
       // list with one new item id (a string of 1-80 characters, the course object's id) on the end.
@@ -151,12 +152,12 @@ service cloud.firestore {
         && (progressId.matches(request.auth.uid + '_.*')
             || (resource != null
                 && (resource.data.uid == request.auth.uid
-                    || isKulapati()
-                    || isAcharyaOf(resource.data.courseId))));
+                    || isAdmin()
+                    || isEducatorOf(resource.data.courseId))));
 
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['uid', 'courseId', 'courseVersion', 'startedAt',
-             'lastItemId', 'lastActiveAt', 'completedItemIds', 'pariksha', 'percent',
+             'lastItemId', 'lastActiveAt', 'completedItemIds', 'quiz', 'percent',
              'completedAt', 'certificateId'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.courseId is string
@@ -167,7 +168,7 @@ service cloud.firestore {
         && request.resource.data.lastActiveAt == request.time
         && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
         && request.resource.data.completedItemIds == []
-        && request.resource.data.pariksha == {}
+        && request.resource.data.quiz == {}
         && request.resource.data.percent == 0
         && request.resource.data.completedAt == null
         && request.resource.data.certificateId == null;
@@ -184,23 +185,23 @@ service cloud.firestore {
       allow delete: if false;
 
       // One graded attempt, written by gradeAttempt (Admin SDK) with the learner's uid and the
-      // course id on it, so reading costs no extra lookup. The learner, a Kulapati or the course's
-      // Acharya read it.
+      // course id on it, so reading costs no extra lookup. The learner, an Admin or the course's
+      // Educator read it.
       match /attempts/{attemptId} {
         allow read: if signedIn()
           && (resource.data.uid == request.auth.uid
-              || isKulapati()
-              || isAcharyaOf(resource.data.courseId));
+              || isAdmin()
+              || isEducatorOf(resource.data.courseId));
         allow write: if false;
       }
     }
 
     // A certificate is public so anyone can verify it by id, signed in or not: the page shows the
-    // name, course, date and status, never an email. Listing is for the owner and Kulapatis (a
+    // name, course, date and status, never an email. Listing is for the owner and Admins (a
     // learner's "my certificates"). Only the progress trigger issues and revokeCertificate edits.
     match /certificates/{certificateId} {
       allow get: if true;
-      allow list: if signedIn() && (resource.data.uid == request.auth.uid || isKulapati());
+      allow list: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
@@ -209,19 +210,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Sanjaya's counters, kept by triggers and the daily roll-up. `org` and every course's funnel
-    // are for Kulapatis; `course_{id}` is also readable by that course's Acharya. Never learners;
+    // Analytics's counters, kept by triggers and the daily roll-up. `org` and every course's funnel
+    // are for Admins; `course_{id}` is also readable by that course's Educator. Never learners;
     // never written from a client.
     match /stats/{scope} {
-      allow read: if isKulapati()
-        || (scope.matches('course_.+') && isAcharyaOf(scope.replace('^course_', '')));
+      allow read: if isAdmin()
+        || (scope.matches('course_.+') && isEducatorOf(scope.replace('^course_', '')));
       allow write: if false;
     }
 
-    // The audit trail of Kulapati actions (roles, assignments, certificates, resets). Read-only
-    // for Kulapatis; entries are written by functions.
+    // The audit trail of Admin actions (roles, assignments, certificates, resets). Read-only
+    // for Admins; entries are written by functions.
     match /audit/{entryId} {
-      allow read: if isKulapati();
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -231,12 +232,12 @@ service cloud.firestore {
     }
 
     // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
-    // settings and who signs certificates. A Kulapati edits all but the domain from the console; the
+    // settings and who signs certificates. An Admin edits all but the domain from the console; the
     // domain is fixed here, as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
     // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
     match /config/org {
       allow read: if signedIn();
-      allow create, update: if isKulapati()
+      allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders', 'signatory'])
         && request.resource.data.domain == 'nonstopio.com'
         && request.resource.data.teams is list

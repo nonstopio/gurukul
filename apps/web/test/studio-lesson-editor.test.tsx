@@ -15,20 +15,20 @@ const blocks = (): Block[] => [
 ];
 function courseWith(list: Block[] = blocks()): Course {
   const course = makeCourse();
-  const first = course.parvas[0]?.items[0];
+  const first = course.chapters[0]?.items[0];
   if (first?.type === 'lesson') first.blocks = list;
   return course;
 }
 const PATH = '/studio/courses/git/lessons/l1';
 const open = async (course = courseWith(), path = PATH, studio?: ReturnType<typeof fakeStudio>) => {
   const s = studio ?? fakeStudio({ draft: draftDoc(course, { rev: 3 }) });
-  const view = await openApp(path, { roles: ['acharya'], studio: s });
+  const view = await openApp(path, { roles: ['educator'], studio: s });
   return { ...view, studio: s };
 };
 const savedLesson = (studio: ReturnType<typeof fakeStudio>, id = 'l1'): Lesson => {
   const call = vi.mocked(studio.data.saveDraft).mock.lastCall;
   const work = call?.[1] as Working;
-  return work.course.parvas.flatMap((p) => p.items).find((i) => i.id === id) as Lesson;
+  return work.course.chapters.flatMap((p) => p.items).find((i) => i.id === id) as Lesson;
 };
 const saveNow = async () => {
   await act(async () => {
@@ -56,7 +56,7 @@ describe('lesson editor: layout', () => {
       within(rail)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Pariksha I Pariksha', 'Lesson l4']);
+    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Quiz I Quiz', 'Lesson l4']);
     expect(within(rail).getByRole('link', { name: 'Lesson l1' }).getAttribute('aria-current')).toBe(
       'page',
     );
@@ -83,24 +83,24 @@ describe('lesson editor: layout', () => {
     );
   });
 
-  it('lists Parikshas in the rail and opens the Pariksha builder', async () => {
+  it('lists Quizzes in the rail and opens the Quiz builder', async () => {
     await open();
     const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
     expect(
       within(rail)
-        .getByRole('link', { name: /Pariksha I/ })
+        .getByRole('link', { name: /Quiz I/ })
         .getAttribute('href'),
-    ).toBe('/studio/courses/git/pariksha/q1');
+    ).toBe('/studio/courses/git/quiz/q1');
   });
 
   it('names untitled items in the rail', async () => {
     const course = courseWith();
-    for (const item of course.parvas.flatMap((p) => p.items))
+    for (const item of course.chapters.flatMap((p) => p.items))
       if (item.id === 'l2' || item.id === 'q1') item.title = '';
     await open(course);
     const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
     expect(within(rail).getByRole('link', { name: 'Untitled lesson' })).toBeTruthy();
-    expect(within(rail).getByRole('link', { name: /Untitled Pariksha/ })).toBeTruthy();
+    expect(within(rail).getByRole('link', { name: /Untitled Quiz/ })).toBeTruthy();
   });
 
   it('says so when a lesson has no blocks', async () => {
@@ -153,7 +153,7 @@ describe('lesson editor: title and settings', () => {
   it('flags a blank title inline', async () => {
     await open();
     fireEvent.change(await screen.findByLabelText('Lesson title'), { target: { value: '' } });
-    expect(screen.getByText('A lesson or Pariksha needs a title.')).toBeTruthy();
+    expect(screen.getByText('A lesson or Quiz needs a title.')).toBeTruthy();
     expect(screen.getByLabelText('Lesson title').getAttribute('aria-invalid')).toBe('true');
     expect(
       within(screen.getByRole('navigation', { name: 'Lessons in this course' })).getByText(

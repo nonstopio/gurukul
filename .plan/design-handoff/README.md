@@ -7,12 +7,17 @@ ask for access; exported PNGs go in `.plan/design-handoff/screens/` once taken).
 The canvas is the visual reference; these files are the build contract. Where
 they differ, these files win and the canvas is updated.
 
+The canvas and these specs show the **Gurukul label set** (Shishya, Acharya, Kulapati, Parva,
+Pariksha, Vyasa Studio, Sanjaya). In code every such name comes from `useTerms()`, which reads
+the person's label set; the generic equivalents are in `../00-vision-and-scope.md` ("Names: two
+label sets").
+
 | File | Screens |
 |---|---|
 | [00-shared-patterns.md](00-shared-patterns.md) | App shells, breakpoints, tokens per surface, shared states, motion, accessibility |
 | [01-learner.md](01-learner.md) | 01 Sign in · 02 Home · 03 Course overview · 04 Lesson player · 05 Pariksha · 06 Result · 07 Complete · 08 Certificate |
-| [02-kulapati-console.md](02-kulapati-console.md) | 09 Sanjaya overview · 10 Learners · 11 Assign courses · 12 Roles & access · 13 Course analytics |
-| [03-vyasa-studio.md](03-vyasa-studio.md) | 14 Courses · 15 Course editor · 16 Lesson editor · 17 Pariksha builder |
+| [02-admin-console.md](02-admin-console.md) | 09 Sanjaya overview · 10 Learners · 11 Assign courses · 12 Roles & access · 13 Course analytics |
+| [03-studio.md](03-studio.md) | 14 Courses · 15 Course editor · 16 Lesson editor · 17 Pariksha builder |
 
 Artboards 18 (Naming) and 19 (Data model) are documentation, covered by
 `README.md` and `02-data-model.md`.

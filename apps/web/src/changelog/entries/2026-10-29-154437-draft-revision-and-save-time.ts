@@ -7,7 +7,7 @@ export default {
   area: 'STUDIO',
   kind: 'feature',
   why:
-    'A bare "Saved" did not say whether it meant a moment ago or last week, so an Acharya coming ' +
+    'A bare "Saved" did not say whether it meant a moment ago or last week, so an Educator coming ' +
     'back to a course could not tell how fresh the draft was, or whether a colleague had saved since.',
   detail: [
     'The editor bar now reads "Draft v7 · saved just now", and the age keeps counting up while the page stays open.',

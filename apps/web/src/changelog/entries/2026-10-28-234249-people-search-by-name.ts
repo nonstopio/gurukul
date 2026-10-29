@@ -4,7 +4,7 @@ export default {
   date: '2026-10-28',
   id: 'PEOPLE-SEARCH-BY-NAME',
   title: 'Find people by name, not only by email',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'feature',
   why:
     'You know a colleague as "Ananya", not as the exact spelling of her email address. Searching ' +

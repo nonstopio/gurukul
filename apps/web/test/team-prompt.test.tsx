@@ -14,7 +14,7 @@ import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
 
-/** Home for a Shishya whose profile carries `profile` (no team by default). */
+/** Home for a Learner whose profile carries `profile` (no team by default). */
 async function home(
   data = fakeData({ teams: ['QA', 'Dev'] }),
   profile: Partial<ProfileMirror> = { team: null },
@@ -39,7 +39,7 @@ async function home(
     await Promise.resolve();
   });
   const emit = (p: Partial<ProfileMirror>) =>
-    act(() => f.emitProfile({ roles: ['shishya'], displayName: 'P', ...p } as ProfileMirror));
+    act(() => f.emitProfile({ roles: ['learner'], displayName: 'P', ...p } as ProfileMirror));
   emit(profile);
   return { ...view, ...data, emit };
 }
@@ -79,7 +79,7 @@ describe('Team prompt on Home', () => {
     expect(await screen.findByText('Could not save your team. Try again.')).toBeTruthy();
   });
 
-  it('asks nothing when the Kulapati has listed no teams', async () => {
+  it('asks nothing when the Admin has listed no teams', async () => {
     const { data } = await home(fakeData());
     await waitFor(() => expect(data.orgTeams).toHaveBeenCalled());
     expect(await screen.findByText('Nothing assigned yet')).toBeTruthy();

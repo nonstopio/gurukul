@@ -28,7 +28,7 @@ describe('/__ui component gallery', () => {
       'Icons',
       'Sidebar and top bar',
       'Video and certificate',
-      'Pariksha',
+      'Quiz',
       'Tables, lists and charts',
     ]) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeTruthy();

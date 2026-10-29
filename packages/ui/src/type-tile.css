@@ -20,7 +20,7 @@
   color: var(--code-text);
   background: var(--code-bg);
 }
-.g-tile--pariksha {
+.g-tile--quiz {
   color: var(--warning);
   background: var(--warning-soft);
 }

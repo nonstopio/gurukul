@@ -9,7 +9,7 @@ function repo() {
     'firebase/functions/src/api/callable.ts': "import { onCall } from 'x';\n",
     'firebase/functions/test/index.test.ts': 'onCall(',
     'apps/web/src/api/call.ts': 'httpsCallable(',
-    'apps/web/src/pariksha/service.ts': 'export {};\n',
+    'apps/web/src/quiz/service.ts': 'export {};\n',
     'scripts/tool.mjs': 'onCall(\n',
   });
 }
@@ -42,7 +42,7 @@ describe('api-response-nudge', () => {
 
   it('flags httpsCallable in a web service', () => {
     const r = repo();
-    const res = edit(r, 'apps/web/src/pariksha/service.ts', "const c = httpsCallable(f, 'x');\n");
+    const res = edit(r, 'apps/web/src/quiz/service.ts', "const c = httpsCallable(f, 'x');\n");
     assert.match(context(res), /httpsCallable outside src\/api\//);
   });
 
@@ -53,7 +53,7 @@ describe('api-response-nudge', () => {
       ['firebase/functions/src/api/callable.ts', "import { onCall, HttpsError } from 'x';\n"],
       ['firebase/functions/test/index.test.ts', 'onCall(HttpsError)\n'],
       ['apps/web/src/api/call.ts', 'httpsCallable(f, "x")\n'],
-      ['apps/web/src/pariksha/service.ts', 'export {};\n'],
+      ['apps/web/src/quiz/service.ts', 'export {};\n'],
       ['scripts/tool.mjs', 'onCall(\n'],
       ['firebase/functions/src/notes.md', 'onCall(\n'],
     ]) {

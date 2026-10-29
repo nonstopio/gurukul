@@ -11,6 +11,6 @@ export default {
     'the text whether your pick was the right one.',
   detail: [
     'After you reveal a check, the right answer is marked, and your pick is marked if it was wrong.',
-    'Acharyas choose the right answer for each check in Vyasa Studio, and publishing needs one.',
+    'Educators choose the right answer for each check in Studio, and publishing needs one.',
   ],
 } satisfies ChangelogEntry;

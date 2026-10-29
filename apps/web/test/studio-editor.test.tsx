@@ -20,12 +20,12 @@ import { ERROR_CODES } from '@gurukul/schema';
 const ROLLBACK_MISSING = ERROR_CODES.CRS_2002.userMessage;
 const KEYS = { q1: { k1: ['a'] } };
 const mine = (over: Partial<Course> = {}) =>
-  makeCourse({ acharyaIds: ['u1'], version: 3, ...over });
+  makeCourse({ educatorIds: ['u1'], version: 3, ...over });
 
 interface Setup {
   live?: Course;
   draft?: Course | null;
-  roles?: Array<'acharya' | 'kulapati'>;
+  roles?: Array<'educator' | 'admin'>;
   versions?: Array<{ version: number; publishedAt: Date | null; title: string }>;
   consoleApi?: ReturnType<typeof fakeConsole>;
   getCourse?: ReturnType<typeof fakeData>;
@@ -40,7 +40,7 @@ async function open(s: Setup = {}) {
   });
   const data = s.getCourse ?? fakeData({ courses: [live] });
   const app = await openApp(`/studio/courses/${live.id}`, {
-    roles: s.roles ?? ['acharya'],
+    roles: s.roles ?? ['educator'],
     studio,
     data,
     console: s.consoleApi ?? fakeConsole(),
@@ -52,36 +52,36 @@ const titles = () =>
   screen
     .getAllByRole('link')
     .map((l) => l.textContent)
-    .filter((t) => /^(Lesson|Pariksha) /.test(t ?? ''));
+    .filter((t) => /^(Lesson|Quiz) /.test(t ?? ''));
 const ready = () => screen.findByRole('tab', { name: 'Structure' });
 
 describe('Course editor: who and what loads', () => {
   it('says when the course does not exist, or did not load', async () => {
     const empty = fakeData({ courses: [] });
-    await openApp('/studio/courses/nope', { roles: ['acharya'], data: empty });
+    await openApp('/studio/courses/nope', { roles: ['educator'], data: empty });
     expect(await screen.findByRole('heading', { name: 'This course does not exist' })).toBeTruthy();
     const broken = fakeData();
     broken.data.getCourse = vi.fn().mockRejectedValue(new Error('x'));
-    await openApp('/studio/courses/git', { roles: ['acharya'], data: broken });
+    await openApp('/studio/courses/git', { roles: ['educator'], data: broken });
     expect(await screen.findAllByText('This did not load')).not.toHaveLength(0);
   });
 
-  it('shows a view-only notice to an Acharya who may not edit, but not to a Kulapati', async () => {
-    const other = mine({ acharyaIds: ['someone', 'u9'], acharyaNames: { someone: 'Rohan Das' } });
+  it('shows a view-only notice to an Educator who may not edit, but not to an Admin', async () => {
+    const other = mine({ educatorIds: ['someone', 'u9'], educatorNames: { someone: 'Rohan Das' } });
     const view = await open({ live: other });
     expect(await screen.findByText('View only')).toBeTruthy();
-    expect(screen.getByText('Acharyas: Rohan Das, 1 other.')).toBeTruthy();
+    expect(screen.getByText('Educators: Rohan Das, 1 other.')).toBeTruthy();
     expect(screen.queryByRole('tab', { name: 'Structure' })).toBeNull();
     expect(view.studio.data.getDraft).not.toHaveBeenCalled();
     expect(await axeViolations(document.body)).toEqual([]);
-    await open({ live: other, roles: ['kulapati'] });
+    await open({ live: other, roles: ['admin'] });
     expect(await ready()).toBeTruthy();
   });
 
-  it('leaves the Acharya line out of the view-only notice when no name is known', async () => {
-    await open({ live: mine({ acharyaIds: ['someone'] }) });
+  it('leaves the Educator line out of the view-only notice when no name is known', async () => {
+    await open({ live: mine({ educatorIds: ['someone'] }) });
     expect(await screen.findByText('View only')).toBeTruthy();
-    expect(screen.queryByText(/^Acharyas?:/)).toBeNull();
+    expect(screen.queryByText(/^Educators?:/)).toBeNull();
   });
 
   it('shows loading, missing and failed drafts', async () => {
@@ -95,7 +95,7 @@ describe('Course editor: who and what loads', () => {
     let release: (v: null) => void = () => {};
     studio.data.getDraft = vi.fn(() => new Promise<DraftDoc | null>((r) => (release = r)));
     await openApp('/studio/courses/git', {
-      roles: ['acharya'],
+      roles: ['educator'],
       studio,
       data: fakeData({ courses: [live] }),
     });
@@ -103,7 +103,7 @@ describe('Course editor: who and what loads', () => {
     await act(async () => release(null));
     studio.data.getDraft = vi.fn().mockRejectedValue(new Error('x'));
     await openApp('/studio/courses/git', {
-      roles: ['acharya'],
+      roles: ['educator'],
       studio,
       data: fakeData({ courses: [live] }),
     });
@@ -119,7 +119,11 @@ describe('Course editor: the shell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getByText('Live: v3')).toBeTruthy();
     expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Vyasa Studio/ })).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole('link', { name: 'Studio' })
+        .every((a) => a.getAttribute('href') === '/studio'),
+    ).toBe(true);
     expect(screen.getByRole('link', { name: 'Preview as learner' }).getAttribute('href')).toBe(
       '/studio/courses/git/preview/l1',
     );
@@ -131,7 +135,7 @@ describe('Course editor: the shell', () => {
   });
 
   it('handles a never-published, empty course', async () => {
-    await open({ live: mine({ version: 0, status: 'draft', parvas: [], title: '' }) });
+    await open({ live: mine({ version: 0, status: 'draft', chapters: [], title: '' }) });
     await ready();
     expect(screen.getByText('Not published')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Publish v1' })).toBeTruthy();
@@ -139,10 +143,10 @@ describe('Course editor: the shell', () => {
       (screen.getByRole('button', { name: 'Preview as learner' }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(screen.getByRole('heading', { level: 1, name: 'Untitled course' })).toBeTruthy();
-    expect(screen.getByText('Start with a parva')).toBeTruthy();
+    expect(screen.getByText('Start with a chapter')).toBeTruthy();
     expect(screen.getByText(/Learners keep their progress by lesson id/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add parva' }));
-    expect(screen.getByRole('textbox', { name: 'Title of parva 1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add chapter' }));
+    expect(screen.getByRole('textbox', { name: 'Title of chapter 1' })).toBeTruthy();
     expect(screen.getByText('Nothing here yet.')).toBeTruthy();
   });
 });
@@ -172,9 +176,12 @@ describe('Course editor: deleting a lesson learners may have completed', () => {
     expect(screen.getByText(/Learners who completed it keep their progress/)).toBeTruthy();
   });
 
-  it('does not count a lesson that was never published, or a Pariksha', async () => {
+  it('does not count a lesson that was never published, or a Quiz', async () => {
     const { studio } = await open({
-      draft: mine({ version: 3, parvas: [{ id: 'p1', title: 'Basics', items: [lesson('new1')] }] }),
+      draft: mine({
+        version: 3,
+        chapters: [{ id: 'p1', title: 'Basics', items: [lesson('new1')] }],
+      }),
       live: mine(),
     });
     await ready();
@@ -182,7 +189,7 @@ describe('Course editor: deleting a lesson learners may have completed', () => {
     expect(studio.data.completedCount).not.toHaveBeenCalled();
   });
 
-  it('still lets the Acharya delete when the count cannot be read', async () => {
+  it('still lets the Educator delete when the count cannot be read', async () => {
     const { studio } = await open();
     await ready();
     vi.mocked(studio.data.completedCount).mockRejectedValueOnce(new Error('offline'));
@@ -209,33 +216,35 @@ describe('Course editor: deleting a lesson learners may have completed', () => {
 });
 
 describe('Course editor: structure', () => {
-  it('renames, adds and deletes parvas, items; collapses', async () => {
+  it('renames, adds and deletes chapters, items; collapses', async () => {
     await open();
     await ready();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Title of parva 1' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title of chapter 1' }), {
       target: { value: 'Start' },
     });
     expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
-      screen.getAllByRole('button', { name: '+ Lesson in parva 1' })[0] as HTMLElement,
+      screen.getAllByRole('button', { name: '+ Lesson in chapter 1' })[0] as HTMLElement,
     );
     expect(screen.getByRole('link', { name: 'Untitled lesson' }).getAttribute('href')).toMatch(
       /^\/studio\/courses\/git\/lessons\/lesson-/,
     );
-    fireEvent.click(screen.getByRole('button', { name: '+ Pariksha in parva 1' }));
-    expect(screen.getByRole('link', { name: 'Untitled Pariksha' }).getAttribute('href')).toMatch(
-      /pariksha\/pariksha-/,
+    fireEvent.click(screen.getByRole('button', { name: '+ Quiz in chapter 1' }));
+    expect(screen.getByRole('link', { name: 'Untitled Quiz' }).getAttribute('href')).toMatch(
+      /quiz\/quiz-/,
     );
     expect(screen.getByText('0 questions')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add parva' }));
-    expect(screen.getAllByText(/^Parva \d$/)).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Add chapter' }));
+    expect(screen.getAllByText(/^Chapter \d$/)).toHaveLength(3);
     // collapse and expand
-    const collapse = screen.getAllByRole('button', { name: /^Collapse parva 1/ })[0] as HTMLElement;
+    const collapse = screen.getAllByRole('button', {
+      name: /^Collapse chapter 1/,
+    })[0] as HTMLElement;
     fireEvent.click(collapse);
-    expect(screen.queryByRole('textbox', { name: 'Title of parva 1' })).toBeNull();
-    expect(screen.getByText('Start', { selector: '.sc-parva__title' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Expand parva 1/ }));
-    expect(screen.getByRole('textbox', { name: 'Title of parva 1' })).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Title of chapter 1' })).toBeNull();
+    expect(screen.getByText('Start', { selector: '.sc-chapter__title' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Expand chapter 1/ }));
+    expect(screen.getByRole('textbox', { name: 'Title of chapter 1' })).toBeTruthy();
     // delete an item
     fireEvent.click(screen.getByRole('button', { name: 'Delete Lesson l1' }));
     const dialog = screen.getByRole('dialog', { name: 'Delete this item?' });
@@ -246,39 +255,39 @@ describe('Course editor: structure', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Lesson l1' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
     expect(screen.queryByRole('link', { name: 'Lesson l1' })).toBeNull();
-    // delete a parva with items, then an empty one
-    fireEvent.click(screen.getByRole('button', { name: 'Delete parva History' }));
+    // delete a chapter with items, then an empty one
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chapter History' }));
     expect(
       within(screen.getByRole('dialog')).getByText(/and its 3 items will be removed/),
     ).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
-    expect(screen.queryByRole('link', { name: 'Pariksha I' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete parva New parva' }));
+    expect(screen.queryByRole('link', { name: 'Quiz I' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chapter New chapter' }));
     expect(
-      within(screen.getByRole('dialog')).getByText(/^“New parva” will be removed/),
+      within(screen.getByRole('dialog')).getByText(/^“New chapter” will be removed/),
     ).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
-    expect(screen.queryByRole('textbox', { name: 'Title of parva 2' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Title of chapter 2' })).toBeNull();
   });
 
   it('labels empty titles and a single item', async () => {
     await open({
-      live: mine({ parvas: [{ id: 'p1', title: '', items: [lesson('l1', { title: '' })] }] }),
+      live: mine({ chapters: [{ id: 'p1', title: '', items: [lesson('l1', { title: '' })] }] }),
     });
     await ready();
-    expect(screen.getByRole('button', { name: 'Delete parva Untitled parva' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete chapter Untitled chapter' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Untitled' })).toBeTruthy();
     expect(screen.getByText('1 item · 5 min')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete parva Untitled parva' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chapter Untitled chapter' }));
     expect(
       within(screen.getByRole('dialog')).getByText(/and its 1 item will be removed/),
     ).toBeTruthy();
   });
 
-  it('moves an item to another parva', async () => {
+  it('moves an item to another chapter', async () => {
     await open();
     await ready();
-    const select = screen.getByLabelText('Move Lesson l1 to another parva') as HTMLSelectElement;
+    const select = screen.getByLabelText('Move Lesson l1 to another chapter') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'p2' } });
     expect(
       within(screen.getByRole('list', { name: 'Items in Basics' })).queryByText('Lesson l1'),
@@ -289,13 +298,13 @@ describe('Course editor: structure', () => {
     cleanupSingle();
   });
 
-  it('hides the move control when there is one parva', async () => {
-    await open({ live: mine({ parvas: [{ id: 'p1', title: 'Only', items: [lesson('l1')] }] }) });
+  it('hides the move control when there is one chapter', async () => {
+    await open({ live: mine({ chapters: [{ id: 'p1', title: 'Only', items: [lesson('l1')] }] }) });
     await ready();
-    expect(screen.queryByLabelText(/to another parva/)).toBeNull();
+    expect(screen.queryByLabelText(/to another chapter/)).toBeNull();
   });
 
-  it('reorders items and parvas from the keyboard', async () => {
+  it('reorders items and chapters from the keyboard', async () => {
     await open();
     await ready();
     expect(titles().slice(0, 2)).toEqual(['Lesson l1', 'Lesson l2']);
@@ -308,11 +317,11 @@ describe('Course editor: structure', () => {
     expect(
       screen.getAllByRole('status').some((s) => /Dropped Lesson l1/.test(s.textContent ?? '')),
     ).toBe(true);
-    const parva = screen.getByRole('button', { name: 'Move Basics' });
-    fireEvent.keyDown(parva, { key: 'ArrowDown', altKey: true });
+    const chapter = screen.getByRole('button', { name: 'Move Basics' });
+    fireEvent.keyDown(chapter, { key: 'ArrowDown', altKey: true });
     expect(
       screen
-        .getAllByRole('textbox', { name: /Title of parva/ })
+        .getAllByRole('textbox', { name: /Title of chapter/ })
         .map((i) => (i as HTMLInputElement).value),
     ).toEqual(['History', 'Basics']);
   });
@@ -320,7 +329,7 @@ describe('Course editor: structure', () => {
   it('marks new and edited items against the live course', async () => {
     const live = mine();
     const draft = mine({
-      parvas: [
+      chapters: [
         {
           id: 'p1',
           title: 'Basics',
@@ -359,7 +368,7 @@ describe('Course editor: renaming items inline', () => {
 describe('Course editor: dialogs close with Escape', () => {
   it('closes the delete, rollback and archive dialogs', async () => {
     await open({
-      roles: ['kulapati'],
+      roles: ['admin'],
       versions: [
         { version: 3, publishedAt: null, title: 'Git' },
         { version: 2, publishedAt: null, title: 'Old' },
@@ -439,7 +448,7 @@ describe('Course editor: saving', () => {
 
 describe('Course editor: details, landing page, certificate', () => {
   it('edits the details panel', async () => {
-    await open({ live: mine({ acharyaIds: ['u1', 'u2'], acharyaNames: { u1: 'Asha Rao' } }) });
+    await open({ live: mine({ educatorIds: ['u1', 'u2'], educatorNames: { u1: 'Asha Rao' } }) });
     await ready();
     expect(screen.getByText('2 people', { exact: false })).toBeTruthy();
     expect(screen.getByText('Asha Rao')).toBeTruthy();
@@ -467,11 +476,11 @@ describe('Course editor: details, landing page, certificate', () => {
     expect(
       (screen.getByRole('button', { name: 'Upload cover image' }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    expect(screen.getByText('2 people. A Kulapati changes this list in the console.')).toBeTruthy();
+    expect(screen.getByText('2 people. An Admin changes this list in the console.')).toBeTruthy();
     expect(screen.getByText('u2')).toBeTruthy();
   });
 
-  it('says one person for a single Acharya', async () => {
+  it('says one person for a single Educator', async () => {
     await open();
     await ready();
     expect(screen.getByText(/^1 person\./)).toBeTruthy();
@@ -514,7 +523,7 @@ describe('Course editor: details, landing page, certificate', () => {
     const label = 'Certificate title';
     fireEvent.change(screen.getByLabelText(label), { target: { value: `${label}!` } });
     expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(`${label}!`);
-    expect(screen.getByText(/set by a Kulapati in Org settings/)).toBeTruthy();
+    expect(screen.getByText(/set by an Admin in Org settings/)).toBeTruthy();
     expect(screen.queryByLabelText('Signatory name')).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
   });
@@ -528,18 +537,18 @@ describe('Course editor: details, landing page, certificate', () => {
 });
 
 describe('Course editor: analytics', () => {
-  it('shows the numbers, with a funnel link for a Kulapati', async () => {
+  it('shows the numbers, with a funnel link for an Admin', async () => {
     const consoleApi = fakeConsole({
       course: { assigned: 9, started: 5, completed: 3, certified: 2 },
     });
-    await open({ roles: ['kulapati'], consoleApi });
+    await open({ roles: ['admin'], consoleApi });
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
     expect(await screen.findByText('9')).toBeTruthy();
     expect(consoleApi.data.courseStats).toHaveBeenCalledWith('git');
     expect(screen.getByText('Certified')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open the full funnel' }).getAttribute('href')).toBe(
-      '/kulapati/courses/git',
+      '/admin/courses/git',
     );
     expect(screen.queryByText('Not published yet')).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
@@ -583,7 +592,7 @@ describe('Course editor: analytics', () => {
     expect(log.warn).toHaveBeenCalledWith('Loading course learners failed', { courseId: 'git' });
   });
 
-  it('shows loading, a not-published note and a failure for an Acharya', async () => {
+  it('shows loading, a not-published note and a failure for an Educator', async () => {
     const consoleApi = fakeConsole();
     let reject: (e: Error) => void = () => {};
     consoleApi.data.courseStats = vi.fn(() => new Promise<CourseStats>((_, r) => (reject = r)));
@@ -651,8 +660,8 @@ describe('Course editor: versions', () => {
     expect(await screen.findByText('No earlier versions')).toBeTruthy();
   });
 
-  it('archives and restores for a Kulapati', async () => {
-    const { studio } = await open({ roles: ['kulapati'], versions });
+  it('archives and restores for an Admin', async () => {
+    const { studio } = await open({ roles: ['admin'], versions });
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Archive course' }));
@@ -677,7 +686,7 @@ describe('Course editor: versions', () => {
   });
 
   it('shows an archive failure, and no archive control for a draft course', async () => {
-    const { studio } = await open({ roles: ['kulapati'], versions });
+    const { studio } = await open({ roles: ['admin'], versions });
     studio.service.archiveCourse = vi.fn().mockRejectedValue(new Error('x'));
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
@@ -691,7 +700,7 @@ describe('Course editor: versions', () => {
   });
 
   it('has no archive control for a course that was never published', async () => {
-    await open({ roles: ['kulapati'], live: mine({ status: 'draft', version: 0 }) });
+    await open({ roles: ['admin'], live: mine({ status: 'draft', version: 0 }) });
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
     expect(await screen.findByText('No earlier versions')).toBeTruthy();
@@ -713,13 +722,13 @@ describe('Course editor: publishing', () => {
     const live = mine();
     const draft = mine({
       title: 'Git 2',
-      parvas: [
+      chapters: [
         {
           id: 'p1',
           title: 'Basics',
           items: [lesson('l1', { title: 'Changed' }), lesson('fresh', { title: 'Fresh' })],
         },
-        makeCourse().parvas[1] as never,
+        makeCourse().chapters[1] as never,
       ],
     });
     const { studio } = await open({ live, draft, getCourse: bump(live) });
@@ -737,7 +746,9 @@ describe('Course editor: publishing', () => {
     expect(within(dialog).getByText('Removed (1)')).toBeTruthy();
     expect(within(dialog).getByText('Lesson l2 — 5 completed')).toBeTruthy();
     expect(within(dialog).getByText(/keep their progress record/)).toBeTruthy();
-    expect(within(dialog).getByText(/Course details or the order of parvas changed/)).toBeTruthy();
+    expect(
+      within(dialog).getByText(/Course details or the order of chapters changed/),
+    ).toBeTruthy();
     expect(within(dialog).queryByText(/Fix these first/)).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
     studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
@@ -753,7 +764,7 @@ describe('Course editor: publishing', () => {
   it('lists only an edit, without course-level or removal notes', async () => {
     const live = mine();
     const draft = structuredClone(live);
-    const [first] = (draft.parvas[0] as { items: { title: string }[] }).items;
+    const [first] = (draft.chapters[0] as { items: { title: string }[] }).items;
     (first as { title: string }).title = 'Changed';
     await open({ live, draft, getCourse: bump(live) });
     await ready();
@@ -811,9 +822,9 @@ describe('Course editor: publishing', () => {
   it('still lists a removed lesson when counting its completions fails', async () => {
     const live = mine();
     const draft = mine({
-      parvas: [
+      chapters: [
         { id: 'p1', title: 'Basics', items: [lesson('l1')] },
-        makeCourse().parvas[1] as never,
+        makeCourse().chapters[1] as never,
       ],
     });
     const { studio } = await open({ live, draft });
@@ -830,9 +841,9 @@ describe('Course editor: publishing', () => {
   it('blocks publishing while problems exist, with links to fix them', async () => {
     const draft = mine({
       summary: '',
-      parvas: [
+      chapters: [
         { id: 'p1', title: 'Basics', items: [lesson('l1', { blocks: [], title: '' })] },
-        { id: 'p2', title: 'Exam', items: [makeCourse().parvas[1]?.items[1] as never] },
+        { id: 'p2', title: 'Exam', items: [makeCourse().chapters[1]?.items[1] as never] },
       ],
     });
     await open({ draft });
@@ -877,8 +888,8 @@ describe('Course editor: publishing', () => {
     expect(
       screen.getByText('This course has problems to fix before it can be published.'),
     ).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Open Pariksha I' }).getAttribute('href')).toBe(
-      '/studio/courses/git/pariksha/q1',
+    expect(screen.getByRole('link', { name: 'Open Quiz I' }).getAttribute('href')).toBe(
+      '/studio/courses/git/quiz/q1',
     );
   });
 

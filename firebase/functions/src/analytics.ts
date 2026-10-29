@@ -20,8 +20,8 @@ export interface ProgressStatsDelta {
   finishDays: number;
   /** The histogram bucket (`finishDaysBucket`) of that finish time; null unless the course completes. */
   finishBucket: string | null;
-  /** Positions of the parvas that became fully done in this write. */
-  parvasDone: number[];
+  /** Positions of the chapters that became fully done in this write. */
+  chaptersDone: number[];
   /** Lessons that became complete in this write, counted into `weekly[week]`. */
   lessons: number;
   week: string;
@@ -35,7 +35,7 @@ export const emptyDelta = (week: string): ProgressStatsDelta => ({
   certified: 0,
   finishDays: 0,
   finishBucket: null,
-  parvasDone: [],
+  chaptersDone: [],
   lessons: 0,
   week,
   assignmentsCompleted: 0,
@@ -47,20 +47,20 @@ export const isEmptyDelta = (d: ProgressStatsDelta): boolean =>
   d.completed === 0 &&
   d.certified === 0 &&
   d.finishDays === 0 &&
-  d.parvasDone.length === 0 &&
+  d.chaptersDone.length === 0 &&
   d.lessons === 0 &&
   d.assignmentsCompleted === 0;
 
-const NOTHING_DONE: ProgressState = { completedItemIds: [], pariksha: {} };
+const NOTHING_DONE: ProgressState = { completedItemIds: [], quiz: {} };
 
 /**
- * Compares the learner's state before and after one write against the CURRENT course: which parvas
+ * Compares the learner's state before and after one write against the CURRENT course: which chapters
  * became fully done, how many lessons were newly completed, whether this is the start or the
  * completion. Comparing before/after (never "is done now") is what makes a repeated trigger
  * count nothing twice.
  */
 export function planProgressStats(
-  course: Pick<Course, 'parvas'>,
+  course: Pick<Course, 'chapters'>,
   was: Progress | undefined,
   now: Progress,
   at: Date,
@@ -76,18 +76,18 @@ export function planProgressStats(
     );
     delta.finishBucket = finishDaysBucket(delta.finishDays);
   }
-  course.parvas.forEach((parva, index) => {
-    const wasDone = parva.items.every((i) => isItemDone(i, before));
-    if (!wasDone && parva.items.every((i) => isItemDone(i, now))) delta.parvasDone.push(index);
-    delta.lessons += parva.items.filter(
+  course.chapters.forEach((chapter, index) => {
+    const wasDone = chapter.items.every((i) => isItemDone(i, before));
+    if (!wasDone && chapter.items.every((i) => isItemDone(i, now))) delta.chaptersDone.push(index);
+    delta.lessons += chapter.items.filter(
       (i) => i.type === 'lesson' && isItemDone(i, now) && !isItemDone(i, before),
     ).length;
   });
   return delta;
 }
 
-/** `parvaCompletions` with `indices` incremented, padded with zeros up to the highest one. */
-export function addParvaCompletions(
+/** `chapterCompletions` with `indices` incremented, padded with zeros up to the highest one. */
+export function addChapterCompletions(
   current: readonly number[],
   indices: readonly number[],
 ): number[] {
@@ -99,13 +99,13 @@ export function addParvaCompletions(
   return next;
 }
 
-/** What one graded attempt adds to `stats/course_{id}` and the `pariksha*` counters of `stats/org`. */
+/** What one graded attempt adds to `stats/course_{id}` and the `quiz*` counters of `stats/org`. */
 export interface AttemptStatsDelta {
   scoreSum: number;
   scoreCount: number;
-  /** Only for a learner's first attempt of a Pariksha. */
+  /** Only for a learner's first attempt of a Quiz. */
   questionFirstTry: Record<string, { correct: number; total: number }>;
-  /** 1 for a learner's first attempt of a Pariksha, else 0. */
+  /** 1 for a learner's first attempt of a Quiz, else 0. */
   firstTryTotal: number;
   /** 1 when that first attempt passed, else 0. */
   firstTryPassed: number;
@@ -119,7 +119,7 @@ export interface AttemptStatsStore {
 
 /**
  * Reacts to a new `progress/{id}/attempts/{aid}`: adds the score, and when this was the learner's
- * first attempt of the Pariksha (progress says `attempts === 1`) the per-question first-try counts
+ * first attempt of the Quiz (progress says `attempts === 1`) the per-question first-try counts
  * and the org's first-try pass count. Attempts stored before `results` existed add no question counts.
  */
 export async function handleAttemptCreated(
@@ -128,9 +128,9 @@ export async function handleAttemptCreated(
 ): Promise<'ignored' | 'counted'> {
   const attempt = attemptSchema.safeParse(attemptRaw);
   if (!attempt.success) return 'ignored';
-  const { uid, courseId, parikshaId, score, passed, results } = attempt.data;
+  const { uid, courseId, quizId, score, passed, results } = attempt.data;
   const progress = progressSchema.safeParse(await store.progress(uid, courseId));
-  const first = progress.success && progress.data.pariksha[parikshaId]?.attempts === 1;
+  const first = progress.success && progress.data.quiz[quizId]?.attempts === 1;
   const questionFirstTry: AttemptStatsDelta['questionFirstTry'] = {};
   if (first) {
     for (const r of results)
@@ -138,7 +138,7 @@ export async function handleAttemptCreated(
   }
   log.debug('Counting an attempt', {
     courseId,
-    parikshaId,
+    quizId,
     firstTry: first,
     count: results.length,
   });
@@ -166,19 +166,19 @@ export type CourseRecount = Omit<CourseStats, 'assigned'>;
 export interface OrgRecount {
   started: number;
   completed: number;
-  parikshaScoreSum: number;
-  parikshaScoreCount: number;
-  parikshaFirstTryTotal: number;
-  parikshaFirstTryPassed: number;
+  quizScoreSum: number;
+  quizScoreCount: number;
+  quizFirstTryTotal: number;
+  quizFirstTryPassed: number;
 }
 
-const emptyCourseRecount = (parvas: number): CourseRecount => ({
+const emptyCourseRecount = (chapters: number): CourseRecount => ({
   started: 0,
   completed: 0,
   certified: 0,
   scoreSum: 0,
   scoreCount: 0,
-  parvaCompletions: Array.from({ length: parvas }, () => 0),
+  chapterCompletions: Array.from({ length: chapters }, () => 0),
   questionFirstTry: {},
   finishDaysSum: 0,
   finishDaysHistogram: {},
@@ -187,24 +187,24 @@ const emptyCourseRecount = (parvas: number): CourseRecount => ({
 /**
  * Rebuilds the counters the triggers keep, from the source documents, the way the triggers count
  * them: progress and attempts of a course that does not exist are ignored (the progress trigger
- * ignores them too), a parva counts once every item in it is done in the CURRENT course (an empty
- * parva never counts), and a first try is a learner's earliest attempt at a Pariksha.
+ * ignores them too), a chapter counts once every item in it is done in the CURRENT course (an empty
+ * chapter never counts), and a first try is a learner's earliest attempt at a Quiz.
  */
 export function recountFromSource(
-  courses: ReadonlyMap<string, Pick<Course, 'parvas'>>,
+  courses: ReadonlyMap<string, Pick<Course, 'chapters'>>,
   progressDocs: readonly unknown[],
   attempts: readonly StoredAttempt[],
 ): { org: OrgRecount; courses: Record<string, CourseRecount> } {
   const org: OrgRecount = {
     started: 0,
     completed: 0,
-    parikshaScoreSum: 0,
-    parikshaScoreCount: 0,
-    parikshaFirstTryTotal: 0,
-    parikshaFirstTryPassed: 0,
+    quizScoreSum: 0,
+    quizScoreCount: 0,
+    quizFirstTryTotal: 0,
+    quizFirstTryPassed: 0,
   };
   const out: Record<string, CourseRecount> = {};
-  for (const [id, course] of courses) out[id] = emptyCourseRecount(course.parvas.length);
+  for (const [id, course] of courses) out[id] = emptyCourseRecount(course.chapters.length);
 
   for (const raw of progressDocs) {
     const parsed = progressSchema.safeParse(raw);
@@ -224,9 +224,9 @@ export function recountFromSource(
       c.finishDaysHistogram[bucket] = (c.finishDaysHistogram[bucket] ?? 0) + 1;
     }
     if (p.certificateId !== null) c.certified += 1;
-    course.parvas.forEach((parva, i) => {
-      if (parva.items.length > 0 && parva.items.every((item) => isItemDone(item, p))) {
-        c.parvaCompletions[i] = (c.parvaCompletions[i] as number) + 1;
+    course.chapters.forEach((chapter, i) => {
+      if (chapter.items.length > 0 && chapter.items.every((item) => isItemDone(item, p))) {
+        c.chapterCompletions[i] = (c.chapterCompletions[i] as number) + 1;
       }
     });
   }
@@ -240,9 +240,9 @@ export function recountFromSource(
     if (c === undefined) continue;
     c.scoreSum += a.score;
     c.scoreCount += 1;
-    org.parikshaScoreSum += a.score;
-    org.parikshaScoreCount += 1;
-    const key = `${a.uid}\u0000${a.courseId}\u0000${a.parikshaId}`;
+    org.quizScoreSum += a.score;
+    org.quizScoreCount += 1;
+    const key = `${a.uid}\u0000${a.courseId}\u0000${a.quizId}`;
     const seen = firsts.get(key);
     const earlier =
       seen === undefined ||
@@ -252,8 +252,8 @@ export function recountFromSource(
   }
   for (const { attempt } of firsts.values()) {
     const c = out[attempt.courseId] as CourseRecount;
-    org.parikshaFirstTryTotal += 1;
-    if (attempt.passed) org.parikshaFirstTryPassed += 1;
+    org.quizFirstTryTotal += 1;
+    if (attempt.passed) org.quizFirstTryPassed += 1;
     for (const r of attempt.results) {
       const q = (c.questionFirstTry[r.questionId] ??= { correct: 0, total: 0 });
       q.total += 1;

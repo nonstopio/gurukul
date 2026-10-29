@@ -1,5 +1,6 @@
 import { Button, Callout, Skeleton } from '@gurukul/ui';
 import type { Loadable } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 
 /** The shared loading, error and ready handling every data screen uses. */
 export function Loaded<T>({
@@ -50,11 +51,12 @@ export function PageLoading() {
 
 /** What a learner sees on a retired course: what they keep and why it cannot be finished now. */
 export function RetiredNote() {
+  const t = useTerms();
   return (
     <Callout tone="warning" title="This course is retired">
       <p>
-        Your progress and any certificate are kept, and the lessons stay open to read. Its Parikshas
-        are closed, so it can no longer be finished.
+        Your progress and any certificate are kept, and the lessons stay open to read. Its{' '}
+        {t.Quizzes} are closed, so it can no longer be finished.
       </p>
     </Callout>
   );

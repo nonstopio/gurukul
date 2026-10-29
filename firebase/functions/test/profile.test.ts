@@ -22,7 +22,7 @@ describe('buildProfile', () => {
       nameLower: 'priya n',
       photoURL: 'p',
       team: null,
-      roles: ['shishya'],
+      roles: ['learner'],
       grantedCourseIds: [],
     });
   });

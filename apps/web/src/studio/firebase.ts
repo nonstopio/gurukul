@@ -60,11 +60,11 @@ export function cleanForFirestore<T>(value: T): T {
 /**
  * A draft is work in progress: a cleared title or an empty answer is normal while editing, so it is
  * NOT held to the strict course schema (publishing is). Only the shape the editors rely on is
- * required: a course object with a `parvas` array.
+ * required: a course object with a `chapters` array.
  */
 function draftCourse(raw: unknown): Course {
-  const c = raw as { parvas?: unknown } | null;
-  if (!c || typeof c !== 'object' || !Array.isArray(c.parvas)) {
+  const c = raw as { chapters?: unknown } | null;
+  if (!c || typeof c !== 'object' || !Array.isArray(c.chapters)) {
     throw new Error('The draft is not a course');
   }
   return c as Course;
@@ -83,9 +83,9 @@ function toDraft(d: Record<string, unknown>): DraftDoc {
 export function firebaseStudioData(db: Firestore): StudioData {
   const draftRef = (courseId: string) => doc(db, 'courses', courseId, 'drafts', 'current');
   return {
-    // Every Acharya and Kulapati sees every course, never-published ones included (the rules allow
+    // Every Educator and Admin sees every course, never-published ones included (the rules allow
     // it); only the drafts of courses they may edit are read.
-    async listCourses(uid, kulapati) {
+    async listCourses(uid, admin) {
       const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
       const live: Course[] = [];
       for (const d of snap.docs) {
@@ -95,7 +95,7 @@ export function firebaseStudioData(db: Firestore): StudioData {
       }
       return Promise.all(
         live.map(async (course): Promise<StudioCourse> => {
-          const editable = kulapati || course.acharyaIds.includes(uid);
+          const editable = admin || course.educatorIds.includes(uid);
           if (!editable) return { live: course, draft: null };
           const [snap, learners] = await Promise.all([
             getDoc(draftRef(course.id)),

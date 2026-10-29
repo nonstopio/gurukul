@@ -2,7 +2,7 @@ import type { AreaNavigation } from '../types';
 
 /**
  * Pages that belong to no single area: the changelog, and the public certificate check that
- * anyone with the link can open. Learner, Kulapati console and Vyasa Studio pages live in their
+ * anyone with the link can open. Learner, Admin console and Studio pages live in their
  * own area files.
  */
 export const navigation = {

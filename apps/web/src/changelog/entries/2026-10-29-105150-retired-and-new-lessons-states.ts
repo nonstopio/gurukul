@@ -7,12 +7,12 @@ export default {
   area: 'LEARN',
   kind: 'feature',
   why:
-    'A learner part-way through a retired course could read on, reach a Pariksha, answer every ' +
+    'A learner part-way through a retired course could read on, reach a Quiz, answer every ' +
     'question and only then be told it could not be graded. And a course that gained lessons ' +
     'after you finished it looked finished, with nothing to say the new material was there.',
   detail: [
     'Home rows, the continue card, the course page and the lesson player say "Retired"; your progress and certificate are kept and the lessons stay open to read.',
-    "A retired course's Pariksha says it is closed instead of drawing questions.",
+    "A retired course's Quiz says it is closed instead of drawing questions.",
     'A course you finished that has since grown shows "New lessons added" on Home and on its page.',
   ],
 } satisfies ChangelogEntry;

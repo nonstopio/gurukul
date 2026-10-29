@@ -1,4 +1,4 @@
-import type { Block, Course, Lesson, Pariksha, Parva } from '@gurukul/schema';
+import type { Block, Course, Lesson, Quiz, Chapter } from '@gurukul/schema';
 import type { AnswerKeys } from './seed';
 
 /*
@@ -119,14 +119,14 @@ const keysOf = (specs: QuestionSpec[]): Record<string, string[]> =>
 
 const TRUE_FALSE = ['True', 'False'];
 
-const pariksha = (
+const quiz = (
   id: string,
   title: string,
   specs: QuestionSpec[],
-  revealAnswers: Pariksha['revealAnswers'],
+  revealAnswers: Quiz['revealAnswers'],
   cooldownMinutes: number,
-): Pariksha => ({
-  type: 'pariksha',
+): Quiz => ({
+  type: 'quiz',
   id,
   title,
   questionsShown: specs.length,
@@ -138,10 +138,10 @@ const pariksha = (
 });
 
 // ---------------------------------------------------------------------------------------------
-// Parva 1 · Why version control
+// Chapter 1 · Why version control
 // ---------------------------------------------------------------------------------------------
 
-const parva1: Parva = {
+const chapter1: Chapter = {
   id: 'why-version-control',
   title: 'Why version control',
   items: [
@@ -240,12 +240,12 @@ const parva1: Parva = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Parva 2 · Snapshots and history
+// Chapter 2 · Snapshots and history
 // ---------------------------------------------------------------------------------------------
 
-const pariksha1Specs: QuestionSpec[] = [
+const quiz1Specs: QuestionSpec[] = [
   {
-    id: 'pariksha-i-q1',
+    id: 'quiz-i-q1',
     kind: 'trueFalse',
     prompt:
       '`git init` creates a hidden `.git` folder that holds the whole history of the project.',
@@ -256,7 +256,7 @@ const pariksha1Specs: QuestionSpec[] = [
     review: 'your-first-repository',
   },
   {
-    id: 'pariksha-i-q2',
+    id: 'quiz-i-q2',
     kind: 'single',
     prompt: 'What does `git add notes.md` do?',
     options: [
@@ -271,7 +271,7 @@ const pariksha1Specs: QuestionSpec[] = [
     review: 'staging-and-committing',
   },
   {
-    id: 'pariksha-i-q3',
+    id: 'quiz-i-q3',
     kind: 'single',
     prompt: 'Which commit message follows good practice?',
     options: [
@@ -286,7 +286,7 @@ const pariksha1Specs: QuestionSpec[] = [
     review: 'good-commit-messages',
   },
   {
-    id: 'pariksha-i-q4',
+    id: 'quiz-i-q4',
     kind: 'codeOutput',
     prompt: 'You run `git commit` now. Which changes end up in the commit?',
     code: lines('$ git status --short', ' M app.js', 'A  notes.md', '?? todo.txt'),
@@ -302,7 +302,7 @@ const pariksha1Specs: QuestionSpec[] = [
     review: 'staging-and-committing',
   },
   {
-    id: 'pariksha-i-q5',
+    id: 'quiz-i-q5',
     kind: 'single',
     prompt:
       'You add `config.local` to `.gitignore`, but Git was already tracking that file. What happens?',
@@ -318,7 +318,7 @@ const pariksha1Specs: QuestionSpec[] = [
     review: 'gitignore',
   },
   {
-    id: 'pariksha-i-q6',
+    id: 'quiz-i-q6',
     kind: 'single',
     prompt: 'Which command shows the history with one line per commit?',
     options: ['git log --oneline', 'git status --short', 'git show --all', 'git history'],
@@ -328,7 +328,7 @@ const pariksha1Specs: QuestionSpec[] = [
   },
 ];
 
-const parva2: Parva = {
+const chapter2: Chapter = {
   id: 'snapshots-and-history',
   title: 'Snapshots and history',
   items: [
@@ -477,17 +477,17 @@ const parva2: Parva = {
         '`*.log` matches by extension. `log/` matches a folder named log, and `!` re-includes files.',
       ),
     ]),
-    pariksha('pariksha-i', 'Pariksha I: Snapshots and history', pariksha1Specs, 'each', 10),
+    quiz('quiz-i', 'Quiz I: Snapshots and history', quiz1Specs, 'each', 10),
   ],
 };
 
 // ---------------------------------------------------------------------------------------------
-// Parva 3 · Branching
+// Chapter 3 · Branching
 // ---------------------------------------------------------------------------------------------
 
-const pariksha2Specs: QuestionSpec[] = [
+const quiz2Specs: QuestionSpec[] = [
   {
-    id: 'pariksha-ii-q1',
+    id: 'quiz-ii-q1',
     kind: 'single',
     prompt: 'What is a branch in Git?',
     options: [
@@ -502,7 +502,7 @@ const pariksha2Specs: QuestionSpec[] = [
     review: 'what-a-branch-really-is',
   },
   {
-    id: 'pariksha-ii-q2',
+    id: 'quiz-ii-q2',
     kind: 'single',
     prompt: 'Which command creates a branch and switches to it?',
     options: [
@@ -517,7 +517,7 @@ const pariksha2Specs: QuestionSpec[] = [
     review: 'create-and-switch-branches',
   },
   {
-    id: 'pariksha-ii-q3',
+    id: 'quiz-ii-q3',
     kind: 'single',
     prompt: 'Two branches changed the same line. What does `git merge` do?',
     options: [
@@ -532,7 +532,7 @@ const pariksha2Specs: QuestionSpec[] = [
     review: 'resolving-merge-conflicts',
   },
   {
-    id: 'pariksha-ii-q4',
+    id: 'quiz-ii-q4',
     kind: 'single',
     prompt: 'When does Git fast-forward a merge?',
     options: [
@@ -547,7 +547,7 @@ const pariksha2Specs: QuestionSpec[] = [
     review: 'merging',
   },
   {
-    id: 'pariksha-ii-q5',
+    id: 'quiz-ii-q5',
     kind: 'single',
     prompt: 'You removed the conflict markers from the file. What next?',
     options: [
@@ -562,7 +562,7 @@ const pariksha2Specs: QuestionSpec[] = [
     review: 'resolving-merge-conflicts',
   },
   {
-    id: 'pariksha-ii-q6',
+    id: 'quiz-ii-q6',
     kind: 'single',
     prompt: 'What does HEAD usually point to?',
     options: [
@@ -578,7 +578,7 @@ const pariksha2Specs: QuestionSpec[] = [
   },
 ];
 
-const parva3: Parva = {
+const chapter3: Chapter = {
   id: 'branching',
   title: 'Branching',
   items: [
@@ -719,15 +719,15 @@ const parva3: Parva = {
         'Adding marks the conflict resolved; committing finishes the merge.',
       ),
     ]),
-    pariksha('pariksha-ii', 'Pariksha II: Branching', pariksha2Specs, 'each', 10),
+    quiz('quiz-ii', 'Quiz II: Branching', quiz2Specs, 'each', 10),
   ],
 };
 
 // ---------------------------------------------------------------------------------------------
-// Parva 4 · Remotes and collaboration
+// Chapter 4 · Remotes and collaboration
 // ---------------------------------------------------------------------------------------------
 
-const parva4: Parva = {
+const chapter4: Chapter = {
   id: 'remotes-and-collaboration',
   title: 'Remotes and collaboration',
   items: [
@@ -872,10 +872,10 @@ const parva4: Parva = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Parva 5 · Undoing things safely
+// Chapter 5 · Undoing things safely
 // ---------------------------------------------------------------------------------------------
 
-const parva5: Parva = {
+const chapter5: Chapter = {
   id: 'undoing-things-safely',
   title: 'Undoing things safely',
   items: [
@@ -989,12 +989,12 @@ const parva5: Parva = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Parva 6 · The NonStop team workflow
+// Chapter 6 · The NonStop team workflow
 // ---------------------------------------------------------------------------------------------
 
 const finalSpecs: QuestionSpec[] = [
   {
-    id: 'pariksha-final-q1',
+    id: 'quiz-final-q1',
     kind: 'single',
     prompt: 'What is the difference between `git fetch` and `git pull`?',
     options: [
@@ -1008,7 +1008,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'remotes-clone-fetch',
   },
   {
-    id: 'pariksha-final-q2',
+    id: 'quiz-final-q2',
     kind: 'single',
     prompt:
       'You have uncommitted edits and must switch branches to fix an urgent bug. What is a good approach?',
@@ -1023,7 +1023,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'stash',
   },
   {
-    id: 'pariksha-final-q3',
+    id: 'quiz-final-q3',
     kind: 'multiple',
     prompt: 'Which of these belong in a good pull request? Select all that apply.',
     options: [
@@ -1038,7 +1038,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'pull-requests-at-nonstop',
   },
   {
-    id: 'pariksha-final-q4',
+    id: 'quiz-final-q4',
     kind: 'single',
     prompt:
       'A buggy commit is already pushed to the shared `main`. What is the safest way to undo it?',
@@ -1053,7 +1053,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'revert',
   },
   {
-    id: 'pariksha-final-q5',
+    id: 'quiz-final-q5',
     kind: 'trueFalse',
     prompt:
       'Edits you never committed are lost for good if you run `git reset --hard`; the reflog cannot bring them back.',
@@ -1064,7 +1064,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'restore-and-reset',
   },
   {
-    id: 'pariksha-final-q6',
+    id: 'quiz-final-q6',
     kind: 'single',
     prompt: 'You ran `git reset --hard HEAD~3` by mistake. How do you find the lost commits?',
     options: [
@@ -1079,7 +1079,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'reflog-safety-net',
   },
   {
-    id: 'pariksha-final-q7',
+    id: 'quiz-final-q7',
     kind: 'single',
     prompt: 'When should you NOT rebase a branch?',
     options: [
@@ -1094,7 +1094,7 @@ const finalSpecs: QuestionSpec[] = [
     review: 'rebase-vs-merge',
   },
   {
-    id: 'pariksha-final-q8',
+    id: 'quiz-final-q8',
     kind: 'codeOutput',
     prompt: 'You created the tag below. Which command publishes it to the remote?',
     code: lines('$ git tag -a v1.4.0 -m "Release 1.4.0"'),
@@ -1110,7 +1110,7 @@ const finalSpecs: QuestionSpec[] = [
   },
 ];
 
-const parva6: Parva = {
+const chapter6: Chapter = {
   id: 'nonstop-team-workflow',
   title: 'The NonStop team workflow',
   items: [
@@ -1208,15 +1208,15 @@ const parva6: Parva = {
         'A backwards-compatible fix bumps the patch number.',
       ),
     ]),
-    pariksha('pariksha-final', 'Final Pariksha: Git, the NonStop Way', finalSpecs, 'onPass', 10),
+    quiz('quiz-final', 'Final Quiz: Git, the NonStop Way', finalSpecs, 'onPass', 10),
   ],
 };
 
 // ---------------------------------------------------------------------------------------------
 
-const parvas: Parva[] = [parva1, parva2, parva3, parva4, parva5, parva6];
+const chapters: Chapter[] = [chapter1, chapter2, chapter3, chapter4, chapter5, chapter6];
 
-const estimatedMinutes = parvas
+const estimatedMinutes = chapters
   .flatMap((p) => p.items)
   .reduce((sum, item) => sum + (item.type === 'lesson' ? item.minutes : 0), 0);
 
@@ -1229,7 +1229,7 @@ export const gitCourse: Course = {
   description: lines(
     'Git is the shared language of every engineering team at NonStop. This course takes you from "what is a commit?" to working confidently in a team: branching and merging, resolving conflicts, pull requests and review, undoing mistakes safely, and tagging releases.',
     '',
-    'There are three Parikshas (checkpoints) along the way, and a certificate when you pass the final one.',
+    'There are three Quizzes (checkpoints) along the way, and a certificate when you pass the final one.',
   ),
   level: 'foundation',
   cover: { theme: 'forest', glyph: 'Git' },
@@ -1241,21 +1241,21 @@ export const gitCourse: Course = {
     'Undo mistakes safely with restore, reset, revert, stash and reflog',
     'Follow a team workflow with rebase, branch naming and release tags',
   ],
-  acharyaIds: [],
-  acharyaNames: {},
+  educatorIds: [],
+  educatorNames: {},
   status: 'published',
   version: 1,
   publishedAt: null,
   // Videos are not recorded yet, so learners cannot be required to watch them.
   rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
   certificate: { title: 'Git, the NonStop Way' },
-  parvas,
+  chapters,
   estimatedMinutes,
 };
 
-/** Answer keys for every Pariksha: option ids. Seeded to `courses/{id}/private/answers`. */
+/** Answer keys for every Quiz: option ids. Seeded to `courses/{id}/private/answers`. */
 export const gitAnswers: AnswerKeys = {
-  'pariksha-i': keysOf(pariksha1Specs),
-  'pariksha-ii': keysOf(pariksha2Specs),
-  'pariksha-final': keysOf(finalSpecs),
+  'quiz-i': keysOf(quiz1Specs),
+  'quiz-ii': keysOf(quiz2Specs),
+  'quiz-final': keysOf(finalSpecs),
 };

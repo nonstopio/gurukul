@@ -88,7 +88,7 @@ custom domain are `OPS-24`.
 6. Create a second service account with Firebase Hosting Admin only, and store
    its key as the repository secret `FIREBASE_SERVICE_ACCOUNT_PREVIEW`.
 7. Protect `main`: require the `ci` and `pr-title` checks (see `10-testing-and-ci.md`).
-8. Run the Kulapati bootstrap script for the first admin.
+8. Run the Admin bootstrap script for the first admin.
 9. After the first functions deploy, set the cleanup policy for stale function images:
    `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
    (a one-off console command, not a deploy).

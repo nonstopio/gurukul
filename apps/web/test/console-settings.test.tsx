@@ -5,12 +5,12 @@ import { axeViolations } from './axe';
 import { fakeConsole } from './fake-console';
 import { openApp } from './harness';
 
-const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
+const admin = { roles: ['admin'] as Array<'admin'> };
 const saveButton = () => screen.getByRole('button', { name: 'Save settings' }) as HTMLButtonElement;
 
 describe('Org settings', () => {
   it('starts empty, with reminders off and nothing to save', async () => {
-    const { container } = await openApp('/kulapati/settings', { ...kulapati });
+    const { container } = await openApp('/admin/settings', { ...admin });
     expect(await screen.findByText('No teams yet')).toBeTruthy();
     expect(
       (screen.getByRole('switch', { name: 'Send daily reminders' }) as HTMLInputElement).checked,
@@ -22,7 +22,7 @@ describe('Org settings', () => {
 
   it('adds and removes teams, turns reminders on and saves the whole document', async () => {
     const c = fakeConsole({ settings: { teams: ['QA'] } });
-    const { container } = await openApp('/kulapati/settings', { ...kulapati, console: c });
+    const { container } = await openApp('/admin/settings', { ...admin, console: c });
     const list = await screen.findByRole('list', { name: 'Teams' });
     expect(within(list).getByText('QA')).toBeTruthy();
 
@@ -59,7 +59,7 @@ describe('Org settings', () => {
   });
 
   it('counts turning reminders off and back on as no change', async () => {
-    await openApp('/kulapati/settings', { ...kulapati });
+    await openApp('/admin/settings', { ...admin });
     const toggle = await screen.findByRole('switch', { name: 'Send daily reminders' });
     fireEvent.click(toggle);
     expect(saveButton().disabled).toBe(false);
@@ -69,7 +69,7 @@ describe('Org settings', () => {
 
   it('saves a trimmed signatory and will not save one with a blank name or role', async () => {
     const c = fakeConsole();
-    await openApp('/kulapati/settings', { ...kulapati, console: c });
+    await openApp('/admin/settings', { ...admin, console: c });
     const name = await screen.findByLabelText('Signatory name');
     expect((name as HTMLInputElement).value).toBe(DEFAULT_ORG_CONFIG.signatory.name);
 
@@ -97,7 +97,7 @@ describe('Org settings', () => {
         reject = r;
       }),
     );
-    await openApp('/kulapati/settings', { ...kulapati, console: c });
+    await openApp('/admin/settings', { ...admin, console: c });
     fireEvent.click(await screen.findByRole('switch', { name: 'Send daily reminders' }));
     fireEvent.click(saveButton());
     const saving = await screen.findByRole('button', { name: 'Saving…' });

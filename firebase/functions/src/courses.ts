@@ -9,7 +9,7 @@ import {
   validateForPublish,
 } from '@gurukul/schema';
 import type { AnswerKeys, Course, PublishIssue } from '@gurukul/schema';
-import { requireKulapati } from './errors.js';
+import { requireAdmin } from './errors.js';
 import type { AuditEntry, Caller } from './errors.js';
 import { log } from './logging/log.js';
 import { badField, idField } from './validation.js';
@@ -18,9 +18,9 @@ import { badField, idField } from './validation.js';
 export interface LiveCourse {
   version: number;
   status: string;
-  acharyaIds: string[];
+  educatorIds: string[];
   /** Missing on a v1 document no role grant has touched yet. */
-  acharyaNames?: Record<string, string>;
+  educatorNames?: Record<string, string>;
 }
 
 export interface DraftData {
@@ -80,14 +80,14 @@ export interface CourseStore {
 }
 
 const hasRole = (caller: Caller): boolean =>
-  caller.claims?.acharya === true || caller.claims?.kulapati === true;
+  caller.claims?.educator === true || caller.claims?.admin === true;
 
 /** The name Studio shows for the caller: the Google name, else the email's local part, as the profile does. */
 const displayName = (caller: Caller): string | undefined =>
   caller.name?.trim() || caller.email?.split('@')[0] || undefined;
 
-const canEdit = (caller: Caller, live: Pick<LiveCourse, 'acharyaIds'>): boolean =>
-  caller.claims?.kulapati === true || live.acharyaIds.includes(caller.uid);
+const canEdit = (caller: Caller, live: Pick<LiveCourse, 'educatorIds'>): boolean =>
+  caller.claims?.admin === true || live.educatorIds.includes(caller.uid);
 
 function field<T>(
   name: string,
@@ -107,7 +107,7 @@ function field<T>(
 export function restrictAnswers(course: Course, answers: AnswerKeys): AnswerKeys {
   const out: AnswerKeys = {};
   for (const item of itemsOf(course)) {
-    if (item.type !== 'pariksha') continue;
+    if (item.type !== 'quiz') continue;
     const keys: Record<string, string[]> = {};
     for (const q of item.questions) {
       const key = answers[item.id]?.[q.id];
@@ -133,8 +133,8 @@ export async function createCourse(
   const source = from === undefined || from === null ? undefined : idField('duplicateFrom', from);
   log.debug('Creating a course', { courseId: id, source: source ?? 'blank' });
 
-  const acharyaName = displayName(caller);
-  const course = blankCourse({ id, title, level, theme, acharyaId: caller.uid, acharyaName });
+  const educatorName = displayName(caller);
+  const course = blankCourse({ id, title, level, theme, educatorId: caller.uid, educatorName });
   let draft = { course, answers: {} as AnswerKeys };
   if (source !== undefined) {
     const live = await store.getLive(source);
@@ -147,8 +147,8 @@ export async function createCourse(
         ...copied.course,
         id,
         title,
-        acharyaIds: course.acharyaIds,
-        acharyaNames: course.acharyaNames,
+        educatorIds: course.educatorIds,
+        educatorNames: course.educatorNames,
         status: 'draft',
         version: 0,
         publishedAt: null,
@@ -180,12 +180,12 @@ function requireEditor(
   return live;
 }
 
-/** The live document after a release: the live Acharyas and their names are the authority, never the draft's. */
+/** The live document after a release: the live Educators and their names are the authority, never the draft's. */
 const released = (course: Course, live: LiveCourse, courseId: string, version: number): Course => ({
   ...course,
   id: courseId,
-  acharyaIds: live.acharyaIds,
-  acharyaNames: live.acharyaNames ?? {},
+  educatorIds: live.educatorIds,
+  educatorNames: live.educatorNames ?? {},
   status: 'published',
   version,
   estimatedMinutes: estimateMinutes(course),
@@ -262,13 +262,13 @@ export async function rollbackCourse(
   return { version };
 }
 
-/** `archiveCourse`: Kulapati-only; retires a course or restores it to published. */
+/** `archiveCourse`: Admin-only; retires a course or restores it to published. */
 export async function archiveCourse(
   store: CourseStore,
   caller: Caller,
   data: Record<string, unknown>,
 ): Promise<{ status: 'published' | 'archived' }> {
-  requireKulapati(caller, 'archiveCourse');
+  requireAdmin(caller, 'archiveCourse');
   const courseId = idField('courseId', data['courseId']);
   const archived = data['archived'];
   if (typeof archived !== 'boolean') throw badField('archived', archived, 'must be true or false');

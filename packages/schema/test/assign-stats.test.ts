@@ -102,12 +102,12 @@ describe('stats', () => {
       started: 0,
       weekly: {},
       activeLearners30d: 0,
-      parikshaScoreSum: 0,
-      parikshaFirstTryPassed: 0,
+      quizScoreSum: 0,
+      quizFirstTryPassed: 0,
     });
     expect(courseStatsSchema.parse({})).toMatchObject({
       assigned: 0,
-      parvaCompletions: [],
+      chapterCompletions: [],
       questionFirstTry: {},
     });
     expect(courseStatsSchema.safeParse({ assigned: -1 }).success).toBe(false);

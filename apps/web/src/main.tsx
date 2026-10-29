@@ -8,7 +8,7 @@ import { firebaseAuthService } from './auth/service';
 import { firebaseConsoleService } from './console/service';
 import { initFirebase } from './firebase';
 import { lazyPort } from './lazy';
-import { firebaseParikshaService } from './pariksha/service';
+import { firebaseQuizService } from './quiz/service';
 import { firebaseStudioService } from './studio/service';
 import type { FirebaseEnv } from './firebase';
 import type { Firestores } from './firestore';
@@ -35,7 +35,7 @@ export function mount(element: HTMLElement | null, env = import.meta.env as Fire
       <App
         service={service}
         data={data}
-        pariksha={firebaseParikshaService(firebase.functions)}
+        quiz={firebaseQuizService(firebase.functions)}
         studio={{
           data: lazyPort(() => firestores().then((s) => s.studio)),
           service: firebaseStudioService(firebase.functions),

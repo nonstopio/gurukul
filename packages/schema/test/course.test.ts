@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockSchema, courseSchema, parikshaSchema, slug, timestamp } from '../src';
+import { blockSchema, courseSchema, quizSchema, slug, timestamp } from '../src';
 import { itemAt, makeCourse, ts } from './fixtures';
 
 describe('timestamp', () => {
@@ -57,10 +57,10 @@ describe('blockSchema', () => {
   });
 });
 
-describe('parikshaSchema', () => {
-  const pariksha = itemAt(makeCourse(), 1);
+describe('quizSchema', () => {
+  const quiz = itemAt(makeCourse(), 1);
   it('rejects showing more questions than exist', () => {
-    expect(parikshaSchema.safeParse({ ...pariksha, questionsShown: 2 }).success).toBe(false);
-    expect(parikshaSchema.safeParse(pariksha).success).toBe(true);
+    expect(quizSchema.safeParse({ ...quiz, questionsShown: 2 }).success).toBe(false);
+    expect(quizSchema.safeParse(quiz).success).toBe(true);
   });
 });

@@ -6,7 +6,7 @@ import { fakeConsole, userRow } from './fake-console';
 import { fakeData, makeCourse, progressRow } from './fake-data';
 import { openApp } from './harness';
 
-const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
+const adminCaller = { roles: ['admin'] as Array<'admin'> };
 const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
   id: `${email}-${over.courseId ?? 'git'}`,
   email,
@@ -21,15 +21,15 @@ const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull 
 const past = new Date(Date.now() - 5 * 86_400_000);
 
 describe('console access', () => {
-  it('shows not-allowed to a Shishya on every console page', async () => {
+  it('shows not-allowed to a Learner on every console page', async () => {
     for (const path of [
-      '/kulapati',
-      '/kulapati/learners',
-      '/kulapati/assign',
-      '/kulapati/roles',
-      '/kulapati/audit',
-      '/kulapati/settings',
-      '/kulapati/courses/git',
+      '/admin',
+      '/admin/learners',
+      '/admin/assign',
+      '/admin/roles',
+      '/admin/audit',
+      '/admin/settings',
+      '/admin/courses/git',
     ]) {
       const { unmount } = await openApp(path);
       expect(await screen.findByRole('heading', { name: /do not have access/ })).toBeTruthy();
@@ -37,8 +37,8 @@ describe('console access', () => {
     }
   });
 
-  it('lists the console in the sidebar for a Kulapati', async () => {
-    await openApp('/kulapati', { ...kulapati });
+  it('lists the console in the sidebar for an Admin', async () => {
+    await openApp('/admin', { ...adminCaller });
     const nav = await screen.findByRole('navigation', { name: 'Main' });
     for (const name of [
       'Overview',
@@ -54,7 +54,7 @@ describe('console access', () => {
 
 describe('Overview', () => {
   it('shows dashes and empty states for an empty organisation', async () => {
-    await openApp('/kulapati', { ...kulapati, data: fakeData({ courses: [] }) });
+    await openApp('/admin', { ...adminCaller, data: fakeData({ courses: [] }) });
     expect(await screen.findByText('No learners yet')).toBeTruthy();
     expect(screen.getByText('No attempts yet')).toBeTruthy();
     expect(screen.getByText('0 of 0 first attempts')).toBeTruthy();
@@ -77,22 +77,22 @@ describe('Overview', () => {
         activeLearners30d: 12,
         assignmentsTotal: 10,
         assignmentsCompleted: 4,
-        parikshaScoreSum: 5.4,
-        parikshaScoreCount: 8,
-        parikshaFirstTryTotal: 6,
-        parikshaFirstTryPassed: 3,
+        quizScoreSum: 5.4,
+        quizScoreCount: 8,
+        quizFirstTryTotal: 6,
+        quizFirstTryPassed: 3,
         weekly: { [week]: 9 },
       },
       course: { assigned: 10, started: 8, completed: 4, scoreSum: 3.2, scoreCount: 4 },
       assignments: [asg('a@nonstopio.com', { dueAt: past }), asg('b@nonstopio.com', { uid: 'u2' })],
     });
-    const { container } = await openApp('/kulapati', { ...kulapati, console: c });
+    const { container } = await openApp('/admin', { ...adminCaller, console: c });
     expect(await screen.findByText('12')).toBeTruthy();
     expect(screen.getByText('40%')).toBeTruthy();
     expect(screen.getByText('4 of 10')).toBeTruthy();
     expect(screen.getByRole('img', { name: /Lessons completed per week/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Git, the NonStop Way' }).getAttribute('href')).toBe(
-      '/kulapati/courses/git',
+      '/admin/courses/git',
     );
     expect(screen.getByText('4 (40%)')).toBeTruthy();
     expect(screen.getByText('80%')).toBeTruthy();
@@ -108,7 +108,7 @@ describe('Overview', () => {
       assignments: [],
       open: Array.from({ length: 3 }, (_, i) => asg(`o${i}@nonstopio.com`, { dueAt: past })),
     });
-    await openApp('/kulapati', { ...kulapati, console: c });
+    await openApp('/admin', { ...adminCaller, console: c });
     const card = (await screen.findByText('Overdue assignments')).parentElement as HTMLElement;
     expect(within(card).getByText('3')).toBeTruthy();
     expect(c.data.overdueCount).toHaveBeenCalledTimes(1);
@@ -124,14 +124,14 @@ describe('Overview', () => {
         asg('o@nonstopio.com', { uid: 'u9', dueAt: past }),
       ],
     });
-    await openApp('/kulapati', { ...kulapati, console: c });
+    await openApp('/admin', { ...adminCaller, console: c });
     const card = (await screen.findByText('Pending invites')).parentElement as HTMLElement;
     expect(within(card).getByText('2')).toBeTruthy();
     expect(c.data.openAssignments).toHaveBeenCalledWith(expect.any(Date));
   });
 
   it('shows dashes for a course nobody has started', async () => {
-    await openApp('/kulapati', { ...kulapati });
+    await openApp('/admin', { ...adminCaller });
     expect(await screen.findByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
@@ -144,7 +144,7 @@ describe('Overview CSV export', () => {
     Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     const c = fakeConsole({ assignments: [asg('a@nonstopio.com')] });
-    await openApp('/kulapati', { ...kulapati, console: c });
+    await openApp('/admin', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
     expect(create).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
@@ -153,7 +153,7 @@ describe('Overview CSV export', () => {
   });
 
   it('disables the export while nobody is assigned', async () => {
-    await openApp('/kulapati', { ...kulapati });
+    await openApp('/admin', { ...adminCaller });
     const button = await screen.findByRole('button', { name: 'Export CSV' });
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
@@ -168,17 +168,17 @@ describe('Audit log', () => {
           action: 'roles.set',
           by: 'boss@nonstopio.com',
           target: 'Dev Rao',
-          detail: { acharya: true },
+          detail: { educator: true },
           at: new Date('2026-03-01T10:00:00Z'),
         },
         { id: 'a2', action: 'odd.thing', by: 'u9', target: null, detail: {}, at: null },
       ],
     });
-    const { container } = await openApp('/kulapati/audit', { ...kulapati, console: c });
+    const { container } = await openApp('/admin/audit', { ...adminCaller, console: c });
     expect(await screen.findByText('Changed a role')).toBeTruthy();
     expect(screen.getByText('boss@nonstopio.com')).toBeTruthy();
     expect(screen.getByText('Dev Rao')).toBeTruthy();
-    expect(screen.getByText('Now acharya')).toBeTruthy();
+    expect(screen.getByText('Now educator')).toBeTruthy();
     expect(screen.getByText('odd.thing')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -200,7 +200,7 @@ describe('Audit log', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ rows: [row('two')], nextCursor: { ...cursor, id: 'two' } })
       .mockResolvedValueOnce({ rows: [row('three')], nextCursor: null });
-    await openApp('/kulapati/audit', { ...kulapati, console: c });
+    await openApp('/admin/audit', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Load older entries' }));
     expect(await screen.findByText(/Could not load more entries/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
@@ -213,7 +213,7 @@ describe('Audit log', () => {
   });
 
   it('says so when nothing has been recorded', async () => {
-    await openApp('/kulapati/audit', { ...kulapati });
+    await openApp('/admin/audit', { ...adminCaller });
     expect(await screen.findByText('Nothing recorded yet')).toBeTruthy();
   });
 });
@@ -226,13 +226,13 @@ describe('Course analytics', () => {
     certified: 3,
     finishDaysSum: 21,
     finishDaysHistogram: { '5': 1, '7': 1, '9': 1 },
-    parvaCompletions: [7, 2],
+    chapterCompletions: [7, 2],
     questionFirstTry: { k1: { correct: 1, total: 4 }, k2: { correct: 3, total: 4 } },
   };
 
   it('shows the funnel with its computed biggest drop and the hardest questions', async () => {
     const c = fakeConsole({ course });
-    const { container } = await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    const { container } = await openApp('/admin/courses/git', { ...adminCaller, console: c });
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
     ).toBeTruthy();
@@ -243,65 +243,65 @@ describe('Course analytics', () => {
     expect(screen.getByText('80% of assigned')).toBeTruthy();
     expect(screen.getByText(/The biggest drop is between/)).toBeTruthy();
     expect(screen.getByText(/25% right first time/)).toBeTruthy();
-    expect(screen.getByText('Pariksha I')).toBeTruthy();
+    expect(screen.getByText('Quiz I')).toBeTruthy();
     expect(screen.getByText('25%').className).toBe('hardest__mid');
-    expect(screen.getByRole('link', { name: 'Edit in Vyasa Studio' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Edit in Studio' }).getAttribute('href')).toBe(
       '/studio/courses/git',
     );
-    expect(screen.getByRole('link', { name: 'Edit this Pariksha' }).getAttribute('href')).toBe(
-      '/studio/courses/git/pariksha/q1',
+    expect(screen.getByRole('link', { name: 'Edit this Quiz' }).getAttribute('href')).toBe(
+      '/studio/courses/git/quiz/q1',
     );
     expect(
       screen.getAllByRole('link', { name: 'Edit question' }).map((a) => a.getAttribute('href')),
-    ).toContain('/studio/courses/git/pariksha/q1?question=k1');
+    ).toContain('/studio/courses/git/quiz/q1?question=k1');
     expect(await axeViolations(container)).toEqual([]);
   });
 
   it('copes with an empty course: no funnel sentence, no hard questions, dashes', async () => {
     const d = fakeData({ courses: [makeCourse({ status: 'draft' })] });
-    await openApp('/kulapati/courses/git', { ...kulapati, data: d });
+    await openApp('/admin/courses/git', { ...adminCaller, data: d });
     expect(await screen.findByText('Not enough attempts yet')).toBeTruthy();
     expect(screen.queryByText(/The biggest drop/)).toBeNull();
     expect(screen.getByText('draft')).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('keeps the warning colour for a Pariksha below 70% only', async () => {
+  it('keeps the warning colour for a Quiz below 70% only', async () => {
     const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 3, total: 4 } } } });
-    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    await openApp('/admin/courses/git', { ...adminCaller, console: c });
     const cells = await screen.findAllByText('75%');
     expect(cells.every((el) => !el.className)).toBe(true);
   });
 
   it('uses the warning colour for a question between 50% and 70%', async () => {
     const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 2, total: 3 } } } });
-    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    await openApp('/admin/courses/git', { ...adminCaller, console: c });
     expect((await screen.findByText(/67% right first time/)).className).toBe('hardest__mid');
   });
 
   it('names an unknown question by its id, and handles an unknown course', async () => {
     const c = fakeConsole({ course: { questionFirstTry: { zzz: { correct: 0, total: 5 } } } });
-    const { unmount } = await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    const { unmount } = await openApp('/admin/courses/git', { ...adminCaller, console: c });
     expect(await screen.findByText(/zzz/)).toBeTruthy();
     expect(screen.getByText(/0% right first time/)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Edit question' })).toBeNull();
     unmount();
-    await openApp('/kulapati/courses/nope', { ...kulapati });
+    await openApp('/admin/courses/nope', { ...adminCaller });
     expect(await screen.findByText('This course does not exist')).toBeTruthy();
   });
 });
 
 describe('Roles & access', () => {
-  const acharya = userRow(1, {
+  const educator = userRow(1, {
     displayName: 'Asha',
-    roles: ['shishya', 'acharya'],
+    roles: ['learner', 'educator'],
     grantedCourseIds: ['git', 'gone'],
   });
-  const admin = userRow(2, { displayName: 'Admin', roles: ['shishya', 'kulapati'] });
+  const admin = userRow(2, { displayName: 'Admin', roles: ['learner', 'admin'] });
 
   it('shows the roles, the matrix and who holds them', async () => {
-    const c = fakeConsole({ users: [acharya, admin] });
-    const { container } = await openApp('/kulapati/roles', { ...kulapati, console: c });
+    const c = fakeConsole({ users: [educator, admin] });
+    const { container } = await openApp('/admin/roles', { ...adminCaller, console: c });
     expect(await screen.findByRole('heading', { level: 1, name: 'Roles & access' })).toBeTruthy();
     expect(await screen.findByText('Asha')).toBeTruthy();
     expect(screen.getByText('Git, the NonStop Way')).toBeTruthy();
@@ -310,48 +310,48 @@ describe('Roles & access', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('counts every person who has signed in as a Shishya, and lists the Kulapatis', async () => {
+  it('counts every person who has signed in as a Learner, and lists the Admins', async () => {
     const nameless = userRow(8, {
       displayName: '',
       email: 'nameless@nonstopio.com',
-      roles: ['kulapati'],
+      roles: ['admin'],
     });
-    const c = fakeConsole({ users: [acharya, admin, nameless], count: 42 });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    const c = fakeConsole({ users: [educator, admin, nameless], count: 42 });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     const card = (await screen.findByRole('region', { name: 'Learner' })) as HTMLElement;
     expect(within(card).getByText('42')).toBeTruthy();
-    const list = screen.getByRole('region', { name: 'Kulapatis' });
+    const list = screen.getByRole('region', { name: 'Admins' });
     expect(within(list).getByText('Admin')).toBeTruthy();
     expect(within(list).getByText('user2@nonstopio.com')).toBeTruthy();
     expect(within(list).queryByText('Asha')).toBeNull();
     expect(within(list).getAllByText('nameless@nonstopio.com')).toHaveLength(2);
-    fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Kulapati' }));
+    fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Admin' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Kulapati/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Admin/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u2',
-        acharya: false,
-        kulapati: false,
+        educator: false,
+        admin: false,
         grantedCourseIds: [],
       }),
     );
   });
 
-  it('keeps Acharya and Kulapati together, and offers unpublished courses to grant', async () => {
+  it('keeps Educator and Admin together, and offers unpublished courses to grant', async () => {
     const draft = makeCourse({ id: 'wip', title: 'Work in progress', status: 'draft' });
     const old = makeCourse({ id: 'old', title: 'Old course', status: 'archived' });
-    const both = userRow(7, { displayName: 'Both', roles: ['shishya', 'acharya', 'kulapati'] });
+    const both = userRow(7, { displayName: 'Both', roles: ['learner', 'educator', 'admin'] });
     const c = fakeConsole({ users: [both], courses: [makeCourse(), draft, old] });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Both' }));
     const dialog = await screen.findByRole('dialog');
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Acharya/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('checkbox', { name: /Educator/ }) as HTMLInputElement).checked,
     ).toBe(true);
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement).checked,
     ).toBe(true);
     fireEvent.click(within(dialog).getByLabelText('Work in progress (not published)'));
     fireEvent.click(within(dialog).getByLabelText('Old course (archived)'));
@@ -359,30 +359,36 @@ describe('Roles & access', () => {
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u7',
-        acharya: true,
-        kulapati: true,
+        educator: true,
+        admin: true,
         grantedCourseIds: ['wip', 'old'],
       }),
     );
   });
 
-  it('says there are no Acharyas, and no courses granted', async () => {
+  it('says there are no Educators, and no courses granted', async () => {
     const lone = userRow(3, {
       displayName: '',
-      roles: ['shishya', 'acharya'],
+      roles: ['learner', 'educator'],
       email: 'solo@nonstopio.com',
     });
-    const { unmount } = await openApp('/kulapati/roles', { ...kulapati, console: fakeConsole() });
-    expect(await screen.findByText('No Acharyas yet.')).toBeTruthy();
+    const { unmount } = await openApp('/admin/roles', {
+      ...adminCaller,
+      console: fakeConsole(),
+    });
+    expect(await screen.findByText('No Educators yet.')).toBeTruthy();
     unmount();
-    await openApp('/kulapati/roles', { ...kulapati, console: fakeConsole({ users: [lone] }) });
+    await openApp('/admin/roles', {
+      ...adminCaller,
+      console: fakeConsole({ users: [lone] }),
+    });
     expect(await screen.findByText('solo@nonstopio.com')).toBeTruthy();
     expect(screen.getByText('No courses yet')).toBeTruthy();
   });
 
-  it('edits an Acharya: changes their courses and saves through setRoles', async () => {
-    const c = fakeConsole({ users: [acharya] });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+  it('edits an Educator: changes their courses and saves through setRoles', async () => {
+    const c = fakeConsole({ users: [educator] });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Asha' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
@@ -390,8 +396,8 @@ describe('Roles & access', () => {
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u1',
-        acharya: true,
-        kulapati: false,
+        educator: true,
+        admin: false,
         grantedCourseIds: ['gone'],
       }),
     );
@@ -401,7 +407,7 @@ describe('Roles & access', () => {
   it('grants a role to someone found by email, then re-checks a course', async () => {
     const found = userRow(5, { displayName: 'Ravi', email: 'ravi@nonstopio.com' });
     const c = fakeConsole({ found: [found] });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
     const save = within(dialog).getByRole('button', { name: 'Save role' }) as HTMLButtonElement;
@@ -414,18 +420,18 @@ describe('Roles & access', () => {
       target: { value: 'rav' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
     expect(within(dialog).queryByText('Courses they may edit')).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u5',
-        acharya: false,
-        kulapati: false,
+        educator: false,
+        admin: false,
         grantedCourseIds: [],
       }),
     );
@@ -435,10 +441,10 @@ describe('Roles & access', () => {
     const solo = userRow(3, {
       displayName: '',
       email: 'solo@nonstopio.com',
-      roles: ['shishya', 'acharya'],
+      roles: ['learner', 'educator'],
     });
     const c = fakeConsole({ users: [solo], found: [solo] });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit solo@nonstopio.com' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit solo@nonstopio.com' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
@@ -452,26 +458,26 @@ describe('Roles & access', () => {
     expect(within(grant).getByText(/· solo@nonstopio.com/)).toBeTruthy();
   });
 
-  it('refuses to let a Kulapati remove their own role, and says so', async () => {
-    const me = userRow(0, { uid: 'u1', displayName: 'Me', roles: ['shishya', 'kulapati'] });
+  it('refuses to let an Admin remove their own role, and says so', async () => {
+    const me = userRow(0, { uid: 'u1', displayName: 'Me', roles: ['learner', 'admin'] });
     const c = fakeConsole({ users: [me], found: [me] });
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
       target: { value: 'me' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
-    const box = within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement;
+    const box = within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(box.checked).toBe(true);
-    expect(within(dialog).getByText(/cannot remove your own Kulapati role/)).toBeTruthy();
+    expect(within(dialog).getByText(/cannot remove your own Admin role/)).toBeTruthy();
   });
 
   it('keeps the dialog open and says so when the change fails', async () => {
-    const c = fakeConsole({ users: [acharya] });
+    const c = fakeConsole({ users: [educator] });
     c.service.setRoles = vi.fn().mockRejectedValue(new Error('no'));
-    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Asha' }));
     fireEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Save role' }),
@@ -486,7 +492,7 @@ describe('Roles & access', () => {
 describe('Overview: Needs attention', () => {
   const failedRow = (uid: string, attempts = 2, passed = false) => ({
     ...progressRow({
-      pariksha: { q1: { best: 0.4, passed, attempts, lastAttemptAt: new Date() } },
+      quiz: { q1: { best: 0.4, passed, attempts, lastAttemptAt: new Date() } },
     }),
     uid,
   });
@@ -506,24 +512,24 @@ describe('Overview: Needs attention', () => {
         failedRow('u3', 3, true),
         {
           ...failedRow('u4'),
-          pariksha: { zz: { best: 0.4, passed: false, attempts: 2, lastAttemptAt: new Date() } },
+          quiz: { zz: { best: 0.4, passed: false, attempts: 2, lastAttemptAt: new Date() } },
         },
       ],
     });
-    const { container } = await openApp('/kulapati', { ...kulapati, console: c });
+    const { container } = await openApp('/admin', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Nudge late@nonstopio.com' }));
     await waitFor(() =>
       expect(c.service.remindLearners).toHaveBeenCalledWith({ emails: ['late@nonstopio.com'] }),
     );
     expect(await screen.findByText('Reminder sent')).toBeTruthy();
-    expect(screen.getByText(/Pariksha I: 2 attempts, not passed/)).toBeTruthy();
+    expect(screen.getByText(/Quiz I: 2 attempts, not passed/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reset User 2' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Reset Asha' }));
     await waitFor(() =>
       expect(c.service.resetCooldown).toHaveBeenCalledWith({
         uid: 'u1',
         courseId: 'git',
-        parikshaId: 'q1',
+        quizId: 'q1',
       }),
     );
     expect(await screen.findByText('Retake opened')).toBeTruthy();
@@ -543,7 +549,7 @@ describe('Overview: Needs attention', () => {
       recent: [failedRow('u7')],
     });
     vi.mocked(c.service.remindLearners).mockResolvedValueOnce({ sent: 0, skipped: 1 });
-    await openApp('/kulapati', { ...kulapati, console: c });
+    await openApp('/admin', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Nudge late@nonstopio.com' }));
     expect(await screen.findByText('Already reminded today.')).toBeTruthy();
     vi.mocked(c.service.remindLearners).mockRejectedValueOnce(new Error('x'));
@@ -556,7 +562,7 @@ describe('Overview: Needs attention', () => {
 
   it('shows empty lists and counts the invites past the first five', async () => {
     const none = fakeConsole({ assignments: [] });
-    const first = await openApp('/kulapati', { ...kulapati, console: none });
+    const first = await openApp('/admin', { ...adminCaller, console: none });
     expect(await screen.findByText('Nobody is overdue')).toBeTruthy();
     expect(screen.getByText('Nobody is stuck')).toBeTruthy();
     expect(screen.getByText('No pending invites')).toBeTruthy();
@@ -565,7 +571,7 @@ describe('Overview: Needs attention', () => {
       assignments: [],
       open: Array.from({ length: 7 }, (_, i) => asg(`p${i}@nonstopio.com`, { assignedAt: null })),
     });
-    await openApp('/kulapati', { ...kulapati, console: many });
+    await openApp('/admin', { ...adminCaller, console: many });
     expect(await screen.findByText('and 2 more')).toBeTruthy();
     expect(screen.getAllByText('Not signed in yet')).toHaveLength(5);
   });
@@ -586,7 +592,7 @@ describe('Overview: Needs attention', () => {
       ],
       recent: [failedRow('u1'), failedRow('u2')],
     });
-    await openApp('/kulapati', { ...kulapati, console: c });
+    await openApp('/admin', { ...adminCaller, console: c });
     await screen.findByRole('button', { name: 'Nudge out@nonstopio.com' });
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
     await waitFor(() =>

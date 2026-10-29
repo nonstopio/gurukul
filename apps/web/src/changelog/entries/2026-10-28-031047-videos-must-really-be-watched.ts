@@ -8,7 +8,7 @@ export default {
   kind: 'feature',
   why:
     'A lesson set to complete "after 90% of the video" only asked learners to tick a box, and ' +
-    'the course setting "Require watching videos" did nothing in the player, so an Acharya could ' +
+    'the course setting "Require watching videos" did nothing in the player, so an Educator could ' +
     'not rely on either. Now the player itself counts what has been played.',
   detail: [
     'YouTube and Loom videos show how much you have watched; "Mark complete" turns on at 90%. Skipping ahead does not count.',

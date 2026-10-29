@@ -14,7 +14,7 @@ export const progressRow = (over: Partial<ProgressRow> = {}): ProgressRow => ({
   lastItemId: null,
   lastActiveAt: new Date('2026-03-01T00:00:00Z'),
   completedItemIds: [],
-  pariksha: {},
+  quiz: {},
   percent: 0,
   completedAt: null,
   certificateId: null,
@@ -29,7 +29,7 @@ export const certificateRow = (over: Partial<CertificateRow> = {}): CertificateR
   courseTitle: 'Git, the NonStop Way',
   courseVersion: 1,
   issuedAt: new Date('2026-11-09T00:00:00Z'),
-  signatoryName: 'The Kulapati',
+  signatoryName: 'The Admin',
   signatoryRole: 'NonStop Academy',
   revoked: false,
   revokedAt: null,
@@ -69,14 +69,14 @@ export function makeCourse(over: Partial<Course> = {}): Course {
     level: 'foundation',
     cover: { theme: 'forest', glyph: 'G' },
     outcomes: ['Commit with confidence'],
-    acharyaIds: [],
-    acharyaNames: {},
+    educatorIds: [],
+    educatorNames: {},
     status: 'published',
     version: 1,
     publishedAt: null,
     rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
     certificate: { title: 'Git' },
-    parvas: [
+    chapters: [
       { id: 'p1', title: 'Basics', items: [lesson('l1'), lesson('l2')] },
       {
         id: 'p2',
@@ -84,9 +84,9 @@ export function makeCourse(over: Partial<Course> = {}): Course {
         items: [
           lesson('l3'),
           {
-            type: 'pariksha',
+            type: 'quiz',
             id: 'q1',
-            title: 'Pariksha I',
+            title: 'Quiz I',
             questionsShown: 1,
             shuffleOptions: false,
             cooldownMinutes: 0,
@@ -152,6 +152,7 @@ export function fakeData(
     setLastItem: vi.fn().mockResolvedValue(undefined),
     orgTeams: vi.fn().mockResolvedValue(init.teams ?? []),
     setTeam: vi.fn().mockResolvedValue(undefined),
+    setLabels: vi.fn().mockResolvedValue(undefined),
   };
   return { data, emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)) };
 }

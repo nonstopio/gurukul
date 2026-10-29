@@ -7,10 +7,10 @@ export default {
   area: 'LEARN',
   kind: 'feature',
   why:
-    'A Kulapati could list teams, but nobody could join one, so assigning a course to a whole ' +
+    'An Admin could list teams, but nobody could join one, so assigning a course to a whole ' +
     'team or filtering Learners by team still found no one.',
   detail: [
-    'Home asks once, while you have no team and the Kulapati has listed some.',
+    'Home asks once, while you have no team and the Admin has listed some.',
     'Only a team from the Org settings list can be saved.',
   ],
 } satisfies ChangelogEntry;

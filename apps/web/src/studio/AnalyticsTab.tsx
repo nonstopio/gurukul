@@ -3,19 +3,21 @@ import { useCallback } from 'react';
 import { Link } from 'react-router';
 import { useConsole } from '../console/ConsoleProvider';
 import { useAsync } from '../data/useAsync';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 
 /** How many people were assigned, started, finished and certified; the funnel lives in the console. */
 export function AnalyticsTab({
   courseId,
   published,
-  kulapati,
+  admin,
 }: {
   courseId: string;
   published: boolean;
-  kulapati: boolean;
+  admin: boolean;
 }) {
   const { data } = useConsole();
+  const t = useTerms();
   const result = useAsync(
     useCallback(
       () =>
@@ -43,7 +45,7 @@ export function AnalyticsTab({
       </h2>
       {published ? null : (
         <Callout tone="note" title="Not published yet">
-          <p>Numbers appear once learners are assigned the published course.</p>
+          <p>{`Numbers appear once ${t.learners} are assigned the published course.`}</p>
         </Callout>
       )}
       {result.state === 'loading' ? (
@@ -60,11 +62,11 @@ export function AnalyticsTab({
           <StatCard label="Certified" value={String(result.value.certified)} />
         </div>
       )}
-      <h3 className="sc-h3">Learners</h3>
+      <h3 className="sc-h3">{t.Learners}</h3>
       {learners.state === 'loading' ? (
-        <p role="status">Loading the learners…</p>
+        <p role="status">{`Loading the ${t.learners}…`}</p>
       ) : learners.state === 'error' ? (
-        <Callout tone="warning" title="The learners are not available" role="alert">
+        <Callout tone="warning" title={`The ${t.learners} are not available`} role="alert">
           <p>You may not have access to them, or the connection dropped. Try again later.</p>
         </Callout>
       ) : learners.value.length === 0 ? (
@@ -74,7 +76,7 @@ export function AnalyticsTab({
           <caption className="sr-only">People who started this course</caption>
           <thead>
             <tr>
-              <th scope="col">Learner</th>
+              <th scope="col">{t.Learner}</th>
               <th scope="col">Progress</th>
               <th scope="col">Last active</th>
             </tr>
@@ -90,9 +92,9 @@ export function AnalyticsTab({
           </tbody>
         </table>
       )}
-      {kulapati ? (
+      {admin ? (
         <p>
-          <Link className={buttonClass('secondary')} to={`/kulapati/courses/${courseId}`}>
+          <Link className={buttonClass('secondary')} to={`/admin/courses/${courseId}`}>
             Open the full funnel
           </Link>
         </p>

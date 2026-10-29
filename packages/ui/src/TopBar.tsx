@@ -21,7 +21,7 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> 
   actions?: ReactNode;
 }
 
-/** The dark top bar of focused screens: lesson player, Pariksha, editors. */
+/** The dark top bar of focused screens: lesson player, Quiz, editors. */
 export function TopBar({
   title,
   titleAs: Title = 'h1',

@@ -1,6 +1,6 @@
 import type { AreaNavigation, Role } from './types';
 
-const ROLES: readonly Role[] = ['shishya', 'acharya', 'kulapati'];
+const ROLES: readonly Role[] = ['learner', 'educator', 'admin'];
 
 /**
  * Checks navigation metadata against the route table. Returns problems as sentences; empty means

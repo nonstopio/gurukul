@@ -2,11 +2,12 @@ import { Button, Chip, Dialog, EmptyState, Input } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { useAsync } from '../../data/useAsync';
 import { Loaded } from '../../learn/ui';
+import { useTerms } from '../../labels/useTerms';
 import { KIND_LABELS, matchBank } from '../questionEdit';
 import { useStudio } from '../StudioProvider';
 import type { BankQuestion } from '../types';
 
-/** Lists the shared question bank (search by text or tag); adding one copies it into this Pariksha with new ids. */
+/** Lists the shared question bank (search by text or tag); adding one copies it into this Quiz with new ids. */
 export function ImportDialog({
   onClose,
   onImport,
@@ -15,6 +16,7 @@ export function ImportDialog({
   onImport: (question: BankQuestion) => void;
 }) {
   const { data } = useStudio();
+  const t = useTerms();
   const bank = useAsync(useCallback(() => data.questionBank(), [data]));
   const [search, setSearch] = useState('');
   return (
@@ -35,7 +37,7 @@ export function ImportDialog({
                 title={all.length === 0 ? 'The bank is empty' : 'Nothing matches'}
               >
                 {all.length === 0
-                  ? 'Save a question from any Pariksha to reuse it here.'
+                  ? `Save a question from any ${t.Quiz} to reuse it here.`
                   : 'Try another word or tag.'}
               </EmptyState>
             );
@@ -48,15 +50,15 @@ export function ImportDialog({
                     <p className="studio-bank-item__prompt">{b.question.prompt}</p>
                     <p className="studio-muted">
                       <Chip>{KIND_LABELS[b.question.kind]}</Chip>{' '}
-                      {b.tags.map((t) => (
-                        <Chip key={t} tone="info">
-                          {t}
+                      {b.tags.map((tag) => (
+                        <Chip key={tag} tone="info">
+                          {tag}
                         </Chip>
                       ))}
                     </p>
                   </div>
                   <Button variant="secondary" onClick={() => onImport(b)}>
-                    Add to this Pariksha
+                    Add to this {t.Quiz}
                   </Button>
                 </li>
               ))}

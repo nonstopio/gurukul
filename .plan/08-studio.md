@@ -1,17 +1,17 @@
-# 08 · Vyasa Studio (course authoring)
+# 08 · Studio (course authoring)
 
-Screens: Courses, Course editor (structure), Lesson editor (blocks), Pariksha
-builder. Handoff: `design-handoff/03-vyasa-studio.md`.
+Screens: Courses, Course editor (structure), Lesson editor (blocks), Quiz
+builder. Handoff: `design-handoff/03-studio.md`.
 
 ## Who can do what
 
-- Acharyas see every course; they can edit only those whose `acharyaIds`
-  include them (others show "View only — Acharya: …").
-- Any Acharya can create a new course (they become its first Acharya). The New course dialog
+- Educators see every course; they can edit only those whose `educatorIds`
+  include them (others show "View only — Educator: …").
+- Any Educator can create a new course (they become its first Educator). The New course dialog
   asks for a title and a slug (suggested from the title); `createCourse` refuses a taken slug.
   The slug is the course id, so it is **fixed at creation**: it is not editable afterwards,
   because progress, assignments and certificates point at it.
-- Kulapatis can edit, publish and archive everything.
+- Admins can edit, publish and archive everything.
 
 ## Drafts and publishing
 
@@ -22,7 +22,7 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
   back as "Restore edits" while the stored draft is still that `rev`; in-app navigation with
   unsaved edits saves first and asks only if the save fails.
 - **Publish** calls `publishCourse({ courseId })`: validate with the schema,
-  check every Pariksha has answers for every question, strip answers into
+  check every Quiz has answers for every question, strip answers into
   `private/answers`, bump `version`, snapshot the old version into `versions/`.
 - "2 unpublished edits" = diff count between draft and published (computed by
   comparing item ids and an update stamp per item).
@@ -31,14 +31,14 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 
 ## Structure editor
 
-- Parvas and items in a keyboard-accessible drag list (move with buttons and
+- Chapters and items in a keyboard-accessible drag list (move with buttons and
   `Alt+↑/↓` as well as drag).
-- Add parva, add lesson, add Pariksha, rename inline, delete with confirmation
+- Add chapter, add lesson, add Quiz, rename inline, delete with confirmation
   (deleting a published lesson warns with how many learners completed it: one count query when the dialog opens).
   The publish dialog gives each removed lesson the same count, and course cards show how many
   learners started the course (`stats/course_{id}`, only on courses the person may edit).
 - Right panel: title, summary, level, pass
-  mark, cover theme, learning rules toggles, Acharyas with access.
+  mark, cover theme, learning rules toggles, Educators with access.
 
 ## Lesson editor
 
@@ -51,20 +51,20 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 - Validation inline: a video URL that is not a supported host, an image
   without alt text, an empty block — each blocks publishing with a clear message.
 
-## Pariksha builder
+## Quiz builder
 
 - Question list with per-question health (first-try correct rate, from stats).
 - Question editor: type, prompt (markdown + optional code), options with a
   "correct" control, explanation, revisit-lesson link.
 - Settings: pass mark, questions shown, retake cooldown, shuffle, reveal
-  answers, blocks next parva.
-- Answers are stored in the draft (Acharyas need them) and moved to
+  answers, blocks next chapter.
+- Answers are stored in the draft (Educators need them) and moved to
   `private/answers` only at publish.
 
 ## Question bank (M5)
 
-Questions can be saved to a shared bank and imported into any Pariksha. The
-bank is a collection `questionBank/{id}` readable by Acharyas.
+Questions can be saved to a shared bank and imported into any Quiz. The
+bank is a collection `questionBank/{id}` readable by Educators.
 
 ## Media library
 

@@ -7,10 +7,10 @@ import { ConsoleProvider } from './console/ConsoleProvider';
 import type { ConsoleData, ConsoleService } from './console/types';
 import { DataProvider } from './data/DataProvider';
 import type { LearnerData } from './data/types';
-import { ParikshaProvider } from './pariksha/ParikshaProvider';
+import { QuizProvider } from './quiz/QuizProvider';
 import { StudioProvider } from './studio/StudioProvider';
 import type { StudioData, StudioService } from './studio/types';
-import type { ParikshaService } from './pariksha/service';
+import type { QuizService } from './quiz/service';
 
 export interface AppProps {
   /** Firebase Auth + the profile watch; tests pass a fake. */
@@ -18,10 +18,10 @@ export interface AppProps {
   /** Firestore reads and writes for the learner screens; tests pass a fake. */
   data: LearnerData;
   /** Server-side grading (callable functions); tests pass a fake. */
-  pariksha: ParikshaService;
-  /** The Kulapati console's reads and callable functions; tests pass fakes. */
+  quiz: QuizService;
+  /** The Admin console's reads and callable functions; tests pass fakes. */
   console: { data: ConsoleData; service: ConsoleService };
-  /** The Vyasa Studio's reads, drafts and callable functions; tests pass fakes. */
+  /** The Studio's reads, drafts and callable functions; tests pass fakes. */
   studio: { data: StudioData; service: StudioService };
   /** The data router: `createBrowserRouter(appRoutes())` in production, a memory router in tests. */
   router: DataRouter;
@@ -31,11 +31,11 @@ export interface AppProps {
  * Providers around the router. Sign-in is enforced inside the route tree (`RequireSession`), so a
  * few pages — certificate verification — can stay public.
  */
-export function App({ service, data, pariksha, console: consoleApi, studio, router }: AppProps) {
+export function App({ service, data, quiz, console: consoleApi, studio, router }: AppProps) {
   return (
     <AuthProvider service={service}>
       <DataProvider data={data}>
-        <ParikshaProvider service={pariksha}>
+        <QuizProvider service={quiz}>
           <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
             <StudioProvider data={studio.data} service={studio.service}>
               <ToastProvider>
@@ -43,7 +43,7 @@ export function App({ service, data, pariksha, console: consoleApi, studio, rout
               </ToastProvider>
             </StudioProvider>
           </ConsoleProvider>
-        </ParikshaProvider>
+        </QuizProvider>
       </DataProvider>
     </AuthProvider>
   );

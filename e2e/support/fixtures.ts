@@ -58,9 +58,20 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
   await popup.waitForEvent('close');
 }
 
-/** Opens the app signed out, signs in, and waits for Home. */
-export async function signedInAsShishya(page: Page, person: Person): Promise<void> {
+/**
+ * Opens the app signed out, signs in, picks which names to use (asked once, on first sign-in;
+ * plain English unless a spec asks for the Gurukul names), and waits for Home.
+ */
+export async function signedInAsLearner(
+  page: Page,
+  person: Person,
+  names: 'Plain English' | 'Gurukul names' = 'Plain English',
+): Promise<void> {
   await page.goto('/');
   await signInWithGoogle(page, person);
-  await expect(page.getByRole('heading', { level: 1, name: /^Namaste/ })).toBeVisible();
+  const home = page.getByRole('heading', { level: 1, name: /^Namaste/ });
+  const choice = page.getByRole('heading', { level: 1, name: 'Which names should Gurukul use?' });
+  await expect(home.or(choice)).toBeVisible();
+  if (await choice.isVisible()) await page.getByRole('button', { name: new RegExp(names) }).click();
+  await expect(home).toBeVisible();
 }

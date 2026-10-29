@@ -18,7 +18,7 @@ describe('validateNavigation', () => {
 
   it('is clean when every route is a page or unlisted with a reason', () => {
     const a = area({
-      roles: ['shishya', 'acharya', 'kulapati'],
+      roles: ['learner', 'educator', 'admin'],
       unlisted: {
         '/courses/:id': { context: 'needs a course id' },
         '/dev': { excluded: 'dev only' },
@@ -58,14 +58,16 @@ describe('validateNavigation', () => {
       name: ' ',
       roles: ['guru' as never],
       keywords: [''],
-      pages: [{ id: 'home', path: '/', label: ' ', roles: ['admin' as never], keywords: [' '] }],
+      pages: [
+        { id: 'home', path: '/', label: ' ', roles: ['superuser' as never], keywords: [' '] },
+      ],
     });
     expect(validateNavigation([a], ['/'])).toEqual([
       'learn: area name is empty',
       'learn: unknown role "guru"',
       'learn: keywords must be non-empty strings',
       'learn › home: label is empty',
-      'learn › home: unknown role "admin"',
+      'learn › home: unknown role "superuser"',
       'learn › home: keywords must be non-empty strings',
     ]);
   });

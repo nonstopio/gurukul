@@ -21,9 +21,9 @@ form is the `writing-logs` skill and `.claude/rules/logging.md`.
 
 | Level | Use for | Example |
 |---|---|---|
-| `debug` | Entry points with key ids, decision branches, payloads you would need to diagnose | `log.debug('Grading started', { courseId, parikshaId, questionCount })` |
+| `debug` | Entry points with key ids, decision branches, payloads you would need to diagnose | `log.debug('Grading started', { courseId, quizId, questionCount })` |
 | `info` | Completed operations and business events | `log.info('Certificate issued', { credentialId, courseId })` |
-| `warn` | Recoverable or degraded: a refused business rule, a retry, a fallback | `log.warn('Retake refused', { parikshaId, reason: 'cooldown' })` |
+| `warn` | Recoverable or degraded: a refused business rule, a retry, a fallback | `log.warn('Retake refused', { quizId, reason: 'cooldown' })` |
 | `error` | An operation failed and someone should look. Always pass the `Error` | `log.error('Grading failed', err, { courseId })` |
 
 ## The helper
@@ -42,13 +42,13 @@ call whose first argument is an interpolated template literal or a `+` is a lint
 
 ## Standard field names
 
-lowerCamelCase, one name per concept: `uid`, `courseId`, `itemId`, `parikshaId`, `questionId`,
+lowerCamelCase, one name per concept: `uid`, `courseId`, `itemId`, `quizId`, `questionId`,
 `attemptId`, `assignmentId`, `credentialId`, `emailPrefix`, `count`, `durationMs`, `status`,
 `source`, `reason`, `code`, `traceId`. (`STANDARD_LOG_FIELDS` in `packages/schema/src/logging.ts`.)
 
 ## What never to log
 
-Passwords, ID tokens, API keys, service-account material, cookies; **Pariksha answer keys and
+Passwords, ID tokens, API keys, service-account material, cookies; **Quiz answer keys and
 correct option ids**, at any level; a learner's name, email, phone, date of birth, address or photo
 URL at INFO and above; full request or response bodies; certificate payloads. Log the learner's
 `uid` and the record's id instead.

@@ -26,14 +26,17 @@ import {
   peopleFromAssignments,
   searchPrefix,
   tabCounts,
-  parikshaTitle,
+  quizTitle,
   pct,
-  parikshaRows,
+  quizRows,
   WARN_BELOW_PERCENT,
   weeklySeries,
 } from '../src/console/model';
 import type { AssignmentFull, UserRow } from '../src/console/types';
 import { makeCourse, progressRow } from './fake-data';
+import { terms } from '../src/labels/terms';
+
+const g = terms('generic');
 
 const now = new Date('2026-03-10T00:00:00Z');
 const user = (n: number, over: Partial<UserRow> = {}): UserRow => ({
@@ -41,7 +44,7 @@ const user = (n: number, over: Partial<UserRow> = {}): UserRow => ({
   email: `u${n}@nonstopio.com`,
   displayName: `User ${n}`,
   team: 'QA',
-  roles: ['shishya'],
+  roles: ['learner'],
   grantedCourseIds: [],
   createdAt: null,
   ...over,
@@ -69,7 +72,7 @@ describe('isOverdue', () => {
 
 describe('buildLearnerRows', () => {
   const rows = buildLearnerRows(
-    [user(1), user(2, { displayName: '', roles: ['shishya', 'acharya'], team: null })],
+    [user(1), user(2, { displayName: '', roles: ['learner', 'educator'], team: null })],
     [
       asg('u1@nonstopio.com', { uid: 'u1', status: 'completed' }),
       asg('u1@nonstopio.com', { uid: 'u1', courseId: 'sql', dueAt: new Date('2026-03-01') }),
@@ -155,12 +158,12 @@ describe('analytics helpers', () => {
     expect(weeklySeries(orgStatsSchema.parse({}), now)).toHaveLength(12);
   });
 
-  it('builds the funnel from assigned to completed, zero for missing parvas', () => {
+  it('builds the funnel from assigned to completed, zero for missing chapters', () => {
     const stats = courseStatsSchema.parse({
       assigned: 10,
       started: 8,
       completed: 3,
-      parvaCompletions: [7],
+      chapterCompletions: [7],
     });
     expect(funnelSteps(stats, ['Basics', 'Branching'])).toEqual([
       { label: 'Assigned', value: 10 },
@@ -187,7 +190,7 @@ describe('analytics helpers', () => {
     expect(hardestQuestions(courseStatsSchema.parse({}))).toEqual([]);
   });
 
-  it('sums a Pariksha first-try results over its questions', () => {
+  it('sums a Quiz first-try results over its questions', () => {
     const q = (id: string) => ({ id }) as never;
     const stats = courseStatsSchema.parse({
       questionFirstTry: {
@@ -197,7 +200,7 @@ describe('analytics helpers', () => {
       },
     });
     expect(
-      parikshaRows(
+      quizRows(
         [
           { id: 'p1', title: 'One', questions: [q('a'), q('b'), q('c')] },
           { id: 'p2', title: 'Two', questions: [q('d')] },
@@ -244,7 +247,7 @@ describe('learner filters', () => {
     expect(isFiltered({ ...none, search: 'r' })).toBe(false);
     expect(isFiltered({ ...none, search: 'ro' })).toBe(true);
     expect(isFiltered({ ...none, team: 'QA' })).toBe(true);
-    expect(isFiltered({ ...none, role: 'acharya' })).toBe(true);
+    expect(isFiltered({ ...none, role: 'educator' })).toBe(true);
     expect(isFiltered({ ...none, courseId: 'git' })).toBe(true);
   });
 
@@ -266,7 +269,7 @@ describe('learner filters', () => {
 
   it('combines search, team, role and course over people and pending invites', () => {
     const users = [
-      user(1, { roles: ['shishya', 'acharya'] }),
+      user(1, { roles: ['learner', 'educator'] }),
       user(2, { team: 'Dev' }),
       user(3, { team: null }),
     ];
@@ -284,7 +287,7 @@ describe('learner filters', () => {
     expect(emails(filterPeople(users, scope, { ...none, team: 'QA' }))).toEqual([
       'u1@nonstopio.com',
     ]);
-    expect(emails(filterPeople(users, scope, { ...none, role: 'acharya' }))).toEqual([
+    expect(emails(filterPeople(users, scope, { ...none, role: 'educator' }))).toEqual([
       'u1@nonstopio.com',
     ]);
     expect(emails(filterPeople(users, scope, { ...none, courseId: 'git', search: 'u2' }))).toEqual([
@@ -341,47 +344,47 @@ describe('learner filters', () => {
 
 describe('auditLabel', () => {
   it('words known actions and shows unknown ones as written', () => {
-    expect(auditLabel('roles.set')).toBe('Changed a role');
-    expect(auditLabel('something.new')).toBe('something.new');
+    expect(auditLabel('roles.set', g)).toBe('Changed a role');
+    expect(auditLabel('something.new', g)).toBe('something.new');
   });
 });
 
 describe('auditDetail', () => {
   it('says who was assigned, naming a few and counting the rest', () => {
     expect(
-      auditDetail('assign', { courseIds: ['git', 'sql'], count: 2, emails: ['a@x.com'] }),
+      auditDetail('assign', { courseIds: ['git', 'sql'], count: 2, emails: ['a@x.com'] }, g),
     ).toBe('a@x.com to git, sql');
     expect(
-      auditDetail('assign', { courseIds: ['git'], count: 5, emails: ['a', 'b', 'c', 'd', 'e'] }),
+      auditDetail('assign', { courseIds: ['git'], count: 5, emails: ['a', 'b', 'c', 'd', 'e'] }, g),
     ).toBe('a, b, c and 2 more to git');
-    expect(auditDetail('assign', { courseIds: ['git'], count: 4 })).toBe('4 assignments to git');
-    expect(auditDetail('assign', {})).toBe('0 assignments');
+    expect(auditDetail('assign', { courseIds: ['git'], count: 4 }, g)).toBe('4 assignments to git');
+    expect(auditDetail('assign', {}, g)).toBe('0 assignments');
   });
 
   it('words each other action, and says nothing when there is nothing to add', () => {
-    expect(auditDetail('reminders.send', { sent: 3, skipped: 1, courseId: 'git' })).toBe(
+    expect(auditDetail('reminders.send', { sent: 3, skipped: 1, courseId: 'git' }, g)).toBe(
       'Sent 3, skipped 1 for git',
     );
-    expect(auditDetail('reminders.send', { courseId: null })).toBe('Sent 0, skipped 0');
-    expect(auditDetail('roles.set', { acharya: true, kulapati: true })).toBe(
-      'Now acharya and kulapati',
+    expect(auditDetail('reminders.send', { courseId: null }, g)).toBe('Sent 0, skipped 0');
+    expect(auditDetail('roles.set', { educator: true, admin: true }, g)).toBe(
+      'Now educator and admin',
     );
-    expect(auditDetail('roles.bootstrap', { acharya: false, kulapati: false })).toBe(
+    expect(auditDetail('roles.bootstrap', { educator: false, admin: false }, g)).toBe(
       'Learner only',
     );
-    expect(auditDetail('cooldown.reset', { courseId: 'git', parikshaId: 'p1' })).toBe('git / p1');
-    expect(auditDetail('cooldown.reset', {})).toBeNull();
-    expect(auditDetail('certificate.revoke', { revoked: true })).toBeNull();
-    expect(auditDetail('course.create', { duplicateFrom: 'git' })).toBe('Copy of git');
-    expect(auditDetail('course.create', {})).toBeNull();
-    expect(auditDetail('course.publish', { version: 4 })).toBe('Version 4');
-    expect(auditDetail('course.publish', {})).toBeNull();
-    expect(auditDetail('course.rollback', { restoredVersion: 2, version: 5 })).toBe(
+    expect(auditDetail('cooldown.reset', { courseId: 'git', quizId: 'p1' }, g)).toBe('git / p1');
+    expect(auditDetail('cooldown.reset', {}, g)).toBeNull();
+    expect(auditDetail('certificate.revoke', { revoked: true }, g)).toBeNull();
+    expect(auditDetail('course.create', { duplicateFrom: 'git' }, g)).toBe('Copy of git');
+    expect(auditDetail('course.create', {}, g)).toBeNull();
+    expect(auditDetail('course.publish', { version: 4 }, g)).toBe('Version 4');
+    expect(auditDetail('course.publish', {}, g)).toBeNull();
+    expect(auditDetail('course.rollback', { restoredVersion: 2, version: 5 }, g)).toBe(
       'Back to version 2, now version 5',
     );
-    expect(auditDetail('course.rollback', {})).toBe('Back to version ?, now version ?');
-    expect(auditDetail('course.archive', { status: 'archived' })).toBe('archived');
-    expect(auditDetail('odd.thing', { x: 1 })).toBeNull();
+    expect(auditDetail('course.rollback', {}, g)).toBe('Back to version ?, now version ?');
+    expect(auditDetail('course.archive', { status: 'archived' }, g)).toBe('archived');
+    expect(auditDetail('odd.thing', { x: 1 }, g)).toBeNull();
   });
 });
 
@@ -458,16 +461,16 @@ describe('drawerCourses', () => {
     expect(list[4]).toMatchObject({ assigned: false, completed: true, dueAt: null });
   });
 
-  it('names attempted Parikshas by title, by id once they are gone', () => {
+  it('names attempted Quizzes by title, by id once they are gone', () => {
     const course = makeCourse();
-    expect(parikshaTitle(course, 'q1')).toBe('Pariksha I');
-    expect(parikshaTitle(course, 'l1')).toBeNull();
-    expect(parikshaTitle(undefined, 'q1')).toBeNull();
+    expect(quizTitle(course, 'q1')).toBe('Quiz I');
+    expect(quizTitle(course, 'l1')).toBeNull();
+    expect(quizTitle(undefined, 'q1')).toBeNull();
     const [git] = drawerCourses(
       [],
       [
         progressRow({
-          pariksha: {
+          quiz: {
             q1: { best: 0.8, passed: true, attempts: 1, lastAttemptAt: null },
             old: { best: 0, passed: false, attempts: 2, lastAttemptAt: null },
             none: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
@@ -477,8 +480,8 @@ describe('drawerCourses', () => {
       [course],
       now,
     );
-    expect(git?.parikshas).toEqual([
-      { id: 'q1', title: 'Pariksha I', attempts: 1, best: 0.8, passed: true },
+    expect(git?.quizzes).toEqual([
+      { id: 'q1', title: 'Quiz I', attempts: 1, best: 0.8, passed: true },
       { id: 'old', title: 'old', attempts: 2, best: 0, passed: false },
     ]);
   });
@@ -533,7 +536,7 @@ describe('Needs attention model', () => {
     ).toEqual(['o2@nonstopio.com']);
   });
 
-  it('finds Parikshas failed at least twice and not passed since', () => {
+  it('finds Quizzes failed at least twice and not passed since', () => {
     const at = (d: number) => new Date(Date.UTC(2026, 2, d));
     const row = (uid: string, over: Parameters<typeof progressRow>[0]) => ({
       ...progressRow(over),
@@ -541,20 +544,20 @@ describe('Needs attention model', () => {
     });
     const found = failedTwice([
       row('a', {
-        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: at(1) } },
+        quiz: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: at(1) } },
       }),
       row('b', {
-        pariksha: {
+        quiz: {
           q1: { best: 0.2, passed: false, attempts: 4, lastAttemptAt: at(5) },
           q2: { best: 0.9, passed: true, attempts: 3, lastAttemptAt: at(6) },
           q3: { best: 0.1, passed: false, attempts: 1, lastAttemptAt: at(7) },
         },
       }),
       row('c', {
-        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
+        quiz: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
       }),
       row('e', {
-        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
+        quiz: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
       }),
     ]);
     expect(found.map((f) => f.key)).toEqual(['b/git/q1', 'a/git/q1', 'c/git/q1', 'e/git/q1']);

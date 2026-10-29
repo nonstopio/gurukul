@@ -10,8 +10,8 @@ const changes: Change[] = [
     release: null,
     date: '2026-10-27',
     id: 'GH-3',
-    title: 'Parikshas can be retaken',
-    area: 'PARIKSHA',
+    title: 'Quizzes can be retaken',
+    area: 'QUIZ',
     kind: 'feature',
     why: 'People who failed once had no way back in',
     detail: 'Prose detail about cooldowns',
@@ -64,7 +64,7 @@ describe('ChangelogPage', () => {
     expect(screen.getAllByText('Background')).toHaveLength(1);
     const first = screen.getAllByRole('article')[0];
     expect(within(first as HTMLElement).getByText('New')).toBeTruthy();
-    expect(within(first as HTMLElement).getByText('Parikshas & certificates')).toBeTruthy();
+    expect(within(first as HTMLElement).getByText('Quizzes & certificates')).toBeTruthy();
   });
 
   it('filters by search, area and kind, and says so when nothing matches', () => {
@@ -85,7 +85,7 @@ describe('ChangelogPage', () => {
     expect(areaOptions.map((o) => o.textContent)).toEqual([
       'All areas',
       'Learning',
-      'Parikshas & certificates',
+      'Quizzes & certificates',
     ]);
     const kindOptions = within(screen.getByLabelText('Kind')).getAllByRole('option');
     expect(kindOptions.map((o) => o.textContent)).toEqual(['All kinds', 'Docs', 'New', 'Fix']);

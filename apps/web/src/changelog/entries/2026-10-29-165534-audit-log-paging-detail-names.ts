@@ -4,10 +4,10 @@ export default {
   date: '2026-10-29',
   id: 'AUDIT-LOG-FINISH',
   title: 'The audit log shows names and details, and goes back past the latest 100',
-  area: 'KULAPATI',
+  area: 'ADMIN',
   kind: 'feature',
   why:
-    'Answering "who gave this person the Acharya role?" meant decoding ids, and anything older ' +
+    'Answering "who gave this person the Educator role?" meant decoding ids, and anything older ' +
     'than the latest 100 actions could not be reached at all.',
   detail: [
     'People appear by name (or email), including the person an action was about.',

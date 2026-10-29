@@ -3,7 +3,7 @@ import { z } from 'zod';
 const count = z.number().int().min(0).default(0);
 
 /**
- * `stats/org`: counters Sanjaya reads, kept current by triggers and the daily roll-up so a
+ * `stats/org`: counters Analytics reads, kept current by triggers and the daily roll-up so a
  * dashboard view costs a handful of reads instead of one per learner.
  */
 export const orgStatsSchema = z.object({
@@ -14,11 +14,11 @@ export const orgStatsSchema = z.object({
   usersTotal: count,
   activeLearners30d: count,
   /** Every graded attempt in the org: their scores (0..1) summed, and how many. */
-  parikshaScoreSum: z.number().min(0).default(0),
-  parikshaScoreCount: count,
-  /** Each learner's first attempt at each Pariksha, and how many of those passed. */
-  parikshaFirstTryTotal: count,
-  parikshaFirstTryPassed: count,
+  quizScoreSum: z.number().min(0).default(0),
+  quizScoreCount: count,
+  /** Each learner's first attempt at each Quiz, and how many of those passed. */
+  quizFirstTryTotal: count,
+  quizFirstTryPassed: count,
   /** Lessons completed per ISO week, keyed like `2026-W44`. */
   weekly: z.record(z.string(), z.number().int().min(0)).default({}),
 });
@@ -41,8 +41,8 @@ export const courseStatsSchema = z.object({
   certified: count,
   scoreSum: z.number().min(0).default(0),
   scoreCount: count,
-  /** Index = parva position; value = learners who finished that parva. */
-  parvaCompletions: z.array(z.number().int().min(0)).default([]),
+  /** Index = chapter position; value = learners who finished that chapter. */
+  chapterCompletions: z.array(z.number().int().min(0)).default([]),
   questionFirstTry: z.record(z.string(), questionFirstTrySchema).default({}),
   /** Sum of days from start to completion: with `completed`, the average time to finish. */
   finishDaysSum: z.number().min(0).default(0),

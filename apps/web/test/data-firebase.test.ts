@@ -73,8 +73,8 @@ describe('firebaseLearnerData', () => {
   });
 
   it('opens a course whose lesson holds a block this app does not know', async () => {
-    const lessonOf = (c: { parvas: { items: { type: string }[] }[] } | null) =>
-      c?.parvas[0]?.items.find((i) => i.type === 'lesson') as { blocks: unknown[] } | undefined;
+    const lessonOf = (c: { chapters: { items: { type: string }[] }[] } | null) =>
+      c?.chapters[0]?.items.find((i) => i.type === 'lesson') as { blocks: unknown[] } | undefined;
     const c = course();
     const lesson = lessonOf(c);
     if (lesson) lesson.blocks = [{ type: 'poll', id: 'b-poll' }];
@@ -128,7 +128,7 @@ describe('firebaseLearnerData', () => {
           lastItemId: 'l2',
           lastActiveAt: ts(7),
           completedItemIds: ['l1'],
-          pariksha: { q: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(3) }, r: {} },
+          quiz: { q: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(3) }, r: {} },
           percent: 40,
           completedAt: ts(9),
           certificateId: 'NSG-GIT-26-0001',
@@ -149,7 +149,7 @@ describe('firebaseLearnerData', () => {
       lastItemId: null,
       lastActiveAt: null,
       completedItemIds: [],
-      pariksha: {},
+      quiz: {},
       percent: 0,
       completedAt: null,
       certificateId: null,
@@ -210,7 +210,7 @@ describe('firebaseLearnerData', () => {
     ]);
   });
 
-  it('reads the latest attempt at one Pariksha, filling defaults, or null before the first', async () => {
+  it('reads the latest attempt at one Quiz, filling defaults, or null before the first', async () => {
     expect(await data.latestAttempt('u1', 'git', 'q1')).toBeNull();
     store.queryDocs = [{ id: 'a9', data: () => ({ score: 0.5, passed: true }) }];
     expect(await data.latestAttempt('u1', 'git', 'q1')).toEqual({
@@ -279,5 +279,10 @@ describe('firebaseLearnerData', () => {
   it('writes only the team to my profile', async () => {
     await data.setTeam('u', 'QA');
     expect(store.calls).toEqual([['update', 'users/u', { team: 'QA' }]]);
+  });
+
+  it('writes only the label set to my profile', async () => {
+    await data.setLabels('u', 'gurukul');
+    expect(store.calls).toEqual([['update', 'users/u', { labels: 'gurukul' }]]);
   });
 });

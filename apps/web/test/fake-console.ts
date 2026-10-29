@@ -19,7 +19,7 @@ export const userRow = (n: number, over: Partial<UserRow> = {}): UserRow => ({
   email: `user${n}@nonstopio.com`,
   displayName: `User ${n}`,
   team: null,
-  roles: ['shishya'],
+  roles: ['learner'],
   grantedCourseIds: [],
   createdAt: null,
   ...over,
@@ -43,7 +43,7 @@ export function fakeConsole(
     settings?: Partial<OrgConfig>;
     /** Every course the Roles screen can grant, drafts included; defaults to one published course. */
     courses?: Course[];
-    /** Who started the course, for an Acharya's analytics. */
+    /** Who started the course, for an Educator's analytics. */
     learners?: CourseLearner[];
   } = {},
 ) {
@@ -97,7 +97,7 @@ export function fakeConsole(
       notified: 0,
       failed: [],
     }),
-    setRoles: vi.fn().mockResolvedValue({ roles: ['shishya', 'acharya'] }),
+    setRoles: vi.fn().mockResolvedValue({ roles: ['learner', 'educator'] }),
     resetCooldown: vi.fn().mockResolvedValue(undefined),
     remindLearners: vi.fn().mockResolvedValue({ sent: 1, skipped: 0 }),
     revokeCertificate: vi.fn().mockResolvedValue(undefined),

@@ -4,8 +4,8 @@ import {
   COURSE_SCHEMA_VERSION,
   courseSchema,
   lessonSchema,
-  parikshaSchema,
-  parvaSchema,
+  quizSchema,
+  chapterSchema,
 } from '../course';
 import type { Course } from '../course';
 import { MIGRATIONS } from './steps';
@@ -70,10 +70,8 @@ function unsupportedFrom(block: unknown): UnsupportedBlock {
 const readableBlock = z.union([blockSchema, z.unknown().transform(unsupportedFrom)]);
 const readableLesson = lessonSchema.extend({ blocks: z.array(readableBlock).max(60) });
 const readableCourse = courseSchema.extend({
-  parvas: z
-    .array(
-      parvaSchema.extend({ items: z.array(z.union([readableLesson, parikshaSchema])).max(60) }),
-    )
+  chapters: z
+    .array(chapterSchema.extend({ items: z.array(z.union([readableLesson, quizSchema])).max(60) }))
     .max(30),
 });
 

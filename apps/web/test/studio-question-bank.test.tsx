@@ -22,7 +22,7 @@ const entry = (id: string, over: Partial<BankQuestion> = {}): BankQuestion => ({
   createdBy: 'u1',
   ...over,
 });
-async function open(bank: BankQuestion[], roles: Array<'acharya' | 'kulapati'> = ['acharya']) {
+async function open(bank: BankQuestion[], roles: Array<'educator' | 'admin'> = ['educator']) {
   const studio = fakeStudio({ bank });
   const view = await openApp('/studio/bank', { roles, studio });
   return { ...view, studio };
@@ -78,7 +78,7 @@ describe('question bank', () => {
   it('shows a warning when the bank cannot be read', async () => {
     const studio = fakeStudio();
     studio.data.questionBank = vi.fn().mockRejectedValue(new Error('denied'));
-    await openApp('/studio/bank', { roles: ['acharya'], studio });
+    await openApp('/studio/bank', { roles: ['educator'], studio });
     expect(await screen.findByText('This did not load')).toBeTruthy();
   });
 
@@ -117,8 +117,8 @@ describe('question bank', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
-  it('lets a Kulapati delete any question', async () => {
-    await open([entry('1', { createdBy: 'u9' }), entry('2', { createdBy: 'u8' })], ['kulapati']);
+  it('lets an Admin delete any question', async () => {
+    await open([entry('1', { createdBy: 'u9' }), entry('2', { createdBy: 'u8' })], ['admin']);
     await screen.findByRole('list', { name: 'Bank questions' });
     expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
   });

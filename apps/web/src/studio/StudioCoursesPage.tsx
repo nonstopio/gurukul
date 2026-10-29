@@ -6,11 +6,12 @@ import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { countItems } from '../learn/model';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { StudioCourse } from './types';
 import {
-  acharyaSummary,
+  educatorSummary,
   canEdit,
   inTab,
   relativeTime,
@@ -29,24 +30,21 @@ const STATUS = {
 export function StudioCoursesPage() {
   const { data } = useStudio();
   const { uid } = useUser();
-  const kulapati = useSession().roles.includes('kulapati');
+  const admin = useSession().roles.includes('admin');
   const [creating, setCreating] = useState(false);
+  const t = useTerms();
   const [now] = useState(() => new Date());
-  const result = useAsync(
-    useCallback(() => data.listCourses(uid, kulapati), [data, uid, kulapati]),
-  );
+  const result = useAsync(useCallback(() => data.listCourses(uid, admin), [data, uid, admin]));
   const rows = result.state === 'ready' ? result.value : [];
-  const editable = rows.filter((r) => canEdit(r.live, uid, kulapati)).map((r) => r.live);
+  const editable = rows.filter((r) => canEdit(r.live, uid, admin)).map((r) => r.live);
 
   return (
     <main className="page studio-page">
       <header className="sc-head">
         <div>
-          <p className="sc-kicker">Vyasa Studio</p>
+          <p className="sc-kicker">{t.Studio}</p>
           <h1 className="page__title sc-head__title">Courses</h1>
-          <p className="sc-head__line">
-            Compose courses the way Vyasa composed the epic — parva by parva.
-          </p>
+          <p className="sc-head__line">{`Build courses ${t.chapter} by ${t.chapter}.`}</p>
         </div>
         <Button onClick={() => setCreating(true)}>New course</Button>
       </header>
@@ -55,7 +53,7 @@ export function StudioCoursesPage() {
           <CourseTabs
             rows={list}
             uid={uid}
-            kulapati={kulapati}
+            admin={admin}
             now={now}
             onNew={() => setCreating(true)}
           />
@@ -69,13 +67,13 @@ export function StudioCoursesPage() {
 function CourseTabs({
   rows,
   uid,
-  kulapati,
+  admin,
   now,
   onNew,
 }: {
   rows: StudioCourse[];
   uid: string;
-  kulapati: boolean;
+  admin: boolean;
   now: Date;
   onNew: () => void;
 }) {
@@ -91,7 +89,7 @@ function CourseTabs({
     ) : (
       <ul className="sc-grid">
         {shown.map((row) => (
-          <CourseCard key={row.live.id} row={row} uid={uid} kulapati={kulapati} now={now} />
+          <CourseCard key={row.live.id} row={row} uid={uid} admin={admin} now={now} />
         ))}
         <li>
           <button type="button" className="sc-new" onClick={onNew}>
@@ -127,21 +125,22 @@ function CourseTabs({
 function CourseCard({
   row,
   uid,
-  kulapati,
+  admin,
   now,
 }: {
   row: StudioCourse;
   uid: string;
-  kulapati: boolean;
+  admin: boolean;
   now: Date;
 }) {
   const { live, draft } = row;
   const shown = draft?.course ?? live;
   const status = STATUS[live.status];
-  const editing = canEdit(live, uid, kulapati);
+  const editing = canEdit(live, uid, admin);
   const edits = unpublishedEdits(row);
   const shownCounts = countItems(shown);
-  const acharyas = acharyaSummary(live);
+  const t = useTerms();
+  const educators = educatorSummary(live, t);
   return (
     <li>
       <Card as="article" className="sc-card">
@@ -164,8 +163,7 @@ function CourseCard({
             )}
           </h2>
           <p className="sc-card__meta">
-            {shown.parvas.length} parvas · {shownCounts.lessons} lessons · {shownCounts.parikshas}{' '}
-            Parikshas
+            {`${shown.chapters.length} ${t.chapters} · ${shownCounts.lessons} lessons · ${shownCounts.quizzes} ${t.Quizzes}`}
           </p>
           <div className="sc-card__foot">
             {editing ? (
@@ -177,7 +175,7 @@ function CourseCard({
                 ) : null}
                 {row.learners === undefined ? null : (
                   <span className="sc-card__edited">
-                    {row.learners} {row.learners === 1 ? 'learner' : 'learners'}
+                    {`${row.learners} ${row.learners === 1 ? t.learner : t.learners}`}
                   </span>
                 )}
                 {draft?.updatedAt ? (
@@ -189,7 +187,7 @@ function CourseCard({
             ) : (
               <span className="sc-card__edited">
                 <LockIcon size={14} />{' '}
-                {acharyas ? `View only — ${acharyas.label}: ${acharyas.names}` : 'View only'}
+                {educators ? `View only — ${educators.label}: ${educators.names}` : 'View only'}
               </span>
             )}
           </div>

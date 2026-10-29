@@ -91,7 +91,7 @@ export const onProgressWritten = onDocumentWritten('progress/{progressId}', asyn
   );
 });
 
-/** Score sums and first-try question counters for Sanjaya, from each graded attempt. */
+/** Score sums and first-try question counters for Analytics, from each graded attempt. */
 export const onAttemptCreated = onDocumentCreated(
   'progress/{progressId}/attempts/{attemptId}',
   async (event) => {
@@ -156,22 +156,22 @@ export const weeklyBackup = onSchedule(
   },
 );
 
-/** Kulapati-only: grant or revoke `acharya` / `kulapati` for one person. */
+/** Admin-only: grant or revoke `educator` / `admin` for one person. */
 export const setRoles = apiCallable((request) =>
   handleSetRoles(request, firebaseRoleAdmin(getAuth(), getFirestore())),
 );
 
-/** Pariksha check-as-you-go: right or wrong for one question, when the author allows it. */
+/** Quiz check-as-you-go: right or wrong for one question, when the author allows it. */
 export const checkAnswer = apiCallable((request) =>
   handleCheckAnswer(request, firestoreGradingStore(getFirestore())),
 );
 
-/** Scores and records one Pariksha attempt; the answer key never leaves the server. */
+/** Scores and records one Quiz attempt; the answer key never leaves the server. */
 export const gradeAttempt = apiCallable((request) =>
   handleGradeAttempt(request, firestoreGradingStore(getFirestore()), Date.now),
 );
 
-/** Kulapati-only: revoke (or restore) a certificate. */
+/** Admin-only: revoke (or restore) a certificate. */
 export const revokeCertificate = apiCallable(
   (request) =>
     handleRevokeCertificate(request, {
@@ -181,7 +181,7 @@ export const revokeCertificate = apiCallable(
   MAIL,
 );
 
-/** Kulapati-only: assign courses to people by email (optionally emailing them). */
+/** Admin-only: assign courses to people by email (optionally emailing them). */
 export const assignCourses = apiCallable((request) => {
   const db = getFirestore();
   return handleAssignCourses(request, {
@@ -190,12 +190,12 @@ export const assignCourses = apiCallable((request) => {
   });
 }, MAIL);
 
-/** Kulapati-only: open a Pariksha retake for one learner. */
+/** Admin-only: open a Quiz retake for one learner. */
 export const resetCooldown = apiCallable((request) =>
   handleResetCooldown(request, firestoreCooldownAdmin(getFirestore())),
 );
 
-/** Kulapati-only: queue reminders for unfinished assignments. */
+/** Admin-only: queue reminders for unfinished assignments. */
 export const remindLearners = apiCallable((request) => {
   const db = getFirestore();
   return handleRemindLearners(
@@ -205,22 +205,22 @@ export const remindLearners = apiCallable((request) => {
   );
 }, MAIL);
 
-/** Vyasa Studio: an Acharya or Kulapati starts a course, blank or copied from another draft. */
+/** Studio: an Educator or Admin starts a course, blank or copied from another draft. */
 export const createCourse = apiCallable((request) =>
   handleCreateCourse(request, firestoreCourseStore(getFirestore())),
 );
 
-/** Vyasa Studio: validates the draft and makes it the live version. */
+/** Studio: validates the draft and makes it the live version. */
 export const publishCourse = apiCallable((request) =>
   handlePublishCourse(request, firestoreCourseStore(getFirestore())),
 );
 
-/** Vyasa Studio: republishes an old version as a new one and resets the draft to it. */
+/** Studio: republishes an old version as a new one and resets the draft to it. */
 export const rollbackCourse = apiCallable((request) =>
   handleRollbackCourse(request, firestoreCourseStore(getFirestore())),
 );
 
-/** Kulapati-only: retire a course or restore it to published. */
+/** Admin-only: retire a course or restore it to published. */
 export const archiveCourse = apiCallable((request) =>
   handleArchiveCourse(request, firestoreCourseStore(getFirestore())),
 );

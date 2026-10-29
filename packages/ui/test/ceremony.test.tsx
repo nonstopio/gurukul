@@ -12,7 +12,7 @@ const cert = {
   credentialId: 'GK-2026-0001',
   verifyUrl: 'gurukul.example.com/verify/abc',
   signatoryName: 'Asha Rao',
-  signatoryRole: 'Kulapati',
+  signatoryRole: 'Admin',
 };
 
 describe('nameFontSize', () => {

@@ -5,7 +5,7 @@ import './card.css';
 export interface CardProps extends HTMLAttributes<HTMLElement> {
   /** The element to render. Default: `div`. */
   as?: 'div' | 'section' | 'article' | 'li';
-  /** Marks the one card that matters now (the current parva): accent border and pale ground. */
+  /** Marks the one card that matters now (the current chapter): accent border and pale ground. */
   highlighted?: boolean;
 }
 

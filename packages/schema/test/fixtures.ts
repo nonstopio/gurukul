@@ -12,14 +12,14 @@ export function makeCourse(over: Partial<Course> = {}): Course {
     level: 'foundation',
     cover: { theme: 'forest', glyph: 'G' },
     outcomes: ['Commit'],
-    acharyaIds: [],
-    acharyaNames: {},
+    educatorIds: [],
+    educatorNames: {},
     status: 'published',
     version: 1,
     publishedAt: ts(1),
     rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
     certificate: { title: 'Git' },
-    parvas: [
+    chapters: [
       {
         id: 'p1',
         title: 'Basics',
@@ -34,7 +34,7 @@ export function makeCourse(over: Partial<Course> = {}): Course {
             blocks: [{ type: 'markdown', id: 'b1', md: 'hi' }],
           },
           {
-            type: 'pariksha',
+            type: 'quiz',
             id: 'q1',
             title: 'Check',
             questionsShown: 1,
@@ -81,24 +81,24 @@ export function makeCourse(over: Partial<Course> = {}): Course {
   };
 }
 
-/** The nth item of the first parva; throws rather than returning undefined. */
+/** The nth item of the first chapter; throws rather than returning undefined. */
 export function itemAt(course: Course, index: number) {
-  const item = course.parvas[0]?.items[index];
+  const item = course.chapters[0]?.items[index];
   if (!item) throw new Error(`no item at ${index}`);
   return item;
 }
 
-/** The nth parva; throws rather than returning undefined. */
-export function parvaAt(course: Course, index: number) {
-  const parva = course.parvas[index];
-  if (!parva) throw new Error(`no parva at ${index}`);
-  return parva;
+/** The nth chapter; throws rather than returning undefined. */
+export function chapterAt(course: Course, index: number) {
+  const chapter = course.chapters[index];
+  if (!chapter) throw new Error(`no chapter at ${index}`);
+  return chapter;
 }
 
-/** The nth question of a Pariksha item; throws rather than returning undefined. */
+/** The nth question of a Quiz item; throws rather than returning undefined. */
 export function firstQuestion(course: Course, itemIndex: number) {
   const item = itemAt(course, itemIndex);
-  const q = item.type === 'pariksha' ? item.questions[0] : undefined;
+  const q = item.type === 'quiz' ? item.questions[0] : undefined;
   if (!q) throw new Error('no question');
   return q;
 }

@@ -19,7 +19,7 @@ const areas: AreaNavigation[] = [
     pages: [
       { id: 'home', path: '/', label: 'Home' },
       { id: 'changelog', path: '/changelog', label: 'Changelog', description: 'Every change' },
-      { id: 'secret', path: '/kulapati', label: 'Kulapati console', roles: ['kulapati'] },
+      { id: 'secret', path: '/admin', label: 'Admin console', roles: ['admin'] },
     ],
   },
 ];
@@ -108,7 +108,7 @@ describe('GlobalSearchProvider', () => {
     expect(dialog()).toBeNull();
   });
 
-  it('uses the real areas and the Shishya role by default', () => {
+  it('uses the real areas and the Learner role by default', () => {
     render(
       <GlobalSearchProvider navigate={vi.fn()}>
         <SearchTrigger />
@@ -140,7 +140,7 @@ const type = (value: string) =>
 const options = () => screen.queryAllByRole('option').map((o) => o.textContent);
 
 describe('GlobalSearchProvider record results', () => {
-  function withSources(sources: RecordSource[], roles: Role[] = ['shishya']) {
+  function withSources(sources: RecordSource[], roles: Role[] = ['learner']) {
     const navigate = vi.fn();
     const ui = (r: Role[]) => (
       <GlobalSearchProvider
@@ -193,7 +193,7 @@ describe('GlobalSearchProvider record results', () => {
     const { rerender } = withSources([{ id: 'courses', load }]);
     open();
     await act(async () => {});
-    rerender(['shishya', 'kulapati']);
+    rerender(['learner', 'admin']);
     await act(async () => {});
     expect(load).toHaveBeenCalledTimes(2);
     await act(async () => second.resolve([record('new', 'Newer')]));
@@ -205,7 +205,7 @@ describe('GlobalSearchProvider record results', () => {
 
 const personRecord = (id: string, label: string): Destination => ({
   id: `person:${id}`,
-  path: `/kulapati/learners?learner=${id}`,
+  path: `/admin/learners?learner=${id}`,
   label,
   areaName: 'Learners',
   description: `${id}@example.com`,
@@ -217,9 +217,9 @@ describe('GlobalSearchProvider people lookups', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  function withLookup(find: RecordLookup['find'], roles: Role[] = ['shishya', 'kulapati']) {
+  function withLookup(find: RecordLookup['find'], roles: Role[] = ['learner', 'admin']) {
     const navigate = vi.fn();
-    const lookups: RecordLookup[] = [{ id: 'people', roles: ['kulapati'], find }];
+    const lookups: RecordLookup[] = [{ id: 'people', roles: ['admin'], find }];
     const ui = (r: Role[]) => (
       <GlobalSearchProvider
         navigate={navigate}
@@ -262,7 +262,7 @@ describe('GlobalSearchProvider people lookups', () => {
     expect(find).toHaveBeenCalledWith('ash');
     expect(options()).toEqual(['Asha RaoLearners · asha@example.comPerson']);
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
-    expect(navigate).toHaveBeenCalledWith('/kulapati/learners?learner=asha');
+    expect(navigate).toHaveBeenCalledWith('/admin/learners?learner=asha');
   });
 
   it('shows only the newest lookup, and nothing once the query is too short', async () => {
@@ -282,13 +282,13 @@ describe('GlobalSearchProvider people lookups', () => {
     expect(options()).toEqual([]);
   });
 
-  it('never looks up, or keeps, people for someone who is not a Kulapati', async () => {
+  it('never looks up, or keeps, people for someone who is not an Admin', async () => {
     const find = vi.fn(async () => [personRecord('asha', 'Asha Rao')]);
     const { rerender } = withLookup(find);
     type('asha');
     await pause();
     expect(options()).toHaveLength(1);
-    rerender(['shishya']);
+    rerender(['learner']);
     expect(options()).toEqual([]);
     expect(screen.getByRole('combobox').getAttribute('placeholder')).toBe(
       'Search pages, courses and lessons…',
@@ -313,20 +313,20 @@ describe('global search in the app', () => {
 });
 
 describe('people in search, in the app', () => {
-  it('finds a person for a Kulapati and opens their learner drawer', async () => {
+  it('finds a person for an Admin and opens their learner drawer', async () => {
     const asha = userRow(7, { displayName: 'Asha Rao' });
     const c = fakeConsole({ users: [asha], found: [asha], count: 1 });
-    const { router } = await openApp('/', { roles: ['kulapati'], console: c });
+    const { router } = await openApp('/', { roles: ['admin'], console: c });
     fireEvent.click(await screen.findByRole('button', { name: /Search/ }));
     type('asha');
     expect(await screen.findByRole('option', { name: /Asha Rao/ })).toBeTruthy();
     expect(c.data.searchUsers).toHaveBeenCalledWith('asha');
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
     expect(await screen.findByRole('dialog', { name: 'Asha Rao' })).toBeTruthy();
-    expect(router.state.location.pathname).toBe('/kulapati/learners');
+    expect(router.state.location.pathname).toBe('/admin/learners');
   });
 
-  it('never searches people for a Shishya', async () => {
+  it('never searches people for a Learner', async () => {
     const c = fakeConsole({});
     await openApp('/', { console: c });
     fireEvent.click(await screen.findByRole('button', { name: /Search/ }));

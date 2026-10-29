@@ -6,6 +6,7 @@ import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import { countItems } from './learn/model';
 import { Loaded } from './learn/ui';
+import { useTerms } from './labels/useTerms';
 
 const LEVELS = { foundation: 'Foundation', intermediate: 'Intermediate', advanced: 'Advanced' };
 
@@ -13,6 +14,7 @@ const LEVELS = { foundation: 'Foundation', intermediate: 'Intermediate', advance
 export function CoursesPage() {
   const data = useLearnerData();
   const uid = useUser().uid;
+  const t = useTerms();
   const [level, setLevel] = useState('');
   const [mine, setMine] = useState(false);
   const load = useCallback(async () => {
@@ -60,7 +62,7 @@ export function CoursesPage() {
                     </h2>
                     <p>{c.summary}</p>
                     <p className="course-card__meta">
-                      {n.lessons} lessons · {n.parikshas} Parikshas · {c.estimatedMinutes} min
+                      {n.lessons} lessons · {n.quizzes} {t.Quizzes} · {c.estimatedMinutes} min
                     </p>
                   </Card>
                 );

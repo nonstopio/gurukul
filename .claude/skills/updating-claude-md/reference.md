@@ -68,7 +68,7 @@ present tense. A note that still says "will" after the work is done reads as out
 
 ## Worked example
 
-A daily Cloud Function is added to `firebase/functions/src/digest/` that emails Kulapatis a summary.
+A daily Cloud Function is added to `firebase/functions/src/digest/` that emails Admins a summary.
 
 | Where                            | What goes there                                                                      |
 | -------------------------------- | ------------------------------------------------------------------------------------ |

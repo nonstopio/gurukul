@@ -28,7 +28,7 @@ function GoogleMark() {
 
 const BENEFITS = [
   { Icon: BookIcon, text: 'Courses built by NonStopians, for NonStopians' },
-  { Icon: CheckIcon, text: 'Parikshas that show what you have learned' },
+  { Icon: CheckIcon, text: 'Quizzes that show what you have learned' },
   { Icon: StarIcon, text: 'Certificates you can share and verify' },
 ] as const;
 
@@ -62,7 +62,7 @@ export function SignInPage() {
           <h1 id="signin-title" className="signin__title">
             Welcome to Gurukul.
           </h1>
-          <p className="shell__body">Courses, Parikshas and certificates for every NonStopian.</p>
+          <p className="shell__body">Courses, Quizzes and certificates for every NonStopian.</p>
           <figure className="signin__quote">
             <blockquote lang="sa">विद्या ददाति विनयम्</blockquote>
             <figcaption>Knowledge gives humility.</figcaption>

@@ -6,11 +6,11 @@ export type MigrationStep = (course: Record<string, unknown>) => Record<string, 
  * `COURSE_SCHEMA_VERSION` adds the step here, a pure function with its own tests.
  */
 export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
-  // v2 adds `acharyaNames`. A role grant may already have written names onto a v1 live document
+  // v2 adds `educatorNames`. A role grant may already have written names onto a v1 live document
   // before its next publish, so names that are there are kept.
-  1: (course) => ({ acharyaNames: {}, ...course }),
+  1: (course) => ({ educatorNames: {}, ...course }),
   // v3 adds the optional `correct` index to `check` blocks. Nothing can tell which option an older
   // check meant, so the course is unchanged: those checks keep revealing only the explanation until
-  // an Acharya marks the answer, which publishing then requires.
+  // an Educator marks the answer, which publishing then requires.
   2: (course) => course,
 };

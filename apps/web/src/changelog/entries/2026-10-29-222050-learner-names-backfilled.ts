@@ -8,7 +8,7 @@ export default {
   kind: 'fix',
   why:
     'People who started a course before learner names were kept showed as "Name not recorded", and ' +
-    'a learner who changed their name kept the old one, so an Acharya could not tell who was who.',
+    'a learner who changed their name kept the old one, so an Educator could not tell who was who.',
   detail: [
     'The nightly count fills in the missing names and copies a changed name, so both appear by the next day.',
   ],

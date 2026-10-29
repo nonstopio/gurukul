@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import type { Course, Item, Parva } from './course';
+import type { Course, Item, Chapter } from './course';
 import { timestamp } from './timestamp';
 
-export const parikshaResultSchema = z.object({
+export const quizResultSchema = z.object({
   best: z.number().min(0).max(1),
   passed: z.boolean(),
   attempts: z.number().int().min(0),
   lastAttemptAt: timestamp,
 });
-export type ParikshaResult = z.infer<typeof parikshaResultSchema>;
+export type QuizResult = z.infer<typeof quizResultSchema>;
 
 export const progressSchema = z.object({
   uid: z.string().min(1),
@@ -18,7 +18,7 @@ export const progressSchema = z.object({
   lastItemId: z.string().nullable(),
   lastActiveAt: timestamp,
   completedItemIds: z.array(z.string()),
-  pariksha: z.record(z.string(), parikshaResultSchema),
+  quiz: z.record(z.string(), quizResultSchema),
   percent: z.number().min(0).max(100),
   completedAt: timestamp.nullable(),
   certificateId: z.string().nullable(),
@@ -29,7 +29,7 @@ export type Progress = z.infer<typeof progressSchema>;
 export const attemptSchema = z.object({
   uid: z.string().min(1),
   courseId: z.string().min(1),
-  parikshaId: z.string().min(1),
+  quizId: z.string().min(1),
   score: z.number().min(0).max(1),
   passed: z.boolean().default(false),
   results: z.array(z.object({ questionId: z.string(), correct: z.boolean() })).default([]),
@@ -42,28 +42,28 @@ export const progressId = (uid: string, courseId: string): string => `${uid}_${c
 /** What a learner has done, as far as the percent and item states are concerned. */
 export interface ProgressState {
   completedItemIds: readonly string[];
-  pariksha: Readonly<Record<string, Pick<ParikshaResult, 'passed'>>>;
+  quiz: Readonly<Record<string, Pick<QuizResult, 'passed'>>>;
 }
 
 export type ItemState = 'done' | 'current' | 'locked' | 'todo';
 
-/** Every lesson and Pariksha of a course, in reading order. */
-export function itemsOf(course: Pick<Course, 'parvas'>): Item[] {
-  return course.parvas.flatMap((p) => p.items);
+/** Every lesson and Quiz of a course, in reading order. */
+export function itemsOf(course: Pick<Course, 'chapters'>): Item[] {
+  return course.chapters.flatMap((p) => p.items);
 }
 
-/** Is this item finished? A lesson when marked complete, a Pariksha when passed. */
+/** Is this item finished? A lesson when marked complete, a Quiz when passed. */
 export function isItemDone(item: Item, state: ProgressState): boolean {
   return item.type === 'lesson'
     ? state.completedItemIds.includes(item.id)
-    : state.pariksha[item.id]?.passed === true;
+    : state.quiz[item.id]?.passed === true;
 }
 
 /**
- * (completed lessons + passed Parikshas) / (lessons + Parikshas) in the CURRENT version, rounded.
+ * (completed lessons + passed Quizzes) / (lessons + Quizzes) in the CURRENT version, rounded.
  * Ids that no longer exist are ignored; items added later count as not done. An empty course is 0.
  */
-export function progressPercent(course: Pick<Course, 'parvas'>, state: ProgressState): number {
+export function progressPercent(course: Pick<Course, 'chapters'>, state: ProgressState): number {
   const items = itemsOf(course);
   if (items.length === 0) return 0;
   const done = items.filter((i) => isItemDone(i, state)).length;
@@ -71,52 +71,52 @@ export function progressPercent(course: Pick<Course, 'parvas'>, state: ProgressS
 }
 
 /**
- * Does this parva open the next one in a sequential course? When it has Parikshas, every one of
- * them is passed; when it has none, every lesson is done. An empty parva never holds anyone back.
+ * Does this chapter open the next one in a sequential course? When it has Quizzes, every one of
+ * them is passed; when it has none, every lesson is done. An empty chapter never holds anyone back.
  */
-export function isParvaPassed(parva: Pick<Parva, 'items'>, state: ProgressState): boolean {
-  const parikshas = parva.items.filter((i) => i.type === 'pariksha');
-  const gate = parikshas.length > 0 ? parikshas : parva.items;
+export function isChapterPassed(chapter: Pick<Chapter, 'items'>, state: ProgressState): boolean {
+  const quizzes = chapter.items.filter((i) => i.type === 'quiz');
+  const gate = quizzes.length > 0 ? quizzes : chapter.items;
   return gate.every((i) => isItemDone(i, state));
 }
 
 /**
  * State of each item for the outline rail: done, current (the first unfinished item that is not
- * locked), todo, or locked. Two things lock: in a `sequential` course a parva stays locked until
- * the previous parva is passed (`isParvaPassed`); and an unfinished Pariksha that `blocksNext` locks
+ * locked), todo, or locked. Two things lock: in a `sequential` course a chapter stays locked until
+ * the previous chapter is passed (`isChapterPassed`); and an unfinished Quiz that `blocksNext` locks
  * everything after it. A locked item that is already done stays done.
  */
 export function itemStates(
-  course: Pick<Course, 'parvas' | 'rules'>,
+  course: Pick<Course, 'chapters' | 'rules'>,
   state: ProgressState,
 ): Record<string, ItemState> {
   const out: Record<string, ItemState> = {};
   let currentTaken = false;
-  let previousParvaDone = true;
-  for (const parva of course.parvas) {
-    const parvaLocked = course.rules.sequential && !previousParvaDone;
+  let previousChapterDone = true;
+  for (const chapter of course.chapters) {
+    const chapterLocked = course.rules.sequential && !previousChapterDone;
     let blocked = false;
-    for (const item of parva.items) {
+    for (const item of chapter.items) {
       if (isItemDone(item, state)) {
         out[item.id] = 'done';
         continue;
       }
-      if (parvaLocked || blocked) {
+      if (chapterLocked || blocked) {
         out[item.id] = 'locked';
         continue;
       }
       out[item.id] = currentTaken ? 'todo' : 'current';
       currentTaken = true;
-      if (item.type === 'pariksha' && item.blocksNext) blocked = true;
+      if (item.type === 'quiz' && item.blocksNext) blocked = true;
     }
-    previousParvaDone = isParvaPassed(parva, state);
+    previousChapterDone = isChapterPassed(chapter, state);
   }
   return out;
 }
 
 /** The item to open when a learner presses Resume: the saved one if it still exists, else the first unfinished. */
 export function resumeItemId(
-  course: Pick<Course, 'parvas' | 'rules'>,
+  course: Pick<Course, 'chapters' | 'rules'>,
   state: ProgressState & { lastItemId: string | null },
 ): string | null {
   const items = itemsOf(course);
