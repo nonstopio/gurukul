@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
+import { XIcon } from './Icon';
 import './toast.css';
 
 export type ToastTone = 'info' | 'success' | 'danger';
@@ -115,14 +116,7 @@ function ToastItem({
     <div className={`g-toast g-toast--${toast.tone}`}>
       <p className="g-toast__message">{toast.message}</p>
       <button type="button" className="g-toast__close" onClick={() => onDismiss(id)}>
-        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-          <path
-            d="M4 4l8 8M12 4l-8 8"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <XIcon />
         <span className="g-toast__sr">{dismissLabel}</span>
       </button>
     </div>

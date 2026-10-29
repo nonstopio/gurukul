@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { ChevronRightIcon } from './Icon';
 import type { NavItemRenderProps } from './NavItem';
 import './breadcrumb.css';
 
@@ -49,22 +50,7 @@ export function Breadcrumb({ items, label = 'Breadcrumb', className, ...rest }: 
           return (
             <li key={i} className="g-breadcrumb__item">
               {crumb}
-              {last ? null : (
-                <svg
-                  className="g-breadcrumb__sep"
-                  viewBox="0 0 16 16"
-                  width="14"
-                  height="14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M6 3.5L10.5 8 6 12.5" />
-                </svg>
-              )}
+              {last ? null : <ChevronRightIcon className="g-breadcrumb__sep" size={14} />}
             </li>
           );
         })}

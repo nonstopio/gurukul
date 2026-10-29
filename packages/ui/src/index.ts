@@ -76,3 +76,26 @@ export { ColourSwatch } from './ColourSwatch';
 export type { ColourSwatchProps, CoverTheme } from './ColourSwatch';
 export { TypeTile } from './TypeTile';
 export type { TypeTileKind, TypeTileProps } from './TypeTile';
+export {
+  AlertIcon,
+  BookIcon,
+  CheckIcon,
+  ChecklistIcon,
+  ChevronRightIcon,
+  CodeIcon,
+  CopyIcon,
+  EmbedIcon,
+  FileIcon,
+  Icon,
+  ImageIcon,
+  InfoIcon,
+  LightbulbIcon,
+  LockIcon,
+  PlayIcon,
+  SearchIcon,
+  StarIcon,
+  TextIcon,
+  TrashIcon,
+  XIcon,
+} from './Icon';
+export type { IconProps } from './Icon';

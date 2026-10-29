@@ -1,4 +1,4 @@
-import { Callout, CodeBlock, QuizOption, VideoBlock, Button } from '@gurukul/ui';
+import { Callout, CodeBlock, FileIcon, QuizOption, VideoBlock, Button } from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
@@ -150,19 +150,7 @@ export function BlockView({
     case 'file':
       return (
         <a className="file-link" href={block.url} target="_blank" rel="noopener noreferrer">
-          <svg
-            viewBox="0 0 16 16"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M4 1.5h5l3 3v10H4zM9 1.5v3h3" />
-          </svg>
+          <FileIcon />
           {block.label}
         </a>
       );

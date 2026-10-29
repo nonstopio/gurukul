@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { CheckIcon, XIcon } from './Icon';
 import './quiz-option.css';
 
 export type QuizOptionLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
@@ -26,9 +27,9 @@ export interface QuizOptionProps extends Omit<
   state?: QuizOptionState;
 }
 
-const VERDICT: Record<'correct' | 'incorrect', { text: string; path: string }> = {
-  correct: { text: 'Correct', path: 'M3 8.5l3.5 3.5L13 4.5' },
-  incorrect: { text: 'Incorrect', path: 'M4 4l8 8M12 4l-8 8' },
+const VERDICT: Record<'correct' | 'incorrect', { text: string; Icon: typeof CheckIcon }> = {
+  correct: { text: 'Correct', Icon: CheckIcon },
+  incorrect: { text: 'Incorrect', Icon: XIcon },
 };
 
 /**
@@ -63,19 +64,7 @@ export function QuizOption({
       <span className="g-quiz-option__text">{children}</span>
       {verdict ? (
         <span className="g-quiz-option__verdict">
-          <svg
-            viewBox="0 0 16 16"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d={verdict.path} />
-          </svg>
+          <verdict.Icon strokeWidth={1.75} />
           {verdict.text}
         </span>
       ) : null}

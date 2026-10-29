@@ -5,6 +5,7 @@
 import { useId, useState } from 'react';
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from 'react';
 import { cx } from './cx';
+import { XIcon } from './Icon';
 import './email-chip-input.css';
 
 export type EmailStatus = 'signedIn' | 'new' | 'alreadyAssigned' | 'rejected';
@@ -121,14 +122,7 @@ export function EmailChipInput({
                     aria-label={removeLabel(email)}
                     onClick={() => onChange(value.filter((v) => v !== email))}
                   >
-                    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                      <path
-                        d="M2 2l8 8M10 2l-8 8"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <XIcon size={12} strokeWidth={2} />
                   </button>
                 </li>
               );
