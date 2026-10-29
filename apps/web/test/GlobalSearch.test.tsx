@@ -10,6 +10,7 @@ import type {
 } from '../src/navigation/types';
 import { fakeConsole, userRow } from './fake-console';
 import { openApp } from './harness';
+import { axeViolations } from './axe';
 
 const areas: AreaNavigation[] = [
   {
@@ -49,6 +50,13 @@ describe('GlobalSearchProvider', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     const options = screen.getAllByRole('option').map((o) => o.textContent);
     expect(options).toEqual(['HomeGurukulPage', 'ChangelogGurukul · Every changePage']);
+  });
+
+  it('has no accessibility violations with the palette open', async () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: /Search/ }));
+    expect(dialog()).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
   it('navigates to the chosen page and closes', () => {

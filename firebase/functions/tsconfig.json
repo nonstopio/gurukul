@@ -5,5 +5,5 @@
     "moduleResolution": "bundler",
     "types": ["node"]
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": ["src", "test", "emulator-test", "vitest.config.ts", "vitest.emulator.config.ts"]
 }
