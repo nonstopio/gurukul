@@ -1,6 +1,9 @@
 import { ApiException, certificateSchema, courseCode, credentialId } from '@gurukul/schema';
 import { requireKulapati } from './errors.js';
 import type { Caller } from './errors.js';
+import { buildRevokedEmail } from './mail.js';
+import type { Mailer } from './mail.js';
+import { log } from './logging/log.js';
 import { badField } from './validation.js';
 
 /** What the progress trigger hands the store when a learner has finished a certificate course. */
@@ -72,10 +75,23 @@ export function planCertificate(
   };
 }
 
+/** What `setRevoked` reports about the certificate it touched. */
+export interface RevokedCertificate {
+  uid: string;
+  courseTitle: string;
+  /** False when the certificate already had the requested state. */
+  changed: boolean;
+}
+
 /** The Admin SDK calls `revokeCertificate` needs. */
 export interface CertificateAdmin {
-  /** Sets `revoked` and stamps `revokedAt` (null on restore); false when there is no such certificate. */
-  setRevoked(id: string, revoked: boolean): Promise<boolean>;
+  /**
+   * Sets `revoked` and stamps `revokedAt` (null on restore). Null when there is no such
+   * certificate; otherwise who it belongs to and whether the flag actually changed.
+   */
+  setRevoked(id: string, revoked: boolean): Promise<RevokedCertificate | null>;
+  /** The email address on a learner's profile, or null when they have none. */
+  emailOf(uid: string): Promise<string | null>;
   audit(entry: {
     action: 'certificate.revoke' | 'certificate.restore';
     by: string;
@@ -86,21 +102,44 @@ export interface CertificateAdmin {
 
 /** Revokes (or restores) a certificate. Only a Kulapati on a NonStop account may; it stays verifiable as revoked. */
 export async function revokeCertificate(
-  admin: CertificateAdmin,
+  deps: { admin: CertificateAdmin; mailer: Mailer },
   caller: Caller,
   data: { id?: unknown; revoked?: unknown },
 ): Promise<{ id: string; revoked: boolean }> {
+  const { admin } = deps;
   requireKulapati(caller, 'revokeCertificate');
   const id = certificateSchema.shape.id.safeParse(data.id);
   if (!id.success) throw badField('id', data.id, 'must be a certificate id like NSG-GIT-26-0001');
   const revoked = data.revoked ?? true;
   if (typeof revoked !== 'boolean') throw badField('revoked', revoked, 'must be true or false');
-  if (!(await admin.setRevoked(id.data, revoked))) throw new ApiException('CRT_2001', [id.data]);
+  const cert = await admin.setRevoked(id.data, revoked);
+  if (!cert) throw new ApiException('CRT_2001', [id.data]);
   await admin.audit({
     action: revoked ? 'certificate.revoke' : 'certificate.restore',
     by: caller.uid,
     target: id.data,
     detail: { revoked },
   });
+  if (revoked && cert.changed) await tellLearner(deps, cert);
   return { id: id.data, revoked };
+}
+
+/**
+ * Emails the learner that their certificate was revoked. The revocation is already recorded, so
+ * a missing address or a failed send is logged and never undoes or fails it.
+ */
+async function tellLearner(
+  deps: { admin: CertificateAdmin; mailer: Mailer },
+  cert: RevokedCertificate,
+): Promise<void> {
+  try {
+    const to = await deps.admin.emailOf(cert.uid);
+    if (to === null) {
+      log.warn('Revocation email skipped', { reason: 'learner has no email' });
+      return;
+    }
+    await deps.mailer.send(buildRevokedEmail(to, cert.courseTitle));
+  } catch (error) {
+    log.warn('Revocation email failed', { error: error instanceof Error ? error.name : 'unknown' });
+  }
 }

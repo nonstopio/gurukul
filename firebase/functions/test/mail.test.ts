@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildAssignedEmail, buildReminderEmail, courseLink, formatDue } from '../src/mail.js';
+import {
+  buildAssignedEmail,
+  buildReminderEmail,
+  buildRevokedEmail,
+  courseLink,
+  formatDue,
+} from '../src/mail.js';
 
 describe('mail builders', () => {
   it('links a course on the public site', () => {
@@ -60,5 +66,15 @@ describe('mail builders', () => {
       '- Git: https://nonstop-gurukul.web.app/courses/git (finish by 5 Jan 2026)',
     );
     expect(m.text).toContain('- SQL: https://nonstop-gurukul.web.app/courses/sql\n');
+  });
+});
+
+describe('buildRevokedEmail', () => {
+  it('names the course and a contact', () => {
+    const m = buildRevokedEmail('a@example.com', 'Git basics');
+    expect(m.to).toBe('a@example.com');
+    expect(m.subject).toBe('Your certificate for Git basics was revoked');
+    expect(m.text).toContain('"Git basics"');
+    expect(m.text).toContain('gurukul@nonstopio.com');
   });
 });

@@ -83,3 +83,18 @@ export function buildReminderEmail(
       `If you have already finished, you can ignore this note.\n`,
   };
 }
+
+/** Where a learner writes to ask about a revoked certificate: replies reach this mailbox. */
+export const CONTACT = 'gurukul@nonstopio.com';
+
+/** Tells a learner their certificate for a course was revoked, and who to ask about it. */
+export function buildRevokedEmail(to: string, courseTitle: string): MailMessage {
+  return {
+    to,
+    subject: `Your certificate for ${courseTitle} was revoked`,
+    text:
+      `Hello,\n\nYour NonStop Academy certificate for "${courseTitle}" has been revoked. ` +
+      `It no longer counts as valid, and its verification page now shows it as revoked.\n\n` +
+      `If you think this is a mistake, write to ${CONTACT} and we will look into it.\n`,
+  };
+}

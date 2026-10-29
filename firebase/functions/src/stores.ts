@@ -225,9 +225,18 @@ export function firestoreCertificateAdmin(db: Firestore): CertificateAdmin {
   return {
     async setRevoked(id, revoked) {
       const ref = db.doc(`certificates/${id}`);
-      if (!(await ref.get()).exists) return false;
+      const snap = await ref.get();
+      if (!snap.exists) return null;
       await ref.update({ revoked, revokedAt: revoked ? FieldValue.serverTimestamp() : null });
-      return true;
+      return {
+        uid: String(snap.get('uid')),
+        courseTitle: String(snap.get('courseTitle')),
+        changed: (snap.get('revoked') === true) !== revoked,
+      };
+    },
+    async emailOf(uid) {
+      const email = (await db.doc(`users/${uid}`).get()).get('email');
+      return typeof email === 'string' && email !== '' ? email : null;
     },
     async audit(entry) {
       await writeAudit(db, entry);

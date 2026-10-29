@@ -46,7 +46,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   writes `progress/{id}/attempts/{aid}` and `progress.pariksha[id]` in one transaction). Both refuse a
   Pariksha the learner's `itemStates` shows as locked (`PRK_1003`), and a retired (archived) course with `CRS_1004`. Decisions
   live in `grading.ts`; the answer key never leaves the server. `revokeCertificate` is Kulapati-only
-  and writes an `audit` entry. Certificates are publicly `get`-able (verification); `counters/**` is closed.
+  and writes an `audit` entry; a new revocation emails the learner through the mailer. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 
 - Kulapati console callables (all Kulapati-only, each writes an `audit` entry): `assignCourses`
   (1-20 published courses x 1-1000 emails; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps

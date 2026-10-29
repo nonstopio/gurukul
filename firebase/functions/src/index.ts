@@ -165,7 +165,10 @@ export const gradeAttempt = apiCallable((request) =>
 
 /** Kulapati-only: revoke (or restore) a certificate. */
 export const revokeCertificate = apiCallable((request) =>
-  handleRevokeCertificate(request, firestoreCertificateAdmin(getFirestore())),
+  handleRevokeCertificate(request, {
+    admin: firestoreCertificateAdmin(getFirestore()),
+    mailer: createMailer(process.env),
+  }),
 );
 
 /** Kulapati-only: assign courses to people by email (optionally emailing them). */

@@ -94,12 +94,12 @@ export async function handleGradeAttempt(
 /** `revokeCertificate`: Kulapati-only; revokes (or restores) a certificate and audits it. */
 export async function handleRevokeCertificate(
   request: AuthedRequest,
-  admin: CertificateAdmin,
+  deps: { admin: CertificateAdmin; mailer: Mailer },
 ): Promise<{ id: string; revoked: boolean }> {
   if (!request.auth) throw new ApiException('AUTH_1001');
   const { token } = request.auth;
   return revokeCertificate(
-    admin,
+    deps,
     { uid: request.auth.uid, email: token.email, claims: token },
     asObject(request.data),
   );
