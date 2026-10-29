@@ -1,6 +1,6 @@
-import { itemsOf, progressPercent } from '@gurukul/schema';
-import type { Course } from '@gurukul/schema';
-import type { AssignmentRow, ProgressRow } from '../data/types';
+import { isItemDone, itemsOf, progressPercent, resumeItemId } from '@gurukul/schema';
+import type { Course, Item } from '@gurukul/schema';
+import type { AssignmentRow, CertificateRow, ProgressRow } from '../data/types';
 
 export interface AssignedCourse {
   assignment: AssignmentRow;
@@ -79,4 +79,102 @@ export function countItems(course: Pick<Course, 'parvas'>) {
     lessons: items.filter((i) => i.type === 'lesson').length,
     parikshas: items.filter((i) => i.type === 'pariksha').length,
   };
+}
+
+export const LEVEL_LABELS: Record<Course['level'], string> = {
+  foundation: 'Foundation',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+};
+
+/** Past this many assigned courses, Home shows the first ones and a "Show all" button. */
+export const ASSIGNED_PREVIEW = 10;
+
+/** The item a learner resumes at, with the parva it sits in; null for a course with no items. */
+export function upNext(
+  course: Course,
+  progress: ProgressRow,
+): { item: Item; parva: Course['parvas'][number] } | null {
+  const id = resumeItemId(course, progress);
+  for (const parva of course.parvas) {
+    const item = parva.items.find((i) => i.id === id);
+    if (item) return { item, parva };
+  }
+  return null;
+}
+
+/** "You are 44% through Git. One lesson left to finish the Basics parva." */
+export function statusLine(course: Course, progress: ProgressRow): string {
+  const lead = `You are ${percentFor(course, progress)}% through ${course.title}.`;
+  const next = upNext(course, progress);
+  if (!next) return lead;
+  const left = next.parva.items.filter((i) => !isItemDone(i, progress)).length;
+  if (left === 0) return lead;
+  const count = left === 1 ? 'One item' : `${left} items`;
+  return `${lead} ${count} left to finish the ${next.parva.title} parva.`;
+}
+
+export interface Activity {
+  id: string;
+  kind: 'completed' | 'certificate' | 'pariksha' | 'active';
+  text: string;
+  at: Date;
+}
+
+/**
+ * The newest events across my progress and certificates (no separate log in v1): finishing a
+ * course, a certificate, a Pariksha attempt, last activity in a course still open.
+ */
+export function recentActivity(
+  courses: readonly Course[],
+  progress: readonly ProgressRow[],
+  certificates: readonly CertificateRow[],
+  limit = 5,
+): Activity[] {
+  const events: Activity[] = [];
+  for (const cert of certificates) {
+    events.push({
+      id: `cert-${cert.id}`,
+      kind: 'certificate',
+      text: `Certificate issued for ${cert.courseTitle}`,
+      at: cert.issuedAt,
+    });
+  }
+  for (const p of progress) {
+    const course = courses.find((c) => c.id === p.courseId);
+    if (!course) continue;
+    if (p.completedAt) {
+      events.push({
+        id: `done-${course.id}`,
+        kind: 'completed',
+        text: `Finished ${course.title}`,
+        at: p.completedAt,
+      });
+    } else if (p.lastActiveAt) {
+      events.push({
+        id: `active-${course.id}`,
+        kind: 'active',
+        text: `Worked on ${course.title}`,
+        at: p.lastActiveAt,
+      });
+    }
+    for (const [parikshaId, result] of Object.entries(p.pariksha)) {
+      const title = itemsOf(course).find((i) => i.id === parikshaId)?.title;
+      if (!title || !result.lastAttemptAt) continue;
+      events.push({
+        id: `pariksha-${course.id}-${parikshaId}`,
+        kind: 'pariksha',
+        text: `${result.passed ? 'Passed' : 'Attempted'} ${title}`,
+        at: result.lastAttemptAt,
+      });
+    }
+  }
+  return events.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limit);
+}
+
+/** "3 days ago", "today": whole days, matching `dueLabel`. */
+export function agoLabel(at: Date, now: Date): string {
+  const days = Math.max(0, Math.floor((now.getTime() - at.getTime()) / DAY));
+  if (days === 0) return 'Today';
+  return `${days} day${days === 1 ? '' : 's'} ago`;
 }

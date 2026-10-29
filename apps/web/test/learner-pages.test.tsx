@@ -95,7 +95,7 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: 'Resume lesson' }).getAttribute('href')).toBe(
       '/courses/git/learn/l2',
     );
-    expect(screen.getByText(/Overdue by/)).toBeTruthy();
+    expect(screen.getAllByText(/Overdue by/).length).toBeGreaterThan(0);
     expect(screen.queryByText('Mandatory')).toBeNull();
     expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
   });
@@ -157,6 +157,43 @@ describe('Home', () => {
     const { container } = await open('/', fakeData({ assignments: [assignment()] }));
     await screen.findByRole('heading', { name: /Start Git/ });
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('Home handoff details', () => {
+  it('shows the kicker, status line, chips, up next and recent activity', async () => {
+    await open(
+      '/',
+      fakeData({
+        assignments: [assignment({ dueAt: new Date(Date.now() + 3 * 86_400_000) })],
+        progress: [progressRow({ completedItemIds: ['l1'], lastItemId: 'l2' })],
+      }),
+    );
+    expect(await screen.findByText('Shishya · My learning')).toBeTruthy();
+    expect(screen.getByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
+    expect(screen.getAllByText('Foundation').length).toBe(1);
+    expect(screen.getAllByText(/Due in/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Up next: /)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Recent activity' })).toBeTruthy();
+    expect(screen.getByText('Worked on Git, the NonStop Way')).toBeTruthy();
+  });
+
+  it('shows the first ten assignments and a Show all button', async () => {
+    const courses = Array.from({ length: 12 }, (_, i) =>
+      makeCourse({ id: `c${i}`, title: `Course ${String(i).padStart(2, '0')}` }),
+    );
+    const assignments = courses.map((c, i) =>
+      assignment({ id: `a${i}`, courseId: c.id, mandatory: false }),
+    );
+    await open('/', fakeData({ courses, assignments }));
+    const list = (await screen.findByRole('heading', { name: 'Assigned to you' })).closest(
+      'section',
+    ) as HTMLElement;
+    expect(within(list).getAllByRole('listitem').length).toBe(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 12' }));
+    expect(within(list).getAllByRole('listitem').length).toBe(12);
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+    expect(within(list).getAllByRole('listitem').length).toBe(10);
   });
 });
 
