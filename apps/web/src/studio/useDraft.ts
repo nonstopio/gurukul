@@ -16,6 +16,8 @@ export interface DraftApi {
   /** The working copy, or null until loaded. */
   work: Working | null;
   rev: number;
+  /** When the stored draft was last saved (by anyone); null if the server never stamped it. */
+  savedAt: Date | null;
   save: SaveState;
   /** Applies an edit to the working copy and schedules an autosave. */
   update(edit: (work: Working) => Working): void;
@@ -66,6 +68,7 @@ export function useDraft(courseId: string): DraftApi {
   } | null>(null);
   const [work, setWork] = useState<Working | null>(null);
   const [rev, setRev] = useState(0);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [save, setSave] = useState<SaveState>('saved');
   const [nonce, setNonce] = useState(0);
   const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
@@ -102,6 +105,7 @@ export function useDraft(courseId: string): DraftApi {
         setBackup(kept && kept.rev === doc.rev ? kept : null);
         setWork({ course: doc.course, answers: doc.answers });
         setRev(doc.rev);
+        setSavedAt(doc.updatedAt);
         setSave('saved');
         setLoaded({ key, status: 'ready' });
       },
@@ -134,6 +138,7 @@ export function useDraft(courseId: string): DraftApi {
     try {
       const next = await request;
       setRev(next);
+      setSavedAt(new Date());
       latest.current = { ...latest.current, rev: next };
       // Edits made while the save was in flight leave the draft dirty again.
       const stillDirty = latest.current.work !== current;
@@ -194,6 +199,7 @@ export function useDraft(courseId: string): DraftApi {
     status,
     work,
     rev,
+    savedAt,
     save,
     update,
     saveNow,

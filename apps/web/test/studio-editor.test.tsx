@@ -117,7 +117,7 @@ describe('Course editor: the shell', () => {
     await ready();
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getByText('Live: v3')).toBeTruthy();
-    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Vyasa Studio/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Preview as learner' }).getAttribute('href')).toBe(
       '/studio/courses/git/preview/l1',
@@ -214,7 +214,7 @@ describe('Course editor: structure', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Title of parva 1' }), {
       target: { value: 'Start' },
     });
-    expect(screen.getByText('Unsaved changes')).toBeTruthy();
+    expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
       screen.getAllByRole('button', { name: '+ Lesson in parva 1' })[0] as HTMLElement,
     );
@@ -371,7 +371,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       vi.advanceTimersByTime(1100);
     });
-    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
     expect(studio.data.saveDraft).toHaveBeenCalledWith(
       'git',
       expect.objectContaining({ course: expect.objectContaining({ title: 'Renamed' }) }),
@@ -394,7 +394,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       fireEvent.click(retry);
     });
-    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
   });
 
   it('warns about a conflict and reloads on request', async () => {
@@ -408,7 +408,7 @@ describe('Course editor: saving', () => {
     expect(
       await screen.findByText('Someone else saved this draft. Reload to continue.'),
     ).toBeTruthy();
-    expect(screen.getByText('Not saved')).toBeTruthy();
+    expect(screen.getByText('Draft v5 · not saved')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() => expect(studio.data.getDraft).toHaveBeenCalledTimes(2));
     await waitFor(() =>

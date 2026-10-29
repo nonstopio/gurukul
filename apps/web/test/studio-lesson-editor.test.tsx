@@ -65,7 +65,7 @@ describe('lesson editor: layout', () => {
     ).toBeNull();
     const settings = screen.getByRole('complementary', { name: 'Lesson settings' });
     expect(within(settings).getByText(/plain JSON/)).toBeTruthy();
-    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('has no accessibility violations', async () => {
@@ -118,11 +118,11 @@ describe('lesson editor: title and settings', () => {
     fireEvent.change(await screen.findByLabelText('Lesson title'), {
       target: { value: 'Branching' },
     });
-    expect(screen.getByText('Unsaved changes')).toBeTruthy();
+    expect(screen.getByText(/^Draft v3 · unsaved changes/)).toBeTruthy();
     await saveNow();
     expect(studio.data.saveDraft).toHaveBeenCalledWith('git', expect.anything(), 3, 'u1');
     expect(savedLesson(studio).title).toBe('Branching');
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('flags a blank title inline', async () => {
@@ -311,7 +311,7 @@ describe('lesson editor: saving', () => {
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     expect(savedLesson(studio).title).toBe('Auto');
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('offers a retry when a save fails', async () => {
@@ -324,7 +324,7 @@ describe('lesson editor: saving', () => {
       fireEvent.click(retry);
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('explains a conflict and reloads the stored draft', async () => {
