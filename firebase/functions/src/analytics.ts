@@ -88,12 +88,16 @@ export function addParvaCompletions(
   return next;
 }
 
-/** What one graded attempt adds to `stats/course_{id}`. */
+/** What one graded attempt adds to `stats/course_{id}` and the `pariksha*` counters of `stats/org`. */
 export interface AttemptStatsDelta {
   scoreSum: number;
   scoreCount: number;
   /** Only for a learner's first attempt of a Pariksha. */
   questionFirstTry: Record<string, { correct: number; total: number }>;
+  /** 1 for a learner's first attempt of a Pariksha, else 0. */
+  firstTryTotal: number;
+  /** 1 when that first attempt passed, else 0. */
+  firstTryPassed: number;
 }
 
 /** Where the attempt trigger reads the learner's progress and writes the counters. */
@@ -104,8 +108,8 @@ export interface AttemptStatsStore {
 
 /**
  * Reacts to a new `progress/{id}/attempts/{aid}`: adds the score, and when this was the learner's
- * first attempt of the Pariksha (progress says `attempts === 1`) the per-question first-try counts.
- * Attempts stored before `results` existed add the score only.
+ * first attempt of the Pariksha (progress says `attempts === 1`) the per-question first-try counts
+ * and the org's first-try pass count. Attempts stored before `results` existed add no question counts.
  */
 export async function handleAttemptCreated(
   store: AttemptStatsStore,
@@ -113,7 +117,7 @@ export async function handleAttemptCreated(
 ): Promise<'ignored' | 'counted'> {
   const attempt = attemptSchema.safeParse(attemptRaw);
   if (!attempt.success) return 'ignored';
-  const { uid, courseId, parikshaId, score, results } = attempt.data;
+  const { uid, courseId, parikshaId, score, passed, results } = attempt.data;
   const progress = progressSchema.safeParse(await store.progress(uid, courseId));
   const first = progress.success && progress.data.pariksha[parikshaId]?.attempts === 1;
   const questionFirstTry: AttemptStatsDelta['questionFirstTry'] = {};
@@ -127,7 +131,13 @@ export async function handleAttemptCreated(
     firstTry: first,
     count: results.length,
   });
-  await store.bumpAttemptStats(courseId, { scoreSum: score, scoreCount: 1, questionFirstTry });
+  await store.bumpAttemptStats(courseId, {
+    scoreSum: score,
+    scoreCount: 1,
+    questionFirstTry,
+    firstTryTotal: first ? 1 : 0,
+    firstTryPassed: first && passed ? 1 : 0,
+  });
   return 'counted';
 }
 

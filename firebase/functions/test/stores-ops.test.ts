@@ -401,17 +401,18 @@ describe('firestoreAttemptStatsStore', () => {
     });
   });
 
-  it('adds score and first-try counters with merge', async () => {
-    const set = vi.fn().mockResolvedValue(undefined);
-    const doc = vi.fn().mockReturnValue({ set });
-    const db = { doc } as never;
+  it('adds score and first-try counters to the course and the org in one batch', async () => {
+    const batch = batchOf();
+    const db = { doc: vi.fn((p: string) => p), batch: vi.fn().mockReturnValue(batch) } as never;
     await firestoreAttemptStatsStore(db).bumpAttemptStats('git', {
       scoreSum: 0.5,
       scoreCount: 1,
       questionFirstTry: { q1: { correct: 1, total: 1 } },
+      firstTryTotal: 1,
+      firstTryPassed: 0,
     });
-    expect(doc).toHaveBeenCalledWith('stats/course_git');
-    expect(set).toHaveBeenCalledWith(
+    expect(batch.set).toHaveBeenCalledWith(
+      'stats/course_git',
       {
         scoreSum: '+0.5',
         scoreCount: '+1',
@@ -419,6 +420,17 @@ describe('firestoreAttemptStatsStore', () => {
       },
       { merge: true },
     );
+    expect(batch.set).toHaveBeenCalledWith(
+      'stats/org',
+      {
+        parikshaScoreSum: '+0.5',
+        parikshaScoreCount: '+1',
+        parikshaFirstTryTotal: '+1',
+        parikshaFirstTryPassed: '+0',
+      },
+      { merge: true },
+    );
+    expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 });
 

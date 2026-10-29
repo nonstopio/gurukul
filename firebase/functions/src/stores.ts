@@ -437,7 +437,9 @@ export function firestoreAttemptStatsStore(db: Firestore): AttemptStatsStore {
           { correct: FieldValue.increment(q.correct), total: FieldValue.increment(q.total) },
         ]),
       );
-      await db.doc(`stats/course_${courseId}`).set(
+      const batch = db.batch();
+      batch.set(
+        db.doc(`stats/course_${courseId}`),
         {
           scoreSum: FieldValue.increment(d.scoreSum),
           scoreCount: FieldValue.increment(d.scoreCount),
@@ -445,6 +447,17 @@ export function firestoreAttemptStatsStore(db: Firestore): AttemptStatsStore {
         },
         { merge: true },
       );
+      batch.set(
+        db.doc('stats/org'),
+        {
+          parikshaScoreSum: FieldValue.increment(d.scoreSum),
+          parikshaScoreCount: FieldValue.increment(d.scoreCount),
+          parikshaFirstTryTotal: FieldValue.increment(d.firstTryTotal),
+          parikshaFirstTryPassed: FieldValue.increment(d.firstTryPassed),
+        },
+        { merge: true },
+      );
+      await batch.commit();
     },
   };
 }

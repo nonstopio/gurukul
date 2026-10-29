@@ -139,7 +139,7 @@ describe('handleAttemptCreated', () => {
   const withAttempts = (attempts: number) =>
     progress({ pariksha: { pk: { best: 0.5, passed: false, attempts, lastAttemptAt: ts(1) } } });
 
-  it('counts the score and, for the first attempt, each question', async () => {
+  it('counts the score and, for the first attempt, each question and the first try', async () => {
     const s = store(withAttempts(1));
     expect(await handleAttemptCreated(s, attempt)).toBe('counted');
     expect(s.progress).toHaveBeenCalledWith('u', 'git');
@@ -147,17 +147,30 @@ describe('handleAttemptCreated', () => {
       scoreSum: 0.5,
       scoreCount: 1,
       questionFirstTry: { q1: { correct: 1, total: 1 }, q2: { correct: 0, total: 1 } },
+      firstTryTotal: 1,
+      firstTryPassed: 0,
     });
+  });
+
+  it('counts a first attempt that passed as a first-try pass', async () => {
+    const s = store(withAttempts(1));
+    await handleAttemptCreated(s, { ...attempt, passed: true });
+    expect(s.bumpAttemptStats).toHaveBeenCalledWith(
+      'git',
+      expect.objectContaining({ firstTryTotal: 1, firstTryPassed: 1 }),
+    );
   });
 
   it('counts only the score for a retake, an unreadable progress or an old attempt', async () => {
     for (const progressRaw of [withAttempts(2), undefined, progress()]) {
       const s = store(progressRaw);
-      await handleAttemptCreated(s, attempt);
+      await handleAttemptCreated(s, { ...attempt, passed: true });
       expect(s.bumpAttemptStats).toHaveBeenCalledWith('git', {
         scoreSum: 0.5,
         scoreCount: 1,
         questionFirstTry: {},
+        firstTryTotal: 0,
+        firstTryPassed: 0,
       });
     }
     const old = store(withAttempts(1));

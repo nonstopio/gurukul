@@ -65,7 +65,8 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   (`docs/operations.md`) or another sender, `.plan/13-open-questions.md` #4, turns sending on.
 - Sanjaya counters: `onProgressWritten` keeps `stats/course_{id}` and `stats/org` (parva completions, weekly
   lessons, finish days, certified) by comparing before/after; `onAttemptCreated` adds score sums and
-  first-try question counts from the attempt's stored `results`. Schedules (daily, UTC, asia-south1):
+  first-try question counts from the attempt's stored `results` to the course, and score sums and
+  first-try passes (`pariksha*`) to `stats/org`. Schedules (daily, UTC, asia-south1):
   `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries;
   `dailyReminders` 04:00 sends weekly/before-due reminders for mandatory assignments when
   `config/org.reminders.enabled`: one email per person listing everything due, none to anyone reminded in the

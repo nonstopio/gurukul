@@ -49,6 +49,12 @@ export function fakeConsole(
           (a.status !== 'completed' && a.dueAt !== null && a.dueAt.getTime() < now.getTime()),
       ),
     ),
+    overdueCount: vi.fn(
+      async (now: Date) =>
+        (init.open ?? init.assignments ?? []).filter(
+          (a) => a.status !== 'completed' && a.dueAt !== null && a.dueAt.getTime() < now.getTime(),
+        ).length,
+    ),
     usersPage: vi.fn().mockResolvedValue({ rows: users, nextCursor: null }),
     userCount: vi.fn().mockResolvedValue(init.count ?? users.length),
     progressFor: vi.fn().mockResolvedValue([]),

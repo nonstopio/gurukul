@@ -6,7 +6,7 @@
 |---|---|
 | Active learners (signed in / total) | `stats/org.activeLearners30d`, `users` count |
 | Assignments completed / total | `stats/org.assignmentsCompleted`, `.assignmentsTotal` |
-| Average Pariksha score, first-try pass rate | `stats/org.pariksha*` |
+| Average Pariksha score, first-try pass rate | `stats/org.parikshaScoreSum`/`parikshaScoreCount`, `parikshaFirstTryPassed`/`parikshaFirstTryTotal` |
 | Overdue assignments | query: `assignments where status != completed and dueAt < now` (count aggregation) |
 | Lessons completed per week, last 12 weeks | `stats/org.weekly[]` |
 | Course funnel (assigned, started, completed, avg score, overdue) | `stats/course_{id}` |
@@ -21,7 +21,9 @@ per view. Instead, Firestore triggers keep **counters** current:
 
 - On progress write: increment parva and course completion counters when an
   item or course becomes complete (idempotent: the trigger compares before/after).
-- On attempt write: update question first-try counters and score sums.
+- On attempt write: update question first-try counters and score sums, on the course and (as
+  `pariksha*`) on the org. A first try is the learner's first attempt at that Pariksha; it counts
+  as passed when that attempt did. Attempts graded before these org counters existed are not in them.
 - Daily scheduled roll-up: weekly series, active learners, consistency check
   that recomputes counters from source (fixes any drift).
 

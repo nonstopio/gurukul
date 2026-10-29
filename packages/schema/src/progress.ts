@@ -31,6 +31,7 @@ export const attemptSchema = z.object({
   courseId: z.string().min(1),
   parikshaId: z.string().min(1),
   score: z.number().min(0).max(1),
+  passed: z.boolean().default(false),
   results: z.array(z.object({ questionId: z.string(), correct: z.boolean() })).default([]),
 });
 export type Attempt = z.infer<typeof attemptSchema>;

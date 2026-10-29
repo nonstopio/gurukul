@@ -20,21 +20,21 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 9    | 7    | 0       | 0          |
 | Parikshas and certificates    | 8    | 1    | 1       | 0          |
-| Kulapati console and Sanjaya  | 16   | 8    | 2       | 0          |
+| Kulapati console and Sanjaya  | 17   | 8    | 2       | 0          |
 | Vyasa Studio                  | 7    | 8    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 76   | 36   | 6       | 7          |
+| **Total**                     | 77   | 36   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `KUL-18` — org Pariksha KPIs and a true overdue count
+1. `KUL-27` — Overview pending-invite count past the newest 500 assignments
 2. `KUL-21` — daily roll-up repairs course counters
 3. `SRC-02` — learner navigation area
 4. `SRC-03` — courses and lessons in search
@@ -172,15 +172,16 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-15` | Reminders: one per person per day, mandatory only                            | done    | —        | Daily run takes mandatory assignments only and sends one email per person, none to anyone reminded in the last 20 h (`firebase/functions/src/remind.ts`, `mail.ts` `buildReminderEmail`, `stores.ts`); `hourUtc` dropped from `packages/schema/src/user.ts`, the schedule stays 04:00 UTC (`.plan/07-kulapati-console.md`) |
 | `KUL-16` | Org settings: teams and reminders                                            | done    | —        | `apps/web/src/console/SettingsPage.tsx` (`/kulapati/settings`), `model.ts` (`addTeam`), `firebase.ts` (`orgSettings`, `saveOrgSettings`); rule `match /config/org` with shape checks, tests in `firebase/rules/test/assignments-config.test.ts`; default from `firebase/seed/src/seed.ts` (`seedOrgConfig`, never overwrites) |
 | `KUL-17` | Learners pick their team                                                     | done    | `KUL-16` | Home asks a learner with no team to pick one from `config/org.teams` (`apps/web/src/learn/TeamPrompt.tsx`, `LearnerData.orgTeams`/`setTeam`); the `users` rule accepts only a listed team or `null`, reading `config/org` only when the team changes (`firebase/rules/test/users.test.ts`). Changing it afterwards is not built |
-| `KUL-18` | Org Pariksha KPIs and a true overdue count                                   | todo    | —        | `stats/org` has no Pariksha fields (`09` table: average score, first-try pass rate); overdue is counted from 500 loaded rows, not a `count()` aggregation                          |
+| `KUL-18` | Org Pariksha KPIs and a true overdue count                                   | done    | —        | `stats/org.pariksha*` from `firebase/functions/src/analytics.ts` (`handleAttemptCreated`), `stores.ts` (`bumpAttemptStats`), `packages/schema/src/stats.ts`; `apps/web/src/console/OverviewPage.tsx`, `firebase.ts` (`overdueCount`: `count()`). Pending invites there: `KUL-27` |
 | `KUL-19` | Needs attention, pending-invite strip, overview filters                      | todo    | —        | Overdue and failed-twice lists (`limit(5)`) with Nudge and Reset; pending invites with Resend; date range and team filters                                                         |
 | `KUL-20` | Course analytics finish                                                      | todo    | —        | Per-Pariksha counters and table; median time to finish (mean today); warning colour only below 70%; "Edit question" and "Edit in Vyasa Studio" links                              |
-| `KUL-21` | Daily roll-up repairs course counters                                        | todo    | —        | Only four org counters are recomputed; course counters, org started/completed and `weekly` never are (`09` How it is counted)                                                      |
+| `KUL-21` | Daily roll-up repairs course counters                                        | todo    | —        | Only four org counters are recomputed; course counters, org started/completed, `weekly` and `pariksha*` never are (`09` How it is counted)                                                      |
 | `KUL-22` | Roles screen polish                                                          | todo    | —        | Real Shishya count; Kulapati list; keep Acharya and Kulapati together; grant unpublished courses                                                                                    |
 | `KUL-23` | Audit log view finish                                                        | todo    | —        | Paging past 100, a detail column, names instead of uids; `assign` entries record who was assigned                                                                                   |
 | `KUL-24` | Email delivery                                                               | blocked | —        | Question 4: the code queues for the Trigger Email extension, the plan recommends the Gmail API. Then: sender, `from`/`replyTo`, HTML template, configurable site URL              |
 | `KUL-25` | Acharyas see their learners                                                  | blocked | —        | Question 7. Course analytics is Kulapati-only; names need a rules change                                                                                                            |
 | `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | done    | —        | `apps/web/src/console/firebase.ts` (`openAssignments`), `LearnersPage.tsx`, `model.ts`; index `status`+`dueAt`                                                                       |
+| `KUL-27` | Overview pending-invite count past the newest 500 assignments                | todo    | —        | Overview counts pending invites (distinct emails) from the newest 500 assignments it loads; Learners already reads every one (`openAssignments`) |
 
 ## Vyasa Studio
 

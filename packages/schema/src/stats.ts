@@ -13,6 +13,12 @@ export const orgStatsSchema = z.object({
   assignmentsCompleted: count,
   usersTotal: count,
   activeLearners30d: count,
+  /** Every graded attempt in the org: their scores (0..1) summed, and how many. */
+  parikshaScoreSum: z.number().min(0).default(0),
+  parikshaScoreCount: count,
+  /** Each learner's first attempt at each Pariksha, and how many of those passed. */
+  parikshaFirstTryTotal: count,
+  parikshaFirstTryPassed: count,
   /** Lessons completed per ISO week, keyed like `2026-W44`. */
   weekly: z.record(z.string(), z.number().int().min(0)).default({}),
 });
