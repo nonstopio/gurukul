@@ -132,6 +132,7 @@ describe('firestoreProgressStore', () => {
       completed: 1,
       certified: 1,
       finishDays: 2.5,
+      finishBucket: '3',
       parvasDone: [1, 3],
       lessons: 4,
       week: '2026-W44',
@@ -144,6 +145,7 @@ describe('firestoreProgressStore', () => {
         completed: '+1',
         certified: '+1',
         finishDaysSum: '+2.5',
+        finishDaysHistogram: { '3': '+1' },
         parvaCompletions: [2, 2, 0, 1],
       },
       { merge: true },
@@ -172,6 +174,7 @@ describe('firestoreProgressStore', () => {
       completed: 0,
       certified: 0,
       finishDays: 0,
+      finishBucket: null,
       parvasDone: [],
       lessons: 0,
       week: '2026-W44',
@@ -179,7 +182,7 @@ describe('firestoreProgressStore', () => {
     });
     expect(set).toHaveBeenCalledWith(
       'stats/course_git',
-      expect.objectContaining({ parvaCompletions: [] }),
+      expect.not.objectContaining({ finishDaysHistogram: expect.anything() }),
       { merge: true },
     );
   });

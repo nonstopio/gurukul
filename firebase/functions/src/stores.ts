@@ -134,6 +134,9 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
             completed: FieldValue.increment(d.completed),
             certified: FieldValue.increment(d.certified),
             finishDaysSum: FieldValue.increment(d.finishDays),
+            ...(d.finishBucket === null
+              ? {}
+              : { finishDaysHistogram: { [d.finishBucket]: FieldValue.increment(1) } }),
             // An array element cannot be incremented in place, hence the read in this transaction.
             parvaCompletions: addParvaCompletions(current as number[], d.parvasDone),
           },

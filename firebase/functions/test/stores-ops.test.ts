@@ -534,6 +534,7 @@ describe('firestoreRollupStore', () => {
       parvaCompletions: [],
       questionFirstTry: {},
       finishDaysSum: 0,
+      finishDaysHistogram: {},
     };
     await store.writeCourseCounts('git', course);
     expect(doc).toHaveBeenCalledWith('stats/course_git');

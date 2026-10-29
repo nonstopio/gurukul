@@ -225,6 +225,7 @@ describe('Course analytics', () => {
     completed: 3,
     certified: 3,
     finishDaysSum: 21,
+    finishDaysHistogram: { '5': 1, '7': 1, '9': 1 },
     parvaCompletions: [7, 2],
     questionFirstTry: { k1: { correct: 1, total: 4 }, k2: { correct: 3, total: 4 } },
   };
@@ -236,7 +237,9 @@ describe('Course analytics', () => {
       await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
     ).toBeTruthy();
     expect(screen.getByText('Published · v1')).toBeTruthy();
+    expect(screen.getByText('Median time to finish')).toBeTruthy();
     expect(screen.getByText('7 days')).toBeTruthy();
+    expect(screen.getByText('average 7 days')).toBeTruthy();
     expect(screen.getByText('80% of assigned')).toBeTruthy();
     expect(screen.getByText(/The biggest drop is between/)).toBeTruthy();
     expect(screen.getByText(/25% right first time/)).toBeTruthy();

@@ -76,6 +76,7 @@ describe('planProgressStats', () => {
     const d = planProgressStats(course, before, after, AT);
     expect(d.completed).toBe(1);
     expect(d.finishDays).toBe(3);
+    expect(d.finishBucket).toBe('3');
     expect(planProgressStats(course, after, after, AT).completed).toBe(0);
     expect(isEmptyDelta(planProgressStats(course, after, after, AT))).toBe(true);
   });
@@ -88,6 +89,7 @@ describe('planProgressStats', () => {
       AT,
     );
     expect(d.finishDays).toBe(0);
+    expect(d.finishBucket).toBe('0');
   });
 
   it('counts nothing when nothing changed, even when everything is done', () => {
@@ -222,6 +224,7 @@ describe('recountFromSource', () => {
         parvaCompletions: [0, 0, 0],
         questionFirstTry: {},
         finishDaysSum: 0,
+        finishDaysHistogram: {},
       },
     });
     expect(r.org).toEqual({
@@ -260,6 +263,7 @@ describe('recountFromSource', () => {
       completed: 2,
       certified: 1,
       finishDaysSum: 2,
+      finishDaysHistogram: { '0': 1, '2': 1 },
       parvaCompletions: [2, 1, 0],
     });
     expect(r.org).toMatchObject({ started: 4, completed: 2 });
@@ -354,6 +358,7 @@ describe('runDailyRollup', () => {
       parvaCompletions: [0],
       questionFirstTry: {},
       finishDaysSum: 0,
+      finishDaysHistogram: {},
     });
   });
 

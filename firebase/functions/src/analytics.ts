@@ -1,4 +1,11 @@
-import { attemptSchema, isItemDone, isoWeek, migrateCourse, progressSchema } from '@gurukul/schema';
+import {
+  attemptSchema,
+  finishDaysBucket,
+  isItemDone,
+  isoWeek,
+  migrateCourse,
+  progressSchema,
+} from '@gurukul/schema';
 import type { Attempt, Course, CourseStats, Progress, ProgressState } from '@gurukul/schema';
 import { log } from './logging/log.js';
 
@@ -11,6 +18,8 @@ export interface ProgressStatsDelta {
   certified: number;
   /** Days from start to completion, added when the course completes. */
   finishDays: number;
+  /** The histogram bucket (`finishDaysBucket`) of that finish time; null unless the course completes. */
+  finishBucket: string | null;
   /** Positions of the parvas that became fully done in this write. */
   parvasDone: number[];
   /** Lessons that became complete in this write, counted into `weekly[week]`. */
@@ -25,6 +34,7 @@ export const emptyDelta = (week: string): ProgressStatsDelta => ({
   completed: 0,
   certified: 0,
   finishDays: 0,
+  finishBucket: null,
   parvasDone: [],
   lessons: 0,
   week,
@@ -64,6 +74,7 @@ export function planProgressStats(
       0,
       (now.completedAt.toMillis() - now.startedAt.toMillis()) / DAY_MS,
     );
+    delta.finishBucket = finishDaysBucket(delta.finishDays);
   }
   course.parvas.forEach((parva, index) => {
     const wasDone = parva.items.every((i) => isItemDone(i, before));
@@ -170,6 +181,7 @@ const emptyCourseRecount = (parvas: number): CourseRecount => ({
   parvaCompletions: Array.from({ length: parvas }, () => 0),
   questionFirstTry: {},
   finishDaysSum: 0,
+  finishDaysHistogram: {},
 });
 
 /**
@@ -206,7 +218,10 @@ export function recountFromSource(
     if (p.completedAt !== null) {
       c.completed += 1;
       org.completed += 1;
-      c.finishDaysSum += Math.max(0, (p.completedAt.toMillis() - p.startedAt.toMillis()) / DAY_MS);
+      const days = Math.max(0, (p.completedAt.toMillis() - p.startedAt.toMillis()) / DAY_MS);
+      c.finishDaysSum += days;
+      const bucket = finishDaysBucket(days);
+      c.finishDaysHistogram[bucket] = (c.finishDaysHistogram[bucket] ?? 0) + 1;
     }
     if (p.certificateId !== null) c.certified += 1;
     course.parvas.forEach((parva, i) => {
