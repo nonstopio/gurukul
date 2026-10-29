@@ -19,20 +19,20 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Foundations | 7 | 0 | 0 | 0 |
 | Sign-in, roles and shell | 11 | 1 | 0 | 0 |
 | Learner experience | 16 | 2 | 0 | 0 |
-| Parikshas and certificates | 9 | 0 | 1 | 0 |
-| Kulapati console and Sanjaya | 25 | 3 | 2 | 0 |
+| Parikshas and certificates | 9 | 1 | 0 | 0 |
+| Kulapati console and Sanjaya | 25 | 5 | 0 | 0 |
 | Vyasa Studio | 15 | 2 | 0 | 0 |
 | Design system | 4 | 2 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 15 | 1 | 2 | 5 |
-| First course: Git | 3 | 0 | 1 | 2 |
+| Platform, CI and operations | 16 | 2 | 0 | 7 |
+| First course: Git | 3 | 1 | 0 | 2 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 112 | 11 | 6 | 7 |
+| **Total** | 113 | 16 | 0 | 9 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
-Blocked items wait at the end until the maintainer answers their question.
+There are no blocked items; the maintainer answered the open questions on 2026-10-29.
 
 1. `STU-18` — Acharya read of `stats/course_{id}` is tested
 2. `LRN-18` — Course overview: hero band, due date, preview certificate
@@ -45,12 +45,11 @@ Blocked items wait at the end until the maintainer answers their question.
 9. `DS-04` — shared icon set
 10. `DS-06` — Gallery: Sidebar, TopBar, VideoBlock, Certificate
 11. `OPS-23` — Harden the flaky studio lesson editor test
-12. `KUL-24` — email delivery (blocked: question 4)
-13. `KUL-25` — Acharyas see their learners (blocked: question 7)
-14. `PRK-10` — tell a learner their certificate was revoked (blocked)
-15. `OPS-18` — custom domain (blocked: question 6)
-16. `OPS-19` — licence holder (blocked: question 10)
-17. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+12. `KUL-24` — email delivery
+13. `KUL-25` — Acharyas see their learners
+14. `PRK-10` — tell a learner their certificate was revoked
+15. `OPS-18` — custom domain
+16. `GIT-05` — signatory and Acharya for Git
 
 ## Foundations
 
@@ -125,7 +124,7 @@ Plan: `06-pariksha-and-certificates.md`, `design-handoff/01-learner.md` §05–�
 | `PRK-07` | Result page survives a reload                                                              | done    | —       | `apps/web/src/pariksha/ResultPage.tsx` (router state after Finish, else the latest attempt; "Continue to Parva n", "Revisit lesson: {title}", live `Retake` countdown), `apps/web/src/pariksha/model.ts` (`reviewOfAttempt`, `formatCountdown`, `parvaNumber`), `apps/web/src/data/firebase.ts` (`latestAttempt`), attempts index in `firebase/firestore.indexes.json`. A reloaded review names the learner's answers, not the right options |
 | `PRK-08` | Completion screen to the handoff | done | — | `apps/web/src/certificates/pages.tsx` (`CompletePage`, `CertificateThumb`, `UpNextCard`), `learn/model.ts` (`nextAssigned`, `durationLabel`), `styles.css` (`.complete__*`). Time invested is summed lesson minutes, not measured |
 | `PRK-09` | Revocation date on certificates                                                            | done    | —       | `firebase/functions/src/stores.ts` (`setRevoked` stamps `revokedAt`, null on restore), `packages/schema/src/certificate.ts`, `apps/web/src/data/firebase.ts`, `apps/web/src/certificates/pages.tsx` ("Revoked on …"). Certificates revoked earlier have no date and keep the old wording |
-| `PRK-10` | Tell a learner their certificate was revoked                                               | blocked | —       | Open question in `06-pariksha-and-certificates.md`; also needs email (`KUL-24`)                                                                                           |
+| `PRK-10` | Tell a learner their certificate was revoked | todo | `KUL-24` | Decided: tell the learner by email when a Kulapati revokes (course name and a contact). Waits on email delivery (`KUL-24`) |
 
 ## Kulapati console and Sanjaya
 
@@ -159,8 +158,8 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-21` | Daily roll-up repairs course counters                                        | done    | —        | `firebase/functions/src/analytics.ts` (`recountFromSource`, `runDailyRollup`), `stores.ts` (`firestoreRollupStore`). `weekly` cannot be rebuilt from source (`09`) |
 | `KUL-22` | Roles screen polish | done | — | `apps/web/src/console/RolesPage.tsx` (real Learner count, Kulapatis list, Acharya and Kulapati as independent checkboxes, drafts grantable), `console/firebase.ts` (`allCourses`). The bulk role dialog still treats roles as exclusive: `KUL-31` |
 | `KUL-23` | Audit log view finish | done | — | `apps/web/src/console/AuditPage.tsx` ("Load older entries", 50 at a time), `firebase.ts` (`auditPage`), `model.ts` (`auditDetail`), `firebase/functions/src/assign.ts` (assign entries record emails). Course targets still show ids |
-| `KUL-24` | Email delivery                                                               | blocked | —        | Question 4: the code queues for the Trigger Email extension, the plan recommends the Gmail API. Then: sender, `from`/`replyTo`, HTML template, configurable site URL              |
-| `KUL-25` | Acharyas see their learners                                                  | blocked | —        | Question 7. Course analytics is Kulapati-only; names need a rules change                                                                                                            |
+| `KUL-24` | Email delivery | todo | — | Decided (question 4): Gmail API from a function, sender `academy@nonstopio.com`. Replace the `mail` queue for the Trigger Email extension with a sender, `from`/`replyTo`, an HTML template and a configurable site URL (`firebase/functions/src/mail.ts`). Needs the mailbox and a service-account grant from the maintainer (new row `OPS-25`) |
+| `KUL-25` | Acharyas see their learners | todo | — | Decided (question 7): an Acharya sees learner names in the analytics of their own courses only. Course analytics is Kulapati-only today; needs a rules change with an allowed and a denied test, and `.plan/09-analytics.md` updated |
 | `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | done    | —        | `apps/web/src/console/firebase.ts` (`openAssignments`), `LearnersPage.tsx`, `model.ts`; index `status`+`dueAt`                                                                       |
 | `KUL-27` | Overview pending-invite count past the newest 500 assignments | done | — | `apps/web/src/console/OverviewPage.tsx` (Pending invites: distinct emails from `openAssignments`, same source as Learners); test in `apps/web/test/console-pages.test.tsx` |
 
@@ -237,11 +236,13 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-15` | Firebase project setup                                                     | maintainer | —        | `11` First-time setup checklist: Blaze and the $1 budget with alerts, Firestore in asia-south1, Google provider, web app variables, both service accounts, branch protection |
 | `OPS-16` | Backup bucket                                                              | maintainer | —        | Bucket with the 28-day lifecycle rule, `BACKUP_BUCKET` variable, IAM roles (`docs/operations.md`)                                                          |
 | `OPS-17` | First Kulapati and the production seed                                     | maintainer | —        | `npm run grant-kulapati -- you@nonstopio.com`; `npm run seed -- --production`                                                                              |
-| `OPS-18` | Custom domain                                                              | blocked    | —        | Question 6. Also the hard-coded site URL in emails (`firebase/functions/src/mail.ts`)                                                                      |
-| `OPS-19` | Licence holder                                                             | blocked    | —        | Question 10: confirm the legal entity in `LICENSE`                                                                                                          |
+| `OPS-18` | Custom domain | todo | — | Decided (question 6): custom domain `gurukul.nonstopio.com`. Code: make the site URL configurable instead of hard-coded in `firebase/functions/src/mail.ts`, and use it for certificate verification URLs. DNS and the Hosting custom domain are `OPS-24` |
+| `OPS-19` | Licence holder | done | — | `LICENSE` names "NonStop io Technologies Pvt. Ltd." (question 10) |
 | `OPS-20` | Launch: assign Git to everyone                                             | maintainer | `GIT-02` | M6 exit                                                                                                                                                     |
 | `OPS-21` | Auth domain for the iOS redirect                                           | maintainer | —        | `VITE_FIREBASE_AUTH_DOMAIN` = `nonstop-gurukul.web.app` (GitHub variable) and its `/__/auth/handler` in the OAuth client's redirect URIs (`11` checklist step 4) |
 | `OPS-22` | Load Firestore after sign-in; bundle budget back to 320 KB | done | — | `apps/web/src/firestore.ts` (the only importer of the Firestore SDK, a separate chunk), `lazy.ts` (`lazyPort`), `main.tsx` (loads it on first read), `auth/service.ts` (takes `watchProfile`); initial JS 181 KB gzip, budget 320 in `package.json` and `ci.yml` |
+| `OPS-24` | DNS and Hosting custom domain for `gurukul.nonstopio.com` | maintainer | `OPS-18` | Add the Hosting custom domain and the DNS records; also the Firebase Auth authorised domain |
+| `OPS-25` | Sender mailbox for email delivery | maintainer | — | `academy@nonstopio.com` mailbox and the service-account grant the Gmail API sender needs (`KUL-24`) |
 
 ## First course: Git
 
@@ -253,7 +254,7 @@ Plan: `14-first-course-git.md`.
 | `GIT-02` | Record the videos                                                        | maintainer | —       | Real URLs and `durationSec` replace `TODO_RECORD_VIDEO`                                                                                       |
 | `GIT-03` | Placeholder videos stop embedding a dead player                          | done | —       | `isPlaceholderVideo` in `packages/schema/src/media.ts`; `TrackedVideo.tsx` and `blocks.tsx` show "Video coming soon" |
 | `GIT-04` | NonStop conventions and the `conflict-lab` repository                    | maintainer | —       | Branch naming, PR template, review expectations, release tagging replace the "Replace with NonStop's convention" callouts                     |
-| `GIT-05` | Signatory and Acharya for Git                                            | blocked    | —       | Question 5; the seed says "The Kulapati" and has no Acharya                                                                                   |
+| `GIT-05` | Signatory and Acharya for Git | todo | — | Decided (question 5): the signatory is a setting in the Kulapati console (Org settings), not a value in code; certificates print it, and the seed uses a clearly fictional name. The Git Acharya is assigned at the production seed (`OPS-17`) so no real address is committed to this public repo |
 | `GIT-06` | Seed matches the course outline                                          | done       | —       | `firebase/seed/src/git-course.ts`: Pariksha I and II cooldown 10; lesson minutes total 190 (3 h 10)                                               |
 
 ## Plan upkeep

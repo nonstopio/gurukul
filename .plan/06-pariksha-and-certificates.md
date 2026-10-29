@@ -45,5 +45,5 @@ outline shows (`05-learner-experience.md`), so the lock holds outside the app.
 
 ## Open questions
 
-- Who signs certificates (name and role printed on them)?
-- Should a revoked certificate's learner be notified?
+- ~~Who signs certificates~~ Resolved: the name and role are a setting in the Kulapati console (`GIT-05`).
+- ~~Should a revoked certificate's learner be notified?~~ Resolved: yes, by email once email delivery exists (`PRK-10`, `KUL-24`).
