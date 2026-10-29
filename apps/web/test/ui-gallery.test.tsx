@@ -22,7 +22,14 @@ describe('/__ui component gallery', () => {
 
   it('renders every section without an axe violation', async () => {
     const { view } = await openGallery();
-    for (const name of ['Button', 'Chip', 'Pariksha', 'Tables, lists and charts']) {
+    for (const name of [
+      'Button',
+      'Chip',
+      'Sidebar and top bar',
+      'Video and certificate',
+      'Pariksha',
+      'Tables, lists and charts',
+    ]) {
       expect(screen.getByRole('heading', { level: 2, name })).toBeTruthy();
     }
     expect(await axeViolations(view.container)).toEqual([]);
