@@ -147,7 +147,9 @@ describe('assignCourses', () => {
     const { store, mailer, deps } = setup({
       createAssignments: vi
         .fn()
-        .mockImplementation(async (_by: string, docs: { id: string }[]) => docs.map((d) => d.id)),
+        .mockImplementation(async (_by: string, _name: string | null, docs: { id: string }[]) =>
+          docs.map((d) => d.id),
+        ),
     });
     const out = await assignCourses(deps, kulapati, request({ notify: true }));
     expect(out).toMatchObject({ assigned: 0, notified: 0 });
