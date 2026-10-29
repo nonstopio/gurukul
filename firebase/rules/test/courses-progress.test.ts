@@ -68,9 +68,13 @@ describe('courses/{id}', () => {
     await assertSucceeds(getDoc(doc(as('priya'), 'courses/git')));
     await assertSucceeds(getDoc(doc(as('priya'), 'courses/old')));
   });
-  it('hides a draft course from learners but not from its Acharya or a Kulapati', async () => {
+  it('hides a never-published course from learners but not from any Acharya or a Kulapati', async () => {
     await assertFails(getDoc(doc(as('priya'), 'courses/wip')));
-    await assertFails(getDoc(doc(as('rohan', { acharya: true }), 'courses/wip')));
+    await assertFails(getDoc(doc(as('priya', { acharya: false }), 'courses/wip')));
+    await assertFails(
+      getDoc(doc(as('rohan', { acharya: true, email: 'r@gmail.com' }), 'courses/wip')),
+    );
+    await assertSucceeds(getDoc(doc(as('rohan', { acharya: true }), 'courses/wip')));
     await assertSucceeds(getDoc(doc(as('asha', { acharya: true }), 'courses/wip')));
     await assertSucceeds(getDoc(doc(as('ajay', { kulapati: true }), 'courses/wip')));
   });

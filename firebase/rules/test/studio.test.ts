@@ -76,15 +76,14 @@ describe('courses list queries', () => {
     const snap = await assertSucceeds(getDocs(q));
     if (snap.docs.map((d) => d.id).join() !== 'wip') throw new Error('expected only wip');
   });
-  it('lets a Kulapati list every course', async () => {
-    const snap = await assertSucceeds(getDocs(collection(ajay(), 'courses')));
-    if (snap.size !== 3) throw new Error('expected all courses');
+  it('lets a Kulapati and any Acharya list every course, never-published ones included', async () => {
+    const all = await assertSucceeds(getDocs(collection(ajay(), 'courses')));
+    if (all.size !== 3) throw new Error('expected all courses');
+    const seen = await assertSucceeds(getDocs(collection(asha(), 'courses')));
+    if (seen.docs.map((d) => d.id).join() !== 'live,other,wip') throw new Error('expected all');
   });
-  it('denies an Acharya an unfiltered or another person’s listing, and a learner any draft listing', async () => {
-    await assertFails(getDocs(collection(asha(), 'courses')));
-    await assertFails(
-      getDocs(query(collection(asha(), 'courses'), where('acharyaIds', 'array-contains', 'rohan'))),
-    );
+  it('denies a learner an unfiltered listing or any listing that would include a draft course', async () => {
+    await assertFails(getDocs(collection(priya(), 'courses')));
     await assertFails(
       getDocs(query(collection(priya(), 'courses'), where('acharyaIds', 'array-contains', 'asha'))),
     );

@@ -3,6 +3,7 @@ import type { Course, Pariksha, Question } from '@gurukul/schema';
 import {
   Button,
   Callout,
+  Dialog,
   QuizOption,
   TopBar,
   buttonClass,
@@ -17,7 +18,16 @@ import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { Prose } from '../player/blocks';
-import { cooldownRemaining, formatWait, pickQuestions } from './model';
+import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
+import {
+  answerLetters,
+  cooldownRemaining,
+  drawOrder,
+  formatWait,
+  pickQuestions,
+  restoreQuestions,
+  sameAnswer,
+} from './model';
 import { useParikshaService } from './ParikshaProvider';
 import { CooldownError } from './service';
 import type { CheckAnswerResult } from './service';
@@ -27,7 +37,10 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 type Letter = (typeof LETTERS)[number];
 const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
-/** One question per screen. Progress is saved by the server after the final answer. */
+/**
+ * One question per screen. Each answer is kept in this browser as the learner checks it or moves on
+ * (`draftStore`), so a reload carries on; the server grades and records the attempt at Finish.
+ */
 export function ParikshaPage() {
   const { courseId = '', parikshaId = '' } = useParams();
   const data = useLearnerData();
@@ -65,16 +78,14 @@ function Exam({
       Exit Pariksha
     </Link>
   );
-  const wait = cooldownRemaining(
-    progress?.pariksha[pariksha.id]?.lastAttemptAt ?? null,
-    pariksha.cooldownMinutes,
-    now,
-  );
+  const lastAttemptAt = progress?.pariksha[pariksha.id]?.lastAttemptAt ?? null;
+  const wait = cooldownRemaining(lastAttemptAt, pariksha.cooldownMinutes, now);
   if (states[pariksha.id] === 'locked' || wait > 0) {
     return (
       <>
-        <TopBar title={pariksha.title} back={back} />
+        <TopBar title={course.title} titleAs="p" back={back} />
         <main className="page">
+          <h1 className="page__title">{pariksha.title}</h1>
           <Callout tone="note" title={wait > 0 ? 'Retake not open yet' : 'Locked for now'}>
             <p>
               {wait > 0
@@ -89,27 +100,59 @@ function Exam({
       </>
     );
   }
-  return <Questions course={course} pariksha={pariksha} back={back} />;
+  return <Questions course={course} pariksha={pariksha} lastAttemptAt={lastAttemptAt} />;
 }
 
 /** The questions themselves; mounted only once the Pariksha is open, so the draw happens once. */
 function Questions({
   course,
   pariksha,
-  back,
+  lastAttemptAt,
 }: {
   course: Course;
   pariksha: Pariksha;
-  back: React.ReactNode;
+  lastAttemptAt: Date | null;
 }) {
   const service = useParikshaService();
   const navigate = useNavigate();
   const toast = useToast();
-  const [questions] = useState(() => pickQuestions(pariksha));
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<Record<string, string[]>>({});
-  const [feedback, setFeedback] = useState<Record<string, CheckAnswerResult>>({});
+  const uid = useUser().uid;
+  const [key] = useState(() => draftKey(uid, course.id, pariksha.id));
+  // A draft from before the last graded attempt belongs to that attempt, not this one.
+  const [start] = useState(() => {
+    const saved = readDraft(key);
+    const fresh = saved && saved.startedAt > (lastAttemptAt?.getTime() ?? 0) ? saved : null;
+    const restored = fresh ? restoreQuestions(pariksha, fresh.order) : null;
+    if (fresh && restored) return { draft: fresh, questions: restored };
+    const questions = pickQuestions(pariksha);
+    const draft = {
+      startedAt: Date.now(),
+      order: drawOrder(questions),
+      index: 0,
+      answers: {},
+      feedback: {},
+    };
+    return { draft, questions };
+  });
+  const questions = start.questions;
+  const [index, setIndex] = useState(() =>
+    Math.max(0, Math.min(start.draft.index, questions.length - 1)),
+  );
+  const [saved, setSaved] = useState<Record<string, string[]>>(start.draft.answers);
+  const [selected, setSelected] = useState<Record<string, string[]>>(start.draft.answers);
+  const [feedback, setFeedback] = useState<Record<string, CheckAnswerResult>>(start.draft.feedback);
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    writeDraft(key, {
+      startedAt: start.draft.startedAt,
+      order: start.draft.order,
+      index,
+      answers: saved,
+      feedback,
+    });
+  }, [key, start, index, saved, feedback]);
 
   const question = questions[index] as Question;
   const picked = selected[question.id] ?? [];
@@ -118,6 +161,8 @@ function Questions({
   const multiple = question.kind === 'multiple';
   const reveals = pariksha.revealAnswers === 'each';
   const base = { courseId: course.id, parikshaId: pariksha.id };
+  const outline = `/courses/${course.id}`;
+  const unsaved = !sameAnswer(picked, saved[question.id] ?? []);
 
   const pick = (optionId: string, on: boolean) =>
     setSelected({
@@ -129,6 +174,12 @@ function Questions({
         : [optionId],
     });
 
+  /** Saves this question's answer and shows another one. */
+  const move = (to: number) => {
+    setSaved({ ...saved, [question.id]: picked });
+    setIndex(to);
+  };
+
   const check = async () => {
     setBusy(true);
     try {
@@ -137,6 +188,7 @@ function Questions({
         questionId: question.id,
         selected: picked,
       });
+      setSaved({ ...saved, [question.id]: picked });
       setFeedback({ ...feedback, [question.id]: verdict });
     } catch (e) {
       log.error('Checking an answer failed', e, { ...base, questionId: question.id });
@@ -154,6 +206,7 @@ function Questions({
         questionIds: questions.map((q) => q.id),
         answers: selected,
       });
+      clearDraft(key);
       void navigate(`/courses/${course.id}/pariksha/${pariksha.id}/result`, {
         state: { result: attempt, questions, answers: selected },
       });
@@ -174,9 +227,25 @@ function Questions({
     if (checked.correctOptionIds.includes(id)) return 'correct' as const;
     return picked.includes(id) ? ('incorrect' as const) : ('locked' as const);
   };
+  const needsCheck = reveals && !checked;
+  const primary = needsCheck ? 'Check answer' : last ? 'Finish Pariksha' : 'Next question';
+  const ready = !busy && picked.length > 0;
+  const onPrimary = () => {
+    if (needsCheck) void check();
+    else if (last) void finish();
+    else move(index + 1);
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (checked || busy || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (leaving || busy || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Enter') {
+        // A focused button or link already acts on Enter by itself.
+        if ((e.target as Element).closest('button, a') || !ready) return;
+        e.preventDefault();
+        onPrimary();
+        return;
+      }
+      if (checked) return;
       const at =
         '1234'.indexOf(e.key) >= 0 ? '1234'.indexOf(e.key) : 'abcd'.indexOf(e.key.toLowerCase());
       const option = question.options[at];
@@ -185,22 +254,31 @@ function Questions({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
-  const needsCheck = reveals && !checked;
-  const primary = needsCheck ? 'Check answer' : last ? 'Finish Pariksha' : 'Next question';
-  const onPrimary = () => {
-    if (needsCheck) void check();
-    else if (last) void finish();
-    else setIndex(index + 1);
-  };
+
+  const back = (
+    <Link
+      className={topBarBackClass}
+      to={outline}
+      onClick={(e) => {
+        if (!unsaved) return;
+        e.preventDefault();
+        setLeaving(true);
+      }}
+    >
+      Exit Pariksha
+    </Link>
+  );
 
   return (
     <>
       <TopBar
-        title={pariksha.title}
+        title={course.title}
+        titleAs="p"
         back={back}
-        status={<span>Progress is saved after every answer</span>}
+        status={<span>Answers are saved on this device as you go</span>}
       />
       <main className="page exam">
+        <h1 className="exam__title">{pariksha.title}</h1>
         <p className="article__kicker">
           Question {index + 1} of {questions.length}
         </p>
@@ -209,12 +287,16 @@ function Questions({
             <li
               key={q.id}
               className={
-                i < index || selected[q.id] ? 'segments__done' : i === index ? 'segments__now' : ''
+                i < index || selected[q.id]?.length
+                  ? 'segments__done'
+                  : i === index
+                    ? 'segments__now'
+                    : ''
               }
             />
           ))}
         </ol>
-        <fieldset className="exam__question">
+        <fieldset className="exam__question" disabled={busy} aria-busy={busy}>
           <legend className="exam__prompt">
             <Prose md={question.prompt} />
           </legend>
@@ -240,7 +322,7 @@ function Questions({
         </fieldset>
         {checked ? (
           <p role="status" className="exam__feedback">
-            <strong>{checked.correct ? 'Correct.' : 'Not quite.'}</strong> {checked.explanation}
+            <strong>{verdictText(question, checked)}</strong> {checked.explanation}
           </p>
         ) : null}
         <footer className="exam__footer">
@@ -252,16 +334,45 @@ function Questions({
           </p>
           <div className="exam__actions">
             {index > 0 ? (
-              <Button variant="secondary" disabled={busy} onClick={() => setIndex(index - 1)}>
+              <Button variant="secondary" disabled={busy} onClick={() => move(index - 1)}>
                 Previous
               </Button>
             ) : null}
-            <Button disabled={busy || picked.length === 0} onClick={onPrimary} aria-busy={busy}>
+            <Button disabled={!ready} onClick={onPrimary} aria-busy={busy}>
               {primary}
             </Button>
           </div>
         </footer>
       </main>
+      <Dialog
+        open={leaving}
+        title="Leave this Pariksha?"
+        onClose={() => setLeaving(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLeaving(false)}>
+              Stay
+            </Button>
+            <Button onClick={() => void navigate(outline)}>Leave</Button>
+          </>
+        }
+      >
+        <p>
+          Your answer to this question is not saved yet. Answers you have checked or moved past are
+          kept, so you can finish later.
+        </p>
+      </Dialog>
     </>
   );
+}
+
+/** "Correct." or "Not quite — the answer is B." with the letters as shown on screen. */
+function verdictText(question: Question, verdict: CheckAnswerResult): string {
+  if (verdict.correct) return 'Correct.';
+  const letters = answerLetters(
+    question.options.map((o) => o.id),
+    verdict.correctOptionIds,
+  );
+  if (!letters) return 'Not quite.';
+  return `Not quite — the ${verdict.correctOptionIds.length > 1 ? 'answers are' : 'answer is'} ${letters}.`;
 }

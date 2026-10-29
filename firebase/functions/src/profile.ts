@@ -1,3 +1,4 @@
+import { nameKey } from '@gurukul/schema';
 import { log } from './logging/log.js';
 import { isAllowedEmail } from './roles.js';
 
@@ -13,6 +14,8 @@ export interface NewUser {
 export interface ProfileDoc {
   email: string;
   displayName: string;
+  /** The display name lower-cased, for people search by name. */
+  nameLower: string;
   photoURL: string | null;
   team: null;
   roles: ['shishya'];
@@ -29,9 +32,11 @@ export interface UserStore {
 /** The profile document for a new NonStop account. The display name falls back to the email's local part. */
 export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
   const email = user.email.toLowerCase();
+  const displayName = user.displayName?.trim() || email.split('@')[0] || email;
   return {
     email,
-    displayName: user.displayName?.trim() || email.split('@')[0] || email,
+    displayName,
+    nameLower: nameKey(displayName),
     photoURL: user.photoURL ?? null,
     team: null,
     roles: ['shishya'],

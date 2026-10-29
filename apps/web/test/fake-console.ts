@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
-import type { CourseStats, OrgStats } from '@gurukul/schema';
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
+import type { CourseStats, OrgConfig, OrgStats } from '@gurukul/schema';
 import type {
   ConsoleData,
   ConsoleService,
@@ -31,6 +32,7 @@ export function fakeConsole(
     team?: UserRow[];
     found?: UserRow[];
     audit?: AuditRow[];
+    settings?: Partial<OrgConfig>;
   } = {},
 ) {
   const users = init.users ?? [];
@@ -42,12 +44,21 @@ export function fakeConsole(
     userCount: vi.fn().mockResolvedValue(init.count ?? users.length),
     progressFor: vi.fn().mockResolvedValue([]),
     certificatesFor: vi.fn().mockResolvedValue([]),
+    assignmentsFor: vi.fn(async (email: string) =>
+      (init.assignments ?? []).filter((a) => a.email === email),
+    ),
+    attemptsFor: vi.fn().mockResolvedValue([]),
     searchUsers: vi.fn().mockResolvedValue(init.found ?? []),
     usersInTeam: vi.fn().mockResolvedValue(init.team ?? []),
+    usersByUid: vi.fn(async (uids: string[]) =>
+      [...users, ...(init.team ?? []), ...(init.found ?? [])].filter((u) => uids.includes(u.uid)),
+    ),
     usersWithRole: vi.fn(async (role: string) => users.filter((u) => u.roles.includes(role))),
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
     auditLog: vi.fn().mockResolvedValue(init.audit ?? []),
+    orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
+    saveOrgSettings: vi.fn().mockResolvedValue(undefined),
   };
   const service: ConsoleService = {
     assignCourses: vi.fn().mockResolvedValue({

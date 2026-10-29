@@ -1,3 +1,4 @@
+import { nameKey } from '@gurukul/schema';
 import type { FirebaseApp } from 'firebase/app';
 import {
   connectFirestoreEmulator,
@@ -6,10 +7,12 @@ import {
   onSnapshot,
   persistentLocalCache,
   persistentMultipleTabManager,
+  updateDoc,
 } from 'firebase/firestore';
 import type { ProfileMirror } from './auth/service';
 import { firebaseConsoleData } from './console/firebase';
 import { firebaseLearnerData } from './data/firebase';
+import { log } from './log';
 import { firebaseStudioData } from './studio/firebase';
 
 /**
@@ -27,10 +30,24 @@ export function openFirestore(app: FirebaseApp, emulators: boolean) {
     learner: firebaseLearnerData(db),
     studio: firebaseStudioData(db),
     console: firebaseConsoleData(db),
-    watchProfile: (uid: string, cb: (p: ProfileMirror | null) => void) =>
-      onSnapshot(doc(db, 'users', uid), (snap) =>
-        cb(snap.exists() ? (snap.data() as ProfileMirror) : null),
-      ),
+    watchProfile: (uid: string, cb: (p: ProfileMirror | null) => void) => {
+      let filled = false;
+      return onSnapshot(doc(db, 'users', uid), (snap) => {
+        if (!snap.exists()) return cb(null);
+        const profile = snap.data() as ProfileMirror & { nameLower?: string };
+        // Profiles made before people search by name lack `nameLower`: the owner's next sign-in
+        // fills it in, once per watch, so a refused write cannot loop on the reverted snapshot.
+        const nameLower =
+          typeof profile.displayName === 'string' ? nameKey(profile.displayName) : undefined;
+        if (!filled && nameLower !== undefined && profile.nameLower !== nameLower) {
+          filled = true;
+          updateDoc(snap.ref, { nameLower }).catch((e: unknown) =>
+            log.warn('Profile name key not saved', { uid, code: (e as { code?: unknown }).code }),
+          );
+        }
+        cb(profile);
+      });
+    },
   };
 }
 

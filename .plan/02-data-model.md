@@ -8,8 +8,8 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror | self, Kulapati | self: `displayName`, `team` only |
-| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); its Acharyas and Kulapatis in any status | never (published by function) |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Kulapati | self: `displayName`, `nameLower`, `team` only; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null` |
+| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); every Acharya and Kulapati in any status, so Vyasa Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Acharyas granted the course, Kulapati | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Acharyas, Kulapati | never |
 | `courses/{courseId}/private/answers` | Pariksha answer keys | never | never |
@@ -20,7 +20,7 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Sanjaya (`org`, `course_{id}`) | Kulapati, granted Acharyas | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Kulapati | never (function) |
 | `questionBank/{id}` (M5) | Reusable Pariksha questions, answers included | Acharyas, Kulapati | Acharyas, Kulapati |
-| `config/org` | Allowed domain, teams list, reminder settings | signed-in | Kulapati |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`; only these keys, never deleted; the seed creates the default if missing | signed-in | Kulapati (Org settings) |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Outgoing email queue, in the shape the "Trigger Email from Firestore" extension reads; nothing sends until a sender is installed (`firebase/functions/src/mail.ts`) | never | never (function) |
 
@@ -127,6 +127,29 @@ Percent = (completed lessons + passed Parikshas) ÷ (lessons + Parikshas) in the
 added in a later version simply count as not done. A learner who already holds
 a certificate keeps it when a course gains lessons.
 
+## Users
+
+```ts
+type User = {
+  email: string;                 // lower-cased
+  displayName: string;           // from Google; the email's local part when Google has none
+  nameLower?: string;            // displayName lower-cased (`nameKey`), for search by name
+  photoURL: string | null;
+  team: string | null;
+  roles: Array<'shishya' | 'acharya' | 'kulapati'>;   // mirror of the claims
+  grantedCourseIds: string[];
+  createdAt: Timestamp;
+};
+```
+
+People search (Learners, Assign, granting a role) runs two prefix range queries, on `email`
+and on `nameLower`, 8 people each, merged with email matches first. A name matches from its
+start (`ana` finds "Ananya Rao"; `rao` does not). `onUserCreated` writes `nameLower` with the
+profile; profiles made before it existed get it from the app on their owner's next sign-in,
+and the rules keep it in step with `displayName` on every later write. Single-field
+indexes cover both queries; there is no composite index. `nameLower` is optional in the
+schema until every profile has it.
+
 ## Assignments
 
 ```ts
@@ -167,6 +190,7 @@ the certificate, the course and the date — no email.
 - `assignments`: `uid ASC, dueAt ASC`; `courseId ASC, status ASC`; `email ASC, uid ASC`
 - `progress`: `courseId ASC, percent DESC`; `courseId ASC, lastActiveAt DESC`
 - `certificates`: `uid ASC, issuedAt DESC`
+- `attempts` (per progress document): `uid ASC, parikshaId ASC, createdAt DESC` — the result page's latest attempt
 
 ## Migrations
 

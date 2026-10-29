@@ -1,5 +1,5 @@
-import { lastWeeks } from '@gurukul/schema';
-import type { CourseStats, OrgStats } from '@gurukul/schema';
+import { lastWeeks, nameKey } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import type { AssignmentFull, UserRow } from './types';
 
@@ -96,9 +96,209 @@ export function buildLearnerRows(
 
 export type LearnerTab = 'all' | 'signedIn' | 'pending' | 'overdue';
 
-/** Keeps rows holding `role`; an empty role keeps everyone. */
-export function filterByRole(rows: readonly LearnerRow[], role: string): LearnerRow[] {
-  return role === '' ? [...rows] : rows.filter((r) => r.roles.includes(role));
+/** The filters above the Learners table. Each one narrows the rows; together they all apply. */
+export interface LearnerFilters {
+  search: string;
+  team: string;
+  role: string;
+  courseId: string;
+}
+
+/** Search starts at two characters, so one keystroke does not read the whole people list. */
+export const searchPrefix = (search: string): string => {
+  const p = search.trim().toLowerCase();
+  return p.length >= 2 ? p : '';
+};
+
+/** True when a filter narrows the table to a bounded set, held and paged in memory. */
+export const isFiltered = (f: LearnerFilters): boolean =>
+  searchPrefix(f.search) !== '' || f.team !== '' || f.role !== '' || f.courseId !== '';
+
+/**
+ * One person in the table before their row is built. `user` is null for a pending invite, and for
+ * someone known only by their assignments until their profile is read for the page they are on.
+ */
+export interface Person {
+  email: string;
+  uid: string | null;
+  user: UserRow | null;
+}
+
+/** One person per email in these assignments, sorted by email. */
+export function peopleFromAssignments(assignments: readonly AssignmentFull[]): Person[] {
+  const byEmail = new Map<string, string | null>();
+  for (const a of assignments) byEmail.set(a.email, byEmail.get(a.email) ?? a.uid);
+  return [...byEmail]
+    .map(([email, uid]) => ({ email, uid, user: null }))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/**
+ * Everyone matching every filter, sorted by email. `users` is the people read for the narrowest
+ * people filter (team, role or search), or null when only a course is chosen; `scope` is the
+ * assignments in view (the chosen course's, or the newest ones). Pending invites have no team or
+ * role, so a team or role filter leaves them out. Search matches the start of a signed-in person's
+ * email or name (a pending invite has only an email). `searched` says `users` came from the search
+ * itself, which already matched them (by more than the email), so it is not applied to them again.
+ */
+export function filterPeople(
+  users: readonly UserRow[] | null,
+  scope: readonly AssignmentFull[],
+  f: LearnerFilters,
+  searched = false,
+): Person[] {
+  const fromAssignments = peopleFromAssignments(scope);
+  if (users === null) return fromAssignments;
+  const prefix = searchPrefix(f.search);
+  const inCourse = new Set(scope.map((a) => a.email));
+  const inScope = (email: string) => f.courseId === '' || inCourse.has(email);
+  const matches = (email: string) => email.startsWith(prefix) && inScope(email);
+  const named = (u: UserRow) => nameKey(u.displayName).startsWith(prefix) && inScope(u.email);
+  const signedIn = users
+    .filter(
+      (u) =>
+        (searched ? inScope(u.email) : matches(u.email) || named(u)) &&
+        (f.team === '' || u.team === f.team) &&
+        (f.role === '' || u.roles.includes(f.role)),
+    )
+    .map((u): Person => ({ email: u.email, uid: u.uid, user: u }));
+  const known = new Set(users.map((u) => u.email));
+  const pending =
+    f.team === '' && f.role === ''
+      ? fromAssignments.filter((p) => p.uid === null && !known.has(p.email) && matches(p.email))
+      : [];
+  return [...signedIn, ...pending].sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/** The people on one tab: signed in, pending invites, or anyone with an overdue assignment in scope. */
+export function onTab(
+  people: readonly Person[],
+  tab: LearnerTab,
+  scope: readonly AssignmentFull[],
+  now: Date,
+): Person[] {
+  if (tab === 'signedIn') return people.filter((p) => p.uid !== null);
+  if (tab === 'pending') return people.filter((p) => p.uid === null);
+  if (tab === 'overdue') {
+    const late = new Set(scope.filter((a) => isOverdue(a, now)).map((a) => a.email));
+    return people.filter((p) => late.has(p.email));
+  }
+  return [...people];
+}
+
+/** How many people each tab holds, for the tab labels. */
+export function tabCounts(
+  people: readonly Person[],
+  scope: readonly AssignmentFull[],
+  now: Date,
+): Record<LearnerTab, number> {
+  const count = (tab: LearnerTab) => onTab(people, tab, scope, now).length;
+  return {
+    all: people.length,
+    signedIn: count('signedIn'),
+    pending: count('pending'),
+    overdue: count('overdue'),
+  };
+}
+
+/**
+ * Where page `page` of "All" falls when signed-in people (paged from Firestore, `signedIn` of them)
+ * come first and pending invites follow: whether the page shows people, and which slice of the
+ * pending list fills the rest.
+ */
+export function allPage(
+  page: number,
+  pageSize: number,
+  signedIn: number,
+): { people: boolean; pending: [number, number] } {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return {
+    people: start < signedIn,
+    pending: [Math.max(0, start - signedIn), Math.max(0, end - signedIn)],
+  };
+}
+
+/** One Pariksha a learner has attempted, as the drawer lists it. */
+export interface DrawerPariksha {
+  id: string;
+  /** The Pariksha's title in the current course, or its id when it no longer exists. */
+  title: string;
+  attempts: number;
+  /** 0..1 */
+  best: number;
+  passed: boolean;
+}
+
+/** One course in the learner drawer: assigned, started, or both. */
+export interface DrawerCourse {
+  courseId: string;
+  title: string;
+  assigned: boolean;
+  dueAt: Date | null;
+  overdue: boolean;
+  mandatory: boolean;
+  /** Progress 0–100, or null when the learner has not opened the course yet. */
+  percent: number | null;
+  completed: boolean;
+  parikshas: DrawerPariksha[];
+}
+
+/** A Pariksha's title in this course, or `null` when the course has none by that id. */
+export function parikshaTitle(course: Pick<Course, 'parvas'> | undefined, id: string) {
+  for (const parva of course?.parvas ?? []) {
+    for (const item of parva.items)
+      if (item.type === 'pariksha' && item.id === id) return item.title;
+  }
+  return null;
+}
+
+/**
+ * Every course in one person's drawer: each assignment (started or not, with its due date) and
+ * each course they opened without one. Assigned courses come first, soonest due first; Parikshas
+ * appear once attempted, by title.
+ */
+export function drawerCourses(
+  assignments: readonly AssignmentFull[],
+  progress: readonly ProgressRow[],
+  courses: readonly Course[],
+  now: Date,
+): DrawerCourse[] {
+  const ids = [
+    ...new Set([...assignments.map((a) => a.courseId), ...progress.map((p) => p.courseId)]),
+  ];
+  const due = (c: DrawerCourse) => c.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  return ids
+    .map((courseId): DrawerCourse => {
+      const assignment = assignments.find((a) => a.courseId === courseId);
+      const prog = progress.find((p) => p.courseId === courseId);
+      const course = courses.find((c) => c.id === courseId);
+      return {
+        courseId,
+        title: course?.title ?? courseId,
+        assigned: assignment !== undefined,
+        dueAt: assignment?.dueAt ?? null,
+        overdue: assignment !== undefined && isOverdue(assignment, now),
+        mandatory: assignment?.mandatory === true,
+        percent: prog ? prog.percent : null,
+        completed: assignment?.status === 'completed' || (prog?.completedAt ?? null) !== null,
+        parikshas: Object.entries(prog?.pariksha ?? {})
+          .filter(([, r]) => r.attempts > 0)
+          .map(([id, r]) => ({
+            id,
+            title: parikshaTitle(course, id) ?? id,
+            attempts: r.attempts,
+            best: r.best,
+            passed: r.passed,
+          })),
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.assigned) - Number(a.assigned) ||
+        due(a) - due(b) ||
+        a.title.localeCompare(b.title),
+    );
 }
 
 /** Lessons completed in each of the last `n` weeks, oldest first, with zero for quiet weeks. */
@@ -151,37 +351,6 @@ export function averageDays(
   return stats.completed > 0 ? Math.round((stats.finishDaysSum / stats.completed) * 10) / 10 : null;
 }
 
-/**
- * Rows built straight from assignments, grouped by email: the Pending, Overdue and per-course
- * views. A person with an account is `active`; an email with none is `invited`.
- */
-export function rowsFromAssignments(
-  assignments: readonly AssignmentFull[],
-  now: Date,
-): LearnerRow[] {
-  const byEmail = new Map<string, AssignmentFull[]>();
-  for (const a of assignments) byEmail.set(a.email, [...(byEmail.get(a.email) ?? []), a]);
-  return [...byEmail].map(([email, list]) => {
-    const uid = list.find((a) => a.uid !== null)?.uid ?? null;
-    const assignedAt = Math.max(0, ...list.map((a) => a.assignedAt?.getTime() ?? 0));
-    return {
-      key: uid ?? email,
-      uid,
-      email,
-      name: email,
-      team: null,
-      roles: [],
-      status: uid === null ? 'invited' : 'active',
-      assigned: list.length,
-      done: list.filter((a) => a.status === 'completed').length,
-      percent: 0,
-      overdue: list.some((a) => isOverdue(a, now)),
-      lastActive: null,
-      invitedAt: assignedAt > 0 ? new Date(assignedAt) : null,
-    } satisfies LearnerRow;
-  });
-}
-
 /** Plain-English names for the audit actions the functions write. */
 const AUDIT_LABELS: Record<string, string> = {
   assign: 'Assigned courses',
@@ -226,4 +395,26 @@ export function assignmentsCsv(
     ]);
   }
   return lines.map((row) => row.map(csvCell).join(',')).join('\n') + '\n';
+}
+
+/** Most teams `config/org` holds; the rules check the same number. */
+export const MAX_TEAMS = 100;
+const MAX_TEAM_NAME = 80;
+
+/**
+ * The teams list with `name` added at the end, or why it cannot be: blank, longer than a team name
+ * may be, already there (in any case), or the list is full. The name is trimmed.
+ */
+export function addTeam(
+  teams: readonly string[],
+  name: string,
+): { teams: string[] } | { error: string } {
+  const team = name.trim();
+  if (team === '') return { error: 'Enter a team name.' };
+  if (team.length > MAX_TEAM_NAME) return { error: `Use ${MAX_TEAM_NAME} characters or fewer.` };
+  if (teams.some((t) => t.toLowerCase() === team.toLowerCase())) {
+    return { error: `${team} is already in the list.` };
+  }
+  if (teams.length >= MAX_TEAMS) return { error: `The list holds at most ${MAX_TEAMS} teams.` };
+  return { teams: [...teams, team] };
 }

@@ -25,6 +25,20 @@ export interface ProgressRow {
   certificateId: string | null;
 }
 
+/** One graded Pariksha attempt, as `gradeAttempt` recorded it: what the result page rebuilds its review from. */
+export interface AttemptRow {
+  id: string;
+  /** 0..1 */
+  score: number;
+  correctCount: number;
+  total: number;
+  passed: boolean;
+  /** The questions drawn, in the order shown. */
+  questionIds: string[];
+  answers: Record<string, string[]>;
+  results: { questionId: string; correct: boolean }[];
+}
+
 /** An issued certificate. Public by design (verification), so it carries no email. */
 export interface CertificateRow {
   id: string;
@@ -56,6 +70,8 @@ export interface LearnerData {
     courseId: string,
     cb: (progress: ProgressRow | null) => void,
   ): () => void;
+  /** My most recent graded attempt at one Pariksha, or `null` before the first. */
+  latestAttempt(uid: string, courseId: string, parikshaId: string): Promise<AttemptRow | null>;
   /** One certificate by id; readable without signing in. */
   getCertificate(id: string): Promise<CertificateRow | null>;
   /** My certificates, newest first. */
@@ -66,4 +82,8 @@ export interface LearnerData {
   completeItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** Moves the resume point. */
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
+  /** The teams a Kulapati listed in Org settings (`config/org.teams`); empty before any. */
+  orgTeams(): Promise<string[]>;
+  /** Sets my team (`users/{uid}.team`); the rules accept only a listed team, or `null`. */
+  setTeam(uid: string, team: string | null): Promise<void>;
 }

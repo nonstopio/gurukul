@@ -107,19 +107,27 @@ describe('listCourses', () => {
     expect(store.queries).toHaveLength(1);
   });
 
-  it('shows an Acharya published courses plus their own, drafts only where they may edit', async () => {
+  it('shows an Acharya every course, unpublished ones too, reading drafts only where they may edit', async () => {
     store.queue = [
-      [d('git', live('git', ['u1'])), d('sql', live('sql', ['u9']))],
-      [d('git', live('git', ['u1'])), d('mine', live('mine', ['u1'], { status: 'draft' }))],
+      [
+        d('git', live('git', ['u1'])),
+        d('sql', live('sql', ['u9'])),
+        d('mine', live('mine', ['u1'], { status: 'draft' })),
+        d('theirs', live('theirs', ['u9'], { status: 'draft' })),
+      ],
     ];
     store.docs.set('courses/git/drafts/current', draft(2));
+    store.docs.set('courses/theirs/drafts/current', draft(5));
     const rows = await data.listCourses('u1', false);
-    expect(rows.map((r) => r.live.id).sort()).toEqual(['git', 'mine', 'sql']);
+    expect(rows.map((r) => r.live.id)).toEqual(['git', 'sql', 'mine', 'theirs']);
     expect(rows.find((r) => r.live.id === 'git')?.draft?.rev).toBe(2);
     expect(rows.find((r) => r.live.id === 'sql')?.draft).toBeNull();
     expect(rows.find((r) => r.live.id === 'mine')?.draft).toBeNull();
-    expect(store.queries[0]).toContainEqual({ where: ['status', 'in', ['published', 'archived']] });
-    expect(store.queries[1]).toContainEqual({ where: ['acharyaIds', 'array-contains', 'u1'] });
+    expect(rows.find((r) => r.live.id === 'theirs')?.draft).toBeNull();
+    expect(store.queries).toHaveLength(1);
+    expect(store.queries[0]).not.toContainEqual(
+      expect.objectContaining({ where: expect.anything() }),
+    );
   });
 
   it('skips a live course it cannot read instead of failing the whole list', async () => {

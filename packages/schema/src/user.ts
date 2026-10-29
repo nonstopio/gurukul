@@ -7,6 +7,11 @@ export type Role = z.infer<typeof roleSchema>;
 export const userSchema = z.object({
   email: z.email(),
   displayName: z.string().max(120),
+  /**
+   * `nameKey(displayName)`, for people search by name (a prefix range query). Optional until every
+   * profile made before it existed is filled in, which the app does on its owner's next sign-in.
+   */
+  nameLower: z.string().max(120).optional(),
   photoURL: z.string().nullable(),
   team: z.string().max(80).nullable(),
   roles: z.array(roleSchema).min(1),
@@ -14,6 +19,9 @@ export const userSchema = z.object({
   createdAt: timestamp,
 });
 export type UserProfile = z.infer<typeof userSchema>;
+
+/** What `users/{uid}.nameLower` holds for a display name; the rules check the same `lower()`. */
+export const nameKey = (displayName: string): string => displayName.toLowerCase();
 
 /** `config/org`: the allowed domain, the teams a learner can pick, and reminder settings. */
 export const orgConfigSchema = z.object({

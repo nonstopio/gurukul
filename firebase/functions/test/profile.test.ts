@@ -19,6 +19,7 @@ describe('buildProfile', () => {
     ).toEqual({
       email: 'priya.n@nonstopio.com',
       displayName: 'Priya N',
+      nameLower: 'priya n',
       photoURL: 'p',
       team: null,
       roles: ['shishya'],
@@ -30,6 +31,7 @@ describe('buildProfile', () => {
     expect(
       buildProfile({ uid: 'u', email: 'a@nonstopio.com', displayName: '  ' }).displayName,
     ).toBe('a');
+    expect(buildProfile({ uid: 'u', email: 'Ravi.K@nonstopio.com' }).nameLower).toBe('ravi.k');
     expect(buildProfile({ uid: 'u', email: '@x' }).displayName).toBe('@x');
     expect(buildProfile({ uid: 'u', email: 'a@nonstopio.com' }).photoURL).toBeNull();
   });

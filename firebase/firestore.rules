@@ -32,15 +32,24 @@ service cloud.firestore {
 
     // A person reads their own profile (a Kulapati reads any) and may change only their display
     // name and team. Creating the profile and the role mirror is the functions' job (Admin SDK).
+    // `nameLower` (people search by name) moves with the display name: a write touching either
+    // must leave it equal to the display name lower-cased, so it never goes stale. A new team must
+    // be on `config/org.teams` (or `null`); that read is paid only when the team changes, so a team
+    // the Kulapati later removes stays on the profile through name edits.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isKulapati());
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'team'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'nameLower', 'team'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 120
         && (request.resource.data.team == null
-            || (request.resource.data.team is string && request.resource.data.team.size() <= 80));
+            || (request.resource.data.team is string && request.resource.data.team.size() <= 80))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['team'])
+            || request.resource.data.team == null
+            || request.resource.data.team in get(/databases/$(database)/documents/config/org).data.teams)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName', 'nameLower'])
+            || request.resource.data.get('nameLower', null) == request.resource.data.displayName.lower());
       allow create, delete: if false;
     }
 
@@ -52,13 +61,15 @@ service cloud.firestore {
     }
 
     // The published course object. Everyone signed in reads published and archived courses
-    // (archived ones show as "Retired"); drafts are readable by the course's Acharyas and
-    // Kulapatis. Only the publish function writes.
+    // (archived ones show as "Retired"); a never-published one (`status: 'draft'`) is readable by
+    // every Acharya and Kulapati, so Vyasa Studio lists every course. It holds no answer keys and
+    // no unpublished edits: those live in `drafts/` below, which stays the course's own Acharyas'.
+    // Only the publish function writes.
     match /courses/{courseId} {
       allow read: if signedIn()
         && (resource.data.status in ['published', 'archived']
             || isKulapati()
-            || (request.auth.token.acharya == true && request.auth.uid in resource.data.acharyaIds));
+            || request.auth.token.acharya == true);
       allow write: if false;
 
       // The Studio's working copy: course plus answer keys (an Acharya needs them to edit). Saved
@@ -211,10 +222,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Organisation settings: the allowed domain, the teams list, reminder settings.
-    match /config/{doc} {
+    // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
+    // settings. A Kulapati edits teams and reminders from the console; the domain is fixed here,
+    // as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
+    // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
+    match /config/org {
       allow read: if signedIn();
-      allow write: if isKulapati();
+      allow create, update: if isKulapati()
+        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders'])
+        && request.resource.data.domain == 'nonstopio.com'
+        && request.resource.data.teams is list
+        && request.resource.data.teams.size() <= 100
+        && request.resource.data.reminders is map
+        && request.resource.data.reminders.keys().hasOnly(['enabled'])
+        && request.resource.data.reminders.enabled is bool;
     }
 
     match /{document=**} {

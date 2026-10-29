@@ -1,4 +1,4 @@
-import { Callout, Skeleton } from '@gurukul/ui';
+import { Button, Callout, Skeleton } from '@gurukul/ui';
 import type { Loadable } from '../data/useAsync';
 
 /** The shared loading, error and ready handling every data screen uses. */
@@ -22,9 +22,17 @@ export function Loaded<T>({
     );
   }
   if (loadable.state === 'error') {
+    const { error, retry } = loadable;
     return (
       <Callout tone="warning" title="This did not load" role="alert">
-        <p>Check your connection and reload the page. {loadable.error.message}</p>
+        <p>
+          Check your connection and {retry ? 'try again' : 'reload the page'}. {error.message}
+        </p>
+        {retry && (
+          <Button variant="secondary" className="load-retry" onClick={retry}>
+            Retry
+          </Button>
+        )}
       </Callout>
     );
   }

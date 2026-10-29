@@ -65,6 +65,12 @@ describe('ProgressBar', () => {
     expect(container.querySelector('.g-progress__text')).toBeNull();
     expect(container.firstElementChild?.className).toBe('g-progress wide');
   });
+
+  it('prints a caption in place of the percentage', () => {
+    render(<ProgressBar value={44} label="Course progress" caption="44% · 10 / 22" />);
+    expect(screen.getByText('44% · 10 / 22')).toBeTruthy();
+    expect(screen.queryByText('44%')).toBeNull();
+  });
 });
 
 describe('ProgressRing', () => {

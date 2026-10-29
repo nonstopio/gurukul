@@ -184,6 +184,32 @@ describe('firebaseLearnerData', () => {
     ]);
   });
 
+  it('reads the latest attempt at one Pariksha, filling defaults, or null before the first', async () => {
+    expect(await data.latestAttempt('u1', 'git', 'q1')).toBeNull();
+    store.queryDocs = [{ id: 'a9', data: () => ({ score: 0.5, passed: true }) }];
+    expect(await data.latestAttempt('u1', 'git', 'q1')).toEqual({
+      id: 'a9',
+      score: 0.5,
+      correctCount: 0,
+      total: 0,
+      passed: true,
+      questionIds: [],
+      answers: {},
+      results: [],
+    });
+    const full = {
+      score: 1,
+      correctCount: 2,
+      total: 2,
+      passed: false,
+      questionIds: ['k1'],
+      answers: { k1: ['a'] },
+      results: [{ questionId: 'k1', correct: true }],
+    };
+    store.queryDocs = [{ id: 'a10', data: () => ({ ...full, score: undefined }) }];
+    expect(await data.latestAttempt('u1', 'git', 'q1')).toEqual({ id: 'a10', ...full, score: 0 });
+  });
+
   it('creates progress once, and never overwrites an existing document', async () => {
     await data.startCourse('u', { id: 'git', version: 3 });
     expect(store.calls[0]).toEqual([
@@ -214,5 +240,18 @@ describe('firebaseLearnerData', () => {
       ],
       ['update', 'progress/u_git', { lastItemId: 'l2', lastActiveAt: 'NOW' }],
     ]);
+  });
+
+  it('reads the org teams, empty when none are saved', async () => {
+    expect(await data.orgTeams()).toEqual([]);
+    store.docs.set('config/org', { domain: 'nonstopio.com' });
+    expect(await data.orgTeams()).toEqual([]);
+    store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA', 'Dev'] });
+    expect(await data.orgTeams()).toEqual(['QA', 'Dev']);
+  });
+
+  it('writes only the team to my profile', async () => {
+    await data.setTeam('u', 'QA');
+    expect(store.calls).toEqual([['update', 'users/u', { team: 'QA' }]]);
   });
 });

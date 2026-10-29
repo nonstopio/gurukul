@@ -1,19 +1,27 @@
-import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
+import {
+  DEFAULT_ORG_CONFIG,
+  courseStatsSchema,
+  orgConfigSchema,
+  orgStatsSchema,
+  progressId,
+} from '@gurukul/schema';
 import {
   collection,
   doc,
+  documentId,
   getCountFromServer,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  setDoc,
   startAfter,
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { toCertificate, toProgress } from '../data/firebase';
-import type { AssignmentFull, AuditRow, ConsoleData, UserRow } from './types';
+import type { AssignmentFull, AttemptSummary, AuditRow, ConsoleData, UserRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
@@ -22,6 +30,9 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
 const AUDIT_LIMIT = 100;
+const SEARCH_LIMIT = 8;
+const PERSON_ASSIGNMENT_LIMIT = 50;
+const ATTEMPT_LIMIT = 10;
 
 const chunks = <T>(list: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
@@ -104,24 +115,68 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
       );
       return snap.docs.map((d) => toCertificate(d.id, d.data()));
     },
-    async searchUsers(prefix) {
-      const p = prefix.trim().toLowerCase();
+    async assignmentsFor(email) {
       const snap = await getDocs(
         query(
-          collection(db, 'users'),
-          orderBy('email'),
-          where('email', '>=', p),
-          where('email', '<=', `${p}`),
-          limit(8),
+          collection(db, 'assignments'),
+          where('email', '==', email),
+          limit(PERSON_ASSIGNMENT_LIMIT),
         ),
       );
-      return snap.docs.map((d) => toUser(d.id, d.data()));
+      return snap.docs.map((d) => toAssignment(d.id, d.data()));
+    },
+    async attemptsFor(uid, courseId, parikshaId) {
+      // Same shape as the learner's own latest-attempt query, so it uses the same index.
+      const snap = await getDocs(
+        query(
+          collection(db, 'progress', progressId(uid, courseId), 'attempts'),
+          where('uid', '==', uid),
+          where('parikshaId', '==', parikshaId),
+          orderBy('createdAt', 'desc'),
+          limit(ATTEMPT_LIMIT),
+        ),
+      );
+      return snap.docs.map((d): AttemptSummary => {
+        const a = d.data();
+        return {
+          id: d.id,
+          parikshaId: a.parikshaId as string,
+          score: (a.score as number | undefined) ?? 0,
+          passed: a.passed === true,
+          at: date(a.createdAt as Ts),
+        };
+      });
+    },
+    async searchUsers(prefix) {
+      const p = prefix.trim().toLowerCase();
+      const by = (field: 'email' | 'nameLower') =>
+        getDocs(
+          query(
+            collection(db, 'users'),
+            orderBy(field),
+            where(field, '>=', p),
+            where(field, '<=', `${p}\uf8ff`),
+            limit(SEARCH_LIMIT),
+          ),
+        );
+      const [byEmail, byName] = await Promise.all([by('email'), by('nameLower')]);
+      const found = new Map<string, UserRow>();
+      for (const d of [...byEmail.docs, ...byName.docs]) found.set(d.id, toUser(d.id, d.data()));
+      return [...found.values()].slice(0, SEARCH_LIMIT);
     },
     async usersInTeam(team) {
       const snap = await getDocs(
         query(collection(db, 'users'), where('team', '==', team), limit(500)),
       );
       return snap.docs.map((d) => toUser(d.id, d.data()));
+    },
+    async usersByUid(uids) {
+      const out = await Promise.all(
+        chunks(uids, IN_LIMIT).map((part) =>
+          getDocs(query(collection(db, 'users'), where(documentId(), 'in', part))),
+        ),
+      );
+      return out.flatMap((snap) => snap.docs.map((d) => toUser(d.id, d.data())));
     },
     async usersWithRole(role) {
       const snap = await getDocs(
@@ -157,6 +212,16 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async teams() {
       const snap = await getDoc(doc(db, 'config', 'org'));
       return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async orgSettings() {
+      const snap = await getDoc(doc(db, 'config', 'org'));
+      return orgConfigSchema.parse({
+        ...DEFAULT_ORG_CONFIG,
+        ...(snap.exists() ? snap.data() : {}),
+      });
+    },
+    async saveOrgSettings(settings) {
+      await setDoc(doc(db, 'config', 'org'), orgConfigSchema.parse(settings));
     },
     async auditLog() {
       const snap = await getDocs(

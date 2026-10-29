@@ -9,6 +9,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   setDoc,
   updateDoc,
@@ -68,6 +70,37 @@ describe('progress/{id}/attempts/{attemptId}', () => {
     await assertFails(getDoc(doc(as('bhav', { acharya: true }), attempt)));
     await assertFails(getDoc(doc(as('asha'), attempt)));
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), attempt)));
+  });
+
+  it('lets the learner query their latest attempt at a Pariksha, and nobody query without the uid', async () => {
+    const latest = (db: ReturnType<typeof as>, uid?: string) =>
+      getDocs(
+        query(
+          collection(db, 'progress/priya_git/attempts'),
+          ...(uid ? [where('uid', '==', uid)] : []),
+          where('parikshaId', '==', 'pk'),
+          orderBy('createdAt', 'desc'),
+          limit(1),
+        ),
+      );
+    await assertSucceeds(latest(as('priya'), 'priya'));
+    await assertFails(latest(as('priya')));
+    await assertFails(latest(as('ravi'), 'priya'));
+  });
+
+  it('lets a Kulapati query a learner’s attempt history (the learner drawer), and not another learner', async () => {
+    const history = (db: ReturnType<typeof as>) =>
+      getDocs(
+        query(
+          collection(db, 'progress/priya_git/attempts'),
+          where('uid', '==', 'priya'),
+          where('parikshaId', '==', 'pk'),
+          orderBy('createdAt', 'desc'),
+          limit(10),
+        ),
+      );
+    await assertSucceeds(history(as('root', { kulapati: true })));
+    await assertFails(history(as('ravi')));
   });
 
   it('denies every client write, even from the owner or a Kulapati', async () => {

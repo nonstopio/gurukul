@@ -1,20 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
+  MAX_TEAMS,
+  addTeam,
   assignmentsCsv,
   auditLabel,
   averageDays,
   buildLearnerRows,
-  filterByRole,
+  allPage,
+  drawerCourses,
+  filterPeople,
   funnelSteps,
   hardestQuestions,
   isOverdue,
-  rowsFromAssignments,
+  isFiltered,
+  onTab,
+  peopleFromAssignments,
+  searchPrefix,
+  tabCounts,
+  parikshaTitle,
   pct,
   weeklySeries,
 } from '../src/console/model';
 import type { AssignmentFull, UserRow } from '../src/console/types';
-import { progressRow } from './fake-data';
+import { makeCourse, progressRow } from './fake-data';
 
 const now = new Date('2026-03-10T00:00:00Z');
 const user = (n: number, over: Partial<UserRow> = {}): UserRow => ({
@@ -125,19 +134,6 @@ describe('buildLearnerRows', () => {
   });
 });
 
-describe('filterByRole', () => {
-  it('keeps people holding a role, or everyone for an empty role', () => {
-    const rows = buildLearnerRows(
-      [user(1, { roles: ['shishya', 'acharya'] }), user(2)],
-      [],
-      [],
-      now,
-    );
-    expect(filterByRole(rows, 'acharya').map((r) => r.uid)).toEqual(['u1']);
-    expect(filterByRole(rows, '')).toHaveLength(2);
-  });
-});
-
 describe('analytics helpers', () => {
   it('fills a 12-week series with zeros for quiet weeks', () => {
     const series = weeklySeries(orgStatsSchema.parse({ weekly: { '2026-W11': 9 } }), now, 3);
@@ -189,32 +185,116 @@ describe('analytics helpers', () => {
   });
 });
 
-describe('rowsFromAssignments', () => {
-  it('groups by email, marking people with accounts active and the rest invited', () => {
-    const rows = rowsFromAssignments(
-      [
-        asg('a@nonstopio.com', { uid: 'ua', status: 'completed' }),
-        asg('a@nonstopio.com', { uid: 'ua', courseId: 'sql', dueAt: new Date('2026-03-01') }),
-        asg('b@nonstopio.com', { assignedAt: null }),
-      ],
-      now,
+describe('learner filters', () => {
+  const none = { search: '', team: '', role: '', courseId: '' };
+  const scope = [
+    asg('u1@nonstopio.com', { uid: 'u1', dueAt: new Date('2026-03-01') }),
+    asg('u1@nonstopio.com', { uid: 'u1', courseId: 'sql' }),
+    asg('b@nonstopio.com'),
+    asg('a@nonstopio.com', { dueAt: new Date('2026-03-01') }),
+    asg('u2@nonstopio.com'),
+  ];
+  const emails = (people: Array<{ email: string }>) => people.map((p) => p.email);
+
+  it('starts a search at two characters and knows when anything narrows the table', () => {
+    expect(searchPrefix(' R ')).toBe('');
+    expect(searchPrefix(' Ro ')).toBe('ro');
+    expect(isFiltered(none)).toBe(false);
+    expect(isFiltered({ ...none, search: 'r' })).toBe(false);
+    expect(isFiltered({ ...none, search: 'ro' })).toBe(true);
+    expect(isFiltered({ ...none, team: 'QA' })).toBe(true);
+    expect(isFiltered({ ...none, role: 'acharya' })).toBe(true);
+    expect(isFiltered({ ...none, courseId: 'git' })).toBe(true);
+  });
+
+  it('lists one person per email from assignments, sorted, with the uid any of them carries', () => {
+    expect(peopleFromAssignments(scope)).toEqual([
+      { email: 'a@nonstopio.com', uid: null, user: null },
+      { email: 'b@nonstopio.com', uid: null, user: null },
+      { email: 'u1@nonstopio.com', uid: 'u1', user: null },
+      { email: 'u2@nonstopio.com', uid: null, user: null },
+    ]);
+    expect(peopleFromAssignments([asg('c@x.com'), asg('c@x.com', { uid: 'uc' })])[0]?.uid).toBe(
+      'uc',
     );
-    expect(rows[0]).toMatchObject({
-      key: 'ua',
-      uid: 'ua',
-      status: 'active',
-      assigned: 2,
-      done: 1,
-      overdue: true,
+  });
+
+  it('with only a course, takes everyone from that course', () => {
+    expect(emails(filterPeople(null, scope, { ...none, courseId: 'git' }))).toHaveLength(4);
+  });
+
+  it('combines search, team, role and course over people and pending invites', () => {
+    const users = [
+      user(1, { roles: ['shishya', 'acharya'] }),
+      user(2, { team: 'Dev' }),
+      user(3, { team: null }),
+    ];
+    expect(emails(filterPeople(users, scope, none))).toEqual([
+      'a@nonstopio.com',
+      'b@nonstopio.com',
+      'u1@nonstopio.com',
+      'u2@nonstopio.com',
+      'u3@nonstopio.com',
+    ]);
+    expect(filterPeople(users, scope, { ...none, search: 'U' })).toHaveLength(5);
+    expect(emails(filterPeople(users, scope, { ...none, search: 'u1' }))).toEqual([
+      'u1@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, scope, { ...none, team: 'QA' }))).toEqual([
+      'u1@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, scope, { ...none, role: 'acharya' }))).toEqual([
+      'u1@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, scope, { ...none, courseId: 'git', search: 'u2' }))).toEqual([
+      'u2@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, [], { ...none, courseId: 'git' }))).toEqual([]);
+  });
+
+  it('matches a search against the start of a signed-in name, with a team or role chosen', () => {
+    const users = [
+      user(1, { displayName: 'Ananya Rao', team: 'QA' }),
+      user(2, { displayName: 'Ravi K', team: 'QA' }),
+    ];
+    const qa = { ...none, team: 'QA' };
+    expect(emails(filterPeople(users, scope, { ...qa, search: 'Anan' }))).toEqual([
+      'u1@nonstopio.com',
+    ]);
+    expect(emails(filterPeople(users, scope, { ...qa, search: 'rao' }))).toEqual([]);
+    expect(emails(filterPeople(users, [], { ...qa, search: 'ravi', courseId: 'git' }))).toEqual([]);
+  });
+
+  it('trusts people the search itself found, still narrowing them by course', () => {
+    const found = [user(1, { email: 'priya@nonstopio.com' }), user(2)];
+    const f = { ...none, search: 'priya s', courseId: 'git' };
+    expect(emails(filterPeople(found, [asg('u2@nonstopio.com')], f, true))).toEqual([
+      'u2@nonstopio.com',
+    ]);
+  });
+
+  it('splits people into tabs and counts each', () => {
+    const people = peopleFromAssignments(scope);
+    expect(emails(onTab(people, 'signedIn', scope, now))).toEqual(['u1@nonstopio.com']);
+    expect(emails(onTab(people, 'pending', scope, now))).toHaveLength(3);
+    expect(emails(onTab(people, 'overdue', scope, now))).toEqual([
+      'a@nonstopio.com',
+      'u1@nonstopio.com',
+    ]);
+    expect(onTab(people, 'all', scope, now)).toHaveLength(4);
+    expect(tabCounts(people, scope, now)).toEqual({
+      all: 4,
+      signedIn: 1,
+      pending: 3,
+      overdue: 2,
     });
-    expect(rows[0]?.invitedAt).toEqual(new Date('2026-03-01'));
-    expect(rows[1]).toMatchObject({
-      key: 'b@nonstopio.com',
-      uid: null,
-      status: 'invited',
-      invitedAt: null,
-    });
-    expect(rowsFromAssignments([], now)).toEqual([]);
+  });
+
+  it('pages "All" as signed-in people first, then pending invites', () => {
+    expect(allPage(1, 25, 30)).toEqual({ people: true, pending: [0, 0] });
+    expect(allPage(2, 25, 30)).toEqual({ people: true, pending: [0, 20] });
+    expect(allPage(3, 25, 30)).toEqual({ people: false, pending: [20, 45] });
+    expect(allPage(1, 25, 0)).toEqual({ people: false, pending: [0, 25] });
   });
 });
 
@@ -260,5 +340,80 @@ describe('assignmentsCsv', () => {
       new Map([['git', 'The "best" course']]),
     );
     expect(csv.split('\n')[1]).toContain('\'=cmd@nonstopio.com,"The ""best"" course"');
+  });
+});
+
+describe('drawerCourses', () => {
+  const a = (courseId: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
+    id: courseId,
+    email: 'p@nonstopio.com',
+    uid: 'u1',
+    courseId,
+    dueAt: null,
+    assignedAt: null,
+    mandatory: false,
+    status: 'assigned',
+    ...over,
+  });
+
+  it('lists assignments soonest due first, then by title, then courses opened without one', () => {
+    const list = drawerCourses(
+      [
+        a('b'),
+        a('a'),
+        a('late', { dueAt: new Date('2026-03-01T00:00:00Z') }),
+        a('soon', { dueAt: new Date('2026-03-20T00:00:00Z'), mandatory: true }),
+      ],
+      [
+        progressRow({ courseId: 'extra', percent: 100, completedAt: now }),
+        progressRow({ courseId: 'a', percent: 30 }),
+      ],
+      [makeCourse({ id: 'a', title: 'Alpha' })],
+      now,
+    );
+    expect(list.map((c) => c.courseId)).toEqual(['late', 'soon', 'a', 'b', 'extra']);
+    expect(list[0]).toMatchObject({ overdue: true, percent: null, completed: false });
+    expect(list[1]).toMatchObject({ overdue: false, mandatory: true });
+    expect(list[2]).toMatchObject({ title: 'Alpha', percent: 30 });
+    expect(list[4]).toMatchObject({ assigned: false, completed: true, dueAt: null });
+  });
+
+  it('names attempted Parikshas by title, by id once they are gone', () => {
+    const course = makeCourse();
+    expect(parikshaTitle(course, 'q1')).toBe('Pariksha I');
+    expect(parikshaTitle(course, 'l1')).toBeNull();
+    expect(parikshaTitle(undefined, 'q1')).toBeNull();
+    const [git] = drawerCourses(
+      [],
+      [
+        progressRow({
+          pariksha: {
+            q1: { best: 0.8, passed: true, attempts: 1, lastAttemptAt: null },
+            old: { best: 0, passed: false, attempts: 2, lastAttemptAt: null },
+            none: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
+          },
+        }),
+      ],
+      [course],
+      now,
+    );
+    expect(git?.parikshas).toEqual([
+      { id: 'q1', title: 'Pariksha I', attempts: 1, best: 0.8, passed: true },
+      { id: 'old', title: 'old', attempts: 2, best: 0, passed: false },
+    ]);
+  });
+});
+
+describe('addTeam', () => {
+  it('appends a trimmed name', () => {
+    expect(addTeam(['QA'], '  Mobile ')).toEqual({ teams: ['QA', 'Mobile'] });
+  });
+  it('refuses a blank, too long or duplicate name, and a full list', () => {
+    expect(addTeam([], '   ')).toEqual({ error: 'Enter a team name.' });
+    expect(addTeam([], 'x'.repeat(81))).toEqual({ error: 'Use 80 characters or fewer.' });
+    expect(addTeam([], 'x'.repeat(80))).toEqual({ teams: ['x'.repeat(80)] });
+    expect(addTeam(['QA'], 'qa')).toEqual({ error: 'qa is already in the list.' });
+    const full = Array.from({ length: MAX_TEAMS }, (_, i) => `T${i}`);
+    expect(addTeam(full, 'One more')).toEqual({ error: 'The list holds at most 100 teams.' });
   });
 });

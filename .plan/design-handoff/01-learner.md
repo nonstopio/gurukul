@@ -117,7 +117,8 @@ item URL → redirect to resume point with a Toast.
 ## 05 · Pariksha — `/courses/:courseId/pariksha/:parikshaId` [M3]
 
 **Shell:** focused top bar with "Exit Pariksha" (confirm dialog if an answer
-is unsaved) and "Progress is saved after every answer".
+is unsaved, i.e. picked but not yet checked or moved past) and "Answers are saved on
+this device as you go".
 
 | Element | Spec |
 |---|---|

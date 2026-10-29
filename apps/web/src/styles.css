@@ -164,6 +164,30 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.load-retry {
+  margin-top: var(--space-3);
+}
 .loading-row {
   display: block;
   margin-bottom: var(--space-3);
@@ -181,6 +205,29 @@ body {
 .continue__title {
   margin: 0;
   font: 500 var(--text-2xl) / var(--leading-snug) var(--font-display);
+}
+.team-prompt {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.team-prompt__title {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+}
+.team-prompt p {
+  margin: 0;
+}
+.team-prompt__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.team-prompt__form .g-field {
+  flex: 1 1 240px;
+  max-width: 420px;
 }
 .continue__actions {
   display: flex;
@@ -333,6 +380,23 @@ a.items__row:hover {
   margin-left: auto;
   color: var(--text-muted);
   font-size: var(--text-sm);
+}
+/* The focused layout (lesson, Pariksha, result): the page's top bar first, the offline banner under it. */
+.focused {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.focused > * {
+  width: 100%;
+}
+.focused > .g-topbar {
+  order: -1;
+  padding-inline: clamp(var(--space-4), 3vw, var(--space-8));
+}
+.focused > .app__offline {
+  width: auto;
+  margin-top: var(--space-4);
 }
 .player {
   display: grid;
@@ -494,6 +558,13 @@ a.items__row:hover {
   display: grid;
   gap: var(--space-5);
   max-width: 760px;
+}
+.exam__title {
+  margin: 0;
+  color: var(--warning);
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
 }
 .exam__question {
   display: grid;
@@ -696,6 +767,36 @@ a.items__row:hover {
   .assign__summary {
     position: static;
   }
+}
+
+.settings-team {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.settings-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.settings-add .g-field {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
 }
 
 /* ---- Studio: courses ---- */
@@ -1432,4 +1533,17 @@ a.items__row:hover {
   align-items: center;
   gap: var(--space-2);
   margin: 0;
+}
+/* One course in the Kulapati learner drawer, with its attempted Parikshas under it. */
+.drawer-course {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.drawer-attempts {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--text-body);
+  font-size: var(--text-sm);
 }

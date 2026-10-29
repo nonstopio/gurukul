@@ -1,7 +1,13 @@
 import type { Course } from '@gurukul/schema';
 import { describe, expect, it } from 'vitest';
 import { gitAnswers, gitCourse } from '../src/git-course';
-import { answerKeyProblems, seedCourse, type AnswerKeys, type SeedDb } from '../src/seed';
+import {
+  answerKeyProblems,
+  seedCourse,
+  seedOrgConfig,
+  type AnswerKeys,
+  type SeedDb,
+} from '../src/seed';
 
 const now = { toMillis: () => 1_700_000_000_000, toDate: () => new Date(1_700_000_000_000) };
 
@@ -10,6 +16,11 @@ const fakeDb = () => {
   const db: SeedDb = {
     set: async (path, data) => {
       writes.push({ path, data });
+    },
+    createIfMissing: async (path, data) => {
+      if (writes.some((w) => w.path === path)) return false;
+      writes.push({ path, data });
+      return true;
     },
   };
   return { db, writes };
@@ -81,5 +92,20 @@ describe('answerKeyProblems', () => {
     const answers: AnswerKeys = clone(gitAnswers);
     delete answers['pariksha-ii'];
     expect(answerKeyProblems(gitCourse, answers)).toHaveLength(6);
+  });
+});
+
+describe('seedOrgConfig', () => {
+  it('creates the default org settings once and keeps what is there', async () => {
+    const { db, writes } = fakeDb();
+    expect(await seedOrgConfig(db)).toEqual({ path: 'config/org', created: true });
+    expect(writes).toEqual([
+      {
+        path: 'config/org',
+        data: { domain: 'nonstopio.com', teams: [], reminders: { enabled: false } },
+      },
+    ]);
+    expect(await seedOrgConfig(db)).toEqual({ path: 'config/org', created: false });
+    expect(writes).toHaveLength(1);
   });
 });

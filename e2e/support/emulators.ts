@@ -13,7 +13,11 @@ const OWNER = { Authorization: 'Bearer owner', 'Content-Type': 'application/json
 const DOCS = `${FIRESTORE_URL}/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 /** The documents the seed script writes; they are put back after every reset. */
-const SEEDED_PATHS = ['courses/git-the-nonstop-way', 'courses/git-the-nonstop-way/private/answers'];
+const SEEDED_PATHS = [
+  'courses/git-the-nonstop-way',
+  'courses/git-the-nonstop-way/private/answers',
+  'config/org',
+];
 
 async function call(url: string, init: RequestInit, what: string): Promise<Response> {
   const res = await fetch(url, init);

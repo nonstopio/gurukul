@@ -17,78 +17,69 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations                   | 7    | 0    | 0       | 0          |
-| Sign-in, roles and shell      | 7    | 4    | 0       | 0          |
+| Sign-in, roles and shell      | 9    | 2    | 0       | 0          |
 | Learner experience            | 8    | 8    | 0       | 0          |
-| Parikshas and certificates    | 5    | 4    | 1       | 0          |
-| Kulapati console and Sanjaya  | 10   | 13   | 2       | 0          |
-| Vyasa Studio                  | 5    | 10   | 0       | 0          |
+| Parikshas and certificates    | 7    | 2    | 1       | 0          |
+| Kulapati console and Sanjaya  | 15   | 9    | 2       | 0          |
+| Vyasa Studio                  | 6    | 9    | 0       | 0          |
 | Design system                 | 2    | 3    | 0       | 0          |
 | Global search                 | 1    | 4    | 0       | 0          |
 | Platform, CI and operations   | 12   | 3    | 2       | 5          |
 | First course: Git             | 3    | 0    | 1       | 2          |
 | Plan upkeep                   | 2    | 0    | 0       | 0          |
-| **Total**                     | 62   | 49   | 6       | 7          |
+| **Total**                     | 72   | 40   | 6       | 7          |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Blocked items wait at the end until the maintainer answers their question.
 
-1. `PRK-06` — Pariksha answers survive a reload
-2. `PRK-07` — Result page survives a reload
-3. `SHL-01` — skip link, focus on route change, retry on load errors
-4. `SHL-02` — focused shell for lesson, Pariksha and result
-5. `KUL-10` — Learners table: pending invites and filters that combine
-6. `KUL-11` — people search by name
-7. `KUL-12` — learner drawer completeness
-8. `KUL-16` — org settings: teams and reminders
-9. `KUL-17` — learners pick their team
-10. `STU-07` — Acharyas see every course
-11. `STU-06` — Acharya names on courses
-12. `LRN-14` — Retired and "New lessons added" states
-13. `PRK-09` — revocation date on certificates
-14. `KUL-18` — org Pariksha KPIs and a true overdue count
-15. `KUL-21` — daily roll-up repairs course counters
-16. `SRC-02` — learner navigation area
-17. `SRC-03` — courses and lessons in search
-18. `SRC-04` — people in search for Kulapatis
-19. `SRC-05` — draft courses in search for Acharyas
-20. `STU-11` — preview uses the real learner screens
-21. `STU-09` — failed saves are kept; leaving with unsaved edits asks
-22. `STU-08` — "Draft vN · saved just now"
-23. `STU-10` — learner counts in the publish dialog and on course cards
-24. `STU-12` — publishing an archived course
-25. `STU-13` — structure editor polish
-26. `LRN-12` — course overview to the handoff
-27. `LRN-13` — Home to the handoff
-28. `LRN-11` — outline rail grouped by parva
-29. `LRN-10` — split layout
-30. `LRN-15` — block renderer polish
-31. `LRN-16` — check blocks reveal the right option
-32. `LRN-17` — keyboard shortcuts dialog
-33. `PRK-08` — completion screen to the handoff
-34. `AUTH-08` — sign-in screen to the handoff
-35. `SHL-03` — handoff breakpoints and the menu button
-36. `KUL-13` — bulk role change and select all
-37. `KUL-14` — Assign screen finish
-38. `KUL-19` — Needs attention, pending-invite strip, overview filters
-39. `KUL-20` — course analytics finish
-40. `KUL-22` — Roles screen polish
-41. `KUL-23` — audit log view finish
-42. `DS-05` — axe on the remaining page tests
-43. `DS-04` — shared icon set
-44. `DS-03` — `/__ui` component gallery
-45. `STU-15` — lesson editor extras
-46. `STU-16` — CodeMirror for markdown and code
-47. `OPS-11` — deeper e2e journeys
-48. `OPS-06` — Lighthouse on the preview URL
-49. `OPS-14` — trigger tests against the emulators
-50. `KUL-24` — email delivery (blocked: question 4)
-51. `KUL-25` — Acharyas see their learners (blocked: question 7)
-52. `PRK-10` — tell a learner their certificate was revoked (blocked)
-53. `OPS-18` — custom domain (blocked: question 6)
-54. `OPS-19` — licence holder (blocked: question 10)
-55. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
+1. `KUL-26` — Learners counts past the newest 500 assignments
+2. `STU-06` — Acharya names on courses
+3. `LRN-14` — Retired and "New lessons added" states
+4. `PRK-09` — revocation date on certificates
+5. `KUL-18` — org Pariksha KPIs and a true overdue count
+6. `KUL-21` — daily roll-up repairs course counters
+7. `SRC-02` — learner navigation area
+8. `SRC-03` — courses and lessons in search
+9. `SRC-04` — people in search for Kulapatis
+10. `SRC-05` — draft courses in search for Acharyas
+11. `STU-11` — preview uses the real learner screens
+12. `STU-09` — failed saves are kept; leaving with unsaved edits asks
+13. `STU-08` — "Draft vN · saved just now"
+14. `STU-10` — learner counts in the publish dialog and on course cards
+15. `STU-12` — publishing an archived course
+16. `STU-13` — structure editor polish
+17. `LRN-12` — course overview to the handoff
+18. `LRN-13` — Home to the handoff
+19. `LRN-11` — outline rail grouped by parva
+20. `LRN-10` — split layout
+21. `LRN-15` — block renderer polish
+22. `LRN-16` — check blocks reveal the right option
+23. `LRN-17` — keyboard shortcuts dialog
+24. `PRK-08` — completion screen to the handoff
+25. `AUTH-08` — sign-in screen to the handoff
+26. `SHL-03` — handoff breakpoints and the menu button
+27. `KUL-13` — bulk role change and select all
+28. `KUL-14` — Assign screen finish
+29. `KUL-19` — Needs attention, pending-invite strip, overview filters
+30. `KUL-20` — course analytics finish
+31. `KUL-22` — Roles screen polish
+32. `KUL-23` — audit log view finish
+33. `DS-05` — axe on the remaining page tests
+34. `DS-04` — shared icon set
+35. `DS-03` — `/__ui` component gallery
+36. `STU-15` — lesson editor extras
+37. `STU-16` — CodeMirror for markdown and code
+38. `OPS-11` — deeper e2e journeys
+39. `OPS-06` — Lighthouse on the preview URL
+40. `OPS-14` — trigger tests against the emulators
+41. `KUL-24` — email delivery (blocked: question 4)
+42. `KUL-25` — Acharyas see their learners (blocked: question 7)
+43. `PRK-10` — tell a learner their certificate was revoked (blocked)
+44. `OPS-18` — custom domain (blocked: question 6)
+45. `OPS-19` — licence holder (blocked: question 10)
+46. `GIT-05` — signatory and Acharya for Git (blocked: question 5)
 
 ## Foundations
 
@@ -118,8 +109,8 @@ Plan: `03-auth-and-roles.md`, `design-handoff/00-shared-patterns.md`, `design-ha
 | `AUTH-06` | App shell: sidebar generated from navigation metadata, TopBar            | done   | —       | `apps/web/src/Shell.tsx`                                                                                                                                                                      |
 | `AUTH-07` | Sign-in works on mobile Safari and fails politely                        | done   | —       | `apps/web/src/auth/service.ts` (`prefersRedirect`, `finishRedirect`, cancel and blocked-popup handling), `AuthProvider.tsx` (`deniedMessage`, `wrongAccount`), `SignInPage.tsx`; auth domain switch is `OPS-21` |
 | `AUTH-08` | Sign-in screen to the handoff                                            | todo   | —       | Two-pane hero, benefits, invite callout, footnote (`design-handoff/01-learner.md` §01). Today: one column, logo, title, button                                                               |
-| `SHL-01`  | Skip link, focus on route change, retry on load errors                   | todo   | —       | "Skip to content"; focus the `h1` and announce the page (`aria-live`) on navigation; a Retry button on the load-error callout (`apps/web/src/learn/ui.tsx`). `00-shared-patterns.md` Accessibility |
-| `SHL-02`  | Focused shell for lesson, Pariksha and result                            | todo   | —       | Those routes leave `<Shell>` for a TopBar-only layout; one `h1` per page (lesson page has two today); "44% · 10 / 22" caption                                                                 |
+| `SHL-01`  | Skip link, focus on route change, retry on load errors                   | done   | —       | "Skip to content" and focus/announce on navigation in `apps/web/src/Shell.tsx` + `src/routeFocus.ts`; Retry from `useAsync` (`src/data/useAsync.ts`) on the load-error callout (`src/learn/ui.tsx`); `test/route-focus.test.tsx` |
+| `SHL-02`  | Focused shell for lesson, Pariksha and result                            | done   | —       | `FocusedShell` (top bar only) and `Frame` (search, skip link, route focus above both layouts) in `apps/web/src/Shell.tsx`, `FOCUSED` in `src/routes.tsx`; one `h1` each (`TopBar titleAs="p"`, `packages/ui/src/TopBar.tsx`); `ProgressBar caption` "60% · 3 / 5"; `test/focused-shell.test.tsx` |
 | `SHL-03`  | Handoff breakpoints and the menu button                                  | todo   | —       | Sidebar stacks below 808px and becomes a menu button below 560px; today 760px/900px and no menu button                                                                                        |
 
 ## Learner experience
@@ -156,8 +147,8 @@ Plan: `06-pariksha-and-certificates.md`, `design-handoff/01-learner.md` §05–�
 | `PRK-03` | Certificate issue, `NSG-…` id from a counter, certificate page, print, LinkedIn, `/verify`, revoke | done | — | `firebase/functions/src/certificates.ts`, `progress.ts`, `apps/web/src/certificates/pages.tsx`                                                                         |
 | `PRK-04` | Completion screen (first cut)                                                              | done    | —       | `apps/web/src/certificates/pages.tsx`                                                                                                                                     |
 | `PRK-05` | Sequential unlocking follows the plan and the server enforces it                           | done    | —       | `packages/schema/src/progress.ts` (`isParvaPassed`, `itemStates`), `firebase/functions/src/grading.ts` (`checkUnlocked`, `PRK_1003`). Lesson completions in a locked parva are still not refused by the rules |
-| `PRK-06` | Pariksha answers survive a reload                                                          | todo    | —       | The banner says progress is saved after every answer; nothing is saved until Finish. Persist per answer; exit confirmation; Enter checks then advances; lock option clicks while checking; name the right letter |
-| `PRK-07` | Result page survives a reload                                                              | todo    | —       | Review and revisit links exist only in router state; read the latest attempt. "Continue to Parva n", "Revisit lesson: {title}", a live cooldown countdown               |
+| `PRK-06` | Pariksha answers survive a reload                                                          | done    | —       | `apps/web/src/pariksha/draftStore.ts` (answers, verdicts and the draw kept in localStorage per learner and Pariksha), `apps/web/src/pariksha/model.ts` (`restoreQuestions`, `answerLetters`), `apps/web/src/pariksha/ParikshaPage.tsx` (exit confirmation, Enter, options locked while checking). Saved per browser, not across devices |
+| `PRK-07` | Result page survives a reload                                                              | done    | —       | `apps/web/src/pariksha/ResultPage.tsx` (router state after Finish, else the latest attempt; "Continue to Parva n", "Revisit lesson: {title}", live `Retake` countdown), `apps/web/src/pariksha/model.ts` (`reviewOfAttempt`, `formatCountdown`, `parvaNumber`), `apps/web/src/data/firebase.ts` (`latestAttempt`), attempts index in `firebase/firestore.indexes.json`. A reloaded review names the learner's answers, not the right options |
 | `PRK-08` | Completion screen to the handoff                                                           | todo    | —       | "Add to LinkedIn" (missing here), time invested, certificate thumbnail, "Up next", chrome background and enter animation                                                  |
 | `PRK-09` | Revocation date on certificates                                                            | todo    | —       | Store `revokedAt` in `revokeCertificate`; `/verify` says "Revoked on …"                                                                                                   |
 | `PRK-10` | Tell a learner their certificate was revoked                                               | blocked | —       | Open question in `06-pariksha-and-certificates.md`; also needs email (`KUL-24`)                                                                                           |
@@ -177,14 +168,14 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-07` | Course analytics: funnel, parva drop-off, hardest questions                  | done    | —        | `apps/web/src/console/CourseAnalyticsPage.tsx`                                                                                                                                       |
 | `KUL-08` | Counter triggers and the daily org roll-up                                   | done    | —        | `firebase/functions/src/analytics.ts`                                                                                                                                                |
 | `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Queued only: delivery is `KUL-24`                                                                                                    |
-| `KUL-10` | Learners table: pending invites and filters that combine                     | todo    | —        | "All" omits pending invites although its count includes them; search, team, course, role and tab do not compose; counts stop at the newest 500 assignments; 250 ms debounce          |
-| `KUL-11` | People search by name                                                        | todo    | —        | Email-prefix only today, in Learners, Assign and the grant dialog; a lower-cased name field on `users`; ignore out-of-order responses                                               |
-| `KUL-12` | Learner drawer completeness                                                  | todo    | —        | Assigned-but-unstarted courses with due dates; attempt history from `attempts`; Pariksha titles, not ids; pending-invite drawers; confirm before revoking                           |
+| `KUL-10` | Learners table: pending invites and filters that combine                     | done    | —        | `apps/web/src/console/LearnersPage.tsx`, `model.ts` (`filterPeople`, `onTab`, `tabCounts`, `allPage`). Counts past 500: `KUL-26`                                                     |
+| `KUL-11` | People search by name                                                        | done    | —        | `apps/web/src/console/firebase.ts` (`searchUsers`: `email` and `nameLower` prefixes), `usePeopleSearch.ts` (newest answer wins), `model.ts` (`filterPeople`); `nameLower` set by `firebase/functions/src/profile.ts`, backfilled at sign-in (`apps/web/src/firestore.ts`), kept in step by `firestore.rules` |
+| `KUL-12` | Learner drawer completeness | done | — | `apps/web/src/console/LearnerDrawer.tsx`, `model.ts` (`drawerCourses`, `parikshaTitle`), `firebase.ts` (`assignmentsFor`, `attemptsFor`: score, verdict and date only) |
 | `KUL-13` | Bulk role change and select all                                              | todo    | —        | "Change role" is only a link today; "Select all N" across pages                                                                                                                      |
 | `KUL-14` | Assign screen finish                                                         | todo    | —        | Lesson counts, CSV drop zone, team member count; toast counts people, not pairs; land on Learners filtered by course; partial-failure list with retry; per-course preview matches the server |
 | `KUL-15` | Reminders: one per person per day, mandatory only                            | done    | —        | Daily run takes mandatory assignments only and sends one email per person, none to anyone reminded in the last 20 h (`firebase/functions/src/remind.ts`, `mail.ts` `buildReminderEmail`, `stores.ts`); `hourUtc` dropped from `packages/schema/src/user.ts`, the schedule stays 04:00 UTC (`.plan/07-kulapati-console.md`) |
-| `KUL-16` | Org settings: teams and reminders                                            | todo    | —        | Nothing writes `config/org`, so the team filter and "whole team" are empty. Kulapati screen for teams and reminders on/off; seed a default; narrow the `config` rule to `org` with shape validation and tests |
-| `KUL-17` | Learners pick their team                                                     | todo    | `KUL-16` | One-time prompt or profile setting writing `users/{uid}.team` from `config/org.teams` (`13-open-questions.md` question 8)                                                          |
+| `KUL-16` | Org settings: teams and reminders                                            | done    | —        | `apps/web/src/console/SettingsPage.tsx` (`/kulapati/settings`), `model.ts` (`addTeam`), `firebase.ts` (`orgSettings`, `saveOrgSettings`); rule `match /config/org` with shape checks, tests in `firebase/rules/test/assignments-config.test.ts`; default from `firebase/seed/src/seed.ts` (`seedOrgConfig`, never overwrites) |
+| `KUL-17` | Learners pick their team                                                     | done    | `KUL-16` | Home asks a learner with no team to pick one from `config/org.teams` (`apps/web/src/learn/TeamPrompt.tsx`, `LearnerData.orgTeams`/`setTeam`); the `users` rule accepts only a listed team or `null`, reading `config/org` only when the team changes (`firebase/rules/test/users.test.ts`). Changing it afterwards is not built |
 | `KUL-18` | Org Pariksha KPIs and a true overdue count                                   | todo    | —        | `stats/org` has no Pariksha fields (`09` table: average score, first-try pass rate); overdue is counted from 500 loaded rows, not a `count()` aggregation                          |
 | `KUL-19` | Needs attention, pending-invite strip, overview filters                      | todo    | —        | Overdue and failed-twice lists (`limit(5)`) with Nudge and Reset; pending invites with Resend; date range and team filters                                                         |
 | `KUL-20` | Course analytics finish                                                      | todo    | —        | Per-Pariksha counters and table; median time to finish (mean today); warning colour only below 70%; "Edit question" and "Edit in Vyasa Studio" links                              |
@@ -193,6 +184,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-23` | Audit log view finish                                                        | todo    | —        | Paging past 100, a detail column, names instead of uids; `assign` entries record who was assigned                                                                                   |
 | `KUL-24` | Email delivery                                                               | blocked | —        | Question 4: the code queues for the Trigger Email extension, the plan recommends the Gmail API. Then: sender, `from`/`replyTo`, HTML template, configurable site URL              |
 | `KUL-25` | Acharyas see their learners                                                  | blocked | —        | Question 7. Course analytics is Kulapati-only; names need a rules change                                                                                                            |
+| `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | todo    | —        | Tab counts and the pending list come from the newest 500 assignments; per-person counts need counters kept by the functions                                                          |
 
 ## Vyasa Studio
 
@@ -206,7 +198,7 @@ Plan: `08-vyasa-studio.md`, `design-handoff/03-vyasa-studio.md`, M5.
 | `STU-04` | Lesson editor: every block editor, toolbar, settings, publish validation | done   | —       | `apps/web/src/studio/LessonEditorPage.tsx`, `studio/blocks/`                                                                                                  |
 | `STU-05` | Pariksha builder, question health, question bank, media library, preview | done   | —       | `apps/web/src/studio/ParikshaBuilderPage.tsx`, `QuestionBankPage.tsx`, `MediaPage.tsx`, `PreviewPage.tsx`                                                    |
 | `STU-06` | Acharya names on courses                                                 | todo   | —       | "View only — Acharya: …" has no name and the access list shows uids, because `users` is private. Store names on the course; `02-data-model.md` changes with it |
-| `STU-07` | Acharyas see every course                                                | todo   | —       | Another Acharya's never-published course is invisible, and rules forbid it (`08` Who can do what). Widen the course read for Acharyas, keep drafts restricted |
+| `STU-07` | Acharyas see every course                                                | done   | —       | `firebase/firestore.rules` (`courses/{id}` read: any Acharya; `drafts/`, `versions/` still the course's own), `apps/web/src/studio/firebase.ts` `listCourses` |
 | `STU-08` | "Draft vN · saved just now"                                              | todo   | —       | Today "Saved" / "Saving…"; relative time from the draft's `updatedAt`                                                                                         |
 | `STU-09` | Failed saves are kept; leaving with unsaved edits asks                   | todo   | —       | Keep a failed save locally and offer to restore it; block in-app navigation while dirty                                                                       |
 | `STU-10` | Learner counts in the publish dialog and on course cards                 | todo   | —       | Removed items show no completion count at publish; cards show no learner count                                                                                |

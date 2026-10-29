@@ -1,9 +1,10 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
+import { draftKey } from '../src/pariksha/draftStore';
 import { CooldownError } from '../src/pariksha/service';
 import { axeViolations } from './axe';
-import { certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
+import { attemptRow, certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
 import { attemptResult, fakePariksha } from './fake-pariksha';
 import { openApp } from './harness';
 
@@ -33,6 +34,23 @@ const unlocked = (over = {}) =>
 const PATH = '/courses/git/pariksha/q1';
 const data = (course = courseWith(), watched = unlocked()) =>
   fakeData({ courses: [course], watched });
+/**
+ * Lets the screen's effects run (key listener, draft save, countdown interval). `findBy*` can
+ * return before them: it ends on a timeout, React runs effects in a setImmediate task queued
+ * earlier, and on a busy machine the timeout fires first. An immediate queued now runs after it.
+ */
+const effectsRun = () => act(() => new Promise<void>((resolve) => setImmediate(resolve)));
+
+// These screens are lazy routes. Load them before the tests, so a busy machine's first transform of
+// them does not use up the first test's one-second wait for the screen.
+beforeAll(() =>
+  Promise.all([
+    import('../src/pariksha/ParikshaPage'),
+    import('../src/pariksha/ResultPage'),
+    import('../src/certificates/pages'),
+    import('../src/LessonPage'),
+  ]),
+);
 
 describe('Pariksha screen', () => {
   it('asks one question at a time and checks each answer when answers are revealed', async () => {
@@ -48,7 +66,7 @@ describe('Pariksha screen', () => {
     expect(primary.disabled).toBe(true);
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(primary);
-    expect(await screen.findByText('Not quite.')).toBeTruthy();
+    expect(await screen.findByText('Not quite — the answer is B.')).toBeTruthy();
     expect(screen.getByText('Beta wins.', { exact: false })).toBeTruthy();
     expect(pariksha.checkAnswer).toHaveBeenCalledWith({
       courseId: 'git',
@@ -105,12 +123,12 @@ describe('Pariksha screen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Not this time.' })).toBeTruthy();
     expect(screen.getByText('Not passed yet')).toBeTruthy();
     expect(screen.getByText(/1 of 2 correctly \(50%\)/)).toBeTruthy();
-    expect(screen.getByText(/Retake in/)).toBeTruthy();
+    expect(screen.getByRole('timer').textContent).toMatch(/^Retake opens in (10:00|9:5\d)$/);
     expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
       '/courses/git/learn/l1',
     );
     expect(screen.getByText('Beta.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Revisit the lesson' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Revisit lesson: Lesson l1' })).toBeTruthy();
   });
 
   it('goes straight to the next question when answers are not revealed, with multi-select', async () => {
@@ -142,7 +160,7 @@ describe('Pariksha screen', () => {
     const course = courseWith({ revealAnswers: 'never' }, [question('k1', { kind: 'multiple' })]);
     await openApp(PATH, { data: data(course) });
     await screen.findByText('Question 1 of 1');
-    await act(async () => {}); // let the key listener attach
+    await effectsRun(); // the key listener
     fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: '2' });
     expect((screen.getByLabelText(/Beta/) as HTMLInputElement).checked).toBe(true);
     fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: 'C' });
@@ -160,7 +178,7 @@ describe('Pariksha screen', () => {
     const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
     await openApp(PATH, { data: data(course) });
     await screen.findByText('Question 1 of 1');
-    await act(async () => {}); // let the key listener attach
+    await effectsRun(); // the key listener
     const main = document.body.querySelector('main') as HTMLElement;
     fireEvent.keyDown(main, { key: '1' });
     fireEvent.keyDown(main, { key: 'b' });
@@ -241,6 +259,148 @@ describe('Pariksha screen', () => {
     await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses'));
   });
 
+  it('names every right letter, and none when the verdict names unknown options', async () => {
+    const course = courseWith({}, [question('k1', { kind: 'multiple' }), question('k2')]);
+    const pariksha = fakePariksha({
+      checkAnswer: vi
+        .fn()
+        .mockResolvedValueOnce({ correct: false, correctOptionIds: ['c', 'a'], explanation: '' })
+        .mockResolvedValueOnce({ correct: false, correctOptionIds: ['zzz'], explanation: '' }),
+    });
+    await openApp(PATH, { data: data(course), pariksha });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Beta/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(await screen.findByText('Not quite — the answers are A and C.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
+    fireEvent.click(screen.getByLabelText(/Beta/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(await screen.findByText('Not quite.')).toBeTruthy();
+  });
+
+  it('checks with Enter, then advances with Enter, and leaves Enter on a button to the button', async () => {
+    const { pariksha } = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    await effectsRun(); // the key listener
+    const main = document.body.querySelector('main') as HTMLElement;
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(pariksha.checkAnswer).not.toHaveBeenCalled();
+    fireEvent.keyDown(main, { key: '1' });
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(await screen.findByText('Correct.')).toBeTruthy();
+    await effectsRun(); // the key listener sees the verdict
+    fireEvent.keyDown(main, { key: '2' }); // a checked answer is final
+    expect((screen.getByLabelText(/Beta/) as HTMLInputElement).checked).toBe(false);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Next question' }), { key: 'Enter' });
+    expect(screen.getByText('Question 1 of 2')).toBeTruthy();
+    fireEvent.keyDown(main, { key: 'Enter' });
+    expect(screen.getByText('Question 2 of 2')).toBeTruthy();
+  });
+
+  it('locks the options while an answer is being checked', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    const pariksha = fakePariksha({
+      checkAnswer: vi.fn().mockReturnValue(new Promise((r) => (resolve = r))),
+    });
+    await openApp(PATH, { data: data(), pariksha });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect((document.querySelector('fieldset') as HTMLFieldSetElement).disabled).toBe(true);
+    fireEvent.keyDown(document.body.querySelector('main') as HTMLElement, { key: '2' });
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    await act(async () => resolve({ correct: true, correctOptionIds: ['a'], explanation: '' }));
+    expect((document.querySelector('fieldset') as HTMLFieldSetElement).disabled).toBe(false);
+  });
+
+  it('carries on after a reload with the same questions, answers and verdicts', async () => {
+    const course = courseWith({}, [question('k1'), question('k2'), question('k3')]);
+    const pariksha = fakePariksha({
+      checkAnswer: vi
+        .fn()
+        .mockResolvedValue({ correct: false, correctOptionIds: ['b'], explanation: 'Beta.' }),
+    });
+    const first = await openApp(PATH, { data: data(course), pariksha });
+    await screen.findByText('Question 1 of 3');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
+    fireEvent.click(screen.getByLabelText(/Gamma/)); // picked, never checked
+    first.unmount();
+
+    await openApp(PATH, { data: data(course), pariksha });
+    expect(await screen.findByText('Question 2 of 3')).toBeTruthy();
+    expect((screen.getByLabelText(/Gamma/) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('Not quite — the answer is B.')).toBeTruthy();
+    expect((screen.getByLabelText(/Beta/) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('forgets the draft once the attempt is graded, and ignores a stale or outdated one', async () => {
+    const key = draftKey('u1', 'git', 'q1');
+    const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
+    const first = await openApp(PATH, { data: data(course) });
+    await screen.findByText('Question 1 of 1');
+    await effectsRun(); // the draft save
+    expect(localStorage.getItem(key)).not.toBeNull();
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Pariksha' }));
+    await waitFor(() => expect(localStorage.getItem(key)).toBeNull());
+    first.unmount();
+
+    const draft = (startedAt: number, order: object[]) =>
+      localStorage.setItem(
+        key,
+        JSON.stringify({ startedAt, order, index: 1, answers: { k1: ['a'] }, feedback: {} }),
+      );
+    const two = courseWith({ revealAnswers: 'never' });
+    const order = [
+      { id: 'k1', optionIds: ['a', 'b', 'c'] },
+      { id: 'k2', optionIds: ['a', 'b', 'c'] },
+    ];
+    // Older than the last graded attempt: that attempt's draft, so a fresh start.
+    draft(Date.now() - 3_600_000, order);
+    const graded = unlocked({
+      pariksha: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
+    });
+    const second = await openApp(PATH, { data: data(two, graded) });
+    expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(false);
+    second.unmount();
+    // The Acharya removed a question since: a fresh start too.
+    draft(Date.now(), [{ id: 'gone', optionIds: ['a'] }]);
+    await openApp(PATH, { data: data(two) });
+    expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
+  });
+
+  it('asks before leaving with an unsaved answer, and leaves at once without one', async () => {
+    const { router, unmount } = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByLabelText(/Alpha/));
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave this Pariksha?' });
+    await act(async () => {});
+    fireEvent.keyDown(dialog, { key: '2' });
+    expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Stay' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe(PATH);
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git'));
+    unmount();
+
+    const second = await openApp(PATH, { data: data() });
+    await screen.findByText('Question 1 of 2');
+    fireEvent.click(screen.getByRole('link', { name: 'Exit Pariksha' }));
+    await waitFor(() => expect(second.router.state.location.pathname).toBe('/courses/git'));
+  });
+
   it('has no axe violations', async () => {
     const { container } = await openApp(PATH, { data: data() });
     await screen.findByText('Question 1 of 2');
@@ -265,7 +425,7 @@ describe('Result screen', () => {
       '/courses/git/learn/l4',
     );
     expect(screen.getByRole('link', { name: 'Retake' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Revisit the lesson' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
   });
 
   it('finishes the course when the Pariksha is the last item', async () => {
@@ -279,7 +439,107 @@ describe('Result screen', () => {
     ).toBe('/courses/git/complete');
   });
 
-  it('shows a saved summary after a reload, without the review', async () => {
+  it('continues to the next parva by number when the Pariksha ends its parva', async () => {
+    const c = courseWith();
+    const moved = c.parvas[1]?.items.pop();
+    c.parvas.push({ id: 'p3', title: 'Remotes', items: moved ? [moved] : [] });
+    await openApp({ pathname: RESULT, state: passedState }, { data: data(c) });
+    const link = await screen.findByRole('link', { name: 'Continue to Parva 3' });
+    expect(link.getAttribute('href')).toBe('/courses/git/learn/l4');
+  });
+
+  it('rebuilds the review from the latest attempt after a reload', async () => {
+    const c = courseWith({ cooldownMinutes: 10 }, [
+      question('k1'),
+      question('k2', { reviewItemId: 'gone' }),
+    ]);
+    const attempt = attemptRow({
+      score: 0,
+      correctCount: 0,
+      total: 3,
+      passed: false,
+      questionIds: ['k1', 'removed', 'k2'],
+      answers: { k1: ['b'] },
+      results: [
+        { questionId: 'k1', correct: false },
+        { questionId: 'removed', correct: false },
+        { questionId: 'k2', correct: false },
+      ],
+    });
+    const watched = unlocked({
+      pariksha: {
+        q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date(Date.now() - 60_000) },
+      },
+    });
+    const learner = fakeData({ courses: [c], watched, attempt });
+    await openApp(RESULT, { data: learner });
+    expect(await screen.findByText(/0 of 3 correctly \(0%\)/)).toBeTruthy();
+    expect(learner.data.latestAttempt).toHaveBeenCalledWith('u1', 'git', 'q1');
+    expect(screen.getByRole('heading', { name: 'Review' })).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(screen.getByText('No answer')).toBeTruthy();
+    expect(screen.getAllByText('Because.')).toHaveLength(2);
+    expect(screen.queryByText('Correct answer')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Revisit lesson: Lesson l1' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Revisit lesson:/ })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
+      '/courses/git/learn/l1',
+    );
+    expect(screen.getByRole('timer').textContent).toMatch(/^Retake opens in (9:00|8:5\d)$/);
+  });
+
+  it('hides explanations a failed attempt may not reveal, and sends a revisit with no lesson to the outline', async () => {
+    for (const revealAnswers of ['onPass', 'never'] as const) {
+      const c = courseWith({ revealAnswers }, [question('k1', { reviewItemId: 'gone' })]);
+      const attempt = attemptRow({ passed: false, score: 0, correctCount: 0 });
+      const { unmount } = await openApp(RESULT, { data: fakeData({ courses: [c], attempt }) });
+      expect(await screen.findByText(/0 of 1 correctly/)).toBeTruthy();
+      expect(screen.queryByText('Because.')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
+        '/courses/git',
+      );
+      unmount();
+    }
+    const c = courseWith({ revealAnswers: 'onPass' }, [question('k1')]);
+    await openApp(RESULT, { data: fakeData({ courses: [c], attempt: attemptRow() }) });
+    expect(await screen.findByText('Because.')).toBeTruthy();
+  });
+
+  it('falls back to the saved summary when the attempt cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const learner = data();
+    vi.mocked(learner.data.latestAttempt).mockRejectedValue(new Error('missing index'));
+    await openApp(RESULT, { data: learner });
+    expect(await screen.findByText('Your best score is 0%.')).toBeTruthy();
+    expect(warn).toHaveBeenCalledWith('Latest attempt unreadable, showing the summary', {
+      courseId: 'git',
+      parikshaId: 'q1',
+    });
+    warn.mockRestore();
+  });
+
+  it('counts down to the retake each second and then offers it', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    try {
+      const state = {
+        ...passedState,
+        result: attemptResult({ nextAttemptAt: Date.now() + 61_500 }),
+      };
+      await openApp({ pathname: RESULT, state }, { data: data() });
+      expect((await screen.findByRole('timer')).textContent).toBe('Retake opens in 1:02');
+      await effectsRun(); // the interval
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.getByRole('timer').textContent).toBe('Retake opens in 1:01');
+      act(() => vi.advanceTimersByTime(61_000));
+      expect(screen.queryByRole('timer')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Retake' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows a saved summary when there is no attempt to review', async () => {
     const saved = unlocked({
       pariksha: {
         q1: {
@@ -314,7 +574,7 @@ describe('Result screen', () => {
     expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
       '/courses/git',
     );
-    expect(screen.queryByRole('link', { name: 'Revisit the lesson' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Revisit lesson:/ })).toBeNull();
     second.unmount();
     await openApp('/courses/git/pariksha/nope/result', { data: data() });
     expect(await screen.findByText('This Pariksha does not exist.')).toBeTruthy();

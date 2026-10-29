@@ -11,7 +11,9 @@ For the maintainer. The deployment itself is described in `.plan/11-deployment-a
 4. Run, once, on your machine with an admin credential:
    `npm run grant-kulapati -- you@nonstopio.com`, then sign out and in again.
 5. Load the first course into the emulator with `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed`,
-   or into production with `npm run seed -- --production` (needs `GCLOUD_PROJECT`).
+   or into production with `npm run seed -- --production` (needs `GCLOUD_PROJECT`). It also creates
+   `config/org` with the defaults (no teams, reminders off) when it is missing, and never touches
+   it once it exists; set teams and reminders in the console's Org settings.
 
 ## Email
 

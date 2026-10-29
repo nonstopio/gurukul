@@ -1,13 +1,18 @@
 # 07 · Kulapati console
 
 Screens: Sanjaya overview, Learners, Assign courses, Roles & access, Course
-analytics. Handoff: `design-handoff/02-kulapati-console.md`.
+analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
 
 ## Learners
 
 - One table of everyone signed in **plus** pending invites (emails with
   assignments but no account), tabs: All, Signed in, Pending invite, Overdue.
 - Filters: search (name/email), team, course, role. Paginated 25 per page.
+  Every filter and the tab apply together. With no filter, "All" pages
+  through everyone signed in, then the pending invites; any filter narrows to
+  a bounded set (a team, a role, a course's assignments, search results) that
+  the rest then filter in memory, and the tab counts follow the filters.
+  Search waits for a 250 ms pause in typing and starts at two characters.
 - Bulk actions on selected rows: assign course, send reminder, change role.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).
@@ -44,6 +49,13 @@ for incomplete mandatory assignments. Capped to one email per person per day: a 
 with several courses due gets one email listing them all, and nobody reminded that day,
 by the schedule or by a Kulapati, gets another. The time is fixed in the schedule, not
 an org setting; `config/org.reminders` only switches the daily run on or off.
+
+## Org settings
+
+`/kulapati/settings` edits `config/org` directly (the rules check the shape; no callable, so
+no audit entry): the teams list learners pick from (add, remove; names trimmed, unique ignoring
+case, at most 80 characters and 100 teams) and the daily reminders switch. Removing a team
+leaves it on the profiles that have it. One Save writes the whole document.
 
 ## Roles & access
 

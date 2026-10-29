@@ -8,8 +8,9 @@ const store = vi.hoisted(() => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-  collection: (_db: unknown, name: string) => ({ collection: name }),
+  collection: (_db: unknown, ...path: string[]) => ({ collection: path.join('/') }),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  documentId: () => '__name__',
   getCountFromServer: async () => ({ data: () => ({ count: store.count }) }),
   getDoc: async (ref: { path: string }) => ({
     exists: () => store.docs.has(ref.path),
@@ -23,6 +24,9 @@ vi.mock('firebase/firestore', () => ({
   limit: (n: number) => ({ limit: n }),
   orderBy: (f: string, d?: string) => ({ orderBy: [f, d] }),
   query: (...parts: unknown[]) => ({ parts }),
+  setDoc: async (ref: { path: string }, value: unknown) => {
+    store.docs.set(ref.path, value);
+  },
   startAfter: (v: string) => ({ startAfter: v }),
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
@@ -65,6 +69,27 @@ describe('stats and config', () => {
     expect(await data.teams()).toEqual([]);
     store.docs.set('config/org', { teams: ['QA', 'Dev'] });
     expect(await data.teams()).toEqual(['QA', 'Dev']);
+  });
+
+  it('reads org settings over the defaults, and saves the whole document', async () => {
+    expect(await data.orgSettings()).toEqual({
+      domain: 'nonstopio.com',
+      teams: [],
+      reminders: { enabled: false },
+    });
+    store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA'] });
+    expect(await data.orgSettings()).toMatchObject({
+      teams: ['QA'],
+      reminders: { enabled: false },
+    });
+    const settings = {
+      domain: 'nonstopio.com',
+      teams: ['QA', 'Dev'],
+      reminders: { enabled: true },
+    };
+    await data.saveOrgSettings(settings);
+    expect(store.docs.get('config/org')).toEqual(settings);
+    expect(await data.orgSettings()).toEqual(settings);
   });
 });
 
@@ -147,11 +172,35 @@ describe('users', () => {
     expect(await data.userCount()).toBe(148);
   });
 
-  it('searches by email prefix and lists a team', async () => {
-    store.queue = [[user(1)], [user(2)]];
-    expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1']);
+  it('searches by email and by name prefix, email matches first, each person once', async () => {
+    store.queue = [[user(1)], [user(2), user(1)]];
+    expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1', 'u2']);
     expect(store.queries[0]).toContainEqual({ where: ['email', '>=', 'u1'] });
+    expect(store.queries[0]).toContainEqual({ where: ['email', '<=', 'u1\uf8ff'] });
+    expect(store.queries[1]).toContainEqual({ orderBy: ['nameLower', undefined] });
+    expect(store.queries[1]).toContainEqual({ where: ['nameLower', '>=', 'u1'] });
+    expect(store.queries[1]).toContainEqual({ limit: 8 });
+  });
+
+  it('returns at most 8 people from a search', async () => {
+    store.queue = [
+      Array.from({ length: 8 }, (_, i) => user(i)),
+      Array.from({ length: 8 }, (_, i) => user(i + 10)),
+    ];
+    expect(await data.searchUsers('u')).toHaveLength(8);
+  });
+
+  it('lists a team', async () => {
+    store.queue = [[user(2)]];
     expect((await data.usersInTeam('QA'))[0]?.team).toBe('QA');
+  });
+
+  it('reads profiles by uid in chunks of 30', async () => {
+    const uids = Array.from({ length: 31 }, (_, i) => `u${i}`);
+    store.queue = [[user(1)], [user(30)]];
+    expect((await data.usersByUid(uids)).map((u) => u.uid)).toEqual(['u1', 'u30']);
+    expect(store.queries).toHaveLength(2);
+    expect(store.queries[1]).toContainEqual({ where: ['__name__', 'in', ['u30']] });
   });
 });
 
@@ -182,6 +231,47 @@ describe('progress, certificates and known emails', () => {
       ],
     ];
     expect((await data.certificatesFor('u1'))[0]?.id).toBe('NSG-1');
+  });
+
+  it('reads every assignment for one email, capped', async () => {
+    store.queue = [[d('a1', { email: 'p@nonstopio.com', courseId: 'git', status: 'assigned' })]];
+    expect((await data.assignmentsFor('p@nonstopio.com'))[0]).toMatchObject({
+      id: 'a1',
+      courseId: 'git',
+      uid: null,
+    });
+    expect(store.queries[0]).toEqual([
+      { collection: 'assignments' },
+      { where: ['email', '==', 'p@nonstopio.com'] },
+      { limit: 50 },
+    ]);
+  });
+
+  it('reads one person’s newest attempts at a Pariksha: score, verdict and date only', async () => {
+    store.queue = [
+      [
+        d('a2', {
+          uid: 'u1',
+          parikshaId: 'q1',
+          score: 0.5,
+          passed: true,
+          createdAt: ts(9),
+          answers: { k1: ['a'] },
+        }),
+        d('a1', { uid: 'u1', parikshaId: 'q1' }),
+      ],
+    ];
+    expect(await data.attemptsFor('u1', 'git', 'q1')).toEqual([
+      { id: 'a2', parikshaId: 'q1', score: 0.5, passed: true, at: new Date(9) },
+      { id: 'a1', parikshaId: 'q1', score: 0, passed: false, at: null },
+    ]);
+    expect(store.queries[0]).toEqual([
+      { collection: 'progress/u1_git/attempts' },
+      { where: ['uid', '==', 'u1'] },
+      { where: ['parikshaId', '==', 'q1'] },
+      { orderBy: ['createdAt', 'desc'] },
+      { limit: 10 },
+    ]);
   });
 
   it('finds who has signed in and who already holds EVERY selected course', async () => {

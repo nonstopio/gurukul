@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { log } from '../log';
-import type { AssignmentRow, CertificateRow, LearnerData, ProgressRow } from './types';
+import type { AssignmentRow, AttemptRow, CertificateRow, LearnerData, ProgressRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
@@ -66,6 +66,19 @@ export function toCertificate(id: string, d: Record<string, unknown>): Certifica
     signatoryName: (d.signatoryName as string | undefined) ?? '',
     signatoryRole: (d.signatoryRole as string | undefined) ?? '',
     revoked: d.revoked === true,
+  };
+}
+
+export function toAttempt(id: string, d: Record<string, unknown>): AttemptRow {
+  return {
+    id,
+    score: (d.score as number | undefined) ?? 0,
+    correctCount: (d.correctCount as number | undefined) ?? 0,
+    total: (d.total as number | undefined) ?? 0,
+    passed: d.passed === true,
+    questionIds: (d.questionIds as string[] | undefined) ?? [],
+    answers: (d.answers as Record<string, string[]> | undefined) ?? {},
+    results: (d.results as AttemptRow['results'] | undefined) ?? [],
   };
 }
 
@@ -119,6 +132,20 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         cb(snap.exists() ? toProgress(snap.data()) : null),
       );
     },
+    async latestAttempt(uid, courseId, parikshaId) {
+      // The uid filter is what lets the rules allow the query; the path already scopes it.
+      const snap = await getDocs(
+        query(
+          collection(db, 'progress', progressId(uid, courseId), 'attempts'),
+          where('uid', '==', uid),
+          where('parikshaId', '==', parikshaId),
+          orderBy('createdAt', 'desc'),
+          limit(1),
+        ),
+      );
+      const first = snap.docs[0];
+      return first ? toAttempt(first.id, first.data()) : null;
+    },
     async getCertificate(id) {
       const snap = await getDoc(doc(db, 'certificates', id));
       return snap.exists() ? toCertificate(snap.id, snap.data()) : null;
@@ -163,6 +190,13 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         lastItemId: itemId,
         lastActiveAt: serverTimestamp(),
       });
+    },
+    async orgTeams() {
+      const snap = await getDoc(doc(db, 'config', 'org'));
+      return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async setTeam(uid, team) {
+      await updateDoc(doc(db, 'users', uid), { team });
     },
   };
 }

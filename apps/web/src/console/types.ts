@@ -1,4 +1,4 @@
-import type { AssignSummary, CourseStats, OrgStats, Reminder } from '@gurukul/schema';
+import type { AssignSummary, CourseStats, OrgConfig, OrgStats, Reminder } from '@gurukul/schema';
 import type { CertificateRow, ProgressRow } from '../data/types';
 
 export interface UserRow {
@@ -31,6 +31,19 @@ export interface AuditRow {
   at: Date | null;
 }
 
+/**
+ * One graded Pariksha attempt as the learner drawer shows it: when, the score and the verdict.
+ * Deliberately not the learner's answers or the per-question results.
+ */
+export interface AttemptSummary {
+  id: string;
+  parikshaId: string;
+  /** 0..1 */
+  score: number;
+  passed: boolean;
+  at: Date | null;
+}
+
 export interface UserPage {
   rows: UserRow[];
   /** Pass back to get the next page; null on the last one. */
@@ -38,7 +51,7 @@ export interface UserPage {
 }
 
 /**
- * What the Kulapati console reads. Bounded queries only (see `firebase-cost.md`): pages of 25,
+ * What the Kulapati console reads, and the org settings it writes. Bounded queries only (see `firebase-cost.md`): pages of 25,
  * `limit` on every list, aggregates from the `stats` documents rather than per-learner reads.
  * A port, so screens are tested with a fake and `firebaseConsoleData` is the real thing.
  */
@@ -53,9 +66,15 @@ export interface ConsoleData {
   /** Progress documents for a set of people, to show courses and percent per row. */
   progressFor(uids: string[]): Promise<Array<ProgressRow & { uid: string }>>;
   certificatesFor(uid: string): Promise<CertificateRow[]>;
-  /** Email-prefix search over people who have signed in. */
+  /** Every course assigned to one email (capped), started or not: the learner drawer's list. */
+  assignmentsFor(email: string): Promise<AssignmentFull[]>;
+  /** One person's newest graded attempts at one Pariksha (capped), newest first. */
+  attemptsFor(uid: string, courseId: string, parikshaId: string): Promise<AttemptSummary[]>;
+  /** People who have signed in whose email or name starts with `prefix` (at most 8, email matches first). */
   searchUsers(prefix: string): Promise<UserRow[]>;
   usersInTeam(team: string): Promise<UserRow[]>;
+  /** Profiles for a page of people known only by their assignments (in chunks of 30). */
+  usersByUid(uids: string[]): Promise<UserRow[]>;
   /** People holding a granted role (acharya or kulapati), for Roles & access. */
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
   /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */
@@ -64,6 +83,10 @@ export interface ConsoleData {
     courseIds: string[],
   ): Promise<{ signedIn: Set<string>; assigned: Set<string> }>;
   teams(): Promise<string[]>;
+  /** `config/org`, with the defaults for anything not saved yet. */
+  orgSettings(): Promise<OrgConfig>;
+  /** Writes the whole of `config/org`; the rules let only a Kulapati, and only this shape. */
+  saveOrgSettings(settings: OrgConfig): Promise<void>;
   /** The newest audit entries (capped), with each doer's email resolved. */
   auditLog(): Promise<AuditRow[]>;
 }
