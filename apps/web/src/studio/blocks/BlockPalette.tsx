@@ -15,7 +15,7 @@ const ICONS: Record<BlockType, string> = {
 /** "Add a block": a dashed box with one tile per block type. Choosing a tile calls `onAdd` with its type. */
 export function BlockPalette({ onAdd }: { onAdd: (type: BlockType) => void }) {
   return (
-    <section className="studio-add" aria-labelledby="studio-add-title">
+    <section className="studio-add" id="studio-add" aria-labelledby="studio-add-title">
       <h2 className="studio-add__title" id="studio-add-title">
         Add a block
       </h2>
@@ -25,6 +25,7 @@ export function BlockPalette({ onAdd }: { onAdd: (type: BlockType) => void }) {
             key={type}
             type="button"
             className="studio-palette__tile"
+            data-palette-tile
             onClick={() => onAdd(type)}
           >
             <svg

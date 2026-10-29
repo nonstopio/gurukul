@@ -52,10 +52,12 @@ const warn = (title: string, ...l: string[]): Draft => ({
   md: lines(...l),
 });
 const replace = (...l: string[]): Draft => warn("Replace with NonStop's convention", ...l);
-const check = (prompt: string, options: string[], explanation: string): Draft => ({
+/** `correct` is the index of the right option; most checks list it first. */
+const check = (prompt: string, options: string[], explanation: string, correct = 0): Draft => ({
   type: 'check',
   prompt,
   options,
+  correct,
   explanation,
 });
 const video = (durationSec: number): Draft => ({
@@ -200,6 +202,7 @@ const parva1: Parva = {
         'You run `git config user.email "ada@example.com"` inside a repository, without `--global`. Where does it apply?',
         ['Every repository on the machine', 'Only that repository'],
         "Without a flag, `git config` writes to the repository's own `.git/config`.",
+        1,
       ),
     ]),
     lesson('your-first-repository', 'Your first repository', 12, 'video', [
@@ -365,6 +368,7 @@ const parva2: Parva = {
           'Nothing, Git asks you to stage again',
         ],
         'A commit holds what was staged. The second edit stays in the working directory until you add it.',
+        1,
       ),
     ]),
     lesson('good-commit-messages', 'Writing good commit messages', 7, 'read', [
@@ -396,6 +400,7 @@ const parva2: Parva = {
         'Which subject line is best?',
         ['updates', 'Fixed the bug', 'Fix crash when the cart is empty', 'FIX!!! cart'],
         'Imperative, specific and short. The others say nothing about what changed.',
+        2,
       ),
     ]),
     lesson('reading-history-git-log', 'Reading history with git log', 8, 'hands', [
@@ -429,6 +434,7 @@ const parva2: Parva = {
         'Which command shows only the commits that touched `src/app.js`?',
         ['git log src/app.js', 'git log -- src/app.js', 'git show src/app.js'],
         'The `--` separates options from paths. It is the safe, unambiguous form.',
+        1,
       ),
     ]),
     lesson('gitignore', '.gitignore', 7, 'read', [
@@ -602,6 +608,7 @@ const parva3: Parva = {
         'Creating a new branch copies all the project files.',
         ['True', 'False'],
         'False. A branch is only a pointer to a commit; no files are copied.',
+        1,
       ),
     ]),
     lesson('create-and-switch-branches', 'Create and switch branches', 8, 'hands', [
@@ -628,6 +635,7 @@ const parva3: Parva = {
         'You are on `main` and want to start new work on a fresh branch called `fix/typo`. Which command do you run?',
         ['git branch fix/typo', 'git switch -c fix/typo', 'git merge fix/typo'],
         '`git switch -c` creates the branch and moves you onto it. `git branch` alone leaves you on main.',
+        1,
       ),
     ]),
     lesson('merging', 'Merging', 11, 'hands', [
@@ -747,6 +755,7 @@ const parva4: Parva = {
           'The remote repository',
         ],
         'Fetch only brings data in and moves `origin/*`. To combine it with your work, merge or rebase.',
+        1,
       ),
     ]),
     lesson('push-and-pull', 'Push and pull', 8, 'hands', [
@@ -1212,7 +1221,7 @@ const estimatedMinutes = parvas
   .reduce((sum, item) => sum + (item.type === 'lesson' ? item.minutes : 0), 0);
 
 export const gitCourse: Course = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   id: 'git-the-nonstop-way',
   title: 'Git, the NonStop Way',
   summary:

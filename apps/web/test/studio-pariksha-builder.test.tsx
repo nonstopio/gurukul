@@ -118,6 +118,11 @@ describe('Pariksha builder: layout', () => {
     expect(pick('k2').getAttribute('aria-current')).toBe('true');
   });
 
+  it('opens the question named in the link from course analytics', async () => {
+    await open({ path: `${PATH}?question=k3` });
+    expect(pick('k3').getAttribute('aria-current')).toBe('true');
+  });
+
   it('opens the learner preview after saving', async () => {
     const { router, studio } = await open();
     change('Explanation', 'Edited');
@@ -360,6 +365,16 @@ describe('Pariksha builder: the question list', () => {
     fireEvent.click(pick('k2'));
     expect(screen.getByText('Learners find this hard')).toBeTruthy();
     expect(screen.getByText(/25% of learners got this right first time \(4 tries\)/)).toBeTruthy();
+  });
+
+  it('shows the first-try percentage beside each question that has tries', async () => {
+    const stats = fakeConsole({
+      course: { questionFirstTry: { k1: { correct: 3, total: 4 }, k2: { correct: 1, total: 4 } } },
+    });
+    await open({ console: stats });
+    expect(await screen.findByText('75% first try')).toBeTruthy();
+    expect(within(rows()[1] as HTMLElement).getByText('25% first try')).toBeTruthy();
+    expect(within(rows()[2] as HTMLElement).queryByText(/first try$/)).toBeNull();
   });
 
   it('works without first-try numbers when they cannot be read', async () => {

@@ -23,6 +23,10 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   mock `firebase-functions/logger` for every file (`test/setup.ts`). ESLint bans the raw logger,
   `console` and the https imports outside these two folders (`scripts/test/lint-rules.test.mjs`).
 
+- `functions/emulator-test/` runs the real trigger exports against the Firestore emulator
+  (`npm run test:triggers`, Java 21): each is called with `.run(event)`, which firebase-functions gives
+  every v2 function, and the assertions read Firestore. `firebase-functions-test` is not used: it does not
+  support firebase-admin 14. The unit suite's coverage gate does not count these files.
 - Tests use the `demo-gurukul` project id, so the emulator never touches the
   real project.
 - Functions: `onUserCreated` (profile + claim invites) and the `setRoles` callable (all callables return the `ApiResponse` envelope). Bootstrap the

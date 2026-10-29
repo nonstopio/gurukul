@@ -100,8 +100,16 @@ describe('video block editor', () => {
     expect(screen.queryByText(/not recognised/)).toBeNull();
   });
 
+  it('previews a recognised link in a 16:9 frame and none otherwise', () => {
+    const { container } = setup(video());
+    const frame = container.querySelector('.studio-video-preview iframe');
+    expect(frame?.getAttribute('src')).toContain('abc123');
+    expect(frame?.getAttribute('title')).toBe('Video preview');
+  });
+
   it('warns when the link does not fit the chosen host', () => {
-    setup(video({ provider: 'loom' }));
+    const { container } = setup(video({ provider: 'loom' }));
+    expect(container.querySelector('iframe')).toBeNull();
     expect(screen.getByText('Link not recognised as Loom')).toBeTruthy();
     expect(screen.getByText(/plain link/)).toBeTruthy();
   });
@@ -259,6 +267,13 @@ describe('check block editor', () => {
     type('Answer 2', 'B');
     type('Explanation', 'Because');
     expect(last()).toMatchObject({ prompt: 'Which?', options: ['A', 'B'], explanation: 'Because' });
+  });
+
+  it('marks the right answer', () => {
+    const { last } = setup({ ...newBlock('check'), options: ['a', 'b'], correct: 0 } as Block);
+    expect((screen.getByLabelText('Answer 1 is correct') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Answer 2 is correct'));
+    expect(last()).toMatchObject({ correct: 1 });
   });
 
   it('adds answers up to six and removes them down to two', () => {

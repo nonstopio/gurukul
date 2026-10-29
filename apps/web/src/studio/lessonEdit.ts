@@ -118,11 +118,20 @@ type Check = Extract<Block, { type: 'check' }>;
 export const addCheckOption = (block: Check): Check =>
   block.options.length >= MAX_CHECK_OPTIONS ? block : { ...block, options: [...block.options, ''] };
 
-/** Without answer `index`, never below two. */
-export const removeCheckOption = (block: Check, index: number): Check =>
-  block.options.length <= MIN_CHECK_OPTIONS
-    ? block
-    : { ...block, options: block.options.filter((_, i) => i !== index) };
+/** Without answer `index`, never below two. The marked answer follows its option; removing it unmarks. */
+export function removeCheckOption(block: Check, index: number): Check {
+  if (block.options.length <= MIN_CHECK_OPTIONS) return block;
+  const { correct, ...rest } = block;
+  const next: Check = { ...rest, options: block.options.filter((_, i) => i !== index) };
+  if (correct === undefined || correct === index) return next;
+  return { ...next, correct: correct > index ? correct - 1 : correct };
+}
+
+/** Marks answer `index` as the right one. */
+export const setCheckCorrect = (block: Check, index: number): Check => ({
+  ...block,
+  correct: index,
+});
 
 export const setCheckOption = (block: Check, index: number, text: string): Check => ({
   ...block,

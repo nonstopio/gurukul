@@ -30,10 +30,11 @@ vi.mock('firebase/firestore', () => ({
   setDoc: async (ref: { path: string }, value: unknown) => {
     store.docs.set(ref.path, value);
   },
-  startAfter: (v: string) => ({ startAfter: v }),
+  startAfter: (...v: unknown[]) => ({ startAfter: v }),
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
+import { makeCourse } from './fake-data';
 import { firebaseConsoleData } from '../src/console/firebase';
 
 const data = firebaseConsoleData({} as never);
@@ -168,7 +169,7 @@ describe('users', () => {
     store.queue = [[user(3)]];
     const last = await data.usersPage('u2@nonstopio.com', 2);
     expect(last).toMatchObject({ nextCursor: null });
-    expect(store.queries[1]).toContainEqual({ startAfter: 'u2@nonstopio.com' });
+    expect(store.queries[1]).toContainEqual({ startAfter: ['u2@nonstopio.com'] });
     store.queue = [[]];
     expect(await data.usersPage(null, 2)).toEqual({ rows: [], nextCursor: null });
   });
@@ -177,6 +178,17 @@ describe('users', () => {
     store.queue = [[user(1)]];
     expect((await data.usersWithRole('acharya')).map((u) => u.uid)).toEqual(['u1']);
     expect(store.queries[0]).toContainEqual({ where: ['roles', 'array-contains', 'acharya'] });
+  });
+
+  it('lists every course, drafts included, skipping one it cannot read', async () => {
+    store.queue = [
+      [d('a', { ...makeCourse({ id: 'a', status: 'draft' }) }), d('b', { junk: true })],
+    ];
+    expect((await data.allCourses()).map((c) => c.id)).toEqual(['a']);
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
+    expect(store.queries[0]).not.toContainEqual(
+      expect.objectContaining({ where: expect.anything() }),
+    );
   });
 
   it('fills defaults for a bare profile and counts people', async () => {
@@ -223,6 +235,16 @@ describe('users', () => {
     expect((await data.usersByUid(uids)).map((u) => u.uid)).toEqual(['u1', 'u30']);
     expect(store.queries).toHaveLength(2);
     expect(store.queries[1]).toContainEqual({ where: ['__name__', 'in', ['u30']] });
+  });
+});
+
+describe('recent progress', () => {
+  it('reads the 100 most recently active progress documents with their owner', async () => {
+    store.queue = [[d('u1_git', { uid: 'u1', courseId: 'git' })]];
+    const rows = await data.recentProgress();
+    expect(rows.map((r) => [r.uid, r.courseId])).toEqual([['u1', 'git']]);
+    expect(store.queries[0]).toContainEqual({ orderBy: ['lastActiveAt', 'desc'] });
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
   });
 });
 
@@ -311,22 +333,44 @@ describe('progress, certificates and known emails', () => {
     });
   });
 
-  it('reads the newest audit entries and resolves each doer to an email once', async () => {
-    store.docs.set('users/boss', { email: 'boss@nonstopio.com' });
+  it('reads a page of audit entries and resolves people to names once', async () => {
+    store.docs.set('users/boss', { email: 'boss@nonstopio.com', displayName: 'Boss' });
+    store.docs.set('users/dev', { email: 'dev@nonstopio.com', displayName: '' });
     store.queue = [
       [
-        d('a1', { action: 'assign', by: 'boss', target: 'git', at: ts(9) }),
-        d('a2', { action: 'roles.set', by: 'boss' }),
-        d('a3', { action: 'course.publish', by: 'gone', at: ts(1) }),
+        d('a1', {
+          action: 'roles.set',
+          by: 'boss',
+          target: 'dev',
+          detail: { acharya: true },
+          at: ts(9),
+        }),
+        d('a2', { action: 'course.publish', by: 'boss', target: 'git' }),
+        d('a3', { action: 'roles.set', by: 'gone', target: 'gone2', at: ts(1) }),
+        d('a4', { action: 'assign', by: 'boss', at: ts(0) }),
       ],
     ];
-    const rows = await data.auditLog();
+    const page = await data.auditPage(null, 3);
     expect(store.queries[0]).toContainEqual({ orderBy: ['at', 'desc'] });
-    expect(store.queries[0]).toContainEqual({ limit: 100 });
-    expect(rows.map((r) => [r.by, r.target, r.at?.getTime() ?? null])).toEqual([
-      ['boss@nonstopio.com', 'git', 9],
-      ['boss@nonstopio.com', null, null],
-      ['gone', null, 1],
+    expect(store.queries[0]).toContainEqual({ limit: 4 });
+    expect(page.rows.map((r) => [r.by, r.target, r.detail, r.at?.getTime() ?? null])).toEqual([
+      ['Boss', 'dev@nonstopio.com', { acharya: true }, 9],
+      ['Boss', 'git', {}, null],
+      ['gone', 'gone2', {}, 1],
     ]);
+    expect(page.nextCursor).toEqual({ at: new Date(1), id: 'a3' });
+  });
+
+  it('continues after a cursor, and ends when the last page is short', async () => {
+    store.docs.set('users/boss', { email: 'boss@nonstopio.com', displayName: 'Boss' });
+    store.queue = [
+      [d('a5', { action: 'assign', by: 'boss', at: ts(5) })],
+      [d('a6', { action: 'assign', by: 'boss' })],
+    ];
+    const cursor = { at: new Date(7), id: 'a4' };
+    const page = await data.auditPage(cursor, 3);
+    expect(store.queries[0]).toContainEqual({ startAfter: [cursor.at, 'a4'] });
+    expect(page.nextCursor).toBeNull();
+    expect((await data.auditPage(null, 1)).nextCursor).toBeNull();
   });
 });

@@ -26,8 +26,9 @@ import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
 import { acharyaSummary, canEdit } from './studioModel';
+import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
+import { useSaveLabel } from './saveLabel';
 import { useDraft } from './useDraft';
-import type { SaveState } from './useDraft';
 import { VersionsTab } from './VersionsTab';
 
 type TabId = 'structure' | 'landing' | 'certificate' | 'analytics' | 'versions';
@@ -96,16 +97,10 @@ export function CourseEditorPage() {
   );
 }
 
-const SAVE_TEXT: Record<Exclude<SaveState, 'error'>, string> = {
-  saved: 'Saved',
-  saving: 'Saving…',
-  dirty: 'Unsaved changes',
-  conflict: 'Not saved',
-};
-
 function Editor({ initial, kulapati }: { initial: Course; kulapati: boolean }) {
   const courseId = initial.id;
   const draft = useDraft(courseId);
+  const label = useSaveLabel(draft);
   const learner = useLearnerData();
   const toast = useToast();
   const [live, setLive] = useState(initial);
@@ -175,7 +170,7 @@ function Editor({ initial, kulapati }: { initial: Course; kulapati: boolean }) {
         </Button>
       </span>
     ) : (
-      <span role="status">{SAVE_TEXT[draft.save]}</span>
+      <span role="status">{draft.save === 'conflict' ? `${label} · not saved` : label}</span>
     );
 
   const tabs: [TabItem, ...TabItem[]] = [
@@ -260,7 +255,9 @@ function Editor({ initial, kulapati }: { initial: Course; kulapati: boolean }) {
           </>
         }
       />
+      <LeaveGuard draft={draft} />
       <main className="page studio-page">
+        <RestoreNotice draft={draft} />
         {draft.save === 'conflict' ? (
           <Callout tone="warning" title="Someone else saved this draft" role="alert">
             <p>Someone else saved this draft. Reload to continue.</p>

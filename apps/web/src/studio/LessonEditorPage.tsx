@@ -24,7 +24,6 @@ import {
   editLesson,
   findLesson,
   isPristine,
-  lessonsOf,
   moveBlock,
   newBlock,
   parseMinutes,
@@ -33,6 +32,7 @@ import {
 } from './lessonEdit';
 import { newId } from './ids';
 import { patch } from './patch';
+import { itemEditorPath } from './studioModel';
 import type { Working } from './types';
 import { useDraft } from './useDraft';
 import type { DraftApi } from './useDraft';
@@ -91,6 +91,21 @@ function LessonEditor({
     };
     document.addEventListener('focusin', onFocusIn);
     return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
+  // "/" outside a text field, or in an empty one, jumps to the block palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement;
+      const typing = t.matches('input, textarea, select');
+      if (typing && (t as HTMLInputElement).value !== '') return;
+      e.preventDefault();
+      // Focusing the first tile scrolls the palette into view.
+      (document.querySelector('[data-palette-tile]') as HTMLElement).focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, []);
 
   const lesson = findLesson(work.course, lessonId);
@@ -159,18 +174,23 @@ function LessonEditor({
       />
       <div className="studio-cols">
         <nav className="studio-rail" aria-label="Lessons in this course">
-          <h2 className="studio-micro">Lessons</h2>
+          <h2 className="studio-micro">Lessons and Parikshas</h2>
           <ul>
-            {lessonsOf(work.course).map((l) => (
-              <li key={l.id}>
-                <Link
-                  to={`/studio/courses/${courseId}/lessons/${l.id}`}
-                  aria-current={l.id === lessonId ? 'page' : undefined}
-                >
-                  {l.title || 'Untitled lesson'}
-                </Link>
-              </li>
-            ))}
+            {work.course.parvas
+              .flatMap((p) => p.items)
+              .map((i) => (
+                <li key={i.id}>
+                  <Link
+                    to={itemEditorPath(courseId, i)}
+                    aria-current={i.id === lessonId ? 'page' : undefined}
+                  >
+                    {i.title || (i.type === 'lesson' ? 'Untitled lesson' : 'Untitled Pariksha')}
+                    {i.type === 'pariksha' ? (
+                      <span className="studio-rail__kind"> Pariksha</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
           </ul>
         </nav>
 
@@ -215,6 +235,11 @@ function LessonEditor({
               </div>
             )}
           />
+          {lesson.blocks.length === 0 ? (
+            <p className="studio-muted">
+              <strong>This lesson is empty.</strong> Add a block below to start writing it.
+            </p>
+          ) : null}
           <BlockPalette onAdd={add} />
         </section>
 

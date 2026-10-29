@@ -41,6 +41,29 @@ describe('BlockView', () => {
     expect(screen.getByRole('link', { name: 'Open the video in a new tab' })).toBeTruthy();
   });
 
+  it("uses the block's video title and caption, and hides Copy when copy is false", () => {
+    const v = show({
+      type: 'video',
+      id: 'v',
+      provider: 'youtube',
+      url: 'https://youtu.be/abc123',
+      captions: true,
+      title: 'Branching tour',
+      caption: 'Watch the first five minutes',
+    });
+    expect(screen.getByTitle('Branching tour')).toBeTruthy();
+    expect(screen.getByText('Watch the first five minutes')).toBeTruthy();
+    v.unmount();
+    show({ type: 'code', id: 'c', lang: 'sh', code: 'ls', copy: false, terminal: false });
+    expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
+    expect(document.querySelector('.file-link svg')).toBeNull();
+  });
+
+  it('puts a file icon in the file link', () => {
+    show({ type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'Cheat sheet' });
+    expect(document.querySelector('.file-link svg')).toBeTruthy();
+  });
+
   it('says "Video coming soon" for a video that is not recorded yet', () => {
     show({
       type: 'video',
@@ -136,6 +159,37 @@ describe('BlockView', () => {
     fireEvent.click(reveal);
     expect(screen.getByRole('status').textContent).toBe('Because two.');
     expect(screen.queryByRole('button', { name: 'Show the answer' })).toBeNull();
+  });
+
+  it('marks the right option and a wrong pick when the answer is revealed', () => {
+    show({
+      type: 'check',
+      id: 'k',
+      prompt: 'Which?',
+      options: ['One', 'Two', 'Three'],
+      correct: 1,
+      explanation: 'Because two.',
+    });
+    fireEvent.click(screen.getByLabelText(/One/));
+    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
+    expect(screen.getByText('Incorrect')).toBeTruthy();
+    expect(screen.getByText('Correct')).toBeTruthy();
+    expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('marks only the right option when the pick was right', () => {
+    show({
+      type: 'check',
+      id: 'k',
+      prompt: 'Which?',
+      options: ['One', 'Two'],
+      correct: 1,
+      explanation: 'Because two.',
+    });
+    fireEvent.click(screen.getByLabelText(/Two/));
+    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
+    expect(screen.getByText('Correct')).toBeTruthy();
+    expect(screen.queryByText('Incorrect')).toBeNull();
   });
 
   it('shows a visible notice for a block type it does not know', () => {

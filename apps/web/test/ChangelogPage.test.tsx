@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ChangelogPage, formatDay } from '../src/changelog/ChangelogPage';
 import { CHANGES, type Change } from '../src/changelog';
+import { axeViolations } from './axe';
 
 const changes: Change[] = [
   {
@@ -88,6 +89,11 @@ describe('ChangelogPage', () => {
     ]);
     const kindOptions = within(screen.getByLabelText('Kind')).getAllByRole('option');
     expect(kindOptions.map((o) => o.textContent)).toEqual(['All kinds', 'Docs', 'New', 'Fix']);
+  });
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ChangelogPage changes={changes} releases={['release-2']} />);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('renders the real entries by default', () => {

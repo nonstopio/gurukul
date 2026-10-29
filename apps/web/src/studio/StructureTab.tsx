@@ -12,6 +12,7 @@ import {
   moveItemToParva,
   moveItemWithin,
   moveParva,
+  renameItem,
   renameParva,
 } from './courseEdit';
 import { log } from '../log';
@@ -163,6 +164,7 @@ export function StructureTab({
                             onMoveTo={(target) =>
                               update((w) => moveItemToParva(w, item.id, target))
                             }
+                            onRename={(title) => update((w) => renameItem(w, item.id, title))}
                             onDelete={() => askDelete(item)}
                           />
                         )}
@@ -226,6 +228,7 @@ function ItemRow({
   diff,
   others,
   onMoveTo,
+  onRename,
   onDelete,
 }: {
   item: Item;
@@ -234,16 +237,39 @@ function ItemRow({
   diff: CourseDiff;
   others: Course['parvas'];
   onMoveTo: (parvaId: string) => void;
+  onRename: (title: string) => void;
   onDelete: () => void;
 }) {
   const title = nameOf(item.title, 'Untitled');
+  const [renaming, setRenaming] = useState(false);
   return (
     <div className="sc-item">
       {handle}
       <TypeTile kind={itemKind(item)} />
-      <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
-        {title}
-      </Link>
+      {renaming ? (
+        <input
+          className="g-control sc-item__input"
+          aria-label={`Title of ${title}`}
+          value={item.title}
+          maxLength={160}
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- focus moves to the field the person just asked to edit
+          autoFocus
+          onChange={(e) => onRename(e.target.value)}
+          onBlur={() => setRenaming(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') setRenaming(false);
+          }}
+        />
+      ) : (
+        <>
+          <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
+            {title}
+          </Link>
+          <Button variant="ghost" aria-label={`Rename ${title}`} onClick={() => setRenaming(true)}>
+            Rename
+          </Button>
+        </>
+      )}
       {diff.added.includes(item.id) ? <Chip tone="accent">New</Chip> : null}
       {diff.edited.includes(item.id) ? <Chip tone="info">Edited</Chip> : null}
       <span className="sc-item__meta">{itemMeta(item)}</span>

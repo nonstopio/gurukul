@@ -71,7 +71,7 @@ export async function resetEmulators(): Promise<void> {
   }
 }
 
-async function uidOf(email: string): Promise<string> {
+export async function uidOf(email: string): Promise<string> {
   const res = await call(
     `${AUTH_URL}/identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`,
     { method: 'POST', headers: OWNER, body: JSON.stringify({ email: [email] }) },
@@ -111,5 +111,54 @@ export async function grantRoles(
       body: JSON.stringify({ fields: { roles: { arrayValue: { values } } } }),
     },
     'Mirroring roles',
+  );
+}
+
+/**
+ * Writes a learner's progress document straight into the emulator, so a journey can start at the
+ * last Pariksha instead of clicking through twenty-two lessons. The `percent` is left at 0: the
+ * progress trigger recomputes it from the course, as it does for a real write.
+ */
+export async function seedProgress(
+  email: string,
+  courseId: string,
+  done: { lessons: string[]; passedParikshas: string[] },
+): Promise<void> {
+  const uid = await uidOf(email);
+  const now = { timestampValue: new Date().toISOString() };
+  const passed = Object.fromEntries(
+    done.passedParikshas.map((id) => [
+      id,
+      {
+        mapValue: {
+          fields: {
+            best: { doubleValue: 1 },
+            passed: { booleanValue: true },
+            attempts: { integerValue: '1' },
+            lastAttemptAt: now,
+          },
+        },
+      },
+    ]),
+  );
+  const fields = {
+    uid: { stringValue: uid },
+    courseId: { stringValue: courseId },
+    courseVersion: { integerValue: '1' },
+    startedAt: now,
+    lastItemId: { nullValue: null },
+    lastActiveAt: now,
+    completedItemIds: {
+      arrayValue: { values: done.lessons.map((stringValue) => ({ stringValue })) },
+    },
+    pariksha: { mapValue: { fields: passed } },
+    percent: { integerValue: '0' },
+    completedAt: { nullValue: null },
+    certificateId: { nullValue: null },
+  };
+  await call(
+    `${DOCS}/progress/${uid}_${courseId}`,
+    { method: 'PATCH', headers: OWNER, body: JSON.stringify({ fields }) },
+    'Seeding progress',
   );
 }

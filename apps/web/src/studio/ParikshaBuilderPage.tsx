@@ -1,7 +1,7 @@
 import { validateForPublish } from '@gurukul/schema';
 import { Button, Card, Chip, DragList, EmptyState, buttonClass, useToast } from '@gurukul/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { userMessageOf } from '../api';
 import { useUser } from '../auth/AuthProvider';
 import { useConsole } from '../console/ConsoleProvider';
@@ -18,6 +18,7 @@ import {
   addQuestion,
   bankEntry,
   findPariksha,
+  firstTryPercent,
   importFromBank,
   isLowFirstTry,
   moveQuestion,
@@ -65,7 +66,8 @@ function Builder({
   const stats = useAsync(
     useCallback(() => consoleApi.data.courseStats(courseId), [consoleApi, courseId]),
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const asked = useSearchParams()[0].get('question');
+  const [selectedId, setSelectedId] = useState<string | null>(asked);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
@@ -174,6 +176,11 @@ function Builder({
                   <span className="studio-qrow__num">{index + 1}</span>{' '}
                   <span className="studio-qrow__text">{q.prompt}</span>
                 </button>
+                {firstTryPercent(firstTry, q.id) !== null ? (
+                  <span className="studio-qrow__pct" title="Learners who got this right first time">
+                    {firstTryPercent(firstTry, q.id)}% first try
+                  </span>
+                ) : null}
                 {isLowFirstTry(firstTry, q.id) ? (
                   <Chip tone="danger">Low first-try score</Chip>
                 ) : null}

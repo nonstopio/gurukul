@@ -72,7 +72,11 @@ describe('assignCourses', () => {
     expect(store.audit).toHaveBeenCalledWith({
       action: 'assign',
       by: 'k',
-      detail: { courseIds: ['git'], count: 2 },
+      detail: {
+        courseIds: ['git'],
+        count: 2,
+        emails: ['priya@nonstopio.com', 'new@nonstopio.com'],
+      },
     });
     expect(mailer.send).not.toHaveBeenCalled();
   });
@@ -117,7 +121,7 @@ describe('assignCourses', () => {
     expect(store.createAssignments).not.toHaveBeenCalled();
     expect(store.bumpAssigned).not.toHaveBeenCalled();
     expect(store.audit).toHaveBeenCalledWith(
-      expect.objectContaining({ detail: { courseIds: ['git'], count: 0 } }),
+      expect.objectContaining({ detail: { courseIds: ['git'], count: 0, emails: [] } }),
     );
     expect(mailer.send).not.toHaveBeenCalled();
   });

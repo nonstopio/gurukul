@@ -2,6 +2,7 @@ import {
   Button,
   Chip,
   DataTable,
+  Dialog,
   Input,
   Pagination,
   ProgressBar,
@@ -13,7 +14,8 @@ import type { TabItem } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
+import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { useDebounced } from '../data/useDebounced';
@@ -115,17 +117,20 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const { data, service } = useConsole();
   const navigate = useNavigate();
   const toast = useToast();
+  const me = useUser();
+  const [changingRole, setChangingRole] = useState(false);
+  const [refresh, setRefresh] = useState(0);
   const [tab, setTab] = useState<LearnerTab>('all');
   const [search, setSearch] = useState('');
   const query = useDebounced(search, SEARCH_DELAY_MS);
   const [team, setTeam] = useState('');
   const [role, setRole] = useState('');
-  const [courseId, setCourseId] = useState('');
+  const [params, setParams] = useSearchParams();
+  const [courseId, setCourseId] = useState(params.get('course') ?? '');
   const [page, setPage] = useState(1);
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [selected, setSelected] = useState<string[]>([]);
   const [open, setOpen] = useState<LearnerRow | null>(null);
-  const [params, setParams] = useSearchParams();
   const linked = params.get('learner');
 
   // `?learner=<uid>` (a person picked in global search) opens their drawer, then leaves the URL.
@@ -215,8 +220,8 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         progress,
         now,
       ).sort((a, b) => (order.get(a.email) as number) - (order.get(b.email) as number));
-      return { rows, total, counts, nextCursor };
-    }, [data, meta, now, source, tab, query, team, role, courseId, page, cursors]),
+      return { rows, total, counts, nextCursor, refresh };
+    }, [data, meta, now, source, tab, query, team, role, courseId, page, cursors, refresh]),
   );
 
   /** Remembers where the next page starts, so Previous and Next never re-read earlier pages. */
@@ -375,17 +380,122 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
           >
             Send reminder
           </Button>
-          <Link className="g-btn g-btn--chrome" to="/kulapati/roles">
+          <Button variant="chrome" onClick={() => setChangingRole(true)}>
             Change role
-          </Link>
+          </Button>
           <Button variant="chrome" onClick={() => setSelected([])}>
             Clear
           </Button>
         </div>
       ) : null}
+      {changingRole ? (
+        <BulkRoleDialog
+          people={rows.filter((r) => selected.includes(r.key))}
+          meUid={me.uid}
+          onClose={() => setChangingRole(false)}
+          onApply={async (people, choice) => {
+            let changed = 0;
+            let failed = 0;
+            for (const p of people) {
+              try {
+                await service.setRoles({
+                  uid: p.uid as string,
+                  acharya: choice === 'acharya',
+                  kulapati: choice === 'kulapati',
+                  ...(choice === 'shishya' ? { grantedCourseIds: [] } : {}),
+                });
+                changed += 1;
+              } catch (e) {
+                failed += 1;
+                log.error('Changing a role failed', e, { uid: p.uid });
+              }
+            }
+            const skipped = selected.length - people.length;
+            toast.show(
+              `Roles changed: ${changed}, skipped: ${skipped}${failed ? `, failed: ${failed}` : ''}`,
+              { tone: failed ? 'danger' : 'success' },
+            );
+            setChangingRole(false);
+            setSelected([]);
+            setRefresh((n) => n + 1);
+          }}
+        />
+      ) : null}
       {open ? (
         <LearnerDrawer row={open} courses={meta.courses} now={now} onClose={() => setOpen(null)} />
       ) : null}
     </>
+  );
+}
+
+type RoleChoice = 'shishya' | 'acharya' | 'kulapati';
+
+/**
+ * Sets one role on everyone selected. Pending invites have no account yet and your own account
+ * cannot lose Kulapati, so those are skipped and counted rather than failing the batch.
+ */
+function BulkRoleDialog({
+  people,
+  meUid,
+  onClose,
+  onApply,
+}: {
+  people: LearnerRow[];
+  meUid: string;
+  onClose: () => void;
+  onApply: (people: LearnerRow[], choice: RoleChoice) => Promise<void>;
+}) {
+  const [choice, setChoice] = useState<RoleChoice>('acharya');
+  const [saving, setSaving] = useState(false);
+  const eligible = people.filter(
+    (p) => p.uid !== null && !(p.uid === meUid && choice !== 'kulapati'),
+  );
+  const skipped = people.length - eligible.length;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Change role"
+      footer={
+        <Button
+          disabled={eligible.length === 0 || saving}
+          onClick={() => {
+            setSaving(true);
+            void onApply(eligible, choice).finally(() => setSaving(false));
+          }}
+        >
+          {`Apply to ${eligible.length} ${eligible.length === 1 ? 'person' : 'people'}`}
+        </Button>
+      }
+    >
+      <fieldset className="dialog-fieldset">
+        <legend>Role</legend>
+        {(['shishya', 'acharya', 'kulapati'] as const).map((r) => (
+          <label key={r} className="choice">
+            <input
+              type="radio"
+              name="bulk-role"
+              value={r}
+              checked={choice === r}
+              onChange={() => setChoice(r)}
+            />{' '}
+            {r === 'shishya'
+              ? 'Shishya (learner)'
+              : r === 'acharya'
+                ? 'Acharya (educator)'
+                : 'Kulapati (admin)'}
+          </label>
+        ))}
+      </fieldset>
+      {choice === 'acharya' ? (
+        <p>Courses already granted stay as they are. Grant more on Roles &amp; access.</p>
+      ) : null}
+      {skipped > 0 ? (
+        <p>
+          {skipped} will be skipped: pending invites have no account yet
+          {choice === 'kulapati' ? '' : ', and you cannot remove your own Kulapati role'}.
+        </p>
+      ) : null}
+    </Dialog>
   );
 }

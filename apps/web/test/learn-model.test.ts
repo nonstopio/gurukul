@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import type { AssignmentRow, ProgressRow } from '../src/data/types';
 import {
+  agoLabel,
+  recentActivity,
+  statusLine,
+  upNext,
   continueCourse,
   countItems,
   dueLabel,
@@ -9,6 +13,8 @@ import {
   hasNewLessons,
   isRetired,
   orderAssigned,
+  nextAssigned,
+  durationLabel,
   percentFor,
 } from '../src/learn/model';
 
@@ -85,6 +91,29 @@ describe('orderAssigned', () => {
   });
 });
 
+describe('nextAssigned and durationLabel', () => {
+  const row = (id: string, a: Partial<AssignmentRow>, p: ProgressRow | null = null) => ({
+    assignment: assignment(a),
+    course: course(id),
+    progress: p,
+  });
+  it('skips the current course and finished ones, and is null when nothing is left', () => {
+    const rows = [
+      row('cur', {}),
+      row('done', { status: 'completed' }),
+      row('also-done', {}, progress({ completedAt: new Date(1) })),
+      row('next', {}),
+    ];
+    expect(nextAssigned(rows, 'cur')?.course.id).toBe('next');
+    expect(nextAssigned(rows.slice(0, 3), 'cur')).toBeNull();
+  });
+  it('formats minutes', () => {
+    expect(durationLabel(45)).toBe('45 min');
+    expect(durationLabel(120)).toBe('2 h');
+    expect(durationLabel(80)).toBe('1 h 20 min');
+  });
+});
+
 describe('continueCourse', () => {
   const courses = [course('git'), course('sql')];
   it('picks the most recently active unfinished course that still exists', () => {
@@ -146,5 +175,105 @@ describe('isRetired and hasNewLessons', () => {
     expect(hasNewLessons(c, done(['git-l1', 'git-l2'], at))).toBe(false);
     expect(hasNewLessons(c, done(['git-l1'], null))).toBe(false);
     expect(hasNewLessons(c, null)).toBe(false);
+  });
+});
+
+describe('Home status, up next and recent activity', () => {
+  const c = {
+    id: 'git',
+    title: 'Git',
+    rules: { sequential: false },
+    parvas: [
+      {
+        id: 'p1',
+        title: 'Basics',
+        items: [
+          { type: 'lesson', id: 'l1', title: 'Init' },
+          { type: 'lesson', id: 'l2', title: 'Commit' },
+          { type: 'pariksha', id: 'q1', title: 'Check' },
+        ],
+      },
+    ],
+  } as unknown as Course;
+  const p = (over: Partial<ProgressRow> = {}): ProgressRow => ({
+    courseId: 'git',
+    courseVersion: 1,
+    lastItemId: null,
+    lastActiveAt: new Date('2026-01-05'),
+    completedItemIds: [],
+    pariksha: {},
+    percent: 0,
+    completedAt: null,
+    certificateId: null,
+    ...over,
+  });
+
+  it('names the percent and what is left in the parva', () => {
+    expect(statusLine(c, p({ completedItemIds: ['l1'] }))).toBe(
+      'You are 33% through Git. 2 items left to finish the Basics parva.',
+    );
+    expect(statusLine(c, p({ completedItemIds: ['l1', 'l2'] }))).toContain('One item left');
+  });
+
+  it('drops the parva sentence when nothing is left or nothing exists', () => {
+    const done = p({ completedItemIds: ['l1', 'l2'], pariksha: { q1: { passed: true } as never } });
+    expect(statusLine(c, done)).toBe('You are 100% through Git.');
+    expect(statusLine({ ...c, parvas: [] } as Course, p())).toBe('You are 0% through Git.');
+    expect(upNext({ ...c, parvas: [] } as Course, p())).toBeNull();
+    expect(upNext(c, p({ lastItemId: 'l2' }))?.item.title).toBe('Commit');
+  });
+
+  it('merges certificates, completions, Pariksha attempts and activity, newest first', () => {
+    const events = recentActivity(
+      [c, { ...c, id: 'sql', title: 'SQL' } as Course],
+      [
+        p({
+          pariksha: {
+            q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: new Date('2026-01-07') },
+            gone: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date('2026-01-08') },
+            q2: { best: 0, passed: false, attempts: 0, lastAttemptAt: null },
+          },
+        }),
+        p({ courseId: 'sql', completedAt: new Date('2026-01-09') }),
+        p({ courseId: 'missing' }),
+      ],
+      [{ id: 'c1', courseTitle: 'SQL', issuedAt: new Date('2026-01-10') } as never],
+    );
+    expect(events.map((e) => e.text)).toEqual([
+      'Certificate issued for SQL',
+      'Finished SQL',
+      'Passed Check',
+      'Worked on Git',
+    ]);
+    expect(recentActivity([c], [p()], [], 0)).toEqual([]);
+  });
+
+  it('finds the parva of an item in a later parva, and words failed and untimed events', () => {
+    const two = {
+      ...c,
+      parvas: [
+        ...c.parvas,
+        { id: 'p2', title: 'More', items: [{ type: 'lesson', id: 'l9', title: 'Rebase' }] },
+      ],
+    } as unknown as Course;
+    expect(upNext(two, p({ lastItemId: 'l9' }))?.parva.title).toBe('More');
+    const events = recentActivity(
+      [c],
+      [
+        p({
+          lastActiveAt: null,
+          pariksha: { q1: { best: 0, passed: false, attempts: 1, lastAttemptAt: new Date() } },
+        }),
+      ],
+      [],
+    );
+    expect(events.map((e) => e.text)).toEqual(['Attempted Check']);
+  });
+
+  it('says how long ago', () => {
+    const now = new Date('2026-01-10T12:00:00Z');
+    expect(agoLabel(new Date('2026-01-10T01:00:00Z'), now)).toBe('Today');
+    expect(agoLabel(new Date('2026-01-09T01:00:00Z'), now)).toBe('1 day ago');
+    expect(agoLabel(new Date('2026-01-07T01:00:00Z'), now)).toBe('3 days ago');
   });
 });

@@ -17,6 +17,7 @@ import {
   removeBlock,
   removeCheckOption,
   replaceBlock,
+  setCheckCorrect,
   setCheckOption,
 } from '../src/studio/lessonEdit';
 import { lesson, makeCourse } from './fake-data';
@@ -138,6 +139,21 @@ describe('check answers', () => {
     const c = { ...check(), options: ['a', 'b', 'c'] };
     expect(removeCheckOption(c, 1).options).toEqual(['a', 'c']);
     expect(setCheckOption(c, 2, 'z').options).toEqual(['a', 'b', 'z']);
+  });
+
+  it('marks the right answer, which follows its option when an earlier one is removed', () => {
+    const c = { ...check(), options: ['a', 'b', 'c'] };
+    expect(setCheckCorrect(c, 2).correct).toBe(2);
+    expect(removeCheckOption(setCheckCorrect(c, 2), 0).correct).toBe(1);
+    expect(removeCheckOption(setCheckCorrect(c, 0), 2).correct).toBe(0);
+  });
+
+  it('unmarks the right answer when its own option is removed', () => {
+    const c = setCheckCorrect({ ...check(), options: ['a', 'b', 'c'] }, 1);
+    expect(removeCheckOption(c, 1)).not.toHaveProperty('correct');
+    expect(removeCheckOption({ ...check(), options: ['a', 'b', 'c'] }, 1)).not.toHaveProperty(
+      'correct',
+    );
   });
 });
 

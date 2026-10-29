@@ -24,6 +24,7 @@
 #    - the end-to-end specs (`npm run e2e`, about a minute) for the app, UI, schema, functions,
 #      rules, seed and e2e paths (.claude/rules/end-to-end.md);
 #    - the Firestore rules tests (`npm run test:rules`) for the rules and their tests;
+#    - the trigger tests (`npm run test:triggers`) for the functions' src and emulator-test;
 #    - the web build and its size budget (`npm run check:bundle`) for the app, UI and schema.
 #
 #  The emulator jobs need Java 21. Without it the push is refused rather than skipped: skipping
@@ -78,13 +79,18 @@ done
 app='^(apps/web/src/|packages/ui/src/|packages/schema/src/)'
 e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/)'
 rules='^(firebase/firestore\.rules$|firebase/rules/)'
-if touches "$e2e" || touches "$rules" || touches "$everything"; then
+triggers='^firebase/functions/(src|emulator-test)/'
+if touches "$e2e" || touches "$triggers" || touches "$rules" || touches "$everything"; then
   command -v java >/dev/null 2>&1 ||
     fail "Java check (the emulator tests need Java 21)" "install Java 21, then git push again"
 fi
 if touches "$rules" || touches "$everything"; then
   echo "pre-push: Firestore rules tests"
   npm run -s test:rules >/dev/null 2>&1 || fail "Firestore rules tests" "npm run test:rules"
+fi
+if touches "$triggers" || touches "$everything"; then
+  echo "pre-push: trigger tests against the emulator"
+  npm run -s test:triggers >/dev/null 2>&1 || fail "trigger tests" "npm run test:triggers"
 fi
 if touches "$app" || touches "$everything"; then
   echo "pre-push: web build and bundle budget"

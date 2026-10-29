@@ -13,7 +13,8 @@
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --sourcemap --outfile=lib/index.js --external:@google-cloud/firestore --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/*",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-gurukul \"vitest run -c vitest.emulator.config.ts\""
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",

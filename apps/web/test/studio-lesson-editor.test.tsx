@@ -56,7 +56,7 @@ describe('lesson editor: layout', () => {
       within(rail)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Lesson l4']);
+    ).toEqual(['Lesson l1', 'Lesson l2', 'Lesson l3', 'Pariksha I Pariksha', 'Lesson l4']);
     expect(within(rail).getByRole('link', { name: 'Lesson l1' }).getAttribute('aria-current')).toBe(
       'page',
     );
@@ -65,7 +65,7 @@ describe('lesson editor: layout', () => {
     ).toBeNull();
     const settings = screen.getByRole('complementary', { name: 'Lesson settings' });
     expect(within(settings).getByText(/plain JSON/)).toBeTruthy();
-    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('has no accessibility violations', async () => {
@@ -81,6 +81,31 @@ describe('lesson editor: layout', () => {
     expect(((await screen.findByLabelText('Lesson title')) as HTMLInputElement).value).toBe(
       'Lesson l2',
     );
+  });
+
+  it('lists Parikshas in the rail and opens the Pariksha builder', async () => {
+    await open();
+    const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
+    expect(
+      within(rail)
+        .getByRole('link', { name: /Pariksha I/ })
+        .getAttribute('href'),
+    ).toBe('/studio/courses/git/pariksha/q1');
+  });
+
+  it('names untitled items in the rail', async () => {
+    const course = courseWith();
+    for (const item of course.parvas.flatMap((p) => p.items))
+      if (item.id === 'l2' || item.id === 'q1') item.title = '';
+    await open(course);
+    const rail = await screen.findByRole('navigation', { name: 'Lessons in this course' });
+    expect(within(rail).getByRole('link', { name: 'Untitled lesson' })).toBeTruthy();
+    expect(within(rail).getByRole('link', { name: /Untitled Pariksha/ })).toBeTruthy();
+  });
+
+  it('says so when a lesson has no blocks', async () => {
+    await open(courseWith([]));
+    expect(await screen.findByText('This lesson is empty.')).toBeTruthy();
   });
 
   it('shows a loading state, then the lesson', async () => {
@@ -118,11 +143,11 @@ describe('lesson editor: title and settings', () => {
     fireEvent.change(await screen.findByLabelText('Lesson title'), {
       target: { value: 'Branching' },
     });
-    expect(screen.getByText('Unsaved changes')).toBeTruthy();
+    expect(screen.getByText(/^Draft v3 · unsaved changes/)).toBeTruthy();
     await saveNow();
     expect(studio.data.saveDraft).toHaveBeenCalledWith('git', expect.anything(), 3, 'u1');
     expect(savedLesson(studio).title).toBe('Branching');
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('flags a blank title inline', async () => {
@@ -175,6 +200,28 @@ describe('lesson editor: blocks', () => {
       expect(added?.id).toMatch(/^b-[0-9a-f]{8}$/);
     },
   );
+
+  it('opens the block palette on "/" unless the person is typing', async () => {
+    await open();
+    const title = (await screen.findByLabelText('Lesson title')) as HTMLInputElement;
+    const tile = screen.getByRole('button', { name: 'Text' });
+    // Typing in a field with text keeps the slash.
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: '/' })).toBe(true);
+    expect(document.activeElement).toBe(title);
+    // A modifier key is left alone.
+    expect(fireEvent.keyDown(document.body, { key: '/', ctrlKey: true })).toBe(true);
+    // Another key is ignored.
+    expect(fireEvent.keyDown(document.body, { key: 'a' })).toBe(true);
+    // Outside a field it jumps to the palette.
+    expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false);
+    expect(document.activeElement).toBe(tile);
+    // An empty field counts as not typing yet.
+    fireEvent.change(title, { target: { value: '' } });
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: '/' })).toBe(false);
+    expect(document.activeElement).toBe(tile);
+  });
 
   it('edits a block and saves the change', async () => {
     const { studio } = await open();
@@ -311,7 +358,7 @@ describe('lesson editor: saving', () => {
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     expect(savedLesson(studio).title).toBe('Auto');
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('offers a retry when a save fails', async () => {
@@ -324,7 +371,7 @@ describe('lesson editor: saving', () => {
       fireEvent.click(retry);
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
   });
 
   it('explains a conflict and reloads the stored draft', async () => {

@@ -130,6 +130,7 @@ npm run dev -w @gurukul/web  # app at localhost:5173
 npm run emulators            # Auth, Firestore, Functions, Hosting emulators (demo project)
 npm run check                # what CI runs, minus the emulator job
 npm run test:rules           # Firestore rules against the emulator
+npm run test:triggers        # Cloud Functions triggers against the Firestore emulator
 npm run changelog:new -- "…" # a correctly named changelog entry
 npm run validate:navigation  # every route classified for global search
 npm run tracker              # plan status per section and the next item to pick up

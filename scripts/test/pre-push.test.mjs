@@ -96,7 +96,11 @@ describe('pre-push.sh', () => {
   it('runs the end-to-end specs, but no bundle check, for a functions change', () => {
     const { res, calls } = push({ 'firebase/functions/src/remind.ts': 'x' });
     assert.equal(res.status, 0, res.stderr);
-    assert.deepEqual(calls.slice(2), ['run -s coverage -w @gurukul/functions', 'run -s e2e']);
+    assert.deepEqual(calls.slice(2), [
+      'run -s coverage -w @gurukul/functions',
+      'run -s test:triggers',
+      'run -s e2e',
+    ]);
   });
 
   it('refuses, rather than skips, an emulator push when Java is missing', () => {

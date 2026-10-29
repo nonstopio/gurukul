@@ -4,7 +4,6 @@ import {
   Button,
   Callout,
   EmptyState,
-  QuizOption,
   Skeleton,
   TopBar,
   buttonClass,
@@ -12,11 +11,11 @@ import {
 } from '@gurukul/ui';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { answerLetters } from '../pariksha/model';
+import { QuestionFields } from '../pariksha/QuestionFields';
 import { BlockView, Prose } from '../player/blocks';
 import { itemEditorPath, nameOf } from './studioModel';
 import { useDraft } from './useDraft';
-
-const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
 const previewPath = (courseId: string, itemId: string) =>
   `/studio/courses/${courseId}/preview/${itemId}`;
@@ -220,6 +219,11 @@ function PreviewExam({
           : mine.filter((id) => id !== optionId)
         : [optionId],
     });
+  const letters = answerLetters(
+    question.options.map((o) => o.id),
+    key,
+  );
+  const answerText = `the ${key.length > 1 ? 'answers are' : 'answer is'} ${letters}`;
   const stateOf = (id: string) => {
     if (!done) return 'idle' as const;
     if (key.includes(id)) return 'correct' as const;
@@ -231,34 +235,17 @@ function PreviewExam({
       <p className="article__kicker">
         Question {index + 1} of {total}
       </p>
-      <fieldset className="exam__question">
-        <legend className="exam__prompt">{question.prompt}</legend>
-        {question.code ? <pre className="exam__code">{question.code}</pre> : null}
-        {question.options.map((option, i) => (
-          <QuizOption
-            key={option.id}
-            name={question.id}
-            value={option.id}
-            letter={LETTERS[i % LETTERS.length] as (typeof LETTERS)[number]}
-            multiple={multiple}
-            checked={mine.includes(option.id)}
-            state={stateOf(option.id)}
-            onChange={(on) => pick(option.id, on)}
-          >
-            {option.text}
-          </QuizOption>
-        ))}
-        {done ? (
-          <div role="status" className="exam__feedback">
-            {key.length === 0 ? (
-              <p>No correct answer is marked yet. Mark one in the builder.</p>
-            ) : (
-              <p>{isCorrect(mine, key) ? 'Correct.' : 'Not quite.'}</p>
-            )}
-            <Prose md={question.explanation} />
-          </div>
-        ) : null}
-      </fieldset>
+      <QuestionFields question={question} picked={mine} stateOf={stateOf} onPick={pick} />
+      {done ? (
+        <div role="status" className="exam__feedback">
+          {key.length === 0 ? (
+            <p>No correct answer is marked yet. Mark one in the builder.</p>
+          ) : (
+            <p>{isCorrect(mine, key) ? 'Correct.' : `Not quite — ${answerText}.`}</p>
+          )}
+          <Prose md={question.explanation} />
+        </div>
+      ) : null}
       <div className="exam__actions">
         {done ? (
           <Button onClick={() => setIndex(index + 1)}>

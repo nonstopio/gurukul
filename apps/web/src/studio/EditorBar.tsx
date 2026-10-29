@@ -2,12 +2,13 @@ import { Breadcrumb, Button, Callout, buttonClass, useToast } from '@gurukul/ui'
 import type { BreadcrumbItem } from '@gurukul/ui';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
+import { useSaveLabel } from './saveLabel';
 import type { DraftApi } from './useDraft';
 
-const TEXT = { saved: 'Saved', saving: 'Saving…', dirty: 'Unsaved changes' } as const;
-
 /**
- * The top of an editor: where you are, the save state in words (Saved, Saving…, Unsaved changes,
+ * The top of an editor: where you are, the draft's revision and save state in words (Draft v3 ·
+ * saved just now, saving…, unsaved changes,
  * a retry button when the save failed), the page's actions, and the conflict notice with Reload
  * when someone else saved the draft first.
  */
@@ -17,10 +18,21 @@ export function EditorBar({
   actions,
 }: {
   crumbs: BreadcrumbItem[];
-  draft: Pick<DraftApi, 'save' | 'saveNow' | 'reload'>;
+  draft: Pick<
+    DraftApi,
+    | 'save'
+    | 'rev'
+    | 'savedAt'
+    | 'saveNow'
+    | 'reload'
+    | 'backupAt'
+    | 'restoreBackup'
+    | 'discardBackup'
+  >;
   actions?: ReactNode;
 }) {
   const { save } = draft;
+  const label = useSaveLabel(draft);
   const failed = save === 'error' || save === 'conflict';
   return (
     <>
@@ -38,7 +50,7 @@ export function EditorBar({
               </Button>
             ) : (
               <>
-                <span>{TEXT[save]}</span>
+                <span>{label}</span>
                 <Button
                   variant="ghost"
                   disabled={save !== 'dirty'}
@@ -52,6 +64,8 @@ export function EditorBar({
           {actions}
         </div>
       </div>
+      <LeaveGuard draft={draft} />
+      <RestoreNotice draft={draft} />
       {save === 'conflict' ? (
         <Callout tone="warning" title="Someone else saved this course">
           <p>Reload to see their changes. Edits you made here since your last save are lost.</p>

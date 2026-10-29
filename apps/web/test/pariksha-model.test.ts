@@ -181,7 +181,7 @@ describe('drafts', () => {
   it('names the right options by their letters as shown', () => {
     expect(answerLetters(['a', 'b', 'c'], ['b'])).toBe('B');
     expect(answerLetters(['a', 'b', 'c', 'd'], ['d', 'a', 'b'])).toBe('A, B and D');
-    expect(answerLetters(['a', 'b', 'c', 'd', 'e'], ['e'])).toBe('A');
+    expect(answerLetters(['a', 'b', 'c', 'd', 'e'], ['e'])).toBe('E');
     expect(answerLetters(['a'], ['z'])).toBe('');
   });
 });

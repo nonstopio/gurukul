@@ -4,7 +4,7 @@ export const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(
 
 export function makeCourse(over: Partial<Course> = {}): Course {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'git',
     title: 'Git',
     summary: 'Version control.',

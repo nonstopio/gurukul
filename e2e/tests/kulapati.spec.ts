@@ -47,7 +47,7 @@ test.describe('Kulapati', () => {
 
     await summary.getByRole('button', { name: 'Assign to 2 people' }).click();
 
-    await expect(page).toHaveURL(/\/kulapati\/learners$/);
+    await expect(page).toHaveURL(/\/kulapati\/learners(\?.*)?$/);
     await page.getByRole('tab', { name: /^Pending invite \(2\)/ }).click();
     const table = page.getByRole('table', { name: 'Learners' });
     for (const email of invitees) {

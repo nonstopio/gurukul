@@ -16,8 +16,11 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
 ## Drafts and publishing
 
 - Editing writes `courses/{id}/drafts/current` (debounced autosave, ~1s, with
-  a "Saved just now" indicator and a conflict warning if another editor saved
-  in between — last-write-wins with a `rev` check).
+  a "Draft v7 · saved just now" indicator (the draft's `rev`, and the age of its last save) and a conflict warning if another editor saved
+  in between — last-write-wins with a `rev` check). A save that fails is also kept in
+  the browser's localStorage (per person and course, with the `rev` it was made on) and offered
+  back as "Restore edits" while the stored draft is still that `rev`; in-app navigation with
+  unsaved edits saves first and asks only if the save fails.
 - **Publish** calls `publishCourse({ courseId })`: validate with the schema,
   check every Pariksha has answers for every question, strip answers into
   `private/answers`, bump `version`, snapshot the old version into `versions/`.
@@ -32,6 +35,8 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
   `Alt+↑/↓` as well as drag).
 - Add parva, add lesson, add Pariksha, rename inline, delete with confirmation
   (deleting a published lesson warns with how many learners completed it: one count query when the dialog opens).
+  The publish dialog gives each removed lesson the same count, and course cards show how many
+  learners started the course (`stats/course_{id}`, only on courses the person may edit).
 - Right panel: title, summary, level, pass
   mark, cover theme, learning rules toggles, Acharyas with access.
 

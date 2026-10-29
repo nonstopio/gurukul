@@ -43,7 +43,7 @@ export type { CodeBlockProps } from './CodeBlock';
 export { VideoBlock } from './VideoBlock';
 export type { VideoBlockProps } from './VideoBlock';
 export { QuizOption } from './QuizOption';
-export type { QuizOptionProps, QuizOptionState } from './QuizOption';
+export type { QuizOptionLetter, QuizOptionProps, QuizOptionState } from './QuizOption';
 export { ResultRow } from './ResultRow';
 export type { ResultRowProps, ResultRowRevisit } from './ResultRow';
 export { Breadcrumb } from './Breadcrumb';

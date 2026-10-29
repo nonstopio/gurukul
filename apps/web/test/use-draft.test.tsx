@@ -264,6 +264,14 @@ describe('useDraft', () => {
     await waitFor(() => expect(second.result.current.status).toBe('ready'));
   });
 
+  it('ignores a restore when no backup was kept', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.backupAt).toBeNull();
+    act(() => result.current.restoreBackup());
+    expect(result.current.save).toBe('saved');
+  });
+
   it('does not flush on unmount when nothing is unsaved', async () => {
     const { result, studio, unmount } = setup();
     await waitFor(() => expect(result.current.status).toBe('ready'));

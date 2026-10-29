@@ -2,6 +2,7 @@ import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
 import './quiz-option.css';
 
+export type QuizOptionLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 export type QuizOptionState = 'idle' | 'correct' | 'incorrect' | 'locked';
 
 export interface QuizOptionProps extends Omit<
@@ -10,8 +11,8 @@ export interface QuizOptionProps extends Omit<
 > {
   /** The answer text. */
   children: ReactNode;
-  /** Badge letter, `A` to `D`. */
-  letter: 'A' | 'B' | 'C' | 'D';
+  /** Badge letter, `A` to `H` (a question has up to eight answers). */
+  letter: QuizOptionLetter;
   /** Whether this answer is picked. The caller owns it. */
   checked: boolean;
   /** Called with the new checked state. */

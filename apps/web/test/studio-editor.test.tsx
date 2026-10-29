@@ -117,7 +117,7 @@ describe('Course editor: the shell', () => {
     await ready();
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getByText('Live: v3')).toBeTruthy();
-    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Vyasa Studio/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Preview as learner' }).getAttribute('href')).toBe(
       '/studio/courses/git/preview/l1',
@@ -214,7 +214,7 @@ describe('Course editor: structure', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Title of parva 1' }), {
       target: { value: 'Start' },
     });
-    expect(screen.getByText('Unsaved changes')).toBeTruthy();
+    expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
       screen.getAllByRole('button', { name: '+ Lesson in parva 1' })[0] as HTMLElement,
     );
@@ -336,6 +336,25 @@ describe('Course editor: structure', () => {
 
 function cleanupSingle() {}
 
+describe('Course editor: renaming items inline', () => {
+  it('renames a lesson in place and closes the field on Enter, Escape or blur', async () => {
+    await open();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Lesson l1' }));
+    const field = screen.getByRole('textbox', { name: 'Title of Lesson l1' });
+    fireEvent.change(field, { target: { value: 'Fresh' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(screen.getByRole('link', { name: 'Fresh' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Fresh' }));
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Title of Fresh' }), { key: 'a' });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Title of Fresh' }), { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'Title of Fresh' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Fresh' }));
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Title of Fresh' }));
+    expect(screen.queryByRole('textbox', { name: 'Title of Fresh' })).toBeNull();
+  });
+});
+
 describe('Course editor: dialogs close with Escape', () => {
   it('closes the delete, rollback and archive dialogs', async () => {
     await open({
@@ -371,7 +390,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       vi.advanceTimersByTime(1100);
     });
-    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
     expect(studio.data.saveDraft).toHaveBeenCalledWith(
       'git',
       expect.objectContaining({ course: expect.objectContaining({ title: 'Renamed' }) }),
@@ -394,7 +413,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       fireEvent.click(retry);
     });
-    await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
   });
 
   it('warns about a conflict and reloads on request', async () => {
@@ -408,7 +427,7 @@ describe('Course editor: saving', () => {
     expect(
       await screen.findByText('Someone else saved this draft. Reload to continue.'),
     ).toBeTruthy();
-    expect(screen.getByText('Not saved')).toBeTruthy();
+    expect(screen.getByText('Draft v5 · not saved')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() => expect(studio.data.getDraft).toHaveBeenCalledTimes(2));
     await waitFor(() =>
@@ -665,15 +684,18 @@ describe('Course editor: publishing', () => {
     });
     const { studio } = await open({ live, draft, getCourse: bump(live) });
     await ready();
+    vi.mocked(studio.data.completedCount).mockResolvedValue(5);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
     });
     const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(await within(dialog).findByText('Lesson l2 — 5 completed')).toBeTruthy();
+    expect(studio.data.completedCount).toHaveBeenCalledWith('git', 'l2');
     expect(within(dialog).getByText('Added (1)')).toBeTruthy();
     expect(within(dialog).getByText('Fresh')).toBeTruthy();
     expect(within(dialog).getByText('Edited (1)')).toBeTruthy();
     expect(within(dialog).getByText('Removed (1)')).toBeTruthy();
-    expect(within(dialog).getByText('Lesson l2')).toBeTruthy();
+    expect(within(dialog).getByText('Lesson l2 — 5 completed')).toBeTruthy();
     expect(within(dialog).getByText(/keep their progress record/)).toBeTruthy();
     expect(within(dialog).getByText(/Course details or the order of parvas changed/)).toBeTruthy();
     expect(within(dialog).queryByText(/Fix these first/)).toBeNull();
@@ -724,6 +746,17 @@ describe('Course editor: publishing', () => {
     expect(log.warn).toHaveBeenCalledWith('Reloading the live course failed', { courseId: 'git' });
   });
 
+  it('warns in the publish dialog that publishing an archived course un-archives it', async () => {
+    await open({ live: mine({ status: 'archived' }) });
+    await ready();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(within(dialog).getByText('This course is archived')).toBeTruthy();
+    expect(within(dialog).getByText(/Publishing makes it live again/)).toBeTruthy();
+  });
+
   it('publishes a first version and can be cancelled', async () => {
     await open({ live: mine({ version: 0, status: 'draft' }) });
     await ready();
@@ -733,6 +766,25 @@ describe('Course editor: publishing', () => {
     expect(await screen.findByText(/first publication/)).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('still lists a removed lesson when counting its completions fails', async () => {
+    const live = mine();
+    const draft = mine({
+      parvas: [
+        { id: 'p1', title: 'Basics', items: [lesson('l1')] },
+        makeCourse().parvas[1] as never,
+      ],
+    });
+    const { studio } = await open({ live, draft });
+    await ready();
+    vi.mocked(studio.data.completedCount).mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(within(dialog).getByText('Lesson l2')).toBeTruthy();
+    expect(within(dialog).queryByText(/ completed$/)).toBeNull();
   });
 
   it('blocks publishing while problems exist, with links to fix them', async () => {

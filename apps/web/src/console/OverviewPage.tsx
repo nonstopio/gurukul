@@ -1,12 +1,15 @@
 import { itemsOf } from '@gurukul/schema';
-import { BarChart, Button, EmptyState, StatCard, buttonClass } from '@gurukul/ui';
+import { BarChart, Button, EmptyState, Select, StatCard, buttonClass } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { assignmentsCsv, pct, weeklySeries } from './model';
+import { NeedsAttention } from './NeedsAttention';
+import type { AttentionInput } from './NeedsAttention';
+import { DATE_RANGES, assignmentsCsv, failedTwice, pct, rangeStart, weeklySeries } from './model';
+import type { DateRange } from './model';
 
 /** Hands the browser a file to save; nothing leaves the page. */
 function downloadCsv(name: string, text: string): void {
@@ -23,17 +26,43 @@ export function OverviewPage() {
   const { data } = useConsole();
   const learner = useLearnerData();
   const [now] = useState(() => new Date());
+  const [range, setRange] = useState<DateRange>('all');
+  const [team, setTeam] = useState('');
   const load = useCallback(async () => {
-    const [org, courses, assignments, overdue] = await Promise.all([
+    const [org, courses, assignments, open, overdue, recent, teams] = await Promise.all([
       data.orgStats(),
       learner.listCourses(),
       data.assignments(),
+      data.openAssignments(now),
       data.overdueCount(now),
+      data.recentProgress(),
+      data.teams(),
     ]);
     const rows = await Promise.all(
       courses.map(async (course) => ({ course, stats: await data.courseStats(course.id) })),
     );
-    return { org, assignments, overdue, rows };
+    const failed = failedTwice(recent);
+    const people = new Map(
+      (await data.usersByUid([...new Set(failed.map((f) => f.uid))].slice(0, 30))).map((u) => [
+        u.uid,
+        u,
+      ]),
+    );
+    const attention: AttentionInput = {
+      open,
+      failed,
+      people,
+      courseTitles: new Map(courses.map((c) => [c.id, c.title])),
+      parikshaTitles: new Map(
+        courses.flatMap((c) =>
+          itemsOf(c)
+            .filter((i) => i.type === 'pariksha')
+            .map((i) => [`${c.id}/${i.id}`, (i as { title: string }).title] as const),
+        ),
+      ),
+      now,
+    };
+    return { org, assignments, open, overdue, rows, attention, teams };
   }, [data, learner, now]);
   const result = useAsync(load);
 
@@ -56,9 +85,8 @@ export function OverviewPage() {
         </Link>
       </div>
       <Loaded loadable={result}>
-        {({ org, assignments, overdue, rows }) => {
-          const pending = new Set(assignments.filter((a) => a.uid === null).map((a) => a.email))
-            .size;
+        {({ org, assignments, open, overdue, rows, attention, teams }) => {
+          const pending = new Set(open.filter((a) => a.uid === null).map((a) => a.email)).size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
           const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
@@ -103,6 +131,33 @@ export function OverviewPage() {
                   sub="Assigned, not signed in yet"
                 />
               </div>
+
+              <div className="filters">
+                <Select
+                  label="Date range"
+                  value={range}
+                  onChange={(e) => setRange(e.target.value as DateRange)}
+                >
+                  {DATE_RANGES.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
+                <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
+                  <option value="">All teams</option>
+                  {teams.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </Select>
+                <p className="attention__more">
+                  Narrows Needs attention below; the figures above are for the whole organisation.
+                </p>
+              </div>
+
+              <NeedsAttention input={attention} start={rangeStart(range, now)} team={team} />
 
               <section aria-labelledby="weekly-title" className="home-section">
                 <h2 id="weekly-title">Lessons completed per week</h2>

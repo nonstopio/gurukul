@@ -31,7 +31,7 @@ document limit. `schemaVersion` lets the shape evolve with tested migrations.
 
 ```ts
 type Course = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   id: string;                    // = slug, stable forever
   title: string;
   summary: string;               // one sentence, shown on cards
@@ -71,14 +71,14 @@ type Lesson = {
 };
 
 type Block =
-  | { type: 'video'; id: string; provider: 'youtube' | 'drive' | 'loom'; url: string; captions: boolean; durationSec?: number }
+  | { type: 'video'; id: string; provider: 'youtube' | 'drive' | 'loom'; url: string; captions: boolean; title?: string; caption?: string; durationSec?: number }
   | { type: 'markdown'; id: string; md: string }
   | { type: 'code'; id: string; lang: string; file?: string; code: string; copy: boolean; terminal: boolean; highlight?: string }
   | { type: 'callout'; id: string; tone: 'note' | 'tip' | 'warning'; title?: string; md: string }
   | { type: 'image'; id: string; url: string; alt: string; caption?: string }
   | { type: 'embed'; id: string; url: string; title: string }   // allow-listed hosts only
   | { type: 'file'; id: string; url: string; label: string }
-  | { type: 'check'; id: string; prompt: string; options: string[]; explanation: string }; // ungraded, answer inline
+  | { type: 'check'; id: string; prompt: string; options: string[]; correct?: number; explanation: string }; // ungraded, answer inline; `correct` indexes `options` (v3, required to publish)
 
 type Pariksha = {
   type: 'pariksha';

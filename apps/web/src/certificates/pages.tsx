@@ -1,20 +1,13 @@
-import { itemsOf } from '@gurukul/schema';
-import {
-  Button,
-  Callout,
-  Card,
-  Certificate,
-  EmptyState,
-  StatCard,
-  buttonClass,
-  useToast,
-} from '@gurukul/ui';
+import { estimateMinutes, itemsOf } from '@gurukul/schema';
+import { Button, Callout, Certificate, EmptyState, buttonClass, useToast } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { CertificateRow, ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
+import { durationLabel, nextAssigned } from '../learn/model';
+import type { AssignedCourse } from '../learn/model';
 import { Loaded } from '../learn/ui';
 import { linkedInUrl, longDate } from '../pariksha/model';
 import { log } from '../log';
@@ -181,6 +174,73 @@ export function CertificatesPage() {
   );
 }
 
+/** The real certificate, scaled down, tilted and linked: what the learner just earned. */
+function CertificateThumb({ id }: { id: string }) {
+  const data = useLearnerData();
+  const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
+  if (result.state !== 'ready' || result.value === null) return null;
+  return (
+    <Link className="complete__thumb" to={`/certificates/${id}`}>
+      <span className="sr-only">Open the certificate for {result.value.courseTitle}</span>
+      <div aria-hidden="true" inert>
+        <CertificateSheet c={result.value} />
+      </div>
+    </Link>
+  );
+}
+
+/** The next unfinished assigned course, or a way to browse when there is none. */
+function UpNextCard({ courseId }: { courseId: string }) {
+  const data = useLearnerData();
+  const uid = useUser().uid;
+  const result = useAsync(
+    useCallback(async () => {
+      const [assignments, progress, courses] = await Promise.all([
+        data.myAssignments(uid),
+        data.myProgress(uid),
+        data.listCourses(),
+      ]);
+      const rows: AssignedCourse[] = assignments.flatMap((assignment) => {
+        const course = courses.find((c) => c.id === assignment.courseId);
+        return course
+          ? [
+              {
+                assignment,
+                course,
+                progress: progress.find((p) => p.courseId === course.id) ?? null,
+              },
+            ]
+          : [];
+      });
+      return nextAssigned(rows, courseId);
+    }, [data, uid, courseId]),
+  );
+  if (result.state !== 'ready') return null;
+  const next = result.value;
+  return (
+    <section className="complete__next" aria-labelledby="complete-next">
+      <h2 id="complete-next" className="complete__next-title">
+        Up next in your queue
+      </h2>
+      {next ? (
+        <>
+          <p className="complete__next-course">{next.course.title}</p>
+          <Link className={buttonClass('chrome')} to={`/courses/${next.course.id}`}>
+            {next.progress ? 'Continue' : 'Start'} {next.course.title}
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="complete__next-course">Nothing else is assigned to you.</p>
+          <Link className={buttonClass('chrome')} to="/courses">
+            Browse more courses
+          </Link>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** `/courses/:courseId/complete`: the Siddhi screen, reached after the last item. */
 export function CompletePage() {
   const { courseId = '' } = useParams();
@@ -223,47 +283,61 @@ export function CompletePage() {
           const average = best.length
             ? Math.round((best.reduce((a, b) => a + b, 0) / best.length) * 100)
             : null;
+          const certificateId = course.rules.certificate ? progress.certificateId : null;
           return (
-            <>
-              <p className="article__kicker">Siddhi · Course complete</p>
-              <h1 className="page__title">{course.title}, done.</h1>
-              <div className="stats">
-                <StatCard label="Completed on" value={longDate(progress.completedAt)} />
-                {average !== null ? (
-                  <StatCard label="Pariksha average" value={`${average}%`} />
-                ) : null}
-                <StatCard
-                  label="Lessons"
-                  value={String(itemsOf(course).filter((i) => i.type === 'lesson').length)}
-                />
-              </div>
-              {course.rules.certificate ? (
-                progress.certificateId ? (
-                  <Card className="continue">
-                    <h2>Your certificate</h2>
-                    <div className="continue__actions">
-                      <Link
-                        className={buttonClass('primary')}
-                        to={`/certificates/${progress.certificateId}`}
-                      >
+            <div className="complete__panel">
+              <div className="complete__main">
+                <p className="complete__kicker">Siddhi · Course complete</p>
+                <h1 className="complete__title">{course.title}, done.</h1>
+                <dl className="complete__stats">
+                  <div>
+                    <dt>Completed on</dt>
+                    <dd>{longDate(progress.completedAt)}</dd>
+                  </div>
+                  {average !== null ? (
+                    <div>
+                      <dt>Pariksha average</dt>
+                      <dd>{`${average}%`}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt>Time invested</dt>
+                    <dd>{durationLabel(estimateMinutes(course))}</dd>
+                  </div>
+                </dl>
+                {course.rules.certificate ? (
+                  certificateId ? (
+                    <div className="complete__actions">
+                      <Link className={buttonClass('chrome')} to={`/certificates/${certificateId}`}>
                         View and download certificate
                       </Link>
-                      <Button
-                        variant="secondary"
-                        onClick={() => void copy(progress.certificateId as string)}
+                      <a
+                        className={buttonClass('ghost')}
+                        href={linkedInUrl({
+                          title: course.title,
+                          credentialId: certificateId,
+                          verifyUrl: verifyUrl(certificateId),
+                          issuedAt: progress.completedAt,
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
+                        Add to LinkedIn
+                      </a>
+                      <Button variant="ghost" onClick={() => void copy(certificateId)}>
                         Copy verify link
                       </Button>
                     </div>
-                  </Card>
-                ) : (
-                  <p role="status">Preparing your certificate…</p>
-                )
-              ) : null}
-              <Link className={buttonClass('secondary')} to="/courses">
-                Browse more courses
-              </Link>
-            </>
+                  ) : (
+                    <p role="status">Preparing your certificate…</p>
+                  )
+                ) : null}
+              </div>
+              <div className="complete__side">
+                {certificateId ? <CertificateThumb id={certificateId} /> : null}
+                <UpNextCard courseId={course.id} />
+              </div>
+            </div>
           );
         }}
       </Loaded>

@@ -627,6 +627,7 @@ describe('Course complete', () => {
     ).toBeTruthy();
     expect(screen.getByText('9 November 2026')).toBeTruthy();
     expect(screen.getByText('90%')).toBeTruthy();
+    expect(screen.getByText('Time invested')).toBeTruthy();
     expect(
       screen.getByRole('link', { name: 'View and download certificate' }).getAttribute('href'),
     ).toBe('/certificates/NSG-GIT-26-0001');
@@ -635,6 +636,50 @@ describe('Course complete', () => {
       expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/verify/NSG-GIT-26-0001')),
     );
     expect(await screen.findByText('Link copied')).toBeTruthy();
+  });
+
+  it('offers Add to LinkedIn, a certificate thumbnail and the next assigned course', async () => {
+    const other = makeCourse({ id: 'k8s', title: 'Kubernetes basics' });
+    const assignment = (courseId: string, status: 'assigned' | 'completed' = 'assigned') =>
+      ({ id: `a-${courseId}`, courseId, mandatory: true, dueAt: null, status }) as const;
+    await openApp('/courses/git/complete', {
+      data: fakeData({
+        courses: [courseWith(), other],
+        watched: done(),
+        certificates: [certificateRow()],
+        assignments: [assignment('ghost'), assignment('git', 'completed'), assignment('k8s')],
+        progress: [done()],
+      }),
+    });
+    const linkedIn = await screen.findByRole('link', { name: 'Add to LinkedIn' });
+    expect(linkedIn.getAttribute('href')).toContain('linkedin.com/profile/add');
+    expect(linkedIn.getAttribute('href')).toContain('NSG-GIT-26-0001');
+    expect(await screen.findByRole('link', { name: /Open the certificate for/ })).toBeTruthy();
+    expect(await screen.findByText('Up next in your queue')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Start Kubernetes basics' }).getAttribute('href')).toBe(
+      '/courses/k8s',
+    );
+  });
+
+  it('offers to continue a started course', async () => {
+    const other = makeCourse({ id: 'k8s', title: 'Kubernetes basics' });
+    await openApp('/courses/git/complete', {
+      data: fakeData({
+        courses: [courseWith(), other],
+        watched: done(),
+        assignments: [
+          { id: 'a1', courseId: 'k8s', mandatory: false, dueAt: null, status: 'started' },
+        ],
+        progress: [progressRow({ courseId: 'k8s' })],
+      }),
+    });
+    expect(await screen.findByRole('link', { name: 'Continue Kubernetes basics' })).toBeTruthy();
+  });
+
+  it('says nothing else is assigned, and skips a thumbnail whose certificate is missing', async () => {
+    await openApp('/courses/git/complete', { data: data(courseWith(), done()) });
+    expect(await screen.findByText('Nothing else is assigned to you.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Open the certificate for/ })).toBeNull();
   });
 
   it('says so when the clipboard refuses', async () => {
@@ -798,7 +843,7 @@ describe('Lesson player completion', () => {
       watched: progressRow({ lastItemId: 'l3', completedItemIds: ['l1', 'l2'] }),
     });
     const { router } = await openApp('/courses/git/learn/l3', { data: d });
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/pariksha/q1'));
   });
 
