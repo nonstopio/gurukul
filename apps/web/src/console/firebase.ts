@@ -1,5 +1,6 @@
 import {
   DEFAULT_ORG_CONFIG,
+  readCourse,
   courseStatsSchema,
   orgConfigSchema,
   orgStatsSchema,
@@ -35,6 +36,7 @@ const OPEN_LIMIT = 2000;
 const RECENT_PROGRESS_LIMIT = 100;
 const AUDIT_LIMIT = 100;
 const SEARCH_LIMIT = 8;
+const COURSE_LIMIT = 100;
 const PERSON_ASSIGNMENT_LIMIT = 50;
 const ATTEMPT_LIMIT = 10;
 
@@ -215,6 +217,10 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         query(collection(db, 'users'), where('roles', 'array-contains', role), limit(200)),
       );
       return snap.docs.map((d) => toUser(d.id, d.data()));
+    },
+    async allCourses() {
+      const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
+      return snap.docs.flatMap((d) => readCourse(d.data()) ?? []);
     },
     async knownEmails(emails, courseIds) {
       const signedIn = new Set<string>();

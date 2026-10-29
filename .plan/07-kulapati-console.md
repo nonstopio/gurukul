@@ -68,9 +68,11 @@ leaves it on the profiles that have it. One Save writes the whole document.
 
 ## Roles & access
 
-- Role cards with counts; a permission matrix (what each role can do).
-- Acharyas list with their granted courses; "Grant a role" dialog: person,
-  role, and for Acharya the courses.
+- Role cards with counts (the Learner card counts everyone who has signed in); a permission matrix
+  (what each role can do).
+- Acharyas list with their granted courses, and a Kulapatis list; "Grant a role" dialog: person,
+  then Acharya and Kulapati as independent checkboxes (a person can hold both), and for Acharya
+  the courses to edit, drafts and archived ones included.
 - All through `setRoles` (see `03-auth-and-roles.md`).
 
 ## Audit log

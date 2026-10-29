@@ -34,6 +34,7 @@ vi.mock('firebase/firestore', () => ({
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
+import { makeCourse } from './fake-data';
 import { firebaseConsoleData } from '../src/console/firebase';
 
 const data = firebaseConsoleData({} as never);
@@ -177,6 +178,17 @@ describe('users', () => {
     store.queue = [[user(1)]];
     expect((await data.usersWithRole('acharya')).map((u) => u.uid)).toEqual(['u1']);
     expect(store.queries[0]).toContainEqual({ where: ['roles', 'array-contains', 'acharya'] });
+  });
+
+  it('lists every course, drafts included, skipping one it cannot read', async () => {
+    store.queue = [
+      [d('a', { ...makeCourse({ id: 'a', status: 'draft' }) }), d('b', { junk: true })],
+    ];
+    expect((await data.allCourses()).map((c) => c.id)).toEqual(['a']);
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
+    expect(store.queries[0]).not.toContainEqual(
+      expect.objectContaining({ where: expect.anything() }),
+    );
   });
 
   it('fills defaults for a bare profile and counts people', async () => {

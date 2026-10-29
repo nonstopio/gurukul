@@ -2,7 +2,9 @@ import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import type { CourseStats, OrgConfig, OrgStats } from '@gurukul/schema';
+import type { Course } from '@gurukul/schema';
 import type { ProgressRow } from '../src/data/types';
+import { makeCourse } from './fake-data';
 import type {
   ConsoleData,
   ConsoleService,
@@ -38,6 +40,8 @@ export function fakeConsole(
     /** Newest-active progress documents, for the failed-twice list. */
     recent?: Array<ProgressRow & { uid: string }>;
     settings?: Partial<OrgConfig>;
+    /** Every course the Roles screen can grant, drafts included; defaults to one published course. */
+    courses?: Course[];
   } = {},
 ) {
   const users = init.users ?? [];
@@ -73,6 +77,7 @@ export function fakeConsole(
       [...users, ...(init.team ?? []), ...(init.found ?? [])].filter((u) => uids.includes(u.uid)),
     ),
     usersWithRole: vi.fn(async (role: string) => users.filter((u) => u.roles.includes(role))),
+    allCourses: vi.fn(async () => init.courses ?? [makeCourse()]),
     knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
     auditLog: vi.fn().mockResolvedValue(init.audit ?? []),

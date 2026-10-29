@@ -1,4 +1,11 @@
-import type { AssignSummary, CourseStats, OrgConfig, OrgStats, Reminder } from '@gurukul/schema';
+import type {
+  AssignSummary,
+  Course,
+  CourseStats,
+  OrgConfig,
+  OrgStats,
+  Reminder,
+} from '@gurukul/schema';
 import type { CertificateRow, ProgressRow } from '../data/types';
 
 export interface UserRow {
@@ -89,6 +96,8 @@ export interface ConsoleData {
   usersByUid(uids: string[]): Promise<UserRow[]>;
   /** People holding a granted role (acharya or kulapati), for Roles & access. */
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
+  /** Every course, drafts and never-published ones included (capped), for granting to an Acharya. */
+  allCourses(): Promise<Course[]>;
   /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */
   knownEmails(
     emails: string[],

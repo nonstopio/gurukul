@@ -275,6 +275,62 @@ describe('Roles & access', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('counts every person who has signed in as a Shishya, and lists the Kulapatis', async () => {
+    const nameless = userRow(8, {
+      displayName: '',
+      email: 'nameless@nonstopio.com',
+      roles: ['kulapati'],
+    });
+    const c = fakeConsole({ users: [acharya, admin, nameless], count: 42 });
+    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    const card = (await screen.findByRole('region', { name: 'Learner' })) as HTMLElement;
+    expect(within(card).getByText('42')).toBeTruthy();
+    const list = screen.getByRole('region', { name: 'Kulapatis' });
+    expect(within(list).getByText('Admin')).toBeTruthy();
+    expect(within(list).getByText('user2@nonstopio.com')).toBeTruthy();
+    expect(within(list).queryByText('Asha')).toBeNull();
+    expect(within(list).getAllByText('nameless@nonstopio.com')).toHaveLength(2);
+    fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Kulapati' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Kulapati/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u2',
+        acharya: false,
+        kulapati: false,
+        grantedCourseIds: [],
+      }),
+    );
+  });
+
+  it('keeps Acharya and Kulapati together, and offers unpublished courses to grant', async () => {
+    const draft = makeCourse({ id: 'wip', title: 'Work in progress', status: 'draft' });
+    const old = makeCourse({ id: 'old', title: 'Old course', status: 'archived' });
+    const both = userRow(7, { displayName: 'Both', roles: ['shishya', 'acharya', 'kulapati'] });
+    const c = fakeConsole({ users: [both], courses: [makeCourse(), draft, old] });
+    await openApp('/kulapati/roles', { ...kulapati, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Both' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      (within(dialog).getByRole('checkbox', { name: /Acharya/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+    expect(
+      (within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+    fireEvent.click(within(dialog).getByLabelText('Work in progress (not published)'));
+    fireEvent.click(within(dialog).getByLabelText('Old course (archived)'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u7',
+        acharya: true,
+        kulapati: true,
+        grantedCourseIds: ['wip', 'old'],
+      }),
+    );
+  });
+
   it('says there are no Acharyas, and no courses granted', async () => {
     const lone = userRow(3, {
       displayName: '',
@@ -323,13 +379,12 @@ describe('Roles & access', () => {
       target: { value: 'rav' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Acharya/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Kulapati/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Acharya/ }));
     expect(within(dialog).queryByText('Courses they may edit')).toBeNull();
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Shishya/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
@@ -372,13 +427,10 @@ describe('Roles & access', () => {
       target: { value: 'me' },
     });
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
-    expect(
-      (within(dialog).getByRole('radio', { name: /Shishya/ }) as HTMLInputElement).disabled,
-    ).toBe(true);
+    const box = within(dialog).getByRole('checkbox', { name: /Kulapati/ }) as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(box.checked).toBe(true);
     expect(within(dialog).getByText(/cannot remove your own Kulapati role/)).toBeTruthy();
-    expect(
-      (within(dialog).getByRole('radio', { name: /Kulapati/ }) as HTMLInputElement).checked,
-    ).toBe(true);
   });
 
   it('keeps the dialog open and says so when the change fails', async () => {
