@@ -46,8 +46,15 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        id: deploy
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PREVIEW }}
           projectId: nonstop-gurukul
           expires: 7d
+      # The same budgets as the `lighthouse` job in ci.yml, on the deployed page: real headers,
+      # compression and caching, which the static build cannot show. The URL is the channel's.
+      - name: Lighthouse on the preview URL
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.details_url }}
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.preview.json --collect.url="$PREVIEW_URL"
