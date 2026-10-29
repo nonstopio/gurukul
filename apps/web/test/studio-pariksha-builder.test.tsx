@@ -118,6 +118,11 @@ describe('Pariksha builder: layout', () => {
     expect(pick('k2').getAttribute('aria-current')).toBe('true');
   });
 
+  it('opens the question named in the link from course analytics', async () => {
+    await open({ path: `${PATH}?question=k3` });
+    expect(pick('k3').getAttribute('aria-current')).toBe('true');
+  });
+
   it('opens the learner preview after saving', async () => {
     const { router, studio } = await open();
     change('Explanation', 'Edited');

@@ -1,5 +1,5 @@
 import { lastWeeks, nameKey } from '@gurukul/schema';
-import type { Course, CourseStats, OrgStats } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats, Pariksha } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import type { AssignmentFull, UserRow } from './types';
 
@@ -349,6 +349,43 @@ export function hardestQuestions(
     }))
     .sort((a, b) => a.percent - b.percent || a.questionId.localeCompare(b.questionId))
     .slice(0, limit);
+}
+
+/** Below this first-try percentage a number is shown in the warning colour; at or above it, never. */
+export const WARN_BELOW_PERCENT = 70;
+
+/** One Pariksha's first-try results, summed over its questions' counters. */
+export interface ParikshaRow {
+  id: string;
+  title: string;
+  questions: number;
+  /** First-try answers counted across its questions. */
+  answers: number;
+  /** Whole-number share right first time, or null with no answers yet. */
+  percent: number | null;
+}
+
+/** A row per Pariksha, in course order, from the course's first-try counters. */
+export function parikshaRows(
+  parikshas: readonly Pick<Pariksha, 'id' | 'title' | 'questions'>[],
+  stats: Pick<CourseStats, 'questionFirstTry'>,
+): ParikshaRow[] {
+  return parikshas.map((p) => {
+    let correct = 0;
+    let answers = 0;
+    for (const q of p.questions) {
+      const t = stats.questionFirstTry[q.id];
+      correct += t?.correct ?? 0;
+      answers += t?.total ?? 0;
+    }
+    return {
+      id: p.id,
+      title: p.title,
+      questions: p.questions.length,
+      answers,
+      percent: pct(correct, answers),
+    };
+  });
 }
 
 /** Whole-number percentage, or null when there is nothing to divide by. */

@@ -12,6 +12,7 @@
 | Course funnel (assigned, started, completed, avg score, overdue) | `stats/course_{id}` |
 | Where learners stop (per parva) | `stats/course_{id}.parvaCompletions[]` |
 | Hardest questions | `stats/course_{id}.questionFirstTry{}` |
+| Per-Pariksha first-try answers and share right | summed in the browser from `questionFirstTry{}` over the course's own questions; warning colour only below 70% |
 | Needs attention (overdue, failed twice, pending invites) | five of each. Overdue and pending come from the open assignments the page already loads; failed twice (a Pariksha with 2+ attempts, not passed) is read from the 100 most recently active progress documents, so it covers recent learners, not everyone. The date range and team filters narrow these lists only; the counters stay org-wide. Nudge and Resend email through `remindLearners`; Reset is `resetCooldown` |
 
 ## How it is counted (and why)

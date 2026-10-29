@@ -26,6 +26,8 @@ import {
   tabCounts,
   parikshaTitle,
   pct,
+  parikshaRows,
+  WARN_BELOW_PERCENT,
   weeklySeries,
 } from '../src/console/model';
 import type { AssignmentFull, UserRow } from '../src/console/types';
@@ -181,6 +183,30 @@ describe('analytics helpers', () => {
     expect(hardestQuestions(stats).map((q) => q.questionId)).toEqual(['a', 'd', 'f']);
     expect(hardestQuestions(stats, 1)[0]).toEqual({ questionId: 'a', percent: 25, tries: 4 });
     expect(hardestQuestions(courseStatsSchema.parse({}))).toEqual([]);
+  });
+
+  it('sums a Pariksha first-try results over its questions', () => {
+    const q = (id: string) => ({ id }) as never;
+    const stats = courseStatsSchema.parse({
+      questionFirstTry: {
+        a: { correct: 3, total: 4 },
+        b: { correct: 0, total: 4 },
+        z: { correct: 9, total: 9 },
+      },
+    });
+    expect(
+      parikshaRows(
+        [
+          { id: 'p1', title: 'One', questions: [q('a'), q('b'), q('c')] },
+          { id: 'p2', title: 'Two', questions: [q('d')] },
+        ],
+        stats,
+      ),
+    ).toEqual([
+      { id: 'p1', title: 'One', questions: 3, answers: 8, percent: 38 },
+      { id: 'p2', title: 'Two', questions: 1, answers: 0, percent: null },
+    ]);
+    expect(WARN_BELOW_PERCENT).toBe(70);
   });
 
   it('computes percentages and average days safely', () => {

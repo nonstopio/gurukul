@@ -209,6 +209,16 @@ describe('Course analytics', () => {
     expect(screen.getByText(/The biggest drop is between/)).toBeTruthy();
     expect(screen.getByText(/25% right first time/)).toBeTruthy();
     expect(screen.getByText('Pariksha I')).toBeTruthy();
+    expect(screen.getByText('25%').className).toBe('hardest__mid');
+    expect(screen.getByRole('link', { name: 'Edit in Vyasa Studio' }).getAttribute('href')).toBe(
+      '/studio/courses/git',
+    );
+    expect(screen.getByRole('link', { name: 'Edit this Pariksha' }).getAttribute('href')).toBe(
+      '/studio/courses/git/pariksha/q1',
+    );
+    expect(
+      screen.getAllByRole('link', { name: 'Edit question' }).map((a) => a.getAttribute('href')),
+    ).toContain('/studio/courses/git/pariksha/q1?question=k1');
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -221,11 +231,25 @@ describe('Course analytics', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  it('keeps the warning colour for a Pariksha below 70% only', async () => {
+    const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 3, total: 4 } } } });
+    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    const cells = await screen.findAllByText('75%');
+    expect(cells.every((el) => !el.className)).toBe(true);
+  });
+
+  it('uses the warning colour for a question between 50% and 70%', async () => {
+    const c = fakeConsole({ course: { questionFirstTry: { k1: { correct: 2, total: 3 } } } });
+    await openApp('/kulapati/courses/git', { ...kulapati, console: c });
+    expect((await screen.findByText(/67% right first time/)).className).toBe('hardest__mid');
+  });
+
   it('names an unknown question by its id, and handles an unknown course', async () => {
     const c = fakeConsole({ course: { questionFirstTry: { zzz: { correct: 0, total: 5 } } } });
     const { unmount } = await openApp('/kulapati/courses/git', { ...kulapati, console: c });
     expect(await screen.findByText(/zzz/)).toBeTruthy();
     expect(screen.getByText(/0% right first time/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Edit question' })).toBeNull();
     unmount();
     await openApp('/kulapati/courses/nope', { ...kulapati });
     expect(await screen.findByText('This course does not exist')).toBeTruthy();
