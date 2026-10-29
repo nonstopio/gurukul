@@ -56,8 +56,11 @@ vi.mock('firebase-functions/v2/firestore', () => ({
   },
 }));
 const created: unknown[] = [];
-const apiCallable = vi.fn((handler: (r: unknown) => unknown) => {
+vi.mock('firebase-functions/params', () => ({ defineSecret: (name: string) => ({ name }) }));
+const callableOptions = new Map<unknown, unknown>();
+const apiCallable = vi.fn((handler: (r: unknown) => unknown, options?: unknown) => {
   created.push(handler);
+  if (options) callableOptions.set(handler, options);
   return handler;
 });
 vi.mock('../src/api/callable.js', () => ({ apiCallable }));
@@ -160,6 +163,7 @@ describe('index', () => {
     }
     await rollup?.fn();
     expect(runDailyRollup).toHaveBeenCalledWith(expect.anything(), expect.any(Number));
+    expect(reminders?.options).toMatchObject({ secrets: [{ name: 'GMAIL_CREDENTIALS' }] });
     await reminders?.fn();
     expect(runDailyReminders).toHaveBeenCalledWith(
       { store: expect.anything(), mailer: expect.anything() },
@@ -265,6 +269,18 @@ describe('index', () => {
     ] as const;
     expect(created).toHaveLength(callables.length);
     for (const name of callables) expect(created).toContain(mod[name]);
+  });
+
+  it('hands the Gmail secret to exactly the callables that send email', async () => {
+    const mod = await import('../src/index.js');
+    expect([...callableOptions.keys()]).toEqual([
+      mod.revokeCertificate,
+      mod.assignCourses,
+      mod.remindLearners,
+    ]);
+    for (const options of callableOptions.values()) {
+      expect(options).toEqual({ secrets: [{ name: 'GMAIL_CREDENTIALS' }] });
+    }
   });
 
   it('wires each callable to its handler with the request', async () => {

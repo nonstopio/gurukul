@@ -1,7 +1,7 @@
 import { ApiException, apiFail, apiOk } from '@gurukul/schema';
 import type { ApiResponse } from '@gurukul/schema';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import type { CallableRequest } from 'firebase-functions/v2/https';
+import type { CallableOptions, CallableRequest } from 'firebase-functions/v2/https';
 import { log } from '../logging/log.js';
 import { newTraceId, runWithTrace } from './trace.js';
 
@@ -55,12 +55,14 @@ function exceptionsFor(e: unknown): ApiException[] {
  * Creates a callable Cloud Function whose every response is the `ApiResponse` envelope
  * (`.plan/16-api-contract.md`). The handler returns the success `data` and throws `ApiException`
  * for a failure; this is the only place that builds a response, throws `HttpsError`, or logs a
- * thrown error (once). The failure envelope travels as the `HttpsError`'s `details`.
+ * thrown error (once). The failure envelope travels as the `HttpsError`'s `details`. `options` go to
+ * `onCall` as they are, such as the `secrets` a function reads.
  */
 export function apiCallable<Req = unknown, Res = unknown>(
   handler: (request: CallableRequest<Req>) => Promise<Res> | Res,
+  options: CallableOptions = {},
 ) {
-  return onCall<Req, Promise<ApiResponse<Res>>>((request) => {
+  return onCall<Req, Promise<ApiResponse<Res>>>(options, (request) => {
     const traceId = newTraceId();
     return runWithTrace({ traceId }, async () => {
       const started = Date.now();

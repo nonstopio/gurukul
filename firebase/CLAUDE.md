@@ -72,8 +72,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for acharya/kulapati claims; clients never create or delete drafts.
 - Email goes out through the Gmail API (`gmail.ts`, sender `gurukul@nonstopio.com`) behind the `Mailer` and
-  `GmailPort` ports; `createMailer` reads `GMAIL_CREDENTIALS` (service-account key JSON, a secret) and, without it,
-  sends nothing and logs a `warn`. Links in emails use `SITE_URL` (`mail.ts`; unset falls back to the default site).
+  `GmailPort` ports; `createMailer` reads `GMAIL_CREDENTIALS` (service-account key JSON, a Secret Manager secret that
+  `index.ts` declares as `MAIL` on every function that sends email; a new one needs it too, or it sends nothing) and,
+  without a usable key, sends nothing and logs a `warn`. Links in emails use `SITE_URL` (`mail.ts`; unset falls back to the default site).
   The `mail` queue is retired; setup is in `docs/operations.md`.
 - Sanjaya counters: `onProgressWritten` keeps `stats/course_{id}` and `stats/org` (parva completions, weekly
   lessons, finish days and the `finishDaysHistogram` behind the median, certified) by comparing before/after; `onAttemptCreated` adds score sums and

@@ -18,8 +18,12 @@ vi.mock('firebase-functions/v2/https', () => ({
       super(message);
     }
   },
-  onCall: (fn: (r: unknown) => unknown) => fn,
+  onCall: (options: unknown, fn: (r: unknown) => unknown) => {
+    onCallOptions.push(options);
+    return fn;
+  },
 }));
+const onCallOptions: unknown[] = [];
 
 const { apiCallable, httpsCodeFor } = await import('../src/api/callable.js');
 const { currentTrace } = await import('../src/api/trace.js');
@@ -47,6 +51,13 @@ beforeEach(() => {
 });
 
 describe('apiCallable success', () => {
+  it('passes its options to onCall, and none by default', () => {
+    onCallOptions.length = 0;
+    call(() => null);
+    apiCallable(() => null, { secrets: ['GMAIL_CREDENTIALS'] });
+    expect(onCallOptions).toEqual([{}, { secrets: ['GMAIL_CREDENTIALS'] }]);
+  });
+
   it('returns the data inside a valid envelope', async () => {
     const out = await call(() => ({ roles: ['shishya'] }))({});
     const parsed = failureEnvelope.parse(out);
