@@ -1,3 +1,4 @@
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
@@ -76,11 +77,7 @@ describe('stats and config', () => {
   });
 
   it('reads org settings over the defaults, and saves the whole document', async () => {
-    expect(await data.orgSettings()).toEqual({
-      domain: 'nonstopio.com',
-      teams: [],
-      reminders: { enabled: false },
-    });
+    expect(await data.orgSettings()).toEqual(DEFAULT_ORG_CONFIG);
     store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA'] });
     expect(await data.orgSettings()).toMatchObject({
       teams: ['QA'],
@@ -90,6 +87,7 @@ describe('stats and config', () => {
       domain: 'nonstopio.com',
       teams: ['QA', 'Dev'],
       reminders: { enabled: true },
+      signatory: { name: 'Ravi Sample', role: 'Dean' },
     };
     await data.saveOrgSettings(settings);
     expect(store.docs.get('config/org')).toEqual(settings);

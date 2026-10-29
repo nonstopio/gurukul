@@ -147,8 +147,6 @@ export const courseSchema = z.object({
   }),
   certificate: z.object({
     title: z.string().max(160),
-    signatoryName: z.string().max(120),
-    signatoryRole: z.string().max(120),
   }),
   parvas: z.array(parvaSchema).max(30),
   estimatedMinutes: z.number().int().min(0),

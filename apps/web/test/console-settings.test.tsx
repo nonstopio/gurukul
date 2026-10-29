@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from './axe';
 import { fakeConsole } from './fake-console';
@@ -49,6 +50,7 @@ describe('Org settings', () => {
         domain: 'nonstopio.com',
         teams: ['Mobile'],
         reminders: { enabled: true },
+        signatory: DEFAULT_ORG_CONFIG.signatory,
       }),
     );
     expect(await screen.findByText('Settings saved')).toBeTruthy();
@@ -62,6 +64,28 @@ describe('Org settings', () => {
     fireEvent.click(toggle);
     expect(saveButton().disabled).toBe(false);
     fireEvent.click(toggle);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it('saves a trimmed signatory and will not save one with a blank name or role', async () => {
+    const c = fakeConsole();
+    await openApp('/kulapati/settings', { ...kulapati, console: c });
+    const name = await screen.findByLabelText('Signatory name');
+    expect((name as HTMLInputElement).value).toBe(DEFAULT_ORG_CONFIG.signatory.name);
+
+    fireEvent.change(name, { target: { value: '  ' } });
+    expect(screen.getByText('Enter both a name and a role to save.')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+
+    fireEvent.change(name, { target: { value: ' Ravi Sample ' } });
+    fireEvent.change(screen.getByLabelText('Signatory role'), { target: { value: ' Dean ' } });
+    expect(screen.queryByText('Enter both a name and a role to save.')).toBeNull();
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(c.data.saveOrgSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ signatory: { name: 'Ravi Sample', role: 'Dean' } }),
+      ),
+    );
     expect(saveButton().disabled).toBe(true);
   });
 

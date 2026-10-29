@@ -28,11 +28,18 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
   const [saved, setSaved] = useState(initial);
   const [teams, setTeams] = useState(initial.teams);
   const [reminders, setReminders] = useState(initial.reminders.enabled);
+  const [signName, setSignName] = useState(initial.signatory.name);
+  const [signRole, setSignRole] = useState(initial.signatory.role);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const signatory = { name: signName.trim(), role: signRole.trim() };
+  const signatoryValid = signatory.name !== '' && signatory.role !== '';
   const dirty =
-    reminders !== saved.reminders.enabled || teams.join('\n') !== saved.teams.join('\n');
+    reminders !== saved.reminders.enabled ||
+    teams.join('\n') !== saved.teams.join('\n') ||
+    signatory.name !== saved.signatory.name ||
+    signatory.role !== saved.signatory.role;
 
   const add = (e: FormEvent) => {
     e.preventDefault();
@@ -47,7 +54,7 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
   };
 
   const save = async () => {
-    const settings: OrgConfig = { ...saved, teams, reminders: { enabled: reminders } };
+    const settings: OrgConfig = { ...saved, teams, reminders: { enabled: reminders }, signatory };
     setSaving(true);
     try {
       await data.saveOrgSettings(settings);
@@ -115,8 +122,30 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
         />
       </section>
 
+      <section aria-labelledby="signatory-title" className="home-section">
+        <h2 id="signatory-title">Certificate signatory</h2>
+        <p>
+          The name and role printed at the foot of every certificate. A certificate keeps the
+          signatory it was issued with, so changing this affects only certificates issued from now
+          on.
+        </p>
+        <Input
+          label="Signatory name"
+          value={signName}
+          maxLength={120}
+          onChange={(e) => setSignName(e.target.value)}
+        />
+        <Input
+          label="Signatory role"
+          value={signRole}
+          maxLength={120}
+          onChange={(e) => setSignRole(e.target.value)}
+        />
+        {signatoryValid ? null : <p role="alert">Enter both a name and a role to save.</p>}
+      </section>
+
       <div className="settings-actions">
-        <Button disabled={!dirty || saving} onClick={() => void save()}>
+        <Button disabled={!dirty || !signatoryValid || saving} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save settings'}
         </Button>
         {dirty ? <p>You have unsaved changes.</p> : null}

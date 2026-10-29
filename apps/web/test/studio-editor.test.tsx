@@ -510,10 +510,11 @@ describe('Course editor: details, landing page, certificate', () => {
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Certificate' }));
     expect(screen.getByText(/switched off for this course/)).toBeTruthy();
-    for (const label of ['Certificate title', 'Signatory name', 'Signatory role']) {
-      fireEvent.change(screen.getByLabelText(label), { target: { value: `${label}!` } });
-      expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(`${label}!`);
-    }
+    const label = 'Certificate title';
+    fireEvent.change(screen.getByLabelText(label), { target: { value: `${label}!` } });
+    expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(`${label}!`);
+    expect(screen.getByText(/set by a Kulapati in Org settings/)).toBeTruthy();
+    expect(screen.queryByLabelText('Signatory name')).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 

@@ -63,7 +63,7 @@ an org setting; `config/org.reminders` only switches the daily run on or off.
 
 `/kulapati/settings` edits `config/org` directly (the rules check the shape; no callable, so
 no audit entry): the teams list learners pick from (add, remove; names trimmed, unique ignoring
-case, at most 80 characters and 100 teams) and the daily reminders switch. Removing a team
+case, at most 80 characters and 100 teams) the daily reminders switch and the certificate signatory (name and role printed on certificates issued from then on; a certificate keeps the one it was issued with). Removing a team
 leaves it on the profiles that have it. One Save writes the whole document.
 
 ## Roles & access
