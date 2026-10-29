@@ -94,6 +94,7 @@ jobs:
           key: firebase-emulators-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run test:rules
+      - run: npm run test:triggers
 
   build:
     name: Build

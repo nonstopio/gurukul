@@ -14,7 +14,7 @@ unreachable race. See `.claude/rules/coverage.md`.
 | Unit: pure logic (schema, progress %, classifiers, migrations) | Vitest | `packages/schema/test` | `test` job |
 | Components | Vitest + Testing Library + axe-core | `packages/ui/test`, `apps/web/test` | `test` job |
 | Routes and data hooks | Vitest with the Firestore emulator or typed fakes | `apps/web/test` | `test` job |
-| Cloud Functions | Vitest; pure modules directly, triggers via `firebase-functions-test` against emulators | `firebase/functions/test` | `test` + `rules` jobs |
+| Cloud Functions | Vitest; pure modules directly, triggers (the real exports, run with `.run(event)`) against the Firestore emulator | `firebase/functions/test`, `firebase/functions/emulator-test` (`npm run test:triggers`) | `test` + `rules` jobs |
 | Security rules | `@firebase/rules-unit-testing` | `firebase/rules/test` | `rules` job |
 | End to end (built) | Playwright against emulators + built app | `e2e/` | `e2e` job |
 | Accessibility | axe-core per component and page; Playwright axe on Home, the course page, the Kulapati overview and the Studio course list (built) | as above | as above |
@@ -33,7 +33,7 @@ circuit skipped counts as never evaluated.
 |---|---|
 | `quality` | `npm ci`, lint (TS strict, react-hooks, jsx-a11y), Prettier check, typecheck, navigation validator, hook and script tests (`npm run test:tooling`) |
 | `test` | `npm run coverage` in every workspace at 100%; uploads coverage |
-| `rules` | Java 21 + Firestore emulator, rules tests |
+| `rules` | Java 21 + Firestore emulator, rules tests and trigger tests (`npm run test:triggers`) |
 | `build` | App and functions build, then the bundle-size budget |
 | `lighthouse` | Lighthouse CI on the built sign-in page |
 | `e2e` | Java 21 + Playwright (Chromium) against the built app and the Auth, Firestore and Functions emulators: the learner, Kulapati and Acharya journeys plus an axe scan of four pages (`e2e/`, run with `npm run e2e`; see `docs/operations.md`) |
