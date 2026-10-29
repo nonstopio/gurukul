@@ -59,7 +59,7 @@ assignments paginate "Show all"; first name missing → "Namaste".
 
 | Region | Spec |
 |---|---|
-| Hero band | `--cover-forest` full width, padding 32/40; breadcrumb; chips; `<h1>` Fraunces `clamp(36px,4.4vw,54px)`; description 17px `--chrome-text`; meta row (parvas, lessons, Parikshas, time, certificate); actions: chrome Button "Resume — {item}" + ghost-on-chrome "Preview certificate" |
+| Hero band | `--cover-forest` full width, padding 32/40; breadcrumb; chips; `<h1>` Fraunces `clamp(36px,4.4vw,54px)`; description 17px `--chrome-text`; meta row (parvas, lessons, Parikshas, time, certificate); actions: chrome Button "Resume — {item}" (the "Preview certificate" button is dropped: nothing that looks like a certificate exists before one is earned) |
 | Outline | One Card per parva. Header row: 26px state icon (done ✓ solid accent / current numbered ring / locked lock), micro label "PARVA n", title 16px/600, right meta. Current parva expanded: item rows 52px (`<a>`), state icon, title, "Up next" chip, type · minutes right |
 | Sidebar | Progress card (96px ring, `dl` of lessons/Parikshas/due, pass rule sentence), "What you will learn" list, Acharya card |
 

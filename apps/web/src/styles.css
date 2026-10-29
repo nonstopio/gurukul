@@ -2026,6 +2026,10 @@ a.items__row:hover {
   font-size: 0.8125rem;
   color: var(--text-subtle);
 }
+.signin__footnote a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
 @media (max-width: 999px) {
   .signin__hero {
     flex-basis: auto;
