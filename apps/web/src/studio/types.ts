@@ -19,6 +19,8 @@ export interface Working {
 export interface StudioCourse {
   live: Course;
   draft: DraftDoc | null;
+  /** Learners who have started the course, from its stats document; absent when the person cannot see it. */
+  learners?: number;
 }
 
 export interface VersionRow {

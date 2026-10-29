@@ -41,9 +41,9 @@ function rows() {
     summary: 'Changed',
   });
   return [
-    { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }) },
+    { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }), learners: 12 },
     { live: draftOnly, draft: draftDoc(draftOnly, { updatedAt: null }) },
-    { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }) },
+    { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }), learners: 1 },
     {
       live: makeCourse({
         id: 'other',
@@ -99,6 +99,8 @@ describe('Studio courses page', () => {
     expect(screen.getByText(/^\d+ unpublished edits$/)).toBeTruthy();
     expect(screen.getByText('1 unpublished edit')).toBeTruthy();
     expect(screen.getByText('Edited 2 h ago')).toBeTruthy();
+    expect(screen.getByText('12 learners')).toBeTruthy();
+    expect(screen.getByText('1 learner')).toBeTruthy();
     expect(screen.getByText('Edited just now')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Not mine' })).toBeNull();
     expect(screen.getByText('View only — Acharya: Rohan Das')).toBeTruthy();

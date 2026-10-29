@@ -22,10 +22,13 @@ vi.mock('firebase/firestore', () => ({
     store.queries.push(q.parts);
     return { data: () => ({ count: 7 }) };
   },
-  getDoc: async (ref: { path: string }) => ({
-    exists: () => store.docs.has(ref.path),
-    data: () => store.docs.get(ref.path),
-  }),
+  getDoc: async (ref: { path: string }) => {
+    if (store.docs.get(ref.path) instanceof Error) throw store.docs.get(ref.path);
+    return {
+      exists: () => store.docs.has(ref.path),
+      data: () => store.docs.get(ref.path),
+    };
+  },
   getDocs: async (q: { parts: unknown[] }) => {
     store.queries.push(q.parts);
     const docs = store.queue.shift() ?? [];
@@ -128,6 +131,22 @@ describe('listCourses', () => {
     expect(store.queries[0]).not.toContainEqual(
       expect.objectContaining({ where: expect.anything() }),
     );
+  });
+
+  it('adds the learners who started a course the person may edit, and nothing for the rest', async () => {
+    store.queue = [
+      [d('git', live('git', ['u1'])), d('sql', live('sql', ['u9'])), d('new', live('new', ['u1']))],
+    ];
+    store.docs.set('stats/course_git', { started: 9 });
+    const rows = await data.listCourses('u1', false);
+    expect(rows.map((r) => r.learners)).toEqual([9, undefined, 0]);
+  });
+
+  it('leaves the learner count out when the stats cannot be read', async () => {
+    store.queue = [[d('git', live('git', ['u1']))]];
+    store.docs.set('stats/course_git', new Error('denied'));
+    const rows = await data.listCourses('u1', false);
+    expect(rows[0]).not.toHaveProperty('learners');
   });
 
   it('skips a live course it cannot read instead of failing the whole list', async () => {

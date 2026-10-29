@@ -1,7 +1,7 @@
 import { Button, Callout, Dialog, useToast } from '@gurukul/ui';
-import { itemsOf, validateForPublish } from '@gurukul/schema';
+import { diffCourses, itemsOf, validateForPublish } from '@gurukul/schema';
 import type { Course, PublishIssue } from '@gurukul/schema';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiClientError, userMessageOf } from '../api';
 import { log } from '../log';
@@ -22,7 +22,7 @@ export function PublishDialog({
   onClose: () => void;
   onPublished: (version: number) => void;
 }) {
-  const { service } = useStudio();
+  const { service, data } = useStudio();
   const toast = useToast();
   const courseId = work.course.id;
   const next = (live?.version ?? 0) + 1;
@@ -31,6 +31,8 @@ export function PublishDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const local = useMemo(() => validateForPublish(work.course, work.answers), [work]);
   const summary = useMemo(() => changeSummary(live, work.course), [live, work.course]);
+  const removedIds = useMemo(() => diffCourses(live, work.course).removed, [live, work.course]);
+  const [completions, setCompletions] = useState<Record<string, number>>({});
   const issues = refused ?? local;
   const items = useMemo(() => itemsOf(work.course), [work.course]);
   const blocked = issues.length > 0;
@@ -38,6 +40,22 @@ export function PublishDialog({
     live !== null &&
     !summary.courseChanged &&
     summary.added.length + summary.edited.length + summary.removed.length === 0;
+
+  // Removed lessons that learners can have completed: one count each, when the dialog opens.
+  useEffect(() => {
+    if (!live) return;
+    const lessons = new Set(
+      itemsOf(live)
+        .filter((i) => i.type === 'lesson')
+        .map((i) => i.id),
+    );
+    for (const id of removedIds.filter((r) => lessons.has(r))) {
+      data
+        .completedCount(courseId, id)
+        .then((n) => setCompletions((c) => ({ ...c, [id]: n })))
+        .catch(() => log.warn('Counting lesson completions failed', { courseId }));
+    }
+  }, [data, live, removedIds, courseId]);
 
   const publish = async () => {
     setBusy(true);
@@ -59,7 +77,8 @@ export function PublishDialog({
     }
   };
 
-  const list = (title: string, names: string[]) =>
+  /** `ids` lines up with `names` for the removed group, whose lessons may carry a completion count. */
+  const list = (title: string, names: string[], ids: string[] = []) =>
     names.length === 0 ? null : (
       <section className="sc-changes__group">
         <h3 className="sc-h3">
@@ -68,7 +87,12 @@ export function PublishDialog({
         <ul>
           {names.map((n, i) => (
             // The same title can appear twice; position keeps the keys unique.
-            <li key={`${i}-${n}`}>{nameOf(n, 'Untitled')}</li>
+            <li key={`${i}-${n}`}>
+              {nameOf(n, 'Untitled')}
+              {completions[ids[i] as string] === undefined
+                ? null
+                : ` — ${completions[ids[i] as string]} completed`}
+            </li>
           ))}
         </ul>
       </section>
@@ -108,7 +132,7 @@ export function PublishDialog({
             {summary.courseChanged ? <p>Course details or the order of parvas changed.</p> : null}
             {list('Added', summary.added)}
             {list('Edited', summary.edited)}
-            {list('Removed', summary.removed)}
+            {list('Removed', summary.removed, removedIds)}
             {summary.removed.length > 0 ? (
               <p className="sc-help">
                 Learners who completed a removed item keep their progress record.

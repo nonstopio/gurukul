@@ -1,4 +1,4 @@
-import { migrateCourse, readCourse } from '@gurukul/schema';
+import { courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
 import type { AnswerKeys, Course } from '@gurukul/schema';
 import {
   addDoc,
@@ -26,6 +26,17 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 const COURSE_LIMIT = 100;
 const VERSION_LIMIT = 50;
 const BANK_LIMIT = 200;
+
+/** How many learners started the course (`stats/course_{id}`), or null when it cannot be read. */
+async function learnersStarted(db: Firestore, courseId: string): Promise<number | null> {
+  try {
+    const snap = await getDoc(doc(db, 'stats', `course_${courseId}`));
+    return courseStatsSchema.parse(snap.exists() ? snap.data() : {}).started;
+  } catch {
+    log.warn('Reading the learner count failed', { courseId });
+    return null;
+  }
+}
 
 const isTimestamp = (v: unknown): boolean =>
   typeof v === 'object' &&
@@ -86,8 +97,15 @@ export function firebaseStudioData(db: Firestore): StudioData {
         live.map(async (course): Promise<StudioCourse> => {
           const editable = kulapati || course.acharyaIds.includes(uid);
           if (!editable) return { live: course, draft: null };
-          const snap = await getDoc(draftRef(course.id));
-          return { live: course, draft: snap.exists() ? toDraft(snap.data()) : null };
+          const [snap, learners] = await Promise.all([
+            getDoc(draftRef(course.id)),
+            learnersStarted(db, course.id),
+          ]);
+          const row: StudioCourse = {
+            live: course,
+            draft: snap.exists() ? toDraft(snap.data()) : null,
+          };
+          return learners === null ? row : { ...row, learners };
         }),
       );
     },

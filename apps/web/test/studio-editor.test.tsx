@@ -665,15 +665,18 @@ describe('Course editor: publishing', () => {
     });
     const { studio } = await open({ live, draft, getCourse: bump(live) });
     await ready();
+    vi.mocked(studio.data.completedCount).mockResolvedValue(5);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
     });
     const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(await within(dialog).findByText('Lesson l2 — 5 completed')).toBeTruthy();
+    expect(studio.data.completedCount).toHaveBeenCalledWith('git', 'l2');
     expect(within(dialog).getByText('Added (1)')).toBeTruthy();
     expect(within(dialog).getByText('Fresh')).toBeTruthy();
     expect(within(dialog).getByText('Edited (1)')).toBeTruthy();
     expect(within(dialog).getByText('Removed (1)')).toBeTruthy();
-    expect(within(dialog).getByText('Lesson l2')).toBeTruthy();
+    expect(within(dialog).getByText('Lesson l2 — 5 completed')).toBeTruthy();
     expect(within(dialog).getByText(/keep their progress record/)).toBeTruthy();
     expect(within(dialog).getByText(/Course details or the order of parvas changed/)).toBeTruthy();
     expect(within(dialog).queryByText(/Fix these first/)).toBeNull();
@@ -733,6 +736,25 @@ describe('Course editor: publishing', () => {
     expect(await screen.findByText(/first publication/)).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('still lists a removed lesson when counting its completions fails', async () => {
+    const live = mine();
+    const draft = mine({
+      parvas: [
+        { id: 'p1', title: 'Basics', items: [lesson('l1')] },
+        makeCourse().parvas[1] as never,
+      ],
+    });
+    const { studio } = await open({ live, draft });
+    await ready();
+    vi.mocked(studio.data.completedCount).mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(within(dialog).getByText('Lesson l2')).toBeTruthy();
+    expect(within(dialog).queryByText(/ completed$/)).toBeNull();
   });
 
   it('blocks publishing while problems exist, with links to fix them', async () => {

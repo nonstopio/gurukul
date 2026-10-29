@@ -35,6 +35,8 @@ builder. Handoff: `design-handoff/03-vyasa-studio.md`.
   `Alt+↑/↓` as well as drag).
 - Add parva, add lesson, add Pariksha, rename inline, delete with confirmation
   (deleting a published lesson warns with how many learners completed it: one count query when the dialog opens).
+  The publish dialog gives each removed lesson the same count, and course cards show how many
+  learners started the course (`stats/course_{id}`, only on courses the person may edit).
 - Right panel: title, summary, level, pass
   mark, cover theme, learning rules toggles, Acharyas with access.
 

@@ -175,6 +175,11 @@ function CourseCard({
                     {`${edits} unpublished ${edits === 1 ? 'edit' : 'edits'}`}
                   </Chip>
                 ) : null}
+                {row.learners === undefined ? null : (
+                  <span className="sc-card__edited">
+                    {row.learners} {row.learners === 1 ? 'learner' : 'learners'}
+                  </span>
+                )}
                 {draft?.updatedAt ? (
                   <span className="sc-card__edited">
                     Edited {relativeTime(draft.updatedAt, now)}
