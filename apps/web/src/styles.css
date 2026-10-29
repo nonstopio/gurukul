@@ -1681,3 +1681,36 @@ a.items__row:hover {
   color: var(--text-body);
   font-size: var(--text-sm);
 }
+.shortcuts__group + .shortcuts__group {
+  margin-top: var(--space-5);
+}
+.shortcuts__heading {
+  margin: 0 0 var(--space-2);
+  font: 600 var(--text-sm) var(--font-ui);
+  color: var(--text-muted);
+}
+.shortcuts__list {
+  margin: 0;
+}
+.shortcuts__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.shortcuts__row dd {
+  margin: 0;
+  text-align: right;
+}
+.shortcuts__row kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font: 500 var(--text-xs) var(--font-mono);
+  color: var(--text-muted);
+}
+.shortcuts__or {
+  color: var(--text-subtle);
+  font: 400 var(--text-xs) var(--font-ui);
+}

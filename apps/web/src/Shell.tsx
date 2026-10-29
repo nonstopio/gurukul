@@ -11,6 +11,7 @@ import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import type { AreaNavigation, Destination } from './navigation';
 
@@ -90,6 +91,7 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       <div ref={root}>
         <Outlet />
       </div>
+      <ShortcutsDialog />
     </GlobalSearchProvider>
   );
 }

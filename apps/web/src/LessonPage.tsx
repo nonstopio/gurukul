@@ -22,14 +22,11 @@ import { Loaded, RetiredNote } from './learn/ui';
 import { BlockView } from './player/blocks';
 import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
+import { isTyping } from './keys';
 
 const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
-/** True when focus is somewhere the J / K shortcuts would be typed into. */
-export function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  return !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable === true);
-}
+export { isTyping };
 
 /** True once the end-of-article sentinel has been seen; true at once where IntersectionObserver is missing. */
 function useReachedEnd(ref: React.RefObject<HTMLElement | null>, key: string): boolean {
