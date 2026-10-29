@@ -26,6 +26,18 @@ export function Prose({ md }: { md: string }) {
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
+/** After reveal: the right option is marked, a wrong pick says so, the rest are closed. Without a key, all are closed. */
+function optionState(
+  correct: number | undefined,
+  picked: number | null,
+  i: number,
+  revealed: boolean,
+): 'idle' | 'locked' | 'correct' | 'incorrect' {
+  if (!revealed) return 'idle';
+  if (correct === i) return 'correct';
+  return correct !== undefined && picked === i ? 'incorrect' : 'locked';
+}
+
 /** The ungraded "check yourself" block: the answer is revealed on submit, with no network. */
 function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
   const [picked, setPicked] = useState<number | null>(null);
@@ -40,7 +52,7 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
           value={String(i)}
           letter={LETTERS[i % LETTERS.length] as (typeof LETTERS)[number]}
           checked={picked === i}
-          state={revealed ? 'locked' : 'idle'}
+          state={optionState(block.correct, picked, i, revealed)}
           onChange={() => setPicked(i)}
         >
           {option}
@@ -77,7 +89,12 @@ export function BlockView({
       if (isPlaceholderVideo(block.url)) return <p>Video coming soon.</p>;
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
-        <VideoBlock src={src} title="Lesson video" href={block.url} />
+        <VideoBlock
+          src={src}
+          title={block.title ?? 'Lesson video'}
+          href={block.url}
+          caption={block.caption}
+        />
       ) : (
         <p>
           <a href={block.url} target="_blank" rel="noopener noreferrer">
@@ -92,6 +109,7 @@ export function BlockView({
       return (
         <CodeBlock
           code={block.code}
+          copyable={block.copy}
           variant={block.terminal ? 'terminal' : 'code'}
           {...(block.file ? { fileName: block.file } : {})}
           {...(block.highlight ? { highlight: block.highlight } : {})}
@@ -132,6 +150,19 @@ export function BlockView({
     case 'file':
       return (
         <a className="file-link" href={block.url} target="_blank" rel="noopener noreferrer">
+          <svg
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 1.5h5l3 3v10H4zM9 1.5v3h3" />
+          </svg>
           {block.label}
         </a>
       );

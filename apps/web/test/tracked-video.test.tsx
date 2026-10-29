@@ -78,6 +78,22 @@ describe('TrackedVideo', () => {
     expect(tracked.stop).toHaveBeenCalled();
   });
 
+  it('shows the block title and caption alongside the watch status', () => {
+    const { unmount } = show(video({ title: 'Tour', caption: 'Intro' }));
+    expect(screen.getByTitle('Tour')).toBeTruthy();
+    act(() => on().ready());
+    expect(screen.getByText(/^Intro — Watched 0%/)).toBeTruthy();
+    unmount();
+    show(
+      video({
+        caption: 'Intro',
+        provider: 'drive',
+        url: 'https://drive.google.com/file/d/abc/view',
+      }),
+    );
+    expect(screen.getByText('Intro')).toBeTruthy();
+  });
+
   it('falls back to "I have watched the video" when the player API does not load', () => {
     const { onWatched } = show(video({ provider: 'loom', url: 'https://www.loom.com/share/x1' }));
     act(() => on().fail());

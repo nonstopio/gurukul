@@ -20,6 +20,12 @@ describe('parseHighlight', () => {
 });
 
 describe('CodeBlock', () => {
+  it('omits the Copy button when copyable is false', () => {
+    const { container } = render(<CodeBlock code="ls" copyable={false} />);
+    expect(container.querySelector('.g-code__copy')).toBeNull();
+    expect(container.querySelector('[role="status"]')).toBeNull();
+  });
+
   it('names the header after the file and renders one span per line', async () => {
     const { container } = render(<CodeBlock code={'a\n\nb\n'} fileName="app.ts" className="x" />);
     expect(screen.getByRole('region', { name: 'app.ts' }).getAttribute('tabindex')).toBe('0');

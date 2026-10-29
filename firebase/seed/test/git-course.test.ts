@@ -86,8 +86,15 @@ describe('git course', () => {
   it('stays well under 100 KB and keeps answers out of the course object', () => {
     const json = JSON.stringify(gitCourse);
     expect(json.length).toBeLessThan(100_000);
+    // An ungraded check carries its own right answer; Pariksha keys are the secret ones.
+    const checks = lessons.flatMap((l) => l.blocks.filter((b) => b.type === 'check'));
+    expect(checks.length).toBeGreaterThan(0);
+    for (const c of checks) expect(c.correct).toBeLessThan(c.options.length);
+    const withoutCheckKeys = JSON.stringify(gitCourse, (k, v: unknown) =>
+      k === 'correct' && typeof v === 'number' ? undefined : v,
+    );
     for (const key of ['answer', 'correct', 'answers']) {
-      expect(json).not.toContain(`"${key}"`);
+      expect(withoutCheckKeys).not.toContain(`"${key}"`);
     }
   });
 });

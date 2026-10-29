@@ -11,6 +11,7 @@ import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import type { AreaNavigation, Destination } from './navigation';
 
@@ -90,6 +91,7 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       <div ref={root}>
         <Outlet />
       </div>
+      <ShortcutsDialog />
     </GlobalSearchProvider>
   );
 }
@@ -103,10 +105,14 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const user = useUser();
   const { pathname } = useLocation();
   const groups = useMemo(() => groupByArea(destinationsFor(areas, roles)), [areas, roles]);
+  // Below 560px the sidebar is a menu the button opens; it closes again when a page is picked.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="app">
       <Sidebar
+        id="app-sidebar"
+        className={menuOpen ? 'app__sidebar app__sidebar--open' : 'app__sidebar'}
         label="Main"
         brand={<span className="app__brand">Gurukul</span>}
         footer={
@@ -125,7 +131,13 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
                 key={p.id}
                 href={p.path}
                 current={(pathname.replace(/\/+$/, '') || '/') === p.path}
-                render={(props) => <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />}
+                render={(props) => (
+                  <Link
+                    to={p.path}
+                    {...(props as Omit<LinkProps, 'to'>)}
+                    onClick={() => setMenuOpen(false)}
+                  />
+                )}
               >
                 {p.label}
               </NavItem>
@@ -135,6 +147,15 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       </Sidebar>
       <div className="app__content" id="content">
         <div className="app__bar">
+          <Button
+            variant="secondary"
+            className="app__menu"
+            aria-expanded={menuOpen}
+            aria-controls="app-sidebar"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            Menu
+          </Button>
           <SearchTrigger />
         </div>
         <OfflineBanner />

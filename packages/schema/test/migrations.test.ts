@@ -22,12 +22,19 @@ describe('upgradeCourse', () => {
   it('v1 to v2 adds empty acharyaNames and keeps names a role grant already wrote', () => {
     const v1: Record<string, unknown> = { ...makeCourse(), schemaVersion: 1 };
     delete v1.acharyaNames;
-    expect(upgradeCourse(v1)).toMatchObject({ schemaVersion: 2, acharyaNames: {} });
+    expect(upgradeCourse(v1)).toMatchObject({ schemaVersion: 3, acharyaNames: {} });
     expect(migrateCourse(v1).acharyaNames).toEqual({});
     expect(upgradeCourse({ ...v1, acharyaNames: { u1: 'Asha' } })).toMatchObject({
       acharyaNames: { u1: 'Asha' },
     });
-    expect(Object.keys(MIGRATIONS)).toEqual(['1']);
+    expect(Object.keys(MIGRATIONS)).toEqual(['1', '2']);
+  });
+
+  it('v2 to v3 leaves the course as it was: older checks have no marked answer yet', () => {
+    const check = { type: 'check', id: 'k', prompt: 'p', options: ['a', 'b'], explanation: 'e' };
+    const v2 = { ...withBlocks([check]), schemaVersion: 2 };
+    expect(upgradeCourse(v2)).toEqual({ ...v2, schemaVersion: 3 });
+    expect(blocksOf(readCourse(v2))).toEqual([check]);
   });
 
   it('runs every step from the stored version to the target, without changing the input', () => {
@@ -42,7 +49,7 @@ describe('upgradeCourse', () => {
   it('leaves a current, newer or versionless course untouched', () => {
     const raw = makeCourse();
     expect(upgradeCourse(raw)).toBe(raw);
-    expect(upgradeCourse(raw, steps, 2)).toBe(raw);
+    expect(upgradeCourse(raw, steps, 3)).toBe(raw);
     expect(upgradeCourse(null, steps, 3)).toBeNull();
   });
 
@@ -62,7 +69,7 @@ describe('migrateCourse', () => {
     null,
     {},
     { schemaVersion: 0 },
-    { schemaVersion: 3 },
+    { schemaVersion: 4 },
     { schemaVersion: '1' },
     { schemaVersion: 1.5 },
   ])('refuses %j', (raw) => {
@@ -102,9 +109,9 @@ describe('readCourse', () => {
   });
 
   it('reads a course from a newer app as far as this one understands it', () => {
-    const newer = { ...withBlocks([{ type: 'poll', id: 'b2' }]), schemaVersion: 3, mascot: 'owl' };
+    const newer = { ...withBlocks([{ type: 'poll', id: 'b2' }]), schemaVersion: 4, mascot: 'owl' };
     const read = readCourse(newer);
-    expect(read?.schemaVersion).toBe(2);
+    expect(read?.schemaVersion).toBe(3);
     expect(read).not.toHaveProperty('mascot');
     expect(blocksOf(read)).toEqual([{ type: 'unsupported', id: 'b2' }]);
   });

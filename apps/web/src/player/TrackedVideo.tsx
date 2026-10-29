@@ -85,22 +85,23 @@ export function TrackedVideo({
   }, [tracker, block.id, block.provider]);
 
   const percent = Math.round(share * 100);
+  const status = tracked
+    ? watched
+      ? 'Watched'
+      : `Watched ${percent}% · ${Math.round(WATCH_SHARE * 100)}% needed to finish the lesson`
+    : undefined;
+  const caption =
+    block.caption && status ? `${block.caption} — ${status}` : (block.caption ?? status);
   if (comingSoon) return <p className="tracked-video">Video coming soon.</p>;
   return (
     <div className="tracked-video">
       {src ? (
         <VideoBlock
           src={src}
-          title="Lesson video"
+          title={block.title ?? 'Lesson video'}
           href={block.url}
           frameRef={frame}
-          caption={
-            tracked
-              ? watched
-                ? 'Watched'
-                : `Watched ${percent}% · ${Math.round(WATCH_SHARE * 100)}% needed to finish the lesson`
-              : undefined
-          }
+          caption={caption}
         />
       ) : (
         <p>

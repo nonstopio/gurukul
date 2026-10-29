@@ -4,11 +4,12 @@ import {
   MIN_CHECK_OPTIONS,
   addCheckOption,
   removeCheckOption,
+  setCheckCorrect,
   setCheckOption,
 } from '../lessonEdit';
 import type { BlockEditorProps } from './types';
 
-/** An ungraded "check yourself" question: the prompt, two to six answers, and the explanation shown afterwards. */
+/** An ungraded "check yourself" question: the prompt, two to six answers with the right one marked, and the explanation shown afterwards. */
 export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
   return (
     <div className="studio-fields">
@@ -21,7 +22,17 @@ export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
       <fieldset className="studio-answers">
         <legend className="studio-legend">Answers</legend>
         {block.options.map((option, i) => (
-          <div className="studio-answer" key={i}>
+          <div
+            className={`studio-answer${block.correct === i ? ' studio-answer--correct' : ''}`}
+            key={i}
+          >
+            <input
+              type="radio"
+              name={`correct-${block.id}`}
+              aria-label={`Answer ${i + 1} is correct`}
+              checked={block.correct === i}
+              onChange={() => onChange(setCheckCorrect(block, i))}
+            />
             <Input
               label={`Answer ${i + 1}`}
               value={option}
@@ -45,7 +56,8 @@ export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
           + Add answer
         </Button>
         <p className="studio-muted">
-          A check is not graded, so no answer is marked. Learners reveal the explanation.
+          A check is not graded. Choose the right answer: learners see it marked, with the
+          explanation, when they reveal it.
         </p>
       </fieldset>
       <Textarea

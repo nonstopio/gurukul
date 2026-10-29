@@ -269,6 +269,13 @@ describe('check block editor', () => {
     expect(last()).toMatchObject({ prompt: 'Which?', options: ['A', 'B'], explanation: 'Because' });
   });
 
+  it('marks the right answer', () => {
+    const { last } = setup({ ...newBlock('check'), options: ['a', 'b'], correct: 0 } as Block);
+    expect((screen.getByLabelText('Answer 1 is correct') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Answer 2 is correct'));
+    expect(last()).toMatchObject({ correct: 1 });
+  });
+
   it('adds answers up to six and removes them down to two', () => {
     const { last } = setup(newBlock('check'));
     const add = screen.getByRole('button', { name: '+ Add answer' }) as HTMLButtonElement;
