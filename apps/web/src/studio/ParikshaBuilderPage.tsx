@@ -18,6 +18,7 @@ import {
   addQuestion,
   bankEntry,
   findPariksha,
+  firstTryPercent,
   importFromBank,
   isLowFirstTry,
   moveQuestion,
@@ -174,6 +175,11 @@ function Builder({
                   <span className="studio-qrow__num">{index + 1}</span>{' '}
                   <span className="studio-qrow__text">{q.prompt}</span>
                 </button>
+                {firstTryPercent(firstTry, q.id) !== null ? (
+                  <span className="studio-qrow__pct" title="Learners who got this right first time">
+                    {firstTryPercent(firstTry, q.id)}% first try
+                  </span>
+                ) : null}
                 {isLowFirstTry(firstTry, q.id) ? (
                   <Chip tone="danger">Low first-try score</Chip>
                 ) : null}

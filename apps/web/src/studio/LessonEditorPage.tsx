@@ -93,6 +93,21 @@ function LessonEditor({
     return () => document.removeEventListener('focusin', onFocusIn);
   }, []);
 
+  // "/" outside a text field, or in an empty one, jumps to the block palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement;
+      const typing = t.matches('input, textarea, select');
+      if (typing && (t as HTMLInputElement).value !== '') return;
+      e.preventDefault();
+      // Focusing the first tile scrolls the palette into view.
+      (document.querySelector('[data-palette-tile]') as HTMLElement).focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   const lesson = findLesson(work.course, lessonId);
   const crumbs = [
     { label: 'Studio', render: (p: object) => <Link to="/studio" {...p} /> },

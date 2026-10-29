@@ -7,7 +7,8 @@ const PROVIDERS = { youtube: 'YouTube', drive: 'Google Drive', loom: 'Loom' } as
 
 /** Provider, address, captions and optional length of a video, with a chip that says whether the link can be embedded. */
 export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
-  const recognised = videoEmbedUrl(block.provider, block.url) !== null;
+  const embed = videoEmbedUrl(block.provider, block.url);
+  const recognised = embed !== null;
   return (
     <div className="studio-fields">
       <Select
@@ -39,6 +40,11 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
           </span>
         )}
       </p>
+      {embed ? (
+        <div className="studio-video-preview">
+          <iframe src={embed} title="Video preview" loading="lazy" allowFullScreen />
+        </div>
+      ) : null}
       <Toggle
         label="Captions are available"
         checked={block.captions}

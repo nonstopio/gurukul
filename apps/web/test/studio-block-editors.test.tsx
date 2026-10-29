@@ -100,8 +100,16 @@ describe('video block editor', () => {
     expect(screen.queryByText(/not recognised/)).toBeNull();
   });
 
+  it('previews a recognised link in a 16:9 frame and none otherwise', () => {
+    const { container } = setup(video());
+    const frame = container.querySelector('.studio-video-preview iframe');
+    expect(frame?.getAttribute('src')).toContain('abc123');
+    expect(frame?.getAttribute('title')).toBe('Video preview');
+  });
+
   it('warns when the link does not fit the chosen host', () => {
-    setup(video({ provider: 'loom' }));
+    const { container } = setup(video({ provider: 'loom' }));
+    expect(container.querySelector('iframe')).toBeNull();
     expect(screen.getByText('Link not recognised as Loom')).toBeTruthy();
     expect(screen.getByText(/plain link/)).toBeTruthy();
   });

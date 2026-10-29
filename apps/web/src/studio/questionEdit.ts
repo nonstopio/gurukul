@@ -158,6 +158,12 @@ export function isLowFirstTry(stats: CourseStats | null, questionId: string): bo
   return !!tries && tries.total >= 3 && tries.correct / tries.total < 0.5;
 }
 
+/** Whole-number percentage of learners who got the question right first time, or null with no tries. */
+export function firstTryPercent(stats: CourseStats | null, questionId: string): number | null {
+  const tries = stats?.questionFirstTry[questionId];
+  return tries && tries.total > 0 ? Math.round((tries.correct / tries.total) * 100) : null;
+}
+
 /** Pass mark as typed (a percentage); blank means "the course default" and is absent. */
 export function parsePassMark(raw: string): number | undefined {
   if (raw.trim() === '') return undefined;

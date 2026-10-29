@@ -201,6 +201,28 @@ describe('lesson editor: blocks', () => {
     },
   );
 
+  it('opens the block palette on "/" unless the person is typing', async () => {
+    await open();
+    const title = (await screen.findByLabelText('Lesson title')) as HTMLInputElement;
+    const tile = screen.getByRole('button', { name: 'Text' });
+    // Typing in a field with text keeps the slash.
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: '/' })).toBe(true);
+    expect(document.activeElement).toBe(title);
+    // A modifier key is left alone.
+    expect(fireEvent.keyDown(document.body, { key: '/', ctrlKey: true })).toBe(true);
+    // Another key is ignored.
+    expect(fireEvent.keyDown(document.body, { key: 'a' })).toBe(true);
+    // Outside a field it jumps to the palette.
+    expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false);
+    expect(document.activeElement).toBe(tile);
+    // An empty field counts as not typing yet.
+    fireEvent.change(title, { target: { value: '' } });
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: '/' })).toBe(false);
+    expect(document.activeElement).toBe(tile);
+  });
+
   it('edits a block and saves the change', async () => {
     const { studio } = await open();
     fireEvent.change(await screen.findByLabelText('Text (Markdown)'), {

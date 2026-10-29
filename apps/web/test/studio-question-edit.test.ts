@@ -8,6 +8,7 @@ import {
   changeKind,
   findPariksha,
   importFromBank,
+  firstTryPercent,
   isLowFirstTry,
   matchBank,
   moveQuestion,
@@ -228,6 +229,12 @@ describe('low first-try score', () => {
     expect(isLowFirstTry(stats, 'half')).toBe(false);
     expect(isLowFirstTry(stats, 'unknown')).toBe(false);
     expect(isLowFirstTry(null, 'low')).toBe(false);
+    expect(firstTryPercent(stats, 'low')).not.toBeNull();
+    expect(firstTryPercent(stats, 'unknown')).toBeNull();
+    expect(firstTryPercent(null, 'low')).toBeNull();
+    expect(
+      firstTryPercent({ ...stats, questionFirstTry: { none: { correct: 0, total: 0 } } }, 'none'),
+    ).toBeNull();
   });
 });
 
