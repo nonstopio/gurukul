@@ -1,5 +1,5 @@
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 
 // Vitest runs without globals, so Testing Library cannot register its own cleanup.
 // Pariksha drafts live in localStorage; each test starts without one. One hook, in this order:
@@ -10,3 +10,7 @@ afterEach(() => {
   cleanup();
   globalThis.localStorage?.clear();
 });
+
+// The editors use CodeMirror, which jsdom cannot type into; their tests get a textarea instead.
+// `codefield.test.tsx` takes the real component back with `vi.importActual`.
+vi.mock('../src/studio/blocks/CodeField', async () => await import('./codeFieldStub'));

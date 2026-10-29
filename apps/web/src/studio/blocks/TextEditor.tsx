@@ -1,6 +1,8 @@
-import { Button, Textarea } from '@gurukul/ui';
+import { Button } from '@gurukul/ui';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Prose } from '../../player/blocks';
+import { CodeField } from './CodeField';
+import type { CodeFieldHandle } from './codeFieldTypes';
 import { bold, inlineCode, italic, link, numberedList } from './markdownTools';
 import type { TextEdit } from './markdownTools';
 import type { BlockEditorProps } from './types';
@@ -24,34 +26,29 @@ function Preview({ md }: { md: string }) {
   );
 }
 
-/** Markdown in a plain textarea, with a toolbar that wraps the selection and a preview that uses the learner renderer. */
+/** Markdown in a CodeMirror editor, with a toolbar that wraps the selection and a preview that uses the learner renderer. */
 export function TextEditor({ block, onChange }: BlockEditorProps<'markdown'>) {
   const [preview, setPreview] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
+  const field = useRef<CodeFieldHandle | null>(null);
   const selection = useRef<{ start: number; end: number } | null>(null);
 
-  const textarea = () =>
-    (wrap.current as HTMLDivElement).querySelector('textarea') as HTMLTextAreaElement;
-
-  // After a toolbar edit re-renders the textarea, put the selection where the edit says.
+  // After a toolbar edit re-renders the field, put the selection where the edit says.
   useLayoutEffect(() => {
     const pending = selection.current;
     if (!pending) return;
     selection.current = null;
-    const el = textarea();
-    el.focus();
-    el.setSelectionRange(pending.start, pending.end);
+    (field.current as CodeFieldHandle).select(pending.start, pending.end);
   });
 
   const run = (apply: (text: string, start: number, end: number) => TextEdit) => {
-    const el = textarea();
-    const edit = apply(block.md, el.selectionStart, el.selectionEnd);
+    const { start, end } = (field.current as CodeFieldHandle).getSelection();
+    const edit = apply(block.md, start, end);
     selection.current = { start: edit.start, end: edit.end };
     onChange({ ...block, md: edit.text });
   };
 
   return (
-    <div className="studio-text" ref={wrap}>
+    <div className="studio-text">
       <div className="studio-toolbar" role="toolbar" aria-label="Text formatting">
         {TOOLS.map((tool) => (
           <Button
@@ -70,11 +67,14 @@ export function TextEditor({ block, onChange }: BlockEditorProps<'markdown'>) {
       {preview ? (
         <Preview md={block.md} />
       ) : (
-        <Textarea
+        <CodeField
           label="Text (Markdown)"
-          value={block.md}
+          language="markdown"
+          tone="prose"
           rows={8}
-          onChange={(e) => onChange({ ...block, md: e.target.value })}
+          value={block.md}
+          handleRef={field}
+          onChange={(md) => onChange({ ...block, md })}
         />
       )}
     </div>

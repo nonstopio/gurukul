@@ -1,5 +1,6 @@
-import { Input, Select, Textarea, Toggle } from '@gurukul/ui';
+import { Input, Select, Toggle } from '@gurukul/ui';
 import { patch } from '../patch';
+import { CodeField } from './CodeField';
 import type { BlockEditorProps } from './types';
 
 const LANGUAGES = [
@@ -43,13 +44,13 @@ export function CodeEditor({ block, onChange }: BlockEditorProps<'code'>) {
           onChange={(e) => onChange(patch(block, { file: e.target.value || undefined }))}
         />
       </div>
-      <Textarea
+      <CodeField
         label="Code"
-        className="studio-mono"
-        spellCheck={false}
+        language={block.lang}
+        tone="code"
         rows={10}
         value={block.code}
-        onChange={(e) => onChange({ ...block, code: e.target.value })}
+        onChange={(code) => onChange({ ...block, code })}
       />
       <div className="studio-row">
         <Toggle
