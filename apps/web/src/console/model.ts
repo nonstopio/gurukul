@@ -430,3 +430,108 @@ export function addTeam(
   if (teams.length >= MAX_TEAMS) return { error: `The list holds at most ${MAX_TEAMS} teams.` };
   return { teams: [...teams, team] };
 }
+
+export type DateRange = '30d' | 'quarter' | 'all';
+
+export const DATE_RANGES: ReadonlyArray<{ id: DateRange; label: string }> = [
+  { id: 'all', label: 'All time' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'quarter', label: 'Last 90 days' },
+];
+
+/** The earliest moment a range admits, or `null` for all time. */
+export function rangeStart(range: DateRange, now: Date): Date | null {
+  if (range === 'all') return null;
+  const days = range === '30d' ? 30 : 90;
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
+const within = (at: Date | null, start: Date | null): boolean =>
+  start === null || (at !== null && at.getTime() >= start.getTime());
+
+/** How many people each Needs attention list shows. */
+export const ATTENTION_LIMIT = 5;
+
+export interface OverdueEntry {
+  key: string;
+  email: string;
+  courseId: string;
+  dueAt: Date;
+}
+
+/** The longest-overdue assignments, one per person and course, whose due date is in range and whose email passes `emails`. */
+export function overdueEntries(
+  open: readonly AssignmentFull[],
+  now: Date,
+  start: Date | null,
+  emails: ReadonlySet<string> | null,
+): OverdueEntry[] {
+  return open
+    .filter((a) => isOverdue(a, now) && within(a.dueAt, start))
+    .filter((a) => emails === null || emails.has(a.email))
+    .map((a) => ({ key: a.id, email: a.email, courseId: a.courseId, dueAt: a.dueAt as Date }))
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+    .slice(0, ATTENTION_LIMIT);
+}
+
+export interface FailedEntry {
+  key: string;
+  uid: string;
+  courseId: string;
+  parikshaId: string;
+  attempts: number;
+  at: Date | null;
+}
+
+/** Parikshas a learner has attempted at least twice without passing, newest attempt first. */
+export function failedTwice(rows: ReadonlyArray<ProgressRow & { uid: string }>): FailedEntry[] {
+  return rows
+    .flatMap((row) =>
+      Object.entries(row.pariksha)
+        .filter(([, r]) => !r.passed && r.attempts >= 2)
+        .map(([parikshaId, r]) => ({
+          key: `${row.uid}/${row.courseId}/${parikshaId}`,
+          uid: row.uid,
+          courseId: row.courseId,
+          parikshaId,
+          attempts: r.attempts,
+          at: r.lastAttemptAt,
+        })),
+    )
+    .sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
+}
+
+/** Keeps the failed entries in range whose person passes `uids`, at most the list length. */
+export function visibleFailed(
+  entries: readonly FailedEntry[],
+  start: Date | null,
+  uids: ReadonlySet<string> | null,
+): FailedEntry[] {
+  return entries
+    .filter((e) => within(e.at, start) && (uids === null || uids.has(e.uid)))
+    .slice(0, ATTENTION_LIMIT);
+}
+
+export interface PendingInvite {
+  email: string;
+  invitedAt: Date | null;
+}
+
+/** Emails assigned in range who have not signed in, newest invite first, with how many there are in all. */
+export function pendingInvites(
+  open: readonly AssignmentFull[],
+  start: Date | null,
+): { shown: PendingInvite[]; total: number } {
+  const latest = new Map<string, Date | null>();
+  for (const a of open) {
+    if (a.uid !== null || !within(a.assignedAt, start)) continue;
+    const seen = latest.get(a.email);
+    if (seen === undefined || (a.assignedAt?.getTime() ?? 0) > (seen?.getTime() ?? 0)) {
+      latest.set(a.email, a.assignedAt);
+    }
+  }
+  const all = [...latest]
+    .map(([email, invitedAt]) => ({ email, invitedAt }))
+    .sort((a, b) => (b.invitedAt?.getTime() ?? 0) - (a.invitedAt?.getTime() ?? 0));
+  return { shown: all.slice(0, ATTENTION_LIMIT), total: all.length };
+}

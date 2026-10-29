@@ -226,6 +226,16 @@ describe('users', () => {
   });
 });
 
+describe('recent progress', () => {
+  it('reads the 100 most recently active progress documents with their owner', async () => {
+    store.queue = [[d('u1_git', { uid: 'u1', courseId: 'git' })]];
+    const rows = await data.recentProgress();
+    expect(rows.map((r) => [r.uid, r.courseId])).toEqual([['u1', 'git']]);
+    expect(store.queries[0]).toContainEqual({ orderBy: ['lastActiveAt', 'desc'] });
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
+  });
+});
+
 describe('progress, certificates and known emails', () => {
   it('fetches progress for many people in chunks of 30', async () => {
     const uids = Array.from({ length: 31 }, (_, i) => `u${i}`);

@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import type { CourseStats, OrgConfig, OrgStats } from '@gurukul/schema';
+import type { ProgressRow } from '../src/data/types';
 import type {
   ConsoleData,
   ConsoleService,
@@ -34,6 +35,8 @@ export function fakeConsole(
     team?: UserRow[];
     found?: UserRow[];
     audit?: AuditRow[];
+    /** Newest-active progress documents, for the failed-twice list. */
+    recent?: Array<ProgressRow & { uid: string }>;
     settings?: Partial<OrgConfig>;
   } = {},
 ) {
@@ -57,6 +60,7 @@ export function fakeConsole(
     ),
     usersPage: vi.fn().mockResolvedValue({ rows: users, nextCursor: null }),
     userCount: vi.fn().mockResolvedValue(init.count ?? users.length),
+    recentProgress: vi.fn(async () => init.recent ?? []),
     progressFor: vi.fn().mockResolvedValue([]),
     certificatesFor: vi.fn().mockResolvedValue([]),
     assignmentsFor: vi.fn(async (email: string) =>

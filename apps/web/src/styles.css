@@ -1563,3 +1563,47 @@ a.items__row:hover {
   border-color: var(--accent, currentColor);
   background: var(--surface);
 }
+
+/* ---- Needs attention on the Overview ---- */
+.attention {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: var(--space-5);
+}
+.attention h3 {
+  margin: 0 0 var(--space-3);
+}
+.attention__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.attention__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.attention__reason {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.attention__reason--danger {
+  color: var(--danger);
+}
+.attention__reason--warning {
+  color: var(--warning);
+}
+.attention__more {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
+  DATE_RANGES,
   MAX_TEAMS,
+  failedTwice,
+  overdueEntries,
+  pendingInvites,
+  rangeStart,
+  visibleFailed,
   addTeam,
   assignmentsCsv,
   auditLabel,
@@ -415,5 +421,90 @@ describe('addTeam', () => {
     expect(addTeam(['QA'], 'qa')).toEqual({ error: 'qa is already in the list.' });
     const full = Array.from({ length: MAX_TEAMS }, (_, i) => `T${i}`);
     expect(addTeam(full, 'One more')).toEqual({ error: 'The list holds at most 100 teams.' });
+  });
+});
+
+describe('Needs attention model', () => {
+  it('turns a range into its earliest moment', () => {
+    expect(DATE_RANGES.map((r) => r.id)).toEqual(['all', '30d', 'quarter']);
+    expect(rangeStart('all', now)).toBeNull();
+    expect(rangeStart('30d', now)?.toISOString()).toBe('2026-02-08T00:00:00.000Z');
+    expect(rangeStart('quarter', now)?.toISOString()).toBe('2025-12-10T00:00:00.000Z');
+  });
+
+  it('lists the five longest overdue, in range and in team', () => {
+    const late = (n: number, day: number, over: Partial<AssignmentFull> = {}) =>
+      asg(`o${n}@nonstopio.com`, {
+        uid: 'u',
+        status: 'started',
+        dueAt: new Date(Date.UTC(2026, 1, day)),
+        ...over,
+      });
+    const open = [
+      ...[5, 4, 3, 2, 1, 6].map((d) => late(d, d)),
+      late(7, 1, { status: 'completed' }),
+      late(8, 1, { dueAt: new Date('2025-01-01T00:00:00Z') }),
+    ];
+    expect(overdueEntries(open, now, null, null).map((e) => e.email)).toEqual([
+      'o8@nonstopio.com',
+      'o1@nonstopio.com',
+      'o2@nonstopio.com',
+      'o3@nonstopio.com',
+      'o4@nonstopio.com',
+    ]);
+    const inRange = overdueEntries(open, now, new Date('2026-02-01T00:00:00Z'), null);
+    expect(inRange.map((e) => e.email)).not.toContain('o8@nonstopio.com');
+    expect(
+      overdueEntries(open, now, null, new Set(['o2@nonstopio.com'])).map((e) => e.email),
+    ).toEqual(['o2@nonstopio.com']);
+  });
+
+  it('finds Parikshas failed at least twice and not passed since', () => {
+    const at = (d: number) => new Date(Date.UTC(2026, 2, d));
+    const row = (uid: string, over: Parameters<typeof progressRow>[0]) => ({
+      ...progressRow(over),
+      uid,
+    });
+    const found = failedTwice([
+      row('a', {
+        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: at(1) } },
+      }),
+      row('b', {
+        pariksha: {
+          q1: { best: 0.2, passed: false, attempts: 4, lastAttemptAt: at(5) },
+          q2: { best: 0.9, passed: true, attempts: 3, lastAttemptAt: at(6) },
+          q3: { best: 0.1, passed: false, attempts: 1, lastAttemptAt: at(7) },
+        },
+      }),
+      row('c', {
+        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
+      }),
+      row('e', {
+        pariksha: { q1: { best: 0.2, passed: false, attempts: 2, lastAttemptAt: null } },
+      }),
+    ]);
+    expect(found.map((f) => f.key)).toEqual(['b/git/q1', 'a/git/q1', 'c/git/q1', 'e/git/q1']);
+    expect(visibleFailed(found, at(3), null).map((f) => f.uid)).toEqual(['b']);
+    expect(visibleFailed(found, null, new Set(['a'])).map((f) => f.uid)).toEqual(['a']);
+  });
+
+  it('lists each pending email once, newest invite first, with the full count', () => {
+    const open = [
+      asg('a@nonstopio.com', { assignedAt: new Date('2026-03-01T00:00:00Z') }),
+      asg('a@nonstopio.com', { courseId: 'sql', assignedAt: new Date('2026-03-05T00:00:00Z') }),
+      asg('a@nonstopio.com', { courseId: 'go', assignedAt: new Date('2026-03-02T00:00:00Z') }),
+      asg('b@nonstopio.com', { assignedAt: new Date('2026-03-03T00:00:00Z') }),
+      asg('c@nonstopio.com', { assignedAt: null }),
+      asg('c@nonstopio.com', { courseId: 'sql', assignedAt: null }),
+      asg('d@nonstopio.com', { uid: 'u1' }),
+    ];
+    const all = pendingInvites(open, null);
+    expect(all.shown.map((p) => p.email)).toEqual([
+      'a@nonstopio.com',
+      'b@nonstopio.com',
+      'c@nonstopio.com',
+    ]);
+    expect(all.total).toBe(3);
+    expect(pendingInvites(open, new Date('2026-03-04T00:00:00Z')).total).toBe(1);
   });
 });

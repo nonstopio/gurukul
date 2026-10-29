@@ -31,6 +31,8 @@ const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
 /** Pending and overdue assignments are few next to all of them; this only bounds a runaway. */
 const OPEN_LIMIT = 2000;
+/** Failed-twice detection looks only at the most recently active learners. */
+const RECENT_PROGRESS_LIMIT = 100;
 const AUDIT_LIMIT = 100;
 const SEARCH_LIMIT = 8;
 const PERSON_ASSIGNMENT_LIMIT = 50;
@@ -102,6 +104,16 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
       return (
         await getCountFromServer(query(collection(db, 'assignments'), ...overdueAt(now)))
       ).data().count;
+    },
+    async recentProgress() {
+      const snap = await getDocs(
+        query(
+          collection(db, 'progress'),
+          orderBy('lastActiveAt', 'desc'),
+          limit(RECENT_PROGRESS_LIMIT),
+        ),
+      );
+      return snap.docs.map((d) => ({ ...toProgress(d.data()), uid: d.data().uid as string }));
     },
     async usersPage(after, pageSize) {
       const base = [collection(db, 'users'), orderBy('email')] as const;

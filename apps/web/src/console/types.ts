@@ -67,6 +67,11 @@ export interface ConsoleData {
   openAssignments(now: Date): Promise<AssignmentFull[]>;
   /** How many assignments are overdue at `now`, org-wide: a count() aggregation, not loaded rows. */
   overdueCount(now: Date): Promise<number>;
+  /**
+   * The newest-active progress documents (capped at 100), for finding Parikshas failed twice
+   * without reading every progress document.
+   */
+  recentProgress(): Promise<Array<ProgressRow & { uid: string }>>;
   usersPage(after: string | null, pageSize: number): Promise<UserPage>;
   /** Total people who have signed in, for "Showing 1–25 of N". */
   userCount(): Promise<number>;
