@@ -40,7 +40,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   and zod inlined, firebase-* external) and deployed by `deploy.yml` with Hosting and rules.
 - `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status, and
   issues the certificate (`certificates/{NSG-COURSE-YY-NNNN}`, sequence from `counters/certificates`)
-  in one transaction at 100% when `rules.certificate` is on; it never issues twice.
+  in one transaction at 100% when `rules.certificate` is on, stamping `config/org.signatory` on it; it never issues
+  twice. A learner's first start also writes `courses/{id}/learners/{uid}` (display name; Kulapati or that course's
+  Acharya read, no client writes) for the Studio Analytics learners table.
 - Pariksha callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,
   writes `progress/{id}/attempts/{aid}` and `progress.pariksha[id]` in one transaction). Both refuse a
@@ -50,7 +52,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
 
 - Kulapati console callables (all Kulapati-only, each writes an `audit` entry): `assignCourses`
   (1-20 published courses x 1-1000 emails; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps
-  `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
+  `stats/*.assigned` and `stats/org.assignmentsTotal`; a failed batch does not abort the call: `AssignResult.failed`
+  lists the course/email pairs that were not written, and only written pairs are counted, audited and emailed;
+  each assignment stores `assignedByName`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
   20 hours via `lastRemindedAt`), and
   `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds` and the profile's display name
@@ -64,11 +68,12 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   version and resets the draft), `archiveCourse` (Kulapati-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for acharya/kulapati claims; clients never create or delete drafts.
-- Email is an outbox only: the `Mailer` port's adapter writes `mail/{autoId}` as `{ to, message: { subject, text } }` (the Trigger Email extension's shape, clients
-  cannot read it) and calls nothing external. Installing that extension
-  (`docs/operations.md`) or another sender, `.plan/13-open-questions.md` #4, turns sending on.
+- Email goes out through the Gmail API (`gmail.ts`, sender `gurukul@nonstopio.com`) behind the `Mailer` and
+  `GmailPort` ports; `createMailer` reads `GMAIL_CREDENTIALS` (service-account key JSON, a secret) and, without it,
+  sends nothing and logs a `warn`. Links in emails use `SITE_URL` (`mail.ts`; unset falls back to the default site).
+  The `mail` queue is retired; setup is in `docs/operations.md`.
 - Sanjaya counters: `onProgressWritten` keeps `stats/course_{id}` and `stats/org` (parva completions, weekly
-  lessons, finish days, certified) by comparing before/after; `onAttemptCreated` adds score sums and
+  lessons, finish days and the `finishDaysHistogram` behind the median, certified) by comparing before/after; `onAttemptCreated` adds score sums and
   first-try question counts from the attempt's stored `results` to the course, and score sums and
   first-try passes (`pariksha*`) to `stats/org`. Schedules (daily, UTC, asia-south1):
   `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries, and
