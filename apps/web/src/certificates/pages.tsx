@@ -180,11 +180,8 @@ function CertificateThumb({ id }: { id: string }) {
   const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
   if (result.state !== 'ready' || result.value === null) return null;
   return (
-    <Link
-      className="complete__thumb"
-      to={`/certificates/${id}`}
-      aria-label={`Open the certificate for ${result.value.courseTitle}`}
-    >
+    <Link className="complete__thumb" to={`/certificates/${id}`}>
+      <span className="sr-only">Open the certificate for {result.value.courseTitle}</span>
       <div aria-hidden="true" inert>
         <CertificateSheet c={result.value} />
       </div>
@@ -235,7 +232,7 @@ function UpNextCard({ courseId }: { courseId: string }) {
       ) : (
         <>
           <p className="complete__next-course">Nothing else is assigned to you.</p>
-          <Link className={buttonClass('ghost')} to="/courses">
+          <Link className={buttonClass('chrome')} to="/courses">
             Browse more courses
           </Link>
         </>

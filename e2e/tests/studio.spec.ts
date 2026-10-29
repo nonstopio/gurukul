@@ -28,9 +28,9 @@ test.describe('Acharya in Vyasa Studio', () => {
     await page.getByRole('button', { name: /^\+ Lesson/ }).click();
     // The lesson page reads the saved draft, so let the autosave (one second after the edit) land
     // before opening it.
-    const saveState = page.getByRole('status').filter({ hasText: /Saved|Saving|Unsaved/ });
-    await expect(saveState).toHaveText(/Unsaved changes/);
-    await expect(saveState).toHaveText(/Saved/);
+    const saveState = page.getByRole('status').filter({ hasText: /saved|saving|unsaved/i });
+    await expect(saveState).toHaveText(/unsaved changes/);
+    await expect(saveState).toHaveText(/· saved/);
     await page.getByRole('link', { name: 'Untitled lesson' }).click();
 
     await page.getByLabel('Lesson title').fill('The cost of a bug');
@@ -38,8 +38,8 @@ test.describe('Acharya in Vyasa Studio', () => {
     await page
       .getByLabel('Text (Markdown)')
       .fill('A bug found in review costs minutes. The same bug found in production costs days.');
-    await expect(saveState).toHaveText(/Unsaved changes/);
-    await expect(saveState).toHaveText(/Saved/);
+    await expect(saveState).toHaveText(/unsaved changes/);
+    await expect(saveState).toHaveText(/· saved/);
 
     await page
       .getByRole('navigation', { name: 'Breadcrumb' })
@@ -64,17 +64,17 @@ test.describe('Acharya in Vyasa Studio', () => {
     await page.getByRole('button', { name: 'Add parva' }).click();
     await page.getByLabel('Title of parva 1').fill('Reading comments');
     await page.getByRole('button', { name: /^\+ Lesson/ }).click();
-    const saveState = page.getByRole('status').filter({ hasText: /Saved|Saving|Unsaved/ });
-    await expect(saveState).toHaveText(/Unsaved changes/);
-    await expect(saveState).toHaveText(/Saved/);
+    const saveState = page.getByRole('status').filter({ hasText: /saved|saving|unsaved/i });
+    await expect(saveState).toHaveText(/unsaved changes/);
+    await expect(saveState).toHaveText(/· saved/);
     await page.getByRole('link', { name: 'Untitled lesson' }).click();
     await page.getByLabel('Lesson title').fill('A comment is a question');
     await page.getByRole('button', { name: 'Text', exact: true }).click();
     await page
       .getByLabel('Text (Markdown)')
       .fill('Treat each comment as a question, not a verdict.');
-    await expect(saveState).toHaveText(/Unsaved changes/);
-    await expect(saveState).toHaveText(/Saved/);
+    await expect(saveState).toHaveText(/unsaved changes/);
+    await expect(saveState).toHaveText(/· saved/);
 
     // Not published yet, so learners cannot see it.
     await page.goto('/courses');
