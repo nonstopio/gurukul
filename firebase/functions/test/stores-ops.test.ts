@@ -551,6 +551,44 @@ describe('firestoreRollupStore', () => {
       { id: 'a2', createdAtMs: 0, data: { score: 0 } },
     ]);
   });
+
+  it('reads profile names and a course roster, skipping a profile without a name', async () => {
+    const users = pagedQuery([snap('u1', { displayName: 'Asha Rao' }), snap('u2', {})]);
+    const learners = pagedQuery([snap('u1', { displayName: 'Asha' }), snap('u2', {})]);
+    const collection = vi.fn((name: string) => (name === 'users' ? users : learners));
+    const store = firestoreRollupStore({ collection } as never);
+    expect(await store.userNames()).toEqual(new Map([['u1', 'Asha Rao']]));
+    expect(await store.roster('git')).toEqual(
+      new Map([
+        ['u1', 'Asha'],
+        ['u2', ''],
+      ]),
+    );
+    expect(collection).toHaveBeenCalledWith('courses/git/learners');
+  });
+
+  it('merges roster entries in batches of 500', async () => {
+    const batches = [batchOf(), batchOf()];
+    const db = {
+      doc: vi.fn((p: string) => p),
+      batch: vi.fn(() => batches[db.batch.mock.calls.length - 1]),
+    };
+    const writes = Array.from({ length: 501 }, (_, i) => ({
+      courseId: 'git',
+      uid: `u${i}`,
+      displayName: 'Asha Rao',
+      startedAt: ts(1) as never,
+    }));
+    await firestoreRollupStore(db as never).writeRoster(writes);
+    expect(batches[0]?.set).toHaveBeenCalledTimes(500);
+    expect(batches[0]?.set).toHaveBeenCalledWith(
+      'courses/git/learners/u0',
+      { displayName: 'Asha Rao', startedAt: writes[0]?.startedAt },
+      { merge: true },
+    );
+    expect(batches[1]?.set).toHaveBeenCalledTimes(1);
+    expect(batches[1]?.commit).toHaveBeenCalled();
+  });
 });
 
 describe('firestoreCourseStore', () => {

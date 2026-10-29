@@ -6,6 +6,7 @@ import {
   handleAttemptCreated,
   isEmptyDelta,
   planProgressStats,
+  planRoster,
   recountFromSource,
   runDailyRollup,
 } from '../src/analytics.js';
@@ -324,6 +325,9 @@ describe('runDailyRollup', () => {
     ]),
     writeOrgCounts: vi.fn().mockResolvedValue(undefined),
     writeCourseCounts: vi.fn().mockResolvedValue(undefined),
+    userNames: vi.fn().mockResolvedValue(new Map([['u', 'Asha Rao']])),
+    roster: vi.fn().mockResolvedValue(new Map()),
+    writeRoster: vi.fn().mockResolvedValue(undefined),
     ...over,
   });
 
@@ -343,7 +347,11 @@ describe('runDailyRollup', () => {
       parikshaFirstTryTotal: 1,
       parikshaFirstTryPassed: 1,
     };
-    expect(summary).toEqual({ ...org, courses: 1, progressDocs: 1, attempts: 1 });
+    expect(summary).toEqual({ ...org, courses: 1, progressDocs: 1, attempts: 1, rosterWrites: 1 });
+    expect(s.roster).toHaveBeenCalledWith('git-basics');
+    expect(s.writeRoster).toHaveBeenCalledWith([
+      { courseId: 'git-basics', uid: 'u', displayName: 'Asha Rao', startedAt: expect.anything() },
+    ]);
     expect(s.countActiveSince).toHaveBeenCalledWith(now - 30 * DAY);
     expect(s.writeOrgCounts).toHaveBeenCalledWith(org);
     expect(s.countCourseAssignments).toHaveBeenCalledWith('git-basics');
@@ -362,7 +370,58 @@ describe('runDailyRollup', () => {
     });
   });
 
+  it('writes no roster entries when every roster is current', async () => {
+    const s = store({ roster: vi.fn().mockResolvedValue(new Map([['u', 'Asha Rao']])) });
+    expect((await runDailyRollup(s, 0)).rosterWrites).toBe(0);
+    expect(s.writeRoster).not.toHaveBeenCalled();
+  });
+
   it('opens the window 30 days back', () => {
     expect(activeWindowStart(30 * DAY)).toBe(0);
+  });
+});
+
+describe('planRoster', () => {
+  const courses = new Map([['git-basics', {}]]);
+  const p = (uid: string, over: object = {}) => fixtureProgress(undefined, { uid, ...over });
+  const rosters = new Map([
+    [
+      'git-basics',
+      new Map([
+        ['same', 'Asha Rao'],
+        ['renamed', 'Asha'],
+        ['noProfile', 'Ravi Kumar'],
+      ]),
+    ],
+  ]);
+  const names = new Map([
+    ['same', 'Asha Rao'],
+    ['renamed', 'Asha Rao'],
+    ['missing', 'Meera Iyer'],
+  ]);
+
+  it('adds missing learners and copies renames, leaving current and profile-less names', () => {
+    const docs = [p('same'), p('renamed'), p('noProfile'), p('missing'), p('ghost')];
+    expect(planRoster(courses, docs, names, rosters)).toEqual([
+      {
+        courseId: 'git-basics',
+        uid: 'renamed',
+        displayName: 'Asha Rao',
+        startedAt: docs[1]?.startedAt,
+      },
+      {
+        courseId: 'git-basics',
+        uid: 'missing',
+        displayName: 'Meera Iyer',
+        startedAt: docs[3]?.startedAt,
+      },
+      { courseId: 'git-basics', uid: 'ghost', displayName: '', startedAt: docs[4]?.startedAt },
+    ]);
+  });
+
+  it('ignores unreadable progress and courses that do not exist or have no roster read', () => {
+    const docs = [{ bad: true }, p('missing', { courseId: 'gone' })];
+    expect(planRoster(courses, docs, names, rosters)).toEqual([]);
+    expect(planRoster(courses, [p('missing')], names, new Map())).toHaveLength(1);
   });
 });
