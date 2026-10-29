@@ -242,6 +242,30 @@ describe('Catalogue', () => {
 });
 
 describe('Course overview', () => {
+  it('shows when the course is due in the hero band', async () => {
+    await open(
+      '/courses/git',
+      fakeData({ assignments: [assignment({ dueAt: new Date(Date.now() + 3 * 86_400_000) })] }),
+    );
+    expect(await screen.findByText('Due in 3 days')).toBeTruthy();
+  });
+
+  it('flags an overdue course in the hero band', async () => {
+    await open(
+      '/courses/git',
+      fakeData({ assignments: [assignment({ dueAt: new Date(Date.now() - 2 * 86_400_000) })] }),
+    );
+    expect(await screen.findByText('Overdue by 2 days')).toBeTruthy();
+  });
+
+  it('opens without a due date when assignments fail to load', async () => {
+    const d = fakeData();
+    d.data.myAssignments = vi.fn().mockRejectedValue(new Error('offline'));
+    await open('/courses/git', d);
+    expect(await screen.findByRole('link', { name: 'Start course' })).toBeTruthy();
+    expect(screen.queryByText(/^Due /)).toBeNull();
+  });
+
   it('shows the outline, starts a new course and expands a collapsed parva', async () => {
     await open('/courses/git');
     expect(
