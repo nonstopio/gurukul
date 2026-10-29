@@ -256,6 +256,9 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async knownEmails(emails, courseIds) {
       const signedIn = new Set<string>();
       const counts = new Map<string, number>();
+      const byCourse: Record<string, Set<string>> = Object.fromEntries(
+        courseIds.map((id) => [id, new Set<string>()]),
+      );
       for (const part of chunks(emails, IN_LIMIT)) {
         const users = await getDocs(query(collection(db, 'users'), where('email', 'in', part)));
         users.docs.forEach((d) => signedIn.add(d.data().email as string));
@@ -270,13 +273,14 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
           assigned.docs.forEach((d) => {
             const email = d.data().email as string;
             counts.set(email, (counts.get(email) ?? 0) + 1);
+            (byCourse[courseId] as Set<string>).add(email);
           });
         }
       }
       const assigned = new Set(
         [...counts].filter(([, n]) => n === courseIds.length).map(([email]) => email),
       );
-      return { signedIn, assigned };
+      return { signedIn, assigned, byCourse };
     },
     async teams() {
       const snap = await getDoc(doc(db, 'config', 'org'));

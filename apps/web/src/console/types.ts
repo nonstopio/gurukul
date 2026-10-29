@@ -129,11 +129,11 @@ export interface ConsoleData {
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
   /** Every course, drafts and never-published ones included (capped), for granting to an Acharya. */
   allCourses(): Promise<Course[]>;
-  /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */
-  knownEmails(
-    emails: string[],
-    courseIds: string[],
-  ): Promise<{ signedIn: Set<string>; assigned: Set<string> }>;
+  /**
+   * Which of these emails have signed in, which already hold ALL the given courses, and which
+   * hold each course (so the preview can count per course).
+   */
+  knownEmails(emails: string[], courseIds: string[]): Promise<KnownEmails>;
   teams(): Promise<string[]>;
   /** `config/org`, with the defaults for anything not saved yet. */
   orgSettings(): Promise<OrgConfig>;
@@ -141,6 +141,12 @@ export interface ConsoleData {
   saveOrgSettings(settings: OrgConfig): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
   auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
+}
+
+export interface KnownEmails {
+  signedIn: Set<string>;
+  assigned: Set<string>;
+  byCourse: Record<string, Set<string>>;
 }
 
 export interface AssignRequest {
@@ -156,6 +162,8 @@ export interface AssignResult {
   summary: AssignSummary;
   assigned: number;
   notified: number;
+  /** (course, email) pairs that could not be written; the page offers to retry them. */
+  failed: { email: string; courseId: string }[];
 }
 
 export interface SetRolesRequest {

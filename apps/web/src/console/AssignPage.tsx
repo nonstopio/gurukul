@@ -18,6 +18,7 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { usePeopleSearch } from './usePeopleSearch';
+import type { AssignResult, KnownEmails } from './types';
 
 const lessonLabel = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
 
@@ -45,13 +46,12 @@ export function AssignPage() {
   const [teamCount, setTeamCount] = useState<{ team: string; size: number } | null>(null);
   const teamSize = teamCount?.team === team ? teamCount.size : null;
   const [dragging, setDragging] = useState(false);
-  const [known, setKnown] = useState<{
-    signedIn: ReadonlySet<string>;
-    assigned: ReadonlySet<string>;
-  }>({
+  const [known, setKnown] = useState<KnownEmails>({
     signedIn: new Set(),
     assigned: new Set(),
+    byCourse: {},
   });
+  const [failed, setFailed] = useState<AssignResult['failed']>([]);
   const result = useAsync(
     useCallback(async () => {
       const [courses, teams] = await Promise.all([learner.listCourses(), data.teams()]);
@@ -87,30 +87,67 @@ export function AssignPage() {
   const add = (more: string[]) =>
     setEmails([...new Set([...emails, ...more.map((e) => e.trim().toLowerCase())])]);
 
+  const send = (ids: string[], to: string[]) =>
+    service.assignCourses({
+      courseIds: ids,
+      emails: to,
+      dueAt: due ? Date.parse(`${due}T23:59:59`) : null,
+      mandatory,
+      reminder,
+      notify,
+    });
+
+  const finish = (res: AssignResult[]) => {
+    const left = res.flatMap((r) => r.failed);
+    if (left.length > 0) {
+      setFailed(left);
+      toast.show(
+        `${left.length} ${left.length === 1 ? 'assignment' : 'assignments'} could not be saved. The rest went through.`,
+        { tone: 'danger' },
+      );
+      setBusy(false);
+      return;
+    }
+    const first = res[0] as AssignResult;
+    const people = first.summary.signedIn + first.summary.newInvites;
+    const pending = first.summary.newInvites;
+    toast.show(
+      `Assigned to ${people} ${people === 1 ? 'person' : 'people'} (${pending} pending ${pending === 1 ? 'invite' : 'invites'})`,
+      { tone: 'success' },
+    );
+    void navigate(
+      courseIds.length === 1
+        ? `/kulapati/learners?course=${encodeURIComponent(courseIds[0] as string)}`
+        : '/kulapati/learners',
+    );
+  };
+
   const submit = async () => {
     setBusy(true);
     try {
-      const res = await service.assignCourses({
-        courseIds,
-        emails,
-        dueAt: due ? Date.parse(`${due}T23:59:59`) : null,
-        mandatory,
-        reminder,
-        notify,
-      });
-      const people = res.summary.signedIn + res.summary.newInvites;
-      const pending = res.summary.newInvites;
-      toast.show(
-        `Assigned to ${people} ${people === 1 ? 'person' : 'people'} (${pending} pending ${pending === 1 ? 'invite' : 'invites'})`,
-        { tone: 'success' },
-      );
-      void navigate(
-        courseIds.length === 1
-          ? `/kulapati/learners?course=${encodeURIComponent(courseIds[0] as string)}`
-          : '/kulapati/learners',
-      );
+      finish([await send(courseIds, emails)]);
     } catch {
       toast.show('Could not assign. Nothing was changed; try again.', { tone: 'danger' });
+      setBusy(false);
+    }
+  };
+
+  /** Re-sends only the pairs that failed, one request per course; what still fails stays listed. */
+  const retry = async () => {
+    setBusy(true);
+    const ids = [...new Set(failed.map((f) => f.courseId))];
+    try {
+      const res = await Promise.all(
+        ids.map((id) =>
+          send(
+            [id],
+            failed.filter((f) => f.courseId === id).map((f) => f.email),
+          ),
+        ),
+      );
+      finish(res);
+    } catch {
+      toast.show('Could not retry. Try again.', { tone: 'danger' });
       setBusy(false);
     }
   };
@@ -301,6 +338,41 @@ export function AssignPage() {
                 <dt>Due</dt>
                 <dd>{due || 'No deadline'}</dd>
               </dl>
+              {courseIds.length > 1 ? (
+                <ul aria-label="Per course">
+                  {courses
+                    .filter((c) => courseIds.includes(c.id))
+                    .map((c) => {
+                      const per = summarize(
+                        classifyEmails(emails, {
+                          signedIn: known.signedIn,
+                          assigned: known.byCourse[c.id] ?? new Set(),
+                        }),
+                      );
+                      return (
+                        <li key={c.id}>
+                          {c.title}: {per.signedIn + per.newInvites} new, {per.alreadyAssigned}{' '}
+                          already assigned
+                        </li>
+                      );
+                    })}
+                </ul>
+              ) : null}
+              {failed.length > 0 ? (
+                <div role="alert">
+                  <p>These could not be saved:</p>
+                  <ul aria-label="Failed assignments">
+                    {failed.map((f) => (
+                      <li key={`${f.courseId}:${f.email}`}>
+                        {f.email}: {courses.find((c) => c.id === f.courseId)?.title ?? f.courseId}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button variant="secondary" disabled={busy} onClick={() => void retry()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : null}
               {summary.rejected.length > 0 ? (
                 <ul aria-label="Rejected addresses">
                   {summary.rejected.map((r) => (

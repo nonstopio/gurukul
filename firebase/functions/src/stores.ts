@@ -12,6 +12,7 @@ import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
+import { log } from './logging/log.js';
 import type { Mailer } from './mail.js';
 import type { UserStore } from './profile.js';
 import type { ProgressStore } from './progress.js';
@@ -274,6 +275,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       return existing;
     },
     async createAssignments(assignedBy, docs) {
+      const failed: string[] = [];
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
         for (const d of part) {
@@ -290,8 +292,15 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             status: 'assigned',
           });
         }
-        await batch.commit();
+        try {
+          await batch.commit();
+        } catch {
+          // One bad batch must not undo or hide the others; the caller reports these ids.
+          log.warn('Assignment batch failed', { count: part.length });
+          failed.push(...part.map((d) => d.id));
+        }
       }
+      return failed;
     },
     async bumpAssigned(perCourse) {
       const batch = db.batch();

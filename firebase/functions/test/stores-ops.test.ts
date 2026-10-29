@@ -187,7 +187,7 @@ describe('firestoreAssignStore', () => {
       mandatory: true,
       reminder: 'weekly' as const,
     }));
-    await firestoreAssignStore(db).createAssignments('k', docs);
+    expect(await firestoreAssignStore(db).createAssignments('k', docs)).toEqual([]);
     expect(batches[0]?.create).toHaveBeenCalledTimes(400);
     expect(batches[1]?.create).toHaveBeenCalledTimes(1);
     expect(batches[0]?.set).not.toHaveBeenCalled();
@@ -209,6 +209,28 @@ describe('firestoreAssignStore', () => {
     );
     expect(batches[0]?.commit).toHaveBeenCalledOnce();
     expect(batches[1]?.commit).toHaveBeenCalledOnce();
+  });
+
+  it('returns the ids of a batch that failed and still writes the others', async () => {
+    const bad = { ...batchOf(), commit: vi.fn().mockRejectedValue(new Error('boom')) };
+    const good = batchOf();
+    const db = {
+      doc: vi.fn((p: string) => p),
+      batch: vi.fn().mockReturnValueOnce(bad).mockReturnValueOnce(good),
+    } as never;
+    const docs = Array.from({ length: 401 }, (_, i) => ({
+      id: `git__${i}`,
+      email: `u${i}@nonstopio.com`,
+      uid: null,
+      courseId: 'git',
+      dueAt: null,
+      mandatory: true,
+      reminder: 'weekly' as const,
+    }));
+    const failed = await firestoreAssignStore(db).createAssignments('k', docs);
+    expect(failed).toHaveLength(400);
+    expect(failed[0]).toBe('git__0');
+    expect(good.commit).toHaveBeenCalledOnce();
   });
 
   it('bumps the course counters and the org total in one batch, and audits', async () => {

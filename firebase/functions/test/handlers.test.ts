@@ -179,7 +179,7 @@ describe('console callables', () => {
       courses: vi.fn().mockResolvedValue({ git: { status: 'published', title: 'Git' } }),
       signedInUsers: vi.fn().mockResolvedValue(new Map()),
       existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
-      createAssignments: vi.fn().mockResolvedValue(undefined),
+      createAssignments: vi.fn().mockResolvedValue([]),
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
     };

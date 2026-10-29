@@ -82,7 +82,9 @@ export function fakeConsole(
     ),
     usersWithRole: vi.fn(async (role: string) => users.filter((u) => u.roles.includes(role))),
     allCourses: vi.fn(async () => init.courses ?? [makeCourse()]),
-    knownEmails: vi.fn().mockResolvedValue({ signedIn: new Set(), assigned: new Set() }),
+    knownEmails: vi
+      .fn()
+      .mockResolvedValue({ signedIn: new Set(), assigned: new Set(), byCourse: {} }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
     auditPage: vi.fn().mockResolvedValue({ rows: init.audit ?? [], nextCursor: null }),
     orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
@@ -93,6 +95,7 @@ export function fakeConsole(
       summary: { signedIn: 1, newInvites: 1, alreadyAssigned: 0, rejected: [] },
       assigned: 2,
       notified: 0,
+      failed: [],
     }),
     setRoles: vi.fn().mockResolvedValue({ roles: ['shishya', 'acharya'] }),
     resetCooldown: vi.fn().mockResolvedValue(undefined),

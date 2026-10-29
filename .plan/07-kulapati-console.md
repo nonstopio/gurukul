@@ -36,14 +36,17 @@ callable, Kulapati only:
 1. Normalise emails (trim, lower-case, dedupe).
 2. Classify each: signed in (has uid), new (no account: pending invite),
    already assigned (skipped), rejected (not `@nonstopio.com` or malformed).
-3. Write assignments in batches of 400 (idempotent ids).
+3. Write assignments in batches of 400 (idempotent ids). A batch that fails does not stop the
+   others: the failed (course, email) pairs come back in `failed`, only written pairs are counted,
+   audited and emailed, and the screen lists the failures with a Retry for just those pairs.
 4. If `notify`, send an email per new assignment (see below).
 5. Return the classification so the UI shows the summary.
 
 Inputs supported by the UI: search people, paste emails (comma, space, new
 line), CSV upload (first column of emails, header optional), whole team (from
 `users.team`). The summary panel previews the classification **before**
-submitting by running the same pure classifier client-side.
+submitting by running the same pure classifier client-side; with several courses it also counts new and
+already-assigned people per course.
 Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
 file. After assigning exactly one course the console opens Learners filtered to it
 (`/kulapati/learners?course=<id>`).

@@ -350,9 +350,14 @@ describe('progress, certificates and known emails', () => {
     const known = await data.knownEmails(['a@nonstopio.com', 'b@nonstopio.com'], ['git', 'sql']);
     expect([...known.signedIn]).toEqual(['a@nonstopio.com']);
     expect([...known.assigned]).toEqual(['a@nonstopio.com']);
+    expect(known.byCourse).toEqual({
+      git: new Set(['a@nonstopio.com', 'b@nonstopio.com']),
+      sql: new Set(['a@nonstopio.com']),
+    });
     expect(await data.knownEmails([], ['git'])).toEqual({
       signedIn: new Set(),
       assigned: new Set(),
+      byCourse: { git: new Set() },
     });
   });
 

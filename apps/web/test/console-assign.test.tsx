@@ -4,6 +4,7 @@ import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { fakeData, makeCourse } from './fake-data';
 import { openApp } from './harness';
+import type { KnownEmails } from '../src/console/types';
 
 const kulapati = { roles: ['kulapati'] as Array<'kulapati'> };
 const PATH = '/kulapati/assign';
@@ -21,6 +22,7 @@ function setup(over: Parameters<typeof fakeConsole>[0] = {}) {
   c.data.knownEmails = vi.fn().mockResolvedValue({
     signedIn: new Set(['a@nonstopio.com']),
     assigned: new Set(['c@nonstopio.com']),
+    byCourse: { git: new Set(['c@nonstopio.com']) },
   });
   return c;
 }
@@ -168,15 +170,19 @@ describe('Assign courses', () => {
 
   it('ignores a classification lookup that finishes after the list changed', async () => {
     const c = setup();
-    let release: (v: { signedIn: Set<string>; assigned: Set<string> }) => void = () => {};
+    let release: (v: KnownEmails) => void = () => {};
     c.data.knownEmails = vi
       .fn()
       .mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
-      .mockResolvedValue({ signedIn: new Set(['a@nonstopio.com']), assigned: new Set() });
+      .mockResolvedValue({
+        signedIn: new Set(['a@nonstopio.com']),
+        assigned: new Set(),
+        byCourse: {},
+      });
     await openApp(PATH, { ...kulapati, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
     await addEmails('a@nonstopio.com');
-    release({ signedIn: new Set(), assigned: new Set(['a@nonstopio.com']) });
+    release({ signedIn: new Set(), assigned: new Set(['a@nonstopio.com']), byCourse: {} });
     expect(await screen.findByRole('button', { name: 'Assign to 1 person' })).toBeTruthy();
   });
 
@@ -243,6 +249,7 @@ describe('Assign screen details', () => {
       summary: { signedIn: 1, newInvites: 2, alreadyAssigned: 0, rejected: [] },
       assigned: 3,
       notified: 0,
+      failed: [],
     });
     const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
     expect((await screen.findAllByText(/4 lessons · /)).length).toBe(2);
@@ -278,6 +285,7 @@ describe('Assign screen details', () => {
       summary: { signedIn: 0, newInvites: 1, alreadyAssigned: 0, rejected: [] },
       assigned: 1,
       notified: 0,
+      failed: [],
     });
     await openApp(PATH, { ...kulapati, console: c, data: data() });
     fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
@@ -289,5 +297,75 @@ describe('Assign screen details', () => {
   it('says "1 lesson" for a one-lesson course', async () => {
     await openApp(PATH, { ...kulapati, console: setup(), data: fakeData({ courses: [one] }) });
     expect(await screen.findByText(/1 lesson · /)).toBeTruthy();
+  });
+});
+
+describe('Assign: partial failures and per-course preview', () => {
+  it('previews each course on its own when several are chosen', async () => {
+    const c = setup();
+    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    fireEvent.click(screen.getByLabelText(/SQL basics/));
+    await addEmails('a@nonstopio.com', 'c@nonstopio.com');
+    const list = await screen.findByRole('list', { name: 'Per course' });
+    await waitFor(() =>
+      expect(
+        within(list).getByText(/Git, the NonStop Way: 1 new, 1 already assigned/),
+      ).toBeTruthy(),
+    );
+    expect(within(list).getByText(/SQL basics: 2 new, 0 already assigned/)).toBeTruthy();
+  });
+
+  it('lists what failed, retries only those pairs, and then moves on', async () => {
+    const c = setup();
+    const summary = { signedIn: 1, newInvites: 0, alreadyAssigned: 0, rejected: [] };
+    c.service.assignCourses = vi
+      .fn()
+      .mockResolvedValueOnce({
+        summary,
+        assigned: 1,
+        notified: 0,
+        failed: [
+          { email: 'a@nonstopio.com', courseId: 'git' },
+          { email: 'b@nonstopio.com', courseId: 'gone' },
+        ],
+      })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ summary, assigned: 1, notified: 0, failed: [] });
+    const { router } = await openApp(PATH, { ...kulapati, console: c, data: data() });
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    await addEmails('a@nonstopio.com', 'b@nonstopio.com');
+    fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
+    const failed = await screen.findByRole('list', { name: 'Failed assignments' });
+    expect(within(failed).getByText(/a@nonstopio.com: Git, the NonStop Way/)).toBeTruthy();
+    expect(within(failed).getByText(/b@nonstopio.com: gone/)).toBeTruthy();
+    expect(router.state.location.pathname).toBe(PATH);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Could not retry. Try again.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/kulapati/learners'));
+    expect(c.service.assignCourses).toHaveBeenLastCalledWith(
+      expect.objectContaining({ courseIds: ['gone'], emails: ['b@nonstopio.com'] }),
+    );
+    expect(c.service.assignCourses).toHaveBeenCalledWith(
+      expect.objectContaining({ courseIds: ['git'], emails: ['a@nonstopio.com'] }),
+    );
+  });
+
+  it('says one failed assignment in the singular', async () => {
+    const c = setup();
+    c.service.assignCourses = vi.fn().mockResolvedValue({
+      summary: { signedIn: 1, newInvites: 0, alreadyAssigned: 0, rejected: [] },
+      assigned: 0,
+      notified: 0,
+      failed: [{ email: 'a@nonstopio.com', courseId: 'git' }],
+    });
+    await openApp(PATH, { ...kulapati, console: c, data: data() });
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    await addEmails('a@nonstopio.com');
+    fireEvent.click(await screen.findByRole('button', { name: /Assign to/ }));
+    expect(
+      await screen.findByText('1 assignment could not be saved. The rest went through.'),
+    ).toBeTruthy();
   });
 });
