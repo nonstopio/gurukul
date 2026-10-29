@@ -248,6 +248,55 @@ describe('Course overview', () => {
     ).toBe('20');
   });
 
+  it('renders the description, names the Acharyas and explains a locked row', async () => {
+    localStorage.clear();
+    const course = makeCourse({
+      description: 'Learn **Git** properly.',
+      acharyaIds: ['a1', 'a2'],
+      acharyaNames: { a1: 'Asha Rao', a2: 'Dev Nair' },
+    });
+    await open('/courses/git', fakeData({ courses: [course] }));
+    expect((await screen.findByText('Git')).tagName).toBe('STRONG');
+    expect(screen.getByRole('heading', { name: 'Your Acharyas' })).toBeTruthy();
+    expect(screen.getByText('Asha Rao')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Parva 2/ }));
+    expect(screen.getByText('Lesson l4').closest('[aria-disabled]')?.getAttribute('title')).toBe(
+      'Pass Pariksha I to unlock',
+    );
+    expect(screen.getByText('Pariksha I').closest('[aria-disabled]')?.getAttribute('title')).toBe(
+      'Finish the earlier lessons to unlock',
+    );
+  });
+
+  it('names a single Acharya, hides a repeated description and remembers open parvas', async () => {
+    localStorage.clear();
+    const course = makeCourse({
+      description: 'Version control for teams.',
+      acharyaNames: { a1: 'Asha Rao' },
+    });
+    const first = await open('/courses/git', fakeData({ courses: [course] }));
+    expect(await screen.findByRole('heading', { name: 'Your Acharya' })).toBeTruthy();
+    expect(document.querySelector('.prose')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Parva 2/ }));
+    first.unmount();
+    await open('/courses/git', fakeData({ courses: [course] }));
+    const toggle = await screen.findByRole('button', { name: /Parva 2/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    localStorage.clear();
+  });
+
+  it('links to the certificate once one is issued', async () => {
+    await open(
+      '/courses/git',
+      fakeData({
+        watched: progressRow({ completedAt: new Date(), certificateId: 'NSG-GIT-26-0001' }),
+      }),
+    );
+    expect(
+      (await screen.findByRole('link', { name: 'View your certificate' })).getAttribute('href'),
+    ).toBe('/certificates/NSG-GIT-26-0001');
+  });
+
   it('says lessons were added to a course the learner finished', async () => {
     await open(
       '/courses/git',

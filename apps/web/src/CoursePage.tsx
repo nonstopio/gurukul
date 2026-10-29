@@ -18,6 +18,8 @@ import { useAsync } from './data/useAsync';
 import { countItems, hasNewLessons, isRetired, percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
 import { Loaded, RetiredNote } from './learn/ui';
+import { openParvasKey, readOpenParvas, writeOpenParvas } from './learn/openParvas';
+import { Prose } from './player/blocks';
 
 const NO_PROGRESS = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
@@ -41,7 +43,7 @@ export function CoursePage() {
     <Loaded loadable={result}>
       {(course) =>
         course ? (
-          <Overview course={course} progress={progress} />
+          <Overview course={course} progress={progress} uid={uid} />
         ) : (
           <main className="page">
             <EmptyState
@@ -61,7 +63,26 @@ export function CoursePage() {
   );
 }
 
-function Overview({ course, progress }: { course: Course; progress: ProgressRow | null }) {
+/** The Pariksha that gates a locked item: the nearest earlier one that blocks what follows. */
+function unlockHint(course: Course, itemId: string): string {
+  const items = itemsOf(course);
+  const at = items.findIndex((i) => i.id === itemId);
+  const gate = items
+    .slice(0, at)
+    .reverse()
+    .find((i) => i.type === 'pariksha' && i.blocksNext);
+  return gate ? `Pass ${gate.title} to unlock` : 'Finish the earlier lessons to unlock';
+}
+
+function Overview({
+  course,
+  progress,
+  uid,
+}: {
+  course: Course;
+  progress: ProgressRow | null;
+  uid: string;
+}) {
   const state = progress ?? NO_PROGRESS;
   const states = itemStates(course, state);
   const resume = resumeItemId(course, state);
@@ -69,7 +90,14 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
   const counts = countItems(course);
   const percent = percentFor(course, progress);
   const currentParva = course.parvas.find((p) => p.items.some((i) => states[i.id] === 'current'));
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const storeKey = openParvasKey(uid, course.id);
+  const [open, setOpen] = useState(() => readOpenParvas(storeKey));
+  const toggle = (id: string, expanded: boolean) => {
+    const next = { ...open, [id]: !expanded };
+    setOpen(next);
+    writeOpenParvas(storeKey, next);
+  };
+  const acharyas = Object.values(course.acharyaNames);
   const isOpen = (id: string) => open[id] ?? id === currentParva?.id;
 
   return (
@@ -88,6 +116,9 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
         {course.rules.certificate ? ' · Certificate' : ''}
         {isRetired(course) ? ' · Retired' : ''}
       </p>
+      {course.description.trim() && course.description !== course.summary ? (
+        <Prose md={course.description} />
+      ) : null}
       {isRetired(course) ? <RetiredNote /> : null}
       {hasNewLessons(course, progress) ? (
         <Callout tone="note" title="New lessons added">
@@ -100,6 +131,11 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
       {resume ? (
         <Link className={buttonClass('primary')} to={`/courses/${course.id}/learn/${resume}`}>
           {progress ? `Resume — ${resumeTitle}` : 'Start course'}
+        </Link>
+      ) : null}
+      {progress?.certificateId ? (
+        <Link className={buttonClass('secondary')} to={`/certificates/${progress.certificateId}`}>
+          View your certificate
         </Link>
       ) : null}
 
@@ -117,7 +153,7 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
                     className="parva__toggle"
                     aria-expanded={expanded}
                     aria-controls={`parva-${parva.id}`}
-                    onClick={() => setOpen({ ...open, [parva.id]: !expanded })}
+                    onClick={() => toggle(parva.id, expanded)}
                   >
                     <span className="parva__label">Parva {n + 1}</span> {parva.title}
                     <span className="parva__count">
@@ -143,7 +179,11 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
                       return (
                         <li key={item.id}>
                           {s === 'locked' ? (
-                            <span className="items__row" aria-disabled="true">
+                            <span
+                              className="items__row"
+                              aria-disabled="true"
+                              title={unlockHint(course, item.id)}
+                            >
                               {label}
                             </span>
                           ) : (
@@ -171,6 +211,16 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
             </dl>
             <p>Pass mark {Math.round(course.rules.passMark * 100)}% on each Pariksha.</p>
           </Card>
+          {acharyas.length > 0 ? (
+            <Card as="section" aria-labelledby="acharya-title">
+              <h2 id="acharya-title">{acharyas.length === 1 ? 'Your Acharya' : 'Your Acharyas'}</h2>
+              <ul>
+                {acharyas.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           {course.outcomes.length > 0 ? (
             <Card as="section" aria-labelledby="learn-title">
               <h2 id="learn-title">What you will learn</h2>
