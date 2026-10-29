@@ -20,24 +20,23 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell | 12 | 0 | 1 | 0 |
 | Learner experience | 18 | 0 | 1 | 0 |
 | Parikshas and certificates | 10 | 0 | 0 | 0 |
-| Kulapati console and Sanjaya | 31 | 1 | 0 | 0 |
+| Kulapati console and Sanjaya | 32 | 0 | 0 | 0 |
 | Vyasa Studio | 17 | 0 | 0 | 0 |
 | Design system | 5 | 1 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 18 | 0 | 0 | 9 |
 | First course: Git | 4 | 0 | 0 | 2 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 129 | 2 | 2 | 11 |
+| **Total** | 130 | 1 | 2 | 11 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Two items are blocked on a maintainer answer (`LRN-20`, `AUTH-10`).
 
-1. `KUL-32` — Learner roster backfill and renames
-2. `LRN-20` — Preview certificate on the course overview (blocked)
-3. `AUTH-10` — Sign-in: contact link and quote (blocked)
-4. `DS-04` — shared icon set
+1. `LRN-20` — Preview certificate on the course overview (blocked)
+2. `AUTH-10` — Sign-in: contact link and quote (blocked)
+3. `DS-04` — shared icon set
 
 ## Foundations
 
@@ -146,7 +145,7 @@ Plan: `07-kulapati-console.md`, `09-analytics.md`, `design-handoff/02-kulapati-c
 | `KUL-20` | Course analytics finish | done | — | `apps/web/src/console/CourseAnalyticsPage.tsx`, `model.ts` (`parikshaRows`, `WARN_BELOW_PERCENT`), `studio/ParikshaBuilderPage.tsx` (`?question=`): per-Pariksha table summed in the browser, warning below 70%, edit links. Left: `KUL-30` |
 | `KUL-30` | Course analytics: median time to finish | done | — | `packages/schema/src/stats.ts` (`finishDaysHistogram`), `firebase/functions/src/analytics.ts` (`finishBucket`, `recountFromSource`), `stores.ts`, `apps/web/src/console/model.ts` (`medianDays`), `CourseAnalyticsPage.tsx` (median with the average beside it). Courses finished before this show a dash until the nightly roll-up fills the histogram |
 | `KUL-31` | Bulk role dialog matches the Roles screen | done | — | `apps/web/src/console/LearnersPage.tsx` (`BulkRoleDialog`): independent Acharya and Kulapati choices (leave, add, remove); untouched roles are not sent, removing Acharya clears `grantedCourseIds`, own account skipped only when removing Kulapati |
-| `KUL-32` | Learner roster backfill and renames | todo | — | Learners who started before `KUL-25` show "Name not recorded"; backfill them (e.g. in the daily roll-up in `analytics.ts`, which already reads every progress document) and copy a later rename to the roster. Optionally a Studio Analytics e2e step for the table |
+| `KUL-32` | Learner roster backfill and renames | done | — | The daily roll-up adds missing roster entries and copies profile renames: `firebase/functions/src/analytics.ts` (`planRoster`, `runDailyRollup`), `stores.ts` (`firestoreRollupStore`); `.plan/09-analytics.md`. No Studio Analytics e2e step for the table |
 | `KUL-21` | Daily roll-up repairs course counters                                        | done    | —        | `firebase/functions/src/analytics.ts` (`recountFromSource`, `runDailyRollup`), `stores.ts` (`firestoreRollupStore`). `weekly` cannot be rebuilt from source (`09`) |
 | `KUL-22` | Roles screen polish | done | — | `apps/web/src/console/RolesPage.tsx` (real Learner count, Kulapatis list, Acharya and Kulapati as independent checkboxes, drafts grantable), `console/firebase.ts` (`allCourses`) |
 | `KUL-23` | Audit log view finish | done | — | `apps/web/src/console/AuditPage.tsx` ("Load older entries", 50 at a time), `firebase.ts` (`auditPage`), `model.ts` (`auditDetail`), `firebase/functions/src/assign.ts` (assign entries record emails). Course targets still show ids |
