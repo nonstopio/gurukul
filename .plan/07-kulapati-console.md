@@ -16,7 +16,10 @@ analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
 - The Pending invite and Overdue tabs read every unclaimed (`uid == null`) and
   every overdue assignment, not only the newest 500, so their counts and the
   pending list are exact; reads grow with pending and overdue assignments only.
-- Bulk actions on selected rows: assign course, send reminder, change role.
+- Bulk actions on selected rows: assign course, send reminder, change role. Change role opens a
+  dialog (Shishya, Acharya, Kulapati) and calls `setRoles` once per selected person; pending
+  invites and your own account (when dropping Kulapati) are skipped and counted. Choosing Acharya
+  leaves existing course grants alone; Shishya clears them.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).
 
