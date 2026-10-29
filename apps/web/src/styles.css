@@ -1816,3 +1816,114 @@ a.items__row:hover {
   color: var(--text-subtle);
   font: 400 var(--text-xs) var(--font-ui);
 }
+.signin {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--bg);
+}
+.signin__hero {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-12) clamp(var(--space-5), 6vw, 5rem);
+  background: var(--chrome);
+  color: var(--chrome-text);
+}
+.signin__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.signin__brand img {
+  height: 32px;
+  width: auto;
+}
+.signin__brand-name {
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--chrome-line);
+  font: 500 var(--text-xl) / 1 var(--font-display);
+  color: var(--chrome-accent);
+}
+.signin__pitch {
+  position: relative;
+  display: grid;
+  gap: var(--space-5);
+}
+.signin__title {
+  margin: 0;
+  font: 500 clamp(2.5rem, 5vw, 4rem) / var(--leading-tight) var(--font-display);
+  color: var(--chrome-text-strong);
+  text-wrap: balance;
+}
+.signin__benefits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+  font-size: 0.9375rem;
+}
+.signin__benefits li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.signin__benefits svg {
+  flex: none;
+  color: var(--chrome-accent);
+}
+.signin__rings {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 240px;
+  height: 240px;
+  fill: none;
+  stroke: var(--chrome-accent);
+  opacity: 0.16;
+  pointer-events: none;
+}
+.signin__form {
+  flex: 1 1 440px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-8);
+  max-width: 400px;
+  margin: 0 auto;
+  padding: var(--space-12) var(--space-5);
+}
+.signin__form-title {
+  margin: 0;
+  font: 500 2.125rem / var(--leading-tight) var(--font-display);
+}
+.signin__form .g-btn {
+  width: 100%;
+  min-height: 52px;
+}
+.signin__footnote {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-subtle);
+}
+@media (max-width: 999px) {
+  .signin__hero {
+    flex-basis: auto;
+    gap: var(--space-8);
+    padding-block: var(--space-8);
+  }
+  .signin__form {
+    flex-basis: 100%;
+    max-width: 400px;
+  }
+}
+@media (max-width: 559px) {
+  .signin__benefits {
+    display: none;
+  }
+}
