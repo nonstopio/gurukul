@@ -367,19 +367,18 @@ describe('Learners', () => {
     fireEvent.click(screen.getByLabelText('Select new@nonstopio.com'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
     expect(screen.getByText(/Courses already granted stay/)).toBeTruthy();
-    expect(screen.getByText(/1 will be skipped: pending invites.*your own/)).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Kulapati (admin)'));
     expect(
       screen.getByText(/1 will be skipped: pending invites have no account yet\./),
     ).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Shishya (learner)'));
+    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'remove' } });
+    expect(screen.getByText(/1 will be skipped: pending invites.*your own/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'add' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u2',
-        acharya: false,
-        kulapati: false,
-        grantedCourseIds: [],
+        acharya: true,
+        kulapati: true,
       }),
     );
     expect(await screen.findByText('Roles changed: 1, skipped: 1')).toBeTruthy();
@@ -402,9 +401,39 @@ describe('Learners', () => {
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'remove' } });
     expect(screen.getByRole('button', { name: 'Apply to 0 people' })).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Kulapati (admin)'));
+    fireEvent.change(screen.getByLabelText('Kulapati (admin)'), { target: { value: 'keep' } });
     expect(screen.getByRole('button', { name: 'Apply to 1 person' })).toBeTruthy();
+  });
+
+  it('removes Acharya on its own and clears the granted courses, leaving Kulapati alone', async () => {
+    const c = setup();
+    await openApp('/kulapati/learners', { ...kulapati, console: c });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByLabelText('Select Rohan'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    fireEvent.change(screen.getByLabelText('Acharya (educator)'), { target: { value: 'remove' } });
+    expect(screen.getByText(/also clears their granted courses/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
+    await waitFor(() =>
+      expect(c.service.setRoles).toHaveBeenCalledWith({
+        uid: 'u2',
+        acharya: false,
+        grantedCourseIds: [],
+      }),
+    );
+  });
+
+  it('will not apply a role change that changes nothing', async () => {
+    await openApp('/kulapati/learners', { ...kulapati, console: setup() });
+    await screen.findByText('Priya');
+    fireEvent.click(screen.getByLabelText('Select Rohan'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
+    fireEvent.change(screen.getByLabelText('Acharya (educator)'), { target: { value: 'keep' } });
+    expect(
+      (screen.getByRole('button', { name: 'Apply to 1 person' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('cannot apply a role change to nobody and can be closed', async () => {

@@ -454,16 +454,15 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
           people={everyone ?? rows.filter((r) => selected.includes(r.key))}
           meUid={me.uid}
           onClose={() => setChangingRole(false)}
-          onApply={async (people, choice) => {
+          onApply={async (people, change) => {
             let changed = 0;
             let failed = 0;
             for (const p of people) {
               try {
                 await service.setRoles({
                   uid: p.uid as string,
-                  acharya: choice === 'acharya',
-                  kulapati: choice === 'kulapati',
-                  ...(choice === 'shishya' ? { grantedCourseIds: [] } : {}),
+                  ...change,
+                  ...(change.acharya === false ? { grantedCourseIds: [] } : {}),
                 });
                 changed += 1;
               } catch (e) {
@@ -489,11 +488,18 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   );
 }
 
-type RoleChoice = 'shishya' | 'acharya' | 'kulapati';
+/** What to do to one role for everyone selected. */
+type RoleAction = 'keep' | 'add' | 'remove';
+/** The roles to change; a role left out stays as it is. Acharya and Kulapati are independent. */
+type BulkRoleChange = { acharya?: boolean; kulapati?: boolean };
+
+const flag = (key: 'acharya' | 'kulapati', a: RoleAction): BulkRoleChange =>
+  a === 'keep' ? {} : { [key]: a === 'add' };
 
 /**
- * Sets one role on everyone selected. Pending invites have no account yet and your own account
- * cannot lose Kulapati, so those are skipped and counted rather than failing the batch.
+ * Adds or removes Acharya and Kulapati on everyone selected, each on its own, as the Roles screen
+ * does. Everyone is a Shishya, so there is no third role to pick. Pending invites have no account
+ * yet and your own account cannot lose Kulapati, so those are skipped and counted, not failed.
  */
 function BulkRoleDialog({
   people,
@@ -504,14 +510,17 @@ function BulkRoleDialog({
   people: Array<{ uid: string | null }>;
   meUid: string;
   onClose: () => void;
-  onApply: (people: Array<{ uid: string | null }>, choice: RoleChoice) => Promise<void>;
+  onApply: (people: Array<{ uid: string | null }>, change: BulkRoleChange) => Promise<void>;
 }) {
-  const [choice, setChoice] = useState<RoleChoice>('acharya');
+  const [acharya, setAcharya] = useState<RoleAction>('add');
+  const [kulapati, setKulapati] = useState<RoleAction>('keep');
   const [saving, setSaving] = useState(false);
   const eligible = people.filter(
-    (p) => p.uid !== null && !(p.uid === meUid && choice !== 'kulapati'),
+    (p) => p.uid !== null && !(p.uid === meUid && kulapati === 'remove'),
   );
   const skipped = people.length - eligible.length;
+  const nothingToChange = acharya === 'keep' && kulapati === 'keep';
+  const change: BulkRoleChange = { ...flag('acharya', acharya), ...flag('kulapati', kulapati) };
   return (
     <Dialog
       open
@@ -519,42 +528,43 @@ function BulkRoleDialog({
       title="Change role"
       footer={
         <Button
-          disabled={eligible.length === 0 || saving}
+          disabled={eligible.length === 0 || nothingToChange || saving}
           onClick={() => {
             setSaving(true);
-            void onApply(eligible, choice).finally(() => setSaving(false));
+            void onApply(eligible, change).finally(() => setSaving(false));
           }}
         >
           {`Apply to ${eligible.length} ${eligible.length === 1 ? 'person' : 'people'}`}
         </Button>
       }
     >
-      <fieldset className="dialog-fieldset">
-        <legend>Role</legend>
-        {(['shishya', 'acharya', 'kulapati'] as const).map((r) => (
-          <label key={r} className="choice">
-            <input
-              type="radio"
-              name="bulk-role"
-              value={r}
-              checked={choice === r}
-              onChange={() => setChoice(r)}
-            />{' '}
-            {r === 'shishya'
-              ? 'Shishya (learner)'
-              : r === 'acharya'
-                ? 'Acharya (educator)'
-                : 'Kulapati (admin)'}
-          </label>
-        ))}
-      </fieldset>
-      {choice === 'acharya' ? (
+      <p>Everyone is a Shishya. Acharya and Kulapati are separate: change either or both.</p>
+      <Select
+        label="Acharya (educator)"
+        value={acharya}
+        onChange={(e) => setAcharya(e.target.value as RoleAction)}
+      >
+        <option value="keep">Leave as it is</option>
+        <option value="add">Make Acharya</option>
+        <option value="remove">Remove Acharya</option>
+      </Select>
+      <Select
+        label="Kulapati (admin)"
+        value={kulapati}
+        onChange={(e) => setKulapati(e.target.value as RoleAction)}
+      >
+        <option value="keep">Leave as it is</option>
+        <option value="add">Make Kulapati</option>
+        <option value="remove">Remove Kulapati</option>
+      </Select>
+      {acharya === 'add' ? (
         <p>Courses already granted stay as they are. Grant more on Roles &amp; access.</p>
       ) : null}
+      {acharya === 'remove' ? <p>Removing Acharya also clears their granted courses.</p> : null}
       {skipped > 0 ? (
         <p>
           {skipped} will be skipped: pending invites have no account yet
-          {choice === 'kulapati' ? '' : ', and you cannot remove your own Kulapati role'}.
+          {kulapati === 'remove' ? ', and you cannot remove your own Kulapati role' : ''}.
         </p>
       ) : null}
     </Dialog>
