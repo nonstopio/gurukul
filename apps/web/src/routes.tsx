@@ -152,6 +152,26 @@ export const FOCUSED: readonly RoutePath[] = [
 ];
 
 /**
+ * Pages that exist only in development builds. `/__ui` is the component gallery; it is not in
+ * `ROUTE_PATHS` or any area's navigation, so search never offers it. The `import.meta.env.DEV`
+ * check is replaced at build time, which drops the branch and the gallery's chunk from production.
+ */
+function devRoutes(): RouteObject[] {
+  if (!import.meta.env.DEV) return [];
+  const UiGalleryPage = lazyPage(() => import('./ui-gallery/UiGalleryPage'), 'UiGalleryPage');
+  return [
+    {
+      path: '/__ui',
+      element: (
+        <Suspense fallback={<PageLoading />}>
+          <UiGalleryPage />
+        </Suspense>
+      ),
+    },
+  ];
+}
+
+/**
  * The data-router route objects: public pages, then everything behind sign-in inside the frame —
  * the focused pages in the top-bar layout, the rest (and the not-found fallback) in the sidebar one.
  */
@@ -164,6 +184,7 @@ export function appRoutes(): RouteObject[] {
     element: <Suspense fallback={<PageLoading />}>{element}</Suspense>,
   });
   return [
+    ...devRoutes(),
     ...entries.filter(([path]) => PUBLIC.includes(path)).map(publicRoute),
     {
       element: <RequireSession />,
