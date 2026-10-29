@@ -266,7 +266,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       }
       return existing;
     },
-    async createAssignments(assignedBy, docs) {
+    async createAssignments(assignedBy, assignedByName, docs) {
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
         for (const d of part) {
@@ -276,6 +276,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             uid: d.uid,
             courseId: d.courseId,
             assignedBy,
+            assignedByName,
             assignedAt: FieldValue.serverTimestamp(),
             dueAt: d.dueAt === null ? null : Timestamp.fromMillis(d.dueAt),
             mandatory: d.mandatory,

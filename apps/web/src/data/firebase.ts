@@ -119,6 +119,7 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
           dueAt: date(a.dueAt as Ts),
           mandatory: a.mandatory === true,
           status: a.status as AssignmentRow['status'],
+          assignedByName: typeof a.assignedByName === 'string' ? a.assignedByName : null,
         };
       });
     },

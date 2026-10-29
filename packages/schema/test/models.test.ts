@@ -84,6 +84,9 @@ describe('document shapes', () => {
     expect(assignmentSchema.safeParse({ ...base, reminder: 'daily' }).success).toBe(false);
     expect(assignmentSchema.safeParse({ ...base, lastRemindedAt: ts(5) }).success).toBe(true);
     expect(assignmentSchema.safeParse({ ...base, lastRemindedAt: null }).success).toBe(true);
+    expect(assignmentSchema.safeParse({ ...base, assignedByName: 'Kavya Rao' }).success).toBe(true);
+    expect(assignmentSchema.safeParse({ ...base, assignedByName: null }).success).toBe(true);
+    expect(assignmentSchema.safeParse({ ...base, assignedByName: '' }).success).toBe(false);
     expect(normalizeEmail('  A@NonStopIO.com ')).toBe('a@nonstopio.com');
     expect(assignmentId('git', 'abc')).toBe('git__abc');
   });

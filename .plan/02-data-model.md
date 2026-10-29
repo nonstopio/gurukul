@@ -159,6 +159,7 @@ type Assignment = {
   uid: string | null;            // filled at first sign-in
   courseId: string;
   assignedBy: string;            // uid
+  assignedByName?: string | null; // assigner's display name; learners cannot read other users
   assignedAt: Timestamp;
   dueAt: Timestamp | null;
   mandatory: boolean;

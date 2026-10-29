@@ -49,6 +49,7 @@ const assignment = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   dueAt: null,
   mandatory: true,
   status: 'assigned',
+  assignedByName: null,
   ...over,
 });
 
@@ -165,7 +166,12 @@ describe('Home handoff details', () => {
     await open(
       '/',
       fakeData({
-        assignments: [assignment({ dueAt: new Date(Date.now() + 3 * 86_400_000) })],
+        assignments: [
+          assignment({
+            dueAt: new Date(Date.now() + 3 * 86_400_000),
+            assignedByName: 'Kavya Rao',
+          }),
+        ],
         progress: [progressRow({ completedItemIds: ['l1'], lastItemId: 'l2' })],
       }),
     );
@@ -173,6 +179,7 @@ describe('Home handoff details', () => {
     expect(screen.getByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
     expect(screen.getAllByText('Foundation').length).toBe(1);
     expect(screen.getAllByText(/Due in/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Assigned by Kavya Rao')).toBeTruthy();
     expect(screen.getByText(/Up next: /)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Recent activity' })).toBeTruthy();
     expect(screen.getByText('Worked on Git, the NonStop Way')).toBeTruthy();
