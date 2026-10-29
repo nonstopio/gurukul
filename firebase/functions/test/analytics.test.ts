@@ -6,9 +6,11 @@ import {
   handleAttemptCreated,
   isEmptyDelta,
   planProgressStats,
+  recountFromSource,
   runDailyRollup,
 } from '../src/analytics.js';
 import type { AttemptStatsStore, RollupStore } from '../src/analytics.js';
+import { course as fixtureCourse, progress as fixtureProgress } from './fixtures.js';
 
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) });
 const DAY = 86_400_000;
@@ -189,25 +191,170 @@ describe('handleAttemptCreated', () => {
   });
 });
 
+describe('recountFromSource', () => {
+  const courses = new Map([['git', course]]) as never;
+  const attempt = (id: string, at: number, over: object = {}) => ({
+    id,
+    createdAtMs: at,
+    data: {
+      uid: 'u',
+      courseId: 'git',
+      parikshaId: 'pk',
+      score: 0.5,
+      passed: false,
+      results: [
+        { questionId: 'q1', correct: true },
+        { questionId: 'q2', correct: false },
+      ],
+      ...over,
+    },
+  });
+
+  it('starts every known course at zero, one slot per parva', () => {
+    const r = recountFromSource(courses, [], []);
+    expect(r.courses).toEqual({
+      git: {
+        started: 0,
+        completed: 0,
+        certified: 0,
+        scoreSum: 0,
+        scoreCount: 0,
+        parvaCompletions: [0, 0, 0],
+        questionFirstTry: {},
+        finishDaysSum: 0,
+      },
+    });
+    expect(r.org).toEqual({
+      started: 0,
+      completed: 0,
+      parikshaScoreSum: 0,
+      parikshaScoreCount: 0,
+      parikshaFirstTryTotal: 0,
+      parikshaFirstTryPassed: 0,
+    });
+  });
+
+  it('counts starts, completions, certificates, finish days and finished parvas from progress', () => {
+    const passed = { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } };
+    const r = recountFromSource(
+      courses,
+      [
+        progress({ completedItemIds: ['l1'] }),
+        progress({ uid: 'v', completedItemIds: ['l1', 'l2'] }),
+        progress({
+          uid: 'w',
+          completedItemIds: ['l1', 'l2', 'l3'],
+          pariksha: passed,
+          startedAt: ts(DAY),
+          completedAt: ts(3 * DAY),
+          certificateId: 'NSG-GIT-26-0001',
+        }),
+        progress({ uid: 'x', startedAt: ts(5 * DAY), completedAt: ts(DAY) }),
+        progress({ courseId: 'gone' }),
+        { not: 'progress' },
+      ],
+      [],
+    );
+    expect(r.courses.git).toMatchObject({
+      started: 4,
+      completed: 2,
+      certified: 1,
+      finishDaysSum: 2,
+      parvaCompletions: [2, 1, 0],
+    });
+    expect(r.org).toMatchObject({ started: 4, completed: 2 });
+  });
+
+  it('sums every score and counts each learner’s earliest attempt as their first try', () => {
+    const r = recountFromSource(
+      courses,
+      [],
+      [
+        attempt('b', 20, {
+          score: 1,
+          passed: true,
+          results: [{ questionId: 'q1', correct: true }],
+        }),
+        attempt('a', 10),
+        attempt('h', 30, { score: 0, results: [] }),
+        attempt('d', 10, { uid: 'v', score: 0, results: [] }),
+        attempt('c', 10, { uid: 'v', passed: true }),
+        attempt('z', 10, { uid: 'v', score: 0, results: [] }),
+        attempt('e', 5, { uid: 'v', parikshaId: 'other', score: 0, results: undefined }),
+        attempt('f', 1, { courseId: 'gone' }),
+        { id: 'g', createdAtMs: 0, data: { nope: 1 } },
+      ],
+    );
+    expect(r.courses.git).toMatchObject({
+      scoreSum: 2,
+      scoreCount: 7,
+      questionFirstTry: { q1: { correct: 2, total: 2 }, q2: { correct: 0, total: 2 } },
+    });
+    expect(r.org).toMatchObject({
+      parikshaScoreSum: 2,
+      parikshaScoreCount: 7,
+      parikshaFirstTryTotal: 3,
+      parikshaFirstTryPassed: 1,
+    });
+  });
+});
+
 describe('runDailyRollup', () => {
-  it('recomputes the org counters from count queries', async () => {
+  const store = (over: Partial<RollupStore> = {}): RollupStore => ({
+    countUsers: vi.fn().mockResolvedValue(120),
+    countActiveSince: vi.fn().mockResolvedValue(80),
+    countAssignments: vi.fn().mockResolvedValue(300),
+    countCompletedAssignments: vi.fn().mockResolvedValue(90),
+    countCourseAssignments: vi.fn().mockResolvedValue(7),
+    courses: vi.fn().mockResolvedValue([
+      { id: 'git-basics', data: fixtureCourse() },
+      { id: 'broken', data: { schemaVersion: 99 } },
+    ]),
+    progress: vi.fn().mockResolvedValue([fixtureProgress()]),
+    attempts: vi.fn().mockResolvedValue([
+      {
+        id: 'a',
+        createdAtMs: 1,
+        data: { uid: 'u', courseId: 'git-basics', parikshaId: 'pk', score: 1, passed: true },
+      },
+    ]),
+    writeOrgCounts: vi.fn().mockResolvedValue(undefined),
+    writeCourseCounts: vi.fn().mockResolvedValue(undefined),
+    ...over,
+  });
+
+  it('recomputes the org and course counters from source and overwrites them', async () => {
     const now = Date.UTC(2026, 9, 27);
-    const store: RollupStore = {
-      countUsers: vi.fn().mockResolvedValue(120),
-      countActiveSince: vi.fn().mockResolvedValue(80),
-      countAssignments: vi.fn().mockResolvedValue(300),
-      countCompletedAssignments: vi.fn().mockResolvedValue(90),
-      writeOrgCounts: vi.fn().mockResolvedValue(undefined),
-    };
-    const counts = await runDailyRollup(store, now);
-    expect(counts).toEqual({
+    const s = store();
+    const summary = await runDailyRollup(s, now);
+    const org = {
       usersTotal: 120,
       activeLearners30d: 80,
       assignmentsTotal: 300,
       assignmentsCompleted: 90,
+      started: 1,
+      completed: 0,
+      parikshaScoreSum: 1,
+      parikshaScoreCount: 1,
+      parikshaFirstTryTotal: 1,
+      parikshaFirstTryPassed: 1,
+    };
+    expect(summary).toEqual({ ...org, courses: 1, progressDocs: 1, attempts: 1 });
+    expect(s.countActiveSince).toHaveBeenCalledWith(now - 30 * DAY);
+    expect(s.writeOrgCounts).toHaveBeenCalledWith(org);
+    expect(s.countCourseAssignments).toHaveBeenCalledWith('git-basics');
+    expect(s.writeCourseCounts).toHaveBeenCalledTimes(1);
+    expect(s.writeCourseCounts).toHaveBeenCalledWith('git-basics', {
+      assigned: 7,
+      started: 1,
+      completed: 0,
+      certified: 0,
+      scoreSum: 1,
+      scoreCount: 1,
+      parvaCompletions: [0],
+      questionFirstTry: {},
+      finishDaysSum: 0,
     });
-    expect(store.countActiveSince).toHaveBeenCalledWith(now - 30 * DAY);
-    expect(store.writeOrgCounts).toHaveBeenCalledWith(counts);
   });
 
   it('opens the window 30 days back', () => {

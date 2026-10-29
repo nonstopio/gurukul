@@ -22,6 +22,7 @@ vi.mock('firebase-admin/firestore', () => ({
   },
   Timestamp: { fromMillis: (ms: number) => `ts:${ms}` },
   FieldPath: class {
+    static documentId = () => '__name__';
     parts: string[];
     constructor(...parts: string[]) {
       this.parts = parts;
@@ -435,13 +436,37 @@ describe('firestoreAttemptStatsStore', () => {
 });
 
 describe('firestoreRollupStore', () => {
-  it('counts with aggregation queries and overwrites the org counters', async () => {
-    const countQuery = (n: number) => ({
-      count: () => ({ get: async () => ({ data: () => ({ count: n }) }) }),
+  const countQuery = (n: number) => ({
+    count: () => ({ get: async () => ({ data: () => ({ count: n }) }) }),
+  });
+  /** A query over `docs` that pages the way readAll asks: orderBy, limit, startAfter. */
+  const pagedQuery = (docs: object[]) => {
+    const calls: unknown[] = [];
+    const pageFrom = (start: number, size: number) => ({
+      get: async () => {
+        const page = docs.slice(start, start + size);
+        return { docs: page, size: page.length };
+      },
+      startAfter: (last: object) => {
+        calls.push(last);
+        return pageFrom(docs.indexOf(last) + 1, size);
+      },
     });
+    return {
+      calls,
+      orderBy: vi.fn().mockReturnValue({ limit: (size: number) => pageFrom(0, size) }),
+    };
+  };
+  const snap = (id: string, data: object) => ({
+    id,
+    data: () => data,
+    get: (field: string) => (data as Record<string, unknown>)[field],
+  });
+
+  it('counts with aggregation queries and overwrites the org and course counters', async () => {
     const set = vi.fn().mockResolvedValue(undefined);
     const whereProgress = vi.fn().mockReturnValue(countQuery(80));
-    const whereAssignments = vi.fn().mockReturnValue(countQuery(90));
+    const whereAssignments = vi.fn((field: string) => countQuery(field === 'status' ? 90 : 7));
     const doc = vi.fn().mockReturnValue({ set });
     const db = {
       collection: vi.fn((name: string) =>
@@ -460,15 +485,63 @@ describe('firestoreRollupStore', () => {
     expect(await store.countAssignments()).toBe(300);
     expect(await store.countCompletedAssignments()).toBe(90);
     expect(whereAssignments).toHaveBeenCalledWith('status', '==', 'completed');
+    expect(await store.countCourseAssignments('git')).toBe(7);
+    expect(whereAssignments).toHaveBeenCalledWith('courseId', '==', 'git');
     const counts = {
       usersTotal: 1,
       activeLearners30d: 2,
       assignmentsTotal: 3,
       assignmentsCompleted: 4,
+      started: 5,
+      completed: 6,
+      parikshaScoreSum: 7,
+      parikshaScoreCount: 8,
+      parikshaFirstTryTotal: 9,
+      parikshaFirstTryPassed: 10,
     };
     await store.writeOrgCounts(counts);
     expect(doc).toHaveBeenCalledWith('stats/org');
     expect(set).toHaveBeenCalledWith(counts, { merge: true });
+    const course = {
+      assigned: 1,
+      started: 1,
+      completed: 0,
+      certified: 0,
+      scoreSum: 0,
+      scoreCount: 0,
+      parvaCompletions: [],
+      questionFirstTry: {},
+      finishDaysSum: 0,
+    };
+    await store.writeCourseCounts('git', course);
+    expect(doc).toHaveBeenCalledWith('stats/course_git');
+    expect(set).toHaveBeenLastCalledWith(course, { mergeFields: Object.keys(course) });
+  });
+
+  it('reads every course, progress and attempt document in pages of 500', async () => {
+    const progressDocs = Array.from({ length: 1000 }, (_, i) => snap(`p${i}`, { n: i }));
+    const progress = pagedQuery(progressDocs);
+    const courses = pagedQuery([snap('git', { title: 'Git' })]);
+    const attempts = pagedQuery([
+      snap('a1', { score: 1, createdAt: ts(42) }),
+      snap('a2', { score: 0 }),
+    ]);
+    const db = {
+      collection: (name: string) => (name === 'progress' ? progress : courses),
+      collectionGroup: vi.fn().mockReturnValue(attempts),
+    } as never;
+    const store = firestoreRollupStore(db);
+    const read = await store.progress();
+    expect(read).toHaveLength(1000);
+    expect(read[999]).toEqual({ n: 999 });
+    expect(progress.calls).toEqual([progressDocs[499], progressDocs[999]]);
+    expect(progress.orderBy).toHaveBeenCalledWith('__name__');
+    expect(await store.courses()).toEqual([{ id: 'git', data: { title: 'Git' } }]);
+    expect(courses.calls).toEqual([]);
+    expect(await store.attempts()).toEqual([
+      { id: 'a1', createdAtMs: 42, data: { score: 1, createdAt: expect.anything() } },
+      { id: 'a2', createdAtMs: 0, data: { score: 0 } },
+    ]);
   });
 });
 

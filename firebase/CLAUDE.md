@@ -67,7 +67,10 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   lessons, finish days, certified) by comparing before/after; `onAttemptCreated` adds score sums and
   first-try question counts from the attempt's stored `results` to the course, and score sums and
   first-try passes (`pariksha*`) to `stats/org`. Schedules (daily, UTC, asia-south1):
-  `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries;
+  `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries, and
+  rebuilds every `stats/course_{id}` counter and the org's `started`, `completed` and `pariksha*` from
+  the course, progress and attempt documents (`recountFromSource`, paged reads of 500; `weekly` cannot
+  be rebuilt and is left alone);
   `dailyReminders` 04:00 sends weekly/before-due reminders for mandatory assignments when
   `config/org.reminders.enabled`: one email per person listing everything due, none to anyone reminded in the
   last 20 hours (`remind.ts`; 20, not 24, so a run a few seconds early still counts yesterday's as a day old).

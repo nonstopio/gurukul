@@ -1,5 +1,5 @@
-import { attemptSchema, isItemDone, isoWeek, progressSchema } from '@gurukul/schema';
-import type { Course, Progress, ProgressState } from '@gurukul/schema';
+import { attemptSchema, isItemDone, isoWeek, migrateCourse, progressSchema } from '@gurukul/schema';
+import type { Attempt, Course, CourseStats, Progress, ProgressState } from '@gurukul/schema';
 import { log } from './logging/log.js';
 
 const DAY_MS = 86_400_000;
@@ -141,8 +141,115 @@ export async function handleAttemptCreated(
   return 'counted';
 }
 
+/** One stored attempt as the roll-up reads it: the raw document, its id and when it was graded. */
+export interface StoredAttempt {
+  id: string;
+  createdAtMs: number;
+  data: unknown;
+}
+
+/** The `stats/course_{id}` counters the roll-up rebuilds from progress and attempts. */
+export type CourseRecount = Omit<CourseStats, 'assigned'>;
+
+/** The `stats/org` counters the roll-up rebuilds from progress and attempts. */
+export interface OrgRecount {
+  started: number;
+  completed: number;
+  parikshaScoreSum: number;
+  parikshaScoreCount: number;
+  parikshaFirstTryTotal: number;
+  parikshaFirstTryPassed: number;
+}
+
+const emptyCourseRecount = (parvas: number): CourseRecount => ({
+  started: 0,
+  completed: 0,
+  certified: 0,
+  scoreSum: 0,
+  scoreCount: 0,
+  parvaCompletions: Array.from({ length: parvas }, () => 0),
+  questionFirstTry: {},
+  finishDaysSum: 0,
+});
+
+/**
+ * Rebuilds the counters the triggers keep, from the source documents, the way the triggers count
+ * them: progress and attempts of a course that does not exist are ignored (the progress trigger
+ * ignores them too), a parva counts once every item in it is done in the CURRENT course (an empty
+ * parva never counts), and a first try is a learner's earliest attempt at a Pariksha.
+ */
+export function recountFromSource(
+  courses: ReadonlyMap<string, Pick<Course, 'parvas'>>,
+  progressDocs: readonly unknown[],
+  attempts: readonly StoredAttempt[],
+): { org: OrgRecount; courses: Record<string, CourseRecount> } {
+  const org: OrgRecount = {
+    started: 0,
+    completed: 0,
+    parikshaScoreSum: 0,
+    parikshaScoreCount: 0,
+    parikshaFirstTryTotal: 0,
+    parikshaFirstTryPassed: 0,
+  };
+  const out: Record<string, CourseRecount> = {};
+  for (const [id, course] of courses) out[id] = emptyCourseRecount(course.parvas.length);
+
+  for (const raw of progressDocs) {
+    const parsed = progressSchema.safeParse(raw);
+    if (!parsed.success) continue;
+    const p = parsed.data;
+    const course = courses.get(p.courseId);
+    const c = out[p.courseId];
+    if (course === undefined || c === undefined) continue;
+    c.started += 1;
+    org.started += 1;
+    if (p.completedAt !== null) {
+      c.completed += 1;
+      org.completed += 1;
+      c.finishDaysSum += Math.max(0, (p.completedAt.toMillis() - p.startedAt.toMillis()) / DAY_MS);
+    }
+    if (p.certificateId !== null) c.certified += 1;
+    course.parvas.forEach((parva, i) => {
+      if (parva.items.length > 0 && parva.items.every((item) => isItemDone(item, p))) {
+        c.parvaCompletions[i] = (c.parvaCompletions[i] as number) + 1;
+      }
+    });
+  }
+
+  const firsts = new Map<string, { at: number; id: string; attempt: Attempt }>();
+  for (const stored of attempts) {
+    const parsed = attemptSchema.safeParse(stored.data);
+    if (!parsed.success) continue;
+    const a = parsed.data;
+    const c = out[a.courseId];
+    if (c === undefined) continue;
+    c.scoreSum += a.score;
+    c.scoreCount += 1;
+    org.parikshaScoreSum += a.score;
+    org.parikshaScoreCount += 1;
+    const key = `${a.uid}\u0000${a.courseId}\u0000${a.parikshaId}`;
+    const seen = firsts.get(key);
+    const earlier =
+      seen === undefined ||
+      stored.createdAtMs < seen.at ||
+      (stored.createdAtMs === seen.at && stored.id < seen.id);
+    if (earlier) firsts.set(key, { at: stored.createdAtMs, id: stored.id, attempt: a });
+  }
+  for (const { attempt } of firsts.values()) {
+    const c = out[attempt.courseId] as CourseRecount;
+    org.parikshaFirstTryTotal += 1;
+    if (attempt.passed) org.parikshaFirstTryPassed += 1;
+    for (const r of attempt.results) {
+      const q = (c.questionFirstTry[r.questionId] ??= { correct: 0, total: 0 });
+      q.total += 1;
+      if (r.correct) q.correct += 1;
+    }
+  }
+  return { org, courses: out };
+}
+
 /** The counts the daily roll-up recomputes from the source collections. */
-export interface RollupCounts {
+export interface RollupCounts extends OrgRecount {
   usersTotal: number;
   activeLearners30d: number;
   assignmentsTotal: number;
@@ -155,15 +262,51 @@ export interface RollupStore {
   countActiveSince(sinceMs: number): Promise<number>;
   countAssignments(): Promise<number>;
   countCompletedAssignments(): Promise<number>;
-  /** Overwrites these counters on `stats/org`. */
+  /** Assignments of one course. */
+  countCourseAssignments(courseId: string): Promise<number>;
+  /** Every course document, as stored. */
+  courses(): Promise<{ id: string; data: unknown }[]>;
+  /** Every progress document, as stored. */
+  progress(): Promise<unknown[]>;
+  /** Every graded attempt, across every learner. */
+  attempts(): Promise<StoredAttempt[]>;
+  /** Overwrites these counters on `stats/org`; `weekly` is left alone. */
   writeOrgCounts(counts: RollupCounts): Promise<void>;
+  /** Overwrites every counter on `stats/course_{id}`. */
+  writeCourseCounts(courseId: string, counts: CourseStats): Promise<void>;
+}
+
+/** What `dailyRollup` logs: the org counters and how much it read. */
+export interface RollupSummary extends RollupCounts {
+  courses: number;
+  progressDocs: number;
+  attempts: number;
 }
 
 /** The start of the "active in the last 30 days" window. */
 export const activeWindowStart = (now: number): number => now - 30 * DAY_MS;
 
-/** `dailyRollup`: recomputes the org counters with count() aggregations, fixing any drift. */
-export async function runDailyRollup(store: RollupStore, now: number): Promise<RollupCounts> {
+/** The courses whose stored document still reads as a course; anything else has no counters. */
+function readableCourses(docs: { id: string; data: unknown }[]): Map<string, Course> {
+  const courses = new Map<string, Course>();
+  for (const { id, data } of docs) {
+    try {
+      courses.set(id, migrateCourse(data));
+    } catch {
+      log.warn('Course skipped by the roll-up', { courseId: id });
+    }
+  }
+  return courses;
+}
+
+/**
+ * `dailyRollup`: recomputes every counter the triggers keep, except `weekly` (no lesson stores when
+ * it was completed, so a week cannot be rebuilt), and overwrites them, fixing any drift. Counts come
+ * from count() aggregations; the rest reads each course, progress and attempt document once, a few
+ * thousand reads a day at 200 people. An increment that lands between the read and the write is
+ * lost until the next run.
+ */
+export async function runDailyRollup(store: RollupStore, now: number): Promise<RollupSummary> {
   const [usersTotal, activeLearners30d, assignmentsTotal, assignmentsCompleted] = await Promise.all(
     [
       store.countUsers(),
@@ -172,7 +315,29 @@ export async function runDailyRollup(store: RollupStore, now: number): Promise<R
       store.countCompletedAssignments(),
     ],
   );
-  const counts = { usersTotal, activeLearners30d, assignmentsTotal, assignmentsCompleted };
+  const [courseDocs, progressDocs, attempts] = await Promise.all([
+    store.courses(),
+    store.progress(),
+    store.attempts(),
+  ]);
+  const courses = readableCourses(courseDocs);
+  const recount = recountFromSource(courses, progressDocs, attempts);
+  for (const [courseId, counts] of Object.entries(recount.courses)) {
+    const assigned = await store.countCourseAssignments(courseId);
+    await store.writeCourseCounts(courseId, { assigned, ...counts });
+  }
+  const counts: RollupCounts = {
+    usersTotal,
+    activeLearners30d,
+    assignmentsTotal,
+    assignmentsCompleted,
+    ...recount.org,
+  };
   await store.writeOrgCounts(counts);
-  return counts;
+  return {
+    ...counts,
+    courses: courses.size,
+    progressDocs: progressDocs.length,
+    attempts: attempts.length,
+  };
 }
