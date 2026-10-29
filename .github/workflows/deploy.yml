@@ -68,13 +68,18 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_SITE_URL: ${{ vars.SITE_URL }}
       # The weekly backup bucket is plain configuration, kept as the repository variable BACKUP_BUCKET
       # (the functions' .env files are git-ignored). Unset, the backup function logs and skips.
+      # SITE_URL (the public address in emailed links, e.g. https://gurukul.nonstopio.com) is kept the same way.
       - name: Write the functions' environment file
-        if: ${{ vars.BACKUP_BUCKET != '' }}
         env:
           BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
-        run: echo "BACKUP_BUCKET=$BACKUP_BUCKET" > firebase/functions/.env.nonstop-gurukul
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          : > firebase/functions/.env.nonstop-gurukul
+          [ -z "$BACKUP_BUCKET" ] || echo "BACKUP_BUCKET=$BACKUP_BUCKET" >> firebase/functions/.env.nonstop-gurukul
+          [ -z "$SITE_URL" ] || echo "SITE_URL=$SITE_URL" >> firebase/functions/.env.nonstop-gurukul
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL }}

@@ -60,7 +60,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
   );
 }
 
-/** What the certificate says and who signs it. */
+/** What the certificate says. Who signs it is an org setting. */
 export function CertificateTab({ course, update }: { course: Course; update: Update }) {
   const c = course.certificate;
   return (
@@ -80,18 +80,9 @@ export function CertificateTab({ course, update }: { course: Course; update: Upd
           maxLength={160}
           onChange={(e) => update((w) => setCertificate(w, { title: e.target.value }))}
         />
-        <Input
-          label="Signatory name"
-          value={c.signatoryName}
-          maxLength={120}
-          onChange={(e) => update((w) => setCertificate(w, { signatoryName: e.target.value }))}
-        />
-        <Input
-          label="Signatory role"
-          value={c.signatoryRole}
-          maxLength={120}
-          onChange={(e) => update((w) => setCertificate(w, { signatoryRole: e.target.value }))}
-        />
+        <p className="sc-help">
+          The signatory printed on certificates is set by a Kulapati in Org settings.
+        </p>
       </Card>
     </section>
   );

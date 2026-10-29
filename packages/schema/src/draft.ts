@@ -59,7 +59,7 @@ export function blankCourse(init: {
     version: 0,
     publishedAt: null,
     rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
-    certificate: { title: init.title, signatoryName: '', signatoryRole: '' },
+    certificate: { title: init.title },
     parvas: [],
     estimatedMinutes: 0,
   };

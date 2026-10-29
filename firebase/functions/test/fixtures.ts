@@ -41,7 +41,7 @@ export const course = (parikshaOver: object = {}, over: object = {}) => ({
   version: 3,
   publishedAt: ts(1),
   rules: { sequential: false, passMark: 0.7, certificate: true, requireVideoWatch: false },
-  certificate: { title: 'Git', signatoryName: 'Asha Rao', signatoryRole: 'Head of Learning' },
+  certificate: { title: 'Git' },
   parvas: [{ id: 'p1', title: 'P', items: [pariksha(parikshaOver)] }],
   estimatedMinutes: 2,
   ...over,

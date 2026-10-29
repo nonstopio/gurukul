@@ -13,6 +13,7 @@ import {
   auditDetail,
   auditLabel,
   averageDays,
+  medianDays,
   buildLearnerRows,
   allPage,
   drawerCourses,
@@ -215,6 +216,13 @@ describe('analytics helpers', () => {
     expect(pct(1, 0)).toBeNull();
     expect(averageDays({ finishDaysSum: 25, completed: 4 })).toBe(6.3);
     expect(averageDays({ finishDaysSum: 0, completed: 0 })).toBeNull();
+  });
+
+  it('takes the median finish time from the histogram', () => {
+    expect(medianDays({ finishDaysHistogram: {} })).toBeNull();
+    expect(medianDays({ finishDaysHistogram: { '4': 1 } })).toBe(4);
+    expect(medianDays({ finishDaysHistogram: { '10': 1, '2': 2, '3': 1 } })).toBe(2);
+    expect(medianDays({ finishDaysHistogram: { '2': 1, '30': 1, '9': 1 } })).toBe(9);
   });
 });
 

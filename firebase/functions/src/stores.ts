@@ -1,7 +1,7 @@
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { progressId as progressDocId } from '@gurukul/schema';
+import { DEFAULT_ORG_CONFIG, orgConfigSchema, progressId as progressDocId } from '@gurukul/schema';
 import { addParvaCompletions } from './analytics.js';
 import type { AttemptStatsStore, RollupStore } from './analytics.js';
 import type { AssignStore } from './assign.js';
@@ -12,8 +12,8 @@ import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
-import type { Mailer } from './mail.js';
 import type { UserStore } from './profile.js';
+import { log } from './logging/log.js';
 import type { ProgressStore } from './progress.js';
 import type { ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
@@ -133,6 +133,9 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
             completed: FieldValue.increment(d.completed),
             certified: FieldValue.increment(d.certified),
             finishDaysSum: FieldValue.increment(d.finishDays),
+            ...(d.finishBucket === null
+              ? {}
+              : { finishDaysHistogram: { [d.finishBucket]: FieldValue.increment(1) } }),
             // An array element cannot be incremented in place, hence the read in this transaction.
             parvaCompletions: addParvaCompletions(current as number[], d.parvasDone),
           },
@@ -162,6 +165,19 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
       for (const d of changing) batch.update(d.ref, { status });
       await batch.commit();
       return changing.length;
+    },
+    async signatory() {
+      const parsed = orgConfigSchema.shape.signatory.safeParse(
+        (await db.doc('config/org').get()).get('signatory'),
+      );
+      return parsed.success ? parsed.data : DEFAULT_ORG_CONFIG.signatory;
+    },
+    async recordLearner(uid, courseId) {
+      const user = await db.doc(`users/${uid}`).get();
+      await db.doc(`courses/${courseId}/learners/${uid}`).set({
+        displayName: user.get('displayName') ?? '',
+        startedAt: FieldValue.serverTimestamp(),
+      });
     },
     async issueCertificate(progressId, grant) {
       return db.runTransaction(async (tx) => {
@@ -226,9 +242,18 @@ export function firestoreCertificateAdmin(db: Firestore): CertificateAdmin {
   return {
     async setRevoked(id, revoked) {
       const ref = db.doc(`certificates/${id}`);
-      if (!(await ref.get()).exists) return false;
+      const snap = await ref.get();
+      if (!snap.exists) return null;
       await ref.update({ revoked, revokedAt: revoked ? FieldValue.serverTimestamp() : null });
-      return true;
+      return {
+        uid: String(snap.get('uid')),
+        courseTitle: String(snap.get('courseTitle')),
+        changed: (snap.get('revoked') === true) !== revoked,
+      };
+    },
+    async emailOf(uid) {
+      const email = (await db.doc(`users/${uid}`).get()).get('email');
+      return typeof email === 'string' && email !== '' ? email : null;
     },
     async audit(entry) {
       await writeAudit(db, entry);
@@ -266,7 +291,8 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       }
       return existing;
     },
-    async createAssignments(assignedBy, docs) {
+    async createAssignments(assignedBy, assignedByName, docs) {
+      const failed: string[] = [];
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
         for (const d of part) {
@@ -276,6 +302,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             uid: d.uid,
             courseId: d.courseId,
             assignedBy,
+            assignedByName,
             assignedAt: FieldValue.serverTimestamp(),
             dueAt: d.dueAt === null ? null : Timestamp.fromMillis(d.dueAt),
             mandatory: d.mandatory,
@@ -283,8 +310,15 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             status: 'assigned',
           });
         }
-        await batch.commit();
+        try {
+          await batch.commit();
+        } catch {
+          // One bad batch must not undo or hide the others; the caller reports these ids.
+          log.warn('Assignment batch failed', { count: part.length });
+          failed.push(...part.map((d) => d.id));
+        }
       }
+      return failed;
     },
     async bumpAssigned(perCourse) {
       const batch = db.batch();
@@ -327,21 +361,6 @@ export function firestoreCooldownAdmin(db: Firestore): CooldownAdmin {
     },
     async audit(entry) {
       await writeAudit(db, entry);
-    },
-  };
-}
-
-/**
- * `Mailer` that queues `mail/{autoId}` in the shape the Firebase "Trigger Email from Firestore"
- * extension reads (`to` plus `message.subject/text`). Nothing sends until that extension (or
- * another sender) is installed: see `mail.ts`.
- */
-export function firestoreMailer(db: Firestore): Mailer {
-  return {
-    async send({ to, subject, text }) {
-      await db
-        .collection('mail')
-        .add({ to, message: { subject, text }, createdAt: FieldValue.serverTimestamp() });
     },
   };
 }

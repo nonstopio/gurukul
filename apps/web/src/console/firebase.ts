@@ -40,6 +40,7 @@ const SEARCH_LIMIT = 8;
 const COURSE_LIMIT = 100;
 const PERSON_ASSIGNMENT_LIMIT = 50;
 const ATTEMPT_LIMIT = 10;
+const COURSE_LEARNER_LIMIT = 100;
 
 const chunks = <T>(list: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
@@ -84,6 +85,35 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async courseStats(courseId) {
       const snap = await getDoc(doc(db, 'stats', `course_${courseId}`));
       return courseStatsSchema.parse(snap.exists() ? snap.data() : {});
+    },
+    async courseLearners(courseId) {
+      const [names, progress] = await Promise.all([
+        getDocs(
+          query(collection(db, 'courses', courseId, 'learners'), limit(COURSE_LEARNER_LIMIT)),
+        ),
+        getDocs(
+          query(
+            collection(db, 'progress'),
+            where('courseId', '==', courseId),
+            limit(COURSE_LEARNER_LIMIT),
+          ),
+        ),
+      ]);
+      const nameOf = new Map(
+        names.docs.map((d) => [d.id, (d.data().displayName as string | undefined) ?? '']),
+      );
+      return progress.docs
+        .map((d) => {
+          const row = toProgress(d.data());
+          const uid = d.data().uid as string;
+          return {
+            uid,
+            displayName: nameOf.get(uid) ?? '',
+            percent: row.percent,
+            lastActiveAt: row.lastActiveAt,
+          };
+        })
+        .sort((a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0));
     },
     async assignments(filter) {
       const base = collection(db, 'assignments');
@@ -226,6 +256,9 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async knownEmails(emails, courseIds) {
       const signedIn = new Set<string>();
       const counts = new Map<string, number>();
+      const byCourse: Record<string, Set<string>> = Object.fromEntries(
+        courseIds.map((id) => [id, new Set<string>()]),
+      );
       for (const part of chunks(emails, IN_LIMIT)) {
         const users = await getDocs(query(collection(db, 'users'), where('email', 'in', part)));
         users.docs.forEach((d) => signedIn.add(d.data().email as string));
@@ -240,13 +273,14 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
           assigned.docs.forEach((d) => {
             const email = d.data().email as string;
             counts.set(email, (counts.get(email) ?? 0) + 1);
+            (byCourse[courseId] as Set<string>).add(email);
           });
         }
       }
       const assigned = new Set(
         [...counts].filter(([, n]) => n === courseIds.length).map(([email]) => email),
       );
-      return { signedIn, assigned };
+      return { signedIn, assigned, byCourse };
     },
     async teams() {
       const snap = await getDoc(doc(db, 'config', 'org'));

@@ -8,7 +8,7 @@ import { buildAssignedEmail } from './mail.js';
 import type { Mailer } from './mail.js';
 import { badCount, badField } from './validation.js';
 
-/** One assignment document to create; the adapter stamps `assignedBy`, `assignedAt` and `status`. */
+/** One assignment document to create; the adapter stamps `assignedBy`, `assignedByName`, `assignedAt` and `status`. */
 export interface NewAssignment {
   id: string;
   email: string;
@@ -27,8 +27,15 @@ export interface AssignStore {
   signedInUsers(emails: string[]): Promise<Map<string, string>>;
   /** Which of these assignment ids already exist. */
   existingAssignmentIds(ids: string[]): Promise<Set<string>>;
-  /** Creates the documents (never overwrites), in batches. */
-  createAssignments(assignedBy: string, docs: NewAssignment[]): Promise<void>;
+  /**
+   * Creates the documents (never overwrites), in batches. A batch that fails does not stop the
+   * others: the ids of the documents it held are returned so the caller can report them.
+   */
+  createAssignments(
+    assignedBy: string,
+    assignedByName: string | null,
+    docs: NewAssignment[],
+  ): Promise<string[]>;
   /** Adds to `stats/course_{id}.assigned` and `stats/org.assignmentsTotal`. */
   bumpAssigned(perCourse: Record<string, number>): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
@@ -38,6 +45,8 @@ export interface AssignResult {
   summary: AssignSummary;
   assigned: number;
   notified: number;
+  /** (course, email) pairs that could not be written; empty when everything was. */
+  failed: { email: string; courseId: string }[];
 }
 
 export const MAX_COURSES = 20;
@@ -125,7 +134,6 @@ export async function assignCourses(
     rejected: summarize(first).rejected,
   };
   const docs: NewAssignment[] = [];
-  const perCourse: Record<string, number> = {};
   const newByEmail = new Map<string, { id: string; title: string }[]>();
   for (const courseId of req.courseIds) {
     const ids = new Map(valid.map((email) => [assignmentId(courseId, emailKey(email)), email]));
@@ -137,7 +145,6 @@ export async function assignCourses(
     summary.newInvites += part.newInvites;
     summary.alreadyAssigned += part.alreadyAssigned;
     const fresh = classified.filter((c) => c.status !== 'alreadyAssigned');
-    perCourse[courseId] = fresh.length;
     for (const { email } of fresh) {
       docs.push({
         id: assignmentId(courseId, emailKey(email)),
@@ -155,31 +162,44 @@ export async function assignCourses(
     }
   }
 
-  if (docs.length > 0) {
-    await store.createAssignments(caller.uid, docs);
-    await store.bumpAssigned(perCourse);
+  const failedIds = new Set(
+    docs.length > 0
+      ? await store.createAssignments(caller.uid, caller.name?.trim() || null, docs)
+      : [],
+  );
+  const created = docs.filter((d) => !failedIds.has(d.id));
+  const failed = docs
+    .filter((d) => failedIds.has(d.id))
+    .map((d) => ({ email: d.email, courseId: d.courseId }));
+  if (created.length > 0) {
+    const written: Record<string, number> = {};
+    for (const d of created) written[d.courseId] = (written[d.courseId] ?? 0) + 1;
+    await store.bumpAssigned(written);
   }
   await store.audit({
     action: 'assign',
     by: caller.uid,
     detail: {
       courseIds: req.courseIds,
-      count: docs.length,
-      emails: [...new Set(docs.map((d) => d.email))],
+      count: created.length,
+      emails: [...new Set(created.map((d) => d.email))],
     },
   });
 
   let notified = 0;
   if (req.notify) {
     for (const [email, courses] of newByEmail) {
-      await deps.mailer.send(buildAssignedEmail(email, courses, req.dueAt));
+      const got = courses.filter((c) => !failedIds.has(assignmentId(c.id, emailKey(email))));
+      if (got.length === 0) continue;
+      await deps.mailer.send(buildAssignedEmail(email, got, req.dueAt));
       notified += 1;
     }
   }
   log.info('Courses assigned', {
-    count: docs.length,
+    count: created.length,
+    failed: failed.length,
     courseCount: req.courseIds.length,
     notified,
   });
-  return { summary, assigned: docs.length, notified };
+  return { summary, assigned: created.length, notified, failed };
 }

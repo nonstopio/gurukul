@@ -26,6 +26,13 @@ export type OrgStats = z.infer<typeof orgStatsSchema>;
 
 export const questionFirstTrySchema = z.object({ correct: count, total: count });
 
+/** Finish times beyond this many days share one bucket, so the histogram stays small. */
+export const FINISH_DAYS_CAP = 365;
+
+/** The histogram key for a finish time in days: whole days, never negative, capped. */
+export const finishDaysBucket = (days: number): string =>
+  String(Math.min(FINISH_DAYS_CAP, Math.max(0, Math.round(days))));
+
 /** `stats/course_{id}`: the funnel, where learners stop, and the hardest questions. */
 export const courseStatsSchema = z.object({
   assigned: count,
@@ -37,8 +44,10 @@ export const courseStatsSchema = z.object({
   /** Index = parva position; value = learners who finished that parva. */
   parvaCompletions: z.array(z.number().int().min(0)).default([]),
   questionFirstTry: z.record(z.string(), questionFirstTrySchema).default({}),
-  /** Sum of days from start to completion, for the median-ish "time to finish". */
+  /** Sum of days from start to completion: with `completed`, the average time to finish. */
   finishDaysSum: z.number().min(0).default(0),
+  /** Learners who finished in N whole days (rounded, capped at `FINISH_DAYS_CAP`), keyed by N: the median. */
+  finishDaysHistogram: z.record(z.string(), z.number().int().min(0)).default({}),
 });
 export type CourseStats = z.infer<typeof courseStatsSchema>;
 

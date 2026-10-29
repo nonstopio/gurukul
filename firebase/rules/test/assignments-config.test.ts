@@ -58,7 +58,12 @@ describe('assignments/{id}', () => {
 
 describe('config/org', () => {
   const kulapati = () => as('ajay', { kulapati: true });
-  const valid = { domain: 'nonstopio.com', teams: ['QA', 'Dev'], reminders: { enabled: true } };
+  const valid = {
+    domain: 'nonstopio.com',
+    teams: ['QA', 'Dev'],
+    reminders: { enabled: true },
+    signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+  };
 
   it('lets any signed-in NonStop account read it', async () => {
     await assertSucceeds(getDoc(doc(as('priya'), 'config/org')));
@@ -67,11 +72,16 @@ describe('config/org', () => {
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'config/org')));
     await assertFails(getDoc(doc(as('priya', { email: 'p@gmail.com' }), 'config/org')));
   });
-  it('lets a kulapati create it and save teams and reminders', async () => {
+  it('lets a kulapati create it and save teams, reminders and the signatory', async () => {
     await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/org')));
     await assertSucceeds(setDoc(doc(kulapati(), 'config/org'), valid));
     await assertSucceeds(
       updateDoc(doc(kulapati(), 'config/org'), { teams: [], 'reminders.enabled': false }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(kulapati(), 'config/org'), {
+        signatory: { name: 'Ravi Sample', role: 'Dean' },
+      }),
     );
   });
   it('denies writes by a learner or an acharya', async () => {
@@ -87,6 +97,16 @@ describe('config/org', () => {
       { ...valid, reminders: true },
       { ...valid, reminders: { enabled: true, hour: 4 } },
       { ...valid, reminders: { enabled: 'yes' } },
+      { domain: valid.domain, teams: valid.teams, reminders: valid.reminders },
+      { ...valid, signatory: 'Asha' },
+      { ...valid, signatory: { name: 'Asha' } },
+      { ...valid, signatory: { ...valid.signatory, extra: 1 } },
+      { ...valid, signatory: { name: '', role: 'Dean' } },
+      { ...valid, signatory: { name: 'Asha', role: '' } },
+      { ...valid, signatory: { name: 'x'.repeat(121), role: 'Dean' } },
+      { ...valid, signatory: { name: 'Asha', role: 'x'.repeat(121) } },
+      { ...valid, signatory: { name: 1, role: 'Dean' } },
+      { ...valid, signatory: { name: 'Asha', role: 1 } },
     ];
     for (const data of bad) await assertFails(setDoc(doc(kulapati(), 'config/org'), data));
   });

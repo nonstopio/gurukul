@@ -1248,11 +1248,7 @@ export const gitCourse: Course = {
   publishedAt: null,
   // Videos are not recorded yet, so learners cannot be required to watch them.
   rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
-  certificate: {
-    title: 'Git, the NonStop Way',
-    signatoryName: 'The Kulapati',
-    signatoryRole: 'NonStop Academy',
-  },
+  certificate: { title: 'Git, the NonStop Way' },
   parvas,
   estimatedMinutes,
 };

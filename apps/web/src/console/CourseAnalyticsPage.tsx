@@ -18,6 +18,7 @@ import { useConsole } from './ConsoleProvider';
 import {
   WARN_BELOW_PERCENT,
   averageDays,
+  medianDays,
   funnelSteps,
   hardestQuestions,
   parikshaRows,
@@ -73,6 +74,7 @@ export function CourseAnalyticsPage() {
           );
           const drop = largestDrop(steps.map((s) => s.value));
           const days = averageDays(stats);
+          const median = medianDays(stats);
           const hardest = hardestQuestions(stats);
           const parikshas = itemsOf(course).flatMap((i) => (i.type === 'pariksha' ? [i] : []));
           const rows = parikshaRows(parikshas, stats);
@@ -118,8 +120,9 @@ export function CourseAnalyticsPage() {
                 />
                 <StatCard label="Certified" value={String(stats.certified)} />
                 <StatCard
-                  label="Average time to finish"
-                  value={days === null ? '—' : `${days} days`}
+                  label="Median time to finish"
+                  value={median === null ? '—' : `${median} days`}
+                  sub={days === null ? undefined : `average ${days} days`}
                 />
               </div>
 

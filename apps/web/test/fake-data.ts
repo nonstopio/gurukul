@@ -75,7 +75,7 @@ export function makeCourse(over: Partial<Course> = {}): Course {
     version: 1,
     publishedAt: null,
     rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
-    certificate: { title: 'Git', signatoryName: 'A', signatoryRole: 'K' },
+    certificate: { title: 'Git' },
     parvas: [
       { id: 'p1', title: 'Basics', items: [lesson('l1'), lesson('l2')] },
       {

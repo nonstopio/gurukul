@@ -96,6 +96,14 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Who has started this course, by name: `{displayName}` per learner, written by the progress
+      // trigger when they start. It is how an Acharya sees learner names for their own course
+      // without being able to read anyone's profile. Written by functions only.
+      match /learners/{uid} {
+        allow read: if isKulapati() || isAcharyaOf(courseId);
+        allow write: if false;
+      }
+
       // Pariksha answer keys never reach a browser. Grading runs in a function (Admin SDK).
       match /private/{doc} {
         allow read, write: if false;
@@ -223,19 +231,27 @@ service cloud.firestore {
     }
 
     // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
-    // settings. A Kulapati edits teams and reminders from the console; the domain is fixed here,
-    // as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
+    // settings and who signs certificates. A Kulapati edits all but the domain from the console; the
+    // domain is fixed here, as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
     // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
     match /config/org {
       allow read: if signedIn();
       allow create, update: if isKulapati()
-        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders'])
+        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders', 'signatory'])
         && request.resource.data.domain == 'nonstopio.com'
         && request.resource.data.teams is list
         && request.resource.data.teams.size() <= 100
         && request.resource.data.reminders is map
         && request.resource.data.reminders.keys().hasOnly(['enabled'])
-        && request.resource.data.reminders.enabled is bool;
+        && request.resource.data.reminders.enabled is bool
+        && request.resource.data.signatory is map
+        && request.resource.data.signatory.keys().hasOnly(['name', 'role'])
+        && request.resource.data.signatory.name is string
+        && request.resource.data.signatory.name.size() > 0
+        && request.resource.data.signatory.name.size() <= 120
+        && request.resource.data.signatory.role is string
+        && request.resource.data.signatory.role.size() > 0
+        && request.resource.data.signatory.role.size() <= 120;
     }
 
     match /{document=**} {

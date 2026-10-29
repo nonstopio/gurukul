@@ -7,6 +7,7 @@ import {
   Button,
   Callout,
   Card,
+  Certificate,
   Chip,
   CodeBlock,
   ColourSwatch,
@@ -19,6 +20,7 @@ import {
   FunnelBar,
   Input,
   LayoutPicker,
+  NavItem,
   Pagination,
   ProgressBar,
   ProgressRing,
@@ -26,14 +28,19 @@ import {
   ResultRow,
   Seal,
   Select,
+  Sidebar,
+  SidebarGroup,
   Skeleton,
   StatCard,
   Stepper,
   Tabs,
   Textarea,
   Toggle,
+  TopBar,
   TypeTile,
+  VideoBlock,
   largestDrop,
+  topBarBackClass,
   useToast,
 } from '@gurukul/ui';
 import type {
@@ -307,6 +314,83 @@ function Data() {
   );
 }
 
+function Chrome() {
+  return (
+    <>
+      <div className="ui-gallery__frame ui-gallery__frame--sidebar">
+        <Sidebar
+          brand="Gurukul"
+          label="Example main"
+          footer={<p className="ui-gallery__plain">Asha Rao</p>}
+        >
+          <SidebarGroup label="Learn">
+            <NavItem href="#home" current icon={<span>H</span>}>
+              Home
+            </NavItem>
+            <NavItem href="#courses" icon={<span>C</span>}>
+              Courses
+            </NavItem>
+          </SidebarGroup>
+          <SidebarGroup label="Manage">
+            <NavItem href="#studio">Studio</NavItem>
+          </SidebarGroup>
+        </Sidebar>
+      </div>
+      <div className="ui-gallery__frame">
+        <TopBar
+          titleAs="p"
+          title="Git basics"
+          back={
+            <a className={topBarBackClass} href="#course">
+              Back to course
+            </a>
+          }
+          status={<span>Saved</span>}
+          actions={<Button variant="chrome">Next lesson</Button>}
+        />
+      </div>
+    </>
+  );
+}
+
+function Media() {
+  return (
+    <>
+      <div className="ui-gallery__frame">
+        <VideoBlock
+          src="about:blank"
+          title="Example lesson video"
+          href="https://example.com/video"
+          caption="Staging changes, in three minutes."
+        />
+      </div>
+      <div className="ui-gallery__frame ui-gallery__frame--cert">
+        <Certificate
+          learnerName="Asha Rao"
+          courseTitle="Git basics"
+          issuedOn="9 November 2026"
+          credentialId="GK-EXAMPLE-0001"
+          verifyUrl="gurukul.example.com/verify/example"
+          signatoryName="Meera Iyer"
+          signatoryRole="Kulapati"
+        />
+      </div>
+      <div className="ui-gallery__frame ui-gallery__frame--cert">
+        <Certificate
+          revoked
+          learnerName="Ravi Menon-Krishnamurthy of the Western Ghats Division"
+          courseTitle="Git basics"
+          issuedOn="9 November 2026"
+          credentialId="GK-EXAMPLE-0002"
+          verifyUrl="gurukul.example.com/verify/example"
+          signatoryName="Meera Iyer"
+          signatoryRole="Kulapati"
+        />
+      </div>
+    </>
+  );
+}
+
 /** The `/__ui` component gallery: every design-system component, every variant and state. Development builds only. */
 export function UiGalleryPage() {
   const [value, setValue] = useState(40);
@@ -394,6 +478,12 @@ export function UiGalleryPage() {
         />
         <CodeBlock code="npm test" variant="terminal" />
         <Seal label="Seal of NonStop Gurukul" ringText="NONSTOP GURUKUL · CERTIFIED · " />
+      </Section>
+      <Section id="chrome" title="Sidebar and top bar">
+        <Chrome />
+      </Section>
+      <Section id="media" title="Video and certificate">
+        <Media />
       </Section>
       <Section id="quiz" title="Pariksha">
         <Quiz />

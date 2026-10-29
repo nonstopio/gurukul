@@ -1,3 +1,4 @@
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
 import {
   firebaseRoleAdmin,
@@ -102,6 +103,21 @@ describe('firestoreProgressStore', () => {
     expect(update).toHaveBeenNthCalledWith(2, { percent: 100, completedAt: 'NOW' });
   });
 
+  it('records who started a course under its learners, with the name from the profile', async () => {
+    const set = vi.fn().mockResolvedValue(undefined);
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ get: () => 'Priya Rao' })
+      .mockResolvedValueOnce({ get: () => undefined });
+    const doc = vi.fn((p: string) => (p.startsWith('users/') ? { get } : { set }));
+    const store = firestoreProgressStore({ doc } as never);
+    await store.recordLearner('priya', 'git');
+    await store.recordLearner('ghost', 'git');
+    expect(doc).toHaveBeenCalledWith('courses/git/learners/priya');
+    expect(set).toHaveBeenNthCalledWith(1, { displayName: 'Priya Rao', startedAt: 'NOW' });
+    expect(set).toHaveBeenNthCalledWith(2, { displayName: '', startedAt: 'NOW' });
+  });
+
   it('adds the delta to the course and org counters in one transaction', async () => {
     const set = vi.fn();
     const tx = {
@@ -117,6 +133,7 @@ describe('firestoreProgressStore', () => {
       completed: 1,
       certified: 1,
       finishDays: 2.5,
+      finishBucket: '3',
       parvasDone: [1, 3],
       lessons: 4,
       week: '2026-W44',
@@ -129,6 +146,7 @@ describe('firestoreProgressStore', () => {
         completed: '+1',
         certified: '+1',
         finishDaysSum: '+2.5',
+        finishDaysHistogram: { '3': '+1' },
         parvaCompletions: [2, 2, 0, 1],
       },
       { merge: true },
@@ -157,6 +175,7 @@ describe('firestoreProgressStore', () => {
       completed: 0,
       certified: 0,
       finishDays: 0,
+      finishBucket: null,
       parvasDone: [],
       lessons: 0,
       week: '2026-W44',
@@ -164,7 +183,7 @@ describe('firestoreProgressStore', () => {
     });
     expect(set).toHaveBeenCalledWith(
       'stats/course_git',
-      expect.objectContaining({ parvaCompletions: [] }),
+      expect.not.objectContaining({ finishDaysHistogram: expect.anything() }),
       { merge: true },
     );
   });
@@ -185,6 +204,24 @@ describe('firestoreProgressStore', () => {
       0,
     );
     expect(none.commit).not.toHaveBeenCalled();
+  });
+});
+
+describe('firestoreProgressStore.signatory', () => {
+  const dbWith = (signatory: unknown) =>
+    ({ doc: () => ({ get: async () => ({ get: () => signatory }) }) }) as never;
+
+  it('reads the signatory from config/org', async () => {
+    const saved = { name: 'Rhea Sample', role: 'Dean' };
+    expect(await firestoreProgressStore(dbWith(saved)).signatory()).toEqual(saved);
+  });
+
+  it('falls back to the default when none is saved or it is malformed', async () => {
+    for (const bad of [undefined, { name: '', role: 'x' }]) {
+      expect(await firestoreProgressStore(dbWith(bad)).signatory()).toEqual(
+        DEFAULT_ORG_CONFIG.signatory,
+      );
+    }
   });
 });
 
@@ -296,22 +333,47 @@ describe('firestoreCertificateAdmin', () => {
     const update = vi.fn().mockResolvedValue(undefined);
     const get = vi
       .fn()
-      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({
+        exists: true,
+        get: (f: string) => ({ uid: 'u1', courseTitle: 'Git basics', revoked: false })[f],
+      })
       .mockResolvedValueOnce({ exists: false });
     const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
     const admin = firestoreCertificateAdmin(db);
-    expect(await admin.setRevoked('NSG-GIT-26-0001', true)).toBe(true);
+    expect(await admin.setRevoked('NSG-GIT-26-0001', true)).toEqual({
+      uid: 'u1',
+      courseTitle: 'Git basics',
+      changed: true,
+    });
     expect(update).toHaveBeenCalledWith({ revoked: true, revokedAt: 'NOW' });
-    expect(await admin.setRevoked('NSG-GIT-26-0002', true)).toBe(false);
+    expect(await admin.setRevoked('NSG-GIT-26-0002', true)).toBeNull();
     expect(update).toHaveBeenCalledOnce();
   });
 
   it('clears the revocation date on restore', async () => {
     const update = vi.fn().mockResolvedValue(undefined);
-    const get = vi.fn().mockResolvedValue({ exists: true });
+    const get = vi.fn().mockResolvedValue({
+      exists: true,
+      get: (f: string) => ({ uid: 'u1', courseTitle: 'Git basics', revoked: false })[f],
+    });
     const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
-    expect(await firestoreCertificateAdmin(db).setRevoked('NSG-GIT-26-0001', false)).toBe(true);
+    expect(await firestoreCertificateAdmin(db).setRevoked('NSG-GIT-26-0001', false)).toMatchObject({
+      changed: false,
+    });
     expect(update).toHaveBeenCalledWith({ revoked: false, revokedAt: null });
+  });
+
+  it('reads the learner email from the profile, or null when there is none', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ get: () => 'asha@example.com' })
+      .mockResolvedValueOnce({ get: () => undefined })
+      .mockResolvedValueOnce({ get: () => '' });
+    const db = { doc: vi.fn().mockReturnValue({ get }) } as never;
+    const admin = firestoreCertificateAdmin(db);
+    expect(await admin.emailOf('u1')).toBe('asha@example.com');
+    expect(await admin.emailOf('u2')).toBeNull();
+    expect(await admin.emailOf('u3')).toBeNull();
   });
 
   it('writes the audit entry with a server timestamp', async () => {

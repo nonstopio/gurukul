@@ -11,6 +11,7 @@
 | Lessons completed per week, last 12 weeks | `stats/org.weekly[]` |
 | Course funnel (assigned, started, completed, avg score, overdue) | `stats/course_{id}` |
 | Where learners stop (per parva) | `stats/course_{id}.parvaCompletions[]` |
+| Median time to finish (average beside it) | `stats/course_{id}.finishDaysHistogram{}` (learners per whole day, capped at 365; the median is read from it), `finishDaysSum`/`completed` for the average. The daily roll-up backfills it for completions before it existed |
 | Hardest questions | `stats/course_{id}.questionFirstTry{}` |
 | Per-Pariksha first-try answers and share right | summed in the browser from `questionFirstTry{}` over the course's own questions; warning colour only below 70% |
 | Needs attention (overdue, failed twice, pending invites) | five of each. Overdue and pending come from the open assignments the page already loads; failed twice (a Pariksha with 2+ attempts, not passed) is read from the 100 most recently active progress documents, so it covers recent learners, not everyone. The date range and team filters narrow these lists only; the counters stay org-wide. Nudge and Resend email through `remindLearners`; Reset is `resetCooldown` |
@@ -44,5 +45,10 @@ is user-initiated.
 ## Privacy
 
 Learners see only their own data. Acharyas see aggregates for their courses
-and (decision pending) learner names. No analytics or tracking scripts on the
+and, for their own courses only, the names of the people who started them (decided). Names come from
+`courses/{id}/learners/{uid}` (`{displayName, startedAt}`), written by the progress trigger when a
+learner starts; the rules let that course's Acharyas and Kulapatis read it, so an Acharya never
+reads a profile (`users/`), an email or another course. Vyasa Studio's Analytics tab lists them with
+their progress. A name is copied once, at the start, so a later rename shows on the Kulapati
+console but not there; learners who started before this was kept show as "Name not recorded". No analytics or tracking scripts on the
 site; no third-party cookies.

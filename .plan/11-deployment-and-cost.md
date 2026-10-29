@@ -59,6 +59,14 @@ confirm before creating it (open question).
 The public web config goes in GitHub Actions **variables** (`VITE_FIREBASE_*`)
 and `apps/web/.env.local`.
 
+## Site address
+
+The public address in links is configuration, not code: the repository variable `SITE_URL` (for
+example `https://gurukul.nonstopio.com`) is passed to the web build as `VITE_SITE_URL` (certificate
+verify links) and written to the functions' `.env` (emailed course links). Unset, web links use the
+address the app is open on and emails use `https://nonstop-gurukul.web.app`. DNS and the Hosting
+custom domain are `OPS-24`.
+
 ## First-time setup checklist (maintainer)
 
 1. Upgrade `nonstop-gurukul` to Blaze; create the $1 budget and alerts.

@@ -93,6 +93,9 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                   <h2 id="continue-title" className="continue__title">
                     {current.course.title}
                   </h2>
+                  {currentAssignment?.assignedByName ? (
+                    <p className="continue__next">Assigned by {currentAssignment.assignedByName}</p>
+                  ) : null}
                   {upcoming ? (
                     <p className="continue__next">Up next: {upcoming.item.title}</p>
                   ) : null}

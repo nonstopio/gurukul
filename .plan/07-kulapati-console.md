@@ -20,6 +20,11 @@ analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
   dialog (Shishya, Acharya, Kulapati) and calls `setRoles` once per selected person; pending
   invites and your own account (when dropping Kulapati) are skipped and counted. Choosing Acharya
   leaves existing course grants alone; Shishya clears them.
+- Ticking every row on a page offers "Select all N": everyone the filters and tab match. Filtered
+  views already hold them; unfiltered "All" and "Signed in" read the rest of the people by cursor
+  (100 per read, one document read per person, once per click). The bulk actions then use that
+  list. Role change still calls `setRoles` per person; a batch callable is the follow-up if the
+  list grows past a few hundred.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).
 
@@ -31,21 +36,26 @@ callable, Kulapati only:
 1. Normalise emails (trim, lower-case, dedupe).
 2. Classify each: signed in (has uid), new (no account: pending invite),
    already assigned (skipped), rejected (not `@nonstopio.com` or malformed).
-3. Write assignments in batches of 400 (idempotent ids).
+3. Write assignments in batches of 400 (idempotent ids). A batch that fails does not stop the
+   others: the failed (course, email) pairs come back in `failed`, only written pairs are counted,
+   audited and emailed, and the screen lists the failures with a Retry for just those pairs.
 4. If `notify`, send an email per new assignment (see below).
 5. Return the classification so the UI shows the summary.
 
 Inputs supported by the UI: search people, paste emails (comma, space, new
 line), CSV upload (first column of emails, header optional), whole team (from
 `users.team`). The summary panel previews the classification **before**
-submitting by running the same pure classifier client-side.
+submitting by running the same pure classifier client-side; with several courses it also counts new and
+already-assigned people per course.
 Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
 file. After assigning exactly one course the console opens Learners filtered to it
 (`/kulapati/learners?course=<id>`).
 
 ## Email notifications
 
-Firebase has no built-in email sending. Options, decided in open questions:
+Firebase has no built-in email sending. Decided (open question 4): the first option, sender
+`gurukul@nonstopio.com`, in `firebase/functions/src/gmail.ts` behind a `Mailer` port; without
+credentials it logs a warning and sends nothing. Options considered:
 
 | Option | Cost | Notes |
 |---|---|---|
@@ -63,7 +73,7 @@ an org setting; `config/org.reminders` only switches the daily run on or off.
 
 `/kulapati/settings` edits `config/org` directly (the rules check the shape; no callable, so
 no audit entry): the teams list learners pick from (add, remove; names trimmed, unique ignoring
-case, at most 80 characters and 100 teams) and the daily reminders switch. Removing a team
+case, at most 80 characters and 100 teams) the daily reminders switch and the certificate signatory (name and role printed on certificates issued from then on; a certificate keeps the one it was issued with). Removing a team
 leaves it on the profiles that have it. One Save writes the whole document.
 
 ## Roles & access

@@ -22,6 +22,13 @@ export interface ProgressStore {
     courseId: string,
     status: 'started' | 'completed',
   ): Promise<number>;
+  /** Who signs certificates issued now: `config/org.signatory`, else the default. */
+  signatory(): Promise<{ name: string; role: string }>;
+  /**
+   * Records who started the course (`courses/{id}/learners/{uid}` with their display name) so the
+   * course's Acharya can see names without reading profiles. Idempotent.
+   */
+  recordLearner(uid: string, courseId: string): Promise<void>;
   /**
    * Issues the learner's certificate in ONE transaction: re-reads the progress document, does
    * nothing if `certificateId` is already set, else takes the next sequence number, writes
@@ -56,6 +63,7 @@ export async function handleProgressWrite(
 
   log.debug('Progress changed', { uid: now.uid, courseId: now.courseId, percent: now.percent });
   const delta = planProgressStats(course, was, now, at);
+  if (delta.started === 1) await store.recordLearner(now.uid, now.courseId);
   if (delta.started === 1 || delta.completed === 1) {
     const moved = await store.setAssignmentStatus(
       now.uid,
@@ -74,13 +82,14 @@ export async function handleProgressWrite(
     updated = true;
   }
   if (percent === 100 && course.rules.certificate && now.certificateId === null) {
+    const signatory = await store.signatory();
     const issued = await store.issueCertificate(progressId, {
       uid: now.uid,
       courseId: now.courseId,
       courseTitle: course.title,
       courseVersion: course.version,
-      signatoryName: course.certificate.signatoryName,
-      signatoryRole: course.certificate.signatoryRole,
+      signatoryName: signatory.name,
+      signatoryRole: signatory.role,
     });
     if (issued !== null) {
       log.info('Certificate issued', {

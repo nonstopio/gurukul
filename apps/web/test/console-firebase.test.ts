@@ -1,3 +1,4 @@
+import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
@@ -76,11 +77,7 @@ describe('stats and config', () => {
   });
 
   it('reads org settings over the defaults, and saves the whole document', async () => {
-    expect(await data.orgSettings()).toEqual({
-      domain: 'nonstopio.com',
-      teams: [],
-      reminders: { enabled: false },
-    });
+    expect(await data.orgSettings()).toEqual(DEFAULT_ORG_CONFIG);
     store.docs.set('config/org', { domain: 'nonstopio.com', teams: ['QA'] });
     expect(await data.orgSettings()).toMatchObject({
       teams: ['QA'],
@@ -90,6 +87,7 @@ describe('stats and config', () => {
       domain: 'nonstopio.com',
       teams: ['QA', 'Dev'],
       reminders: { enabled: true },
+      signatory: { name: 'Ravi Sample', role: 'Dean' },
     };
     await data.saveOrgSettings(settings);
     expect(store.docs.get('config/org')).toEqual(settings);
@@ -248,6 +246,29 @@ describe('recent progress', () => {
   });
 });
 
+describe('course learners', () => {
+  it('joins the recorded names to the course progress, newest activity first', async () => {
+    store.queue = [
+      [d('u1', { displayName: 'Priya Rao' }), d('u2', {})],
+      [
+        d('u3_git', { uid: 'u3', courseId: 'git' }),
+        d('u1_git', { uid: 'u1', courseId: 'git', percent: 40, lastActiveAt: ts(1000) }),
+        d('u2_git', { uid: 'u2', courseId: 'git', percent: 90, lastActiveAt: ts(5000) }),
+        d('u4_git', { uid: 'u4', courseId: 'git', percent: 5 }),
+      ],
+    ];
+    const rows = await data.courseLearners('git');
+    expect(rows.map((r) => [r.uid, r.displayName, r.percent])).toEqual([
+      ['u2', '', 90],
+      ['u1', 'Priya Rao', 40],
+      ['u3', '', 0],
+      ['u4', '', 5],
+    ]);
+    expect(store.queries[0]).toContainEqual({ limit: 100 });
+    expect(store.queries[1]).toContainEqual({ where: ['courseId', '==', 'git'] });
+  });
+});
+
 describe('progress, certificates and known emails', () => {
   it('fetches progress for many people in chunks of 30', async () => {
     const uids = Array.from({ length: 31 }, (_, i) => `u${i}`);
@@ -327,9 +348,14 @@ describe('progress, certificates and known emails', () => {
     const known = await data.knownEmails(['a@nonstopio.com', 'b@nonstopio.com'], ['git', 'sql']);
     expect([...known.signedIn]).toEqual(['a@nonstopio.com']);
     expect([...known.assigned]).toEqual(['a@nonstopio.com']);
+    expect(known.byCourse).toEqual({
+      git: new Set(['a@nonstopio.com', 'b@nonstopio.com']),
+      sql: new Set(['a@nonstopio.com']),
+    });
     expect(await data.knownEmails([], ['git'])).toEqual({
       signedIn: new Set(),
       assigned: new Set(),
+      byCourse: { git: new Set() },
     });
   });
 

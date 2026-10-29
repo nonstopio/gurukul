@@ -67,6 +67,15 @@ export interface AttemptSummary {
   at: Date | null;
 }
 
+/** One person who started a course, as its Acharya sees them: a name and how far they got. */
+export interface CourseLearner {
+  uid: string;
+  /** Empty when the name was not recorded (a learner who started before names were kept). */
+  displayName: string;
+  percent: number;
+  lastActiveAt: Date | null;
+}
+
 export interface UserPage {
   rows: UserRow[];
   /** Pass back to get the next page; null on the last one. */
@@ -81,6 +90,12 @@ export interface UserPage {
 export interface ConsoleData {
   orgStats(): Promise<OrgStats>;
   courseStats(courseId: string): Promise<CourseStats>;
+  /**
+   * Who started one course, newest activity first (capped at 100): names from
+   * `courses/{id}/learners`, progress from the course's progress documents. The rules let the
+   * course's own Acharyas and Kulapatis read both.
+   */
+  courseLearners(courseId: string): Promise<CourseLearner[]>;
   /** Pending invites and assignments for one course (or all, newest first, capped). */
   assignments(filter?: { courseId?: string }): Promise<AssignmentFull[]>;
   /**
@@ -114,11 +129,11 @@ export interface ConsoleData {
   usersWithRole(role: 'acharya' | 'kulapati'): Promise<UserRow[]>;
   /** Every course, drafts and never-published ones included (capped), for granting to an Acharya. */
   allCourses(): Promise<Course[]>;
-  /** Which of these emails have signed in, and which already hold an assignment for ALL given courses. */
-  knownEmails(
-    emails: string[],
-    courseIds: string[],
-  ): Promise<{ signedIn: Set<string>; assigned: Set<string> }>;
+  /**
+   * Which of these emails have signed in, which already hold ALL the given courses, and which
+   * hold each course (so the preview can count per course).
+   */
+  knownEmails(emails: string[], courseIds: string[]): Promise<KnownEmails>;
   teams(): Promise<string[]>;
   /** `config/org`, with the defaults for anything not saved yet. */
   orgSettings(): Promise<OrgConfig>;
@@ -126,6 +141,12 @@ export interface ConsoleData {
   saveOrgSettings(settings: OrgConfig): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
   auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
+}
+
+export interface KnownEmails {
+  signedIn: Set<string>;
+  assigned: Set<string>;
+  byCourse: Record<string, Set<string>>;
 }
 
 export interface AssignRequest {
@@ -141,6 +162,8 @@ export interface AssignResult {
   summary: AssignSummary;
   assigned: number;
   notified: number;
+  /** (course, email) pairs that could not be written; the page offers to retry them. */
+  failed: { email: string; courseId: string }[];
 }
 
 export interface SetRolesRequest {

@@ -7,7 +7,6 @@ import {
   firestoreAttemptStatsStore,
   firestoreCooldownAdmin,
   firestoreCourseStore,
-  firestoreMailer,
   firestoreReminderStore,
   firestoreRollupStore,
 } from '../src/stores.js';
@@ -187,7 +186,7 @@ describe('firestoreAssignStore', () => {
       mandatory: true,
       reminder: 'weekly' as const,
     }));
-    await firestoreAssignStore(db).createAssignments('k', docs);
+    expect(await firestoreAssignStore(db).createAssignments('k', 'Kavya Rao', docs)).toEqual([]);
     expect(batches[0]?.create).toHaveBeenCalledTimes(400);
     expect(batches[1]?.create).toHaveBeenCalledTimes(1);
     expect(batches[0]?.set).not.toHaveBeenCalled();
@@ -196,6 +195,7 @@ describe('firestoreAssignStore', () => {
       uid: 'priya',
       courseId: 'git',
       assignedBy: 'k',
+      assignedByName: 'Kavya Rao',
       assignedAt: 'NOW',
       dueAt: 'ts:1000',
       mandatory: true,
@@ -209,6 +209,28 @@ describe('firestoreAssignStore', () => {
     );
     expect(batches[0]?.commit).toHaveBeenCalledOnce();
     expect(batches[1]?.commit).toHaveBeenCalledOnce();
+  });
+
+  it('returns the ids of a batch that failed and still writes the others', async () => {
+    const bad = { ...batchOf(), commit: vi.fn().mockRejectedValue(new Error('boom')) };
+    const good = batchOf();
+    const db = {
+      doc: vi.fn((p: string) => p),
+      batch: vi.fn().mockReturnValueOnce(bad).mockReturnValueOnce(good),
+    } as never;
+    const docs = Array.from({ length: 401 }, (_, i) => ({
+      id: `git__${i}`,
+      email: `u${i}@nonstopio.com`,
+      uid: null,
+      courseId: 'git',
+      dueAt: null,
+      mandatory: true,
+      reminder: 'weekly' as const,
+    }));
+    const failed = await firestoreAssignStore(db).createAssignments('k', 'Kavya Rao', docs);
+    expect(failed).toHaveLength(400);
+    expect(failed[0]).toBe('git__0');
+    expect(good.commit).toHaveBeenCalledOnce();
   });
 
   it('bumps the course counters and the org total in one batch, and audits', async () => {
@@ -269,21 +291,6 @@ describe('firestoreCooldownAdmin', () => {
     const { db, add } = dbWith({});
     await firestoreCooldownAdmin(db).audit({ action: 'cooldown.reset', by: 'k', detail: {} });
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ at: 'NOW' }));
-  });
-});
-
-describe('firestoreMailer', () => {
-  it('queues an outbox document in the Trigger Email shape', async () => {
-    const add = vi.fn().mockResolvedValue(undefined);
-    const collection = vi.fn().mockReturnValue({ add });
-    const db = { collection } as never;
-    await firestoreMailer(db).send({ to: 'a@example.com', subject: 'S', text: 'T' });
-    expect(collection).toHaveBeenCalledWith('mail');
-    expect(add).toHaveBeenCalledWith({
-      to: 'a@example.com',
-      message: { subject: 'S', text: 'T' },
-      createdAt: 'NOW',
-    });
   });
 });
 
@@ -512,6 +519,7 @@ describe('firestoreRollupStore', () => {
       parvaCompletions: [],
       questionFirstTry: {},
       finishDaysSum: 0,
+      finishDaysHistogram: {},
     };
     await store.writeCourseCounts('git', course);
     expect(doc).toHaveBeenCalledWith('stats/course_git');

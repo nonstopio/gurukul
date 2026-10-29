@@ -7,6 +7,8 @@ export interface AssignmentRow {
   dueAt: Date | null;
   mandatory: boolean;
   status: 'assigned' | 'started' | 'completed';
+  /** Who assigned it; `null` on assignments made before the name was stored. */
+  assignedByName: string | null;
 }
 
 /** My progress in one course, reduced to what screens read. */

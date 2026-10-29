@@ -5,6 +5,7 @@ import { DraftConflictError } from '../src/studio/errors';
 import type { DraftDoc } from '../src/studio/types';
 import { log } from '../src/log';
 import { axeViolations } from './axe';
+import type { CourseLearner } from '../src/console/types';
 import { fakeConsole } from './fake-console';
 import { fakeData, lesson, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
@@ -510,10 +511,11 @@ describe('Course editor: details, landing page, certificate', () => {
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Certificate' }));
     expect(screen.getByText(/switched off for this course/)).toBeTruthy();
-    for (const label of ['Certificate title', 'Signatory name', 'Signatory role']) {
-      fireEvent.change(screen.getByLabelText(label), { target: { value: `${label}!` } });
-      expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(`${label}!`);
-    }
+    const label = 'Certificate title';
+    fireEvent.change(screen.getByLabelText(label), { target: { value: `${label}!` } });
+    expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(`${label}!`);
+    expect(screen.getByText(/set by a Kulapati in Org settings/)).toBeTruthy();
+    expect(screen.queryByLabelText('Signatory name')).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -541,6 +543,44 @@ describe('Course editor: analytics', () => {
     );
     expect(screen.queryByText('Not published yet')).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('lists the people who started the course by name, with how far they got', async () => {
+    const consoleApi = fakeConsole({
+      learners: [
+        { uid: 'u1', displayName: 'Priya Rao', percent: 40, lastActiveAt: new Date('2026-03-02') },
+        { uid: 'u2', displayName: '', percent: 0, lastActiveAt: null },
+      ],
+    });
+    await open({ consoleApi });
+    await ready();
+    fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
+    expect(await screen.findByText('Priya Rao')).toBeTruthy();
+    expect(consoleApi.data.courseLearners).toHaveBeenCalledWith('git');
+    expect(screen.getByText('40%')).toBeTruthy();
+    expect(screen.getByText('2026-03-02')).toBeTruthy();
+    expect(screen.getByText('Name not recorded')).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('says so when no one has started', async () => {
+    await open({ consoleApi: fakeConsole() });
+    await ready();
+    fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
+    expect(await screen.findByText('No one has started this course yet.')).toBeTruthy();
+  });
+
+  it('shows loading, then a failure, when the learners cannot be read', async () => {
+    const failing = fakeConsole();
+    let reject: (e: Error) => void = () => {};
+    failing.data.courseLearners = vi.fn(() => new Promise<CourseLearner[]>((_, r) => (reject = r)));
+    await open({ consoleApi: failing });
+    await ready();
+    fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
+    expect(screen.getByText('Loading the learners…')).toBeTruthy();
+    await act(async () => reject(new Error('denied')));
+    expect(await screen.findByText('The learners are not available')).toBeTruthy();
+    expect(log.warn).toHaveBeenCalledWith('Loading course learners failed', { courseId: 'git' });
   });
 
   it('shows loading, a not-published note and a failure for an Acharya', async () => {

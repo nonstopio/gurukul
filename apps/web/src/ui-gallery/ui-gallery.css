@@ -41,3 +41,22 @@
   padding: var(--space-2, 0.5rem);
   background: var(--chrome);
 }
+
+.ui-gallery__frame {
+  width: 100%;
+  max-width: 40rem;
+  overflow: hidden;
+  border: 1px solid currentColor;
+}
+
+.ui-gallery__frame--sidebar {
+  max-width: 18rem;
+}
+
+.ui-gallery__frame--cert {
+  max-width: 48rem;
+}
+
+.ui-gallery__plain {
+  margin: 0;
+}

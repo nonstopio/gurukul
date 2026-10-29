@@ -127,8 +127,12 @@ describe('handleGradeAttempt', () => {
 
 describe('handleRevokeCertificate', () => {
   const admin = () => ({
-    setRevoked: vi.fn().mockResolvedValue(true),
-    audit: vi.fn().mockResolvedValue(undefined),
+    admin: {
+      setRevoked: vi.fn().mockResolvedValue({ uid: 'u', courseTitle: 'Git', changed: true }),
+      emailOf: vi.fn().mockResolvedValue('u@example.com'),
+      audit: vi.fn().mockResolvedValue(undefined),
+    },
+    mailer: { send: vi.fn().mockResolvedValue(undefined) },
   });
   const kulapati = {
     auth: { uid: 'k', token: { email: 'k@nonstopio.com', kulapati: true } },
@@ -157,7 +161,11 @@ describe('handleRevokeCertificate', () => {
     ).rejects.toMatchObject({
       code: 'VAL_1001',
     });
-    const broken = { ...admin(), setRevoked: vi.fn().mockRejectedValue(new Error('boom')) };
+    const base = admin();
+    const broken = {
+      ...base,
+      admin: { ...base.admin, setRevoked: vi.fn().mockRejectedValue(new Error('boom')) },
+    };
     await expect(handleRevokeCertificate(kulapati, broken)).rejects.toThrow('boom');
   });
 });
@@ -179,7 +187,7 @@ describe('console callables', () => {
       courses: vi.fn().mockResolvedValue({ git: { status: 'published', title: 'Git' } }),
       signedInUsers: vi.fn().mockResolvedValue(new Map()),
       existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
-      createAssignments: vi.fn().mockResolvedValue(undefined),
+      createAssignments: vi.fn().mockResolvedValue([]),
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
     };

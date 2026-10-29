@@ -88,13 +88,33 @@ describe('firebaseLearnerData', () => {
     store.queryDocs = [
       {
         id: 'a1',
-        data: () => ({ courseId: 'git', dueAt: ts(5), mandatory: true, status: 'started' }),
+        data: () => ({
+          courseId: 'git',
+          dueAt: ts(5),
+          mandatory: true,
+          status: 'started',
+          assignedByName: 'Kavya Rao',
+        }),
       },
       { id: 'a2', data: () => ({ courseId: 'sql', dueAt: null, status: 'assigned' }) },
     ];
     expect(await data.myAssignments('u')).toEqual([
-      { id: 'a1', courseId: 'git', dueAt: new Date(5), mandatory: true, status: 'started' },
-      { id: 'a2', courseId: 'sql', dueAt: null, mandatory: false, status: 'assigned' },
+      {
+        id: 'a1',
+        courseId: 'git',
+        dueAt: new Date(5),
+        mandatory: true,
+        status: 'started',
+        assignedByName: 'Kavya Rao',
+      },
+      {
+        id: 'a2',
+        courseId: 'sql',
+        dueAt: null,
+        mandatory: false,
+        status: 'assigned',
+        assignedByName: null,
+      },
     ]);
   });
 

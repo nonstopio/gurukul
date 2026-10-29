@@ -132,6 +132,18 @@ describe('video block editor', () => {
     expect('durationSec' in last()).toBe(false);
   });
 
+  it('sets and clears the title and caption, which are absent rather than empty', () => {
+    const { last } = setup(video());
+    type('Title (optional)', 'Intro');
+    expect(last()).toMatchObject({ title: 'Intro' });
+    type('Title (optional)', '');
+    expect('title' in last()).toBe(false);
+    type('Caption (optional)', 'Recorded live');
+    expect(last()).toMatchObject({ caption: 'Recorded live' });
+    type('Caption (optional)', '');
+    expect('caption' in last()).toBe(false);
+  });
+
   it('has no accessibility violations', async () => {
     const { container } = setup(video({ durationSec: 30 }));
     expect(await axeViolations(container)).toEqual([]);
