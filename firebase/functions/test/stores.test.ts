@@ -103,6 +103,21 @@ describe('firestoreProgressStore', () => {
     expect(update).toHaveBeenNthCalledWith(2, { percent: 100, completedAt: 'NOW' });
   });
 
+  it('records who started a course under its learners, with the name from the profile', async () => {
+    const set = vi.fn().mockResolvedValue(undefined);
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ get: () => 'Priya Rao' })
+      .mockResolvedValueOnce({ get: () => undefined });
+    const doc = vi.fn((p: string) => (p.startsWith('users/') ? { get } : { set }));
+    const store = firestoreProgressStore({ doc } as never);
+    await store.recordLearner('priya', 'git');
+    await store.recordLearner('ghost', 'git');
+    expect(doc).toHaveBeenCalledWith('courses/git/learners/priya');
+    expect(set).toHaveBeenNthCalledWith(1, { displayName: 'Priya Rao', startedAt: 'NOW' });
+    expect(set).toHaveBeenNthCalledWith(2, { displayName: '', startedAt: 'NOW' });
+  });
+
   it('adds the delta to the course and org counters in one transaction', async () => {
     const set = vi.fn();
     const tx = {
@@ -118,6 +133,7 @@ describe('firestoreProgressStore', () => {
       completed: 1,
       certified: 1,
       finishDays: 2.5,
+      finishBucket: '3',
       parvasDone: [1, 3],
       lessons: 4,
       week: '2026-W44',
@@ -130,6 +146,7 @@ describe('firestoreProgressStore', () => {
         completed: '+1',
         certified: '+1',
         finishDaysSum: '+2.5',
+        finishDaysHistogram: { '3': '+1' },
         parvaCompletions: [2, 2, 0, 1],
       },
       { merge: true },
@@ -158,6 +175,7 @@ describe('firestoreProgressStore', () => {
       completed: 0,
       certified: 0,
       finishDays: 0,
+      finishBucket: null,
       parvasDone: [],
       lessons: 0,
       week: '2026-W44',
@@ -165,7 +183,7 @@ describe('firestoreProgressStore', () => {
     });
     expect(set).toHaveBeenCalledWith(
       'stats/course_git',
-      expect.objectContaining({ parvaCompletions: [] }),
+      expect.not.objectContaining({ finishDaysHistogram: expect.anything() }),
       { merge: true },
     );
   });

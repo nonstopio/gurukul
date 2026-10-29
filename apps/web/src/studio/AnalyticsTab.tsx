@@ -26,6 +26,16 @@ export function AnalyticsTab({
       [data, courseId],
     ),
   );
+  const learners = useAsync(
+    useCallback(
+      () =>
+        data.courseLearners(courseId).catch((e: unknown) => {
+          log.warn('Loading course learners failed', { courseId });
+          throw e;
+        }),
+      [data, courseId],
+    ),
+  );
   return (
     <section className="sc-tab" aria-labelledby="analytics-title">
       <h2 id="analytics-title" className="sc-h2">
@@ -49,6 +59,36 @@ export function AnalyticsTab({
           <StatCard label="Completed" value={String(result.value.completed)} />
           <StatCard label="Certified" value={String(result.value.certified)} />
         </div>
+      )}
+      <h3 className="sc-h3">Learners</h3>
+      {learners.state === 'loading' ? (
+        <p role="status">Loading the learners…</p>
+      ) : learners.state === 'error' ? (
+        <Callout tone="warning" title="The learners are not available" role="alert">
+          <p>You may not have access to them, or the connection dropped. Try again later.</p>
+        </Callout>
+      ) : learners.value.length === 0 ? (
+        <p>No one has started this course yet.</p>
+      ) : (
+        <table className="plain-table">
+          <caption className="sr-only">People who started this course</caption>
+          <thead>
+            <tr>
+              <th scope="col">Learner</th>
+              <th scope="col">Progress</th>
+              <th scope="col">Last active</th>
+            </tr>
+          </thead>
+          <tbody>
+            {learners.value.map((l) => (
+              <tr key={l.uid}>
+                <th scope="row">{l.displayName === '' ? 'Name not recorded' : l.displayName}</th>
+                <td>{l.percent}%</td>
+                <td>{l.lastActiveAt === null ? '—' : l.lastActiveAt.toISOString().slice(0, 10)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {kulapati ? (
         <p>

@@ -17,7 +17,7 @@ function setup(over: Partial<AssignStore> = {}) {
     courses: vi.fn().mockResolvedValue({ git: published('Git'), sql: published('SQL') }),
     signedInUsers: vi.fn().mockResolvedValue(new Map([['priya@nonstopio.com', 'priya']])),
     existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
-    createAssignments: vi.fn().mockResolvedValue(undefined),
+    createAssignments: vi.fn().mockResolvedValue([]),
     bumpAssigned: vi.fn().mockResolvedValue(undefined),
     audit: vi.fn().mockResolvedValue(undefined),
     ...over,
@@ -51,6 +51,7 @@ describe('assignCourses', () => {
       },
       assigned: 2,
       notified: 0,
+      failed: [],
     });
     expect(store.signedInUsers).toHaveBeenCalledWith(['priya@nonstopio.com', 'new@nonstopio.com']);
     expect(store.createAssignments).toHaveBeenCalledWith('k', 'Kavya Rao', [
@@ -120,6 +121,39 @@ describe('assignCourses', () => {
     expect(priya.text).not.toContain('/courses/git');
     const fresh = mailer.send.mock.calls.find((c) => c[0].to === 'new@nonstopio.com')?.[0];
     expect(fresh.subject).toBe('You have 2 new courses on NonStop Academy');
+  });
+
+  it('reports pairs whose batch failed, and bumps, audits and emails only what was written', async () => {
+    const { store, mailer, deps } = setup({
+      createAssignments: vi.fn().mockResolvedValue([id('sql', 'new@nonstopio.com')]),
+    });
+    const out = await assignCourses(
+      deps,
+      kulapati,
+      request({ courseIds: ['git', 'sql'], notify: true }),
+    );
+    expect(out.assigned).toBe(3);
+    expect(out.failed).toEqual([{ email: 'new@nonstopio.com', courseId: 'sql' }]);
+    expect(store.bumpAssigned).toHaveBeenCalledWith({ git: 2, sql: 1 });
+    expect(store.audit).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: expect.objectContaining({ count: 3 }) }),
+    );
+    const fresh = mailer.send.mock.calls.find((c) => c[0].to === 'new@nonstopio.com')?.[0];
+    expect(fresh.text).toContain('/courses/git');
+    expect(fresh.text).not.toContain('/courses/sql');
+  });
+
+  it('writes no counters and no email when every write failed', async () => {
+    const { store, mailer, deps } = setup({
+      createAssignments: vi
+        .fn()
+        .mockImplementation(async (_by: string, docs: { id: string }[]) => docs.map((d) => d.id)),
+    });
+    const out = await assignCourses(deps, kulapati, request({ notify: true }));
+    expect(out).toMatchObject({ assigned: 0, notified: 0 });
+    expect(out.failed).toHaveLength(2);
+    expect(store.bumpAssigned).not.toHaveBeenCalled();
+    expect(mailer.send).not.toHaveBeenCalled();
   });
 
   it('writes and notifies nothing when everyone is rejected or already assigned', async () => {

@@ -75,7 +75,7 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `checkAnswer` | Learner | `{ correct: boolean, correctOptionIds: string[], explanation: string }` |
 | `gradeAttempt` | Learner | `AttemptResult`: `{ attemptId, score, correctCount, total, passed, best, results[], nextAttemptAt }` |
 | `revokeCertificate` | Kulapati | `{ id: string, revoked: boolean }` |
-| `assignCourses` | Kulapati | `{ summary: AssignSummary, assigned: number, notified: number }` |
+| `assignCourses` | Kulapati | `{ summary: AssignSummary, assigned: number, notified: number, failed: { email, courseId }[] }` |
 | `resetCooldown` | Kulapati | `{ ok: true }` |
 | `remindLearners` | Kulapati | `{ sent: number, skipped: number }` |
 | `createCourse` | Acharya, Kulapati | `{ courseId: string }` (`CRS_1002` when the slug is taken) |

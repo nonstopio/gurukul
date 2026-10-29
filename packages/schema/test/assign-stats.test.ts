@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyEmails,
   courseStatsSchema,
+  FINISH_DAYS_CAP,
+  finishDaysBucket,
   isoWeek,
   lastWeeks,
   orgStatsSchema,
@@ -87,6 +89,14 @@ describe('classifyEmails and summarize', () => {
 });
 
 describe('stats', () => {
+  it('buckets a finish time into whole days, never negative, capped', () => {
+    expect(finishDaysBucket(2.4)).toBe('2');
+    expect(finishDaysBucket(2.5)).toBe('3');
+    expect(finishDaysBucket(-1)).toBe('0');
+    expect(finishDaysBucket(10_000)).toBe(String(FINISH_DAYS_CAP));
+    expect(courseStatsSchema.parse({}).finishDaysHistogram).toEqual({});
+  });
+
   it('fills defaults so an empty document parses', () => {
     expect(orgStatsSchema.parse({})).toMatchObject({
       started: 0,

@@ -400,6 +400,20 @@ export function averageDays(
   return stats.completed > 0 ? Math.round((stats.finishDaysSum / stats.completed) * 10) / 10 : null;
 }
 
+/** The median whole days from start to finish, from the histogram, or null with nobody counted. */
+export function medianDays(stats: Pick<CourseStats, 'finishDaysHistogram'>): number | null {
+  const buckets = Object.entries(stats.finishDaysHistogram)
+    .map(([days, count]) => [Number(days), count] as const)
+    .sort((a, b) => a[0] - b[0]);
+  const total = buckets.reduce((sum, [, count]) => sum + count, 0);
+  let seen = 0;
+  for (const [days, count] of buckets) {
+    seen += count;
+    if (seen * 2 >= total) return days;
+  }
+  return null;
+}
+
 /** Plain-English names for the audit actions the functions write. */
 const AUDIT_LABELS: Record<string, string> = {
   assign: 'Assigned courses',

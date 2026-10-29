@@ -12,6 +12,7 @@ import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
+import { log } from './logging/log.js';
 import type { Mailer } from './mail.js';
 import type { UserStore } from './profile.js';
 import type { ProgressStore } from './progress.js';
@@ -133,6 +134,9 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
             completed: FieldValue.increment(d.completed),
             certified: FieldValue.increment(d.certified),
             finishDaysSum: FieldValue.increment(d.finishDays),
+            ...(d.finishBucket === null
+              ? {}
+              : { finishDaysHistogram: { [d.finishBucket]: FieldValue.increment(1) } }),
             // An array element cannot be incremented in place, hence the read in this transaction.
             parvaCompletions: addParvaCompletions(current as number[], d.parvasDone),
           },
@@ -168,6 +172,13 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
         (await db.doc('config/org').get()).get('signatory'),
       );
       return parsed.success ? parsed.data : DEFAULT_ORG_CONFIG.signatory;
+    },
+    async recordLearner(uid, courseId) {
+      const user = await db.doc(`users/${uid}`).get();
+      await db.doc(`courses/${courseId}/learners/${uid}`).set({
+        displayName: user.get('displayName') ?? '',
+        startedAt: FieldValue.serverTimestamp(),
+      });
     },
     async issueCertificate(progressId, grant) {
       return db.runTransaction(async (tx) => {
@@ -273,6 +284,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       return existing;
     },
     async createAssignments(assignedBy, assignedByName, docs) {
+      const failed: string[] = [];
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
         for (const d of part) {
@@ -290,8 +302,15 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             status: 'assigned',
           });
         }
-        await batch.commit();
+        try {
+          await batch.commit();
+        } catch {
+          // One bad batch must not undo or hide the others; the caller reports these ids.
+          log.warn('Assignment batch failed', { count: part.length });
+          failed.push(...part.map((d) => d.id));
+        }
       }
+      return failed;
     },
     async bumpAssigned(perCourse) {
       const batch = db.batch();
