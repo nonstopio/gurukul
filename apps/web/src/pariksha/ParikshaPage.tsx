@@ -4,7 +4,6 @@ import {
   Button,
   Callout,
   Dialog,
-  QuizOption,
   TopBar,
   buttonClass,
   topBarBackClass,
@@ -18,7 +17,6 @@ import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { isRetired } from '../learn/model';
 import { Loaded, RetiredNote } from '../learn/ui';
-import { Prose } from '../player/blocks';
 import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
 import {
   answerLetters,
@@ -29,13 +27,12 @@ import {
   restoreQuestions,
   sameAnswer,
 } from './model';
+import { QuestionFields } from './QuestionFields';
 import { useParikshaService } from './ParikshaProvider';
 import { CooldownError } from './service';
 import type { CheckAnswerResult } from './service';
 import { log } from '../log';
 
-const LETTERS = ['A', 'B', 'C', 'D'] as const;
-type Letter = (typeof LETTERS)[number];
 const EMPTY = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
 /**
@@ -312,30 +309,13 @@ function Questions({
             />
           ))}
         </ol>
-        <fieldset className="exam__question" disabled={busy} aria-busy={busy}>
-          <legend className="exam__prompt">
-            <Prose md={question.prompt} />
-          </legend>
-          {question.code ? (
-            <pre className="exam__code">
-              <code>{question.code}</code>
-            </pre>
-          ) : null}
-          {question.options.map((o, i) => (
-            <QuizOption
-              key={o.id}
-              name={question.id}
-              value={o.id}
-              letter={LETTERS[i % LETTERS.length] as Letter}
-              multiple={multiple}
-              checked={picked.includes(o.id)}
-              state={optionState(o.id)}
-              onChange={(on) => pick(o.id, on)}
-            >
-              {o.text}
-            </QuizOption>
-          ))}
-        </fieldset>
+        <QuestionFields
+          question={question}
+          picked={picked}
+          stateOf={optionState}
+          onPick={pick}
+          busy={busy}
+        />
         {checked ? (
           <p role="status" className="exam__feedback">
             <strong>{verdictText(question, checked)}</strong> {checked.explanation}

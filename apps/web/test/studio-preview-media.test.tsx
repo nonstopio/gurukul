@@ -150,7 +150,7 @@ describe('Preview page', () => {
     expect(check.disabled).toBe(true);
     fireEvent.click(screen.getByRole('radio', { name: /Beta/ }));
     fireEvent.click(check);
-    expect(screen.getByText('Not quite.')).toBeTruthy();
+    expect(screen.getByText('Not quite — the answer is A.')).toBeTruthy();
     expect(screen.getByText('alpha')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next question' }));
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
@@ -166,6 +166,28 @@ describe('Preview page', () => {
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
     expect(studio.data.saveDraft).not.toHaveBeenCalled();
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('letters every option up to the eighth and names the right ones by letter', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const big = exam({
+      questions: [
+        {
+          id: 'k1',
+          kind: 'multiple' as const,
+          prompt: 'Pick',
+          options: ids.map((id) => ({ id, text: `Option ${id}` })),
+          explanation: 'Why',
+        },
+      ],
+    });
+    await preview('q1', course([big]), { q1: { k1: ['e', 'f'] } } as never);
+    await screen.findByRole('checkbox', { name: /Option a/ });
+    const badges = document.querySelectorAll('.g-quiz-option__letter');
+    expect([...badges].map((b) => b.textContent).join('')).toBe('ABCDEFGH');
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Option a/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(screen.getByText('Not quite — the answers are E and F.')).toBeTruthy();
   });
 
   it('says so when a question has no key', async () => {

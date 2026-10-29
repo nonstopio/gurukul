@@ -1,4 +1,5 @@
 import { itemsOf } from '@gurukul/schema';
+import type { QuizOptionLetter } from '@gurukul/ui';
 import type { Course, Item, Pariksha, Question } from '@gurukul/schema';
 import type { AttemptRow } from '../data/types';
 import type { CheckAnswerResult, QuestionResult } from './service';
@@ -83,13 +84,16 @@ export function sameAnswer(a: readonly string[], b: readonly string[]): boolean 
   return a.length === b.length && a.every((id) => b.includes(id));
 }
 
-const LETTERS = 'ABCD';
+const LETTERS = 'ABCDEFGH';
+
+/** The badge letter of the option at `index`; a question has at most eight options. */
+export function letterOf(index: number): QuizOptionLetter {
+  return LETTERS[index] as QuizOptionLetter;
+}
 
 /** The letters of the right options as shown: "B", "A and C", "A, B and D". */
 export function answerLetters(optionIds: readonly string[], correctIds: readonly string[]): string {
-  const letters = optionIds.flatMap((id, i) =>
-    correctIds.includes(id) ? [LETTERS[i % LETTERS.length] as string] : [],
-  );
+  const letters = optionIds.flatMap((id, i) => (correctIds.includes(id) ? [letterOf(i)] : []));
   return new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(letters);
 }
 
