@@ -13,10 +13,12 @@ import type { TabItem } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useDebounced } from '../data/useDebounced';
 import { Loaded } from '../learn/ui';
+import { log } from '../log';
 import { longDate } from '../pariksha/model';
 import { useConsole } from './ConsoleProvider';
 import { LearnerDrawer } from './LearnerDrawer';
@@ -29,14 +31,13 @@ import {
   onTab,
   peopleFromAssignments,
   searchPrefix,
+  SEARCH_DELAY_MS,
   tabCounts,
 } from './model';
 import type { LearnerRow, LearnerTab, Person } from './model';
 import type { AssignmentFull, UserRow } from './types';
 
 export const PAGE_SIZE = 25;
-/** How long typing must pause before the search runs. */
-export const SEARCH_DELAY_MS = 250;
 
 function tabItems(
   counts: Record<LearnerTab, number>,
@@ -57,16 +58,6 @@ const TABS: Array<{ id: LearnerTab; label: string }> = [
   { id: 'pending', label: 'Pending invite' },
   { id: 'overdue', label: 'Overdue' },
 ];
-
-/** `value`, once it has stopped changing for `ms`. */
-function useDebounced<T>(value: T, ms: number): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), ms);
-    return () => clearTimeout(timer);
-  }, [value, ms]);
-  return settled;
-}
 
 /** `/kulapati/learners`: everyone who signed in plus pending invites, with filters and bulk actions. */
 export function LearnersPage() {
@@ -134,6 +125,29 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [selected, setSelected] = useState<string[]>([]);
   const [open, setOpen] = useState<LearnerRow | null>(null);
+  const [params, setParams] = useSearchParams();
+  const linked = params.get('learner');
+
+  // `?learner=<uid>` (a person picked in global search) opens their drawer, then leaves the URL.
+  useEffect(() => {
+    if (!linked) return;
+    let current = true;
+    data.usersByUid([linked]).then(
+      ([user]) => {
+        if (!current) return;
+        setParams({}, { replace: true });
+        if (user) setOpen(buildLearnerRows([user], [], [], now, false)[0] as LearnerRow);
+        else toast.show('That person was not found.', { tone: 'danger' });
+      },
+      (error: unknown) => {
+        log.warn('Linked learner not loaded', { code: (error as { code?: unknown }).code });
+        if (current) toast.show('Could not open that learner. Try again.', { tone: 'danger' });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [data, linked, now, setParams, toast]);
 
   const reset = (apply: () => void) => {
     apply();

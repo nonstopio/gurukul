@@ -20,8 +20,10 @@ States: hover, `:focus-visible` (`--focus-ring`), disabled (0.5 opacity,
 
 ## CommandPalette — shipped
 
-`<CommandPalette open onClose search={(q) => items} onSelect label placeholder emptyText pageSize>`.
+`<CommandPalette open onClose search={(q) => items} onQueryChange onSelect label placeholder emptyText pageSize>`.
 Generic: the caller decides what is searched and what selecting does (global search passes pages).
+`search` stays synchronous; results that need a network read start from `onQueryChange` and arrive
+as a new `search`, which the palette re-runs.
 
 | Part      | Tokens                                                                                                      |
 | --------- | ----------------------------------------------------------------------------------------------------------- |

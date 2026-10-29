@@ -4,8 +4,10 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../src/auth/AuthProvider';
 import type { ProfileMirror } from '../src/auth/service';
+import { ConsoleProvider } from '../src/console/ConsoleProvider';
 import { DataProvider } from '../src/data/DataProvider';
 import { appRoutes } from '../src/routes';
+import { fakeConsole } from './fake-console';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData } from './fake-data';
@@ -20,9 +22,11 @@ async function home(
   const view = render(
     <AuthProvider service={f.service}>
       <DataProvider data={data.data}>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
+        <ConsoleProvider {...fakeConsole({})}>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </ConsoleProvider>
       </DataProvider>
     </AuthProvider>,
   );

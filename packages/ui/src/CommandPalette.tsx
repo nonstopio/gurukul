@@ -21,6 +21,11 @@ export interface CommandPaletteProps<T extends PaletteItem> {
   onClose: () => void;
   /** Called on every keystroke; must be fast and synchronous. */
   search: (query: string) => T[];
+  /**
+   * Told what is typed after each change (and `''` on open), for results that arrive later: start
+   * the slow lookup here, then pass a new `search` that includes what it found.
+   */
+  onQueryChange?: (query: string) => void;
   onSelect: (item: T) => void;
   /** Accessible name of the dialog and the input. */
   label: string;
@@ -39,6 +44,7 @@ export function CommandPalette<T extends PaletteItem>({ open, ...rest }: Command
 function PaletteDialog<T extends PaletteItem>({
   onClose,
   search,
+  onQueryChange,
   onSelect,
   label,
   placeholder = 'Search…',
@@ -61,6 +67,8 @@ function PaletteDialog<T extends PaletteItem>({
     inputRef.current?.focus();
     return () => before?.focus?.();
   }, []);
+
+  useEffect(() => onQueryChange?.(query), [onQueryChange, query]);
 
   const results = useMemo(() => search(query), [search, query]);
   const shown = results.slice(0, limit);

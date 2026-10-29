@@ -104,6 +104,9 @@ export interface LearnerFilters {
   courseId: string;
 }
 
+/** How long typing must pause before a people search runs. */
+export const SEARCH_DELAY_MS = 250;
+
 /** Search starts at two characters, so one keystroke does not read the whole people list. */
 export const searchPrefix = (search: string): string => {
   const p = search.trim().toLowerCase();

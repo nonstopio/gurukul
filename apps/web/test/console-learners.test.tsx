@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AssignmentFull, UserRow } from '../src/console/types';
+import { log } from '../src/log';
 import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { certificateRow, progressRow } from './fake-data';
@@ -403,6 +404,75 @@ describe('Learners', () => {
       fireEvent.click(await screen.findByText('Rohan'));
       const dialog = await screen.findByRole('dialog');
       expect(await within(dialog).findByText('No courses assigned or started.')).toBeTruthy();
+    });
+  });
+
+  describe('opened from global search', () => {
+    function deferredUsers() {
+      let resolve: (u: UserRow[]) => void = () => {};
+      let reject: (e: unknown) => void = () => {};
+      const promise = new Promise<UserRow[]>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it('opens the drawer of the person in the link, then drops it from the URL', async () => {
+      const c = setup();
+      const { router } = await openApp('/kulapati/learners?learner=u2', {
+        ...kulapati,
+        console: c,
+      });
+      const dialog = await screen.findByRole('dialog', { name: 'Rohan' });
+      expect(within(dialog).getByText('user2@nonstopio.com')).toBeTruthy();
+      expect(c.data.usersByUid).toHaveBeenCalledWith(['u2']);
+      expect(router.state.location.search).toBe('');
+      expect(router.state.location.pathname).toBe('/kulapati/learners');
+    });
+
+    it('says so when the person is not found, or cannot be read', async () => {
+      const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+      const c = setup();
+      const { router } = await openApp('/kulapati/learners?learner=gone', {
+        ...kulapati,
+        console: c,
+      });
+      expect(await screen.findByText('That person was not found.')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      c.data.usersByUid = vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('x'), { code: 'denied' }));
+      await act(() => router.navigate('/kulapati/learners?learner=u1'));
+      expect(await screen.findByText('Could not open that learner. Try again.')).toBeTruthy();
+      expect(warn).toHaveBeenCalledWith('Linked learner not loaded', { code: 'denied' });
+      warn.mockRestore();
+    });
+
+    it('opens only the newest link when an earlier read lands later', async () => {
+      const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+      const c = setup();
+      const first = deferredUsers();
+      const second = deferredUsers();
+      const third = deferredUsers();
+      c.data.usersByUid = vi
+        .fn()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise)
+        .mockReturnValueOnce(third.promise);
+      const { router } = await openApp('/kulapati/learners?learner=u1', {
+        ...kulapati,
+        console: c,
+      });
+      await screen.findByText('Priya');
+      await act(() => router.navigate('/kulapati/learners?learner=u9'));
+      await act(() => router.navigate('/kulapati/learners?learner=u2'));
+      await act(async () => third.resolve([users[1] as UserRow]));
+      await act(async () => first.resolve([users[0] as UserRow]));
+      await act(async () => second.reject(new Error('late')));
+      expect(screen.getByRole('dialog', { name: 'Rohan' })).toBeTruthy();
+      expect(screen.queryByText('Could not open that learner. Try again.')).toBeNull();
+      warn.mockRestore();
     });
   });
 });

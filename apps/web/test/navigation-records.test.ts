@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { log } from '../src/log';
-import { courseDestinations, courseSource, loadRecords } from '../src/navigation/records';
-import type { Destination, RecordSource } from '../src/navigation/types';
+import type { UserRow } from '../src/console/types';
+import {
+  courseDestinations,
+  courseSource,
+  findRecords,
+  learnerPath,
+  loadRecords,
+  peopleLookup,
+  personDestinations,
+} from '../src/navigation/records';
+import type { Destination, RecordLookup, RecordSource } from '../src/navigation/types';
 import { lesson, makeCourse } from './fake-data';
 
 const dest = (id: string): Destination => ({
@@ -87,6 +96,66 @@ describe('loadRecords', () => {
     expect(warn).toHaveBeenCalledWith('Search records not loaded', {
       source: 'broken',
       code: 'unavailable',
+    });
+    warn.mockRestore();
+  });
+});
+
+const person = (over: Partial<UserRow> = {}): UserRow => ({
+  uid: 'u1',
+  email: 'asha.rao@example.com',
+  displayName: 'Asha Rao',
+  team: null,
+  roles: [],
+  grantedCourseIds: [],
+  createdAt: null,
+  ...over,
+});
+
+describe('personDestinations', () => {
+  it('names each person, with their email and team beneath, opening their drawer', () => {
+    const [a, b] = personDestinations([
+      person({ team: 'Mobile' }),
+      person({ uid: 'u/2', displayName: '', email: 'no.name@example.com' }),
+    ]);
+    expect(a).toEqual({
+      id: 'person:u1',
+      path: '/kulapati/learners?learner=u1',
+      label: 'Asha Rao',
+      areaName: 'Learners',
+      description: 'asha.rao@example.com · Mobile',
+      keywords: ['person', 'learner'],
+      kind: 'Person',
+    });
+    expect(b).toMatchObject({
+      label: 'no.name@example.com',
+      description: 'no.name@example.com',
+      path: learnerPath('u/2'),
+    });
+    expect(learnerPath('u/2')).toBe('/kulapati/learners?learner=u%2F2');
+  });
+});
+
+describe('peopleLookup', () => {
+  it('is for Kulapatis and reads the console people search by prefix', async () => {
+    const searchUsers = vi.fn().mockResolvedValue([person()]);
+    const lookup = peopleLookup({ searchUsers });
+    expect(lookup.roles).toEqual(['kulapati']);
+    expect((await lookup.find('as')).map((d) => d.id)).toEqual(['person:u1']);
+    expect(searchUsers).toHaveBeenCalledWith('as');
+  });
+});
+
+describe('findRecords', () => {
+  it('asks every lookup for the prefix, leaving out and logging one that fails', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const fine: RecordLookup = { id: 'fine', find: vi.fn(async () => [dest('p')]) };
+    const broken: RecordLookup = { id: 'broken', find: () => Promise.reject(new Error('x')) };
+    expect(await findRecords([broken, fine], 'as')).toEqual([dest('p')]);
+    expect(fine.find).toHaveBeenCalledWith('as');
+    expect(warn).toHaveBeenCalledWith('Search records not loaded', {
+      source: 'broken',
+      code: undefined,
     });
     warn.mockRestore();
   });

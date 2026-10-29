@@ -1,13 +1,15 @@
 // Record results for global search: things with an id, not pages. Each source turns data the
 // person can already read into destinations; GlobalSearch loads them on first open and ranks them
-// with the pages. A new source (people, draft courses) is one more function here and one more
-// entry where the sources are built (`Shell.tsx`).
+// with the pages. A new source (draft courses) is one more function here and one more entry where
+// the sources are built (`Shell.tsx`). People are too many to load up front, so they are a
+// `RecordLookup` instead: looked up by prefix as the person types.
 
 import type { Course, Lesson } from '@gurukul/schema';
+import type { ConsoleData, UserRow } from '../console/types';
 import type { LearnerData } from '../data/types';
 import { log } from '../log';
 import { allowed } from './catalog';
-import type { Destination, RecordSource, Role } from './types';
+import type { Destination, RecordLookup, RecordSource, Role } from './types';
 
 const LEVELS: Record<Course['level'], string> = {
   foundation: 'Foundation',
@@ -51,24 +53,53 @@ export function courseSource(data: Pick<LearnerData, 'listCourses'>): RecordSour
   return { id: 'courses', load: async () => courseDestinations(await data.listCourses()) };
 }
 
-/**
- * Every source this person may use, loaded together. A source that fails is logged and left out,
- * so pages and the other sources still search.
- */
+/** Where a person found in search opens: the Learners page, with their drawer open. */
+export const learnerPath = (uid: string) => `/kulapati/learners?learner=${encodeURIComponent(uid)}`;
+
+/** Each person by name, with their email (and team) underneath; matched by either. */
+export function personDestinations(users: readonly UserRow[]): Destination[] {
+  return users.map((u) => ({
+    id: `person:${u.uid}`,
+    path: learnerPath(u.uid),
+    label: u.displayName || u.email,
+    areaName: 'Learners',
+    description: u.team ? `${u.email} · ${u.team}` : u.email,
+    keywords: ['person', 'learner'],
+    kind: 'Person',
+  }));
+}
+
+/** People who signed in, for Kulapatis: the Learners page's own bounded prefix search. */
+export function peopleLookup(data: Pick<ConsoleData, 'searchUsers'>): RecordLookup {
+  return {
+    id: 'people',
+    roles: ['kulapati'],
+    find: async (prefix) => personDestinations(await data.searchUsers(prefix)),
+  };
+}
+
+/** A failed read is logged and gives nothing, so pages and the other records still search. */
+const orNothing = (source: string, read: Promise<Destination[]>) =>
+  read.catch((error: unknown): Destination[] => {
+    log.warn('Search records not loaded', { source, code: (error as { code?: unknown }).code });
+    return [];
+  });
+
+/** Every source this person may use, loaded together. */
 export async function loadRecords(
   sources: readonly RecordSource[],
   roles: readonly Role[],
 ): Promise<Destination[]> {
   const loads = sources
     .filter((s) => allowed(s.roles, roles))
-    .map((s) =>
-      s.load().catch((error: unknown) => {
-        log.warn('Search records not loaded', {
-          source: s.id,
-          code: (error as { code?: unknown }).code,
-        });
-        return [];
-      }),
-    );
+    .map((s) => orNothing(s.id, s.load()));
   return (await Promise.all(loads)).flat();
+}
+
+/** Every lookup given (already narrowed to this person's roles), for one prefix, together. */
+export async function findRecords(
+  lookups: readonly RecordLookup[],
+  prefix: string,
+): Promise<Destination[]> {
+  return (await Promise.all(lookups.map((l) => orNothing(l.id, l.find(prefix))))).flat();
 }

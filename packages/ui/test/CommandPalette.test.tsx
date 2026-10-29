@@ -68,6 +68,32 @@ describe('CommandPalette', () => {
     expect(screen.getByRole('status').textContent).toBe('3 results');
   });
 
+  it('tells the caller what is typed, from the empty query on open', () => {
+    const onQueryChange = vi.fn();
+    const { input } = setup({ onQueryChange });
+    expect(onQueryChange).toHaveBeenLastCalledWith('');
+    fireEvent.change(input, { target: { value: 'lea' } });
+    expect(onQueryChange).toHaveBeenLastCalledWith('lea');
+    expect(onQueryChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-runs a new search over what is typed, for results that arrived later', () => {
+    const { input, view } = setup();
+    fireEvent.change(input, { target: { value: 'ana' } });
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    const later = (q: string) => [{ id: 'p', label: `Ana (${q})`, kind: 'Person' }];
+    view.rerender(
+      <CommandPalette
+        open
+        onClose={vi.fn()}
+        search={later}
+        onSelect={vi.fn()}
+        label="Search Gurukul"
+      />,
+    );
+    expect(options()[0]?.textContent).toContain('Ana (ana)');
+  });
+
   it('moves with the arrows, clamped at both ends, and opens with Enter', () => {
     const { input, onSelect } = setup();
     fireEvent.keyDown(input, { key: 'ArrowUp' });

@@ -12,16 +12,16 @@ must pass — the build, CI and the Claude `navigation-nudge` hook all run it.
 
 ## Who owns what
 
-| File                           | Owns                                                                                                                              |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `areas/<slug>.ts`              | One area's name, roles, keywords, pages and unlisted routes. Plain data — no imports except the type, no components, no functions |
-| `types.ts`                     | `AreaNavigation`, `PageNavigation`, `Destination`, `Role`                                                                         |
-| `catalog.ts`                   | Collects areas (by file name) and filters pages to what this person can open, **before** matching                                 |
-| `search.ts`                    | The local matcher. Ranking is in its header. No network, no debounce, no dependency                                               |
-| `records.ts`                   | Record results (courses and lessons today) as `RecordSource`s, and `loadRecords`, which drops a failed source and logs it         |
-| `validate.ts`                  | The rules; `scripts/validate-navigation.ts` runs them over the real files                                                         |
-| `GlobalSearch.tsx`             | The one provider, the one shortcut listener, the `SearchTrigger` button. Mounted once in `App.tsx`                                |
-| `packages/ui` `CommandPalette` | The dialog itself: combobox, listbox, keys. Knows nothing about pages                                                             |
+| File                           | Owns                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `areas/<slug>.ts`              | One area's name, roles, keywords, pages and unlisted routes. Plain data — no imports except the type, no components, no functions      |
+| `types.ts`                     | `AreaNavigation`, `PageNavigation`, `Destination`, `Role`                                                                              |
+| `catalog.ts`                   | Collects areas (by file name) and filters pages to what this person can open, **before** matching                                      |
+| `search.ts`                    | The local matcher. Ranking is in its header. No network, no debounce, no dependency                                                    |
+| `records.ts`                   | Record results: courses and lessons as `RecordSource`s, people as a `RecordLookup`; `loadRecords`/`findRecords` drop and log a failure |
+| `validate.ts`                  | The rules; `scripts/validate-navigation.ts` runs them over the real files                                                              |
+| `GlobalSearch.tsx`             | The one provider, the one shortcut listener, the `SearchTrigger` button. Mounted once in `App.tsx`                                     |
+| `packages/ui` `CommandPalette` | The dialog itself: combobox, listbox, keys. Knows nothing about pages                                                                  |
 
 ## Every route is one of three things
 
@@ -50,8 +50,8 @@ A new area is a new file in `areas/`; nothing to register.
 
 ## Record results
 
-Search also offers records — courses and their lessons today; people (Kulapatis) and draft
-courses (Acharyas) next. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
+Search also offers records — courses and their lessons, and people for Kulapatis; draft courses
+(Acharyas) next. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
 and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The sources are built in
 `Frame` (`src/Shell.tsx`) and passed to `GlobalSearchProvider`, which:
 
@@ -62,6 +62,12 @@ and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The so
 
 A source offers only what the person can already read; the rules are still the gate. A new source
 is one function in `records.ts` and one entry in `Frame`'s list.
+
+Records too many to load up front (people) are a `RecordLookup` instead: `find(prefix)` makes one
+bounded query, run from two characters once typing pauses (`SEARCH_DELAY_MS`, the Learners page's
+own), and only the newest answer is kept. The palette tells the provider what is typed through
+`onQueryChange`. People reuse the console's `searchUsers` and open `/kulapati/learners?learner=<uid>`,
+which opens the learner drawer.
 
 ## The palette
 

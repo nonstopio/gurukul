@@ -32,7 +32,7 @@ system, Platform. **Kinds:** New, Fix, Security, Operability, Docs, Housekeeping
 **What:** Ctrl K / ⌘K (or the Search button) opens a palette that finds any page the person can
 open, by name, area or other words for it: the learner pages, the Kulapati console and Vyasa
 Studio for those roles, and the changelog. It also finds every published course and lesson by its
-title.
+title, and, for Kulapatis, anyone who has signed in, by the start of their name or email.
 
 **How:**
 
@@ -47,6 +47,9 @@ title.
 - Records (courses and lessons) come from `RecordSource`s in `navigation/records.ts`, loaded once
   when the palette first opens from the catalogue's own `listCourses` query, and ranked with the
   pages. An empty query lists pages only.
+- People (Kulapatis only) come from a `RecordLookup`: the Learners page's own `searchUsers` prefix
+  query (two bounded reads), run from two characters once typing pauses for 250 ms, newest answer
+  only. A person opens `/kulapati/learners?learner=<uid>`, which opens their learner drawer.
 
 **Later (proposed, needs review):**
 
@@ -54,7 +57,7 @@ title.
 |---|---|
 | M1 | Real roles from the session; sidebar generated from the same metadata |
 | M2 | Courses and lessons as results (from published course documents, filtered client-side) — built |
-| M4 | Kulapati: people by name or email |
+| M4 | Kulapati: people by name or email — built |
 | M5 | Acharya: their draft courses |
 
 Content results stay client-side over data the person can already read; no search service is

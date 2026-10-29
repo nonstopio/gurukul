@@ -59,3 +59,15 @@ export interface RecordSource {
   roles?: readonly Role[];
   load: () => Promise<Destination[]>;
 }
+
+/**
+ * Records too many to load up front (people), looked up as the person types instead: from two
+ * characters, once typing pauses, newest answer only. `find` gets the lower-cased prefix and must
+ * make a bounded query. Roles and the rules apply as for a `RecordSource`.
+ */
+export interface RecordLookup {
+  /** Stable name, used in logs when a lookup fails. */
+  id: string;
+  roles?: readonly Role[];
+  find: (prefix: string) => Promise<Destination[]>;
+}

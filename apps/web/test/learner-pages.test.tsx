@@ -3,10 +3,12 @@ import { ToastProvider } from '@gurukul/ui';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../src/auth/AuthProvider';
+import { ConsoleProvider } from '../src/console/ConsoleProvider';
 import { DataProvider } from '../src/data/DataProvider';
 import type { AssignmentRow } from '../src/data/types';
 import { ParikshaProvider } from '../src/pariksha/ParikshaProvider';
 import { appRoutes } from '../src/routes';
+import { fakeConsole } from './fake-console';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
@@ -19,11 +21,13 @@ async function open(path: string, data = fakeData()) {
   const view = render(
     <AuthProvider service={f.service}>
       <DataProvider data={data.data}>
-        <ParikshaProvider service={fakePariksha()}>
-          <ToastProvider>
-            <RouterProvider router={router} />
-          </ToastProvider>
-        </ParikshaProvider>
+        <ConsoleProvider {...fakeConsole({})}>
+          <ParikshaProvider service={fakePariksha()}>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </ParikshaProvider>
+        </ConsoleProvider>
       </DataProvider>
     </AuthProvider>,
   );
