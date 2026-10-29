@@ -13,6 +13,7 @@ export interface Mailer {
   send(message: MailMessage): Promise<void>;
 }
 
+/** Used only when `SITE_URL` is unset; deploys set it (repository variable `SITE_URL`). */
 const DEFAULT_SITE = 'https://nonstop-gurukul.web.app';
 
 /** The public site address in links: `SITE_URL` when set (staging, previews), else production. */

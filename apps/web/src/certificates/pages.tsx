@@ -12,8 +12,16 @@ import { Loaded } from '../learn/ui';
 import { linkedInUrl, longDate } from '../pariksha/model';
 import { log } from '../log';
 
+/** The address links point at: `VITE_SITE_URL` when set (the custom domain), else where the app is open. */
+export function siteOrigin(
+  configured: string | undefined = import.meta.env['VITE_SITE_URL'] as string | undefined,
+  current: string = window.location.origin,
+): string {
+  return (configured || current).replace(/\/+$/, '');
+}
+
 /** The public address that proves a certificate is real. */
-export function verifyUrl(id: string, origin: string = window.location.origin): string {
+export function verifyUrl(id: string, origin: string = siteOrigin()): string {
   return `${origin}/verify/${id}`;
 }
 
