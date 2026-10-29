@@ -292,7 +292,7 @@ describe('firestoreGradingStore', () => {
 });
 
 describe('firestoreCertificateAdmin', () => {
-  it('sets revoked on an existing certificate and reports a missing one', async () => {
+  it('sets revoked and its date on an existing certificate and reports a missing one', async () => {
     const update = vi.fn().mockResolvedValue(undefined);
     const get = vi
       .fn()
@@ -301,9 +301,17 @@ describe('firestoreCertificateAdmin', () => {
     const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
     const admin = firestoreCertificateAdmin(db);
     expect(await admin.setRevoked('NSG-GIT-26-0001', true)).toBe(true);
-    expect(update).toHaveBeenCalledWith({ revoked: true });
+    expect(update).toHaveBeenCalledWith({ revoked: true, revokedAt: 'NOW' });
     expect(await admin.setRevoked('NSG-GIT-26-0002', true)).toBe(false);
     expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('clears the revocation date on restore', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue({ exists: true });
+    const db = { doc: vi.fn().mockReturnValue({ get, update }) } as never;
+    expect(await firestoreCertificateAdmin(db).setRevoked('NSG-GIT-26-0001', false)).toBe(true);
+    expect(update).toHaveBeenCalledWith({ revoked: false, revokedAt: null });
   });
 
   it('writes the audit entry with a server timestamp', async () => {

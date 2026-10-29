@@ -44,13 +44,44 @@ function rows() {
     { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }) },
     { live: draftOnly, draft: draftDoc(draftOnly, { updatedAt: null }) },
     { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }) },
-    { live: makeCourse({ id: 'other', title: 'Not mine', acharyaIds: ['x'] }), draft: null },
+    {
+      live: makeCourse({
+        id: 'other',
+        title: 'Not mine',
+        acharyaIds: ['x'],
+        acharyaNames: { x: 'Rohan Das' },
+      }),
+      draft: null,
+    },
     {
       live: makeCourse({ id: 'old', title: 'Retired', status: 'archived', acharyaIds: ['x'] }),
       draft: null,
     },
   ];
 }
+
+describe('Courses in global search for Acharyas', () => {
+  it('finds a never-published draft and opens it in the course editor', async () => {
+    const studio = fakeStudio({ courses: rows() });
+    const app = await openApp('/', { roles: ['acharya'], studio });
+    fireEvent.click(screen.getByRole('button', { name: /Search/ }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
+    const option = await screen.findByRole('option', { name: /Brand new.*Vyasa Studio/ });
+    expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
+    expect(screen.queryByRole('option', { name: /Not mine/ })).toBeNull();
+    fireEvent.click(option);
+    await waitFor(() => expect(app.router.state.location.pathname).toBe('/studio/courses/new'));
+  });
+
+  it('is not loaded for a Shishya', async () => {
+    const studio = fakeStudio({ courses: rows() });
+    await openApp('/', { studio });
+    fireEvent.click(screen.getByRole('button', { name: /Search/ }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
+    expect(await screen.findByRole('combobox')).toBeTruthy();
+    expect(studio.data.listCourses).not.toHaveBeenCalled();
+  });
+});
 
 describe('Studio courses page', () => {
   it('lists courses with status, edits and view-only cards', async () => {
@@ -70,7 +101,8 @@ describe('Studio courses page', () => {
     expect(screen.getByText('Edited 2 h ago')).toBeTruthy();
     expect(screen.getByText('Edited just now')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Not mine' })).toBeNull();
-    expect(screen.getAllByText('View only')).toHaveLength(2);
+    expect(screen.getByText('View only — Acharya: Rohan Das')).toBeTruthy();
+    expect(screen.getByText('View only')).toBeTruthy();
     expect(screen.getByText('Archived')).toBeTruthy();
     expect(screen.getByText('Published · v2')).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);

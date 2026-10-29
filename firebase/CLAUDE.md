@@ -40,7 +40,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
 - Pariksha callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,
   writes `progress/{id}/attempts/{aid}` and `progress.pariksha[id]` in one transaction). Both refuse a
-  Pariksha the learner's `itemStates` shows as locked (`PRK_1003`). Decisions
+  Pariksha the learner's `itemStates` shows as locked (`PRK_1003`), and a retired (archived) course with `CRS_1004`. Decisions
   live in `grading.ts`; the answer key never leaves the server. `revokeCertificate` is Kulapati-only
   and writes an `audit` entry. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 
@@ -49,12 +49,13 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `stats/*.assigned` and `stats/org.assignmentsTotal`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
   20 hours via `lastRemindedAt`), and
-  `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds`, existing courses only).
+  `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.acharyaIds` and the profile's display name
+  into `acharyaNames` on every granted course, existing courses only).
 - Vyasa Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`
   (Acharya or Kulapati; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
-  source draft with its answers; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
+  source draft with its answers; the creator's Google name goes into `acharyaNames`; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
   Acharya or Kulapati; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
-  `acharyaIds` always win; both run `upgradeCourse` on the stored course first; publish is gated by
+  `acharyaIds` and `acharyaNames` always win; both run `upgradeCourse` on the stored course first; publish is gated by
   `validateForPublish` and fails `CRS_1003` with `details.issues`; rollback republishes a snapshot as a new
   version and resets the draft), `archiveCourse` (Kulapati-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
@@ -64,8 +65,12 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   (`docs/operations.md`) or another sender, `.plan/13-open-questions.md` #4, turns sending on.
 - Sanjaya counters: `onProgressWritten` keeps `stats/course_{id}` and `stats/org` (parva completions, weekly
   lessons, finish days, certified) by comparing before/after; `onAttemptCreated` adds score sums and
-  first-try question counts from the attempt's stored `results`. Schedules (daily, UTC, asia-south1):
-  `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries;
+  first-try question counts from the attempt's stored `results` to the course, and score sums and
+  first-try passes (`pariksha*`) to `stats/org`. Schedules (daily, UTC, asia-south1):
+  `dailyRollup` 03:00 recounts users, active learners and assignments with count() queries, and
+  rebuilds every `stats/course_{id}` counter and the org's `started`, `completed` and `pariksha*` from
+  the course, progress and attempt documents (`recountFromSource`, paged reads of 500; `weekly` cannot
+  be rebuilt and is left alone);
   `dailyReminders` 04:00 sends weekly/before-due reminders for mandatory assignments when
   `config/org.reminders.enabled`: one email per person listing everything due, none to anyone reminded in the
   last 20 hours (`remind.ts`; 20, not 24, so a run a few seconds early still counts yesterday's as a day old).

@@ -104,6 +104,9 @@ export interface LearnerFilters {
   courseId: string;
 }
 
+/** How long typing must pause before a people search runs. */
+export const SEARCH_DELAY_MS = 250;
+
 /** Search starts at two characters, so one keystroke does not read the whole people list. */
 export const searchPrefix = (search: string): string => {
   const p = search.trim().toLowerCase();
@@ -122,6 +125,15 @@ export interface Person {
   email: string;
   uid: string | null;
   user: UserRow | null;
+}
+
+/** The newest assignments plus the open (pending and overdue) ones, each assignment once. */
+export function mergeAssignments(
+  newest: readonly AssignmentFull[],
+  open: readonly AssignmentFull[],
+): AssignmentFull[] {
+  const ids = new Set(newest.map((a) => a.id));
+  return [...newest, ...open.filter((a) => !ids.has(a.id))];
 }
 
 /** One person per email in these assignments, sorted by email. */

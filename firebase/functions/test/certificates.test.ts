@@ -43,6 +43,7 @@ describe('planCertificate', () => {
         signatoryName: 'Asha Rao',
         signatoryRole: 'Head of Learning',
         revoked: false,
+        revokedAt: null,
       },
     });
   });

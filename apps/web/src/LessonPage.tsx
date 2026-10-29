@@ -15,9 +15,9 @@ import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
-import { percentFor } from './learn/model';
+import { isRetired, percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
-import { Loaded } from './learn/ui';
+import { Loaded, RetiredNote } from './learn/ui';
 import { BlockView } from './player/blocks';
 import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
@@ -234,6 +234,7 @@ function Player({
             Lesson {index + 1} of {items.length}
           </p>
           <h1 className="article__title">{lesson.title}</h1>
+          {isRetired(course) ? <RetiredNote /> : null}
           {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
           {lesson.blocks.map((b) => (
             <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />

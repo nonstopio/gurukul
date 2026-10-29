@@ -66,6 +66,7 @@ export function toCertificate(id: string, d: Record<string, unknown>): Certifica
     signatoryName: (d.signatoryName as string | undefined) ?? '',
     signatoryRole: (d.signatoryRole as string | undefined) ?? '',
     revoked: d.revoked === true,
+    revokedAt: d.revoked === true ? date(d.revokedAt as Ts) : null,
   };
 }
 

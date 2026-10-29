@@ -60,6 +60,13 @@ export interface ConsoleData {
   courseStats(courseId: string): Promise<CourseStats>;
   /** Pending invites and assignments for one course (or all, newest first, capped). */
   assignments(filter?: { courseId?: string }): Promise<AssignmentFull[]>;
+  /**
+   * Every assignment no one has claimed yet (pending invites) and every one overdue at `now`, so
+   * the Learners tabs count past the newest assignments. Capped high; reads grow with these only.
+   */
+  openAssignments(now: Date): Promise<AssignmentFull[]>;
+  /** How many assignments are overdue at `now`, org-wide: a count() aggregation, not loaded rows. */
+  overdueCount(now: Date): Promise<number>;
   usersPage(after: string | null, pageSize: number): Promise<UserPage>;
   /** Total people who have signed in, for "Showing 1–25 of N". */
   userCount(): Promise<number>;

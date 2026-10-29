@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import {
   firebaseRoleAdmin,
   firestoreBackupPort,
@@ -17,9 +18,11 @@ vi.mock('firebase-admin/firestore', () => ({
     increment: (n: number) => `+${n}`,
     arrayUnion: (v: string) => `union:${v}`,
     arrayRemove: (v: string) => `remove:${v}`,
+    delete: () => 'DELETE',
   },
   Timestamp: { fromMillis: (ms: number) => `ts:${ms}` },
   FieldPath: class {
+    static documentId = () => '__name__';
     parts: string[];
     constructor(...parts: string[]) {
       this.parts = parts;
@@ -47,34 +50,65 @@ describe('firebaseRoleAdmin course grants', () => {
     expect(await admin.getGrantedCourseIds('u')).toEqual([]);
   });
 
-  it('stores the list and updates acharyaIds only on courses that exist', async () => {
+  const grantDb = (snaps: unknown[]) => {
     const batch = batchOf();
-    const snaps = [
-      { exists: true, ref: 'courses/new' },
-      { exists: false, ref: 'courses/ghost' },
-      { exists: true, ref: 'courses/old' },
-    ];
     const db = {
       doc: vi.fn((p: string) => p),
       getAll: vi.fn().mockResolvedValue(snaps),
       batch: vi.fn().mockReturnValue(batch),
     } as never;
-    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new', 'ghost'], {
+    return { batch, db, getAll: (db as { getAll: Mock }).getAll };
+  };
+  const name = { parts: ['acharyaNames', 'u'] };
+
+  it('stores the list and updates acharyaIds and names only on courses that exist', async () => {
+    const { batch, db, getAll } = grantDb([
+      { get: (k: string) => (k === 'displayName' ? 'Asha Rao' : undefined) },
+      { exists: true, ref: 'courses/new' },
+      { exists: false, ref: 'courses/ghost' },
+      { exists: true, ref: 'courses/kept' },
+      { exists: true, ref: 'courses/old' },
+    ]);
+    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new', 'ghost', 'kept'], {
       added: ['new', 'ghost'],
       removed: ['old'],
     });
+    expect(getAll).toHaveBeenCalledWith(
+      'users/u',
+      'courses/new',
+      'courses/ghost',
+      'courses/kept',
+      'courses/old',
+    );
     expect(batch.set).toHaveBeenCalledWith(
       'users/u',
-      { grantedCourseIds: ['new', 'ghost'] },
+      { grantedCourseIds: ['new', 'ghost', 'kept'] },
       { merge: true },
     );
-    expect(batch.update).toHaveBeenCalledTimes(2);
-    expect(batch.update).toHaveBeenCalledWith('courses/new', { acharyaIds: 'union:u' });
-    expect(batch.update).toHaveBeenCalledWith('courses/old', { acharyaIds: 'remove:u' });
+    expect(batch.update).toHaveBeenCalledTimes(3);
+    for (const course of ['courses/new', 'courses/kept']) {
+      expect(batch.update).toHaveBeenCalledWith(course, 'acharyaIds', 'union:u', name, 'Asha Rao');
+    }
+    expect(batch.update).toHaveBeenCalledWith(
+      'courses/old',
+      'acharyaIds',
+      'remove:u',
+      name,
+      'DELETE',
+    );
     expect(batch.commit).toHaveBeenCalledOnce();
   });
 
-  it('only stores the list when no course is added or removed', async () => {
+  it('grants without a name when the person has no profile name', async () => {
+    const { batch, db } = grantDb([{ get: () => undefined }, { exists: true, ref: 'courses/new' }]);
+    await firebaseRoleAdmin({} as never, db).applyCourseGrants('u', ['new'], {
+      added: ['new'],
+      removed: [],
+    });
+    expect(batch.update).toHaveBeenCalledWith('courses/new', { acharyaIds: 'union:u' });
+  });
+
+  it('only stores the list when no course is granted or removed', async () => {
     const batch = batchOf();
     const db = {
       doc: vi.fn((p: string) => p),
@@ -368,17 +402,18 @@ describe('firestoreAttemptStatsStore', () => {
     });
   });
 
-  it('adds score and first-try counters with merge', async () => {
-    const set = vi.fn().mockResolvedValue(undefined);
-    const doc = vi.fn().mockReturnValue({ set });
-    const db = { doc } as never;
+  it('adds score and first-try counters to the course and the org in one batch', async () => {
+    const batch = batchOf();
+    const db = { doc: vi.fn((p: string) => p), batch: vi.fn().mockReturnValue(batch) } as never;
     await firestoreAttemptStatsStore(db).bumpAttemptStats('git', {
       scoreSum: 0.5,
       scoreCount: 1,
       questionFirstTry: { q1: { correct: 1, total: 1 } },
+      firstTryTotal: 1,
+      firstTryPassed: 0,
     });
-    expect(doc).toHaveBeenCalledWith('stats/course_git');
-    expect(set).toHaveBeenCalledWith(
+    expect(batch.set).toHaveBeenCalledWith(
+      'stats/course_git',
       {
         scoreSum: '+0.5',
         scoreCount: '+1',
@@ -386,17 +421,52 @@ describe('firestoreAttemptStatsStore', () => {
       },
       { merge: true },
     );
+    expect(batch.set).toHaveBeenCalledWith(
+      'stats/org',
+      {
+        parikshaScoreSum: '+0.5',
+        parikshaScoreCount: '+1',
+        parikshaFirstTryTotal: '+1',
+        parikshaFirstTryPassed: '+0',
+      },
+      { merge: true },
+    );
+    expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('firestoreRollupStore', () => {
-  it('counts with aggregation queries and overwrites the org counters', async () => {
-    const countQuery = (n: number) => ({
-      count: () => ({ get: async () => ({ data: () => ({ count: n }) }) }),
+  const countQuery = (n: number) => ({
+    count: () => ({ get: async () => ({ data: () => ({ count: n }) }) }),
+  });
+  /** A query over `docs` that pages the way readAll asks: orderBy, limit, startAfter. */
+  const pagedQuery = (docs: object[]) => {
+    const calls: unknown[] = [];
+    const pageFrom = (start: number, size: number) => ({
+      get: async () => {
+        const page = docs.slice(start, start + size);
+        return { docs: page, size: page.length };
+      },
+      startAfter: (last: object) => {
+        calls.push(last);
+        return pageFrom(docs.indexOf(last) + 1, size);
+      },
     });
+    return {
+      calls,
+      orderBy: vi.fn().mockReturnValue({ limit: (size: number) => pageFrom(0, size) }),
+    };
+  };
+  const snap = (id: string, data: object) => ({
+    id,
+    data: () => data,
+    get: (field: string) => (data as Record<string, unknown>)[field],
+  });
+
+  it('counts with aggregation queries and overwrites the org and course counters', async () => {
     const set = vi.fn().mockResolvedValue(undefined);
     const whereProgress = vi.fn().mockReturnValue(countQuery(80));
-    const whereAssignments = vi.fn().mockReturnValue(countQuery(90));
+    const whereAssignments = vi.fn((field: string) => countQuery(field === 'status' ? 90 : 7));
     const doc = vi.fn().mockReturnValue({ set });
     const db = {
       collection: vi.fn((name: string) =>
@@ -415,15 +485,63 @@ describe('firestoreRollupStore', () => {
     expect(await store.countAssignments()).toBe(300);
     expect(await store.countCompletedAssignments()).toBe(90);
     expect(whereAssignments).toHaveBeenCalledWith('status', '==', 'completed');
+    expect(await store.countCourseAssignments('git')).toBe(7);
+    expect(whereAssignments).toHaveBeenCalledWith('courseId', '==', 'git');
     const counts = {
       usersTotal: 1,
       activeLearners30d: 2,
       assignmentsTotal: 3,
       assignmentsCompleted: 4,
+      started: 5,
+      completed: 6,
+      parikshaScoreSum: 7,
+      parikshaScoreCount: 8,
+      parikshaFirstTryTotal: 9,
+      parikshaFirstTryPassed: 10,
     };
     await store.writeOrgCounts(counts);
     expect(doc).toHaveBeenCalledWith('stats/org');
     expect(set).toHaveBeenCalledWith(counts, { merge: true });
+    const course = {
+      assigned: 1,
+      started: 1,
+      completed: 0,
+      certified: 0,
+      scoreSum: 0,
+      scoreCount: 0,
+      parvaCompletions: [],
+      questionFirstTry: {},
+      finishDaysSum: 0,
+    };
+    await store.writeCourseCounts('git', course);
+    expect(doc).toHaveBeenCalledWith('stats/course_git');
+    expect(set).toHaveBeenLastCalledWith(course, { mergeFields: Object.keys(course) });
+  });
+
+  it('reads every course, progress and attempt document in pages of 500', async () => {
+    const progressDocs = Array.from({ length: 1000 }, (_, i) => snap(`p${i}`, { n: i }));
+    const progress = pagedQuery(progressDocs);
+    const courses = pagedQuery([snap('git', { title: 'Git' })]);
+    const attempts = pagedQuery([
+      snap('a1', { score: 1, createdAt: ts(42) }),
+      snap('a2', { score: 0 }),
+    ]);
+    const db = {
+      collection: (name: string) => (name === 'progress' ? progress : courses),
+      collectionGroup: vi.fn().mockReturnValue(attempts),
+    } as never;
+    const store = firestoreRollupStore(db);
+    const read = await store.progress();
+    expect(read).toHaveLength(1000);
+    expect(read[999]).toEqual({ n: 999 });
+    expect(progress.calls).toEqual([progressDocs[499], progressDocs[999]]);
+    expect(progress.orderBy).toHaveBeenCalledWith('__name__');
+    expect(await store.courses()).toEqual([{ id: 'git', data: { title: 'Git' } }]);
+    expect(courses.calls).toEqual([]);
+    expect(await store.attempts()).toEqual([
+      { id: 'a1', createdAtMs: 42, data: { score: 1, createdAt: expect.anything() } },
+      { id: 'a2', createdAtMs: 0, data: { score: 0 } },
+    ]);
   });
 });
 

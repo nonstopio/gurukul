@@ -277,6 +277,7 @@ describe('Studio callables', () => {
   });
   const token = {
     email: 'u@nonstopio.com',
+    name: 'Uma Iyer',
     email_verified: true,
     firebase: { sign_in_provider: 'google.com' },
     acharya: true,
@@ -306,6 +307,11 @@ describe('Studio callables', () => {
     expect(
       await handleCreateCourse(as({ title: 'T', slug: 't', level: 'foundation', theme: 'sky' }), s),
     ).toEqual({ courseId: 't' });
+    expect(s.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        course: expect.objectContaining({ acharyaNames: { u: 'Uma Iyer' } }),
+      }),
+    );
     expect(await handlePublishCourse(as({ courseId: 'c' }), s)).toEqual({ version: 2 });
     expect(await handleRollbackCourse(as({ courseId: 'c', version: 1 }), s)).toEqual({
       version: 2,

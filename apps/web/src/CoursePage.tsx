@@ -1,15 +1,23 @@
 import { itemStates, itemsOf, resumeItemId } from '@gurukul/schema';
 import type { Course, ItemState } from '@gurukul/schema';
-import { Breadcrumb, Card, Chip, EmptyState, ProgressRing, buttonClass } from '@gurukul/ui';
+import {
+  Breadcrumb,
+  Callout,
+  Card,
+  Chip,
+  EmptyState,
+  ProgressRing,
+  buttonClass,
+} from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
-import { countItems, percentFor } from './learn/model';
+import { countItems, hasNewLessons, isRetired, percentFor } from './learn/model';
 import { itemPath } from './pariksha/model';
-import { Loaded } from './learn/ui';
+import { Loaded, RetiredNote } from './learn/ui';
 
 const NO_PROGRESS = { completedItemIds: [], pariksha: {}, lastItemId: null };
 
@@ -78,8 +86,17 @@ function Overview({ course, progress }: { course: Course; progress: ProgressRow 
         {course.parvas.length} parvas · {counts.lessons} lessons · {counts.parikshas} Parikshas ·{' '}
         {course.estimatedMinutes} min
         {course.rules.certificate ? ' · Certificate' : ''}
-        {course.status === 'archived' ? ' · Retired' : ''}
+        {isRetired(course) ? ' · Retired' : ''}
       </p>
+      {isRetired(course) ? <RetiredNote /> : null}
+      {hasNewLessons(course, progress) ? (
+        <Callout tone="note" title="New lessons added">
+          <p>
+            This course has grown since you finished it. Your certificate stays; the new lessons are
+            there whenever you want them.
+          </p>
+        </Callout>
+      ) : null}
       {resume ? (
         <Link className={buttonClass('primary')} to={`/courses/${course.id}/learn/${resume}`}>
           {progress ? `Resume — ${resumeTitle}` : 'Start course'}

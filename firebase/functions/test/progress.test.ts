@@ -5,7 +5,7 @@ import { emptyDelta } from '../src/analytics';
 
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) });
 const course = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'git',
   title: 'Git',
   summary: '',
@@ -14,6 +14,7 @@ const course = {
   cover: { theme: 'forest', glyph: 'G' },
   outcomes: [],
   acharyaIds: [],
+  acharyaNames: {},
   status: 'published',
   version: 1,
   publishedAt: ts(1),

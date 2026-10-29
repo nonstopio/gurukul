@@ -29,6 +29,8 @@ const date = (t: Ts): Date | null => t?.toDate() ?? null;
 /** Firestore allows at most 30 values in an `in` filter. */
 const IN_LIMIT = 30;
 const ASSIGNMENT_LIMIT = 500;
+/** Pending and overdue assignments are few next to all of them; this only bounds a runaway. */
+const OPEN_LIMIT = 2000;
 const AUDIT_LIMIT = 100;
 const SEARCH_LIMIT = 8;
 const PERSON_ASSIGNMENT_LIMIT = 50;
@@ -64,6 +66,10 @@ function toAssignment(id: string, a: Record<string, unknown>): AssignmentFull {
   };
 }
 
+/** Assignments not completed whose due date is before `now`; uses the `status`+`dueAt` index. */
+const overdueAt = (now: Date) =>
+  [where('status', 'in', ['assigned', 'started']), where('dueAt', '<', now)] as const;
+
 export function firebaseConsoleData(db: Firestore): ConsoleData {
   return {
     async orgStats() {
@@ -82,6 +88,20 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
           : query(base, orderBy('assignedAt', 'desc'), limit(ASSIGNMENT_LIMIT)),
       );
       return snap.docs.map((d) => toAssignment(d.id, d.data()));
+    },
+    async openAssignments(now) {
+      const base = collection(db, 'assignments');
+      const [pending, overdue] = await Promise.all([
+        getDocs(query(base, where('uid', '==', null), limit(OPEN_LIMIT))),
+        getDocs(query(base, ...overdueAt(now), limit(OPEN_LIMIT))),
+      ]);
+      const byId = new Map([...pending.docs, ...overdue.docs].map((d) => [d.id, d]));
+      return [...byId.values()].map((d) => toAssignment(d.id, d.data()));
+    },
+    async overdueCount(now) {
+      return (
+        await getCountFromServer(query(collection(db, 'assignments'), ...overdueAt(now)))
+      ).data().count;
     },
     async usersPage(after, pageSize) {
       const base = [collection(db, 'users'), orderBy('email')] as const;

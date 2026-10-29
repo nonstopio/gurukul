@@ -6,21 +6,22 @@ Back-pointer: [`../../CLAUDE.md`](../../CLAUDE.md).
 ## The rule
 
 **Adding, renaming, removing or changing access to a page means editing that area's
-`areas/<slug>.ts` in the same change.** Search is generated from it (and, from M1, the sidebar).
+`areas/<slug>.ts` in the same change.** Search and the sidebar are generated from it.
 Every path in `src/route-paths.ts` must be classified there, and `npm run validate:navigation`
 must pass — the build, CI and the Claude `navigation-nudge` hook all run it.
 
 ## Who owns what
 
-| File                           | Owns                                                                                                                              |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `areas/<slug>.ts`              | One area's name, roles, keywords, pages and unlisted routes. Plain data — no imports except the type, no components, no functions |
-| `types.ts`                     | `AreaNavigation`, `PageNavigation`, `Destination`, `Role`                                                                         |
-| `catalog.ts`                   | Collects areas (by file name) and filters pages to what this person can open, **before** matching                                 |
-| `search.ts`                    | The local matcher. Ranking is in its header. No network, no debounce, no dependency                                               |
-| `validate.ts`                  | The rules; `scripts/validate-navigation.ts` runs them over the real files                                                         |
-| `GlobalSearch.tsx`             | The one provider, the one shortcut listener, the `SearchTrigger` button. Mounted once in `App.tsx`                                |
-| `packages/ui` `CommandPalette` | The dialog itself: combobox, listbox, keys. Knows nothing about pages                                                             |
+| File                           | Owns                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `areas/<slug>.ts`              | One area's name, roles, keywords, pages and unlisted routes. Plain data — no imports except the type, no components, no functions                             |
+| `types.ts`                     | `AreaNavigation`, `PageNavigation`, `Destination`, `Role`                                                                                                     |
+| `catalog.ts`                   | Collects areas (by file name) and filters pages to what this person can open, **before** matching                                                             |
+| `search.ts`                    | The local matcher. Ranking is in its header. No network, no debounce, no dependency                                                                           |
+| `records.ts`                   | Record results: courses and lessons, and editable courses, as `RecordSource`s, people as a `RecordLookup`; `loadRecords`/`findRecords` drop and log a failure |
+| `validate.ts`                  | The rules; `scripts/validate-navigation.ts` runs them over the real files                                                                                     |
+| `GlobalSearch.tsx`             | The one provider, the one shortcut listener, the `SearchTrigger` button. Mounted once in `App.tsx`                                                            |
+| `packages/ui` `CommandPalette` | The dialog itself: combobox, listbox, keys. Knows nothing about pages                                                                                         |
 
 ## Every route is one of three things
 
@@ -47,6 +48,28 @@ x navigation: 1 problem
 
 A new area is a new file in `areas/`; nothing to register.
 
+## Record results
+
+Search also offers records — courses and their lessons, the courses an Acharya or Kulapati may
+edit (drafts included), and people for Kulapatis. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
+and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The sources are built in
+`Frame` (`src/Shell.tsx`) and passed to `GlobalSearchProvider`, which:
+
+- loads them **once, the first time the palette opens** — no reads before someone searches, and a
+  source reuses a query the person's screens already make (courses: the catalogue's `listCourses`;
+  editable courses: Vyasa Studio's `listCourses`, opening `/studio/courses/<id>`);
+- keeps them with the roles they were loaded for, so a change of roles never shows the old ones;
+- ranks them with the pages, but lists pages only while the query is empty.
+
+A source offers only what the person can already read; the rules are still the gate. A new source
+is one function in `records.ts` and one entry in `Frame`'s list.
+
+Records too many to load up front (people) are a `RecordLookup` instead: `find(prefix)` makes one
+bounded query, run from two characters once typing pauses (`SEARCH_DELAY_MS`, the Learners page's
+own), and only the newest answer is kept. The palette tells the provider what is typed through
+`onQueryChange`. People reuse the console's `searchUsers` and open `/kulapati/learners?learner=<uid>`,
+which opens the learner drawer.
+
 ## The palette
 
 Accessible combobox + listbox (`aria-activedescendant`); focus stays in the input, Tab is held,
@@ -54,5 +77,5 @@ Escape and the backdrop close, focus returns to where it was. Twenty rows, then 
 Enter is ignored while an IME is composing. Matching 1,000 destinations is asserted under 25 ms
 per query in `test/navigation-search.test.ts` (it measures well under 1 ms).
 
-Roles come from the session from M1; until then everyone searches as a Shishya. Access in search
+Roles come from the session's custom claims; everyone signed in is a Shishya. Access in search
 is convenience only — Firestore rules are the gate.

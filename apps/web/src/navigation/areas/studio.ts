@@ -1,6 +1,6 @@
 import type { AreaNavigation } from '../types';
 
-/** Vyasa Studio, where Acharyas build courses. Pages land with milestone M5. */
+/** Vyasa Studio, where Acharyas build courses, questions and media. */
 export const navigation = {
   slug: 'studio',
   name: 'Vyasa Studio',

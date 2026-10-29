@@ -176,6 +176,15 @@ export const ERROR_CODES = {
     userMessage: 'This course has problems to fix before it can be published.',
     developerMessage: "Course '%s' failed the publish checks; see details.issues.",
   },
+  CRS_1004: {
+    title: 'Course retired',
+    category: 'COURSE',
+    retryable: false,
+    status: 400,
+    userMessage:
+      'This course is retired. Your progress and certificate are kept, but its Parikshas are closed.',
+    developerMessage: "Course '%s' is archived; it takes no new Pariksha attempts.",
+  },
   CRS_2001: {
     title: 'Course not found',
     category: 'COURSE',

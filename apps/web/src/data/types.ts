@@ -51,6 +51,8 @@ export interface CertificateRow {
   signatoryName: string;
   signatoryRole: string;
   revoked: boolean;
+  /** When it was revoked; null when valid, or revoked before the date was recorded. */
+  revokedAt: Date | null;
 }
 
 /**

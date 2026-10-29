@@ -25,7 +25,7 @@ import { DetailsPanel } from './DetailsPanel';
 import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
-import { canEdit } from './studioModel';
+import { acharyaSummary, canEdit } from './studioModel';
 import { useDraft } from './useDraft';
 import type { SaveState } from './useDraft';
 import { VersionsTab } from './VersionsTab';
@@ -67,6 +67,7 @@ export function CourseEditorPage() {
           );
         }
         if (!canEdit(live, uid, kulapati)) {
+          const acharyas = acharyaSummary(live);
           return (
             <main className="page">
               <h1 className="page__title">{live.title}</h1>
@@ -75,6 +76,11 @@ export function CourseEditorPage() {
                   You are not one of this course&apos;s Acharyas, so you can read it but not change
                   it. Ask a Kulapati for edit access.
                 </p>
+                {acharyas ? (
+                  <p>
+                    {acharyas.label}: {acharyas.names}.
+                  </p>
+                ) : null}
               </Callout>
               <p>
                 <Link className={buttonClass('secondary')} to="/studio">
@@ -181,7 +187,7 @@ function Editor({ initial, kulapati }: { initial: Course; kulapati: boolean }) {
           <div className="sc-editor__main">
             <StructureTab course={course} live={published ? live : null} update={update} />
           </div>
-          <DetailsPanel course={course} update={update} />
+          <DetailsPanel course={course} acharyas={live} update={update} />
         </div>
       ),
     },

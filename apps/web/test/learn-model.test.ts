@@ -6,6 +6,8 @@ import {
   countItems,
   dueLabel,
   firstName,
+  hasNewLessons,
+  isRetired,
   orderAssigned,
   percentFor,
 } from '../src/learn/model';
@@ -123,5 +125,26 @@ describe('dueLabel and firstName', () => {
     expect(firstName('')).toBe('');
     expect(firstName(null)).toBe('');
     expect(firstName(undefined)).toBe('');
+  });
+});
+
+describe('isRetired and hasNewLessons', () => {
+  it('calls only an archived course retired', () => {
+    expect(isRetired({ status: 'archived' })).toBe(true);
+    expect(isRetired({ status: 'published' })).toBe(false);
+  });
+  it('flags a finished course that has since gained items, and nothing else', () => {
+    const c = course('git');
+    const done = (completedItemIds: string[], completedAt: Date | null) =>
+      ({
+        completedItemIds,
+        pariksha: { 'git-q1': { passed: true } },
+        completedAt,
+      }) as unknown as ProgressRow;
+    const at = new Date('2026-03-01T00:00:00Z');
+    expect(hasNewLessons(c, done(['git-l1'], at))).toBe(true);
+    expect(hasNewLessons(c, done(['git-l1', 'git-l2'], at))).toBe(false);
+    expect(hasNewLessons(c, done(['git-l1'], null))).toBe(false);
+    expect(hasNewLessons(c, null)).toBe(false);
   });
 });

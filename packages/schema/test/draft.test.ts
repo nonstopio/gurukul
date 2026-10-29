@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  courseSchema,
   blankCourse,
   countUnpublished,
   diffCourses,
@@ -41,19 +42,27 @@ describe('blankCourse and estimateMinutes', () => {
       level: 'foundation',
       theme: 'sky',
       acharyaId: 'u1',
+      acharyaName: 'Asha Rao',
     });
+    expect(courseSchema.safeParse(c).success).toBe(true);
     expect(c).toMatchObject({
       status: 'draft',
       version: 0,
       acharyaIds: ['u1'],
+      acharyaNames: { u1: 'Asha Rao' },
       cover: { theme: 'sky', glyph: 'S' },
       parvas: [],
     });
     expect(estimateMinutes(c)).toBe(0);
-    expect(
-      blankCourse({ id: 'x', title: '  ', level: 'advanced', theme: 'sand', acharyaId: 'u' }).cover
-        .glyph,
-    ).toBe('G');
+    const unnamed = blankCourse({
+      id: 'x',
+      title: '  ',
+      level: 'advanced',
+      theme: 'sand',
+      acharyaId: 'u',
+    });
+    expect(unnamed.cover.glyph).toBe('G');
+    expect(unnamed.acharyaNames).toEqual({});
   });
 
   it('sums lesson minutes only', () => {

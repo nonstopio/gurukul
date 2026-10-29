@@ -30,27 +30,39 @@ system, Platform. **Kinds:** New, Fix, Security, Operability, Docs, Housekeeping
 ## Global search
 
 **What:** Ctrl K / ⌘K (or the Search button) opens a palette that finds any page the person can
-open, by name, area or other words for it. Today that is Home and Changelog; every milestone adds
-its pages.
+open, by name, area or other words for it: the learner pages, the Kulapati console and Vyasa
+Studio for those roles, and the changelog. It also finds every published course and lesson by its
+title, and, for Kulapatis, anyone who has signed in, by the start of their name or email.
 
 **How:**
 
 - Per-area metadata in `apps/web/src/navigation/areas/<slug>.ts` (plain data: pages, roles,
-  keywords, unlisted routes with reasons). Search, and the sidebar from M1, are generated from it.
+  keywords, unlisted routes with reasons): `learner`, `kulapati`, `studio`, and `platform` for
+  pages that belong to no one area. Search and the sidebar are generated from it.
 - Access is filtered before matching, so nothing a person cannot open is ranked or shown.
 - Local, deterministic ranking (exact label, prefix, path terms, contains, keywords); no network.
 - `npm run validate:navigation` fails if any route is unclassified or any page points nowhere.
   It runs in the build, in CI and in the `navigation-nudge` hook.
 - The dialog is `CommandPalette` in `packages/ui`, generic and fully keyboard-operable.
+- Records (courses and lessons) come from `RecordSource`s in `navigation/records.ts`, loaded once
+  when the palette first opens from the catalogue's own `listCourses` query, and ranked with the
+  pages. An empty query lists pages only.
+- People (Kulapatis only) come from a `RecordLookup`: the Learners page's own `searchUsers` prefix
+  query (two bounded reads), run from two characters once typing pauses for 250 ms, newest answer
+  only. A person opens `/kulapati/learners?learner=<uid>`, which opens their learner drawer.
+- Courses someone may edit (Acharyas and Kulapatis) come from Vyasa Studio's own `listCourses`,
+  the reads `/studio` makes, loaded with the other sources; drafts never published are included,
+  titled from the draft, and each opens the course editor. A Kulapati may edit every course, so
+  finds every course.
 
 **Later (proposed, needs review):**
 
 | Milestone | Search gains |
 |---|---|
 | M1 | Real roles from the session; sidebar generated from the same metadata |
-| M2 | Courses and lessons as results (from published course documents, filtered client-side) |
-| M4 | Kulapati: people by name or email |
-| M5 | Acharya: their draft courses |
+| M2 | Courses and lessons as results (from published course documents, filtered client-side) — built |
+| M4 | Kulapati: people by name or email — built |
+| M5 | Acharya: their draft courses — built |
 
 Content results stay client-side over data the person can already read; no search service is
 needed at Gurukul's size. Revisit only if the catalogue outgrows a few thousand items.

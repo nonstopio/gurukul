@@ -13,6 +13,9 @@ analytics, Org settings. Handoff: `design-handoff/02-kulapati-console.md`.
   a bounded set (a team, a role, a course's assignments, search results) that
   the rest then filter in memory, and the tab counts follow the filters.
   Search waits for a 250 ms pause in typing and starts at two characters.
+- The Pending invite and Overdue tabs read every unclaimed (`uid == null`) and
+  every overdue assignment, not only the newest 500, so their counts and the
+  pending list are exact; reads grow with pending and overdue assignments only.
 - Bulk actions on selected rows: assign course, send reminder, change role.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Pariksha cooldown, revoke a certificate).

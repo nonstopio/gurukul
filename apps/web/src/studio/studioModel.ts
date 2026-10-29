@@ -12,6 +12,24 @@ export function canEdit(
   return kulapati || course.acharyaIds.includes(uid);
 }
 
+/**
+ * Who a course's Acharyas are, for "View only — Acharya: Asha Rao". Names come from the course's
+ * `acharyaNames`; Acharyas granted before names were stored count as "1 other". Null when there
+ * are none, or no name is known.
+ */
+export function acharyaSummary(
+  course: Pick<Course, 'acharyaIds' | 'acharyaNames'>,
+): { label: string; names: string } | null {
+  const known = course.acharyaIds.flatMap((id) => course.acharyaNames[id] ?? []);
+  if (known.length === 0) return null;
+  const others = course.acharyaIds.length - known.length;
+  if (others > 0) known.push(`${others} ${others === 1 ? 'other' : 'others'}`);
+  return {
+    label: course.acharyaIds.length === 1 ? 'Acharya' : 'Acharyas',
+    names: known.join(', '),
+  };
+}
+
 /** "just now", "5 min ago", "2 h ago", "3 d ago", then the date. */
 export function relativeTime(date: Date, now: Date): string {
   const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);

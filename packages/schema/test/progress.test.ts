@@ -164,6 +164,8 @@ describe('attemptSchema', () => {
 
   it('defaults results for attempts recorded before they were stored', () => {
     expect(attemptSchema.parse(base).results).toEqual([]);
+    expect(attemptSchema.parse(base).passed).toBe(false);
+    expect(attemptSchema.parse({ ...base, passed: true }).passed).toBe(true);
     const results = [{ questionId: 'q1', correct: true }];
     expect(attemptSchema.parse({ ...base, results, extra: 1 }).results).toEqual(results);
   });

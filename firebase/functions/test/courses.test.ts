@@ -34,7 +34,12 @@ const upgradeOnce = (title: string) =>
 const envelope = apiResponseSchema(z.unknown());
 const parses = (e: ApiException) => envelope.parse(apiFail([e], 'trace'));
 
-const asha = { uid: 'asha', email: 'asha@nonstopio.com', claims: { acharya: true } };
+const asha = {
+  uid: 'asha',
+  email: 'asha@nonstopio.com',
+  name: 'Asha Rao',
+  claims: { acharya: true },
+};
 const rohan = { uid: 'rohan', email: 'rohan@nonstopio.com', claims: { acharya: true } };
 const ajay = { uid: 'ajay', email: 'ajay@nonstopio.com', claims: { kulapati: true } };
 const priya = { uid: 'priya', email: 'priya@nonstopio.com', claims: {} };
@@ -97,12 +102,31 @@ describe('createCourse', () => {
     expect(f.created[0]).toMatchObject({
       courseId: 'git-basics',
       uid: 'asha',
-      course: { id: 'git-basics', status: 'draft', version: 0, acharyaIds: ['asha'] },
-      draft: { answers: {}, course: { title: 'Git basics', acharyaIds: ['asha'] } },
+      course: {
+        id: 'git-basics',
+        status: 'draft',
+        version: 0,
+        acharyaIds: ['asha'],
+        acharyaNames: { asha: 'Asha Rao' },
+      },
+      draft: {
+        answers: {},
+        course: { title: 'Git basics', acharyaIds: ['asha'], acharyaNames: { asha: 'Asha Rao' } },
+      },
     });
     expect(f.audits).toEqual([
       { action: 'course.create', by: 'asha', target: 'git-basics', detail: {} },
     ]);
+  });
+
+  it.each([
+    ['a blank Google name', { ...asha, name: '  ' }, { asha: 'asha' }],
+    ['no Google name', { ...asha, name: undefined }, { asha: 'asha' }],
+    ['no name or email', { uid: 'asha', claims: { acharya: true } }, {}],
+  ])('names the creator by the email local part, or not at all: %s', async (_, caller, names) => {
+    const f = fake();
+    await createCourse(f.store, caller, request);
+    expect((f.created[0] as { course: Course }).course.acharyaNames).toEqual(names);
   });
 
   it('lets a Kulapati create too, and treats a null duplicateFrom as none', async () => {
@@ -154,6 +178,7 @@ describe('createCourse', () => {
       id: 'git-basics',
       title: 'Git basics',
       acharyaIds: ['asha'],
+      acharyaNames: { asha: 'Asha Rao' },
       status: 'draft',
       version: 0,
       publishedAt: null,
@@ -220,6 +245,7 @@ describe('publishCourse', () => {
       status: 'published',
       version: 3,
       acharyaIds: ['asha'],
+      acharyaNames: {},
       estimatedMinutes: 0,
     });
     expect(plan.answers).toEqual(answerKey);
@@ -281,7 +307,15 @@ describe('rollbackCourse', () => {
   };
 
   it('publishes the snapshot as a new version and resets the draft to it', async () => {
-    const f = fake({ snapshot });
+    const f = fake({
+      snapshot,
+      live: {
+        version: 2,
+        status: 'published',
+        acharyaIds: ['asha'],
+        acharyaNames: { asha: 'Asha Rao' },
+      },
+    });
     const data = await rollbackCourse(f.store, asha, { courseId: 'git-basics', version: 1 });
     expect(envelope.parse(apiOk(data)).data).toEqual({ version: 3 });
     const [{ plan }] = f.plans as [Fake['plans'][number]];
@@ -290,6 +324,7 @@ describe('rollbackCourse', () => {
       status: 'published',
       version: 3,
       acharyaIds: ['asha'],
+      acharyaNames: { asha: 'Asha Rao' },
     });
     expect(plan.answers).toEqual(answerKey);
     expect(plan.resetDraft).toEqual({ rev: 5, course: snapshot.course, answers: answerKey });

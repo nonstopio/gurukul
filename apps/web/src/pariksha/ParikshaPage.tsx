@@ -16,7 +16,8 @@ import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
-import { Loaded } from '../learn/ui';
+import { isRetired } from '../learn/model';
+import { Loaded, RetiredNote } from '../learn/ui';
 import { Prose } from '../player/blocks';
 import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
 import {
@@ -80,6 +81,21 @@ function Exam({
   );
   const lastAttemptAt = progress?.pariksha[pariksha.id]?.lastAttemptAt ?? null;
   const wait = cooldownRemaining(lastAttemptAt, pariksha.cooldownMinutes, now);
+  // Grading refuses a retired course, so do not let the learner answer questions it cannot score.
+  if (isRetired(course)) {
+    return (
+      <>
+        <TopBar title={course.title} titleAs="p" back={back} />
+        <main className="page">
+          <h1 className="page__title">{pariksha.title}</h1>
+          <RetiredNote />
+          <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+            Back to the outline
+          </Link>
+        </main>
+      </>
+    );
+  }
   if (states[pariksha.id] === 'locked' || wait > 0) {
     return (
       <>

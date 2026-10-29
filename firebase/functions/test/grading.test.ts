@@ -110,6 +110,14 @@ describe('checkAnswer', () => {
       'CRS_1001',
     );
     await rejects(
+      checkAnswer(
+        store({ getCourse: vi.fn().mockResolvedValue(course({}, { status: 'archived' })) }),
+        'u',
+        data,
+      ),
+      'CRS_1004',
+    );
+    await rejects(
       checkAnswer(store({ getCourse: vi.fn().mockResolvedValue({ broken: true }) }), 'u', data),
       'CRS_3001',
     );
@@ -248,6 +256,13 @@ describe('checkCooldown and nextResult', () => {
 });
 
 describe('gradeAttempt', () => {
+  it('refuses a retired course without reading the key or recording an attempt', async () => {
+    const s = store({ getCourse: vi.fn().mockResolvedValue(course({}, { status: 'archived' })) });
+    await rejects(grade(s), 'CRS_1004');
+    expect(s.getAnswers).not.toHaveBeenCalled();
+    expect(s.recordAttempt).not.toHaveBeenCalled();
+  });
+
   it('scores, records one attempt and returns the key when answers are revealed after each', async () => {
     const s = store();
     const out = await grade(s);

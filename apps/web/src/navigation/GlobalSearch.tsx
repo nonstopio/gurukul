@@ -2,15 +2,29 @@
 //
 // Mounted once, in App, around every page. The header's SearchTrigger opens the same palette
 // through context. Destinations come from the per-area metadata in `areas/*.ts`, filtered to what
-// this person can open BEFORE matching, so nothing inaccessible is ever ranked or shown.
+// this person can open BEFORE matching, so nothing inaccessible is ever ranked or shown. Record
+// results (courses and lessons) come from `sources`, loaded once on first open and ranked with the
+// pages; an empty query lists pages only. People (Kulapatis only) come from `lookups`, read by
+// prefix once typing pauses, newest answer only, like the Learners page's own search.
 
 import { CommandPalette } from '@gurukul/ui';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
-import { destinationsFor } from './catalog';
+import { SEARCH_DELAY_MS, searchPrefix } from '../console/model';
+import { useDebounced } from '../data/useDebounced';
+import { allowed, destinationsFor } from './catalog';
 import { AREAS } from './index';
-import { indexDestinations, searchDestinations } from './search';
-import type { AreaNavigation, Destination, Role } from './types';
+import { findRecords, loadRecords } from './records';
+import { indexDestinations, normalize, searchDestinations } from './search';
+import type { AreaNavigation, Destination, RecordLookup, RecordSource, Role } from './types';
 
 interface GlobalSearchValue {
   open: boolean;
@@ -34,18 +48,71 @@ export interface GlobalSearchProviderProps {
   /** The signed-in person's roles. Until sign-in lands (M1) everyone is a Shishya. */
   roles?: readonly Role[];
   areas?: readonly AreaNavigation[];
+  /** Record results (courses today), loaded the first time the palette opens. */
+  sources?: readonly RecordSource[];
+  /** Records looked up as the person types (people, for Kulapatis). */
+  lookups?: readonly RecordLookup[];
   mac?: boolean;
 }
+
+const SHISHYA: readonly Role[] = ['shishya'];
+const NO_SOURCES: readonly RecordSource[] = [];
+const NO_LOOKUPS: readonly RecordLookup[] = [];
 
 export function GlobalSearchProvider({
   children,
   navigate,
-  roles = ['shishya'],
+  roles = SHISHYA,
   areas = AREAS,
+  sources = NO_SOURCES,
+  lookups = NO_LOOKUPS,
   mac = isMac(),
 }: GlobalSearchProviderProps) {
   const [open, setOpen] = useState(false);
-  const index = useMemo(() => indexDestinations(destinationsFor(areas, roles)), [areas, roles]);
+  // Records are kept with the sources and roles they were loaded for, so a change of roles never
+  // shows what the previous roles could see while the new load is in flight.
+  const scope = useMemo(() => ({ sources, roles }), [sources, roles]);
+  const [records, setRecords] = useState({ scope, list: [] as Destination[] });
+  // Looked up only for a prefix of two characters or more, once typing pauses. Each answer is kept
+  // with the lookups and prefix it was for, and shown only while both are current; of several in
+  // flight, only the newest request's answer is kept at all.
+  const mine = useMemo(() => lookups.filter((l) => allowed(l.roles, roles)), [lookups, roles]);
+  const [typed, setTyped] = useState('');
+  const prefix = useDebounced(searchPrefix(typed), SEARCH_DELAY_MS);
+  const [found, setFound] = useState({ scope: mine, prefix: '', list: [] as Destination[] });
+  const latest = useRef(0);
+  useEffect(() => {
+    const id = ++latest.current;
+    if (!prefix || mine.length === 0) return;
+    void findRecords(mine, prefix).then((list) => {
+      if (id === latest.current) setFound({ scope: mine, prefix, list });
+    });
+  }, [mine, prefix]);
+  const people = useMemo(
+    () => (found.scope === mine && found.prefix === prefix ? found.list : []),
+    [found, mine, prefix],
+  );
+
+  const index = useMemo(
+    () =>
+      indexDestinations([
+        ...destinationsFor(areas, roles),
+        ...(records.scope === scope ? records.list : []),
+        ...people,
+      ]),
+    [areas, roles, records, scope, people],
+  );
+
+  // Once per scope, and only when someone actually opens search: no reads before that.
+  const requested = useRef<typeof scope | null>(null);
+  useEffect(() => {
+    if (!open || requested.current === scope) return;
+    requested.current = scope;
+    void loadRecords(scope.sources, scope.roles).then((list) => {
+      // A slower load for an earlier scope must not overwrite a newer one.
+      if (requested.current === scope) setRecords({ scope, list });
+    });
+  }, [open, scope]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,14 +131,18 @@ export function GlobalSearchProvider({
   const close = useCallback(() => setOpen(false), []);
   const openSearch = useCallback(() => setOpen(true), []);
   const search = useCallback(
-    (query: string) =>
-      searchDestinations(index, query).map((d: Destination) => ({
-        id: d.id,
-        label: d.label,
-        sub: [d.areaName, d.description].filter(Boolean).join(' · '),
-        kind: 'Page',
-        value: d.path,
-      })),
+    (query: string) => {
+      const typed = normalize(query) !== '';
+      return searchDestinations(index, query)
+        .filter((d) => typed || !d.kind)
+        .map((d: Destination) => ({
+          id: d.id,
+          label: d.label,
+          sub: [d.areaName, d.description].filter(Boolean).join(' · '),
+          kind: d.kind ?? 'Page',
+          value: d.path,
+        }));
+    },
     [index],
   );
   const select = useCallback(
@@ -93,10 +164,15 @@ export function GlobalSearchProvider({
         open={open}
         onClose={close}
         search={search}
+        onQueryChange={setTyped}
         onSelect={select}
         label="Search Gurukul"
-        placeholder="Search pages…"
-        emptyText="No pages match"
+        placeholder={
+          mine.length
+            ? 'Search pages, courses, lessons and people…'
+            : 'Search pages, courses and lessons…'
+        }
+        emptyText="Nothing matches"
       />
     </Ctx.Provider>
   );

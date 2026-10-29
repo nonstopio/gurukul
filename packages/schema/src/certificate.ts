@@ -12,6 +12,8 @@ export const certificateSchema = z.object({
   signatoryName: z.string(),
   signatoryRole: z.string(),
   revoked: z.boolean(),
+  /** When it was last revoked; null once restored, absent on certificates revoked before it was recorded. */
+  revokedAt: timestamp.nullable().optional(),
 });
 export type Certificate = z.infer<typeof certificateSchema>;
 

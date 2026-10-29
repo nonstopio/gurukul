@@ -6,7 +6,7 @@ import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { assignmentsCsv, isOverdue, pct, weeklySeries } from './model';
+import { assignmentsCsv, pct, weeklySeries } from './model';
 
 /** Hands the browser a file to save; nothing leaves the page. */
 function downloadCsv(name: string, text: string): void {
@@ -24,16 +24,17 @@ export function OverviewPage() {
   const learner = useLearnerData();
   const [now] = useState(() => new Date());
   const load = useCallback(async () => {
-    const [org, courses, assignments] = await Promise.all([
+    const [org, courses, assignments, overdue] = await Promise.all([
       data.orgStats(),
       learner.listCourses(),
       data.assignments(),
+      data.overdueCount(now),
     ]);
     const rows = await Promise.all(
       courses.map(async (course) => ({ course, stats: await data.courseStats(course.id) })),
     );
-    return { org, assignments, rows };
-  }, [data, learner]);
+    return { org, assignments, overdue, rows };
+  }, [data, learner, now]);
   const result = useAsync(load);
 
   return (
@@ -55,14 +56,15 @@ export function OverviewPage() {
         </Link>
       </div>
       <Loaded loadable={result}>
-        {({ org, assignments, rows }) => {
-          const overdue = assignments.filter((a) => isOverdue(a, now)).length;
+        {({ org, assignments, overdue, rows }) => {
           const pending = new Set(assignments.filter((a) => a.uid === null).map((a) => a.email))
             .size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
           const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
           const done = pct(org.assignmentsCompleted, org.assignmentsTotal);
+          const avgScore = pct(org.parikshaScoreSum, org.parikshaScoreCount);
+          const firstTry = pct(org.parikshaFirstTryPassed, org.parikshaFirstTryTotal);
           return (
             <>
               <div className="stats">
@@ -75,6 +77,20 @@ export function OverviewPage() {
                   label="Assignments completed"
                   value={done === null ? '—' : `${done}%`}
                   sub={`${org.assignmentsCompleted} of ${org.assignmentsTotal}`}
+                />
+                <StatCard
+                  label="Average Pariksha score"
+                  value={avgScore === null ? '—' : `${avgScore}%`}
+                  sub={
+                    org.parikshaScoreCount > 0
+                      ? `Over ${org.parikshaScoreCount} graded attempts`
+                      : 'No attempts yet'
+                  }
+                />
+                <StatCard
+                  label="First-try pass rate"
+                  value={firstTry === null ? '—' : `${firstTry}%`}
+                  sub={`${org.parikshaFirstTryPassed} of ${org.parikshaFirstTryTotal} first attempts`}
                 />
                 <StatCard
                   label="Overdue assignments"

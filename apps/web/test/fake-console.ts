@@ -25,6 +25,8 @@ export function fakeConsole(
   init: {
     users?: UserRow[];
     assignments?: AssignmentFull[];
+    /** Pending and overdue assignments past the newest ones; defaults to those among `assignments`. */
+    open?: AssignmentFull[];
     org?: Partial<OrgStats>;
     course?: Partial<CourseStats>;
     teams?: string[];
@@ -40,6 +42,19 @@ export function fakeConsole(
     orgStats: vi.fn().mockResolvedValue(orgStatsSchema.parse(init.org ?? {})),
     courseStats: vi.fn().mockResolvedValue(courseStatsSchema.parse(init.course ?? {})),
     assignments: vi.fn().mockResolvedValue(init.assignments ?? []),
+    openAssignments: vi.fn(async (now: Date) =>
+      (init.open ?? init.assignments ?? []).filter(
+        (a) =>
+          a.uid === null ||
+          (a.status !== 'completed' && a.dueAt !== null && a.dueAt.getTime() < now.getTime()),
+      ),
+    ),
+    overdueCount: vi.fn(
+      async (now: Date) =>
+        (init.open ?? init.assignments ?? []).filter(
+          (a) => a.status !== 'completed' && a.dueAt !== null && a.dueAt.getTime() < now.getTime(),
+        ).length,
+    ),
     usersPage: vi.fn().mockResolvedValue({ rows: users, nextCursor: null }),
     userCount: vi.fn().mockResolvedValue(init.count ?? users.length),
     progressFor: vi.fn().mockResolvedValue([]),

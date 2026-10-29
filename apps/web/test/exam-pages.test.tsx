@@ -219,6 +219,17 @@ describe('Pariksha screen', () => {
     expect(await screen.findByText('Could not submit your answers. Try again.')).toBeTruthy();
   });
 
+  it('closes the Pariksha of a retired course instead of drawing questions', async () => {
+    const course = courseWith();
+    course.status = 'archived';
+    await openApp(PATH, { data: data(course) });
+    expect(await screen.findByText('This course is retired')).toBeTruthy();
+    expect(screen.queryByText('Question k1?')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the outline' }).getAttribute('href')).toBe(
+      '/courses/git',
+    );
+  });
+
   it('explains a locked Pariksha and an unfinished cooldown', async () => {
     const { unmount } = await openApp(PATH, {
       data: data(courseWith(), progressRow({ lastItemId: 'l1' })),
@@ -739,11 +750,24 @@ describe('Verify (public)', () => {
       signedIn: false,
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'Revoked' })).toBeTruthy();
+    expect(screen.getByText('This certificate has been revoked')).toBeTruthy();
     unmount();
     await openApp('/verify/NOPE', { signedIn: false });
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Certificate not found' }),
     ).toBeTruthy();
+  });
+
+  it('says when a certificate was revoked', async () => {
+    await openApp('/verify/X', {
+      data: fakeData({
+        certificates: [
+          certificateRow({ id: 'X', revoked: true, revokedAt: new Date('2026-12-02T06:00:00Z') }),
+        ],
+      }),
+      signedIn: false,
+    });
+    expect(await screen.findByText('Revoked on 2 December 2026')).toBeTruthy();
   });
 
   it('has no axe violations', async () => {

@@ -9,7 +9,7 @@ export function collectAreas(
     .map((path) => (modules[path] as { navigation: AreaNavigation }).navigation);
 }
 
-const allowed = (needed: readonly Role[] | undefined, roles: readonly Role[]) =>
+export const allowed = (needed: readonly Role[] | undefined, roles: readonly Role[]) =>
   !needed || needed.some((r) => roles.includes(r));
 
 /**

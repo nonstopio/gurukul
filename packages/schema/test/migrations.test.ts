@@ -19,12 +19,19 @@ describe('upgradeCourse', () => {
     2: (c: Record<string, unknown>) => ({ ...c, title: `${String(c.title)} v3` }),
   };
 
-  it('has no steps while the course is at v1', () => {
-    expect(MIGRATIONS).toEqual({});
+  it('v1 to v2 adds empty acharyaNames and keeps names a role grant already wrote', () => {
+    const v1: Record<string, unknown> = { ...makeCourse(), schemaVersion: 1 };
+    delete v1.acharyaNames;
+    expect(upgradeCourse(v1)).toMatchObject({ schemaVersion: 2, acharyaNames: {} });
+    expect(migrateCourse(v1).acharyaNames).toEqual({});
+    expect(upgradeCourse({ ...v1, acharyaNames: { u1: 'Asha' } })).toMatchObject({
+      acharyaNames: { u1: 'Asha' },
+    });
+    expect(Object.keys(MIGRATIONS)).toEqual(['1']);
   });
 
   it('runs every step from the stored version to the target, without changing the input', () => {
-    const raw = makeCourse();
+    const raw = { ...makeCourse(), schemaVersion: 1 };
     expect(upgradeCourse(raw, steps, 3)).toMatchObject({ title: 'Git v2 v3', schemaVersion: 3 });
     expect(upgradeCourse({ ...raw, schemaVersion: 2 }, steps, 3)).toMatchObject({
       title: 'Git v3',
@@ -35,19 +42,19 @@ describe('upgradeCourse', () => {
   it('leaves a current, newer or versionless course untouched', () => {
     const raw = makeCourse();
     expect(upgradeCourse(raw)).toBe(raw);
-    expect(upgradeCourse(raw, steps, 1)).toBe(raw);
+    expect(upgradeCourse(raw, steps, 2)).toBe(raw);
     expect(upgradeCourse(null, steps, 3)).toBeNull();
   });
 
   it('refuses a version with no step to its successor', () => {
-    expect(() => upgradeCourse(makeCourse(), {}, 2)).toThrow(
+    expect(() => upgradeCourse({ ...makeCourse(), schemaVersion: 1 }, {}, 2)).toThrow(
       /No course migration from schemaVersion 1/,
     );
   });
 });
 
 describe('migrateCourse', () => {
-  it('returns a valid v1 course', () => {
+  it('returns a valid current course', () => {
     expect(migrateCourse(makeCourse()).id).toBe('git');
   });
 
@@ -55,14 +62,14 @@ describe('migrateCourse', () => {
     null,
     {},
     { schemaVersion: 0 },
-    { schemaVersion: 2 },
+    { schemaVersion: 3 },
     { schemaVersion: '1' },
     { schemaVersion: 1.5 },
   ])('refuses %j', (raw) => {
     expect(() => migrateCourse(raw)).toThrow(/Unsupported course schemaVersion/);
   });
 
-  it('throws on a v1 document that does not fit the shape', () => {
+  it('throws on a document that does not fit the shape', () => {
     expect(() => migrateCourse({ schemaVersion: 1 })).toThrow();
   });
 
@@ -95,9 +102,9 @@ describe('readCourse', () => {
   });
 
   it('reads a course from a newer app as far as this one understands it', () => {
-    const newer = { ...withBlocks([{ type: 'poll', id: 'b2' }]), schemaVersion: 2, mascot: 'owl' };
+    const newer = { ...withBlocks([{ type: 'poll', id: 'b2' }]), schemaVersion: 3, mascot: 'owl' };
     const read = readCourse(newer);
-    expect(read?.schemaVersion).toBe(1);
+    expect(read?.schemaVersion).toBe(2);
     expect(read).not.toHaveProperty('mascot');
     expect(blocksOf(read)).toEqual([{ type: 'unsupported', id: 'b2' }]);
   });

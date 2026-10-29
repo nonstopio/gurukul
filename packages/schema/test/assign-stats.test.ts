@@ -92,6 +92,8 @@ describe('stats', () => {
       started: 0,
       weekly: {},
       activeLearners30d: 0,
+      parikshaScoreSum: 0,
+      parikshaFirstTryPassed: 0,
     });
     expect(courseStatsSchema.parse({})).toMatchObject({
       assigned: 0,

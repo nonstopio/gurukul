@@ -3,11 +3,15 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
+import { useConsole } from './console/ConsoleProvider';
+import { useLearnerData } from './data/DataProvider';
 import { PageLoading } from './learn/ui';
 import { OfflineBanner } from './OfflineBanner';
 import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
+import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import { useStudio } from './studio/StudioProvider';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -32,6 +36,19 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
  */
 export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
   const { roles } = useSession();
+  const { uid } = useUser();
+  const data = useLearnerData();
+  const { data: studioData } = useStudio();
+  const kulapati = roles.includes('kulapati');
+  // Courses and lessons in search, from the catalogue's own query, made only once search opens;
+  // for Acharyas and Kulapatis also the courses they may edit, from Vyasa Studio's own list.
+  const sources = useMemo(
+    () => [courseSource(data), editableCourseSource(studioData, uid, kulapati)],
+    [data, studioData, uid, kulapati],
+  );
+  // People for Kulapatis, by the Learners page's own prefix search, as they type.
+  const { data: consoleData } = useConsole();
+  const lookups = useMemo(() => [peopleLookup(consoleData)], [consoleData]);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   useEffect(() => {
@@ -50,7 +67,13 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   }, [pathname]);
 
   return (
-    <GlobalSearchProvider navigate={(p) => void navigate(p)} roles={roles} areas={areas}>
+    <GlobalSearchProvider
+      navigate={(p) => void navigate(p)}
+      roles={roles}
+      areas={areas}
+      sources={sources}
+      lookups={lookups}
+    >
       <a
         className="skip-link"
         href="#content"

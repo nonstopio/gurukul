@@ -91,6 +91,8 @@ async function load(
   } catch {
     throw new ApiException('CRS_3001', [courseId]);
   }
+  // A retired course keeps its progress and certificates but takes no new attempts.
+  if (course.status === 'archived') throw new ApiException('CRS_1004', [courseId]);
   if (course.status !== 'published') throw new ApiException('CRS_1001', [courseId]);
   const pariksha = itemsOf(course).find(
     (i): i is Pariksha => i.type === 'pariksha' && i.id === parikshaId,

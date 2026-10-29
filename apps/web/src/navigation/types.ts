@@ -44,4 +44,30 @@ export interface Destination {
   areaName: string;
   description: string;
   keywords: readonly string[];
+  /** What a record result is, shown on the right ("Course", "Lesson"). Omitted for a page. */
+  kind?: string;
+}
+
+/**
+ * Records search can offer besides pages: courses and lessons, and the courses someone may edit. Loaded
+ * once, the first time the palette opens, only for the roles listed (omitted means everyone), and
+ * only from data this person can already read. Matched by the same ranking as pages.
+ */
+export interface RecordSource {
+  /** Stable name, used in logs when the load fails. */
+  id: string;
+  roles?: readonly Role[];
+  load: () => Promise<Destination[]>;
+}
+
+/**
+ * Records too many to load up front (people), looked up as the person types instead: from two
+ * characters, once typing pauses, newest answer only. `find` gets the lower-cased prefix and must
+ * make a bounded query. Roles and the rules apply as for a `RecordSource`.
+ */
+export interface RecordLookup {
+  /** Stable name, used in logs when a lookup fails. */
+  id: string;
+  roles?: readonly Role[];
+  find: (prefix: string) => Promise<Destination[]>;
 }

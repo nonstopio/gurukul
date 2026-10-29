@@ -56,6 +56,8 @@ describe('Overview', () => {
   it('shows dashes and empty states for an empty organisation', async () => {
     await openApp('/kulapati', { ...kulapati, data: fakeData({ courses: [] }) });
     expect(await screen.findByText('No learners yet')).toBeTruthy();
+    expect(screen.getByText('No attempts yet')).toBeTruthy();
+    expect(screen.getByText('0 of 0 first attempts')).toBeTruthy();
     expect(screen.getByText('No activity yet')).toBeTruthy();
     expect(screen.getByText('No courses yet')).toBeTruthy();
   });
@@ -75,6 +77,10 @@ describe('Overview', () => {
         activeLearners30d: 12,
         assignmentsTotal: 10,
         assignmentsCompleted: 4,
+        parikshaScoreSum: 5.4,
+        parikshaScoreCount: 8,
+        parikshaFirstTryTotal: 6,
+        parikshaFirstTryPassed: 3,
         weekly: { [week]: 9 },
       },
       course: { assigned: 10, started: 8, completed: 4, scoreSum: 3.2, scoreCount: 4 },
@@ -90,7 +96,22 @@ describe('Overview', () => {
     );
     expect(screen.getByText('4 (40%)')).toBeTruthy();
     expect(screen.getByText('80%')).toBeTruthy();
+    expect(screen.getByText('68%')).toBeTruthy();
+    expect(screen.getByText('Over 8 graded attempts')).toBeTruthy();
+    expect(screen.getByText('50%')).toBeTruthy();
+    expect(screen.getByText('3 of 6 first attempts')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('counts overdue assignments past the newest ones the page loads', async () => {
+    const c = fakeConsole({
+      assignments: [],
+      open: Array.from({ length: 3 }, (_, i) => asg(`o${i}@nonstopio.com`, { dueAt: past })),
+    });
+    await openApp('/kulapati', { ...kulapati, console: c });
+    const card = (await screen.findByText('Overdue assignments')).parentElement as HTMLElement;
+    expect(within(card).getByText('3')).toBeTruthy();
+    expect(c.data.overdueCount).toHaveBeenCalledTimes(1);
   });
 
   it('shows dashes for a course nobody has started', async () => {

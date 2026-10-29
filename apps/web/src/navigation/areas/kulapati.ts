@@ -1,6 +1,6 @@
 import type { AreaNavigation } from '../types';
 
-/** The Kulapati (admin) console. Pages land with milestone M4. */
+/** The Kulapati (admin) console: everyone, assignments, roles, the audit log and org settings. */
 export const navigation = {
   slug: 'kulapati',
   name: 'Kulapati console',

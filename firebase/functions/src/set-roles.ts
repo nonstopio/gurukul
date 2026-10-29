@@ -11,9 +11,9 @@ export interface RoleAdmin {
   /** `users/{uid}.grantedCourseIds`, or an empty list when there is none. */
   getGrantedCourseIds(uid: string): Promise<string[]>;
   /**
-   * Stores the new list on the profile and, in one batch, adds the uid to `acharyaIds` of each
-   * added course and removes it from each removed one. Course documents that do not exist are
-   * skipped, never created.
+   * Stores the new list on the profile and, in one batch, adds the uid to `acharyaIds` (and the
+   * profile's display name to `acharyaNames`) of every granted course, and removes both from each
+   * removed one. Course documents that do not exist are skipped, never created.
    */
   applyCourseGrants(
     uid: string,

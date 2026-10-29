@@ -11,7 +11,10 @@ vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, ...path: string[]) => ({ collection: path.join('/') }),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   documentId: () => '__name__',
-  getCountFromServer: async () => ({ data: () => ({ count: store.count }) }),
+  getCountFromServer: async (q: { parts?: unknown[] }) => {
+    if (q.parts) store.queries.push(q.parts);
+    return { data: () => ({ count: store.count }) };
+  },
   getDoc: async (ref: { path: string }) => ({
     exists: () => store.docs.has(ref.path),
     data: () => store.docs.get(ref.path),
@@ -134,6 +137,25 @@ describe('assignments', () => {
       },
     ]);
     expect(store.queries[1]).toContainEqual({ orderBy: ['assignedAt', 'desc'] });
+  });
+
+  it('reads every pending and every overdue assignment, each once', async () => {
+    const now = new Date(10);
+    const b = d('a2', { email: 'b@nonstopio.com', uid: 'u2', courseId: 'git', status: 'started' });
+    store.queue = [[a], [a, b]];
+    expect((await data.openAssignments(now)).map((x) => x.id)).toEqual(['a1', 'a2']);
+    expect(store.queries[0]).toContainEqual({ where: ['uid', '==', null] });
+    expect(store.queries[1]).toContainEqual({ where: ['status', 'in', ['assigned', 'started']] });
+    expect(store.queries[1]).toContainEqual({ where: ['dueAt', '<', now] });
+  });
+
+  it('counts every overdue assignment with an aggregation, not loaded rows', async () => {
+    const now = new Date(10);
+    store.count = 731;
+    expect(await data.overdueCount(now)).toBe(731);
+    expect(store.queries[0]).toContainEqual({ where: ['status', 'in', ['assigned', 'started']] });
+    expect(store.queries[0]).toContainEqual({ where: ['dueAt', '<', now] });
+    expect(store.queries[0]).not.toContainEqual({ limit: expect.any(Number) });
   });
 });
 
