@@ -1,6 +1,8 @@
 import { courseSchema, type Course, type Quiz } from '@gurukul/schema';
 import { describe, expect, it } from 'vitest';
-import { gitAnswers, gitCourse } from '../src/git-course';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { DEFAULT_SITE, gitAnswers, gitCourse, gitCourseAt } from '../src/git-course';
 
 const items = gitCourse.chapters.flatMap((p) => p.items);
 const lessons = items.flatMap((i) => (i.type === 'lesson' ? [i] : []));
@@ -128,12 +130,40 @@ describe('git answers', () => {
       return q.options.find((o) => o.id === id)?.text;
     });
     expect(correctText).toEqual([
-      'A movable pointer to a commit',
-      'git switch -c feature/x',
-      'Pauses and writes both versions into the file with conflict markers',
-      'When the target branch has no new commits since your branch was created',
-      '`git add <file>` then `git commit`',
-      'The branch you have checked out',
+      'A label that points at a commit, and moves forward as you commit',
+      'git switch -c cold-drinks',
+      'Stops and writes both versions into the file, between markers, for a person to choose',
+      'When main has no new commits since the branch was made',
+      '`git add menu.md`, then `git commit`',
+      'The branch you are on right now',
     ]);
+  });
+
+  it('links every diagram to an SVG the web app serves', () => {
+    const images = lessons.flatMap((l) => l.blocks.filter((b) => b.type === 'image'));
+    expect(images.length).toBeGreaterThanOrEqual(10);
+    for (const image of images) {
+      expect(image.url.startsWith(`${DEFAULT_SITE}/courses/git/`)).toBe(true);
+      expect(image.alt.length).toBeGreaterThan(40);
+      const path = image.url.slice(DEFAULT_SITE.length);
+      const served = fileURLToPath(new URL(`../../../apps/web/public${path}`, import.meta.url));
+      expect(existsSync(served)).toBe(true);
+    }
+  });
+
+  it('moves the diagrams to another site, ignoring a trailing slash, and nothing else', () => {
+    const local = gitCourseAt('http://127.0.0.1:4173/');
+    const urls = (c: typeof gitCourse) =>
+      c.chapters.flatMap((p) =>
+        p.items.flatMap((i) =>
+          i.type === 'lesson' ? i.blocks.flatMap((b) => (b.type === 'image' ? [b.url] : [])) : [],
+        ),
+      );
+    expect(urls(local).every((u) => u.startsWith('http://127.0.0.1:4173/courses/git/'))).toBe(true);
+    expect(urls(local)).toHaveLength(urls(gitCourse).length);
+    const strip = (c: typeof gitCourse) =>
+      JSON.stringify(c, (k, v: unknown) => (k === 'url' ? undefined : v));
+    expect(strip(local)).toBe(strip(gitCourse));
+    expect(courseSchema.safeParse(asPublished(local)).success).toBe(true);
   });
 });

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Two kinds of merge. Fast-forward: main has not moved, so its label slides forward to the newest commit. Merge commit: both sides have new commits, so Git makes one new commit that joins them.</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b39553"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .h { font-size: 18px; font-weight: 600; }
+    .tag { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 14px; font-weight: 600; fill: #3d3212; }
+    .s { font-size: 14px; fill: #475467; }
+  </style>
+  <rect width="680" height="400" rx="16" fill="#ffffff"/>
+
+  <text class="h" x="20" y="40">Fast-forward</text>
+  <text class="s" x="20" y="62">main has not moved since you branched. Git just slides the label.</text>
+  <path d="M60 120 L480 120" stroke="#9ed9bf" stroke-width="5"/>
+  <circle cx="60" cy="120" r="13" fill="#05764c"/>
+  <circle cx="200" cy="120" r="13" fill="#05764c"/>
+  <circle cx="340" cy="120" r="13" fill="#05764c"/>
+  <circle cx="480" cy="120" r="13" fill="#05764c"/>
+  <rect x="166" y="146" width="68" height="30" rx="6" fill="#ffffff" stroke="#e3d5b4" stroke-dasharray="4 3"/>
+  <text x="182" y="166" font-family="'JetBrains Mono', Menlo, Consolas, monospace" font-size="14" font-weight="600" fill="#98a2b3">main</text>
+  <path d="M240 161 C 320 190, 380 190, 440 166" stroke="#b39553" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <rect x="446" y="146" width="68" height="30" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="462" y="166">main</text>
+
+  <line x1="20" y1="212" x2="660" y2="212" stroke="#e4e7ec" stroke-width="2"/>
+
+  <text class="h" x="20" y="248">Merge commit</text>
+  <text class="s" x="20" y="270">Both sides moved on. Git ties them together with a new commit.</text>
+  <path d="M60 350 L480 350" stroke="#9ed9bf" stroke-width="5"/>
+  <path d="M200 350 C 240 350, 240 300, 280 300 L 380 300 C 420 300, 440 350, 480 350" stroke="#9ed9bf" stroke-width="5" fill="none"/>
+  <circle cx="60" cy="350" r="13" fill="#05764c"/>
+  <circle cx="200" cy="350" r="13" fill="#05764c"/>
+  <circle cx="340" cy="350" r="13" fill="#05764c"/>
+  <circle cx="290" cy="300" r="13" fill="#05764c"/>
+  <circle cx="380" cy="300" r="13" fill="#05764c"/>
+  <circle cx="480" cy="350" r="16" fill="#ffffff" stroke="#05764c" stroke-width="5"/>
+  <rect x="510" y="335" width="68" height="30" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="526" y="355">main</text>
+  <text class="s" x="452" y="390">merge commit</text>
+</svg>

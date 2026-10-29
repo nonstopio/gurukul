@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AUTH_URL, FIRESTORE_URL, PROJECT_ID } from './env';
+import { APP_URL, AUTH_URL, FIRESTORE_URL, PROJECT_ID } from './env';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
@@ -43,7 +43,12 @@ async function call(url: string, init: RequestInit, what: string): Promise<Respo
 export async function seedAndSnapshot(): Promise<void> {
   const seeded = spawnSync('npm', ['run', 'seed'], {
     cwd: ROOT,
-    env: { ...process.env, FIRESTORE_EMULATOR_HOST: FIRESTORE_URL.replace('http://', '') },
+    // SITE_URL: the course's diagrams load from the preview under test, not the live site.
+    env: {
+      ...process.env,
+      FIRESTORE_EMULATOR_HOST: FIRESTORE_URL.replace('http://', ''),
+      SITE_URL: APP_URL,
+    },
     encoding: 'utf8',
   });
   if (seeded.status !== 0)

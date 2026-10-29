@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 320" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Your laptop and the shared copy on GitHub, called origin. git push sends your commits up. git fetch brings new commits down into origin/main without touching your work. git pull is fetch followed by merge.</title>
+  <defs>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#05764c"/>
+    </marker>
+    <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#344054"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .h { font-size: 18px; font-weight: 600; }
+    .tag { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; font-weight: 600; fill: #3d3212; }
+    .cmd { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; font-weight: 600; }
+    .s { font-size: 14px; fill: #475467; }
+  </style>
+  <rect width="680" height="320" rx="16" fill="#ffffff"/>
+
+  <rect x="20" y="24" width="250" height="250" rx="12" fill="#f6f7f5" stroke="#d0d5dd"/>
+  <text class="h" x="40" y="58">Your laptop</text>
+  <text class="s" x="40" y="82">Your own copy. Works offline.</text>
+  <rect x="40" y="110" width="96" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="56" y="132">main</text>
+  <text class="s" x="148" y="132">your work</text>
+  <rect x="40" y="186" width="140" height="34" rx="6" fill="#ffffff" stroke="#e3d5b4" stroke-dasharray="4 3"/>
+  <text class="tag" x="54" y="208">origin/main</text>
+  <text class="s" x="40" y="246">what you last saw</text>
+  <text class="s" x="40" y="264">on GitHub</text>
+
+  <rect x="410" y="24" width="250" height="250" rx="12" fill="#e9f7f0" stroke="#9ed9bf"/>
+  <text class="h" x="430" y="58">GitHub (origin)</text>
+  <text class="s" x="430" y="82">The shared copy the team</text>
+  <text class="s" x="430" y="100">pushes to and pulls from.</text>
+  <rect x="430" y="148" width="96" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="446" y="170">main</text>
+
+  <line x1="274" y1="122" x2="404" y2="122" stroke="#05764c" stroke-width="3" marker-end="url(#g)"/>
+  <text class="cmd" x="304" y="112" fill="#05764c">git push</text>
+  <line x1="404" y1="206" x2="186" y2="206" stroke="#344054" stroke-width="3" marker-end="url(#d)"/>
+  <text class="cmd" x="294" y="196" fill="#344054">git fetch</text>
+
+  <text class="s" x="20" y="304"><tspan font-family="'JetBrains Mono', Menlo, Consolas, monospace" font-weight="600" fill="#101828">git pull</tspan> = git fetch, then merge origin/main into your main.</text>
+</svg>

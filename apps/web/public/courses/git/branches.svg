@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Commits form a line. The branch main is a label on one commit; the branch cold-drinks is a label on another commit that grew from the same history. A "You are here" pin called HEAD sits on cold-drinks.</title>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .tag { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; font-weight: 600; fill: #3d3212; }
+    .s { font-size: 14px; fill: #475467; }
+  </style>
+  <rect width="680" height="300" rx="16" fill="#ffffff"/>
+
+  <path d="M70 200 L330 200" stroke="#9ed9bf" stroke-width="5" fill="none"/>
+  <path d="M200 200 C 250 200, 250 120, 300 120 L 460 120" stroke="#9ed9bf" stroke-width="5" fill="none"/>
+  <circle cx="70" cy="200" r="14" fill="#05764c"/>
+  <circle cx="200" cy="200" r="14" fill="#05764c"/>
+  <circle cx="330" cy="200" r="14" fill="#05764c"/>
+  <circle cx="330" cy="120" r="14" fill="#05764c"/>
+  <circle cx="460" cy="120" r="14" fill="#05764c"/>
+
+  <rect x="290" y="226" width="80" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="310" y="248">main</text>
+  <line x1="330" y1="214" x2="330" y2="226" stroke="#b39553" stroke-width="2"/>
+
+  <rect x="486" y="103" width="136" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="500" y="125">cold-drinks</text>
+  <line x1="474" y1="120" x2="486" y2="120" stroke="#b39553" stroke-width="2"/>
+
+  <rect x="500" y="34" width="108" height="34" rx="17" fill="#0b211b"/>
+  <text x="516" y="56" font-size="15" font-weight="600" fill="#ffffff">HEAD</text>
+  <line x1="554" y1="68" x2="554" y2="103" stroke="#0b211b" stroke-width="2.5"/>
+  <text class="s" x="372" y="56">You are here</text>
+
+  <text class="s" x="20" y="288">A branch is a sticky label on a commit. Nothing is copied.</text>
+</svg>

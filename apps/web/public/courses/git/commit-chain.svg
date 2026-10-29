@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 230" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Three commits in a row. Each has a short id, a message and an author, and each points back to the commit before it, its parent.</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#667085"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .mono { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; font-weight: 600; fill: #05764c; }
+    .m { font-size: 16px; }
+    .s { font-size: 14px; fill: #475467; }
+  </style>
+  <rect width="680" height="230" rx="16" fill="#ffffff"/>
+  <text x="20" y="40" font-size="14" fill="#475467">oldest</text>
+  <text x="612" y="40" font-size="14" fill="#475467">newest</text>
+
+  <rect x="20" y="58" width="180" height="116" rx="12" fill="#e9f7f0" stroke="#9ed9bf"/>
+  <text class="mono" x="36" y="88">5c4b3a2</text>
+  <text class="m" x="36" y="118">Add the menu</text>
+  <text class="s" x="36" y="148">Meera · Monday</text>
+
+  <rect x="250" y="58" width="180" height="116" rx="12" fill="#e9f7f0" stroke="#9ed9bf"/>
+  <text class="mono" x="266" y="88">9f8e7d6</text>
+  <text class="m" x="266" y="118">Add prices</text>
+  <text class="s" x="266" y="148">Meera · Tuesday</text>
+
+  <rect x="480" y="58" width="180" height="116" rx="12" fill="#e9f7f0" stroke="#9ed9bf"/>
+  <text class="mono" x="496" y="88">a1b2c3d</text>
+  <text class="m" x="496" y="118">Fix a typo</text>
+  <text class="s" x="496" y="148">Arjun · Wednesday</text>
+
+  <line x1="478" y1="116" x2="206" y2="116" stroke="none"/>
+  <line x1="476" y1="116" x2="436" y2="116" stroke="#667085" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="246" y1="116" x2="206" y2="116" stroke="#667085" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text class="s" x="20" y="208">Each commit remembers its parent: the one that came just before it.</text>
+</svg>

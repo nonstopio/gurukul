@@ -15,6 +15,28 @@ recorded; this outline is the authoring brief.
 
 22 lessons, 3 Quizzes.
 
+## How it teaches
+
+The course follows one person through her first weeks: **Meera**, a new joiner, looks after
+`chai-corner`, a one-file project (`menu.md`, the office tea counter's menu) with her teammates
+**Arjun** and **Ravi** (her lead). Every command runs against that project, so nobody needs to know
+a programming language to follow along.
+
+- **One idea per lesson, one picture for it.** Each idea has an everyday metaphor (save points in a
+  game, packing a box before shipping, a bookmark in an album, a correction printed in a
+  newspaper) and, where it helps, a diagram.
+- **Do, then explain.** "Try it" steps show the command and what Git prints back, then "What just
+  happened" says it in plain English. Git's error messages are translated, not just quoted.
+- **One way first.** The modern command (`switch`, `restore`) is taught; the older `checkout` is
+  named once so learners recognise it. One name per idea: "staging area", with "index" mentioned
+  once.
+- **Simple English.** Short sentences, no jargon before it is explained, encouraging but not cute.
+- Video lessons work without their video: the text carries the lesson until the recordings exist.
+
+Diagrams are SVG files in `apps/web/public/courses/git/`, served by Hosting. Image blocks need an
+absolute URL, so the seed builds them from `SITE_URL` (the live site by default; the end-to-end
+setup passes the local preview's address).
+
 ## NonStop-specific content to supply
 
 - Branch naming convention and PR template used across NonStop teams.
@@ -24,12 +46,12 @@ recorded; this outline is the authoring brief.
 
 ## Sample questions (Quiz II)
 
-1. What is a branch in Git? → *A movable pointer to a commit.*
-2. Which command creates a branch and switches to it? → `git switch -c feature/x`
-3. Two branches changed the same line; what does `git merge` do? → *Pauses and writes both versions with conflict markers.*
-4. When does Git fast-forward? → *When the target branch has no new commits since your branch was created.*
-5. You removed the conflict markers; what next? → `git add <file>` then `git commit`
-6. What does HEAD usually point to? → *The branch you have checked out.*
+1. What is a branch in Git? → *A label that points at a commit, and moves forward as you commit.*
+2. Which command makes a new branch called `cold-drinks` and moves you onto it? → `git switch -c cold-drinks`
+3. Meera and Arjun changed the same line on two branches; what does `git merge` do? → *Stops and writes both versions into the file, between markers, for a person to choose.*
+4. When can Git fast-forward a merge? → *When main has no new commits since the branch was made.*
+5. Meera picked the right price and deleted the conflict markers; what next? → `git add menu.md`, then `git commit`
+6. What does HEAD usually point to? → *The branch you are on right now.*
 
 ## Note on analytics in the designs
 
