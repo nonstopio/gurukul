@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 190" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">The life of a change in five steps: make a branch, commit your work, push the branch, open a pull request, then review and merge.</title>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .n { font-size: 18px; font-weight: 700; fill: #ffffff; }
+    .t { font-size: 15px; font-weight: 600; }
+    .s { font-size: 13px; fill: #475467; }
+  </style>
+  <rect width="680" height="190" rx="16" fill="#ffffff"/>
+  <line x1="68" y1="64" x2="612" y2="64" stroke="#9ed9bf" stroke-width="4"/>
+
+  <circle cx="68" cy="64" r="22" fill="#05764c"/><text class="n" x="62" y="71">1</text>
+  <text class="t" x="68" y="118" text-anchor="middle">Branch</text>
+  <text class="s" x="68" y="140" text-anchor="middle">a fresh start</text>
+  <text class="s" x="68" y="158" text-anchor="middle">from main</text>
+
+  <circle cx="204" cy="64" r="22" fill="#05764c"/><text class="n" x="198" y="71">2</text>
+  <text class="t" x="204" y="118" text-anchor="middle">Commit</text>
+  <text class="s" x="204" y="140" text-anchor="middle">small steps,</text>
+  <text class="s" x="204" y="158" text-anchor="middle">clear messages</text>
+
+  <circle cx="340" cy="64" r="22" fill="#05764c"/><text class="n" x="334" y="71">3</text>
+  <text class="t" x="340" y="118" text-anchor="middle">Push</text>
+  <text class="s" x="340" y="140" text-anchor="middle">your branch</text>
+  <text class="s" x="340" y="158" text-anchor="middle">to GitHub</text>
+
+  <circle cx="476" cy="64" r="22" fill="#05764c"/><text class="n" x="470" y="71">4</text>
+  <text class="t" x="476" y="118" text-anchor="middle">Pull request</text>
+  <text class="s" x="476" y="140" text-anchor="middle">what changed</text>
+  <text class="s" x="476" y="158" text-anchor="middle">and why</text>
+
+  <circle cx="612" cy="64" r="22" fill="#05764c"/><text class="n" x="606" y="71">5</text>
+  <text class="t" x="612" y="118" text-anchor="middle">Review, merge</text>
+  <text class="s" x="612" y="140" text-anchor="middle">a teammate</text>
+  <text class="s" x="612" y="158" text-anchor="middle">says yes</text>
+</svg>

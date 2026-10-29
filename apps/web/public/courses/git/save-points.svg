@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Without Git: four copies of the menu and no idea which is right. With Git: one file and a line of save points.</title>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .mono { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; }
+    .h { font-size: 19px; font-weight: 600; }
+    .s { font-size: 15px; fill: #475467; }
+  </style>
+  <rect width="680" height="360" rx="16" fill="#ffffff"/>
+  <line x1="340" y1="28" x2="340" y2="332" stroke="#e4e7ec" stroke-width="2"/>
+
+  <text class="h" x="28" y="52">Without Git</text>
+  <g>
+    <rect x="28" y="72" width="280" height="44" rx="8" fill="#f2f4f7" stroke="#d0d5dd"/>
+    <text class="mono" x="44" y="100">menu.md</text>
+    <rect x="28" y="126" width="280" height="44" rx="8" fill="#f2f4f7" stroke="#d0d5dd"/>
+    <text class="mono" x="44" y="154">menu_final.md</text>
+    <rect x="28" y="180" width="280" height="44" rx="8" fill="#f2f4f7" stroke="#d0d5dd"/>
+    <text class="mono" x="44" y="208">menu_final_v2.md</text>
+    <rect x="28" y="234" width="280" height="44" rx="8" fill="#f2f4f7" stroke="#d0d5dd"/>
+    <text class="mono" x="44" y="262">menu_REALLY_final.md</text>
+  </g>
+  <text x="28" y="312" font-size="16" font-weight="600" fill="#93370d">Which one is right?</text>
+
+  <text class="h" x="372" y="52">With Git</text>
+  <rect x="372" y="72" width="140" height="44" rx="8" fill="#f2f4f7" stroke="#d0d5dd"/>
+  <text class="mono" x="388" y="100">menu.md</text>
+  <line x1="396" y1="146" x2="396" y2="290" stroke="#9ed9bf" stroke-width="4"/>
+  <g>
+    <circle cx="396" cy="146" r="12" fill="#05764c"/>
+    <text x="420" y="151" font-size="16">Add the menu</text>
+    <circle cx="396" cy="194" r="12" fill="#05764c"/>
+    <text x="420" y="199" font-size="16">Add prices</text>
+    <circle cx="396" cy="242" r="12" fill="#05764c"/>
+    <text x="420" y="247" font-size="16">Fix a typo</text>
+    <circle cx="396" cy="290" r="12" fill="#05764c"/>
+    <text x="420" y="295" font-size="16">Add cold drinks</text>
+    <rect x="560" y="276" width="58" height="28" rx="14" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text x="574" y="295" font-size="14" font-weight="600" fill="#054f34">now</text>
+  </g>
+  <text class="s" x="372" y="334">Go back to any save point.</text>
+</svg>

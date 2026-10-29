@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 370" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">Which undo to use. Edits you have not committed: git restore. Something staged by mistake: git restore --staged. Committed but not pushed: git reset. Already pushed: git revert. Lost a commit: git reflog.</title>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .h { font-size: 15px; font-weight: 600; fill: #475467; letter-spacing: 0.04em; }
+    .q { font-size: 16px; }
+    .cmd { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 15px; font-weight: 600; fill: #054f34; }
+  </style>
+  <rect width="680" height="370" rx="16" fill="#ffffff"/>
+  <text class="h" x="24" y="38">WHAT HAPPENED</text>
+  <text class="h" x="384" y="38">WHAT TO RUN</text>
+
+  <g>
+    <rect x="20" y="54" width="340" height="46" rx="8" fill="#f6f7f5" stroke="#e4e7ec"/>
+    <text class="q" x="38" y="83">I edited a file and want it back</text>
+    <rect x="380" y="54" width="280" height="46" rx="8" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text class="cmd" x="398" y="83">git restore &lt;file&gt;</text>
+  </g>
+  <g>
+    <rect x="20" y="114" width="340" height="46" rx="8" fill="#f6f7f5" stroke="#e4e7ec"/>
+    <text class="q" x="38" y="143">I staged something by mistake</text>
+    <rect x="380" y="114" width="280" height="46" rx="8" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text class="cmd" x="398" y="143">git restore --staged &lt;file&gt;</text>
+  </g>
+  <g>
+    <rect x="20" y="174" width="340" height="46" rx="8" fill="#f6f7f5" stroke="#e4e7ec"/>
+    <text class="q" x="38" y="203">I committed, but have not pushed</text>
+    <rect x="380" y="174" width="280" height="46" rx="8" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text class="cmd" x="398" y="203">git reset</text>
+  </g>
+  <g>
+    <rect x="20" y="234" width="340" height="46" rx="8" fill="#f6f7f5" stroke="#e4e7ec"/>
+    <text class="q" x="38" y="263">I already pushed it</text>
+    <rect x="380" y="234" width="280" height="46" rx="8" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text class="cmd" x="398" y="263">git revert &lt;commit&gt;</text>
+  </g>
+  <g>
+    <rect x="20" y="294" width="340" height="46" rx="8" fill="#fef3e7" stroke="#e8b48a"/>
+    <text class="q" x="38" y="323">I lost a commit. Help!</text>
+    <rect x="380" y="294" width="280" height="46" rx="8" fill="#e9f7f0" stroke="#9ed9bf"/>
+    <text class="cmd" x="398" y="323">git reflog</text>
+  </g>
+</svg>

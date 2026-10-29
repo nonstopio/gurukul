@@ -1,8 +1,10 @@
 // Writes the first course to Firestore. Emulator when FIRESTORE_EMULATOR_HOST is set; otherwise
 // it needs --production, GCLOUD_PROJECT and application-default credentials. All logic is in src/.
+// The course's diagrams are linked from SITE_URL when set (the end-to-end run passes its local
+// preview), otherwise from the live site.
 import { initializeApp } from 'firebase-admin/app';
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
-import { gitAnswers, gitCourse } from '../src/git-course.ts';
+import { DEFAULT_SITE, gitAnswers, gitCourseAt } from '../src/git-course.ts';
 import { seedCourse, seedOrgConfig } from '../src/seed.ts';
 
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
@@ -27,7 +29,7 @@ const seedDb = {
   },
 };
 const paths = await seedCourse(seedDb, {
-  course: gitCourse,
+  course: gitCourseAt(process.env.SITE_URL || DEFAULT_SITE),
   answers: gitAnswers,
   now: Timestamp.now(),
 });
