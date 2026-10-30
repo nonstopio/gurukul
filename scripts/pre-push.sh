@@ -37,6 +37,11 @@
 # =================================================================================================
 set -eu
 
+# Git exports GIT_DIR (and, in a worktree, friends) to the hooks it runs. Every test that builds a
+# throwaway repository would inherit them and commit into, or reconfigure, this one instead. The
+# hook runs from the work tree's root, so git finds the repository without them.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
+
 if [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]; then
   echo "Skipping pre-push during a rebase"
   exit 0

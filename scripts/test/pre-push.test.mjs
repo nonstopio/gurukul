@@ -30,7 +30,7 @@ function which(tool) {
 
 /** Logs each call to $NPM_LOG and fails the one whose arguments contain $NPM_FAIL. */
 const FAKE_NPM = `#!/bin/sh
-echo "$*" >> "$NPM_LOG"
+echo "$*\${GIT_DIR:+ (GIT_DIR set)}" >> "$NPM_LOG"
 [ -n "\${NPM_FAIL:-}" ] && echo "$*" | grep -q -- "$NPM_FAIL" && exit 1
 exit 0
 `;
@@ -50,7 +50,7 @@ function fakePath({ java }) {
 }
 
 /** Push a new branch that adds `files`; returns the hook's result and the npm calls it made. */
-function push(files, { java = true, fail } = {}) {
+function push(files, { java = true, fail, gitDir = false } = {}) {
   const remote = tempDir('remote');
   git(remote, 'init', '-q', '--bare');
   const dir = gitRepo({ 'README.md': '1' });
@@ -64,7 +64,12 @@ function push(files, { java = true, fail } = {}) {
   const res = sh('pre-push.sh', {
     cwd: dir,
     input: `refs/heads/feat ${sha} refs/heads/feat ${ZERO}\n`,
-    env: { PATH: bin, NPM_LOG: log, ...(fail ? { NPM_FAIL: fail } : {}) },
+    env: {
+      PATH: bin,
+      NPM_LOG: log,
+      ...(fail ? { NPM_FAIL: fail } : {}),
+      ...(gitDir ? { GIT_DIR: path.join(dir, '.git') } : {}),
+    },
   });
   return { res, calls: calls() };
 }
@@ -101,6 +106,20 @@ describe('pre-push.sh', () => {
       'run -s test:triggers',
       'run -s e2e',
     ]);
+  });
+
+  it('runs every step without the GIT_DIR git hands a hook', () => {
+    const { res, calls } = push(
+      { 'scripts/tool.mjs': 'x', 'apps/web/src/Page.tsx': 'x' },
+      { gitDir: true },
+    );
+    assert.equal(res.status, 0, res.stderr);
+    assert.ok(calls.includes('run -s test:tooling'), calls.join('\n'));
+    assert.ok(calls.includes('run -s coverage -w @gurukul/web'), calls.join('\n'));
+    assert.deepEqual(
+      calls.filter((c) => c.includes('GIT_DIR')),
+      [],
+    );
   });
 
   it('refuses, rather than skips, an emulator push when Java is missing', () => {
