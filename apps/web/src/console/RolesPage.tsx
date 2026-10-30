@@ -263,6 +263,7 @@ function GrantDialog({
   return (
     <Dialog
       open
+      size="lg"
       onClose={onClose}
       title={initial ? `Edit ${initial.displayName || initial.email}` : 'Grant a role'}
       footer={
@@ -341,7 +342,7 @@ function GrantDialog({
               : `Showing ${shown.length} of ${courses.length} courses`}
             {courseIds.length > 0 ? ` · ${courseIds.length} selected` : ''}
           </p>
-          <ul className="learn-cards g-stagger">
+          <ul className="console-course-grid g-stagger">
             {shown.map((c) => (
               <CourseChoice
                 key={c.id}

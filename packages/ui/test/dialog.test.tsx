@@ -59,6 +59,13 @@ describe('Dialog', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
   });
 
+  it('lg size is a wider centred panel', () => {
+    render(<Harness size="lg" />);
+    open();
+    expect(screen.getByRole('dialog').className).toContain('g-dialog--lg');
+    expect(document.querySelector('.g-dialog-layer--lg')).toBeTruthy();
+  });
+
   it('drawer size has its own class and layer', () => {
     render(<Harness size="drawer" />);
     open();

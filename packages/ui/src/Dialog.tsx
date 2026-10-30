@@ -12,8 +12,8 @@ export interface DialogProps {
   onClose: () => void;
   /** The dialog's heading and accessible name. */
   title: string;
-  /** `md` is a centred panel; `drawer` slides in from the right, 480px wide. Default: `md`. */
-  size?: 'md' | 'drawer' | undefined;
+  /** `md` is a centred panel, `lg` a wider one for a grid of cards; `drawer` slides in from the right, 480px wide. Default: `md`. */
+  size?: 'md' | 'lg' | 'drawer' | undefined;
   /** Pinned under the content, usually buttons. */
   footer?: ReactNode;
   /** Accessible name of the close button. Default: "Close". */

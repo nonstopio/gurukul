@@ -90,7 +90,7 @@
 }
 .console-fieldset {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-3);
   margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
@@ -210,4 +210,20 @@
 .console-switches {
   display: grid;
   gap: var(--space-1);
+}
+
+/* Courses to pick inside a dialog: smaller tiles, three or four across. */
+.console-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.console-fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+  color: var(--text);
 }

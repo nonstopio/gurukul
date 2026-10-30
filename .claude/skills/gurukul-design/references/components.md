@@ -218,12 +218,12 @@ them) and moving focus to the step heading. Nothing is saved before the last ste
 
 ## Dialog — shipped
 
-`<Dialog open onClose title size="md|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
+`<Dialog open onClose title size="md|lg|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
 (`role="dialog" aria-modal="true" aria-labelledby` the Fraunces `h2` title). On open focus moves to the
 first focusable thing in the body (the close button if there is none); Tab and Shift+Tab wrap inside;
 Escape and the backdrop (a real button, ink at 55%) close; page scroll is locked and restored; focus
 returns to the opener on close. A 44px close button sits in the header. `md` is a centred panel, max
-560px, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
+560px, `lg` 56rem for a grid of cards, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
 `--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
 The caller owns `open`. One dialog at a time.
 
