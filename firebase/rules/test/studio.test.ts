@@ -233,8 +233,23 @@ describe('questionBank/{id}', () => {
     await assertSucceeds(deleteDoc(doc(ajay(), 'questionBank/b1')));
   });
 
-  it('is never updated', async () => {
-    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { tags: ['x'] }));
-    await assertFails(updateDoc(doc(ajay(), 'questionBank/b1'), { tags: ['x'] }));
+  it('is edited (question, answers, tags) by its creator or an Admin', async () => {
+    await assertSucceeds(updateDoc(doc(asha(), 'questionBank/b1'), { tags: ['x'] }));
+    await assertSucceeds(
+      updateDoc(doc(ajay(), 'questionBank/b1'), {
+        question: { id: 'q1', prompt: 'Edited' },
+        answers: ['b'],
+      }),
+    );
+  });
+
+  it('denies an edit by another Educator or a learner, of other fields or to bad types', async () => {
+    await assertFails(updateDoc(doc(rohan(), 'questionBank/b1'), { tags: ['x'] }));
+    await assertFails(updateDoc(doc(priya(), 'questionBank/b1'), { tags: ['x'] }));
+    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { createdBy: 'asha2' }));
+    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { extra: 1 }));
+    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { question: 'x' }));
+    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { answers: 'a' }));
+    await assertFails(updateDoc(doc(asha(), 'questionBank/b1'), { tags: 'a' }));
   });
 });

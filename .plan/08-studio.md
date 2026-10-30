@@ -66,8 +66,24 @@ builder. Handoff: `design-handoff/03-studio.md`.
 
 ## Question bank (M5)
 
-Questions can be saved to a shared bank and imported into any Quiz. The
-bank is a collection `questionBank/{id}` readable by Educators.
+Questions are written once in a shared bank and imported into any Quiz. The
+bank is a collection `questionBank/{id}` readable by Educators and Admins only,
+because entries carry their answer keys; learners never read it and grading
+stays in the Cloud Function.
+
+- The page always offers **New question** (a dialog: prompt, type, answers
+  with the correct ones marked, topic tag, explanation) and **Import from a
+  quiz** (pick a course and a Quiz from a draft the person can read, tick the
+  questions, they are copied into the bank with their keys). Its empty state
+  says why the bank exists and offers both.
+- It lists entries in a table: question, type, topic, **Used in** (the Quizzes,
+  among the courses the Studio already loaded, that hold a question with the
+  same text; a copy is not linked to its bank entry, so this is a text match,
+  and it costs no extra reads), and row actions Edit and Delete (with confirm).
+- The creator or an Admin may edit an entry (`question`, `answers`, `tags`
+  only) or delete it. A Quiz that already holds a copy keeps it.
+- Inserting a bank question into a Quiz is the Quiz builder's existing
+  "Import from question bank".
 
 ## Media library
 

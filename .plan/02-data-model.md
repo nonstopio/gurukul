@@ -19,7 +19,7 @@ contract; the schema package is the executable one. They change together.
 | `certificates/{credentialId}` | Issued certificates | **public** (verification) | never (function) |
 | `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
-| `questionBank/{id}` (M5) | Reusable Quiz questions, answers included | Educators, Admin | Educators, Admin |
+| `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
 | `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings) |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
