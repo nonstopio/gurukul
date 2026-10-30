@@ -69,7 +69,12 @@ export interface AuthService {
   signOut(): Promise<void>;
   /** Role claims from the ID token; `refresh` forces a new token so fresh claims apply. */
   claims(user: AuthUser, refresh: boolean): Promise<{ educator?: boolean; admin?: boolean }>;
-  watchProfile(uid: string, cb: (p: ProfileMirror | null) => void): () => void;
+  /** Watches `users/{uid}`; `onError` hears why the watch stopped (it is not restarted). */
+  watchProfile(
+    uid: string,
+    cb: (p: ProfileMirror | null) => void,
+    onError: (error: unknown) => void,
+  ): () => void;
 }
 
 export function firebaseAuthService(
