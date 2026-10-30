@@ -601,6 +601,16 @@ readers still meet one link, and hover lifts the tile and underlines the title. 
 whole tile, so a click anywhere toggles it. Selected: `--accent` 2px ring, the tick pops in (`--dur-slow`) and
 the picture settles; `:focus-visible` shows the focus ring. Never a checkbox beside a title for a course.
 
+## Checkbox and Radio — shipped
+
+`<Checkbox label? indeterminate? ...input props />` and `<Radio label? name ... />`: tick boxes we draw ourselves
+over a real input (Space toggles, Tab reaches, 44px hit area, `aria-label` when there is no visible label). A
+22px box, `--border-strong` 2px; hover `--accent` border; picked fills `--accent` and the tick (or the Radio's
+dot) pops in (`--dur-base`); pressing shrinks it a little; `:focus-visible` shows `--focus-ring`; disabled is 50%.
+`indeterminate` draws a dash for "some of them" (a header "select all"; `DataTable` uses it). Never a native
+`<input type="checkbox|radio">`: an on/off setting is a `Toggle`, a list tick is a `Checkbox`.
+`Toggle` is 44×26 with a paper knob that glides and stretches a little under a press.
+
 ## ChoiceCard — shipped
 
 `<ChoiceCard icon title meta? selected onSelectedChange selectLabel? disabled? as="li|div">`: one option in a pick-many list

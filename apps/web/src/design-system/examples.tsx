@@ -12,6 +12,7 @@ import {
   Callout,
   Card,
   Certificate,
+  Checkbox,
   Chip,
   ChoiceCard,
   IconButton,
@@ -40,6 +41,7 @@ import {
   PageSkeleton,
   Pagination,
   PenIcon,
+  Radio,
   SwapIcon,
   ProgressBar,
   ProgressRing,
@@ -267,6 +269,50 @@ function ProgressExample({ ring }: { ring?: boolean }) {
         Advance {ring ? 'ring' : 'bar'}
       </Button>
     </>
+  );
+}
+
+function CheckExample() {
+  const [ticked, setTicked] = useState<string[]>(['git']);
+  const all = ['git', 'sql', 'docker'];
+  return (
+    <div className="ds-stack">
+      <Checkbox
+        label="Select all courses"
+        checked={ticked.length === all.length}
+        indeterminate={ticked.length > 0 && ticked.length < all.length}
+        onChange={() => setTicked(ticked.length === all.length ? [] : all)}
+      />
+      {all.map((id) => (
+        <Checkbox
+          key={id}
+          label={id.toUpperCase()}
+          checked={ticked.includes(id)}
+          onChange={() =>
+            setTicked(ticked.includes(id) ? ticked.filter((t) => t !== id) : [...ticked, id])
+          }
+        />
+      ))}
+      <Checkbox label="Not available" disabled />
+    </div>
+  );
+}
+
+function RadioExample() {
+  const [one, setOne] = useState('a');
+  return (
+    <div className="ds-stack">
+      {['a', 'b'].map((v) => (
+        <Radio
+          key={v}
+          name="ds-radio"
+          label={`Choice ${v.toUpperCase()}`}
+          checked={one === v}
+          onChange={() => setOne(v)}
+        />
+      ))}
+      <Radio name="ds-radio-off" label="Not available" disabled />
+    </div>
   );
 }
 
@@ -968,6 +1014,14 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <TileChoiceExample />
       </div>
     ),
+  },
+  Checkbox: {
+    rule: 'A drawn tick box for ticking things in a list, with a partial state for "select all"; a setting that is on or off is a Toggle.',
+    Example: CheckExample,
+  },
+  Radio: {
+    rule: 'The round one-of-many partner of Checkbox, drawn the same way.',
+    Example: RadioExample,
   },
   ChoiceCard: {
     rule: 'One option in a pick-many list of teams or people: an icon, a name and a count, and the whole card is the checkbox.',

@@ -24,6 +24,9 @@ touch. These are blocking rules, not preferences.
   never a link nested in a clickable card. A course in any list is a `CourseTile`: its picture,
   else the first image in the course, else its name on its own colour. A list people search gets a
   `SearchCard`, not loose inputs.
+- **No native checkbox or radio.** An on/off setting (a role, a notification, a rule) is a `Toggle`; a tick
+  in a list or "select all" is a `Checkbox`; one of several is a `Radio`; a card you pick is a
+  `ChoiceCard` or `CourseTile`. `check:design` rejects `type="checkbox"` and `type="radio"` in `apps/web`.
 - **A person is picked with `PeoplePicker`, everywhere.** Never a bare email box, a "find a person" text
   field with buttons under it, or a checkbox list of everyone: focus lists people with photos, typing
   narrows, a pick becomes a chip (`PeopleField` wires it to the console). Teams you pick are `ChoiceCard`s.

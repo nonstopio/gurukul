@@ -511,13 +511,9 @@
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
-.studio-answer input[type='radio'],
-.studio-answer input[type='checkbox'] {
+.studio-answer .g-check {
   flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
   margin-bottom: var(--space-3);
-  accent-color: var(--accent);
 }
 .studio-palette {
   display: flex;

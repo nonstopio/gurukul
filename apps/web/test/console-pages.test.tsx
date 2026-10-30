@@ -339,7 +339,7 @@ describe('Roles & access', () => {
     expect(within(list).getAllByText('nameless@nonstopio.com')).toHaveLength(2);
     fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Admin' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Admin/ }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: /Admin/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
@@ -360,10 +360,10 @@ describe('Roles & access', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Both' }));
     const dialog = await screen.findByRole('dialog');
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Educator/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('switch', { name: /Educator/ }) as HTMLInputElement).checked,
     ).toBe(true);
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('switch', { name: /Admin/ }) as HTMLInputElement).checked,
     ).toBe(true);
     fireEvent.click(within(dialog).getByLabelText('Work in progress (not published)'));
     fireEvent.click(within(dialog).getByLabelText('Old course (archived)'));
@@ -454,11 +454,11 @@ describe('Roles & access', () => {
       },
     );
     fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: /Educator/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: /Educator/ }));
     expect(within(dialog).queryByText('Courses they may edit')).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
@@ -508,7 +508,7 @@ describe('Roles & access', () => {
       },
     );
     fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
-    const box = within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement;
+    const box = within(dialog).getByRole('switch', { name: /Admin/ }) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(box.checked).toBe(true);
     expect(within(dialog).getByText(/cannot remove your own Admin role/)).toBeTruthy();

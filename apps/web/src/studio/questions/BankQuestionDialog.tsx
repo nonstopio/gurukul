@@ -1,4 +1,5 @@
 import { Button, Dialog, Input, PlusIcon, Select, Textarea } from '@gurukul/ui';
+import { AnswerMark } from './AnswerMark';
 import { useState } from 'react';
 import { useTerms } from '../../labels/useTerms';
 import {
@@ -121,10 +122,10 @@ export function BankQuestionDialog({
                 className={`studio-answer${correct ? ' studio-answer--correct' : ''}`}
                 key={option.id}
               >
-                <input
-                  type={multiple ? 'checkbox' : 'radio'}
+                <AnswerMark
+                  multiple={multiple}
                   name={`correct-${question.id}`}
-                  aria-label={`Answer ${i + 1} is correct`}
+                  label={`Answer ${i + 1} is correct`}
                   checked={correct}
                   onChange={() =>
                     edit((k) => ({ ...k, key: toggleCorrect(k.question.kind, k.key, option.id) }))

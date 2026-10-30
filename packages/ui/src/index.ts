@@ -135,6 +135,10 @@ export {
 export type { IconProps } from './Icon';
 export { Avatar, initials } from './Avatar';
 export type { AvatarProps, AvatarTone } from './Avatar';
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+export { Radio } from './Radio';
+export type { RadioProps } from './Radio';
 export { ChoiceCard } from './ChoiceCard';
 export type { ChoiceCardProps } from './ChoiceCard';
 export { IconButton, iconButtonClass } from './IconButton';

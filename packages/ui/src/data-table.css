@@ -62,12 +62,8 @@
   padding: 0 var(--space-2);
   text-align: center;
 }
-.g-table__check input {
-  width: 20px;
-  height: 20px;
-  margin: 12px;
-  accent-color: var(--accent);
-  cursor: pointer;
+.g-table__check .g-check {
+  justify-content: center;
 }
 .g-table__check input:focus-visible,
 .g-table__row--click:focus-visible {

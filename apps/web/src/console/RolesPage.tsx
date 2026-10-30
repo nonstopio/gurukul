@@ -12,6 +12,7 @@ import {
   PageHeader,
   PeoplePicker,
   StatCard,
+  Toggle,
   useToast,
 } from '@gurukul/ui';
 import type { Person } from '@gurukul/ui';
@@ -302,23 +303,19 @@ function GrantDialog({
         <fieldset className="console-fieldset">
           <legend>Roles</legend>
           <p>{`Everyone is ${article(t.Learner)}. Add either or both of the roles below.`}</p>
-          <label className="console-choice">
-            <input
-              type="checkbox"
+          <div className="console-switches">
+            <Toggle
+              label={t.Educator}
               checked={roles.educator}
               onChange={(e) => setRoles({ ...roles, educator: e.target.checked })}
-            />{' '}
-            {t.Educator}
-          </label>
-          <label className="console-choice">
-            <input
-              type="checkbox"
+            />
+            <Toggle
+              label={t.Admin}
               checked={roles.admin}
               disabled={self && wasAdmin}
               onChange={(e) => setRoles({ ...roles, admin: e.target.checked })}
-            />{' '}
-            {t.Admin}
-          </label>
+            />
+          </div>
           {self && wasAdmin ? (
             <p>{`You cannot remove your own ${t.Admin} role. Ask another ${t.Admin}.`}</p>
           ) : null}

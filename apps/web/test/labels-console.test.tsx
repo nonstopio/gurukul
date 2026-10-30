@@ -89,7 +89,7 @@ describe('the console in Gurukul names', () => {
     );
     fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
     expect(within(dialog).getByText(/Everyone is a Shishya\./)).toBeTruthy();
-    expect(within(dialog).getByRole('checkbox', { name: 'Acharya' })).toBeTruthy();
+    expect(within(dialog).getByRole('switch', { name: 'Acharya' })).toBeTruthy();
     expect(
       within(dialog).getByText('You cannot remove your own Kulapati role. Ask another Kulapati.'),
     ).toBeTruthy();

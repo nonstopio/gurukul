@@ -14,6 +14,11 @@ const MARKUP = [
   ['h1', /<h1\b/, 'raw <h1>: the page title comes from PageHeader'],
   ['main', /<main\b/, 'raw <main>: the shell owns <main>; a page is a Page'],
   [
+    'tick-box',
+    /\btype=["'](?:checkbox|radio)["']/,
+    'a raw checkbox or radio: use Toggle (on/off), Checkbox (tick in a list) or Radio (one of many)',
+  ],
+  [
     'email-box',
     /\btype=["']email["']/,
     'an email field: people are picked with PeoplePicker (PeopleField in the console)',

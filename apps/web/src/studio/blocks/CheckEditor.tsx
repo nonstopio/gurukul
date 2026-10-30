@@ -1,4 +1,4 @@
-import { Button, Input, PlusIcon, Textarea } from '@gurukul/ui';
+import { Button, Input, PlusIcon, Radio, Textarea } from '@gurukul/ui';
 import {
   MAX_CHECK_OPTIONS,
   MIN_CHECK_OPTIONS,
@@ -28,8 +28,7 @@ export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
             className={`studio-answer${block.correct === i ? ' studio-answer--correct' : ''}`}
             key={i}
           >
-            <input
-              type="radio"
+            <Radio
               name={`correct-${block.id}`}
               aria-label={`Answer ${i + 1} is correct`}
               checked={block.correct === i}

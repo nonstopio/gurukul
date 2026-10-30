@@ -205,3 +205,9 @@
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
 }
+
+/* The role switches in the grant dialog: one under the other. */
+.console-switches {
+  display: grid;
+  gap: var(--space-1);
+}

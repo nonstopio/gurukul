@@ -191,6 +191,11 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('radio', { name: /Sand/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select all courses' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select all courses' }));
+    await user.click(screen.getByRole('checkbox', { name: 'SQL' }));
+    await user.click(screen.getByRole('checkbox', { name: 'SQL' }));
+    await user.click(screen.getByRole('radio', { name: 'Choice B' }));
     await user.click(screen.getByRole('checkbox', { name: 'Mobile' }));
     await user.click(screen.getByRole('checkbox', { name: 'Platform' }));
     await user.click(screen.getByRole('checkbox', { name: 'Git, the NonStop Way' }));

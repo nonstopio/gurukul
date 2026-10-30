@@ -1,9 +1,9 @@
 // A generic, typed data table: columns are definitions, rows are data. Selection is controlled by
 // the caller (a list of row keys); the header checkbox selects or clears the rows on this page.
 
-import { useEffect, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { Button } from './Button';
+import { Checkbox } from './Checkbox';
 import { cx } from './cx';
 import './data-table.css';
 
@@ -60,16 +60,10 @@ export function DataTable<T>({
   footer,
   maxHeight,
 }: DataTableProps<T>) {
-  const allRef = useRef<HTMLInputElement>(null);
   const keys = rows.map(rowKey);
   const chosen = keys.filter((k) => selected.includes(k));
   const all = keys.length > 0 && chosen.length === keys.length;
   const some = chosen.length > 0 && !all;
-
-  // `indeterminate` is a DOM property with no attribute.
-  useEffect(() => {
-    if (allRef.current) allRef.current.indeterminate = some;
-  }, [some]);
 
   const toggleAll = () => {
     const rest = selected.filter((k) => !keys.includes(k));
@@ -95,11 +89,10 @@ export function DataTable<T>({
             <tr>
               {selectable ? (
                 <th scope="col" className="g-table__check">
-                  <input
-                    ref={allRef}
-                    type="checkbox"
+                  <Checkbox
                     aria-label="Select all rows on this page"
                     checked={all}
+                    indeterminate={some}
                     disabled={keys.length === 0}
                     onChange={toggleAll}
                   />
@@ -131,8 +124,7 @@ export function DataTable<T>({
                 >
                   {selectable ? (
                     <td className="g-table__check">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         aria-label={`Select ${rowLabel?.(row) ?? key}`}
                         checked={isSelected}
                         onChange={() => toggleRow(key)}

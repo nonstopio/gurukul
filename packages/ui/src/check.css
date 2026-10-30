@@ -1,0 +1,91 @@
+/* Checkbox and Radio: a drawn box over a real input. */
+.g-check {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  cursor: pointer;
+}
+.g-check__input {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--control-height);
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.g-check__box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  margin-inline: calc((var(--control-height) - var(--space-6)) / 2 - var(--space-3));
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: transparent;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.g-check__box svg {
+  scale: 0.4;
+  opacity: 0;
+  transition:
+    scale var(--dur-base) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+.g-check:hover .g-check__input:not(:disabled) + .g-check__box {
+  border-color: var(--accent);
+}
+.g-check__input:checked + .g-check__box,
+.g-check__input:indeterminate + .g-check__box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+}
+.g-check__input:checked + .g-check__box svg,
+.g-check__input:indeterminate + .g-check__box svg {
+  scale: 1;
+  opacity: 1;
+}
+.g-check__input:active:not(:disabled) + .g-check__box {
+  transform: scale(0.92);
+}
+.g-check__input:focus-visible + .g-check__box {
+  box-shadow: var(--focus-ring);
+}
+.g-check__input:disabled {
+  cursor: not-allowed;
+}
+.g-check__input:disabled ~ * {
+  opacity: 0.5;
+}
+.g-check__label {
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+
+/* The round partner: a dot grows inside instead of a tick. */
+.g-check--radio .g-check__box {
+  border-radius: var(--radius-pill);
+}
+.g-check__dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-on);
+  scale: 0.2;
+  opacity: 0;
+  transition:
+    scale var(--dur-base) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+.g-check__input:checked + .g-check__box .g-check__dot {
+  scale: 1;
+  opacity: 1;
+}

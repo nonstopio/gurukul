@@ -1,5 +1,6 @@
 import type { Lesson, PublishIssue } from '@gurukul/schema';
 import { Button, Callout, Input, PlusIcon, Select, Textarea } from '@gurukul/ui';
+import { AnswerMark } from './AnswerMark';
 import { useState } from 'react';
 import { article } from '../../labels/terms';
 import { useTerms } from '../../labels/useTerms';
@@ -101,10 +102,10 @@ export function QuestionEditor({
               className={`studio-answer${correct ? ' studio-answer--correct' : ''}`}
               key={option.id}
             >
-              <input
-                type={multiple ? 'checkbox' : 'radio'}
+              <AnswerMark
+                multiple={multiple}
                 name={`correct-${question.id}`}
-                aria-label={`Answer ${i + 1} is correct`}
+                label={`Answer ${i + 1} is correct`}
                 checked={correct}
                 onChange={() =>
                   onEdit((k) => ({ ...k, key: toggleCorrect(question.kind, k.key, option.id) }))
