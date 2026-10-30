@@ -177,7 +177,8 @@ describe('Home handoff details', () => {
       }),
     );
     expect(await screen.findByText('Learner · My learning')).toBeTruthy();
-    expect(screen.getByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
+    // The kicker renders before progress loads; the status line follows it.
+    expect(await screen.findByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
     expect(screen.getAllByText('Foundation').length).toBe(1);
     expect(screen.getAllByText(/Due in/).length).toBeGreaterThan(0);
     expect(screen.getByText('Assigned by Kavya Rao')).toBeTruthy();
