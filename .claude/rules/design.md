@@ -19,6 +19,11 @@ touch. These are blocking rules, not preferences.
   `Select`, actions are `Menu`, tables are `DataTable`.
 - **`apps/web` CSS is layout only** (grid, flex, gap, order, columns) with tokens: no hex, no
   `rgb()`, no px font size, no `box-shadow`, no `border-radius` literal, no raw `z-index`.
+- **A card that stands for one destination is clickable all over.** One real link (its title)
+  stretched over the card with `::after { inset: 0 }`; never only the title, never a `<div onClick>`,
+  never a link nested in a clickable card. A course in any list is a `CourseTile`: its picture,
+  else the first image in the course, else its name on its own colour. A list people search gets a
+  `SearchCard`, not loose inputs.
 - **Every data region has loading, empty and error states**, and its test renders each. Action
   buttons use `Button loading`.
 - Tests select by role and label, never by class; keep e2e role names stable or update the spec

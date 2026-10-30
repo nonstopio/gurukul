@@ -1,10 +1,11 @@
-import { Card, Chip, ProgressRing, buttonClass } from '@gurukul/ui';
+import { Card, Chip, CourseTile, ProgressRing, buttonClass } from '@gurukul/ui';
 import { resumeItemId } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import type { ProgressRow } from '../data/types';
-import { LEVEL_LABELS, durationLabel, isRetired, upNext } from './model';
+import { LEVEL_LABELS, courseImageUrl, durationLabel, isRetired, upNext } from './model';
 import type { AssignedCourse } from './model';
 import { minutesLeft } from './hero';
 
@@ -125,21 +126,25 @@ export function PickNextCourse({
 }) {
   return (
     <Card title="Pick your next course">
-      <ul className="learn-rows">
-        {courses.map((c) => (
-          <li key={c.id}>
-            <Link to={`/courses/${c.id}`} className="course-row">
-              <span className="learn-stack">
-                <span className="course-row__title">{`Start ${c.title}`}</span>
-                <span className="learn-muted">{c.summary}</span>
-                <span className="learn-chips">
-                  <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
-                  <Chip tone="neutral">{durationLabel(c.estimatedMinutes)}</Chip>
-                  {dueOf(c.id) ? <Chip tone="warning">{dueOf(c.id)}</Chip> : null}
-                </span>
-              </span>
-            </Link>
-          </li>
+      <ul className="learn-cards g-stagger">
+        {courses.map((c, i) => (
+          <CourseTile
+            as="li"
+            key={c.id}
+            title={c.title}
+            heading={<Link to={`/courses/${c.id}`}>{`Start ${c.title}`}</Link>}
+            image={courseImageUrl(c)}
+            theme={c.cover.theme}
+            style={{ '--i': i } as CSSProperties}
+            chips={
+              <>
+                <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
+                <Chip tone="neutral">{durationLabel(c.estimatedMinutes)}</Chip>
+                {dueOf(c.id) ? <Chip tone="warning">{dueOf(c.id)}</Chip> : null}
+              </>
+            }
+            summary={c.summary}
+          />
         ))}
       </ul>
     </Card>

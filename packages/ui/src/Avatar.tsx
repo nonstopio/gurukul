@@ -1,6 +1,7 @@
 // A person's initials in a circle, coloured by their role. Decorative unless labelled, because the
 // name is printed beside it.
 
+import { useState } from 'react';
 import { cx } from './cx';
 import './avatar.css';
 
@@ -13,6 +14,8 @@ export interface AvatarProps {
   tone?: AvatarTone | undefined;
   /** Diameter in px. Default: 36. */
   size?: 24 | 34 | 36 | 48;
+  /** The person's photo (their Google picture). Shown over the initials; if it fails to load, the initials stay. */
+  photoUrl?: string | null | undefined;
   /** Names the avatar for a screen reader. Without it the avatar is hidden from one. */
   label?: string;
   className?: string;
@@ -28,13 +31,27 @@ export function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export function Avatar({ name, tone = 'learner', size = 36, label, className }: AvatarProps) {
+export function Avatar({
+  name,
+  tone = 'learner',
+  size = 36,
+  photoUrl,
+  label,
+  className,
+}: AvatarProps) {
+  // A photo that fails to load (offline, a revoked link) leaves the initials, remembered per URL.
+  const [failed, setFailed] = useState<string | null>(null);
+  const photo = photoUrl && failed !== photoUrl ? photoUrl : null;
   return (
     <span
       className={cx('g-avatar', `g-avatar--${tone}`, `g-avatar--${size}`, className)}
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
     >
-      {initials(name)}
+      {photo ? (
+        <img src={photo} alt="" referrerPolicy="no-referrer" onError={() => setFailed(photo)} />
+      ) : (
+        initials(name)
+      )}
     </span>
   );
 }

@@ -30,3 +30,12 @@
   height: 48px;
   font-size: var(--text-lg);
 }
+
+.g-avatar {
+  overflow: hidden;
+}
+.g-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

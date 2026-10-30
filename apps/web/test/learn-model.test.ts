@@ -9,6 +9,7 @@ import {
   upNext,
   continueCourse,
   countItems,
+  courseImageUrl,
   dueLabel,
   firstName,
   hasNewLessons,
@@ -281,5 +282,26 @@ describe('Home status, up next and recent activity', () => {
     expect(agoLabel(new Date('2026-01-10T01:00:00Z'), now)).toBe('Today');
     expect(agoLabel(new Date('2026-01-09T01:00:00Z'), now)).toBe('1 day ago');
     expect(agoLabel(new Date('2026-01-07T01:00:00Z'), now)).toBe('3 days ago');
+  });
+});
+
+describe('courseImageUrl', () => {
+  const lesson = (blocks: unknown[]) => ({ type: 'lesson', id: 'l', blocks });
+  const withItems = (...items: unknown[]) =>
+    ({ chapters: [{ id: 'c', title: 'C', items }] }) as unknown as Course;
+  it('is the first image in reading order', () => {
+    const c = withItems(
+      lesson([{ type: 'text', id: 't' }]),
+      lesson([
+        { type: 'text', id: 't2' },
+        { type: 'image', id: 'i1', url: 'https://example.com/1.png' },
+        { type: 'image', id: 'i2', url: 'https://example.com/2.png' },
+      ]),
+    );
+    expect(courseImageUrl(c)).toBe('https://example.com/1.png');
+  });
+  it('skips quizzes and is undefined when the course has no picture', () => {
+    expect(courseImageUrl(withItems({ type: 'quiz', id: 'q' }, lesson([])))).toBeUndefined();
+    expect(courseImageUrl({ chapters: [] })).toBeUndefined();
   });
 });

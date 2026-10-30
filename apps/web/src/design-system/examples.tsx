@@ -16,6 +16,7 @@ import {
   CodeBlock,
   ColourSwatch,
   CommandPalette,
+  CourseTile,
   DataTable,
   Dialog,
   DragList,
@@ -44,6 +45,7 @@ import {
   QuizOption,
   ResultRow,
   Seal,
+  SearchCard,
   SegmentedControl,
   Select,
   Sidebar,
@@ -561,6 +563,47 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   Field: 'the base of Input, Select and Textarea',
 };
 
+function SearchCardExample() {
+  const [q, setQ] = useState('git');
+  const [level, setLevel] = useState('foundation');
+  return (
+    <SearchCard
+      label="Find a course"
+      search={{
+        value: q,
+        onChange: setQ,
+        label: 'Search courses',
+        placeholder: 'Search courses by name or topic',
+      }}
+      views={
+        <SegmentedControl
+          label="Show"
+          value="all"
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'mine', label: 'Assigned to me' },
+          ]}
+          onChange={() => {}}
+        />
+      }
+      filters={
+        <Select label="Level" hideLabel value={level} onChange={(e) => setLevel(e.target.value)}>
+          <option value="">Any level</option>
+          <option value="foundation">Foundation</option>
+        </Select>
+      }
+      active={
+        level ? [{ id: 'level', label: 'Level: Foundation', onRemove: () => setLevel('') }] : []
+      }
+      count="1 of 4 courses"
+      onClear={() => {
+        setQ('');
+        setLevel('');
+      }}
+    />
+  );
+}
+
 /** One card per `@gurukul/ui` component, keyed by its export name, in reading order. */
 export const EXAMPLES: Readonly<Record<string, Example>> = {
   Page: {
@@ -864,6 +907,31 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         </StateCard>
       </div>
     ),
+  },
+  CourseTile: {
+    rule: 'A course in any list is a tile: its picture, else its name on its own colour; the whole tile is the link.',
+    Example: () => (
+      <div className="ds-stack">
+        <CourseTile
+          title="Git, the NonStop Way"
+          theme="forest"
+          heading={<a href="#git">Git, the NonStop Way</a>}
+          chips={<Chip tone="neutral">Foundation</Chip>}
+          summary="Save your work, branch and undo mistakes without panic."
+          meta="22 lessons · 190 min"
+        />
+        <CourseTile
+          title="Accessible forms"
+          theme="sand"
+          heading={<a href="#forms">Accessible forms</a>}
+          summary="No picture: the name sits on the course colour."
+        />
+      </div>
+    ),
+  },
+  SearchCard: {
+    rule: 'A list people search: one card with a large search field, views, dropdowns, removable active filters and a count.',
+    Example: SearchCardExample,
   },
   GlobalLoader: {
     rule: 'A region or blocked operation whose layout is unknown: one label saying what is happening; a Skeleton whenever the layout is known.',

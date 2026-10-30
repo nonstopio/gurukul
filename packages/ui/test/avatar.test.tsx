@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Avatar, initials } from '../src/Avatar';
 import { axeViolations } from './axe';
@@ -37,5 +37,26 @@ describe('Avatar', () => {
     expect((container.firstElementChild as HTMLElement).className).toContain(
       'g-avatar--educator g-avatar--24',
     );
+  });
+});
+
+describe('Avatar photo', () => {
+  it('shows the photo over the initials, without leaking the referrer', () => {
+    const { container } = render(<Avatar name="Asha Rao" photoUrl="https://example.com/a.png" />);
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://example.com/a.png');
+    expect(img?.getAttribute('referrerpolicy')).toBe('no-referrer');
+    expect(container.textContent).toBe('');
+  });
+
+  it('keeps the initials when there is no photo or it fails, and tries a new photo', () => {
+    const { container, rerender } = render(<Avatar name="Asha Rao" photoUrl={null} />);
+    expect(container.textContent).toBe('AR');
+    rerender(<Avatar name="Asha Rao" photoUrl="https://example.com/a.png" />);
+    fireEvent.error(container.querySelector('img') as HTMLImageElement);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.textContent).toBe('AR');
+    rerender(<Avatar name="Asha Rao" photoUrl="https://example.com/b.png" />);
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://example.com/b.png');
   });
 });

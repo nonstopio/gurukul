@@ -79,21 +79,3 @@ export function RetiredNote() {
     </Callout>
   );
 }
-
-/** A course's cover as a small square (48px on lists) or a large panel (the continue card). */
-export function CoverTile({
-  cover,
-  size,
-}: {
-  cover: { theme: 'forest' | 'sand' | 'sky' | 'stone'; glyph: string };
-  size: 'small' | 'large';
-}) {
-  return (
-    <span
-      className={`cover-tile cover-tile--${size} cover-tile--${cover.theme}`}
-      aria-hidden="true"
-    >
-      {cover.glyph}
-    </span>
-  );
-}

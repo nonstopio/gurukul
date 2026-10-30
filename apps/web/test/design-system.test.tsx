@@ -138,6 +138,24 @@ describe('Design system: components', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('lets the search card example be typed in, filtered and cleared', async () => {
+    const user = userEvent.setup();
+    await openSection('components');
+    const card = screen.getByRole('region', { name: 'SearchCard' });
+    const field = within(card).getByRole('searchbox', { name: 'Search courses' });
+    await user.type(field, 's');
+    expect((field as HTMLInputElement).value).toBe('gits');
+    await user.click(
+      within(card).getByRole('button', { name: 'Remove filter: Level: Foundation' }),
+    );
+    expect(within(card).queryByText('Level: Foundation')).toBeNull();
+    await user.selectOptions(within(card).getByLabelText('Level'), 'foundation');
+    expect(within(card).getByText('Level: Foundation')).toBeTruthy();
+    await user.click(within(card).getByRole('button', { name: 'Assigned to me' }));
+    await user.click(within(card).getByRole('button', { name: 'Clear all filters' }));
+    expect((field as HTMLInputElement).value).toBe('');
+  });
+
   it('shows toasts, a dialog, a drawer and the palette', async () => {
     const user = userEvent.setup();
     await openSection('components');

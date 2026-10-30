@@ -1,10 +1,9 @@
 import {
   Button,
-  Card,
+  CourseTile,
   Chip,
   EmptyState,
-  FilterBar,
-  Input,
+  SearchCard,
   Page,
   PageHeader,
   SegmentedControl,
@@ -22,14 +21,13 @@ import {
   VIEW_LABELS,
   VISIBILITY_LABELS,
   applyQuery,
-  isFiltered,
   openable,
   parseQuery,
   queryParams,
 } from './learn/catalogue';
 import type { CatalogueQuery, CatalogueSort, CatalogueView } from './learn/catalogue';
-import { LEVEL_LABELS, countItems, isRetired } from './learn/model';
-import { CoverTile, Loaded } from './learn/ui';
+import { LEVEL_LABELS, countItems, courseImageUrl, isRetired } from './learn/model';
+import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
 
 /**
@@ -67,7 +65,6 @@ export function CoursesPage() {
   const result = useAsync(load);
   const shown =
     result.state === 'ready' ? applyQuery(result.value.courses, query, result.value) : [];
-  const filtered = isFiltered(query);
 
   return (
     <Page>
@@ -75,60 +72,81 @@ export function CoursesPage() {
         title="Course catalogue"
         lead="Every course you can open is here. Pick one and start."
       />
-      <FilterBar
-        label="Filter courses"
+      <SearchCard
+        label="Find a course"
+        search={{
+          value: query.q,
+          onChange: (q) => change({ q }),
+          label: 'Search courses',
+          placeholder: 'Search courses by name or topic',
+        }}
+        views={
+          <SegmentedControl<CatalogueView>
+            label="Show"
+            value={query.view}
+            options={Object.entries(VIEW_LABELS).map(([value, label]) => ({
+              value: value as CatalogueView,
+              label,
+            }))}
+            onChange={(view) => change({ view })}
+          />
+        }
+        filters={
+          <>
+            <Select
+              label="Level"
+              hideLabel
+              value={query.level}
+              onChange={(e) => change({ level: e.target.value as CatalogueQuery['level'] })}
+            >
+              <option value="">Any level</option>
+              {Object.entries(LEVEL_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Sort by"
+              hideLabel
+              value={query.sort}
+              onChange={(e) => change({ sort: e.target.value as CatalogueSort })}
+            >
+              {Object.entries(SORT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </>
+        }
+        active={[
+          ...(query.view === 'all'
+            ? []
+            : [
+                {
+                  id: 'view',
+                  label: VIEW_LABELS[query.view],
+                  onRemove: () => change({ view: 'all' }),
+                },
+              ]),
+          ...(query.level
+            ? [
+                {
+                  id: 'level',
+                  label: `Level: ${LEVEL_LABELS[query.level]}`,
+                  onRemove: () => change({ level: '' }),
+                },
+              ]
+            : []),
+        ]}
         count={
           result.state === 'ready'
             ? `${shown.length} of ${result.value.courses.length} courses`
             : undefined
         }
-        canClear={filtered}
         onClear={clear}
-        clearLabel="Clear all filters"
-      >
-        <Input
-          label="Search courses"
-          hideLabel
-          type="search"
-          placeholder="Search courses"
-          value={query.q}
-          onChange={(e) => change({ q: e.target.value })}
-        />
-        <SegmentedControl<CatalogueView>
-          label="Show"
-          value={query.view}
-          options={Object.entries(VIEW_LABELS).map(([value, label]) => ({
-            value: value as CatalogueView,
-            label,
-          }))}
-          onChange={(view) => change({ view })}
-        />
-        <Select
-          label="Level"
-          hideLabel
-          value={query.level}
-          onChange={(e) => change({ level: e.target.value as CatalogueQuery['level'] })}
-        >
-          <option value="">Any level</option>
-          {Object.entries(LEVEL_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="Sort by"
-          hideLabel
-          value={query.sort}
-          onChange={(e) => change({ sort: e.target.value as CatalogueSort })}
-        >
-          {Object.entries(SORT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-      </FilterBar>
+      />
       <Loaded loadable={result}>
         {({ courses, assignedIds }) =>
           courses.length === 0 ? (
@@ -152,29 +170,27 @@ export function CoursesPage() {
               {shown.map((c, i) => {
                 const n = countItems(c);
                 return (
-                  <Card
+                  <CourseTile
                     as="li"
                     key={c.id}
-                    className="course-card"
+                    title={c.title}
+                    heading={<Link to={`/courses/${c.id}`}>{c.title}</Link>}
+                    image={courseImageUrl(c)}
+                    theme={c.cover.theme}
                     style={{ '--i': i } as CSSProperties}
-                  >
-                    <CoverTile cover={c.cover} size="large" />
-                    <span className="learn-chips">
-                      <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
-                      <Chip tone={c.visibility === 'public' ? 'neutral' : 'info'}>
-                        {VISIBILITY_LABELS[c.visibility ?? 'public']}
-                      </Chip>
-                      {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
-                      {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}
-                    </span>
-                    <h2 className="learn-display">
-                      <Link to={`/courses/${c.id}`}>{c.title}</Link>
-                    </h2>
-                    <p className="learn-muted">{c.summary}</p>
-                    <p className="learn-meta">
-                      {n.lessons} lessons · {n.quizzes} {t.Quizzes} · {c.estimatedMinutes} min
-                    </p>
-                  </Card>
+                    chips={
+                      <>
+                        <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
+                        <Chip tone={c.visibility === 'public' ? 'neutral' : 'info'}>
+                          {VISIBILITY_LABELS[c.visibility ?? 'public']}
+                        </Chip>
+                        {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
+                        {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}
+                      </>
+                    }
+                    summary={c.summary}
+                    meta={`${n.lessons} lessons · ${n.quizzes} ${t.Quizzes} · ${c.estimatedMinutes} min`}
+                  />
                 );
               })}
             </ul>

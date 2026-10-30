@@ -97,6 +97,21 @@ export function firstName(displayName: string | null | undefined): string {
   return displayName?.trim().split(/\s+/)[0] ?? '';
 }
 
+/**
+ * The picture for a course's tile: the first image in its lessons, in reading order. A course with
+ * no picture gets none, and its tile shows the course name on its own colour instead.
+ */
+export function courseImageUrl(course: Pick<Course, 'chapters'>): string | undefined {
+  for (const chapter of course.chapters) {
+    for (const item of chapter.items) {
+      if (item.type !== 'lesson') continue;
+      const image = item.blocks.find((b) => b.type === 'image');
+      if (image?.type === 'image') return image.url;
+    }
+  }
+  return undefined;
+}
+
 export function countItems(course: Pick<Course, 'chapters'>) {
   const items = itemsOf(course);
   return {

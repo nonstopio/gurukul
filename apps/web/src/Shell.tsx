@@ -242,6 +242,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               name={user.displayName ?? String(user.email)}
               detail={String(user.email)}
               tone={tone}
+              photoUrl={user.photoURL}
               items={[
                 { label: 'Profile', icon: <UserIcon />, onSelect: () => void navigate('/profile') },
                 {

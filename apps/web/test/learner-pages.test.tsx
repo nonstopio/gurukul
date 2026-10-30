@@ -103,7 +103,9 @@ describe('Home', () => {
         progress: [progress],
       }),
     );
-    expect(await screen.findByRole('heading', { name: 'Git, the NonStop Way' })).toBeTruthy();
+    expect(
+      (await screen.findAllByRole('heading', { name: 'Git, the NonStop Way' })).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Resume lesson' }).getAttribute('href')).toBe(
       '/courses/git/learn/l2',
     );
@@ -132,7 +134,7 @@ describe('Home', () => {
         progress: [progressRow({ completedItemIds: ['l1'], completedAt: new Date() })],
       }),
     );
-    const row = (await screen.findByText('New lessons added')).closest('a') as HTMLElement;
+    const row = (await screen.findByText('New lessons added')).closest('li') as HTMLElement;
     expect(within(row).getByText('Retired')).toBeTruthy();
     expect(within(row).getByText('Completed')).toBeTruthy();
   });
@@ -303,10 +305,22 @@ describe('Catalogue', () => {
     expect(data.data.listCourses).toHaveBeenCalledWith({ teamIds: ['platform'], staff: false });
   });
 
+  it('shows the filters that are on as chips, and removes each one', async () => {
+    const { router } = await open('/courses?show=progress&level=foundation', fakeData({ courses }));
+    const search = await screen.findByRole('search', { name: 'Find a course' });
+    expect(within(search).getByText('Level: Foundation')).toBeTruthy();
+    fireEvent.click(
+      within(search).getByRole('button', { name: 'Remove filter: Level: Foundation' }),
+    );
+    expect(router.state.location.search).not.toContain('level');
+    fireEvent.click(within(search).getByRole('button', { name: /^Remove filter: / }));
+    expect(router.state.location.search).not.toContain('show');
+  });
+
   it('says so when nothing matches, and clears all filters', async () => {
     const { router } = await open('/courses?show=assigned', fakeData({ courses }));
     expect(await screen.findByText('No courses match')).toBeTruthy();
-    const filters = screen.getByRole('group', { name: 'Filter courses' });
+    const filters = screen.getByRole('search', { name: 'Find a course' });
     expect(within(filters).getByRole('status').textContent).toBe('0 of 2 courses');
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear all filters' })[0] as HTMLElement);
     expect(router.state.location.search).toBe('');

@@ -578,3 +578,22 @@ number columns, no selection and no paging. Never `<table class="plain-table">`.
 
 `placeholder="Video coming soon."` keeps the 16:9 dark frame and shows the message (with a play
 glyph) in it instead of a player; no open-in-new-tab link. Never bare text where a video goes.
+
+## CourseTile — shipped
+
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? theme chips? summary? extra? meta? />`.
+A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover
+colour, `forest` white ink, the others the fixed paper ink), then chips, the title, the summary, an
+`extra` block (a progress bar) and a meta line. The picture comes from `courseImageUrl(course)` (the
+first image in its lessons); a missing or broken picture falls back to the name, so there is never an
+empty box. **The whole tile is the link**: the title's link stretches over it, so keyboard and screen
+readers still meet one link, and hover lifts the tile and underlines the title. Lists use
+`.learn-cards` with `g-stagger`. Never a text-only row for a course.
+
+## SearchCard — shipped
+
+`<SearchCard label search={{ value, onChange, label, placeholder? }} views? filters? active? count? onClear? />`.
+For a list people search (courses, media): one card, `role="search"`. A 52px search field with a
+leading icon, its own clear button and Esc to clear; under it the views (a `SegmentedControl` of 2 to 4) on the left and `Select`s (`hideLabel`) on the right; under that the filters that are on as
+removable chips (`Remove filter: Level: Foundation`), a Clear all filters button while anything is on,
+and the live result count. Filters belong in the URL. A table's header keeps `FilterBar`.
