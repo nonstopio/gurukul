@@ -32,23 +32,22 @@ export function TeamPrompt() {
   };
 
   return (
-    <Card as="section" aria-labelledby="team-title" className="team-prompt">
-      <h2 id="team-title" className="team-prompt__title">
-        Which team are you in?
-      </h2>
-      <p>{`Your ${t.Admin} uses it to assign courses to a whole team.`}</p>
-      <form className="team-prompt__form" onSubmit={save}>
-        <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
-          <option value="">Choose your team</option>
-          {teams.value.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </Select>
-        <Button type="submit" disabled={team === ''}>
-          Save team
-        </Button>
+    <Card title="Which team are you in?">
+      <form className="inline-form" onSubmit={save}>
+        <p className="learn-muted">{`Your ${t.Admin} uses it to assign courses to a whole team.`}</p>
+        <div className="inline-form__row">
+          <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
+            <option value="">Choose your team</option>
+            {teams.value.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" variant="secondary" disabled={team === ''}>
+            Save team
+          </Button>
+        </div>
       </form>
     </Card>
   );

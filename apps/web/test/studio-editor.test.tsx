@@ -242,7 +242,9 @@ describe('Course editor: structure', () => {
     })[0] as HTMLElement;
     fireEvent.click(collapse);
     expect(screen.queryByRole('textbox', { name: 'Title of chapter 1' })).toBeNull();
-    expect(screen.getByText('Start', { selector: '.sc-chapter__title' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('region', { name: 'Chapter 1' })).getByText('Start'),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^Expand chapter 1/ }));
     expect(screen.getByRole('textbox', { name: 'Title of chapter 1' })).toBeTruthy();
     // delete an item
@@ -576,7 +578,9 @@ describe('Course editor: analytics', () => {
     await open({ consoleApi: fakeConsole() });
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
-    expect(await screen.findByText('No one has started this course yet.')).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: 'No one has started this course yet' }),
+    ).toBeTruthy();
   });
 
   it('shows loading, then a failure, when the learners cannot be read', async () => {

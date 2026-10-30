@@ -101,10 +101,9 @@ describe('video block editor', () => {
   });
 
   it('previews a recognised link in a 16:9 frame and none otherwise', () => {
-    const { container } = setup(video());
-    const frame = container.querySelector('.studio-video-preview iframe');
-    expect(frame?.getAttribute('src')).toContain('abc123');
-    expect(frame?.getAttribute('title')).toBe('Video preview');
+    setup(video());
+    const frame = screen.getByTitle('Video preview');
+    expect(frame.getAttribute('src')).toContain('abc123');
   });
 
   it('warns when the link does not fit the chosen host', () => {

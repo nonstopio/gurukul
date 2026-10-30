@@ -1,4 +1,5 @@
-import { Button, Callout, Skeleton } from '@gurukul/ui';
+import { Button, Callout, Page, PageSkeleton, Skeleton } from '@gurukul/ui';
+import type { PageWidth } from '@gurukul/ui';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 
@@ -23,12 +24,11 @@ export function Loaded<T>({
     );
   }
   if (loadable.state === 'error') {
-    const { error, retry } = loadable;
+    // Plain words and Retry; raw error text is not for people (CLAUDE.md, API responses).
+    const { retry } = loadable;
     return (
       <Callout tone="warning" title="This did not load" role="alert">
-        <p>
-          Check your connection and {retry ? 'try again' : 'reload the page'}. {error.message}
-        </p>
+        <p>Check your connection and {retry ? 'try again' : 'reload the page'}.</p>
         {retry && (
           <Button variant="secondary" className="load-retry" onClick={retry}>
             Retry
@@ -40,13 +40,31 @@ export function Loaded<T>({
   return <>{children(loadable.value)}</>;
 }
 
-/** What a lazily loaded page shows while its code downloads. */
-export function PageLoading() {
+/**
+ * `Loaded` for a whole page whose header needs the data (a course's title): a page-shaped skeleton
+ * while it loads, the warning with Retry inside a `Page` if it fails, the page itself when ready.
+ */
+export function LoadedPage<T>({
+  loadable,
+  width = 'default',
+  children,
+}: {
+  loadable: Loadable<T>;
+  width?: PageWidth;
+  children: (value: T) => React.ReactNode;
+}) {
+  if (loadable.state === 'loading') return <PageSkeleton width={width} />;
+  if (loadable.state === 'ready') return <>{children(loadable.value)}</>;
   return (
-    <main className="notfound" aria-busy="true">
-      <p>Loading…</p>
-    </main>
+    <Page width={width}>
+      <Loaded loadable={loadable}>{children}</Loaded>
+    </Page>
   );
+}
+
+/** What a lazily loaded page shows while its code downloads: the page's shape, not a word. */
+export function PageLoading() {
+  return <PageSkeleton />;
 }
 
 /** What a learner sees on a retired course: what they keep and why it cannot be finished now. */
@@ -72,7 +90,7 @@ export function CoverTile({
 }) {
   return (
     <span
-      className={`cover-tile cover-tile--${size} sc-card__cover--${cover.theme}`}
+      className={`cover-tile cover-tile--${size} cover-tile--${cover.theme}`}
       aria-hidden="true"
     >
       {cover.glyph}

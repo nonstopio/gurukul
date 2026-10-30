@@ -28,6 +28,10 @@
   /* ---- Scale: cover grounds (course cover themes; forest is an ink step) ---- */
   --g-sand-300: #e3d5b4;
   --g-sky-300: #bcd6e8;
+
+  /* ---- Scale: avatar grounds (role colours for people) ---- */
+  --g-sand-400: #e3cf9b;
+  --g-violet-300: #c4b5fd;
   --g-stone-300: #cfcfc6;
 
   /* ---- Scale: ink (the dark chrome) ---- */
@@ -63,6 +67,7 @@
   --bg: var(--g-gray-50);
   --surface: #ffffff;
   --surface-sunken: var(--g-gray-100);
+  --surface-hover: var(--g-gray-25);
   --text: var(--g-gray-900);
   --text-body: var(--g-gray-700);
   --text-muted: var(--g-gray-600);
@@ -78,6 +83,7 @@
   --accent-soft-text: var(--g-green-900);
   --accent-decor: var(--g-green-500);
   --accent-line: var(--g-green-200);
+  --accent-ring: var(--g-green-100);
 
   /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
   --chrome: var(--g-ink-950);
@@ -95,6 +101,15 @@
   --cover-sky: var(--g-sky-300);
   --cover-stone: var(--g-stone-300);
 
+  /* ---- Roles: people (avatar grounds by role; initials in --avatar-on) ---- */
+  --avatar-learner: var(--g-green-400);
+  --avatar-educator: var(--g-violet-300);
+  --avatar-admin: var(--g-sand-400);
+  --avatar-on: var(--g-ink-950);
+
+  /* ---- Roles: overlays ---- */
+  --scrim: rgb(6 19 22 / 0.55);
+
   /* ---- Roles: state (only for real state, always paired with words) ---- */
   --success: var(--g-green-700);
   --success-soft: var(--g-green-50);
@@ -102,6 +117,7 @@
   --warning-soft: #fef3e7;
   --warning-line: #f6d9a8;
   --danger: #b42318;
+  --danger-on: #ffffff;
   --danger-soft: #fef3f2;
   --danger-line: var(--g-red-200);
   --info: #1d4ed8;
@@ -165,7 +181,22 @@
   /* ---- Elevation: hairlines first; shadow only for things that float ---- */
   --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.06);
   --shadow-float: 0 30px 80px rgb(0 0 0 / 0.45);
+  --shadow-menu: 0 12px 32px rgb(16 24 40 / 0.14), 0 2px 6px rgb(16 24 40 / 0.06);
   --focus-ring: 0 0 0 3px var(--g-green-100), 0 0 0 4px var(--g-green-700);
+
+  /* ---- Layout: page widths (Page width=…) and the shell ---- */
+  --width-reading: 48.75rem; /* 780: lessons, Quizzes, changelog, profile */
+  --width-default: 70rem; /* 1120: most pages */
+  --width-wide: 80rem; /* 1280: tables, editors */
+  --width-form: 40rem; /* 640: a form's column */
+  --sidebar-width: 15.5rem; /* 248 */
+
+  /* ---- Layers: the only z-index values ---- */
+  --z-sticky: 10; /* sticky table heads, top bars */
+  --z-drawer: 40; /* the sidebar as a drawer, and its scrim */
+  --z-overlay: 100; /* dialogs, the command palette */
+  --z-menu: 110; /* menus, above a dialog that holds them */
+  --z-toast: 120;
 
   /* ---- Motion ---- */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);

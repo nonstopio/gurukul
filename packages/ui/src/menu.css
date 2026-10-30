@@ -1,0 +1,111 @@
+.g-menu {
+  position: relative;
+  display: inline-block;
+}
+.g-menu__trigger {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.g-menu__trigger:hover,
+.g-menu__trigger[aria-expanded='true'] {
+  background: var(--surface-sunken);
+}
+.g-menu__trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-menu__panel {
+  position: absolute;
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: var(--space-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-menu);
+  font-family: var(--font-ui);
+  animation: g-menu-in var(--dur-fast) var(--ease);
+}
+.g-menu__panel--bottom {
+  top: calc(100% + var(--space-1));
+}
+.g-menu__panel--top {
+  bottom: calc(100% + var(--space-1));
+}
+.g-menu__panel--start {
+  left: 0;
+}
+.g-menu__panel--end {
+  right: 0;
+}
+@keyframes g-menu-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.g-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.g-menu__item:hover,
+.g-menu__item:focus,
+.g-menu__item:active {
+  outline: none;
+  background: var(--surface-sunken);
+}
+.g-menu__item:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.g-menu__item--danger {
+  color: var(--danger);
+}
+.g-menu__item[aria-disabled='true'] {
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.g-menu__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+.g-menu__item--danger .g-menu__icon {
+  color: inherit;
+}
+.g-menu__label {
+  flex: 1;
+}
+.g-menu__hint {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+}
+.g-menu__separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--border);
+}

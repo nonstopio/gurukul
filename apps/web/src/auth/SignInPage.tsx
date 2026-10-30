@@ -1,4 +1,4 @@
-import { BookIcon, Button, Callout, CheckIcon, StarIcon } from '@gurukul/ui';
+import { BookIcon, Button, Callout, CheckIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
 
@@ -49,8 +49,8 @@ export function SignInPage() {
     if (wrongAccount) alert.current?.focus();
   }, [wrongAccount, error]);
   return (
-    <main className="signin">
-      <section className="signin__hero" aria-labelledby="signin-title">
+    <main className="signin" id="content">
+      <section className="signin__hero" aria-label="About Gurukul">
         <div className="signin__brand">
           <img src="/nonstop-logo.png" alt="NonStop io" width="110" height="32" />
           <span className="signin__brand-name" aria-hidden="true">
@@ -58,11 +58,9 @@ export function SignInPage() {
           </span>
         </div>
         <div className="signin__pitch">
-          <p className="shell__kicker">NonStop Academy</p>
-          <h1 id="signin-title" className="signin__title">
-            Welcome to Gurukul.
-          </h1>
-          <p className="shell__body">Courses, Quizzes and certificates for every NonStopian.</p>
+          <p className="signin__headline">
+            Courses, Quizzes and certificates for every NonStopian.
+          </p>
           <figure className="signin__quote">
             <blockquote lang="sa">विद्या ददाति विनयम्</blockquote>
             <figcaption>Knowledge gives humility.</figcaption>
@@ -76,45 +74,31 @@ export function SignInPage() {
             ))}
           </ul>
         </div>
-        <svg className="signin__rings" viewBox="0 0 240 240" aria-hidden="true">
-          <circle cx="240" cy="240" r="80" />
-          <circle cx="240" cy="240" r="140" />
-          <circle cx="240" cy="240" r="200" />
-        </svg>
       </section>
-      <section className="signin__form">
-        <h2 className="signin__form-title">Sign in to Gurukul</h2>
+      <section className="signin__form" aria-label="Sign in">
+        <PageHeader
+          eyebrow="NonStop Academy"
+          title="Welcome to Gurukul."
+          lead="Sign in with your NonStop io Google account to pick up where you left off."
+        />
         {error ? (
-          <p ref={alert} role="alert" className="shell__error" tabIndex={-1}>
+          <p ref={alert} role="alert" className="signin__error" tabIndex={-1}>
             {error}
           </p>
         ) : null}
-        {wrongAccount ? (
-          <Button
-            variant="chrome"
-            icon={<GoogleMark />}
-            disabled={pending}
-            aria-busy={pending}
-            onClick={() => start({ chooseAccount: true })}
-          >
-            {pending ? 'Signing in…' : 'Try another account'}
-          </Button>
-        ) : (
-          <Button
-            variant="chrome"
-            icon={<GoogleMark />}
-            disabled={pending}
-            aria-busy={pending}
-            onClick={() => start()}
-          >
-            {pending ? 'Signing in…' : 'Sign in with Google'}
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          icon={<GoogleMark />}
+          loading={pending}
+          onClick={() => start(wrongAccount ? { chooseAccount: true } : undefined)}
+        >
+          {wrongAccount ? 'Try another account' : 'Sign in with Google'}
+        </Button>
         <Callout tone="tip" title="Assigned a course before you joined?">
           Sign in with the same work email. Your courses are waiting for you.
         </Callout>
-        <p className="signin__footnote">Only @nonstopio.com Google accounts can sign in.</p>
-        <p className="signin__footnote">
+        <p className="learn-meta">Only @nonstopio.com Google accounts can sign in.</p>
+        <p className="learn-meta">
           Trouble signing in? Write to{' '}
           <a href="mailto:gurukul@nonstopio.com">gurukul@nonstopio.com</a>.
         </p>

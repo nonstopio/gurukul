@@ -76,19 +76,28 @@ describe('ChangelogPage', () => {
     expect(screen.getByRole('status').textContent).toBe('2 of 3');
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'feature' } });
     expect(screen.getByRole('status').textContent).toBe('0 of 3');
-    expect(screen.getByText(/No change matches/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'No change matches' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show every change' }));
+    expect(screen.getByRole('status').textContent).toBe('3 of 3');
+    expect((screen.getByLabelText('Area') as HTMLSelectElement).value).toBe('');
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'fix' } });
+    expect(screen.getByRole('status').textContent).toBe('1 of 3');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('status').textContent).toBe('3 of 3');
   });
 
   it('offers only the areas and kinds that entries use', () => {
     render(<ChangelogPage changes={changes} releases={[]} />);
     const areaOptions = within(screen.getByLabelText('Area')).getAllByRole('option');
     expect(areaOptions.map((o) => o.textContent)).toEqual([
-      'All areas',
+      'Any area',
       'Learning',
       'Quizzes & certificates',
     ]);
     const kindOptions = within(screen.getByLabelText('Kind')).getAllByRole('option');
-    expect(kindOptions.map((o) => o.textContent)).toEqual(['All kinds', 'Docs', 'New', 'Fix']);
+    expect(kindOptions.map((o) => o.textContent)).toEqual(['Any kind', 'Docs', 'New', 'Fix']);
   });
 
   it('has no accessibility violations', async () => {
@@ -99,6 +108,7 @@ describe('ChangelogPage', () => {
   it('renders the real entries by default', () => {
     render(<ChangelogPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Changelog' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Filter changes' })).toBeTruthy();
     expect(screen.getAllByRole('article')).toHaveLength(CHANGES.length);
   });
 });

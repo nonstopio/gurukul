@@ -1,4 +1,4 @@
-import { Button, Chip, Dialog, ProgressBar, useToast } from '@gurukul/ui';
+import { Avatar, Button, Chip, Dialog, ProgressBar, useToast } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -85,120 +85,140 @@ export function LearnerDrawer({
 
   return (
     <Dialog open onClose={onClose} title={row.name} size="drawer">
-      <p>{row.email}</p>
-      {row.status === 'invited' ? (
-        <p>Pending invite: they have not signed in yet, so there is no progress to show.</p>
-      ) : null}
-      <Loaded loadable={result}>
-        {({ list, attempts, certificates }) => (
-          <>
-            <h3>Courses</h3>
-            {list.length === 0 ? (
-              <p>No courses assigned or started.</p>
-            ) : (
-              <ul className="course-list">
-                {list.map((c) => (
-                  <li key={c.courseId} className="drawer-course">
-                    <span className="course-row__title">{c.title}</span>
-                    <span className="course-row__meta">
-                      <CourseStatus c={c} />
-                      <span className="items__kind">{dueText(c)}</span>
-                    </span>
-                    {c.percent === null ? null : (
-                      <ProgressBar value={c.percent} label={`${c.title} progress`} />
-                    )}
-                    {c.quizzes.map((p) => (
-                      <section key={p.id} aria-label={`${p.title} attempts`}>
-                        <p>
-                          <strong>{p.title}</strong> · {p.attempts}{' '}
-                          {p.attempts === 1 ? 'attempt' : 'attempts'} · best {percent(p.best)} ·{' '}
-                          {p.passed ? 'Passed' : 'Not passed yet'}
-                        </p>
-                        <ol className="drawer-attempts">
-                          {(attempts.get(`${c.courseId}/${p.id}`) as AttemptSummary[]).map((a) => (
-                            <li key={a.id}>
-                              {a.at ? longDate(a.at) : 'Date unknown'}: {percent(a.score)},{' '}
-                              {a.passed ? 'passed' : 'not passed'}
-                            </li>
-                          ))}
-                        </ol>
+      <div className="console-flow">
+        <p className="console-person">
+          <Avatar name={row.name} />
+          <span className="console-muted">{row.email}</span>
+        </p>
+        {row.status === 'invited' ? (
+          <p>Pending invite: they have not signed in yet, so there is no progress to show.</p>
+        ) : null}
+        <Loaded loadable={result}>
+          {({ list, attempts, certificates }) => (
+            <>
+              <h3>Courses</h3>
+              {list.length === 0 ? (
+                <p className="console-muted">No courses assigned or started.</p>
+              ) : (
+                <ul className="console-rows" aria-label="Courses">
+                  {list.map((c) => (
+                    <li key={c.courseId} className="console-row console-flow">
+                      <strong>{c.title}</strong>
+                      <span className="console-row__chips">
+                        <CourseStatus c={c} />
+                        <span className="console-muted">{dueText(c)}</span>
+                      </span>
+                      {c.percent === null ? null : (
+                        <ProgressBar value={c.percent} label={`${c.title} progress`} />
+                      )}
+                      {c.quizzes.map((p) => (
+                        <section
+                          key={p.id}
+                          aria-label={`${p.title} attempts`}
+                          className="console-flow"
+                        >
+                          <p>
+                            <strong>{p.title}</strong> · {p.attempts}{' '}
+                            {p.attempts === 1 ? 'attempt' : 'attempts'} · best {percent(p.best)} ·{' '}
+                            {p.passed ? 'Passed' : 'Not passed yet'}
+                          </p>
+                          <ol className="console-attempts">
+                            {(attempts.get(`${c.courseId}/${p.id}`) as AttemptSummary[]).map(
+                              (a) => (
+                                <li key={a.id}>
+                                  {a.at ? longDate(a.at) : 'Date unknown'}: {percent(a.score)},{' '}
+                                  {a.passed ? 'passed' : 'not passed'}
+                                </li>
+                              ),
+                            )}
+                          </ol>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              void act(
+                                () =>
+                                  service.resetCooldown({
+                                    uid: row.uid as string,
+                                    courseId: c.courseId,
+                                    quizId: p.id,
+                                  }),
+                                'Retake opened',
+                                'resetCooldown',
+                              )
+                            }
+                          >
+                            Reset cooldown for {p.title}
+                          </Button>
+                        </section>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h3>Certificates</h3>
+              {certificates.length === 0 ? (
+                <p className="console-muted">None yet.</p>
+              ) : (
+                <ul className="console-rows">
+                  {certificates.map((cert) => (
+                    <li key={cert.id} className="console-row">
+                      <span className="console-row__text">
+                        <Link to={`/certificates/${cert.id}`}>{cert.courseTitle}</Link>
+                        <span className="console-muted">{cert.id}</span>
+                      </span>
+                      {cert.revoked ? <Chip tone="danger">Revoked</Chip> : null}
+                      {confirming === cert.id ? (
+                        <div
+                          role="group"
+                          aria-label={`Confirm revoking ${cert.id}`}
+                          className="console-flow"
+                        >
+                          <p>
+                            Revoke this certificate? Its public page will say it is revoked until
+                            someone restores it.
+                          </p>
+                          <Button
+                            variant="danger"
+                            onClick={() => {
+                              setConfirming(null);
+                              void act(
+                                () => service.revokeCertificate({ id: cert.id, revoked: true }),
+                                'Certificate revoked',
+                                'revokeCertificate',
+                              );
+                            }}
+                          >
+                            Revoke certificate
+                          </Button>
+                          <Button variant="secondary" onClick={() => setConfirming(null)}>
+                            Keep it
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           variant="secondary"
                           onClick={() =>
-                            void act(
-                              () =>
-                                service.resetCooldown({
-                                  uid: row.uid as string,
-                                  courseId: c.courseId,
-                                  quizId: p.id,
-                                }),
-                              'Retake opened',
-                              'resetCooldown',
-                            )
+                            cert.revoked
+                              ? void act(
+                                  () => service.revokeCertificate({ id: cert.id, revoked: false }),
+                                  'Certificate restored',
+                                  'restoreCertificate',
+                                )
+                              : setConfirming(cert.id)
                           }
                         >
-                          Reset cooldown for {p.title}
+                          {cert.revoked ? 'Restore' : 'Revoke'}
                         </Button>
-                      </section>
-                    ))}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h3>Certificates</h3>
-            {certificates.length === 0 ? (
-              <p>None yet.</p>
-            ) : (
-              <ul className="course-list">
-                {certificates.map((cert) => (
-                  <li key={cert.id}>
-                    <Link to={`/certificates/${cert.id}`}>{cert.courseTitle}</Link> · {cert.id}
-                    {cert.revoked ? ' · Revoked' : null}{' '}
-                    {confirming === cert.id ? (
-                      <div role="group" aria-label={`Confirm revoking ${cert.id}`}>
-                        <p>
-                          Revoke this certificate? Its public page will say it is revoked until
-                          someone restores it.
-                        </p>
-                        <Button
-                          onClick={() => {
-                            setConfirming(null);
-                            void act(
-                              () => service.revokeCertificate({ id: cert.id, revoked: true }),
-                              'Certificate revoked',
-                              'revokeCertificate',
-                            );
-                          }}
-                        >
-                          Revoke certificate
-                        </Button>{' '}
-                        <Button variant="secondary" onClick={() => setConfirming(null)}>
-                          Keep it
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          cert.revoked
-                            ? void act(
-                                () => service.revokeCertificate({ id: cert.id, revoked: false }),
-                                'Certificate restored',
-                                'restoreCertificate',
-                              )
-                            : setConfirming(cert.id)
-                        }
-                      >
-                        {cert.revoked ? 'Restore' : 'Revoke'}
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </Loaded>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </Loaded>
+      </div>
     </Dialog>
   );
 }

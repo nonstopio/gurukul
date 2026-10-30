@@ -32,8 +32,10 @@ JetBrains Mono for code. The certificate is the one "paper and gold" surface.
 | M5 | DragList (keyboard reorderable), BlockFrame, LayoutPicker, ColourSwatch |
 
 Each component ships with: a recipe in `references/components.md`, tests for
-every variant/state and keyboard path, 100% coverage, and a story-style
-example page at `/__ui` in development builds only.
+every variant/state and keyboard path, 100% coverage, and a live example in
+the Design system tab of Org settings (Admins only; `18-redesign.md`). Since the
+redesign, screens are assembled from these components only: page CSS lays them
+out and `npm run check:design` enforces it.
 
 ## Accessibility bar
 

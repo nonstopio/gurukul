@@ -44,7 +44,7 @@ describe('Learners', () => {
     expect(screen.getByRole('tab', { name: 'Overdue (1)' })).toBeTruthy();
     expect(screen.getAllByText('1 · 0 done').length).toBeGreaterThan(0);
     expect(screen.getByText('Overdue')).toBeTruthy();
-    expect(screen.getByText('Educator')).toBeTruthy();
+    expect(screen.getByRole('cell', { name: 'Educator' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -68,7 +68,7 @@ describe('Learners', () => {
     expect(await screen.findByText(/Invited$/)).toBeTruthy();
     expect(c.data.usersPage).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('tab', { name: 'Signed in (0)' }));
-    expect(await screen.findByText('No learners match these filters.')).toBeTruthy();
+    expect(await screen.findByText('No learners match these filters')).toBeTruthy();
   });
 
   it('counts pending invites and overdue people past the newest assignments', async () => {
@@ -109,6 +109,27 @@ describe('Learners', () => {
     await openApp('/admin/learners?course=git', { ...admin, console: c });
     await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
     expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('git');
+  });
+
+  it('names each role in the row, an Admin included', async () => {
+    const boss = userRow(3, { displayName: 'Asha', roles: ['learner', 'admin'] });
+    const c = setup({ users: [...users, boss], count: 3 });
+    await openApp('/admin/learners', { ...admin, console: c });
+    const row = (await screen.findByText('Asha')).closest('tr') as HTMLElement;
+    expect(within(row).getByRole('cell', { name: 'Admin' })).toBeTruthy();
+  });
+
+  it('clears every filter at once, and hides Clear filters when nothing is set', async () => {
+    const c = setup();
+    await openApp('/admin/learners?course=git', { ...admin, console: c });
+    await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
+    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'r' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'admin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('');
+    expect((screen.getByLabelText('Role') as HTMLSelectElement).value).toBe('');
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
 
   it('filters by search, team, course and role', async () => {
@@ -524,9 +545,10 @@ describe('Learners', () => {
       const c = detail();
       const dialog = await openPriya(c);
       expect(c.data.assignmentsFor).toHaveBeenCalledWith('user1@nonstopio.com');
-      const items = within(dialog)
+      const list = within(dialog).getByRole('list', { name: 'Courses' });
+      const items = within(list)
         .getAllByRole('listitem')
-        .filter((li) => li.classList.contains('drawer-course'))
+        .filter((li) => li.parentElement === list)
         .map((li) => li.textContent ?? '');
       expect(items).toHaveLength(4);
       expect(items[0]).toMatch(/^Git, the NonStop Way.*Overdue/);

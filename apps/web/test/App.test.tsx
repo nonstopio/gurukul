@@ -94,14 +94,14 @@ describe('sign-in pending state', () => {
     );
   }
 
-  it('disables the button and says "Signing in…" until Google answers', async () => {
+  it('keeps the label but marks the button busy and disabled until Google answers', async () => {
     const f = fakeAuth();
     let finish: () => void = () => {};
     f.service.signIn = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
     renderSignedOut(f);
     act(() => f.emitUser(null));
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
-    const busy = screen.getByRole('button', { name: 'Signing in…' }) as HTMLButtonElement;
+    const busy = screen.getByRole('button', { name: 'Sign in with Google' }) as HTMLButtonElement;
     expect(busy.disabled).toBe(true);
     expect(busy.getAttribute('aria-busy')).toBe('true');
     await act(async () => finish());
@@ -117,7 +117,7 @@ describe('sign-in pending state', () => {
     act(() => f.emitUser(null));
     fireEvent.click(screen.getByRole('button', { name: 'Try another account' }));
     expect(
-      (screen.getByRole('button', { name: 'Signing in…' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Try another account' }) as HTMLButtonElement).disabled,
     ).toBe(true);
     await act(async () => finish());
     expect(screen.getByRole('button', { name: 'Try another account' })).toBeTruthy();
@@ -143,7 +143,7 @@ describe('signed-in shell', () => {
     expect(menu.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(menu);
     expect(menu.getAttribute('aria-expanded')).toBe('true');
-    expect(document.getElementById('app-sidebar')?.className).toContain('app__sidebar--open');
+    expect(document.getElementById('app-sidebar')).toBeTruthy();
     fireEvent.click(
       within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
         name: 'Changelog',
@@ -151,7 +151,7 @@ describe('signed-in shell', () => {
     );
     await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'));
     fireEvent.click(menu);
-    fireEvent.click(menu);
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(menu.getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -174,7 +174,7 @@ describe('signed-in shell', () => {
     });
     act(() => f.emitProfile({ roles: ['learner'], displayName: '', team: null }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Namaste' })).toBeTruthy();
-    expect(screen.getByText('priya@nonstopio.com')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Account: priya@nonstopio\.com/ })).toBeTruthy();
   });
 
   it('shows an Admin the console and the studio in the sidebar', async () => {
@@ -215,9 +215,10 @@ describe('signed-in shell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/changelog'));
   });
 
-  it('signs out from the sidebar', async () => {
+  it('signs out from the account menu at the foot of the sidebar', async () => {
     const { f } = await open('/');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     expect(f.service.signOut).toHaveBeenCalled();
   });
 });

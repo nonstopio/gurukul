@@ -37,6 +37,7 @@ jobs:
       - run: npm run typecheck
       # Every route classified, every search destination real (apps/web/src/navigation).
       - run: npm run validate:navigation
+      - run: npm run check:design
       # The Claude Code hooks (.claude/hooks) and the repo scripts (scripts/, apps/web/scripts) are
       # code too. The hooks fail open, so a broken one is silent; these tests are what notices.
       - name: Hook and script tests

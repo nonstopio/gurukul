@@ -41,7 +41,7 @@ swallow `mousedown` so a click never steals focus. Twenty rows, then "Show N mor
 ## Icon — shipped
 
 `<Icon size? label?>{paths}</Icon>` and one named component per glyph in use (`CheckIcon`, `XIcon`,
-`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and the `/__ui` gallery).
+`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and Org settings → Design system).
 Lucide-style stroke on a 16-unit grid: `currentColor`, 1.5 stroke, round caps and joins, 16px by default.
 Decorative (`aria-hidden="true"`) unless given `label`, which makes it `role="img"` with that name; an
 icon-only button names the button instead. Any SVG attribute (`className`, `strokeWidth`) passes through.
@@ -69,6 +69,10 @@ in the middle (hidden from assistive tech, the role already says it).
 `<Card as="div|section|article|li" highlighted?>`. `--surface`, 1px `--border`, `--radius-xl`,
 `--space-5` padding, no shadow. `highlighted` (the current chapter) swaps to `--accent-soft` ground,
 `--accent-line` border and `--accent-soft-text`. Give a `section` an `aria-label` so it is a landmark.
+
+`title` (and `titleAs` h2/h3, `actions`) turns a card into a page section: a `section` named by
+its heading (Inter 600 `--text-lg`), actions on the right. Every section of a page is a titled
+Card; never an `h2` with a class above a `div`.
 
 ## Sidebar, SidebarGroup and NavItem — shipped
 
@@ -379,3 +383,113 @@ a check icon, never colour alone. Focus draws the ring on the swatch. The cover 
 
 `<TypeTile kind="reading|video|code|quiz">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
 hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Quiz `--warning-soft`.
+
+## Avatar — shipped
+
+`<Avatar name tone? size? label?>`: initials in a circle. Initials are the first letters of the
+first and last word ("Asha Rao" → AR), one word's first letter, an email's local part, or "?".
+`tone` picks the ground by role: `learner` (default) `--avatar-learner`, `educator`
+`--avatar-educator`, `admin` `--avatar-admin`; text `--avatar-on`, Inter 600. Sizes 24 / 34 / 36
+(default) / 48. Decorative (`aria-hidden`) because the name is always printed beside it; with
+`label` it becomes `role="img"`. Never a Google photo.
+
+## Menu — shipped
+
+`<Menu label items trigger? triggerClassName? align? placement?>` — actions on a thing (row,
+card, account). `items` are `{ label, onSelect, icon?, danger?, disabled?, hint? }` or
+`{ separator: true }`; destructive items last, after a separator, `danger`.
+
+- Trigger: `<button aria-haspopup="menu" aria-expanded aria-controls aria-label={label}>`.
+  `label` is required for the default icon trigger and left out when the trigger shows text
+  (that text names it; an `aria-label` that differs fails WCAG 2.5.3 in the browser's axe);
+  default a 44px ghost icon button with `MoreIcon`. `triggerClassName` replaces its look.
+- Panel: `role="menu"` labelled by the trigger, absolutely placed (no portal), `--z-menu`,
+  `--surface`, hairline, `--radius-lg`, `--shadow-menu`, min 12rem; `placement` bottom/top,
+  `align` end/start. Items are 44px `role="menuitem"` buttons; disabled ones are `aria-disabled`.
+- Keyboard: Enter/Space/click open at the first item, ArrowDown/ArrowUp open at first/last;
+  inside, arrows move with wrap (skipping disabled), Home/End, a letter jumps; choosing runs
+  `onSelect`, closes and returns focus; Escape closes, returns focus and does not reach an outer
+  dialog; Tab closes; a press outside closes.
+
+## UserCard — shipped
+
+`<UserCard name detail tone items menuLabel?>` — the signed-in person at the foot of the sidebar;
+the whole card is the account `Menu` trigger (named "Account: Asha Rao"). Avatar 36, name 600
+`--text-sm` `--chrome-text-strong`, detail `--text-xs` `--chrome-text`, both ellipsised; chevron
+up; `--chrome-raised`, hover `--chrome-hover`. Menu opens upward, card-wide. Its items are
+Profile, the label switch, What's new and Sign out — Sign out is always there.
+
+## AppShell — shipped
+
+`<AppShell sidebar bar? navKey? menuLabel? sidebarId?>` — the only sidebar layout. Children are the
+content column; the app renders `<main id="content">` inside. ≥ 64rem: grid
+`var(--sidebar-width) minmax(0,1fr)`, the sidebar container sticky at `top: 0`, `height: 100dvh`,
+its nav scrolling inside so the `UserCard` never leaves the screen; the bar (search) sticky with a
+hairline. < 64rem: the sidebar is a drawer (`--z-drawer`, `min(85vw, 18rem)`, slides on
+`--dur-base`) over a `--scrim`, opened by the "Menu" button (`aria-expanded`, `aria-controls`).
+Opening focuses the first link; Escape or the scrim close it and return focus; the content is
+`inert` while open; a new `navKey` (the pathname) closes it; widening past 64rem closes it.
+Never give the `Sidebar` an id or its own open state.
+
+## Page and PageHeader — shipped
+
+`<Page width? aside?>` — every screen's outer column: `reading` (780), `default` (1120), `wide`
+(1280) from `--width-*`; padding `--space-8` / `clamp(--space-4, 4vw, --space-12)` / `--space-16`;
+children stacked `--space-6` apart. `aside` makes a `minmax(0,1fr) 20rem` grid at ≥ 64rem and
+stacks below. A `div`: the shell owns `<main>`.
+
+`<PageHeader title eyebrow? lead? breadcrumb? meta? actions?>` — the first child of `Page` and the
+only `h1`. Breadcrumb above; then eyebrow (micro label), title (Fraunces 500 `--text-3xl`,
+`--text-2xl` below 40rem), meta (chips), lead (`--text-muted`, 60ch); actions right, wrapping
+under on narrow screens. At most one primary button in `actions`.
+
+## PageSkeleton — shipped
+
+`<PageSkeleton width? label?>` — a page's first load: a header-shaped skeleton and three
+card blocks inside a `Page` of the same width, `role="status"`, `aria-busy`, a hidden "Loading"
+label. Use it instead of "Loading…" text.
+
+## Select (styled native) — shipped
+
+A native `<select class="g-control g-control--select">` inside `span.g-select` with a decorative
+`ChevronDownIcon` on the right (`pointer-events: none`). `appearance: none`, 44px, 16px text (no
+iOS zoom), ellipsis. Still role `combobox`, so phones show their own picker and e2e `selectOption`
+works. Filter selects start with "Any …". Never a raw `<select>` or a hand-built dropdown.
+
+Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focus border
+`--accent` + `--focus-ring`; `aria-invalid` border `--danger`; disabled `--surface-sunken` ground,
+`--text-subtle` text, not-allowed cursor (no opacity); placeholder `--text-subtle`.
+`hideLabel` visually hides the label (still the accessible name): only inside `FilterBar`.
+
+## Button: loading, size and the danger / chrome-secondary variants — shipped
+
+- `loading`: disabled, `aria-busy="true"`, label kept, a 16px `currentColor` spinner replaces the
+  icon (still under reduced motion). Use it instead of swapping the label to "Saving…".
+- `size="sm"`: 36px, `--space-3` padding, dense rows only. `buttonClass(variant, extra, size?)`.
+- `danger`: `--danger` ground, `--danger-on` text — only the confirm of a destructive `Dialog`.
+- `chrome-secondary`: transparent, `--chrome-text`, `--chrome-line` border, hover
+  `--chrome-hover` — secondary actions on the dark top bar (beside a `chrome` primary).
+
+## FilterBar — shipped
+
+`<FilterBar label count? onClear? canClear? clearLabel?>` — search, filters and Clear above a
+filtered list. A `role="group"` named by `label`; children (`Input`/`Select` with `hideLabel`,
+`Toggle`) wrap at `flex: 1 1 12rem; max-width: 18rem`, the first (search) grows. At the end: a
+ghost "Clear filters" when `canClear`, and `count` ("3 of 4") in a `role="status"` paragraph.
+
+## SegmentedControl — shipped
+
+`<SegmentedControl label value options onChange>` — 2–4 mutually exclusive modes with no panels
+(use `Tabs` when there are panels). A `role="group"` of buttons with `aria-pressed`; track
+`--surface-sunken`, pressed button `--surface` + `--shadow-xs`; 44px overall. Left/Right move focus.
+
+## DataTable: read-only tables — shipped
+
+A column with `rowHeader: true` renders its cells as `<th scope="row">`. A read-only table (the
+role matrix, the Quiz table, the funnel) is a `DataTable` with a `caption`, `align: 'end'` on
+number columns, no selection and no paging. Never `<table class="plain-table">`.
+
+## VideoBlock: not recorded yet — shipped
+
+`placeholder="Video coming soon."` keeps the 16:9 dark frame and shows the message (with a play
+glyph) in it instead of a player; no open-in-new-tab link. Never bare text where a video goes.

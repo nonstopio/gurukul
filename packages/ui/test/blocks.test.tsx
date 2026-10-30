@@ -118,6 +118,16 @@ describe('CodeBlock', () => {
 });
 
 describe('VideoBlock', () => {
+  it('holds a not-yet-recorded message in the same frame, with no player and no link', async () => {
+    const { container } = render(
+      <VideoBlock src="" title="Lesson video" href="#" placeholder="Video coming soon." />,
+    );
+    expect(screen.getByText('Video coming soon.')).toBeTruthy();
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('embeds a titled lazy iframe with a caption and a new-tab fallback', async () => {
     const { container } = render(
       <VideoBlock

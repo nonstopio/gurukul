@@ -1,4 +1,18 @@
-import { Button, Callout, Chip, Dialog, Input, useToast } from '@gurukul/ui';
+import {
+  Avatar,
+  Button,
+  Callout,
+  Card,
+  Chip,
+  DataTable,
+  Dialog,
+  EmptyState,
+  Input,
+  Page,
+  PageHeader,
+  StatCard,
+  useToast,
+} from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
@@ -20,21 +34,15 @@ interface Held {
   admin: boolean;
 }
 
-const CARDS: Array<{ role: RoleKind; english: string; text: string }> = [
-  {
-    role: 'learner',
-    english: 'Learner',
-    text: 'Everyone signed in. Takes courses and earns certificates.',
-  },
-  { role: 'educator', english: 'Educator', text: 'Builds and edits the courses they are granted.' },
-  {
-    role: 'admin',
-    english: 'Administrator',
-    text: 'Assigns courses, grants roles and sees everything.',
-  },
+const CARDS: Array<{ role: RoleKind; text: string }> = [
+  { role: 'learner', text: 'Everyone signed in. Takes courses and earns certificates.' },
+  { role: 'educator', text: 'Builds and edits the courses they are granted.' },
+  { role: 'admin', text: 'Assigns courses, grants roles and sees everything.' },
 ];
 
-const matrix = (t: Terms): Array<[string, string, string, string]> => [
+type MatrixRow = [string, string, string, string];
+
+const matrix = (t: Terms): MatrixRow[] => [
   ['Take courses and earn certificates', 'Yes', 'Yes', 'Yes'],
   ['Build and publish courses', 'No', 'Granted courses', 'Yes'],
   ['Assign courses and send reminders', 'No', 'No', 'Yes'],
@@ -91,83 +99,73 @@ export function RolesPage() {
   };
 
   return (
-    <main className="page console">
-      <p className="article__kicker">{t.Admin}</p>
-      <h1 className="page__title">Roles & access</h1>
+    <Page>
+      <PageHeader
+        eyebrow={t.Admin}
+        title="Roles & access"
+        lead={`Who is ${article(t.Educator)} or ${article(t.Admin)}, and what each role can do.`}
+        actions={<Button onClick={() => setEditing('new')}>Grant a role</Button>}
+      />
       <Callout tone="note" title="Roles are enforced by security rules">
         <p>Changing a role takes effect the next time the person&apos;s session refreshes.</p>
       </Callout>
       <Loaded loadable={result}>
         {({ educators, admins, courses, everyone }) => (
           <>
-            <div className="role-cards">
-              {CARDS.map((c) => (
-                <section key={c.role} className="role-card" aria-label={c.english}>
-                  <Chip
-                    tone={
-                      c.role === 'admin' ? 'solid' : c.role === 'educator' ? 'warning' : 'neutral'
-                    }
-                  >
-                    {{ learner: t.Learner, educator: t.Educator, admin: t.Admin }[c.role]}
-                  </Chip>
-                  <p className="role-card__count">
-                    {c.role === 'educator'
-                      ? educators.length
-                      : c.role === 'admin'
-                        ? admins.length
-                        : everyone}
-                  </p>
-                  <h2>{c.english}</h2>
-                  <p>{c.text}</p>
-                </section>
-              ))}
+            <div className="console-stats">
+              {CARDS.map((c) => {
+                const name = { learner: t.Learner, educator: t.Educator, admin: t.Admin }[c.role];
+                const count =
+                  c.role === 'educator'
+                    ? educators.length
+                    : c.role === 'admin'
+                      ? admins.length
+                      : everyone;
+                return (
+                  <section key={c.role} aria-label={name}>
+                    <StatCard label={name} value={String(count)} sub={c.text} />
+                  </section>
+                );
+              })}
             </div>
 
-            <table className="plain-table">
-              <caption className="sr-only">What each role can do</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Capability</th>
-                  <th scope="col">{t.Learner}</th>
-                  <th scope="col">{t.Educator}</th>
-                  <th scope="col">{t.Admin}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matrix(t).map(([what, ...cells]) => (
-                  <tr key={what}>
-                    <th scope="row">{what}</th>
-                    {cells.map((c, i) => (
-                      <td key={i}>{c}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable<MatrixRow>
+              caption="What each role can do"
+              rows={matrix(t)}
+              rowKey={([what]) => what}
+              columns={[
+                { id: 'what', header: 'Capability', rowHeader: true, cell: ([what]) => what },
+                { id: 'learner', header: t.Learner, cell: (r) => r[1] },
+                { id: 'educator', header: t.Educator, cell: (r) => r[2] },
+                { id: 'admin', header: t.Admin, cell: (r) => r[3] },
+              ]}
+            />
 
-            <section aria-labelledby="educators-title" className="home-section">
-              <div className="cert-actions">
-                <h2 id="educators-title">{t.Educators}</h2>
-                <Button onClick={() => setEditing('new')}>Grant a role</Button>
-              </div>
+            <Card title={t.Educators}>
               {educators.length === 0 ? (
-                <p>{`No ${t.Educators} yet.`}</p>
+                <EmptyState title={`No ${t.Educators} yet`}>
+                  {`Grant the role to someone who builds courses, and they appear here.`}
+                </EmptyState>
               ) : (
-                <ul className="course-list">
+                <ul className="console-rows">
                   {educators.map((u) => (
-                    <li key={u.uid} className="course-row">
-                      <span className="course-row__title">{u.displayName || u.email}</span>
-                      <span className="course-row__meta">
-                        {u.grantedCourseIds.length === 0 ? (
-                          <Chip>No courses yet</Chip>
-                        ) : (
-                          u.grantedCourseIds.map((id) => (
-                            <Chip key={id}>{courses.find((c) => c.id === id)?.title ?? id}</Chip>
-                          ))
-                        )}
+                    <li key={u.uid} className="console-row">
+                      <Avatar name={u.displayName || u.email} tone="educator" size={34} />
+                      <span className="console-row__text">
+                        <strong>{u.displayName || u.email}</strong>
+                        <span className="console-row__chips">
+                          {u.grantedCourseIds.length === 0 ? (
+                            <Chip>No courses yet</Chip>
+                          ) : (
+                            u.grantedCourseIds.map((id) => (
+                              <Chip key={id}>{courses.find((c) => c.id === id)?.title ?? id}</Chip>
+                            ))
+                          )}
+                        </span>
                       </span>
                       <Button
                         variant="secondary"
+                        size="sm"
                         onClick={() => setEditing(u)}
                         aria-label={`Edit ${u.displayName || u.email}`}
                       >
@@ -177,17 +175,20 @@ export function RolesPage() {
                   ))}
                 </ul>
               )}
-            </section>
+            </Card>
 
-            <section aria-labelledby="admins-title" className="home-section">
-              <h2 id="admins-title">{t.Admins}</h2>
-              <ul className="course-list">
+            <Card title={t.Admins}>
+              <ul className="console-rows">
                 {admins.map((u) => (
-                  <li key={u.uid} className="course-row">
-                    <span className="course-row__title">{u.displayName || u.email}</span>
-                    <span className="course-row__meta">{u.email}</span>
+                  <li key={u.uid} className="console-row">
+                    <Avatar name={u.displayName || u.email} tone="admin" size={34} />
+                    <span className="console-row__text">
+                      <strong>{u.displayName || u.email}</strong>
+                      <span className="console-muted">{u.email}</span>
+                    </span>
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => setEditing(u)}
                       aria-label={`Edit ${u.displayName || u.email} as ${t.Admin}`}
                     >
@@ -196,7 +197,7 @@ export function RolesPage() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </Card>
 
             {editing ? (
               <GrantDialog
@@ -211,7 +212,7 @@ export function RolesPage() {
           </>
         )}
       </Loaded>
-    </main>
+    </Page>
   );
 }
 
@@ -247,7 +248,8 @@ function GrantDialog({
       title={initial ? `Edit ${initial.displayName || initial.email}` : 'Grant a role'}
       footer={
         <Button
-          disabled={!user || saving}
+          disabled={!user}
+          loading={saving}
           onClick={() => {
             setSaving(true);
             void onSave(user as UserRow, roles, courseIds).finally(() => setSaving(false));
@@ -268,7 +270,7 @@ function GrantDialog({
             value={people.query}
             onChange={(e) => void people.search(e.target.value)}
           />
-          <ul className="course-list" aria-label="People found">
+          <ul className="console-rows" aria-label="People found">
             {people.found.map((u) => (
               <li key={u.uid}>
                 <Button
@@ -287,10 +289,10 @@ function GrantDialog({
         </>
       )}
       {user ? (
-        <fieldset className="dialog-fieldset">
+        <fieldset className="console-fieldset">
           <legend>Roles</legend>
           <p>{`Everyone is ${article(t.Learner)}. Add either or both of the roles below.`}</p>
-          <label className="choice">
+          <label className="console-choice">
             <input
               type="checkbox"
               checked={roles.educator}
@@ -298,7 +300,7 @@ function GrantDialog({
             />{' '}
             {t.Educator}
           </label>
-          <label className="choice">
+          <label className="console-choice">
             <input
               type="checkbox"
               checked={roles.admin}
@@ -313,10 +315,10 @@ function GrantDialog({
         </fieldset>
       ) : null}
       {user && roles.educator ? (
-        <fieldset className="dialog-fieldset">
+        <fieldset className="console-fieldset">
           <legend>Courses they may edit</legend>
           {courses.map((c) => (
-            <label key={c.id} className="choice">
+            <label key={c.id} className="console-choice">
               <input
                 type="checkbox"
                 checked={courseIds.includes(c.id)}

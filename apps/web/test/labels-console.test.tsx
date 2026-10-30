@@ -63,7 +63,7 @@ describe('the console in Gurukul names', () => {
     await openApp('/admin/roles', { ...gurukulAdmin, console: c });
     expect(await screen.findByRole('heading', { name: 'Acharyas' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Kulapatis' })).toBeTruthy();
-    expect(screen.getByText('No Acharyas yet.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'No Acharyas yet' })).toBeTruthy();
     expect(screen.getByText('See all Shishyas and analytics')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Shishya' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Edit Me as Kulapati' })).toBeTruthy();

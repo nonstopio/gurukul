@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import {
   AuthProvider,
@@ -25,13 +26,16 @@ function Probe() {
 const out = () => screen.getByTestId('out').textContent;
 const setup = (claims = {}) => {
   const f = fakeAuth(claims);
+  // The not-allowed page links home with a router Link, so it needs a router around it.
   render(
-    <AuthProvider service={f.service}>
-      <Probe />
-      <RequireRole any={['admin']}>
-        <p>console</p>
-      </RequireRole>
-    </AuthProvider>,
+    <MemoryRouter>
+      <AuthProvider service={f.service}>
+        <Probe />
+        <RequireRole any={['admin']}>
+          <p>console</p>
+        </RequireRole>
+      </AuthProvider>
+    </MemoryRouter>,
   );
   return f;
 };

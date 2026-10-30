@@ -1,7 +1,19 @@
-import { Button, EmptyState, Input, Toggle, useToast } from '@gurukul/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Page,
+  PageHeader,
+  Skeleton,
+  Tabs,
+  Toggle,
+  useToast,
+} from '@gurukul/ui';
 import type { OrgConfig } from '@gurukul/schema';
-import { useCallback, useState } from 'react';
+import { Suspense, lazy, useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAsync } from '../data/useAsync';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
@@ -9,18 +21,55 @@ import { useTerms } from '../labels/useTerms';
 import { useConsole } from './ConsoleProvider';
 import { addTeam } from './model';
 
-/** `/admin/settings`: the teams learners pick from and whether the daily reminders run. */
+// Its own chunk: only an Admin who opens the tab downloads every example component.
+const DesignSystem = lazy(async () => ({
+  default: (await import('../design-system/DesignSystem')).DesignSystem,
+}));
+
+/**
+ * `/admin/settings`: the teams learners pick from, the daily reminders and the certificate
+ * signatory (`?tab=organisation`, the default), and the live design system (`?tab=design-system`).
+ */
 export function SettingsPage() {
   const { data } = useConsole();
   const t = useTerms();
   const result = useAsync(useCallback(() => data.orgSettings(), [data]));
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'design-system' ? 'design-system' : 'organisation';
 
   return (
-    <main className="page console">
-      <p className="article__kicker">{t.Admin}</p>
-      <h1 className="page__title">Org settings</h1>
-      <Loaded loadable={result}>{(saved) => <SettingsForm saved={saved} />}</Loaded>
-    </main>
+    <Page>
+      <PageHeader eyebrow={t.Admin} title="Org settings" />
+      <Tabs
+        label="Org settings"
+        value={tab}
+        onValueChange={(id) => setParams({ tab: id })}
+        tabs={[
+          {
+            id: 'organisation',
+            label: 'Organisation',
+            panel: <Loaded loadable={result}>{(saved) => <SettingsForm saved={saved} />}</Loaded>,
+          },
+          {
+            id: 'design-system',
+            label: 'Design system',
+            panel:
+              tab === 'design-system' ? (
+                <Suspense
+                  fallback={
+                    <div role="status" aria-busy="true">
+                      <span className="sr-only">Loading</span>
+                      <Skeleton shape="block" height="8rem" />
+                    </div>
+                  }
+                >
+                  <DesignSystem />
+                </Suspense>
+              ) : null,
+          },
+        ]}
+      />
+    </Page>
   );
 }
 
@@ -72,9 +121,8 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
   };
 
   return (
-    <>
-      <section aria-labelledby="teams-title" className="home-section">
-        <h2 id="teams-title">Teams</h2>
+    <div className="settings">
+      <Card title="Teams">
         <p>
           {`${terms.Learners} pick their team from this list. ${terms.Learners} filters by it, and Assign courses can assign a whole team.`}{' '}
           Removing a team leaves it on the profiles that already have it.
@@ -82,12 +130,13 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
         {teams.length === 0 ? (
           <EmptyState title="No teams yet">Add the first team below.</EmptyState>
         ) : (
-          <ul className="course-list" aria-label="Teams">
+          <ul className="settings-teams" aria-label="Teams">
             {teams.map((t) => (
               <li key={t} className="settings-team">
                 <span>{t}</span>
                 <Button
                   variant="secondary"
+                  size="sm"
                   aria-label={`Remove ${t}`}
                   onClick={() => setTeams(teams.filter((x) => x !== t))}
                 >
@@ -109,10 +158,9 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
             Add team
           </Button>
         </form>
-      </section>
+      </Card>
 
-      <section aria-labelledby="reminders-title" className="home-section">
-        <h2 id="reminders-title">Reminders</h2>
+      <Card title="Daily reminders">
         <p>
           A daily run at 04:00 UTC (09:30 in India) sends the reminders each mandatory course was
           assigned with, weekly or before it is due, as at most one email per person a day. Off,
@@ -123,36 +171,37 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
           checked={reminders}
           onChange={(e) => setReminders(e.target.checked)}
         />
-      </section>
+      </Card>
 
-      <section aria-labelledby="signatory-title" className="home-section">
-        <h2 id="signatory-title">Certificate signatory</h2>
+      <Card title="Certificate signatory">
         <p>
           The name and role printed at the foot of every certificate. A certificate keeps the
           signatory it was issued with, so changing this affects only certificates issued from now
           on.
         </p>
-        <Input
-          label="Signatory name"
-          value={signName}
-          maxLength={120}
-          onChange={(e) => setSignName(e.target.value)}
-        />
-        <Input
-          label="Signatory role"
-          value={signRole}
-          maxLength={120}
-          onChange={(e) => setSignRole(e.target.value)}
-        />
+        <div className="settings-fields">
+          <Input
+            label="Signatory name"
+            value={signName}
+            maxLength={120}
+            onChange={(e) => setSignName(e.target.value)}
+          />
+          <Input
+            label="Signatory role"
+            value={signRole}
+            maxLength={120}
+            onChange={(e) => setSignRole(e.target.value)}
+          />
+        </div>
         {signatoryValid ? null : <p role="alert">Enter both a name and a role to save.</p>}
-      </section>
+      </Card>
 
       <div className="settings-actions">
-        <Button disabled={!dirty || !signatoryValid || saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save settings'}
-        </Button>
         {dirty ? <p>You have unsaved changes.</p> : null}
+        <Button loading={saving} disabled={!dirty || !signatoryValid} onClick={() => void save()}>
+          Save settings
+        </Button>
       </div>
-    </>
+    </div>
   );
 }

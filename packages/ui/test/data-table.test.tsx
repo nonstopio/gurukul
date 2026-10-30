@@ -89,7 +89,7 @@ describe('DataTable', () => {
     expect(screen.getByText('Foot')).toBeTruthy();
     expect(
       (container.querySelector('.g-table__scroll') as HTMLElement).style.getPropertyValue(
-        '--g-table-max-height',
+        '--table-max-height',
       ),
     ).toBe('60vh');
   });
@@ -161,6 +161,22 @@ describe('DataTable', () => {
     fireEvent.keyDown(within(row).getByRole('checkbox'), { key: 'Enter' });
     fireEvent.click(within(row).getByRole('checkbox'));
     expect(onRowClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('draws a rowHeader column as row headers, for read-only tables', async () => {
+    const plain: DataTableColumn<Person>[] = [
+      { id: 'name', header: 'Learner', cell: (p) => p.name, rowHeader: true },
+      { id: 'courses', header: 'Courses', cell: (p) => p.courses, align: 'end' },
+    ];
+    const { container } = render(
+      <DataTable caption="Learners" columns={plain} rows={people} rowKey={(p) => p.id} />,
+    );
+    const rowHeaders = screen.getAllByRole('rowheader');
+    expect(rowHeaders.map((h) => h.textContent)).toEqual(['Asha Rao', 'Ben Iyer', 'Chitra Nair']);
+    expect(rowHeaders[0]?.getAttribute('scope')).toBe('row');
+    expect(screen.getByText('3').tagName).toBe('TD');
+    expect(screen.getByText('3').hasAttribute('scope')).toBe(false);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('has no axe violations', async () => {

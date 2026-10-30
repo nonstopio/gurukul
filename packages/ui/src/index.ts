@@ -1,5 +1,5 @@
 export { Button, buttonClass } from './Button';
-export type { ButtonProps, ButtonVariant } from './Button';
+export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 export { cssVar, roleTokens } from './tokens';
 export type { RoleToken } from './tokens';
 export { CommandPalette } from './CommandPalette';
@@ -78,24 +78,60 @@ export { TypeTile } from './TypeTile';
 export type { TypeTileKind, TypeTileProps } from './TypeTile';
 export {
   AlertIcon,
+  AwardIcon,
   BookIcon,
+  ChartIcon,
   CheckIcon,
   ChecklistIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
+  ClockIcon,
   CodeIcon,
   CopyIcon,
   EmbedIcon,
   FileIcon,
+  GridIcon,
+  HomeIcon,
   Icon,
   ImageIcon,
   InfoIcon,
+  LanguagesIcon,
   LightbulbIcon,
   LockIcon,
+  LogOutIcon,
+  MenuIcon,
+  MoreIcon,
+  PenIcon,
   PlayIcon,
   SearchIcon,
+  SendIcon,
+  SettingsIcon,
+  ShieldIcon,
+  SparkIcon,
   StarIcon,
   TextIcon,
   TrashIcon,
+  UserIcon,
+  UsersIcon,
   XIcon,
 } from './Icon';
 export type { IconProps } from './Icon';
+export { Avatar, initials } from './Avatar';
+export type { AvatarProps, AvatarTone } from './Avatar';
+export { Menu } from './Menu';
+export type { MenuProps, MenuEntry, MenuItem } from './Menu';
+export { UserCard } from './UserCard';
+export type { UserCardProps } from './UserCard';
+export { AppShell } from './AppShell';
+export type { AppShellProps } from './AppShell';
+export { Page } from './Page';
+export type { PageProps, PageWidth } from './Page';
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';
+export { PageSkeleton } from './PageSkeleton';
+export type { PageSkeletonProps } from './PageSkeleton';
+export { FilterBar } from './FilterBar';
+export type { FilterBarProps } from './FilterBar';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps } from './SegmentedControl';

@@ -1,9 +1,14 @@
 import {
+  Avatar,
   Button,
   Chip,
   DataTable,
   Dialog,
+  EmptyState,
+  FilterBar,
   Input,
+  Page,
+  PageHeader,
   Pagination,
   ProgressBar,
   Select,
@@ -94,11 +99,14 @@ export function LearnersPage() {
   );
 
   return (
-    <main className="page console">
-      <p className="article__kicker">{t.Admin}</p>
-      <h1 className="page__title">{t.Learners}</h1>
+    <Page width="wide">
+      <PageHeader
+        eyebrow={t.Admin}
+        title={t.Learners}
+        lead={`Everyone who has signed in, and the pending invites. Open a ${t.learner} for their courses, ${t.quizzes} and certificates.`}
+      />
       <Loaded loadable={meta}>{(m) => <Learners meta={m} now={now} />}</Loaded>
-    </main>
+    </Page>
   );
 }
 
@@ -316,20 +324,38 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
             setSelected(keys);
           }}
           onRowClick={setOpen}
-          empty={<p>{`No ${terms.learners} match these filters.`}</p>}
+          empty={
+            <EmptyState title={`No ${terms.learners} match these filters`}>
+              Change or clear the filters to see more.
+            </EmptyState>
+          }
           columns={[
             {
               id: 'learner',
               header: terms.Learner,
+              rowHeader: true,
               cell: (r) => (
-                <span>
-                  <strong>{r.name}</strong>
-                  {r.name === r.email ? null : <span className="items__kind"> {r.email}</span>}
-                  {r.status === 'invited' ? (
-                    <span className="items__kind">
-                      {r.invitedAt ? ` Invited ${longDate(r.invitedAt)}` : ' Invited'}
-                    </span>
-                  ) : null}
+                <span className="console-person">
+                  <Avatar
+                    name={r.name}
+                    size={34}
+                    tone={
+                      r.roles.includes('admin')
+                        ? 'admin'
+                        : r.roles.includes('educator')
+                          ? 'educator'
+                          : 'learner'
+                    }
+                  />
+                  <span>
+                    <strong>{r.name}</strong>
+                    {r.name === r.email ? null : <span className="console-muted">{r.email}</span>}
+                    {r.status === 'invited' ? (
+                      <span className="console-muted">
+                        {r.invitedAt ? `Invited ${longDate(r.invitedAt)}` : 'Invited'}
+                      </span>
+                    ) : null}
+                  </span>
                 </span>
               ),
             },
@@ -340,7 +366,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
               cell: (r) =>
                 r.roles
                   .filter((x) => x !== 'learner')
-                  .map((x) => terms[x as 'educator' | 'admin'])
+                  .map((x) => (x === 'admin' ? terms.Admin : terms.Educator))
                   .join(', ') || (r.status === 'invited' ? '—' : terms.Learner),
             },
             { id: 'courses', header: 'Courses', cell: (r) => `${r.assigned} · ${r.done} done` },
@@ -379,14 +405,33 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
 
   return (
     <>
-      <div className="filters">
+      <FilterBar
+        label={`Filter ${terms.learners}`}
+        canClear={search !== '' || team !== '' || role !== '' || courseId !== ''}
+        onClear={() =>
+          reset(() => {
+            setSearch('');
+            setTeam('');
+            setRole('');
+            setCourseId('');
+          })
+        }
+      >
         <Input
           label="Search people"
+          hideLabel
+          type="search"
+          placeholder="Search by name or email"
           value={search}
           onChange={(e) => reset(() => setSearch(e.target.value))}
         />
-        <Select label="Team" value={team} onChange={(e) => reset(() => setTeam(e.target.value))}>
-          <option value="">All teams</option>
+        <Select
+          label="Team"
+          hideLabel
+          value={team}
+          onChange={(e) => reset(() => setTeam(e.target.value))}
+        >
+          <option value="">Any team</option>
           {meta.teams.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -395,22 +440,28 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         </Select>
         <Select
           label="Course"
+          hideLabel
           value={courseId}
           onChange={(e) => reset(() => setCourseId(e.target.value))}
         >
-          <option value="">All courses</option>
+          <option value="">Any course</option>
           {meta.courses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
             </option>
           ))}
         </Select>
-        <Select label="Role" value={role} onChange={(e) => reset(() => setRole(e.target.value))}>
-          <option value="">All roles</option>
+        <Select
+          label="Role"
+          hideLabel
+          value={role}
+          onChange={(e) => reset(() => setRole(e.target.value))}
+        >
+          <option value="">Any role</option>
           <option value="educator">{terms.Educator}</option>
           <option value="admin">{terms.Admin}</option>
         </Select>
-      </div>
+      </FilterBar>
       <Tabs
         label={`${terms.Learner} groups`}
         value={tab}
@@ -421,7 +472,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         <div className="bulk-bar" role="region" aria-label="Bulk actions">
           <span>{selected.length} selected</span>
           {!everyone && pageTicked && shown > rows.length ? (
-            <Button variant="chrome" disabled={selecting} onClick={() => void selectAll()}>
+            <Button variant="chrome" loading={selecting} onClick={() => void selectAll()}>
               {`Select all ${shown}`}
             </Button>
           ) : null}
@@ -534,7 +585,8 @@ function BulkRoleDialog({
       title="Change role"
       footer={
         <Button
-          disabled={eligible.length === 0 || nothingToChange || saving}
+          disabled={eligible.length === 0 || nothingToChange}
+          loading={saving}
           onClick={() => {
             setSaving(true);
             void onApply(eligible, change).finally(() => setSaving(false));

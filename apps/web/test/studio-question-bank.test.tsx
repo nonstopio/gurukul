@@ -85,13 +85,18 @@ describe('question bank', () => {
   it('searches by text and by tag', async () => {
     await open([entry('1'), entry('2', { tags: ['sql'] })]);
     const search = await screen.findByLabelText('Search by text or tag');
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
     fireEvent.change(search, { target: { value: 'SQL' } });
     expect(cards()).toHaveLength(1);
+    expect(screen.getByText('1 of 2')).toBeTruthy();
     expect(within(cards()[0] as HTMLElement).getByText('Prompt 2?')).toBeTruthy();
     fireEvent.change(search, { target: { value: 'prompt 1' } });
     expect(within(cards()[0] as HTMLElement).getByText('Prompt 1?')).toBeTruthy();
     fireEvent.change(search, { target: { value: 'zzz' } });
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect((search as HTMLInputElement).value).toBe('');
+    expect(cards()).toHaveLength(2);
   });
 
   it('lets the creator delete their own question after confirming', async () => {

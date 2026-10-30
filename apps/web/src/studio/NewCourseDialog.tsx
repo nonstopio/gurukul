@@ -90,7 +90,7 @@ function Form({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="new-course-form" disabled={!ready}>
+          <Button type="submit" form="new-course-form" disabled={!ready} loading={busy}>
             Create course
           </Button>
         </>

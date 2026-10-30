@@ -1,0 +1,27 @@
+.g-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.g-filter-bar > :not(.g-filter-bar__end) {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+.g-filter-bar > :first-child:not(.g-filter-bar__end) {
+  flex-grow: 2;
+  max-width: none;
+}
+.g-filter-bar__end {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.g-filter-bar__count {
+  margin: 0;
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -730,6 +730,13 @@ describe('Course complete', () => {
   it('is not available before the course is finished', async () => {
     await openApp('/courses/git/complete', { data: data() });
     expect(await screen.findByText('Not finished yet')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
+  });
+
+  it('says a course that does not exist cannot be complete', async () => {
+    await openApp('/courses/nope/complete', { data: data() });
+    expect(await screen.findByText('Not finished yet')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Course not found' })).toBeTruthy();
   });
 });
 
@@ -769,6 +776,15 @@ describe('Certificates', () => {
     await openApp('/certificates/NSG-GIT-26-0001', { data: fakeData({ certificates: certs }) });
     fireEvent.click(await screen.findByRole('button', { name: 'Copy verify link' }));
     expect(await screen.findByText('Could not copy the link.')).toBeTruthy();
+  });
+
+  it('marks a revoked certificate on its own page', async () => {
+    await openApp('/certificates/NSG-GIT-26-0002', { data: fakeData({ certificates: certs }) });
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeTruthy();
+    expect(screen.getAllByText(/Revoked/).length).toBeGreaterThan(0);
   });
 
   it('says when a certificate does not exist', async () => {

@@ -2,9 +2,13 @@ import { itemsOf } from '@gurukul/schema';
 import type { Course, Question } from '@gurukul/schema';
 import {
   Breadcrumb,
+  Card,
   Chip,
+  DataTable,
   EmptyState,
   FunnelBar,
+  Page,
+  PageHeader,
   StatCard,
   buttonClass,
   largestDrop,
@@ -51,21 +55,25 @@ export function CourseAnalyticsPage() {
   );
 
   return (
-    <main className="page console">
+    <Page width="wide">
       <Loaded loadable={result}>
         {({ course, stats }) => {
           if (!course) {
             return (
-              <EmptyState
-                title="This course does not exist"
-                action={
-                  <Link className={buttonClass('secondary')} to="/admin">
-                    Back to the overview
-                  </Link>
-                }
-              >
-                It may have been removed.
-              </EmptyState>
+              <>
+                <PageHeader eyebrow={t.Admin} title="Course analytics" />
+                <EmptyState
+                  title="This course does not exist"
+                  headingAs="h2"
+                  action={
+                    <Link className={buttonClass('secondary')} to="/admin">
+                      Back to the overview
+                    </Link>
+                  }
+                >
+                  It may have been removed.
+                </EmptyState>
+              </>
             );
           }
           const steps = funnelSteps(
@@ -81,42 +89,53 @@ export function CourseAnalyticsPage() {
           const quizOf = new Map(
             quizzes.flatMap((p) => p.questions.map((q) => [q.id, p.id] as const)),
           );
+          const started = pct(stats.started, stats.assigned);
           return (
             <>
-              <Breadcrumb
-                items={[
-                  { label: 'Overview', render: (p) => <Link to="/admin" {...(p as object)} /> },
-                  { label: course.title },
-                ]}
+              <PageHeader
+                breadcrumb={
+                  <Breadcrumb
+                    items={[
+                      {
+                        label: 'Overview',
+                        render: (p) => <Link to="/admin" {...(p as object)} />,
+                      },
+                      { label: course.title },
+                    ]}
+                  />
+                }
+                eyebrow={`${t.Admin} · ${t.Analytics}`}
+                title={course.title}
+                meta={
+                  <Chip tone={course.status === 'published' ? 'accent' : 'neutral'}>
+                    {course.status === 'published'
+                      ? `Published · v${course.version}`
+                      : course.status === 'draft'
+                        ? 'Draft'
+                        : 'Archived'}
+                  </Chip>
+                }
+                actions={
+                  <>
+                    <Link className={buttonClass('secondary')} to={`/studio/courses/${course.id}`}>
+                      {`Edit in ${t.Studio}`}
+                    </Link>
+                    <Link
+                      className={buttonClass('primary')}
+                      to="/admin/assign"
+                      state={{ courseId: course.id }}
+                    >
+                      Assign this course
+                    </Link>
+                  </>
+                }
               />
-              <h1 className="page__title">{course.title}</h1>
-              <p>
-                <Chip tone="accent">
-                  {course.status === 'published' ? `Published · v${course.version}` : course.status}
-                </Chip>
-              </p>
-              <div className="cert-actions">
-                <Link className={buttonClass('secondary')} to={`/studio/courses/${course.id}`}>
-                  {`Edit in ${t.Studio}`}
-                </Link>
-                <Link
-                  className={buttonClass('primary')}
-                  to="/admin/assign"
-                  state={{ courseId: course.id }}
-                >
-                  Assign this course
-                </Link>
-              </div>
-              <div className="stats">
+              <div className="console-stats">
                 <StatCard label="Assigned" value={String(stats.assigned)} />
                 <StatCard
                   label="Started"
                   value={String(stats.started)}
-                  sub={
-                    pct(stats.started, stats.assigned) === null
-                      ? '—'
-                      : `${pct(stats.started, stats.assigned)}% of assigned`
-                  }
+                  sub={started === null ? '—' : `${started}% of assigned`}
                 />
                 <StatCard label="Certified" value={String(stats.certified)} />
                 <StatCard
@@ -126,39 +145,39 @@ export function CourseAnalyticsPage() {
                 />
               </div>
 
-              <section aria-labelledby="stop-title" className="home-section">
-                <h2 id="stop-title">{`Where ${t.learners} stop`}</h2>
-                <FunnelBar label={`${t.Learner} funnel`} rows={steps} highlight={drop} />
-                {drop !== null && steps[drop] && steps[drop - 1] ? (
-                  <p>
-                    The biggest drop is between “{steps[drop - 1]?.label}” ({steps[drop - 1]?.value}
-                    ) and “{steps[drop]?.label}” ({steps[drop]?.value}).
-                  </p>
-                ) : null}
-              </section>
+              <Card title={`Where ${t.learners} stop`}>
+                <div className="console-stack">
+                  <FunnelBar label={`${t.Learner} funnel`} rows={steps} highlight={drop} />
+                  {drop !== null && steps[drop] && steps[drop - 1] ? (
+                    <p className="console-muted">
+                      The biggest drop is between “{steps[drop - 1]?.label}” (
+                      {steps[drop - 1]?.value}) and “{steps[drop]?.label}” ({steps[drop]?.value}).
+                    </p>
+                  ) : null}
+                </div>
+              </Card>
 
-              <section aria-labelledby="hard-title" className="home-section">
-                <h2 id="hard-title">Hardest questions</h2>
+              <Card title="Hardest questions">
                 {hardest.length === 0 ? (
                   <EmptyState title="Not enough attempts yet">
                     Questions appear here once three people have answered them.
                   </EmptyState>
                 ) : (
-                  <ol className="hardest">
+                  <ol className="console-rows">
                     {hardest.map((q) => (
-                      <li key={q.questionId}>
-                        <span
-                          className={
+                      <li key={q.questionId} className="console-row">
+                        <Chip
+                          tone={
                             q.percent < 50
-                              ? 'hardest__low'
+                              ? 'danger'
                               : q.percent < WARN_BELOW_PERCENT
-                                ? 'hardest__mid'
-                                : undefined
+                                ? 'warning'
+                                : 'neutral'
                           }
                         >
                           {q.percent}% right first time
-                        </span>{' '}
-                        {prompt(course, q.questionId)}{' '}
+                        </Chip>
+                        <span className="console-row__text">{prompt(course, q.questionId)}</span>
                         {quizOf.has(q.questionId) ? (
                           <Link
                             to={`${studioQuiz(course.id, quizOf.get(q.questionId) as string)}?question=${encodeURIComponent(q.questionId)}`}
@@ -170,50 +189,54 @@ export function CourseAnalyticsPage() {
                     ))}
                   </ol>
                 )}
-              </section>
+              </Card>
 
-              <section aria-labelledby="quiz-title" className="home-section">
-                <h2 id="quiz-title">{t.Quizzes}</h2>
-                <table className="plain-table">
-                  <caption className="sr-only">{`${t.Quizzes} in this course`}</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">{t.Quiz}</th>
-                      <th scope="col">Questions</th>
-                      <th scope="col">First-try answers</th>
-                      <th scope="col">Right first time</th>
-                      <th scope="col">
-                        <span className="sr-only">Edit</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.id}>
-                        <th scope="row">{r.title}</th>
-                        <td>{r.questions}</td>
-                        <td>{r.answers}</td>
-                        <td
-                          className={
-                            r.percent !== null && r.percent < WARN_BELOW_PERCENT
-                              ? 'hardest__mid'
-                              : undefined
-                          }
-                        >
-                          {r.percent === null ? '—' : `${r.percent}%`}
-                        </td>
-                        <td>
-                          <Link to={studioQuiz(course.id, r.id)}>{`Edit this ${t.Quiz}`}</Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
+              <Card title={t.Quizzes}>
+                <DataTable
+                  caption={`${t.Quizzes} in this course`}
+                  rows={rows}
+                  rowKey={(r) => r.id}
+                  columns={[
+                    { id: 'title', header: t.Quiz, rowHeader: true, cell: (r) => r.title },
+                    {
+                      id: 'questions',
+                      header: 'Questions',
+                      align: 'end',
+                      cell: (r) => r.questions,
+                    },
+                    {
+                      id: 'answers',
+                      header: 'First-try answers',
+                      align: 'end',
+                      cell: (r) => r.answers,
+                    },
+                    {
+                      id: 'right',
+                      header: 'Right first time',
+                      align: 'end',
+                      cell: (r) =>
+                        r.percent === null ? (
+                          '—'
+                        ) : r.percent < WARN_BELOW_PERCENT ? (
+                          <Chip tone="warning">{`${r.percent}%`}</Chip>
+                        ) : (
+                          `${r.percent}%`
+                        ),
+                    },
+                    {
+                      id: 'edit',
+                      header: <span className="sr-only">Edit</span>,
+                      cell: (r) => (
+                        <Link to={studioQuiz(course.id, r.id)}>{`Edit this ${t.Quiz}`}</Link>
+                      ),
+                    },
+                  ]}
+                />
+              </Card>
             </>
           );
         }}
       </Loaded>
-    </main>
+    </Page>
   );
 }

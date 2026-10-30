@@ -76,7 +76,15 @@ describe('Assign courses', () => {
     const dds = within(summary)
       .getAllByRole('definition')
       .map((d) => d.textContent);
-    expect(dds).toEqual(['1', '1', '1', '2', 'No deadline']);
+    expect(dds).toEqual([
+      '2',
+      'people will get Git, the NonStop Way',
+      '1',
+      '1',
+      '1',
+      '2',
+      'No deadline',
+    ]);
   });
 
   it('speaks of one person and one course in the singular, several courses by count', async () => {
@@ -261,12 +269,12 @@ describe('Assign screen details', () => {
     const zone = screen.getByText('Drop a CSV file here, or choose one.').parentElement as Element;
     const input = screen.getByLabelText(/CSV file/);
     fireEvent.dragEnter(input);
-    expect(zone.className).toContain('dropzone--over');
+    expect(zone.className).toContain('console-dropzone--over');
     fireEvent.dragLeave(input);
-    expect(zone.className).not.toContain('dropzone--over');
+    expect(zone.className).not.toContain('console-dropzone--over');
     fireEvent.dragEnter(input);
     fireEvent.drop(input);
-    expect(zone.className).not.toContain('dropzone--over');
+    expect(zone.className).not.toContain('console-dropzone--over');
     const csv = new File(['d@nonstopio.com\n'], 'p.csv', { type: 'text/csv' });
     Object.defineProperty(csv, 'text', { value: async () => 'd@nonstopio.com\n' });
     fireEvent.change(input, { target: { files: [csv] } });

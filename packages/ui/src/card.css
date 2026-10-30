@@ -10,3 +10,22 @@
   border-color: var(--accent-line);
   color: var(--accent-soft-text);
 }
+.g-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.g-card__title {
+  margin: 0;
+  font: 600 var(--text-lg) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.g-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

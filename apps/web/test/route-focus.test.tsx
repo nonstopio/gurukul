@@ -117,6 +117,15 @@ describe('retry on load errors', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
+  it('turns a rejection that is not an Error into one', async () => {
+    const load = () => Promise.reject('offline');
+    const { result } = renderHook(() => useAsync(load));
+    await waitFor(() => expect(result.current.state).toBe('error'));
+    expect((result.current as Extract<Loadable<string>, { state: 'error' }>).error.message).toBe(
+      'offline',
+    );
+  });
+
   it('shows a Retry button on the load-error callout when the load can run again', () => {
     const retry = vi.fn();
     render(

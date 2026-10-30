@@ -3,6 +3,8 @@ import type { Question } from '@gurukul/schema';
 import {
   Card,
   Chip,
+  Page,
+  PageHeader,
   ProgressRing,
   ResultRow,
   TopBar,
@@ -15,7 +17,7 @@ import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
-import { Loaded } from '../learn/ui';
+import { LoadedPage } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { formatCountdown, itemAfter, itemPath, chapterNumber, reviewOfAttempt } from './model';
@@ -65,17 +67,21 @@ export function ResultPage() {
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
 
   return (
-    <Loaded loadable={result}>
+    <LoadedPage loadable={result} width="reading">
       {([course, attempt]) => {
         const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
         if (!course || quiz?.type !== 'quiz') {
           return (
-            <main className="page">
-              <h1 className="page__title">{`This ${t.Quiz} does not exist.`}</h1>
-              <Link className={buttonClass('secondary')} to="/courses">
-                Browse the catalogue
-              </Link>
-            </main>
+            <Page width="reading">
+              <PageHeader
+                title={`This ${t.Quiz} does not exist.`}
+                actions={
+                  <Link className={buttonClass('secondary')} to="/courses">
+                    Browse the catalogue
+                  </Link>
+                }
+              />
+            </Page>
           );
         }
         const review: AttemptReview | null = state
@@ -108,57 +114,58 @@ export function ResultPage() {
                 </Link>
               }
             />
-            <main className="page">
-              <Card className="score">
+            <Page width="reading">
+              <Card className="verdict">
                 <ProgressRing value={score * 100} label={`${quiz.title} score`} size={148} />
-                <div>
-                  <Chip tone={passed ? 'accent' : 'warning'}>
-                    {passed ? 'Passed' : 'Not passed yet'}
-                  </Chip>
-                  <h1 className="page__title">
-                    {passed ? `${quiz.title} cleared.` : 'Not this time.'}
-                  </h1>
-                  <p>
-                    {review
+                <PageHeader
+                  meta={
+                    <Chip tone={passed ? 'accent' : 'warning'}>
+                      {passed ? 'Passed' : 'Not passed yet'}
+                    </Chip>
+                  }
+                  title={passed ? `${quiz.title} cleared.` : 'Not this time.'}
+                  lead={
+                    review
                       ? `You answered ${review.correctCount} of ${review.total} correctly (${Math.round(score * 100)}%).`
-                      : `Your best score is ${Math.round(score * 100)}%.`}
-                  </p>
-                  <div className="continue__actions">
-                    {passed ? (
-                      <Link
-                        className={buttonClass('primary')}
-                        to={
-                          nextItem
-                            ? itemPath(course.id, nextItem)
-                            : `/courses/${course.id}/complete`
-                        }
-                      >
-                        {!nextItem
-                          ? 'Finish course'
-                          : nextChapter === chapterNumber(course, quiz.id)
-                            ? 'Continue'
-                            : `Continue to ${t.Chapter} ${nextChapter}`}
-                      </Link>
-                    ) : (
-                      <Link
-                        className={buttonClass('primary')}
-                        to={
-                          titleOf(reviewId)
-                            ? `/courses/${course.id}/learn/${reviewId}`
-                            : `/courses/${course.id}`
-                        }
-                      >
-                        Revisit lessons
-                      </Link>
-                    )}
-                    <Retake opensAt={opensAt} to={`/courses/${course.id}/quiz/${quiz.id}`} />
-                  </div>
-                </div>
+                      : `Your best score is ${Math.round(score * 100)}%.`
+                  }
+                  actions={
+                    <>
+                      <Retake opensAt={opensAt} to={`/courses/${course.id}/quiz/${quiz.id}`} />
+                      {passed ? (
+                        <Link
+                          className={buttonClass('primary')}
+                          to={
+                            nextItem
+                              ? itemPath(course.id, nextItem)
+                              : `/courses/${course.id}/complete`
+                          }
+                        >
+                          {!nextItem
+                            ? 'Finish course'
+                            : nextChapter === chapterNumber(course, quiz.id)
+                              ? 'Continue'
+                              : `Continue to ${t.Chapter} ${nextChapter}`}
+                        </Link>
+                      ) : (
+                        <Link
+                          className={buttonClass('primary')}
+                          to={
+                            titleOf(reviewId)
+                              ? `/courses/${course.id}/learn/${reviewId}`
+                              : `/courses/${course.id}`
+                          }
+                        >
+                          Revisit lessons
+                        </Link>
+                      )}
+                    </>
+                  }
+                />
               </Card>
               {review ? (
-                <section aria-labelledby="review-title">
-                  <h2 id="review-title">Review</h2>
-                  <ul className="review">
+                <Card title="Review">
+                  <ul className="learn-rows">
                     {review.questions.map((q) => {
                       const r = review.results.find((x) => x.questionId === q.id);
                       const correct = r?.correct === true;
@@ -191,13 +198,13 @@ export function ResultPage() {
                       );
                     })}
                   </ul>
-                </section>
+                </Card>
               ) : null}
-            </main>
+            </Page>
           </>
         );
       }}
-    </Loaded>
+    </LoadedPage>
   );
 }
 
@@ -215,7 +222,7 @@ function Retake({ opensAt, to }: { opensAt: number; to: string }) {
       Retake
     </Link>
   ) : (
-    <span className="score__wait" role="timer">
+    <span className="learn-muted" role="timer">
       Retake opens in {formatCountdown(opensAt - now)}
     </span>
   );

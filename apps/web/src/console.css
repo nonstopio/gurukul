@@ -1,0 +1,199 @@
+/* Admin console screens: layout only, tokens only (.claude/rules/design.md). Components style themselves. */
+
+/* KPI rows of StatCards. */
+.console-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+/* A section's stack: a FilterBar, then its lists. */
+.console-stack {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* Needs attention: three lists side by side, stacking on a phone. */
+.console-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--space-5);
+}
+.console-columns h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* Rows inside a Card, hairline-separated: avatar, text, actions. */
+.console-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.console-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  overflow-wrap: anywhere;
+}
+.console-row + .console-row {
+  border-top: 1px solid var(--border);
+}
+.console-row__text {
+  display: grid;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.console-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.console-muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* A person in a table cell: avatar beside name and email. */
+.console-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.console-person > span:last-child {
+  display: grid;
+}
+
+/* The bulk-action bar under the Learners table. */
+.bulk-bar {
+  position: sticky;
+  bottom: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--chrome);
+  color: var(--chrome-text);
+}
+
+/* Checkbox choices (Assign courses, the grant dialog). */
+.console-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+}
+.console-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.console-choices .console-choice {
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.console-fieldset {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+}
+.console-dropzone {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-xl);
+}
+.console-dropzone--over {
+  border-color: var(--accent);
+}
+
+/* The Assign summary and the drawer's sections. */
+.console-flow {
+  display: grid;
+  gap: var(--space-3);
+}
+.console-flow > * {
+  margin: 0;
+}
+.console-flow dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.console-flow dd {
+  margin: 0;
+  text-align: end;
+}
+
+/* The Learner drawer's course list. */
+.console-attempts {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+}
+
+/* Org settings: team rows inside the Teams card, the add-team row, the form columns. */
+.settings {
+  display: grid;
+  gap: var(--space-6);
+}
+.settings .g-card {
+  display: grid;
+  gap: var(--space-4);
+}
+.settings p {
+  margin: 0;
+}
+.settings-teams {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.settings-team {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.settings-team:first-child {
+  border-top: 0;
+}
+.settings-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.settings-add .g-field {
+  flex: 1 1 15rem;
+  max-width: var(--width-form);
+}
+.settings-fields {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--width-form);
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}

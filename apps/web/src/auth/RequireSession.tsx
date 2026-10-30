@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@gurukul/ui';
 import { Outlet } from 'react-router';
 import { LabelChoicePage } from '../labels/LabelChoice';
 import { useSession } from './AuthProvider';
@@ -11,8 +12,8 @@ export function RequireSession() {
   const { status, labels } = useSession();
   if (status === 'loading') {
     return (
-      <main className="notfound" aria-busy="true">
-        <p role="status">Loading Gurukul…</p>
+      <main id="content">
+        <PageSkeleton label="Loading Gurukul" />
       </main>
     );
   }

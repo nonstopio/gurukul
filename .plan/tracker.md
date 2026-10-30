@@ -26,8 +26,9 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 19 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
+| Redesign | 8 | 0 | 0 | 0 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 136 | 0 | 0 | 12 |
+| **Total** | 144 | 0 | 0 | 12 |
 
 ## Pick order
 
@@ -183,9 +184,9 @@ Plan: `04-design-system.md`.
 | ------- | -------------------------------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `DS-01` | Every M1–M5 component, with tests and a recipe          | done   | —       | `packages/ui/src/`, `.claude/skills/gurukul-design/references/components.md`                                                   |
 | `DS-02` | axe in component tests; tokens test                      | done   | —       | `packages/ui/test/axe.ts`, `packages/ui/test/tokens.test.ts`                                                                   |
-| `DS-03` | `/__ui` component gallery | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx`, `devRoutes()` in `routes.tsx` (dev builds only), axe test `apps/web/test/ui-gallery.test.tsx` |
-| `DS-06` | Gallery: Sidebar, TopBar, VideoBlock, Certificate | done | — | `apps/web/src/ui-gallery/UiGalleryPage.tsx` (Sidebar, SidebarGroup, NavItem, TopBar, VideoBlock, a normal and a revoked long-name Certificate in size-capped frames), `ui-gallery.css`; axe-checked in `apps/web/test/ui-gallery.test.tsx` |
-| `DS-04` | Shared icon set | done | — | `packages/ui/src/Icon.tsx` (`Icon` base, 16-grid stroke, `aria-hidden` unless `label`; 19 named icons in use), `packages/ui/test/icons.test.tsx`, gallery section in `apps/web/src/ui-gallery/`, recipe in `.claude/skills/gurukul-design/references/components.md`. Brand marks, data graphics, the seal and filled diagrams stay inline |
+| `DS-03` | Component gallery | done | — | Was the dev-only `/__ui` route; since `RDS-03` it is the Design system tab in Org settings (`apps/web/src/design-system/`), axe-checked in its test |
+| `DS-06` | Gallery: Sidebar, TopBar, VideoBlock, Certificate | done | — | `apps/web/src/design-system/examples.tsx` (Sidebar, SidebarGroup, NavItem, TopBar, VideoBlock, a normal and a revoked long-name Certificate in size-capped frames), `design-system.css`; axe-checked in `apps/web/test/ui-gallery.test.tsx` |
+| `DS-04` | Shared icon set | done | — | `packages/ui/src/Icon.tsx` (`Icon` base, 16-grid stroke, `aria-hidden` unless `label`; 37 named icons in use), `packages/ui/test/icons.test.tsx`, gallery section in `apps/web/src/design-system/`, recipe in `.claude/skills/gurukul-design/references/components.md`. Brand marks, data graphics, the seal and filled diagrams stay inline |
 | `DS-05` | axe on the remaining page tests | done | — | `apps/web/test/ChangelogPage.test.tsx`, `apps/web/test/GlobalSearch.test.tsx` (`axeViolations` from `apps/web/test/axe.ts`) |
 
 ## Global search
@@ -249,6 +250,21 @@ Plan: `14-first-course-git.md`.
 | `GIT-05` | Signatory and Educator for Git | done | — | Signatory is `config/org.signatory` (name, role), edited in Org settings (`apps/web/src/console/SettingsPage.tsx`); the progress trigger stamps it on each certificate at issue (`firebase/functions/src/progress.ts`, `stores.ts`); removed from the course object and the Studio Certificate tab; rules in `firebase/firestore.rules`; seed default is the fictional Asha Example (`packages/schema/src/user.ts`). The Git Educator is assigned at the production seed (`OPS-17`) |
 | `GIT-06` | Seed matches the course outline                                          | done       | —       | `firebase/seed/src/git-course.ts`: Quiz I and II cooldown 10; lesson minutes total 190 (3 h 10)                                               |
 | `GIT-07` | One story, plain English and diagrams for every big idea | done | — | Meera's tea-counter menu (`chai-corner`) runs through every lesson; 10 SVG diagrams in `apps/web/public/courses/git/`, linked from `SITE_URL` (`gitCourseAt`); every hands-on step checked against real Git output; `14-first-course-git.md` ("How it teaches") |
+
+## Redesign
+
+Plan: `18-redesign.md`, `04-design-system.md`.
+
+| ID       | Item                                                                  | Status | Depends  | Notes                                                                                                   |
+| -------- | --------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------- |
+| `RDS-01` | Strict design skill, rule and `check-design` script | done | — | `.claude/skills/gurukul-design/SKILL.md` (Need → Use, Page anatomy, Shell, States), `.claude/rules/design.md`, `scripts/check-design.mjs` (in `npm run check` and CI; 84 violations at the start, 0 at the end), `scripts/test/check-design.test.mjs` |
+| `RDS-02` | Missing components: shells, `PageHeader`, `Page`, `Avatar`, `UserCard`, `Menu`, `FilterBar`, styled `Select`, `Button` loading | done | `RDS-01` | `packages/ui/src/`: AppShell, Page, PageHeader, PageSkeleton, Avatar, Menu, UserCard, FilterBar, SegmentedControl; Select styled, Button loading/sm/danger/chrome-secondary, Card title, DataTable rowHeader; layer, width, avatar and scrim tokens; recipes in `references/components.md` |
+| `RDS-03` | Design system tab in Org settings for Admins | done | `RDS-02` | `apps/web/src/design-system/` (Tokens read from `tokens.css`, Type, Components with a test that fails when an export has no example, Patterns), lazy tab in `console/SettingsPage.tsx`; `/__ui` removed |
+| `RDS-04` | Sticky shell, user card menu and `/profile` | done | `RDS-02` | `apps/web/src/Shell.tsx` (AppShell, nav icons, UserCard menu: Profile, names, What's new, Sign out), `apps/web/src/ProfilePage.tsx`, `/profile` in `route-paths.ts` and `navigation/areas/learner.ts` |
+| `RDS-05` | Learner screens on the components | done | `RDS-04` | Home, catalogue, course, player, Quiz, result, complete, certificates, verify, sign-in, label choice, not found, not allowed; `apps/web/src/learn.css` |
+| `RDS-06` | Admin console screens on the components | done | `RDS-04` | `apps/web/src/console/` on Page, PageHeader, FilterBar, DataTable, Menu; `apps/web/src/console.css` |
+| `RDS-07` | Studio screens on the components; editors in the focused shell | done | `RDS-04` | `apps/web/src/studio/`: editors and preview in `FOCUSED` with a sticky TopBar frame (`EditorBar`), `SegmentedControl` replaces `blocks/Segmented`; `apps/web/src/studio.css` |
+| `RDS-08` | `styles.css` split per area, layout only; Changelog and error pages | done | `RDS-05` | `styles.css` split into `learn.css`, `console.css`, `studio.css` (2,154 → about 1,700 lines); old shared classes (`.page`, `.page__title`, `.plain-table`, `.filters`, `.app*`) deleted; Changelog on Page and FilterBar |
 
 ## Plan upkeep
 

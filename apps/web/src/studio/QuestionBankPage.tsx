@@ -1,4 +1,14 @@
-import { Button, Card, Chip, EmptyState, Input, useToast } from '@gurukul/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  FilterBar,
+  Input,
+  Page,
+  PageHeader,
+  useToast,
+} from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { userMessageOf } from '../api';
 import { useSession, useUser } from '../auth/AuthProvider';
@@ -44,11 +54,12 @@ export function QuestionBankPage() {
   };
 
   return (
-    <main className="page studio-bank">
-      <h1 className="page__title">Question bank</h1>
-      <p className="studio-muted">
-        {`Questions saved from any ${t.Quiz}, ready to reuse. To change one, save the question again from the ${t.Quiz} where you edited it.`}
-      </p>
+    <Page>
+      <PageHeader
+        eyebrow={t.Studio}
+        title="Question bank"
+        lead={`Questions saved from any ${t.Quiz}, ready to reuse. To change one, save the question again from the ${t.Quiz} where you edited it.`}
+      />
       <Loaded loadable={bank}>
         {(all) => {
           if (all.length === 0) {
@@ -61,30 +72,39 @@ export function QuestionBankPage() {
           const found = matchBank(all, search);
           return (
             <>
-              <Input
-                label="Search by text or tag"
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <FilterBar
+                label="Filter questions"
+                count={`${found.length} of ${all.length}`}
+                canClear={search !== ''}
+                onClear={() => setSearch('')}
+              >
+                <Input
+                  label="Search by text or tag"
+                  hideLabel
+                  type="search"
+                  placeholder="Search by text or tag"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </FilterBar>
               {found.length === 0 ? (
                 <EmptyState headingAs="h2" title="Nothing matches">
                   Try another word or tag.
                 </EmptyState>
               ) : (
-                <ul className="studio-bank-list" aria-label="Bank questions">
-                  {found.map((entry) => (
-                    <li key={entry.id}>
-                      <Card className="studio-bank-card">
-                        <p className="studio-bank-item__prompt">{entry.question.prompt}</p>
-                        <p className="studio-bank-meta">
+                <Card>
+                  <ul className="sc-rows" aria-label="Bank questions">
+                    {found.map((entry) => (
+                      <li key={entry.id} className="sc-row sc-bank__row">
+                        <p className="sc-bank__prompt">{entry.question.prompt}</p>
+                        <p className="sc-chips">
                           <Chip>{KIND_LABELS[entry.question.kind]}</Chip>
-                          {entry.tags.map((t) => (
-                            <Chip key={t} tone="info">
-                              {t}
+                          {entry.tags.map((tag) => (
+                            <Chip key={tag} tone="info">
+                              {tag}
                             </Chip>
                           ))}
-                          <span className="studio-muted">
+                          <span className="sc-help">
                             Added by {entry.createdBy === uid ? 'you' : 'a colleague'}
                           </span>
                         </p>
@@ -100,14 +120,14 @@ export function QuestionBankPage() {
                           </ul>
                         </details>
                         {entry.createdBy === uid || admin ? (
-                          <Button variant="ghost" onClick={() => setDeleting(entry)}>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleting(entry)}>
                             Delete
                           </Button>
                         ) : null}
-                      </Card>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
               )}
             </>
           );
@@ -123,6 +143,6 @@ export function QuestionBankPage() {
           {`${t.Quizzes} that already use a copy keep it. Only the bank entry is removed.`}
         </ConfirmDialog>
       ) : null}
-    </main>
+    </Page>
   );
 }

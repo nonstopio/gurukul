@@ -1,13 +1,20 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import './button.css';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'chrome';
+export type ButtonVariant =
+  'primary' | 'secondary' | 'ghost' | 'danger' | 'chrome' | 'chrome-secondary';
+
+export type ButtonSize = 'md' | 'sm';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual weight. One `primary` per view. Default: `primary`. */
+  /** Visual weight. One `primary` per view; `danger` only to confirm a destructive action. Default: `primary`. */
   variant?: ButtonVariant;
+  /** `sm` (36px) is for dense rows only. Default: `md` (44px). */
+  size?: ButtonSize;
   /** Leading icon, decorative: it is hidden from assistive tech. */
   icon?: ReactNode;
+  /** Waiting on the click: disabled, `aria-busy`, a spinner in place of the icon, label kept. */
+  loading?: boolean;
 }
 
 /**
@@ -16,15 +23,26 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 export function Button({
   variant = 'primary',
+  size = 'md',
   icon,
+  loading = false,
   className,
   type = 'button',
+  disabled,
   children,
   ...rest
 }: ButtonProps) {
   return (
-    <button type={type} className={buttonClass(variant, className)} {...rest}>
-      {icon ? (
+    <button
+      type={type}
+      className={buttonClass(variant, className, size)}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...rest}
+    >
+      {loading ? (
+        <span className="g-btn__spinner" aria-hidden="true" />
+      ) : icon ? (
         <span className="g-btn__icon" aria-hidden="true">
           {icon}
         </span>
@@ -35,6 +53,12 @@ export function Button({
 }
 
 /** Class list for a button-styled element, so links can look like buttons. */
-export function buttonClass(variant: ButtonVariant = 'primary', extra?: string): string {
-  return ['g-btn', `g-btn--${variant}`, extra].filter(Boolean).join(' ');
+export function buttonClass(
+  variant: ButtonVariant = 'primary',
+  extra?: string,
+  size: ButtonSize = 'md',
+): string {
+  return ['g-btn', `g-btn--${variant}`, size === 'sm' && 'g-btn--sm', extra]
+    .filter(Boolean)
+    .join(' ');
 }

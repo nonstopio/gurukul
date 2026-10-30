@@ -140,18 +140,19 @@ describe('Home', () => {
     expect(within(card).getByText('Retired')).toBeTruthy();
   });
 
-  it('reports a load failure in an alert', async () => {
+  it('reports a load failure in plain words, never the raw error, and retries', async () => {
     const d = fakeData();
-    d.data.listCourses = vi.fn().mockRejectedValue(new Error('offline'));
+    const list = d.data.listCourses;
+    d.data.listCourses = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline: socket hang up'))
+      .mockImplementation(list);
     await open('/', d);
-    expect(await screen.findByText(/offline/)).toBeTruthy();
-  });
-
-  it('wraps a non-Error rejection', async () => {
-    const d = fakeData();
-    d.data.listCourses = vi.fn().mockRejectedValue('boom');
-    await open('/', d);
-    expect(await screen.findByText(/boom/)).toBeTruthy();
+    expect(await screen.findByText('Check your connection and try again.')).toBeTruthy();
+    expect(screen.queryByText(/socket/)).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Namaste, Priya' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Nothing assigned yet')).toBeTruthy();
   });
 
   it('has no axe violations', async () => {
@@ -237,11 +238,28 @@ describe('Catalogue', () => {
     expect(screen.getByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
   });
 
-  it('says so when nothing matches', async () => {
+  it('says so when nothing matches, and clears the filters', async () => {
     await open('/courses', fakeData({ courses }));
     await screen.findByRole('link', { name: 'SQL basics' });
+    const filters = screen.getByRole('group', { name: 'Filter courses' });
+    expect(within(filters).getByRole('status').textContent).toBe('2 of 2');
+    expect(within(filters).queryByRole('button', { name: 'Clear filters' })).toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Assigned to me' }));
     expect(screen.getByText('No courses match')).toBeTruthy();
+    expect(within(filters).getByRole('status').textContent).toBe('0 of 2');
+    fireEvent.click(within(filters).getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
+    expect(
+      (screen.getByRole('switch', { name: 'Assigned to me' }) as HTMLInputElement).checked,
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('switch', { name: 'Assigned to me' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all courses' }));
+    expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
+  });
+
+  it('says when no course is published yet', async () => {
+    await open('/courses', fakeData({ courses: [] }));
+    expect(await screen.findByRole('heading', { name: 'No courses published yet' })).toBeTruthy();
   });
 
   it('has no axe violations', async () => {
@@ -386,6 +404,26 @@ describe('Course overview', () => {
   it('says a missing course does not exist', async () => {
     await open('/courses/nope');
     expect(await screen.findByText('This course does not exist')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Course not found' })).toBeTruthy();
+  });
+
+  it('shows a page-shaped skeleton, then a plain warning with Retry when the course fails', async () => {
+    const d = fakeData();
+    const get = d.data.getCourse;
+    let fail: (e: Error) => void = () => {};
+    d.data.getCourse = vi
+      .fn()
+      .mockReturnValueOnce(new Promise((_, reject) => (fail = reject)))
+      .mockImplementation(get);
+    await open('/courses/git', d);
+    expect(screen.getByText('Loading')).toBeTruthy();
+    await act(async () => fail(new Error('unavailable: deadline exceeded')));
+    expect(await screen.findByText('This did not load')).toBeTruthy();
+    expect(screen.queryByText(/deadline/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
+    ).toBeTruthy();
   });
 
   it('has no axe violations', async () => {

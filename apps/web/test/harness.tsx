@@ -3,6 +3,7 @@ import { act, render } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { App } from '../src/App';
 import { appRoutes } from '../src/routes';
+import type { AuthUser } from '../src/auth/service';
 import type { QuizService } from '../src/quiz/service';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeConsole } from './fake-console';
@@ -22,6 +23,10 @@ export async function openApp(
     roles?: Array<'educator' | 'admin'>;
     /** The person's label set; `null` for someone who has not picked one yet. */
     labels?: LabelSet | null;
+    /** Overrides on the signed-in Google user (a missing display name, say). */
+    user?: Partial<AuthUser>;
+    /** The team on the profile; none by default. */
+    team?: string | null;
   } = {},
 ) {
   const claims = Object.fromEntries((opts.roles ?? []).map((r) => [r, true]));
@@ -41,7 +46,7 @@ export async function openApp(
     />,
   );
   await act(async () => {
-    f.emitUser(opts.signedIn === false ? null : NONSTOP);
+    f.emitUser(opts.signedIn === false ? null : { ...NONSTOP, ...opts.user });
     await Promise.resolve();
   });
   if (opts.signedIn !== false) {
@@ -49,10 +54,10 @@ export async function openApp(
       f.emitProfile({
         roles: ['learner', ...(opts.roles ?? [])],
         displayName: 'P',
-        team: null,
+        team: opts.team ?? null,
         labels: opts.labels === null ? undefined : (opts.labels ?? 'generic'),
       }),
     );
   }
-  return { ...view, router, data, quiz, console: consoleApi, studio: opts.studio };
+  return { ...view, router, data, quiz, console: consoleApi, studio: opts.studio, auth: f };
 }

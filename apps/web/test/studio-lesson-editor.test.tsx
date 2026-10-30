@@ -105,7 +105,7 @@ describe('lesson editor: layout', () => {
 
   it('says so when a lesson has no blocks', async () => {
     await open(courseWith([]));
-    expect(await screen.findByText('This lesson is empty.')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'This lesson is empty' })).toBeTruthy();
   });
 
   it('shows a loading state, then the lesson', async () => {

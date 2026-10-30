@@ -110,7 +110,7 @@ export function PublishDialog({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={blocked || busy} onClick={() => void publish()}>
+          <Button disabled={blocked} loading={busy} onClick={() => void publish()}>
             Publish v{next}
           </Button>
         </>

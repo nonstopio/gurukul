@@ -260,7 +260,7 @@ describe('Media library', () => {
     expect(
       screen.getByText(
         (_, el) =>
-          el?.className === 'sc-help' &&
+          el?.tagName === 'P' &&
           el.textContent === 'Used in Git, the NonStop Way › Intro, Git, the NonStop Way › More',
       ),
     ).toBeTruthy();

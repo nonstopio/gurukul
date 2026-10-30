@@ -1,4 +1,14 @@
-import { Button, Callout, Card, Chip, Dialog, DragList, TypeTile } from '@gurukul/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  Chip,
+  Dialog,
+  DragList,
+  Input,
+  Select,
+  TypeTile,
+} from '@gurukul/ui';
 import { diffCourses, itemsOf } from '@gurukul/schema';
 import type { Course, CourseDiff, Item } from '@gurukul/schema';
 import { useMemo, useState } from 'react';
@@ -66,7 +76,7 @@ export function StructureTab({
   };
 
   return (
-    <section aria-labelledby="structure-title">
+    <section className="sc-structure" aria-labelledby="structure-title">
       <div className="sc-structure__head">
         <div>
           <h2 id="structure-title" className="sc-h2">
@@ -106,9 +116,10 @@ export function StructureTab({
                   {handle}
                   <span className="sc-chapter__no">{`${t.Chapter} ${index + 1}`}</span>
                   {open ? (
-                    <input
-                      className="g-control sc-chapter__input"
-                      aria-label={`Title of ${t.chapter} ${index + 1}`}
+                    <Input
+                      className="sc-chapter__input"
+                      label={`Title of ${t.chapter} ${index + 1}`}
+                      hideLabel
                       value={chapter.title}
                       maxLength={160}
                       onChange={(e) => update((w) => renameChapter(w, chapter.id, e.target.value))}
@@ -122,6 +133,7 @@ export function StructureTab({
                   </span>
                   <Button
                     variant="ghost"
+                    size="sm"
                     aria-expanded={open}
                     aria-controls={`chapter-body-${chapter.id}`}
                     onClick={() => setCollapsed({ ...collapsed, [chapter.id]: open })}
@@ -131,6 +143,7 @@ export function StructureTab({
                   </Button>
                   <Button
                     variant="ghost"
+                    size="sm"
                     aria-label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
                     onClick={() =>
                       setConfirm({
@@ -178,12 +191,14 @@ export function StructureTab({
                     <div className="sc-chapter__add">
                       <Button
                         variant="ghost"
+                        size="sm"
                         onClick={() => update((w) => addLesson(w, chapter.id, newId('lesson')))}
                       >
                         + Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                       <Button
                         variant="ghost"
+                        size="sm"
                         onClick={() => update((w) => addQuiz(w, chapter.id, newId('quiz')))}
                       >
                         + {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
@@ -206,7 +221,9 @@ export function StructureTab({
               <Button variant="secondary" onClick={() => setConfirm(null)}>
                 Keep it
               </Button>
-              <Button onClick={() => remove(confirm)}>Delete</Button>
+              <Button variant="danger" onClick={() => remove(confirm)}>
+                Delete
+              </Button>
             </>
           }
         >
@@ -253,9 +270,10 @@ function ItemRow({
       {handle}
       <TypeTile kind={itemKind(item)} />
       {renaming ? (
-        <input
-          className="g-control sc-item__input"
-          aria-label={`Title of ${title}`}
+        <Input
+          className="sc-item__input"
+          label={`Title of ${title}`}
+          hideLabel
           value={item.title}
           maxLength={160}
           // eslint-disable-next-line jsx-a11y/no-autofocus -- focus moves to the field the person just asked to edit
@@ -271,7 +289,12 @@ function ItemRow({
           <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
             {title}
           </Link>
-          <Button variant="ghost" aria-label={`Rename ${title}`} onClick={() => setRenaming(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Rename ${title}`}
+            onClick={() => setRenaming(true)}
+          >
             Rename
           </Button>
         </>
@@ -280,25 +303,24 @@ function ItemRow({
       {diff.edited.includes(item.id) ? <Chip tone="info">Edited</Chip> : null}
       <span className="sc-item__meta">{itemMeta(item)}</span>
       {others.length > 0 ? (
-        <label className="sc-item__move">
-          <span className="sr-only">{`Move ${title} to another ${t.chapter}`}</span>
-          <select
-            className="g-control g-control--select"
-            value=""
-            onChange={(e) => onMoveTo(e.target.value)}
-          >
-            <option value="" disabled>
-              Move to…
+        <Select
+          className="sc-item__move"
+          label={`Move ${title} to another ${t.chapter}`}
+          hideLabel
+          value=""
+          onChange={(e) => onMoveTo(e.target.value)}
+        >
+          <option value="" disabled>
+            Move to…
+          </option>
+          {others.map((p) => (
+            <option key={p.id} value={p.id}>
+              {nameOf(p.title, `Untitled ${t.chapter}`)}
             </option>
-            {others.map((p) => (
-              <option key={p.id} value={p.id}>
-                {nameOf(p.title, `Untitled ${t.chapter}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+          ))}
+        </Select>
       ) : null}
-      <Button variant="ghost" aria-label={`Delete ${title}`} onClick={onDelete}>
+      <Button variant="ghost" size="sm" aria-label={`Delete ${title}`} onClick={onDelete}>
         Delete
       </Button>
     </div>

@@ -1,7 +1,7 @@
 .g-dialog-layer {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -16,7 +16,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgb(6 19 22 / 0.55);
+  background: var(--scrim);
   cursor: default;
 }
 .g-dialog {
