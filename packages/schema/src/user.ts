@@ -42,6 +42,27 @@ export const orgConfigSchema = z.object({
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
 
+/**
+ * `teams/{id}`: a team and its members, keyed by email so a person can be on a team before their
+ * first sign-in. `config/org.teams` keeps the names only (what a learner picks from).
+ */
+export const teamSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  memberEmails: z.array(z.email().max(254)).max(500),
+  /** Milliseconds since the epoch. */
+  createdAt: z.number(),
+});
+export type TeamDoc = z.infer<typeof teamSchema>;
+export type Team = TeamDoc & { id: string };
+
+/** The document id for a team name: lower-case letters and digits joined by hyphens. */
+export const teamId = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'team';
+
 export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',
   teams: [],
