@@ -8,6 +8,8 @@ export interface SidebarProps extends Omit<HTMLAttributes<HTMLElement>, 'childre
   brand: ReactNode;
   /** Accessible name of the navigation landmark, e.g. "Main". */
   label: string;
+  /** Under the brand, above the navigation: an `AreaSwitcher` when the person can open more than one area. */
+  switcher?: ReactNode;
   /** Pinned to the bottom (the signed-in person's card). */
   footer?: ReactNode;
   /** `NavItem`s and `SidebarGroup`s. */
@@ -15,10 +17,19 @@ export interface SidebarProps extends Omit<HTMLAttributes<HTMLElement>, 'childre
 }
 
 /** The dark chrome sidebar: brand, navigation, optional pinned footer. */
-export function Sidebar({ brand, label, footer, children, className, ...rest }: SidebarProps) {
+export function Sidebar({
+  brand,
+  label,
+  switcher,
+  footer,
+  children,
+  className,
+  ...rest
+}: SidebarProps) {
   return (
     <aside className={cx('g-sidebar', className)} {...rest}>
       <div className="g-sidebar__brand">{brand}</div>
+      {switcher ? <div className="g-sidebar__switcher">{switcher}</div> : null}
       <nav className="g-sidebar__nav" aria-label={label}>
         {children}
       </nav>

@@ -41,7 +41,7 @@ swallow `mousedown` so a click never steals focus. Twenty rows, then "Show N mor
 ## Icon — shipped
 
 `<Icon size? label?>{paths}</Icon>` and one named component per glyph in use (`CheckIcon`, `XIcon`,
-`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and Org settings → Design system).
+`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and Admin → Design system).
 Lucide-style stroke on a 16-unit grid: `currentColor`, 1.5 stroke, round caps and joins, 16px by default.
 Decorative (`aria-hidden="true"`) unless given `label`, which makes it `role="img"` with that name; an
 icon-only button names the button instead. Any SVG attribute (`className`, `strokeWidth`) passes through.
@@ -433,9 +433,31 @@ card, account). `items` are `{ label, onSelect, icon?, danger?, disabled?, hint?
   `onSelect`, closes and returns focus; Escape closes, returns focus and does not reach an outer
   dialog; Tab closes; a press outside closes.
 
+## AreaSwitcher — shipped
+
+`<AreaSwitcher items label?>` with `Sidebar switcher={…}` — Learn, Studio and Admin as a compact
+row of links under the brand: `<nav aria-label="Areas">` on `--chrome-raised`, each link 44px,
+`--radius-sm`, hover `--chrome-hover`, the current area `--chrome-active` with `aria-current="page"`
+(colour changes on `--dur-base`). Items are `{ id, label, href, current?, render? }`; `render` lets
+the router draw the link (as `NavItem`). Render it only when the person may open more than one
+area; the app derives the areas from the navigation catalog and the current one from the route. With
+a switcher the sidebar lists only the current area's pages; the others are one click away.
+
+## Motion — shipped
+
+Only `opacity` and `transform` move, on tokens: a route change fades and rises 8px over
+`--dur-page` (`.route-enter` on the keyed page wrapper in `Shell`; focus handling is `routeFocus`,
+unchanged). Menu and command-palette lists rise 6px over `--dur-base`; the dialog panel rises and
+scales from 0.97, its scrim fades, the drawer slides, all over `--dur-slow` on `--ease`. A list
+enters staggered with `className="g-stagger"` on its parent and `style={{ '--i': index }}` on each
+child: 30ms a step, the first eight only. Reduced motion sets every `--dur-*` to 0, so nothing
+stays mid-movement; never add a transform animation with a literal duration.
+
 ## UserCard — shipped
 
-`<UserCard name detail tone items menuLabel?>` — the signed-in person at the foot of the sidebar;
+`<UserCard name detail tone roleLabel? items menuLabel?>` — the signed-in person at the foot of the sidebar;
+`roleLabel` (their role in their label set) fills the menu's header (name, email, role `Chip`) above
+the items, via `Menu header`;
 the whole card is the account `Menu` trigger (named "Account: Asha Rao"). Avatar 36, name 600
 `--text-sm` `--chrome-text-strong`, detail `--text-xs` `--chrome-text`, both ellipsised; chevron
 up; `--chrome-raised`, hover `--chrome-hover`. Menu opens upward, card-wide. Its items are

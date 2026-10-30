@@ -36,6 +36,8 @@ export interface MenuProps {
   /** Replaces the default 44px icon-button styling of the trigger. */
   triggerClassName?: string;
   items: MenuEntry[];
+  /** Static content above the items (who the account is), outside the arrow-key order. */
+  header?: ReactNode;
   /** Which trigger edge the panel lines up with. Default: `end`. */
   align?: 'start' | 'end';
   /** Opens below or above the trigger. Default: `bottom`. */
@@ -51,6 +53,7 @@ export function Menu({
   trigger = <MoreIcon />,
   triggerClassName,
   items,
+  header,
   align = 'end',
   placement = 'bottom',
   className,
@@ -148,6 +151,11 @@ export function Menu({
           className={cx('g-menu__panel', `g-menu__panel--${placement}`, `g-menu__panel--${align}`)}
           onKeyDown={onMenuKey}
         >
+          {header ? (
+            <div role="presentation" className="g-menu__header">
+              {header}
+            </div>
+          ) : null}
           {items.map((entry, i) =>
             'separator' in entry ? (
               <div key={i} role="separator" className="g-menu__separator" />

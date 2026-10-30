@@ -19,7 +19,9 @@ const admin = { roles: ['admin'] as Array<'admin'> };
 
 async function openSection(section?: string) {
   const query = section ? `&section=${section}` : '';
-  const view = await openApp(`/admin/settings?tab=design-system${query}`, { ...admin });
+  const view = await openApp(`/admin/design-system${query ? `?${query.slice(1)}` : ''}`, {
+    ...admin,
+  });
   await screen.findByRole('tablist', { name: 'Design system sections' });
   return view;
 }
@@ -100,7 +102,7 @@ describe('Design system: sections', () => {
     const { router } = await openSection('nonsense');
     expect(screen.getByRole('tab', { name: 'Tokens', selected: true })).toBeTruthy();
     await user.click(screen.getByRole('tab', { name: 'Type' }));
-    expect(router.state.location.search).toBe('?tab=design-system&section=type');
+    expect(router.state.location.search).toBe('?section=type');
     expect(screen.getByRole('region', { name: 'Families' })).toBeTruthy();
   });
 

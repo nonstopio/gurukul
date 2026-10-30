@@ -306,6 +306,25 @@ function Patterns() {
           </Card>
         </div>
       </Card>
+      <Card title="Motion">
+        <ul>
+          <li>
+            A route change fades and rises 8px over the page duration; focus goes to the title.
+          </li>
+          <li>
+            Menus and lists rise 6px over the base duration; dialogs and drawers take the slow one.
+          </li>
+          <li>Lists stagger by 30ms a row, the first eight only: set --i on each row.</li>
+          <li>Only opacity and transform move; reduced motion sets every duration to 0.</li>
+        </ul>
+        <ul className="g-stagger ds-stack" aria-label="Staggered list example">
+          {['First row', 'Second row', 'Third row'].map((row, i) => (
+            <li key={row} style={{ '--i': i } as CSSProperties}>
+              {row}
+            </li>
+          ))}
+        </ul>
+      </Card>
       <Card title="Forms">
         <ul>
           <li>One column, label above the control, help under it, error under that.</li>

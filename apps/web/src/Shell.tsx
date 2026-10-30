@@ -1,9 +1,11 @@
 import {
   AppShell,
+  AreaSwitcher,
   AwardIcon,
   ChartIcon,
   ChecklistIcon,
   ClockIcon,
+  CodeIcon,
   GridIcon,
   HomeIcon,
   ImageIcon,
@@ -65,6 +67,14 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
   const groups = new Map<string, Destination[]>();
   for (const d of destinations) groups.set(d.areaName, [...(groups.get(d.areaName) ?? []), d]);
   return [...groups];
+}
+
+export type AreaKey = 'learn' | 'studio' | 'admin';
+
+/** The area a route belongs to, by its first segment: what the switcher highlights. */
+export function areaKeyOf(path: string): AreaKey {
+  if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
+  return path === '/studio' || path.startsWith('/studio/') ? 'studio' : 'learn';
 }
 
 /**
@@ -148,6 +158,7 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'admin-assign': SendIcon,
   'admin-roles': ShieldIcon,
   'admin-audit': ClockIcon,
+  'admin-design-system': CodeIcon,
   'admin-settings': SettingsIcon,
   'studio-courses': PenIcon,
   'studio-bank': ChecklistIcon,
@@ -180,11 +191,21 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const saveLabels = useSaveLabels();
   const [theme, setTheme] = useTheme();
   const t = useTerms();
-  const groups = useMemo(
-    () => groupByArea(destinationsFor(areas, roles).map((d) => localizePage(d, t))),
+  const destinations = useMemo(
+    () => destinationsFor(areas, roles).map((d) => localizePage(d, t)),
     [areas, roles, t],
   );
   const here = pathname.replace(/\/+$/, '') || '/';
+  const area = areaKeyOf(here);
+  // The areas this person may open, in Learn, Studio, Admin order, each starting at its first page.
+  const switcher = (['learn', 'studio', 'admin'] as const).flatMap((key) => {
+    const first = destinations.find((d) => areaKeyOf(d.path) === key);
+    return first ? [{ key, first }] : [];
+  });
+  const groups = groupByArea(
+    switcher.length > 1 ? destinations.filter((d) => areaKeyOf(d.path) === area) : destinations,
+  );
+  const areaName = { learn: 'Learn', studio: t.Studio, admin: t.Admin };
   const tone = topRole(roles);
   const nextLabels: LabelSet = labels === 'gurukul' ? 'generic' : 'gurukul';
 
@@ -201,8 +222,22 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               <span className="app__brand">Gurukul</span>
             </>
           }
+          switcher={
+            switcher.length > 1 ? (
+              <AreaSwitcher
+                items={switcher.map(({ key, first }) => ({
+                  id: key,
+                  label: areaName[key],
+                  href: first.path,
+                  current: key === area,
+                  render: (props) => <Link to={first.path} {...(props as Omit<LinkProps, 'to'>)} />,
+                }))}
+              />
+            ) : undefined
+          }
           footer={
             <UserCard
+              roleLabel={{ admin: t.Admin, educator: t.Educator, learner: t.Learner }[tone]}
               name={user.displayName ?? String(user.email)}
               detail={String(user.email)}
               tone={tone}
@@ -258,7 +293,9 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       <main id="content" className="app__main">
         <OfflineBanner />
         <Suspense fallback={<PageLoading />}>
-          <Outlet />
+          <div key={pathname} className="route-enter">
+            <Outlet />
+          </div>
         </Suspense>
       </main>
     </AppShell>

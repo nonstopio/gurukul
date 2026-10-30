@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import * as ui from '@gurukul/ui';
 import {
   Avatar,
+  AreaSwitcher,
   BarChart,
   BlockFrame,
   Breadcrumb,
@@ -632,11 +633,29 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
             name="Asha Rao"
             detail="asha@example.com"
             tone="admin"
+            roleLabel="Admin"
             menuLabel="Example account"
             items={[
               { label: 'Profile', onSelect: noop },
               { separator: true },
               { label: 'Sign out', onSelect: noop },
+            ]}
+          />
+        </div>
+      </Frame>
+    ),
+  },
+  AreaSwitcher: {
+    rule: 'Learn, Studio and Admin at the top of the sidebar, only for the areas the person may open; it shows only when there is more than one.',
+    Example: () => (
+      <Frame size="narrow">
+        <div className="ds-chrome ds-chrome--block">
+          <AreaSwitcher
+            label="Example areas"
+            items={[
+              { id: 'learn', label: 'Learn', href: '#learn' },
+              { id: 'studio', label: 'Studio', href: '#studio', current: true },
+              { id: 'admin', label: 'Admin', href: '#admin' },
             ]}
           />
         </div>

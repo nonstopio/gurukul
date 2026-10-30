@@ -43,6 +43,13 @@ export const navigation = {
       keywords: ['history', 'trail', 'log', 'activity', 'changes'],
     },
     {
+      id: 'admin-design-system',
+      path: '/admin/design-system',
+      label: 'Design system',
+      description: 'The live tokens and components the app is built from',
+      keywords: ['design system', 'tokens', 'components', 'colours', 'theme', 'ui'],
+    },
+    {
       id: 'admin-settings',
       path: '/admin/settings',
       label: 'Org settings',
@@ -56,9 +63,6 @@ export const navigation = {
         'config',
         'signatory',
         'certificate',
-        'design system',
-        'tokens',
-        'components',
       ],
     },
   ],

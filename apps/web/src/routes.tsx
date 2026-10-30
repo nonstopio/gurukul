@@ -36,6 +36,11 @@ const CourseAnalyticsPage = lazyPage(
 const LearnersPage = lazyPage(() => import('./console/LearnersPage'), 'LearnersPage');
 const OverviewPage = lazyPage(() => import('./console/OverviewPage'), 'OverviewPage');
 const RolesPage = lazyPage(() => import('./console/RolesPage'), 'RolesPage');
+// Its own chunk: only an Admin who opens the page downloads every example component.
+const DesignSystemPage = lazyPage(
+  () => import('./design-system/DesignSystemPage'),
+  'DesignSystemPage',
+);
 const SettingsPage = lazyPage(() => import('./console/SettingsPage'), 'SettingsPage');
 const CourseEditorPage = lazyPage(() => import('./studio/CourseEditorPage'), 'CourseEditorPage');
 const LessonEditorPage = lazyPage(() => import('./studio/LessonEditorPage'), 'LessonEditorPage');
@@ -91,6 +96,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/admin/audit': (
     <RequireRole any={['admin']}>
       <AuditPage />
+    </RequireRole>
+  ),
+  '/admin/design-system': (
+    <RequireRole any={['admin']}>
+      <DesignSystemPage />
     </RequireRole>
   ),
   '/admin/settings': (

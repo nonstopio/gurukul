@@ -30,7 +30,7 @@ describe('navigation in Gurukul names', () => {
     await openApp('/admin/learners', { roles: ['admin'], labels: 'gurukul', console: c });
     const nav = await screen.findByRole('navigation', { name: 'Main' });
     expect(nav.textContent).toContain('Kulapati console');
-    expect(nav.textContent).toContain('Vyasa Studio');
+    expect(screen.getByRole('navigation', { name: 'Areas' }).textContent).toContain('Vyasa Studio');
     expect(screen.getByRole('link', { name: 'Shishyas' })).toBeTruthy();
     await waitFor(() => expect(document.title).toBe('Shishyas · Gurukul'));
 

@@ -45,6 +45,9 @@
   text-transform: uppercase;
   color: var(--chrome-label);
 }
+.g-sidebar__switcher {
+  flex: none;
+}
 .g-sidebar__footer {
   margin-top: auto;
   padding-top: var(--space-4);
@@ -61,7 +64,9 @@
   font: 500 var(--text-sm) / 1.2 var(--font-ui);
   color: var(--chrome-text);
   text-decoration: none;
-  transition: background-color var(--dur-fast) var(--ease);
+  transition:
+    background-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
 }
 .g-nav-item:hover {
   background: var(--chrome-hover);
