@@ -603,12 +603,12 @@ the picture settles; `:focus-visible` shows the focus ring. Never a checkbox bes
 
 ## ChoiceCard — shipped
 
-`<ChoiceCard icon title meta? selected onSelectedChange selectLabel? as="li|div">`: one option in a pick-many list
+`<ChoiceCard icon title meta? selected onSelectedChange selectLabel? disabled? as="li|div">`: one option in a pick-many list
 of teams or people (a course is a `CourseTile` with `onSelectedChange`). A `<label>` fills the card, so a click
 anywhere toggles the real checkbox inside; the icon sits in a tile (an icon, never a logo or photo), the title
 is `--text-md` 600, `meta` one muted line (a member count, an email). Picked: `--accent` ring on an
 `--accent-soft` card, the icon tile fills `--accent`, and the tick pops in (`--dur-slow`). Lay a list out with
-`.console-choice-grid`. Pair it with a search field and a count ("Showing 10 of 23 teams") and "Show more".
+`.console-choice-grid`. `disabled` (a limit, e.g. 15 teams) dims it and blocks picking. Pair it with a search field and a count ("Showing 10 of 23 teams") and "Show more".
 
 ## SearchCard — shipped
 

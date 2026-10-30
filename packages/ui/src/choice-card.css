@@ -21,6 +21,12 @@
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
+.g-choice--disabled {
+  opacity: 0.55;
+}
+.g-choice--disabled .g-choice__label {
+  cursor: not-allowed;
+}
 .g-choice__input {
   position: absolute;
   width: 1px;

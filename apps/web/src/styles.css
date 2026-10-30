@@ -198,3 +198,13 @@ body {
     transform: translateY(8px);
   }
 }
+
+/* A list of pick-many cards (teams, people): the same grid in the console and in Studio. */
+.console-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

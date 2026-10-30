@@ -844,9 +844,9 @@ describe('Course editor: publishing', () => {
     expect(
       (within(dialog).getByRole('button', { name: /^Publish v/ }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'QA Guild' }));
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'QA Guild' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
     studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /^Publish v/ }));

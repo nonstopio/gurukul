@@ -424,14 +424,13 @@ describe('Roles & access', () => {
     const dialog = await screen.findByRole('dialog');
     const save = within(dialog).getByRole('button', { name: 'Save role' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'r' },
-    });
-    expect(c.data.searchUsers).not.toHaveBeenCalled();
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'rav' },
-    });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
@@ -463,10 +462,13 @@ describe('Roles & access', () => {
     expect(await screen.findByText('Updated solo@nonstopio.com')).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const grant = await screen.findByRole('dialog', { name: 'Grant a role' });
-    fireEvent.change(within(grant).getByLabelText('Find a person by name or email'), {
-      target: { value: 'sol' },
-    });
-    fireEvent.click(await within(grant).findByRole('button', { name: 'solo@nonstopio.com' }));
+    fireEvent.change(
+      within(grant).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'sol' },
+      },
+    );
+    fireEvent.mouseDown(await within(grant).findByRole('option', { name: /solo@nonstopio.com/ }));
     expect(within(grant).getByText(/· solo@nonstopio.com/)).toBeTruthy();
   });
 
@@ -476,10 +478,13 @@ describe('Roles & access', () => {
     await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'me' },
-    });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'me' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
     const box = within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(box.checked).toBe(true);

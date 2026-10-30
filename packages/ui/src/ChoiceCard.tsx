@@ -13,6 +13,8 @@ export interface ChoiceCardProps {
   onSelectedChange: (next: boolean) => void;
   /** The checkbox's accessible name. Default: `title`. */
   selectLabel?: string | undefined;
+  /** Not pickable, e.g. at a limit; a card already picked can still be unpicked. */
+  disabled?: boolean | undefined;
   /** The element to render. Default: `li`, for a list of choices. */
   as?: 'li' | 'div';
   className?: string | undefined;
@@ -29,17 +31,22 @@ export function ChoiceCard({
   selected,
   onSelectedChange,
   selectLabel,
+  disabled = false,
   as: Tag = 'li',
   className,
 }: ChoiceCardProps) {
   return (
-    <Tag className={cx('g-choice', className)} data-selected={selected}>
+    <Tag
+      className={cx('g-choice', disabled && 'g-choice--disabled', className)}
+      data-selected={selected}
+    >
       <label className="g-choice__label">
         <input
           type="checkbox"
           className="g-choice__input"
           checked={selected}
           aria-label={selectLabel ?? title}
+          disabled={disabled}
           onChange={(e) => onSelectedChange(e.target.checked)}
         />
         <span className="g-choice__icon" aria-hidden="true">

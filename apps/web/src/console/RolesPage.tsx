@@ -7,12 +7,13 @@ import {
   DataTable,
   Dialog,
   EmptyState,
-  Input,
   Page,
   PageHeader,
+  PeoplePicker,
   StatCard,
   useToast,
 } from '@gurukul/ui';
+import type { Person } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
@@ -24,7 +25,7 @@ import { log } from '../log';
 import { Loaded } from '../learn/ui';
 import { CourseChoice } from './CourseChoice';
 import { useConsole } from './ConsoleProvider';
-import { usePeopleSearch } from './usePeopleSearch';
+import { usePeopleLookup } from './usePeopleSearch';
 import type { UserRow } from './types';
 
 type RoleKind = 'learner' | 'educator' | 'admin';
@@ -239,7 +240,7 @@ function GrantDialog({
   const { data } = useConsole();
   const t = useTerms();
   const [user, setUser] = useState<UserRow | null>(initial);
-  const people = usePeopleSearch(data);
+  const people = usePeopleLookup(data);
   const [roles, setRoles] = useState<Held>(
     initial ? held(initial) : { educator: true, admin: false },
   );
@@ -272,27 +273,19 @@ function GrantDialog({
         </p>
       ) : (
         <>
-          <Input
+          <PeoplePicker
             label="Find a person by name or email"
-            value={people.query}
-            onChange={(e) => void people.search(e.target.value)}
+            value={[]}
+            search={people.search}
+            total={people.total}
+            onChange={(picked) => {
+              // One person is wanted: the first pick replaces this field with their roles.
+              const u = people.userOf((picked[0] as Person).email) as UserRow;
+              setUser(u);
+              setRoles(held(u));
+              setCourseIds(u.grantedCourseIds);
+            }}
           />
-          <ul className="console-rows" aria-label="People found">
-            {people.found.map((u) => (
-              <li key={u.uid}>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setUser(u);
-                    setRoles(held(u));
-                    setCourseIds(u.grantedCourseIds);
-                  }}
-                >
-                  {u.displayName || u.email}
-                </Button>
-              </li>
-            ))}
-          </ul>
         </>
       )}
       {user ? (

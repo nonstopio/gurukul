@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ChoiceCard, UsersIcon } from '../src';
 import { axeViolations } from './axe';
@@ -46,5 +47,26 @@ describe('ChoiceCard', () => {
       (screen.getByRole('checkbox', { name: 'Pick the QA team' }) as HTMLInputElement).checked,
     ).toBe(true);
     expect(container.querySelector('.g-choice__meta')).toBeNull();
+  });
+});
+
+describe('ChoiceCard: disabled', () => {
+  it('cannot be picked when disabled, and says so', async () => {
+    const onSelectedChange = vi.fn();
+    const { container } = render(
+      <ChoiceCard
+        as="div"
+        icon={<UsersIcon />}
+        title="Mobile"
+        selected={false}
+        disabled
+        onSelectedChange={onSelectedChange}
+      />,
+    );
+    const box = screen.getByRole('checkbox', { name: 'Mobile' }) as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(container.firstElementChild?.className).toContain('g-choice--disabled');
+    await userEvent.click(box);
+    expect(onSelectedChange).not.toHaveBeenCalled();
   });
 });

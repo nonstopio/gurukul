@@ -27,6 +27,14 @@ describe('check-design', () => {
     ]);
   });
 
+  it('flags an email field, because people are picked with PeoplePicker', () => {
+    const dir = repo({
+      'apps/web/src/Who.tsx':
+        '<Input type="email" label="Who" />\n<PeoplePicker label="Add people" />',
+    });
+    assert.deepEqual(rules(dir), ['apps/web/src/Who.tsx:1 email-box']);
+  });
+
   it('keeps app CSS to layout and tokens', () => {
     const dir = repo({
       'apps/web/src/a.css': [

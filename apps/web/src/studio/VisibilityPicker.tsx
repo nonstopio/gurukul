@@ -1,4 +1,4 @@
-import { Select, Toggle } from '@gurukul/ui';
+import { ChoiceCard, Select, UsersIcon } from '@gurukul/ui';
 import { MAX_VISIBLE_TEAMS, teamId } from '@gurukul/schema';
 import type { CourseAccess, Visibility } from '@gurukul/schema';
 import { VISIBILITY_LABELS } from '../learn/catalogue';
@@ -52,15 +52,18 @@ export function VisibilityPicker({
             <legend className="sc-help">
               {`Only people on these teams see it in the catalogue (up to ${MAX_VISIBLE_TEAMS})`}
             </legend>
-            {teams.map((name) => (
-              <Toggle
-                key={name}
-                label={name}
-                checked={picked.has(teamId(name))}
-                disabled={!picked.has(teamId(name)) && picked.size >= MAX_VISIBLE_TEAMS}
-                onChange={(e) => toggle(teamId(name), e.target.checked)}
-              />
-            ))}
+            <ul className="console-choice-grid">
+              {teams.map((name) => (
+                <ChoiceCard
+                  key={name}
+                  icon={<UsersIcon />}
+                  title={name}
+                  selected={picked.has(teamId(name))}
+                  disabled={!picked.has(teamId(name)) && picked.size >= MAX_VISIBLE_TEAMS}
+                  onSelectedChange={(on) => toggle(teamId(name), on)}
+                />
+              ))}
+            </ul>
           </fieldset>
         )
       ) : (
