@@ -7,7 +7,9 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 
 1. **Sign in** with Google. First sign-in claims any assignments made to the
    email beforehand.
-2. **Home** shows a "continue" hero for the most recent in-progress course,
+2. **Home** shows a "continue" hero (progress ring, next lesson and its length, time left, one
+   Resume button, a due-soon chip) for the most recent in-progress course, or "Pick your next
+   course" with up to three suggestions when nothing is in progress,
    assigned courses (mandatory first, then by due date), and recent activity.
    A learner with no team (and a teams list in Org settings) is asked to pick
    one, so "whole team" assignments and the team filter reach them.
@@ -48,8 +50,11 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 
 ## Catalogue
 
-All published courses, with filters for level and "assigned to me". A learner
-can start any published course, assigned or not (self-enrolment creates a
+The published courses a person may open (public, or for a team they are on; see
+`02-data-model.md`, Course visibility): search, filter chips (Assigned to me, In
+progress, Completed, All; level), sort, a visible result count and a visibility
+badge on each card. The filters live in the URL, so back and reload keep them. A learner
+can start any course listed, assigned or not (self-enrolment creates a
 progress doc only, no assignment).
 
 ## Content rendering

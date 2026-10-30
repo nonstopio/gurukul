@@ -22,6 +22,11 @@ export const userSchema = z.object({
   nameLower: z.string().max(120).optional(),
   photoURL: z.string().nullable(),
   team: z.string().max(80).nullable(),
+  /**
+   * `teamId(name)` of every team (`teams/`) whose members include this email, kept by the functions
+   * (never by the person), because a course's `teams` visibility reads it. Absent means none.
+   */
+  teamIds: z.array(z.string().max(80)).max(100).optional(),
   labels: labelSetSchema.optional(),
   roles: z.array(roleSchema).min(1),
   grantedCourseIds: z.array(z.string()),

@@ -1,6 +1,8 @@
 import {
   ApiException,
+  accessOf,
   blankCourse,
+  courseAccessSchema,
   courseSchema,
   estimateMinutes,
   itemsOf,
@@ -8,7 +10,7 @@ import {
   upgradeCourse,
   validateForPublish,
 } from '@gurukul/schema';
-import type { AnswerKeys, Course, PublishIssue } from '@gurukul/schema';
+import type { AnswerKeys, Course, CourseAccess, PublishIssue } from '@gurukul/schema';
 import { requireAdmin } from './errors.js';
 import type { AuditEntry, Caller } from './errors.js';
 import { log } from './logging/log.js';
@@ -21,6 +23,9 @@ export interface LiveCourse {
   educatorIds: string[];
   /** Missing on a v1 document no role grant has touched yet. */
   educatorNames?: Record<string, string>;
+  /** Who may open it; missing on a course published before visibility existed, which reads as public. */
+  visibility?: CourseAccess['visibility'];
+  visibleTeamIds?: string[];
 }
 
 export interface DraftData {
@@ -45,6 +50,8 @@ export interface ReleaseState {
 export interface ReleasePlan {
   version: number;
   course: Course;
+  /** Who may open the new live version; written beside the course object, not inside it. */
+  access: CourseAccess;
   answers: AnswerKeys;
   resetDraft?: DraftData;
 }
@@ -191,6 +198,16 @@ const released = (course: Course, live: LiveCourse, courseId: string, version: n
   estimatedMinutes: estimateMinutes(course),
 });
 
+/** The visibility a publish asks for, or `undefined` when it leaves it as it is. */
+function requestedAccess(data: Record<string, unknown>): CourseAccess | undefined {
+  if (data['visibility'] === undefined) return undefined;
+  return field(
+    'visibility',
+    { visibility: data['visibility'], visibleTeamIds: data['visibleTeamIds'] ?? [] },
+    courseAccessSchema,
+  );
+}
+
 /** `publishCourse`: validates the draft and makes it the live version. */
 export async function publishCourse(
   store: CourseStore,
@@ -198,6 +215,7 @@ export async function publishCourse(
   data: Record<string, unknown>,
 ): Promise<{ version: number }> {
   const courseId = idField('courseId', data['courseId']);
+  const requested = requestedAccess(data);
   log.debug('Publishing a course', { courseId });
   const version = await store.release(courseId, caller.uid, null, ({ live, draft }) => {
     const current = requireEditor(caller, live, courseId, 'publishCourse');
@@ -211,7 +229,9 @@ export async function publishCourse(
     }
     const next = current.version + 1;
     const course = released(upgraded, current, courseId, next);
-    return { version: next, course, answers: restrictAnswers(course, draft.answers) };
+    // Sent with the publish when the publisher changed it; otherwise the live course keeps its own.
+    const access = requested === undefined ? accessOf(current) : requested;
+    return { version: next, course, access, answers: restrictAnswers(course, draft.answers) };
   });
   await store.audit({
     action: 'course.publish',
@@ -244,6 +264,7 @@ export async function rollbackCourse(
     return {
       version: next,
       course: released(restored, current, courseId, next),
+      access: accessOf(current),
       answers: snapshot.answers,
       resetDraft: {
         rev: (draft?.rev ?? 0) + 1,

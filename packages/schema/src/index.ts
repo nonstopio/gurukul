@@ -1,5 +1,6 @@
 export * from './timestamp';
 export * from './course';
+export * from './access';
 export * from './progress';
 export * from './assignment';
 export * from './certificate';

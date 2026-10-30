@@ -9,6 +9,8 @@ import {
   firestoreCourseStore,
   firestoreReminderStore,
   firestoreRollupStore,
+  firestoreTeamStore,
+  firestoreUserStore,
 } from '../src/stores.js';
 
 vi.mock('firebase-admin/firestore', () => ({
@@ -621,6 +623,7 @@ describe('firestoreCourseStore', () => {
   const plan = {
     version: 3,
     course: { id: 'c', title: 'T' },
+    access: { visibility: 'teams', visibleTeamIds: ['qa'] },
     answers: { pk: { q: ['a'] } },
   } as never;
 
@@ -664,7 +667,13 @@ describe('firestoreCourseStore', () => {
     const decide = vi.fn().mockReturnValue(plan);
     expect(await firestoreCourseStore(db).release('c', 'asha', null, decide)).toBe(3);
     expect(decide).toHaveBeenCalledWith({ live, draft, snapshot: undefined });
-    const published = { id: 'c', title: 'T', publishedAt: 'NOW' };
+    const published = {
+      id: 'c',
+      title: 'T',
+      visibility: 'teams',
+      visibleTeamIds: ['qa'],
+      publishedAt: 'NOW',
+    };
     expect(tx.set).toHaveBeenCalledWith(expect.objectContaining({ path: 'courses/c' }), published);
     expect(tx.set).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'courses/c/private/answers' }),
@@ -723,5 +732,48 @@ describe('firestoreBackupPort', () => {
       outputUriPrefix: 'gs://b/backups/2026-11-01',
       collectionIds: [],
     });
+  });
+});
+
+describe('team membership on profiles', () => {
+  function usersDb(found: string[][]) {
+    const batch = { update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+    const queries: unknown[][] = [];
+    let call = 0;
+    const db = {
+      collection: (name: string) => ({
+        where: (...args: unknown[]) => {
+          queries.push([name, ...args]);
+          const ids = found[call++] ?? [];
+          return {
+            get: async () => ({
+              empty: ids.length === 0,
+              size: ids.length,
+              docs: ids.map((id) => ({ id, ref: `ref:${id}` })),
+            }),
+          };
+        },
+      }),
+      batch: () => batch,
+    } as never;
+    return { db, batch, queries };
+  }
+
+  it('lists the teams a new account is already on, by email', async () => {
+    const { db, queries } = usersDb([['platform', 'qa']]);
+    expect(await firestoreUserStore(db).teamIdsFor('a@nonstopio.com')).toEqual(['platform', 'qa']);
+    expect(queries).toEqual([['teams', 'memberEmails', 'array-contains', 'a@nonstopio.com']]);
+  });
+
+  it('adds and removes the team id on the profiles it finds, 30 emails at a time', async () => {
+    const emails = Array.from({ length: 31 }, (_, i) => `p${i}@x.com`);
+    const on = usersDb([['u1', 'u2'], []]);
+    expect(await firestoreTeamStore(on.db).setMembership('qa', emails, true)).toBe(2);
+    expect(on.queries.map((q) => (q[3] as string[]).length)).toEqual([30, 1]);
+    expect(on.batch.update).toHaveBeenCalledWith('ref:u1', { teamIds: 'union:qa' });
+    expect(on.batch.commit).toHaveBeenCalledOnce();
+    const off = usersDb([['u1']]);
+    await firestoreTeamStore(off.db).setMembership('qa', ['a@x.com'], false);
+    expect(off.batch.update).toHaveBeenCalledWith('ref:u1', { teamIds: 'remove:qa' });
   });
 });

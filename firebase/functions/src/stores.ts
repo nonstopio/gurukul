@@ -18,6 +18,7 @@ import type { ProgressStore } from './progress.js';
 import type { ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
 import type { RoleAdmin } from './set-roles.js';
+import type { TeamStore } from './teams.js';
 
 /** Splits a list into pieces of at most `size`: Firestore caps `in` queries and batches. */
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -38,6 +39,13 @@ export function firestoreUserStore(db: Firestore): UserStore {
         .doc(`users/${uid}`)
         .set({ ...profile, createdAt: FieldValue.serverTimestamp() }, { merge: true });
     },
+    async teamIdsFor(email) {
+      const snap = await db
+        .collection('teams')
+        .where('memberEmails', 'array-contains', email)
+        .get();
+      return snap.docs.map((d) => d.id);
+    },
     async claimAssignments(email, uid) {
       const snap = await db
         .collection('assignments')
@@ -49,6 +57,28 @@ export function firestoreUserStore(db: Firestore): UserStore {
       for (const d of snap.docs) batch.update(d.ref, { uid });
       await batch.commit();
       return snap.size;
+    },
+  };
+}
+
+/** `TeamStore` over the Admin SDK: moves a team id on or off the profiles of the given emails. */
+export function firestoreTeamStore(db: Firestore): TeamStore {
+  return {
+    async setMembership(teamId, emails, on) {
+      let count = 0;
+      for (const part of chunk(emails, 30)) {
+        const snap = await db.collection('users').where('email', 'in', part).get();
+        if (snap.empty) continue;
+        const batch = db.batch();
+        for (const d of snap.docs) {
+          batch.update(d.ref, {
+            teamIds: on ? FieldValue.arrayUnion(teamId) : FieldValue.arrayRemove(teamId),
+          });
+        }
+        await batch.commit();
+        count += snap.size;
+      }
+      return count;
     },
   };
 }
@@ -632,8 +662,9 @@ export function firestoreCourseStore(db: Firestore): CourseStore {
           snapshot: snapshot?.data() as VersionData | undefined,
         });
         const now = FieldValue.serverTimestamp();
-        const { version, course, answers } = plan;
-        const published = { ...course, publishedAt: now };
+        const { version, course, access, answers } = plan;
+        // The access sits beside the course object so rules and queries can read it.
+        const published = { ...course, ...access, publishedAt: now };
         tx.set(ref, published);
         tx.set(ref.collection('private').doc('answers'), answers);
         tx.set(ref.collection('versions').doc(`${version}`), {

@@ -24,6 +24,9 @@ builder. Handoff: `design-handoff/03-studio.md`.
 - **Publish** calls `publishCourse({ courseId })`: validate with the schema,
   check every Quiz has answers for every question, strip answers into
   `private/answers`, bump `version`, snapshot the old version into `versions/`.
+- The publish dialog also sets **who can open the course**: Public, Teams (pick teams from
+  `config/org.teams`) or Educators and Admins. It starts from what the live course has; changing it
+  alone is enough to publish. See `02-data-model.md` (Course visibility).
 - "2 unpublished edits" = diff count between draft and published: items added, removed or
   changed, plus one for any course-level change. Only what publishing would change counts: the
   draft is compared in today's schema, and the Educator list (always taken from the live course)

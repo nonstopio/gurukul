@@ -3,6 +3,7 @@ import { buildProfile, handleUserCreated } from '../src/profile.js';
 import type { UserStore } from '../src/profile.js';
 
 const store = (claimed = 0): UserStore => ({
+  teamIdsFor: vi.fn().mockResolvedValue(['platform']),
   createProfile: vi.fn().mockResolvedValue(undefined),
   claimAssignments: vi.fn().mockResolvedValue(claimed),
 });
@@ -22,6 +23,7 @@ describe('buildProfile', () => {
       nameLower: 'priya n',
       photoURL: 'p',
       team: null,
+      teamIds: [],
       roles: ['learner'],
       grantedCourseIds: [],
     });
@@ -48,8 +50,9 @@ describe('handleUserCreated', () => {
     expect(out).toEqual({ created: true, claimed: 2 });
     expect(s.createProfile).toHaveBeenCalledWith(
       'u1',
-      expect.objectContaining({ email: 'a@nonstopio.com' }),
+      expect.objectContaining({ email: 'a@nonstopio.com', teamIds: ['platform'] }),
     );
+    expect(s.teamIdsFor).toHaveBeenCalledWith('a@nonstopio.com');
     expect(s.claimAssignments).toHaveBeenCalledWith('a@nonstopio.com', 'u1');
   });
 

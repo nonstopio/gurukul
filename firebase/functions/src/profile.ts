@@ -18,6 +18,8 @@ export interface ProfileDoc {
   nameLower: string;
   photoURL: string | null;
   team: null;
+  /** `teams/` ids this email is already on, so a person added to a team before signing in has them at once. */
+  teamIds: string[];
   roles: ['learner'];
   grantedCourseIds: [];
 }
@@ -27,10 +29,15 @@ export interface UserStore {
   createProfile(uid: string, profile: ProfileDoc): Promise<void>;
   /** Stamps `uid` on every assignment for `email` that has none yet; returns how many. */
   claimAssignments(email: string, uid: string): Promise<number>;
+  /** The ids of the teams whose members include `email`. */
+  teamIdsFor(email: string): Promise<string[]>;
 }
 
 /** The profile document for a new NonStop account. The display name falls back to the email's local part. */
-export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
+export function buildProfile(
+  user: NewUser & { email: string },
+  teamIds: string[] = [],
+): ProfileDoc {
   const email = user.email.toLowerCase();
   const displayName = user.displayName?.trim() || email.split('@')[0] || email;
   return {
@@ -39,6 +46,7 @@ export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
     nameLower: nameKey(displayName),
     photoURL: user.photoURL ?? null,
     team: null,
+    teamIds,
     roles: ['learner'],
     grantedCourseIds: [],
   };
@@ -57,7 +65,10 @@ export async function handleUserCreated(
     log.debug('Sign-up ignored', { uid: user.uid, reason: 'not a verified NonStop account' });
     return { created: false, claimed: 0 };
   }
-  const profile = buildProfile({ ...user, email: user.email });
+  const profile = buildProfile(
+    { ...user, email: user.email },
+    await store.teamIdsFor(user.email.toLowerCase()),
+  );
   await store.createProfile(user.uid, profile);
   const claimed = await store.claimAssignments(profile.email, user.uid);
   return { created: true, claimed };

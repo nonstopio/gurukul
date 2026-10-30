@@ -47,9 +47,10 @@ describe('seedCourse', () => {
       rev: 1,
       updatedAt: now,
       updatedBy: 'seed',
-      course: writes[0]?.data,
+      course: { ...(writes[0]?.data as object), visibility: undefined, visibleTeamIds: undefined },
       answers: gitAnswers,
     });
+    expect(writes[0]?.data).toMatchObject({ visibility: 'public', visibleTeamIds: [] });
     expect((writes[0]?.data as Course).publishedAt).toBe(now);
     expect(writes[1]?.data).toEqual(gitAnswers);
     expect(JSON.stringify(writes[0]?.data)).not.toContain('"quiz-i-q1":["a"]');
