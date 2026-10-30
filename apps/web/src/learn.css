@@ -536,7 +536,7 @@ a.items__row:hover {
     'brand brand'
     'copy art'
     'foot foot';
-  align-content: start;
+  grid-template-rows: auto 1fr auto;
   gap: var(--space-8) var(--space-12);
   min-height: 100dvh;
   padding: var(--space-6) clamp(var(--space-5), 6vw, var(--space-16));
@@ -550,8 +550,13 @@ a.items__row:hover {
   gap: var(--space-4);
 }
 .signin__brand img {
-  height: var(--space-8);
+  height: var(--space-6);
   width: auto;
+  /* White artwork: it always sits on the forest ground, in both themes. */
+  box-sizing: content-box;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--cover-forest);
 }
 .signin__brand-name {
   padding-left: var(--space-4);
@@ -651,7 +656,7 @@ a.items__row:hover {
   fill: var(--saffron);
 }
 .signin-art__card,
-.signin-art__ring,
+.signin-art__ring-plate,
 .signin-art__seal,
 .signin-art__pill {
   position: absolute;
@@ -684,9 +689,10 @@ a.items__row:hover {
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-.signin-art__ring {
+.signin-art__ring-plate {
   top: 6%;
   left: 7%;
+  display: grid;
   padding: var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -738,6 +744,24 @@ a.items__row:hover {
   .signin-art {
     max-width: var(--width-form);
     margin-inline: auto;
+  }
+}
+/* Phones: a squarer plate, the card across it, the pill dropped and the seal smaller, so nothing overlaps the card text. */
+@media (width < 40rem) {
+  .signin-art {
+    aspect-ratio: 1 / 1;
+  }
+  .signin-art__card {
+    inset: 30% 6% auto 6%;
+  }
+  .signin-art__pill {
+    display: none;
+  }
+  .signin-art__seal {
+    scale: 0.7;
+    transform-origin: bottom right;
+    bottom: 4%;
+    right: 4%;
   }
 }
 

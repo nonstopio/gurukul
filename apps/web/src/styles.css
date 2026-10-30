@@ -81,13 +81,16 @@ body {
 /* The sidebar brand: logo, hairline, product name (AppShell does the layout). */
 .app__logo {
   display: block;
-  height: 1.625rem;
+  height: 1.25rem;
   width: auto;
-  padding-right: var(--space-3);
-  border-right: 1px solid var(--chrome-line);
+  /* The logo is white artwork: it always sits on the forest ground, in both themes. */
+  box-sizing: content-box;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--cover-forest);
 }
 .app__brand {
-  font: 500 var(--text-xl) / 1 var(--font-display);
+  font: 500 var(--text-lg) / 1 var(--font-display);
   color: var(--chrome-accent);
 }
 .app__offline {

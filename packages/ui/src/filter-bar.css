@@ -8,6 +8,10 @@
   flex: 1 1 12rem;
   max-width: 18rem;
 }
+.g-filter-bar > .g-segmented {
+  flex: 0 0 auto;
+  max-width: none;
+}
 .g-filter-bar > :first-child:not(.g-filter-bar__end) {
   flex-grow: 2;
   max-width: none;

@@ -32,13 +32,9 @@ export function SignInArt() {
           <Chip tone="accent">Quiz passed</Chip>
         </div>
       </div>
-      <ProgressRing
-        className="signin-art__ring rise"
-        style={rise(4)}
-        value={72}
-        label="Week"
-        size={72}
-      />
+      <div className="signin-art__ring-plate rise" style={rise(4)}>
+        <ProgressRing value={72} label="Week" size={72} />
+      </div>
       <Seal
         className="signin-art__seal rise"
         style={rise(5)}

@@ -13,6 +13,7 @@
   border-radius: calc(var(--radius-md) - var(--space-1));
   font: 600 var(--text-sm) / 1 var(--font-ui);
   color: var(--text-muted);
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--dur-fast) var(--ease),
