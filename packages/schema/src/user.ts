@@ -61,12 +61,15 @@ export type TeamDoc = z.infer<typeof teamSchema>;
 export type Team = TeamDoc & { id: string };
 
 /** The document id for a team name: lower-case letters and digits joined by hyphens. */
-export const teamId = (name: string): string =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'team';
+export const teamId = (name: string): string => {
+  const dashed = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  // Trim the hyphens at both ends with two linear scans (a `-+$` regex is flagged as polynomial).
+  let start = 0;
+  let end = dashed.length;
+  while (start < end && dashed[start] === '-') start++;
+  while (end > start && dashed[end - 1] === '-') end--;
+  return dashed.slice(start, end).slice(0, 80) || 'team';
+};
 
 export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',

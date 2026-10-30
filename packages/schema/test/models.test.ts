@@ -30,6 +30,13 @@ describe('teams', () => {
   it('makes a document id from the name', () => {
     expect(teamId('Platform & Cloud team')).toBe('platform-cloud-team');
     expect(teamId('!!!')).toBe('team');
+    expect(teamId('--  Design & UX !! ')).toBe('design-ux');
+    expect(teamId('a'.repeat(100))).toHaveLength(80);
+  });
+  it('stays fast on a long run of separators', () => {
+    const started = Date.now();
+    expect(teamId(`${'-'.repeat(50000)}x${'-'.repeat(50000)}`)).toBe('x');
+    expect(Date.now() - started).toBeLessThan(500);
   });
 });
 
