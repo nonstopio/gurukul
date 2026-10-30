@@ -52,6 +52,7 @@ else is a review blocker, and most of it fails `npm run check:design`.
 | A boolean setting                       | `Toggle` (`role="switch"`)                                            | a checkbox styled as a switch                                      |
 | Search + filters above a list           | `FilterBar` (search, `Select`s, toggles, Clear filters)               | `.filters` rows, a paragraph inside a filter row                   |
 | Tabular data                            | `DataTable` (read-only: no selection or paging, `rowHeader` column)   | `<table class="plain-table">`, a CSS grid pretending to be a table |
+| A gallery of images, video, files       | `MediaGallery` (+ `MediaPreview` in the detail drawer)                | a list of links, a grid of hand-rolled `<img>` cards               |
 | A number with its label                 | `StatCard`                                                            | a card with a big `<p>`                                            |
 | A status word                           | `Chip tone=…` with the word                                           | coloured text alone                                                |
 | A person                                | `Avatar` (initials; colour by role)                                   | an `<img>` of a Google photo, a coloured `<span>`                  |

@@ -26,6 +26,8 @@ import {
   Input,
   LayoutPicker,
   Menu,
+  MediaGallery,
+  MediaPreview,
   NavItem,
   Page,
   PageHeader,
@@ -79,6 +81,12 @@ const QUIZ_STATES: Array<[QuizOptionState, 'A' | 'B' | 'C' | 'D']> = [
   ['correct', 'B'],
   ['incorrect', 'C'],
   ['locked', 'D'],
+];
+const MEDIA_ITEMS: ui.MediaGalleryItem[] = [
+  { id: 'v', name: 'setup-walkthrough.mp4', meta: 'Video · in 2 courses', kind: 'video' },
+  { id: 'p', name: 'review-checklist.pdf', meta: 'PDF · in 4 courses', kind: 'pdf' },
+  { id: 'a', name: 'welcome.mp3', meta: 'Audio · not used yet', kind: 'audio' },
+  { id: 'e', name: 'Firestore diagram', meta: 'Embed · in 1 course', kind: 'embed' },
 ];
 const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'quiz'];
 const TOAST_TONES: ToastTone[] = ['info', 'success', 'danger'];
@@ -341,6 +349,18 @@ function DataTableExample() {
 function PaginationExample() {
   const [page, setPage] = useState(1);
   return <Pagination page={page} pageSize={3} total={9} onPageChange={setPage} />;
+}
+
+function MediaExample() {
+  const [selected, setSelected] = useState('v');
+  return (
+    <MediaGallery
+      label="Media examples"
+      items={MEDIA_ITEMS}
+      selectedId={selected}
+      onSelect={(item) => setSelected(item.id)}
+    />
+  );
 }
 
 function DragExample() {
@@ -905,6 +925,19 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   LayoutPicker: {
     rule: 'How a block lays out: stacked or split.',
     Example: LayoutExample,
+  },
+  MediaGallery: {
+    rule: 'Media tiles with a real preview, name, size and where used; choose one to see it larger.',
+    Example: MediaExample,
+  },
+  MediaPreview: {
+    rule: 'The larger preview in a detail panel: an image, or a typed tile for everything else.',
+    Example: () => (
+      <>
+        <MediaPreview kind="video" size="large" />
+        <MediaPreview kind="pdf" size="large" />
+      </>
+    ),
   },
   ColourSwatch: {
     rule: 'A course cover theme, as radios that show their name.',

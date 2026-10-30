@@ -139,3 +139,10 @@ export { FilterBar } from './FilterBar';
 export type { FilterBarProps } from './FilterBar';
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps } from './SegmentedControl';
+export { MediaGallery, MediaPreview, mediaKindName } from './MediaGallery';
+export type {
+  MediaGalleryItem,
+  MediaGalleryProps,
+  MediaKind,
+  MediaPreviewProps,
+} from './MediaGallery';

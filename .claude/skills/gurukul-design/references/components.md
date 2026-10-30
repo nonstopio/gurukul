@@ -384,6 +384,16 @@ a check icon, never colour alone. Focus draws the ring on the swatch. The cover 
 `<TypeTile kind="reading|video|code|quiz">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
 hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Quiz `--warning-soft`.
 
+## MediaGallery, MediaPreview — shipped
+
+`<MediaGallery label items selectedId? onSelect>`. A `<ul>` grid (`minmax(10rem, 1fr)`) of tile `<button aria-pressed>`:
+`MediaPreview` on top, the name (one line, ellipsis) and a `meta` line ("PDF · in 3 courses"). Pressed: `--accent`
+border. Items are `{ id, name, meta, kind, url? }`, `kind` one of image, video, embed, pdf, audio, file.
+`<MediaPreview kind url? size="tile|large">` is the preview alone, for the detail panel: an image shows its
+thumbnail (and falls back to the typed tile when it does not load); every other kind is an icon on a tinted tile
+with the kind's name, never colour alone. `mediaKindName(kind)` gives the name for filter chips. The page owns
+search, type chips (`Chip`/pressed buttons), the detail (`Dialog size="drawer"`) and Copy link.
+
 ## Avatar — shipped
 
 `<Avatar name tone? size? label?>`: initials in a circle. Initials are the first letters of the
