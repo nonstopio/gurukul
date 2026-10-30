@@ -232,7 +232,7 @@ describe('lesson editor: blocks', () => {
     expect(savedLesson(studio).blocks[0]).toMatchObject({ id: 'b1', md: 'New body' });
   });
 
-  it('previews any block as a learner sees it, from a Preview button in its header', async () => {
+  it('previews any block as a learner sees it, with an Edit | Preview switch in its header', async () => {
     await open(
       courseWith([
         { type: 'callout', id: 'c1', tone: 'tip', title: 'Heads up', md: 'Use `--global` once.' },
@@ -240,13 +240,15 @@ describe('lesson editor: blocks', () => {
     );
     const group = await screen.findByRole('group', { name: 'Callout block' });
     expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
-    const toggle = within(group).getByRole('button', { name: 'Preview' });
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    const edit = within(group).getByRole('button', { name: 'Edit' });
+    const preview = within(group).getByRole('button', { name: 'Preview' });
+    expect(edit.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(preview);
+    expect(preview.getAttribute('aria-pressed')).toBe('true');
     expect(within(group).queryByLabelText('Text (Markdown)')).toBeNull();
     expect(within(group).getByText('Heads up')).toBeTruthy();
     expect(group.querySelector('code')?.textContent).toBe('--global');
-    fireEvent.click(toggle);
+    fireEvent.click(edit);
     expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
   });
 

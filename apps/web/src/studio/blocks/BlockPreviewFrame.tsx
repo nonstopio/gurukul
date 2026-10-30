@@ -1,12 +1,17 @@
-import { BlockFrame, Button } from '@gurukul/ui';
+import { BlockFrame, SegmentedControl } from '@gurukul/ui';
 import type { BlockFrameProps } from '@gurukul/ui';
 import type { Block } from '@gurukul/schema';
 import { useState } from 'react';
 import { BlockView } from '../../player/blocks';
 import { BlockEditor } from './BlockEditor';
 
+const VIEWS = [
+  { value: 'edit', label: 'Edit' },
+  { value: 'preview', label: 'Preview' },
+] as const;
+
 /**
- * A block's frame with a Preview toggle in its header: the editor swaps for what a learner sees,
+ * A block's frame with an Edit | Preview switch in its header: the editor swaps for what a learner sees,
  * drawn by the learner's own renderer. Text keeps its toolbar Preview, which also swaps in place.
  */
 export function BlockPreviewFrame({
@@ -24,14 +29,12 @@ export function BlockPreviewFrame({
       {...frame}
       controls={
         own ? undefined : (
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-pressed={preview}
-            onClick={() => setPreview(!preview)}
-          >
-            Preview
-          </Button>
+          <SegmentedControl
+            label="View"
+            value={preview ? 'preview' : 'edit'}
+            options={VIEWS}
+            onChange={(view) => setPreview(view === 'preview')}
+          />
         )
       }
     >
