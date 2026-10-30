@@ -8,7 +8,6 @@ import {
   ProgressBar,
   buttonClass,
 } from '@gurukul/ui';
-import { resumeItemId } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
@@ -16,20 +15,21 @@ import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import {
   ASSIGNED_PREVIEW,
-  LEVEL_LABELS,
   agoLabel,
   continueCourse,
   dueLabel,
   firstName,
   hasNewLessons,
   isRetired,
+  nextAssigned,
   orderAssigned,
   percentFor,
   recentActivity,
   statusLine,
-  upNext,
 } from './learn/model';
 import type { AssignedCourse } from './learn/model';
+import { suggestions } from './learn/hero';
+import { HomeContinue, PickNextCourse } from './learn/HomeContinue';
 import { TeamPrompt } from './learn/TeamPrompt';
 import { CoverTile, Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
@@ -57,6 +57,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
     return {
       assigned: orderAssigned(assigned),
       courses,
+      progress,
       current: continueCourse(courses, progress),
       activity: recentActivity(courses, progress, certificates),
     };
@@ -75,78 +76,34 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
       />
       {team === null ? <TeamPrompt /> : null}
       <Loaded loadable={result}>
-        {({ assigned, courses, activity }) => {
-          const next = assigned.find((a) => a.progress === null);
+        {({ assigned, courses, progress, activity }) => {
           const currentAssignment = current
             ? assigned.find((a) => a.course.id === current.course.id)?.assignment
             : undefined;
-          const currentDue = currentAssignment?.dueAt
-            ? dueLabel(currentAssignment.dueAt, now())
-            : null;
-          const upcoming = current ? upNext(current.course, current.progress) : null;
+          const dueOf = (a: { dueAt: Date | null } | undefined) =>
+            a?.dueAt ? dueLabel(a.dueAt, now()) : null;
+          const queued = current ? nextAssigned(assigned, current.course.id) : null;
           const shown = showAll ? assigned : assigned.slice(0, ASSIGNED_PREVIEW);
+          const picks = suggestions(courses, assigned, progress);
           return (
             <>
               {current ? (
-                <Card title="Continue learning">
-                  <div className="continue">
-                    <CoverTile cover={current.course.cover} size="large" />
-                    <div className="learn-stack">
-                      <span className="learn-chips">
-                        <Chip tone="accent">In progress</Chip>
-                        <Chip tone="neutral">{LEVEL_LABELS[current.course.level]}</Chip>
-                        {currentDue ? (
-                          <Chip tone={currentDue.overdue ? 'danger' : 'warning'}>
-                            {currentDue.text}
-                          </Chip>
-                        ) : null}
-                        {isRetired(current.course) ? <Chip tone="warning">Retired</Chip> : null}
-                      </span>
-                      <h3 className="learn-display">{current.course.title}</h3>
-                      {currentAssignment?.assignedByName ? (
-                        <p className="learn-muted">
-                          Assigned by {currentAssignment.assignedByName}
-                        </p>
-                      ) : null}
-                      {upcoming ? (
-                        <p className="learn-muted">Up next: {upcoming.item.title}</p>
-                      ) : null}
-                      <ProgressBar
-                        value={percentFor(current.course, current.progress)}
-                        label="Course progress"
-                      />
-                      <div className="learn-buttons">
-                        <Link
-                          className={buttonClass('primary')}
-                          to={`/courses/${current.course.id}/learn/${resumeItemId(current.course, current.progress) ?? ''}`}
-                        >
-                          Resume lesson
-                        </Link>
-                        <Link
-                          className={buttonClass('secondary')}
-                          to={`/courses/${current.course.id}`}
-                        >
-                          Course outline
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ) : next ? (
-                <Card title="Continue learning">
-                  <div className="continue">
-                    <CoverTile cover={next.course.cover} size="large" />
-                    <div className="learn-stack">
-                      <h3 className="learn-display">Start {next.course.title}</h3>
-                      <p className="learn-muted">{next.course.summary}</p>
-                      <div className="learn-buttons">
-                        <Link className={buttonClass('primary')} to={`/courses/${next.course.id}`}>
-                          Start course
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+                <HomeContinue
+                  course={current.course}
+                  progress={current.progress}
+                  percent={percentFor(current.course, current.progress)}
+                  due={dueOf(currentAssignment)}
+                  assignedBy={currentAssignment?.assignedByName ?? null}
+                  next={queued}
+                  nextDue={dueOf(queued?.assignment)}
+                />
+              ) : picks.length > 0 ? (
+                <PickNextCourse
+                  courses={picks}
+                  dueOf={(id) =>
+                    dueOf(assigned.find((a) => a.course.id === id)?.assignment)?.text ?? null
+                  }
+                />
               ) : null}
 
               {assigned.length > 0 || activity.length > 0 ? (

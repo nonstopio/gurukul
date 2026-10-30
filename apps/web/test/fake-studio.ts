@@ -41,6 +41,7 @@ export function fakeStudio(
     updateInBank: vi.fn().mockResolvedValue(undefined),
     removeFromBank: vi.fn().mockResolvedValue(undefined),
     completedCount: vi.fn().mockResolvedValue(0),
+    getAccess: vi.fn().mockResolvedValue({ visibility: 'public', visibleTeamIds: [] }),
   };
   const service: StudioService = {
     createCourse: vi.fn().mockResolvedValue({ courseId: 'new-course' }),

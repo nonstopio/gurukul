@@ -1,4 +1,4 @@
-import type { AnswerKeys, Course, Question } from '@gurukul/schema';
+import type { AnswerKeys, Course, CourseAccess, Question } from '@gurukul/schema';
 
 /** `courses/{id}/drafts/current`, with dates as `Date`. */
 export interface DraftDoc {
@@ -46,6 +46,8 @@ export interface BankQuestion {
 export interface StudioData {
   /** Every course the person can see: published and archived ones, plus the drafts they may edit. */
   listCourses(uid: string, admin: boolean): Promise<StudioCourse[]>;
+  /** Who may open the live course (`visibility`, `visibleTeamIds`); public when it says nothing. */
+  getAccess(courseId: string): Promise<CourseAccess>;
   getDraft(courseId: string): Promise<DraftDoc | null>;
   /** Saves with `baseRev`; throws `DraftConflictError` when the stored rev has moved on. */
   saveDraft(courseId: string, work: Working, baseRev: number, uid: string): Promise<number>;
@@ -71,7 +73,10 @@ export interface CreateCourseRequest {
 /** The Studio's callable functions. Each returns the data of the API envelope. */
 export interface StudioService {
   createCourse(request: CreateCourseRequest): Promise<{ courseId: string }>;
-  publishCourse(request: { courseId: string }): Promise<{ version: number }>;
+  /** `visibility` and `visibleTeamIds` set who may open the course; left out, they stay as they are. */
+  publishCourse(
+    request: { courseId: string } & Partial<CourseAccess>,
+  ): Promise<{ version: number }>;
   /** Publishes an earlier snapshot as a NEW version. */
   rollbackCourse(request: { courseId: string; version: number }): Promise<{ version: number }>;
   archiveCourse(request: {

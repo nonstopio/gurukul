@@ -277,4 +277,11 @@ describe('question bank', () => {
       where: ['completedItemIds', 'array-contains', 'l1'],
     });
   });
+
+  it('reads who may open a course, public when it says nothing', async () => {
+    store.docs.set('courses/git', { visibility: 'teams', visibleTeamIds: ['qa'] });
+    expect(await data.getAccess('git')).toEqual({ visibility: 'teams', visibleTeamIds: ['qa'] });
+    store.docs.set('courses/old', {});
+    expect(await data.getAccess('old')).toEqual({ visibility: 'public', visibleTeamIds: [] });
+  });
 });
