@@ -146,7 +146,9 @@ export function MediaPage() {
                     kind: galleryKind(e),
                     url: e.url,
                   }))}
-                  onSelect={(item) => setOpen(found.find((e) => keyOf(e) === item.id) ?? null)}
+                  onSelect={(item) =>
+                    setOpen(found.find((e) => keyOf(e) === item.id) as MediaEntry)
+                  }
                 />
               )}
             </>

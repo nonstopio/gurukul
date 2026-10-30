@@ -190,7 +190,7 @@ export function collectMedia(rows: readonly StudioCourse[]): MediaEntry[] {
 /** The gallery kind of an entry: a linked file is a PDF or audio when its address ends that way. */
 export function galleryKind(entry: Pick<MediaEntry, 'kind' | 'url'>): TileKind {
   if (entry.kind !== 'file') return entry.kind;
-  const path = entry.url.split(/[?#]/)[0] ?? '';
+  const path = entry.url.split(/[?#]/, 1)[0] as string;
   if (/\.pdf$/i.test(path)) return 'pdf';
   return /\.(mp3|wav|m4a|ogg|aac)$/i.test(path) ? 'audio' : 'file';
 }

@@ -333,6 +333,15 @@ describe('Media library', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('says "courses" in the drawer when a link is used in more than one', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: galleryRows() }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /youtu\.be\/a/ }));
+    expect(screen.getByRole('dialog').textContent).toContain('Video · used in 2 courses');
+  });
+
   it('copies a link, and reports when it cannot', async () => {
     await openApp('/studio/media', {
       roles: ['educator'],

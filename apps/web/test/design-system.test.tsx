@@ -170,6 +170,7 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('checkbox', { name: /A checkbox answer/ }));
+    await user.click(screen.getByRole('button', { name: /review-checklist/ }));
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('checkbox', { name: 'Select Ravi Menon' }));
     await user.click(screen.getByRole('button', { name: 'Remove bad@x.org' }));
