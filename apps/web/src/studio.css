@@ -247,28 +247,14 @@
   padding: 0;
 }
 .sc-chapter__head {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  background: var(--surface-hover);
-}
-.sc-chapter__top,
-.sc-item__top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-/* The second row of a chapter or item: neutral edits first, the delete alone at the end. */
-.sc-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
-}
-.sc-actions__end {
-  margin-left: auto;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--surface-hover);
 }
 .sc-chapter__no {
   color: var(--accent);
@@ -300,13 +286,49 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+/* One line, and the whole card opens the item: the title's link is stretched over it, and the
+   grip, chips' neighbours and action buttons sit above that link. */
 .sc-item {
-  display: grid;
-  gap: var(--space-2);
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sc-item:hover {
+  background: var(--surface-hover);
+}
+.sc-item:focus-within {
+  border-color: var(--border-strong);
+}
+.sc-item__title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+.sc-item__title:focus-visible::after {
+  box-shadow: var(--focus-ring);
+}
+.sc-item > .g-draglist__grip,
+.sc-item__input,
+.sc-item__actions {
+  position: relative;
+  z-index: var(--z-raised);
+}
+.sc-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.sc-item__no {
+  color: var(--text-muted);
+  font: 500 var(--text-sm) var(--font-mono);
 }
 .sc-item__title,
 .sc-item__input {
@@ -320,10 +342,6 @@
 }
 .sc-item__title:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
-}
-.sc-item__move {
-  flex: 0 1 12rem;
 }
 .sc-version__no {
   font: 600 var(--text-md) var(--font-mono);

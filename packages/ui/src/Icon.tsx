@@ -104,6 +104,10 @@ export const DownloadIcon = icon(
   <path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10" />,
 );
 export const UploadIcon = icon('UploadIcon', <path d="M8 10.5v-8M4.5 6L8 2.5 11.5 6M3 13.5h10" />);
+export const SwapIcon = icon(
+  'SwapIcon',
+  <path d="M2.5 5h10M10 2.5L12.5 5 10 7.5M13.5 11h-10M6 8.5L3.5 11 6 13.5" />,
+);
 export const TextIcon = icon('TextIcon', <path d="M3 4h10M3 8h10M3 12h6" />);
 export const TrashIcon = icon(
   'TrashIcon',

@@ -125,6 +125,7 @@ export {
   ShieldIcon,
   SparkIcon,
   SunIcon,
+  SwapIcon,
   StarIcon,
   TextIcon,
   TrashIcon,
@@ -136,6 +137,8 @@ export {
 export type { IconProps } from './Icon';
 export { Avatar, initials } from './Avatar';
 export type { AvatarProps, AvatarTone } from './Avatar';
+export { IconButton, iconButtonClass } from './IconButton';
+export type { IconButtonProps, IconButtonTone } from './IconButton';
 export { Menu } from './Menu';
 export type { MenuProps, MenuEntry, MenuItem } from './Menu';
 export { UserCard } from './UserCard';

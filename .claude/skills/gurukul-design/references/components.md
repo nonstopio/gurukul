@@ -454,6 +454,15 @@ first and last word ("Asha Rao" → AR), one word's first letter, an email's loc
 (default) / 48. Decorative (`aria-hidden`) because the name is always printed beside it; with
 `label` it becomes `role="img"`. Never a Google photo.
 
+## IconButton — shipped
+
+`<IconButton label tip? tone="neutral|danger">icon</IconButton>`: a 36px icon-only button for dense list rows
+(rename, move, delete). Quiet (`--text-muted`) until hover (`--surface-hover`); `danger` is `--danger`
+with `--danger-soft` on hover. `label` is the accessible name ("Rename What Git solves"); `tip` is the
+short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `iconButtonClass(tone?)` and
+`Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
+link (`position: relative; z-index: 1`).
+
 ## Menu — shipped
 
 `<Menu label items trigger? triggerClassName? align? placement?>` — actions on a thing (row,

@@ -206,6 +206,7 @@
   --sidebar-width: 15.5rem; /* 248 */
 
   /* ---- Layers: the only z-index values ---- */
+  --z-raised: 1; /* a control above a stretched card link */
   --z-sticky: 10; /* sticky table heads, top bars */
   --z-drawer: 40; /* the sidebar as a drawer, and its scrim */
   --z-overlay: 100; /* dialogs, the command palette */

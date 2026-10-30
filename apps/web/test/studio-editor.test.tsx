@@ -286,11 +286,26 @@ describe('Course editor: structure', () => {
     ).toBeTruthy();
   });
 
+  it('numbers each item and keeps its icon actions apart from the link that opens it', async () => {
+    await open();
+    await ready();
+    const row = screen.getByRole('link', { name: 'Lesson l1' }).closest('.sc-item') as HTMLElement;
+    expect(row.textContent).toContain('1.1');
+    for (const name of ['Rename Lesson l1', 'Delete Lesson l1']) {
+      const button = within(row).getByRole('button', { name });
+      expect(row.contains(button)).toBe(true);
+      expect(button.getAttribute('data-tip')).toBeTruthy();
+    }
+    expect(
+      within(row).getByRole('button', { name: 'Move Lesson l1 to another chapter' }).dataset.tip,
+    ).toBe('Move to chapter');
+  });
+
   it('moves an item to another chapter', async () => {
     await open();
     await ready();
-    const select = screen.getByLabelText('Move Lesson l1 to another chapter') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'p2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Move Lesson l1 to another chapter' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'History' }));
     expect(
       within(screen.getByRole('list', { name: 'Items in Basics' })).queryByText('Lesson l1'),
     ).toBeNull();

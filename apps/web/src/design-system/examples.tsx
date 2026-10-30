@@ -13,6 +13,7 @@ import {
   Card,
   Certificate,
   Chip,
+  IconButton,
   CodeBlock,
   ColourSwatch,
   CommandPalette,
@@ -39,6 +40,7 @@ import {
   PageSkeleton,
   Pagination,
   PenIcon,
+  SwapIcon,
   ProgressBar,
   ProgressRing,
   QuizOption,
@@ -745,6 +747,22 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           />
         </div>
       </Frame>
+    ),
+  },
+  IconButton: {
+    rule: 'A quiet icon-only button for dense rows: rename, move, delete. The tooltip is the short verb.',
+    Example: () => (
+      <>
+        <IconButton label="Rename lesson" tip="Rename">
+          <PenIcon />
+        </IconButton>
+        <IconButton label="Change lesson chapter" tip="Change chapter">
+          <SwapIcon />
+        </IconButton>
+        <IconButton label="Delete lesson" tip="Delete" tone="danger">
+          <TrashIcon />
+        </IconButton>
+      </>
     ),
   },
   Menu: {
