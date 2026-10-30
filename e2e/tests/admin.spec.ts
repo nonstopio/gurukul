@@ -25,6 +25,7 @@ test.describe('Admin', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Who is it for?' })).toBeVisible();
 
     // Paste the addresses (and one personal address that must be refused) into the chip box.
+    await page.getByRole('button', { name: 'People' }).click();
     await page.getByLabel('Email addresses').evaluate(
       (input, text) => {
         const data = new DataTransfer();

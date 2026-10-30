@@ -1,0 +1,104 @@
+.g-choice {
+  position: relative;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease);
+}
+.g-choice:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.g-choice__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+.g-choice__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.g-choice__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--space-10);
+  height: var(--space-10);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  transition:
+    background-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
+}
+.g-choice__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-1);
+}
+.g-choice__title {
+  overflow: hidden;
+  color: var(--text);
+  font: 600 var(--text-md) / var(--leading-snug) var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-choice__meta {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-choice__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: transparent;
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-choice[data-selected='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.g-choice[data-selected='true'] .g-choice__icon {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+.g-choice[data-selected='true'] .g-choice__check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  animation: g-choice-pop var(--dur-slow) var(--ease);
+}
+.g-choice:has(.g-choice__input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+@keyframes g-choice-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

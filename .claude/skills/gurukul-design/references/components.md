@@ -607,6 +607,15 @@ readers still meet one link, and hover lifts the tile and underlines the title. 
 whole tile, so a click anywhere toggles it. Selected: `--accent` 2px ring, the tick pops in (`--dur-slow`) and
 the picture settles; `:focus-visible` shows the focus ring. Never a checkbox beside a title for a course.
 
+## ChoiceCard — shipped
+
+`<ChoiceCard icon title meta? selected onSelectedChange selectLabel? as="li|div">`: one option in a pick-many list
+of teams or people (a course is a `CourseTile` with `onSelectedChange`). A `<label>` fills the card, so a click
+anywhere toggles the real checkbox inside; the icon sits in a tile (an icon, never a logo or photo), the title
+is `--text-md` 600, `meta` one muted line (a member count, an email). Picked: `--accent` ring on an
+`--accent-soft` card, the icon tile fills `--accent`, and the tick pops in (`--dur-slow`). Lay a list out with
+`.console-choice-grid`. Pair it with a search field and a count ("Showing 10 of 23 teams") and "Show more".
+
 ## SearchCard — shipped
 
 `<SearchCard label search={{ value, onChange, label, placeholder? }} views? filters? active? count? onClear? />`.

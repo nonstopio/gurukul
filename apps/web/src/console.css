@@ -187,3 +187,29 @@
   justify-content: flex-end;
   gap: var(--space-4);
 }
+
+/* Assign: the Teams | People pick lists. */
+.console-pick-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.console-pick-head > :first-child {
+  flex: 1 1 14rem;
+}
+.console-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.console-new-team {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}

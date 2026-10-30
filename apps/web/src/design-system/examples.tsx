@@ -13,6 +13,7 @@ import {
   Card,
   Certificate,
   Chip,
+  ChoiceCard,
   IconButton,
   CodeBlock,
   ColourSwatch,
@@ -321,6 +322,26 @@ function PeoplePickerExample() {
       ),
     );
   return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
+}
+
+function ChoiceCardExample() {
+  const [picked, setPicked] = useState<string[]>(['Platform']);
+  const toggle = (name: string, on: boolean) =>
+    setPicked(on ? [...picked, name] : picked.filter((n) => n !== name));
+  return (
+    <ul className="ds-stack">
+      {['Platform', 'Mobile'].map((name) => (
+        <ChoiceCard
+          key={name}
+          icon={<UsersIcon />}
+          title={name}
+          meta="12 members"
+          selected={picked.includes(name)}
+          onSelectedChange={(on) => toggle(name, on)}
+        />
+      ))}
+    </ul>
+  );
 }
 
 function TileChoiceExample() {
@@ -961,6 +982,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <TileChoiceExample />
       </div>
     ),
+  },
+  ChoiceCard: {
+    rule: 'One option in a pick-many list of teams or people: an icon, a name and a count, and the whole card is the checkbox.',
+    Example: ChoiceCardExample,
   },
   SearchCard: {
     rule: 'A list people search: one card with a large search field, views, dropdowns, removable active filters and a count.',

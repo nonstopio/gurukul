@@ -137,6 +137,8 @@ export {
 export type { IconProps } from './Icon';
 export { Avatar, initials } from './Avatar';
 export type { AvatarProps, AvatarTone } from './Avatar';
+export { ChoiceCard } from './ChoiceCard';
+export type { ChoiceCardProps } from './ChoiceCard';
 export { IconButton, iconButtonClass } from './IconButton';
 export type { IconButtonProps, IconButtonTone } from './IconButton';
 export { Menu } from './Menu';
