@@ -398,6 +398,49 @@ describe('Roles & access', () => {
     expect(screen.getByText('No courses yet')).toBeTruthy();
   });
 
+  it('reads the person again when they are picked, so an old search cannot undo a grant', async () => {
+    const stale = userRow(5, {
+      displayName: 'Ravi',
+      email: 'ravi@nonstopio.com',
+      roles: ['learner'],
+    });
+    const fresh = { ...stale, roles: ['learner', 'educator'] };
+    const c = fakeConsole({ found: [stale] });
+    c.data.usersByUid = vi.fn().mockResolvedValue([fresh]);
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
+    const educator = (await within(dialog).findByRole('switch', {
+      name: /Educator/,
+    })) as HTMLInputElement;
+    expect(c.data.usersByUid).toHaveBeenCalledWith([stale.uid]);
+    expect(educator.checked).toBe(true);
+  });
+
+  it('falls back to the searched profile when the fresh read finds nobody', async () => {
+    const found = userRow(5, { displayName: 'Ravi', email: 'ravi@nonstopio.com' });
+    const c = fakeConsole({ found: [found] });
+    c.data.usersByUid = vi.fn().mockResolvedValue([]);
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
+    expect(await within(dialog).findByRole('switch', { name: /Educator/ })).toBeTruthy();
+  });
+
   it('searches and pages a long list of courses in the grant dialog, keeping what was picked', async () => {
     const many = Array.from({ length: 14 }, (_, i) =>
       makeCourse({ id: `c${i}`, title: `Topic ${String(i).padStart(2, '0')}` }),
@@ -454,7 +497,7 @@ describe('Roles & access', () => {
       },
     );
     fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
-    fireEvent.click(within(dialog).getByRole('switch', { name: /Educator/ }));
+    fireEvent.click(await within(dialog).findByRole('switch', { name: /Educator/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
@@ -492,7 +535,7 @@ describe('Roles & access', () => {
       },
     );
     fireEvent.mouseDown(await within(grant).findByRole('option', { name: /solo@nonstopio.com/ }));
-    expect(within(grant).getByText(/· solo@nonstopio.com/)).toBeTruthy();
+    expect(await within(grant).findByText(/· solo@nonstopio.com/)).toBeTruthy();
   });
 
   it('refuses to let an Admin remove their own role, and says so', async () => {
@@ -508,7 +551,7 @@ describe('Roles & access', () => {
       },
     );
     fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
-    const box = within(dialog).getByRole('switch', { name: /Admin/ }) as HTMLInputElement;
+    const box = (await within(dialog).findByRole('switch', { name: /Admin/ })) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(box.checked).toBe(true);
     expect(within(dialog).getByText(/cannot remove your own Admin role/)).toBeTruthy();

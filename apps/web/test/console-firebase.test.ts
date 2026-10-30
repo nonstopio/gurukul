@@ -324,6 +324,14 @@ describe('users', () => {
     expect((await people.searchUsers('u3')).map((u) => u.uid)).toEqual(['u3']);
   });
 
+  it('warns when everyone does not fit in the list a name search reads', async () => {
+    store.queue = [Array.from({ length: 500 }, (_, i) => user(i))];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await fresh().searchUsers('u');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('returns at most 8 people from a search', async () => {
     store.queue = [Array.from({ length: 12 }, (_, i) => user(i))];
     expect(await fresh().searchUsers('u')).toHaveLength(8);

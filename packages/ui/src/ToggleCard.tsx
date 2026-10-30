@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
 import './toggle-card.css';
@@ -18,17 +19,26 @@ export interface ToggleCardProps extends Omit<
  * the whole card toggles it. A real `role="switch"` checkbox underneath, named by `title`.
  */
 export function ToggleCard({ title, description, className, ...rest }: ToggleCardProps) {
+  const id = useId();
   return (
     <label className={cx('g-togglecard', className)}>
       <span className="g-togglecard__text">
-        <span className="g-togglecard__title">{title}</span>
-        {description ? <span className="g-togglecard__desc">{description}</span> : null}
+        <span className="g-togglecard__title" id={`${id}-title`}>
+          {title}
+        </span>
+        {description ? (
+          <span className="g-togglecard__desc" id={`${id}-desc`}>
+            {description}
+          </span>
+        ) : null}
       </span>
       <span className="g-toggle g-togglecard__switch">
         <input
           className="g-toggle__input g-togglecard__input"
           type="checkbox"
           role="switch"
+          aria-labelledby={`${id}-title`}
+          aria-describedby={description ? `${id}-desc` : undefined}
           {...rest}
         />
         <span className="g-toggle__track" aria-hidden="true" />

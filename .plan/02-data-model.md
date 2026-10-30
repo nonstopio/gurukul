@@ -206,13 +206,14 @@ type User = {
 };
 ```
 
-People search (Learners, Assign, granting a role) runs two prefix range queries, on `email`
-and on `nameLower`, 8 people each, merged with email matches first. A name matches from its
-start (`ana` finds "Ananya Rao"; `rao` does not). `onUserCreated` writes `nameLower` with the
-profile; profiles made before it existed get it from the app on their owner's next sign-in,
-and the rules keep it in step with `displayName` on every later write. Single-field
-indexes cover both queries; there is no composite index. `nameLower` is optional in the
-schema until every profile has it.
+People search (Learners, Assign, team members, granting a role) reads the roster once: up to 500
+profiles ordered by `email`, cached for five minutes, and matches in memory, 8 people at most, email matches
+first. A person is found by the start of their email, of their whole name, or of any word of it (`ana` and `rao`
+both find "Ananya Rao"). Past about 500 people the ones after it by email cannot be found by name (the app
+logs a warning); the next step is word prefixes stored on each profile and queried with `array-contains`.
+`nameLower` is no longer read by the app; it is still written (`onUserCreated`, the sign-in backfill, and the
+rules keep it in step with `displayName`) and kept for that later step. It is optional in the schema until
+every profile has it.
 
 ## Assignments
 

@@ -26,9 +26,9 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 19 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
-| Redesign | 16 | 0 | 0 | 0 |
+| Redesign | 17 | 0 | 0 | 0 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 152 | 0 | 0 | 12 |
+| **Total** | 153 | 0 | 0 | 12 |
 
 ## Pick order
 
@@ -129,7 +129,7 @@ Plan: `07-admin-console.md`, `09-analytics.md`, `design-handoff/02-admin-console
 | `KUL-08` | Counter triggers and the daily org roll-up                                   | done    | —        | `firebase/functions/src/analytics.ts`                                                                                                                                                |
 | `KUL-09` | Daily reminders and `remindLearners`, queued to `mail`                       | done    | —        | `firebase/functions/src/remind.ts`, `mail.ts`. Sent through the Gmail mailer (`KUL-24`)                                                                                                    |
 | `KUL-10` | Learners table: pending invites and filters that combine                     | done    | —        | `apps/web/src/console/LearnersPage.tsx`, `model.ts` (`filterPeople`, `onTab`, `tabCounts`, `allPage`). Counts past 500: `KUL-26`                                                     |
-| `KUL-11` | People search by name                                                        | done    | —        | `apps/web/src/console/firebase.ts` (`searchUsers`: `email` and `nameLower` prefixes), `usePeopleSearch.ts` (newest answer wins), `model.ts` (`filterPeople`); `nameLower` set by `firebase/functions/src/profile.ts`, backfilled at sign-in (`apps/web/src/firestore.ts`), kept in step by `firestore.rules` |
+| `KUL-11` | People search by name                                                        | done    | —        | `apps/web/src/console/firebase.ts` (`searchUsers`: the roster read once per five minutes, matched on the start of the email or of any word of the name), `usePeopleSearch.ts` (`usePeopleLookup`: newest answer wins), `model.ts` (`filterPeople`); `nameLower` set by `firebase/functions/src/profile.ts`, backfilled at sign-in (`apps/web/src/firestore.ts`), kept in step by `firestore.rules` |
 | `KUL-12` | Learner drawer completeness | done | — | `apps/web/src/console/LearnerDrawer.tsx`, `model.ts` (`drawerCourses`, `quizTitle`), `firebase.ts` (`assignmentsFor`, `attemptsFor`: score, verdict and date only) |
 | `KUL-13` | Bulk role change and select all | done | — | Change role dialog: `apps/web/src/console/LearnersPage.tsx` (`BulkRoleDialog`, one `setRoles` call per person). Left: `KUL-28` |
 | `KUL-28` | Select all N across pages on Learners | done | — | "Select all N" in the bulk bar: `apps/web/src/console/LearnersPage.tsx` (`selectAll`); filtered views use the rows in memory, unfiltered All and Signed in read everyone by cursor. Role change is still one `setRoles` call per person; a batch callable only if the list grows to hundreds |
@@ -273,6 +273,7 @@ Plan: `18-redesign.md`, `04-design-system.md`.
 | `RDS-14` | Catalogue search and filters, course visibility, Home hero | done | `RDS-12` | `courses/{id}.visibility`, `visibleTeamIds` and `users.teamIds` (rules, `firebase/functions/src/teams.ts`, `grading.ts`), `apps/web/src/CoursesPage.tsx`, `HomePage.tsx`, `studio/PublishDialog.tsx`. Before the rules deploy run `npm run backfill-visibility -- --apply` once |
 | `RDS-15` | Studio media gallery and question bank that can create and import | done | `RDS-09` | `packages/ui/src/MediaGallery.tsx`, `apps/web/src/studio/MediaPage.tsx`, `QuestionBankPage.tsx`, `questions/`. Left: media upload (no Storage in v1), asset picker in the lesson editor |
 | `RDS-16` | Sign-in page as a two-column hero | done | `RDS-09` | `apps/web/src/auth/SignInPage.tsx`, `SignInArt.tsx` |
+| `RDS-17` | One people field, Teams or People assign, drawn Checkbox/Radio/Toggle, Studio rows | done | `RDS-12` | `packages/ui/src/PeoplePicker.tsx` (photos, emails, focus lists people), `Checkbox.tsx`, `Radio.tsx`, `ToggleCard.tsx`, `ChoiceCard.tsx`, `IconButton.tsx`, `apps/web/src/console/AudienceStep.tsx`, `PeopleField.tsx`, `studio/StructureTab.tsx`; rules fix for a first completed lesson in `firestore.rules` |
 
 ## Plan upkeep
 

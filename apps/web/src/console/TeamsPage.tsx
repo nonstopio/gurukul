@@ -208,7 +208,10 @@ function TeamDialog({
       return setError('Fix or remove the addresses marked invalid.');
     }
     if (emails.length > MAX_MEMBERS) return setError(`A team holds at most ${MAX_MEMBERS} people.`);
-    if (emails.length === 0) return setError('Add at least one member.');
+    // A team with people cannot be emptied; one that was already empty may still be renamed.
+    if (emails.length === 0 && (!team || team.memberEmails.length > 0)) {
+      return setError('Add at least one member.');
+    }
     const saved: Team = {
       id,
       name: named.name,

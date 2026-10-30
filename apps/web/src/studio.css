@@ -306,6 +306,9 @@
 .sc-item:focus-within {
   border-color: var(--border-strong);
 }
+.sc-item:has([aria-expanded='true']) {
+  z-index: var(--z-menu);
+}
 .sc-item__title::after {
   content: '';
   position: absolute;

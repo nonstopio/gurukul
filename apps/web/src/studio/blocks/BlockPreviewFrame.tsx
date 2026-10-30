@@ -30,7 +30,7 @@ export function BlockPreviewFrame({
       controls={
         own ? undefined : (
           <SegmentedControl
-            label="View"
+            label={`View ${frame.label}`}
             value={preview ? 'preview' : 'edit'}
             options={VIEWS}
             onChange={(view) => setPreview(view === 'preview')}

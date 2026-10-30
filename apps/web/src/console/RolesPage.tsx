@@ -297,11 +297,15 @@ function GrantDialog({
             search={people.search}
             total={people.total}
             onChange={(picked) => {
-              // One person is wanted: the first pick replaces this field with their roles.
-              const u = people.userOf((picked[0] as Person).email) as UserRow;
-              setUser(u);
-              setRoles(held(u));
-              setCourseIds(u.grantedCourseIds);
+              // One person is wanted: the first pick replaces this field with their roles. The
+              // search list can be minutes old, so their roles and courses are read fresh first.
+              const found = people.userOf((picked[0] as Person).email) as UserRow;
+              void data.usersByUid([found.uid]).then(([fresh]) => {
+                const u = fresh ?? found;
+                setUser(u);
+                setRoles(held(u));
+                setCourseIds(u.grantedCourseIds);
+              });
             }}
           />
         </>

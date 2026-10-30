@@ -190,14 +190,23 @@ describe('Edit and delete', () => {
     expect(await screen.findByText('Saved Cloud')).toBeTruthy();
   });
 
-  it('wants a member on edit too, and stamps a team that had no document yet', async () => {
-    const c = fakeConsole({ teamList: [bare] });
+  it('does not let a team with people be emptied, on edit', async () => {
+    const c = fakeConsole({ teamList: [platform] });
     await openApp(PATH, { ...admin, console: c });
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit QA' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Platform' }));
+    for (const email of platform.memberEmails) {
+      fireEvent.click(within(dialog()).getByRole('button', { name: `Remove ${email}` }));
+    }
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
     expect(await within(dialog()).findByText('Add at least one member.')).toBeTruthy();
     expect(c.data.saveTeam).not.toHaveBeenCalled();
-    paste('q@nonstopio.com');
+  });
+
+  it('lets a team that was already empty be renamed, and stamps one that had no document yet', async () => {
+    const c = fakeConsole({ teamList: [bare] });
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit QA' }));
+    fireEvent.change(nameField(), { target: { value: 'Quality' } });
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
     await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
     const [saved, previous] = vi.mocked(c.data.saveTeam).mock.calls[0] as [Team, string | null];

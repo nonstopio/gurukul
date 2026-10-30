@@ -342,18 +342,69 @@ describe('PeoplePicker: like a Jira people field', () => {
     expect(onChange).toHaveBeenLastCalledWith([{ email: 'late@x.com' }]);
   });
 
-  it('adds a junk entry on Enter so it can be shown as rejected', async () => {
+  it('does not turn plain text into a chip on Enter, a comma or leaving the field', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'Rao, Ananya' } });
+    expect(box().value).toBe('Rao, Ananya');
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    fireEvent.blur(box());
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(box(), { target: { value: '@ali' } });
+    fireEvent.blur(box());
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps an email that is not a NonStop one, so it can be marked rejected', async () => {
     const onChange = vi.fn();
     render(
       <Emails
         onChange={onChange}
-        classify={(e) => (e.includes('@') ? null : { status: 'rejected', reason: 'not an email' })}
+        classify={(e) =>
+          e.endsWith('@gmail.com') ? { status: 'rejected', reason: 'not NonStop' } : null
+        }
       />,
     );
-    fireEvent.change(box(), { target: { value: 'bad' } });
-    await screen.findByRole('listbox');
+    fireEvent.change(box(), { target: { value: 'x@gmail.com' } });
     fireEvent.keyDown(box(), { key: 'Enter' });
-    expect(chips().join()).toContain('not an email');
+    expect(chips().join()).toContain('not NonStop');
+  });
+
+  it('takes a whole typed email on Enter even while the list still shows an older search', async () => {
+    const onChange = vi.fn();
+    const old: Person = { email: 'ravi.kumar@example.com', name: 'Ravi Kumar' };
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        allowEmails
+        search={() => Promise.resolve([old])}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(box(), { target: { value: 'ravi' } });
+    await screen.findByRole('option', { name: /Ravi Kumar/ });
+    fireEvent.change(box(), { target: { value: 'ravi@x.com' } });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'ravi@x.com' }]);
+  });
+
+  it('picks the person with exactly the email typed, with their name', async () => {
+    const onChange = vi.fn();
+    const ravi: Person = { email: 'ravi@x.com', name: 'Ravi Kumar' };
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        allowEmails
+        search={() => Promise.resolve([ravi])}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(box(), { target: { value: 'ravi@x.com' } });
+    await screen.findByRole('option', { name: /Ravi Kumar/ });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'Ravi Kumar' })]);
   });
 
   it('says in words what each chip means', () => {

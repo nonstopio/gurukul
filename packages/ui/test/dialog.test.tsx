@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../src';
 import { axeViolations } from './axe';
 
-function Harness({ size, children }: { size?: 'md' | 'drawer'; children?: React.ReactNode }) {
+function Harness({
+  size,
+  children,
+}: {
+  size?: 'md' | 'lg' | 'drawer';
+  children?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>

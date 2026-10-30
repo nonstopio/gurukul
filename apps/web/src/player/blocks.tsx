@@ -10,9 +10,10 @@ function Inline({ md }: { md: string }) {
   return (
     <Markdown
       allowedElements={['p', 'code', 'strong', 'em']}
+      unwrapDisallowed
       components={{ p: ({ children }) => <>{children}</> }}
     >
-      {md}
+      {md.replace(/\n{2,}/g, ' ')}
     </Markdown>
   );
 }

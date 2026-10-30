@@ -150,13 +150,17 @@ export function PeoplePicker({
   const onInput = (e: ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value;
     // "ravi@x.com " or "a@x.com, b@x.com": what is complete becomes chips, the tail stays typed.
+    // Only when every complete piece is an email: a name with a comma or a space stays text.
     if (allowEmails && /[,;\n]|^\S+@\S+\s/.test(next)) {
       const parts = next.split(SEPARATORS);
       const tail = parts.pop() as string;
-      addEmails(parts.map((p) => p.trim().toLowerCase()).filter(Boolean));
-      setText(tail);
-      void ask(tail);
-      return;
+      const complete = parts.map((p) => p.trim().toLowerCase()).filter(Boolean);
+      if (complete.length > 0 && complete.every((p) => LOOKS_LIKE_EMAIL.test(p))) {
+        addEmails(complete);
+        setText(tail);
+        void ask(tail);
+        return;
+      }
     }
     setText(next);
     void ask(next);
@@ -166,7 +170,7 @@ export function PeoplePicker({
     if (!allowEmails) return;
     const pieces = splitEmails(text + e.clipboardData.getData('text'));
     // A pasted list of emails is taken whole; anything else pastes as text, into the search.
-    if (pieces.length === 0 || !pieces.every((p) => p.includes('@'))) return;
+    if (pieces.length === 0 || !pieces.every((p) => LOOKS_LIKE_EMAIL.test(p))) return;
     e.preventDefault();
     addEmails(pieces);
     setText('');
@@ -183,13 +187,15 @@ export function PeoplePicker({
       setActive((active - 1 + options.length) % Math.max(options.length, 1));
     } else if (e.key === 'Enter' && (open || (allowEmails && query))) {
       e.preventDefault();
-      const person = open ? options[active] : undefined;
+      // A whole email typed is what was meant, even while the list still shows an older search: the
+      // person with exactly that email if there is one, else the email itself.
+      const typed = allowEmails && LOOKS_LIKE_EMAIL.test(query);
+      const person = typed
+        ? (found.find((p) => p.email === typedEmail) ?? { email: typedEmail })
+        : open
+          ? options[active]
+          : undefined;
       if (person) pick(stripOffer(person));
-      else if (allowEmails && query) {
-        addEmails(splitEmails(text));
-        setText('');
-        close();
-      }
     } else if (e.key === 'Escape' && open) {
       // Closes the list only; a dialog around the field stays open.
       e.stopPropagation();
@@ -202,7 +208,7 @@ export function PeoplePicker({
   const onBlur = () => {
     close();
     // An email left in the field when it loses focus is kept, not lost.
-    if (allowEmails && text.includes('@')) {
+    if (allowEmails && LOOKS_LIKE_EMAIL.test(text.trim())) {
       addEmails(splitEmails(text));
       setText('');
     }

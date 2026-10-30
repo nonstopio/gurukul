@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { toastError } from '../errors';
+import { log } from '../log';
 import { AudienceStep } from './AudienceStep';
 import type { AudienceMode } from './AudienceStep';
 import { CourseChoice } from './CourseChoice';
@@ -114,13 +115,20 @@ export function AssignPage() {
   useEffect(() => {
     for (const name of teamNames) {
       if (name in members) continue;
-      void data.usersInTeam(name).then((rows) => {
-        const listed = (teams.find((x) => x.name === name) as Team).memberEmails;
-        setMembers((m) => ({
-          ...m,
-          [name]: [...new Set([...listed, ...rows.map((u) => u.email)])],
-        }));
-      });
+      const listed = (teams.find((x) => x.name === name) as Team).memberEmails;
+      const keep = (emails: string[]) =>
+        setMembers((m) => ({ ...m, [name]: [...new Set([...listed, ...emails])] }));
+      data.usersInTeam(name).then(
+        (rows) => keep(rows.map((u) => u.email)),
+        (e: unknown) => {
+          // Without the profiles' answer the team's listed members still count.
+          log.warn('Reading a team failed', { code: (e as { code?: unknown }).code });
+          keep([]);
+          toast.show(`Could not read everyone on ${name}. Only its listed members are counted.`, {
+            tone: 'warning',
+          });
+        },
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, teamNames]);
@@ -236,6 +244,7 @@ export function AssignPage() {
     setCourseIds([]);
     setEmails([]);
     setTeamNames([]);
+    setMembers({});
     setDue('');
     setStep(0);
     setDirection('back');

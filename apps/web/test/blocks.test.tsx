@@ -171,6 +171,23 @@ describe('BlockView', () => {
     expect(container.querySelectorAll('.check__explanation code')).toHaveLength(1);
   });
 
+  it('keeps the words of a link or list in a question, and joins its paragraphs', () => {
+    const { container } = show({
+      type: 'check',
+      id: 'u',
+      prompt: 'See [the guide](https://example.com) first:\n\n- one\n- two',
+      options: ['Read **it**', 'Skip'],
+      explanation: 'First.\n\nSecond.',
+    });
+    const group = screen.getByRole('group');
+    expect(group.textContent).toContain('See the guide first:');
+    expect(group.textContent).toContain('one');
+    expect(group.textContent).toContain('two');
+    expect(container.querySelector('a')).toBeNull();
+    fireEvent.click(screen.getByLabelText(/Read/));
+    expect(screen.getByRole('status').textContent).toBe('First. Second.');
+  });
+
   it('shows the explanation the moment a learner picks on a question with no key', () => {
     const onAnswered = vi.fn();
     show(

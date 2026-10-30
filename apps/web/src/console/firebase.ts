@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { toCertificate, toProgress } from '../data/firebase';
+import { log } from '../log';
 import { matchesPerson } from './model';
 import type { AssignmentFull, AttemptSummary, AuditRow, ConsoleData, UserRow } from './types';
 
@@ -113,7 +114,13 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     if (!roster || Date.now() - roster.at > ROSTER_MS) {
       const rows = getDocs(
         query(collection(db, 'users'), orderBy('email'), limit(ROSTER_LIMIT)),
-      ).then((snap) => snap.docs.map((d) => toUser(d.id, d.data())));
+      ).then((snap) => {
+        // Past the limit, people after it by email cannot be found by a name search.
+        if (snap.docs.length >= ROSTER_LIMIT) {
+          log.warn('People search list is full', { count: snap.docs.length });
+        }
+        return snap.docs.map((d) => toUser(d.id, d.data()));
+      });
       // A failed read is not kept: the next search tries again.
       rows.catch(() => {
         roster = null;

@@ -183,12 +183,12 @@ describe('Assign: audience step, people', () => {
       'a@nonstopio.com',
       'new@nonstopio.com',
       'c@nonstopio.com',
-      'bad',
+      'bad@x',
       'x@gmail.com',
     );
     await waitFor(() =>
       expect(c.data.knownEmails).toHaveBeenLastCalledWith(
-        ['a@nonstopio.com', 'new@nonstopio.com', 'c@nonstopio.com', 'bad', 'x@gmail.com'],
+        ['a@nonstopio.com', 'new@nonstopio.com', 'c@nonstopio.com', 'bad@x', 'x@gmail.com'],
         ['git'],
       ),
     );
@@ -488,11 +488,11 @@ describe('Assign: audience step, teams', () => {
     create();
     expect(problem()?.textContent).toBe('Add at least one member.');
     const members = screen.getByRole('combobox', { name: 'Members' });
-    fireEvent.change(members, { target: { value: 'nobody' } });
+    fireEvent.change(members, { target: { value: 'nobody@gmail.com' } });
     fireEvent.keyDown(members, { key: 'Enter' });
     create();
     expect(problem()?.textContent).toBe('Fix or remove the addresses marked rejected.');
-    fireEvent.click(screen.getByRole('button', { name: 'Remove nobody' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove nobody@gmail.com' }));
     fireEvent.paste(members, {
       clipboardData: {
         getData: () => Array.from({ length: 501 }, (_, i) => `p${i}@nonstopio.com`).join(' '),
@@ -518,6 +518,46 @@ describe('Assign: audience step, teams', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create team' }));
     expect(await screen.findByText('Could not create the team. Try again.')).toBeTruthy();
     expect(screen.getByLabelText('Team name')).toBeTruthy();
+  });
+});
+
+describe('Assign: a team that cannot be read', () => {
+  it('counts the listed members and says so when the profiles cannot be read', async () => {
+    const c = setup({ teamList: [PLATFORM] });
+    c.data.usersInTeam = vi.fn().mockRejectedValue(new Error('offline'));
+    await open(c);
+    await toAudience();
+    fireEvent.click(screen.getByLabelText('Platform'));
+    expect(
+      await screen.findByText(
+        'Could not read everyone on Platform. Only its listed members are counted.',
+      ),
+    ).toBeTruthy();
+    expect(
+      await screen.findByText(/2 people will be assigned\. From 1 team: Platform\./),
+    ).toBeTruthy();
+    next();
+    await heading('Set the deadline');
+  });
+
+  it('forgets the teams already read when the flow starts again', async () => {
+    const c = setup({ teamList: [PLATFORM] });
+    c.service.assignCourses = vi.fn().mockResolvedValue(OK);
+    await open(c);
+    await toAudience();
+    fireEvent.click(screen.getByLabelText('Platform'));
+    await screen.findByText(/will be assigned\. From 1 team/);
+    next();
+    await heading('Set the deadline');
+    next();
+    await heading('Review and assign');
+    fireEvent.click(screen.getByRole('button', { name: /^Assign to/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Assign more' }));
+    await toAudience();
+    expect(c.data.usersInTeam).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByLabelText('Platform'));
+    await screen.findByText(/will be assigned\. From 1 team/);
+    expect(c.data.usersInTeam).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -586,7 +626,7 @@ describe('Assign: schedule and review', () => {
       'a@nonstopio.com',
       'new@nonstopio.com',
       'c@nonstopio.com',
-      'bad',
+      'bad@x',
       'x@gmail.com',
     );
     await screen.findByText(/2 people will be assigned\./);
@@ -600,9 +640,7 @@ describe('Assign: schedule and review', () => {
     await heading('Review and assign');
     expect(sentence()).toBe('Assign Git, the NonStop Way to 2 people, due 2026-12-01.');
     expect(
-      within(screen.getByRole('list', { name: 'Rejected addresses' })).getByText(
-        /bad: Not a valid email address/,
-      ),
+      within(screen.getByRole('list', { name: 'Rejected addresses' })).getByText(/bad@x: /),
     ).toBeTruthy();
     expect(screen.getAllByRole('definition').map((d) => d.textContent)).toEqual([
       '1',
@@ -616,7 +654,7 @@ describe('Assign: schedule and review', () => {
     await waitFor(() =>
       expect(c.service.assignCourses).toHaveBeenCalledWith({
         courseIds: ['git'],
-        emails: ['a@nonstopio.com', 'new@nonstopio.com', 'c@nonstopio.com', 'bad', 'x@gmail.com'],
+        emails: ['a@nonstopio.com', 'new@nonstopio.com', 'c@nonstopio.com', 'bad@x', 'x@gmail.com'],
         dueAt: Date.parse('2026-12-01T23:59:59'),
         mandatory: false,
         reminder: 'beforeDue',

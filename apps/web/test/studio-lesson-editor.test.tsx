@@ -235,6 +235,7 @@ describe('lesson editor: blocks', () => {
     );
     const group = await screen.findByRole('group', { name: 'Callout block' });
     expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+    expect(within(group).getByRole('group', { name: 'View Callout' })).toBeTruthy();
     const edit = within(group).getByRole('button', { name: 'Edit' });
     const preview = within(group).getByRole('button', { name: 'Preview' });
     expect(edit.getAttribute('aria-pressed')).toBe('true');

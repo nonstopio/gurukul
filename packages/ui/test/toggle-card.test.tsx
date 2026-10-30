@@ -14,7 +14,9 @@ describe('ToggleCard', () => {
         onChange={onChange}
       />,
     );
-    const sw = screen.getByRole('switch', { name: /Educator/ }) as HTMLInputElement;
+    const sw = screen.getByRole('switch', { name: 'Educator' }) as HTMLInputElement;
+    expect(sw.getAttribute('aria-describedby')).toBeTruthy();
+    expect(sw.getAttribute('aria-labelledby')).toBeTruthy();
     expect(sw.checked).toBe(false);
     expect(screen.getByText('Builds and edits courses.')).toBeTruthy();
     fireEvent.click(screen.getByText('Educator'));
