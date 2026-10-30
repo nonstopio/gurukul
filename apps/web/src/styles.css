@@ -58,24 +58,35 @@ body {
   color: var(--chrome-accent);
 }
 .search-trigger {
-  display: inline-flex;
+  display: flex;
+  flex: 1 1 20rem;
+  max-width: 36rem;
   align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
+  gap: var(--space-3);
+  min-height: 3rem;
+  padding: 0 var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-muted);
-  font: 500 var(--text-sm) var(--font-ui);
+  font: 500 var(--text-md) var(--font-ui);
   cursor: pointer;
+}
+.search-trigger svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.search-trigger:hover {
+  border-color: var(--text-muted);
 }
 .search-trigger:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 .search-trigger kbd {
-  font: 500 var(--text-xs) var(--font-mono);
+  margin-left: auto;
+  font: 500 var(--text-sm) var(--font-mono);
   color: var(--text-subtle);
 }
 /* The sidebar brand: logo, hairline, product name (AppShell does the layout). */
