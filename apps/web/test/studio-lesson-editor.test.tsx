@@ -162,19 +162,14 @@ describe('lesson editor: title and settings', () => {
     ).toBeTruthy();
   });
 
-  it('changes the layout, minutes, completion rule and type label', async () => {
+  it('changes the minutes, completion rule and type label', async () => {
     const { studio } = await open();
     await screen.findByLabelText('Lesson title');
-    const split = screen.getByRole('button', { name: /Split/ });
-    expect(split.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(split);
-    expect(split.getAttribute('aria-pressed')).toBe('true');
     fireEvent.change(screen.getByLabelText('Estimated minutes'), { target: { value: '25' } });
     fireEvent.change(screen.getByLabelText('Completion rule'), { target: { value: 'video90' } });
     fireEvent.change(screen.getByLabelText('Type label'), { target: { value: 'Hands-on' } });
     await saveNow();
     expect(savedLesson(studio)).toMatchObject({
-      layout: 'split',
       minutes: 25,
       completeWhen: 'video90',
       kindLabel: 'Hands-on',

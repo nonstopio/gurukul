@@ -84,8 +84,6 @@ export { DragList, moveItem } from './DragList';
 export type { DragListProps } from './DragList';
 export { BlockFrame } from './BlockFrame';
 export type { BlockFrameProps } from './BlockFrame';
-export { LayoutPicker } from './LayoutPicker';
-export type { BlockLayout, LayoutPickerProps } from './LayoutPicker';
 export { ColourSwatch } from './ColourSwatch';
 export type { ColourSwatchProps, CoverTheme } from './ColourSwatch';
 export { TypeTile } from './TypeTile';

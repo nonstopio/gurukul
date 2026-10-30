@@ -126,7 +126,7 @@ type Lesson = {
   id: string;                    // stable forever; progress points at it
   title: string;
   minutes: number;
-  layout: 'stacked' | 'split' | 'article';
+  layout: 'stacked' | 'split' | 'article'; // kept for old courses; the player ignores it and Studio no longer sets it
   completeWhen: 'manual' | 'video90' | 'scrolled';
   kindLabel?: string;            // overrides the auto label ("Video + code")
   blocks: Block[];

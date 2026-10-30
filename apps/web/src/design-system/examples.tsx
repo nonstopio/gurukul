@@ -30,7 +30,6 @@ import {
   FunnelBar,
   GlobalLoader,
   Input,
-  LayoutPicker,
   Menu,
   MediaGallery,
   MediaPreview,
@@ -68,7 +67,6 @@ import {
   useToast,
 } from '@gurukul/ui';
 import type {
-  BlockLayout,
   ButtonVariant,
   CalloutTone,
   ChipTone,
@@ -319,11 +317,6 @@ function PeoplePickerExample() {
 function SwatchExample() {
   const [theme, setTheme] = useState<CoverTheme>('forest');
   return <ColourSwatch label="Cover theme" value={theme} onChange={setTheme} />;
-}
-
-function LayoutExample() {
-  const [layout, setLayout] = useState<BlockLayout>('stacked');
-  return <LayoutPicker label="Layout" value={layout} onChange={setLayout} />;
 }
 
 function QuizExample() {
@@ -1096,10 +1089,6 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   BlockFrame: {
     rule: 'A lesson block in the editor: label, grip, duplicate and delete, and its error.',
     Example: BlockFrameExample,
-  },
-  LayoutPicker: {
-    rule: 'How a block lays out: stacked or split.',
-    Example: LayoutExample,
   },
   MediaGallery: {
     rule: 'Media tiles with a real preview, name, size and where used; choose one to see it larger.',

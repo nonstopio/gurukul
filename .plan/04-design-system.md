@@ -33,7 +33,7 @@ gold" surface. The full system, with live previews, is the "Gurukul Design Syste
 | M2 | CodeBlock (copy, highlight, terminal), VideoBlock (YouTube/Drive/Loom with captions), QuizOption, ResultRow, Breadcrumb |
 | M3 | Certificate, Seal, StatCard, BarChart (SVG, no chart library), FunnelBar |
 | M4 | DataTable (selection, pagination, sticky header), EmailChipInput, Stepper, Dialog |
-| M5 | DragList (keyboard reorderable), BlockFrame, LayoutPicker, ColourSwatch |
+| M5 | DragList (keyboard reorderable), BlockFrame, ColourSwatch |
 
 Each component ships with: a recipe in `references/components.md`, tests for
 every variant/state and keyboard path, 100% coverage, and a live example in

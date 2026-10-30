@@ -1,6 +1,6 @@
 import { validateForPublish } from '@gurukul/schema';
 import type { Block, BlockType, Lesson } from '@gurukul/schema';
-import { Card, DragList, EmptyState, Input, LayoutPicker, Select, buttonClass } from '@gurukul/ui';
+import { Card, DragList, EmptyState, Input, Select, buttonClass } from '@gurukul/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BlockPreviewFrame } from './blocks/BlockPreviewFrame';
@@ -230,12 +230,7 @@ function LessonEditor({
           </section>
 
           <aside className="studio-settings" aria-label="Lesson settings">
-            <Card className="sc-panel" title="Layout">
-              <LayoutPicker
-                label="Layout"
-                value={lesson.layout}
-                onChange={(layout) => edit((l) => ({ ...l, layout }))}
-              />
+            <Card className="sc-panel" title="Lesson settings">
               <Input
                 label="Estimated minutes"
                 type="number"
