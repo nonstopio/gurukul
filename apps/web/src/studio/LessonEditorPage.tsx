@@ -1,18 +1,9 @@
 import { validateForPublish } from '@gurukul/schema';
 import type { Block, BlockType, Lesson } from '@gurukul/schema';
-import {
-  BlockFrame,
-  Card,
-  DragList,
-  EmptyState,
-  Input,
-  LayoutPicker,
-  Select,
-  buttonClass,
-} from '@gurukul/ui';
+import { Card, DragList, EmptyState, Input, LayoutPicker, Select, buttonClass } from '@gurukul/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { BlockEditor } from './blocks/BlockEditor';
+import { BlockPreviewFrame } from './blocks/BlockPreviewFrame';
 import { BlockPalette } from './blocks/BlockPalette';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DraftGate } from './DraftGate';
@@ -217,19 +208,16 @@ function LessonEditor({
               onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
               renderItem={(block, { handle }) => (
                 <div data-block-id={block.id}>
-                  <BlockFrame
+                  <BlockPreviewFrame
+                    block={block}
+                    onChange={(next) => edit((l) => replaceBlock(l, next))}
                     label={BLOCK_LABELS[block.type]}
                     handle={handle}
                     selected={selected === block.id}
                     error={messages(block.id)}
                     onDuplicate={() => duplicate(block.id)}
                     onDelete={() => remove(block)}
-                  >
-                    <BlockEditor
-                      block={block}
-                      onChange={(next) => edit((l) => replaceBlock(l, next))}
-                    />
-                  </BlockFrame>
+                  />
                 </div>
               )}
             />

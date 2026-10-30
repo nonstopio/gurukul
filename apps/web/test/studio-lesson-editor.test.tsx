@@ -232,6 +232,24 @@ describe('lesson editor: blocks', () => {
     expect(savedLesson(studio).blocks[0]).toMatchObject({ id: 'b1', md: 'New body' });
   });
 
+  it('previews any block as a learner sees it, from a Preview button in its header', async () => {
+    await open(
+      courseWith([
+        { type: 'callout', id: 'c1', tone: 'tip', title: 'Heads up', md: 'Use `--global` once.' },
+      ]),
+    );
+    const group = await screen.findByRole('group', { name: 'Callout block' });
+    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+    const toggle = within(group).getByRole('button', { name: 'Preview' });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(within(group).queryByLabelText('Text (Markdown)')).toBeNull();
+    expect(within(group).getByText('Heads up')).toBeTruthy();
+    expect(group.querySelector('code')?.textContent).toBe('--global');
+    fireEvent.click(toggle);
+    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+  });
+
   it('duplicates a block right after the original with a new id', async () => {
     const { studio } = await open();
     await screen.findByLabelText('Lesson title');
