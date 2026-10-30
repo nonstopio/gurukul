@@ -12,7 +12,7 @@ import {
   PageHeader,
   PeoplePicker,
   StatCard,
-  Toggle,
+  ToggleCard,
   useToast,
 } from '@gurukul/ui';
 import type { Person } from '@gurukul/ui';
@@ -43,6 +43,12 @@ const CARDS: Array<{ role: RoleKind; text: string }> = [
   { role: 'educator', text: 'Builds and edits the courses they are granted.' },
   { role: 'admin', text: 'Assigns courses, grants roles and sees everything.' },
 ];
+
+/** What each role does, in a line: on the role cards and on the switches. */
+const ROLE_TEXT = {
+  educator: CARDS[1]?.text,
+  admin: CARDS[2]?.text,
+};
 
 type MatrixRow = [string, string, string, string];
 
@@ -305,13 +311,15 @@ function GrantDialog({
           <legend>Roles</legend>
           <p>{`Everyone is ${article(t.Learner)}. Add either or both of the roles below.`}</p>
           <div className="console-switches">
-            <Toggle
-              label={t.Educator}
+            <ToggleCard
+              title={t.Educator}
+              description={ROLE_TEXT.educator}
               checked={roles.educator}
               onChange={(e) => setRoles({ ...roles, educator: e.target.checked })}
             />
-            <Toggle
-              label={t.Admin}
+            <ToggleCard
+              title={t.Admin}
+              description={ROLE_TEXT.admin}
               checked={roles.admin}
               disabled={self && wasAdmin}
               onChange={(e) => setRoles({ ...roles, admin: e.target.checked })}

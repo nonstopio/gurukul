@@ -60,6 +60,7 @@ import {
   Tabs,
   Textarea,
   Toggle,
+  ToggleCard,
   TopBar,
   TrashIcon,
   TypeTile,
@@ -312,6 +313,26 @@ function RadioExample() {
         />
       ))}
       <Radio name="ds-radio-off" label="Not available" disabled />
+    </div>
+  );
+}
+
+function ToggleCardExample() {
+  const [on, setOn] = useState(true);
+  return (
+    <div className="ds-stack">
+      <ToggleCard
+        title="Educator"
+        description="Builds and edits the courses they are granted."
+        checked={on}
+        onChange={(e) => setOn(e.target.checked)}
+      />
+      <ToggleCard
+        title="Admin"
+        description="Assigns courses and grants roles."
+        disabled
+        defaultChecked={false}
+      />
     </div>
   );
 }
@@ -878,6 +899,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <Textarea label="Summary" rows={3} defaultValue="One line on what this teaches." />
       </div>
     ),
+  },
+  ToggleCard: {
+    rule: 'A setting as a card: its name and a line about it on the left, the switch at the right edge, and the whole card toggles it.',
+    Example: ToggleCardExample,
   },
   Toggle: {
     rule: 'A boolean setting, a real switch with its label.',

@@ -209,7 +209,7 @@
 /* The role switches in the grant dialog: one under the other. */
 .console-switches {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-3);
 }
 
 /* Courses to pick inside a dialog: smaller tiles, three or four across. */

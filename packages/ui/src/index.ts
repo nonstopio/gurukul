@@ -28,6 +28,8 @@ export type {
   SelectProps,
   TextareaProps,
 } from './Field';
+export { ToggleCard } from './ToggleCard';
+export type { ToggleCardProps } from './ToggleCard';
 export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
 export { Tabs } from './Tabs';

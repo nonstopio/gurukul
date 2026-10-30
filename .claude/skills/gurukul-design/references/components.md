@@ -601,6 +601,13 @@ readers still meet one link, and hover lifts the tile and underlines the title. 
 whole tile, so a click anywhere toggles it. Selected: `--accent` 2px ring, the tick pops in (`--dur-slow`) and
 the picture settles; `:focus-visible` shows the focus ring. Never a checkbox beside a title for a course.
 
+## ToggleCard — shipped
+
+`<ToggleCard title description? checked onChange disabled? />`: a setting that deserves a sentence, as a card.
+Name and description on the left (`--text-md` 600 and `--text-muted`), the `Toggle` switch at the right edge,
+`--radius-lg` with a hairline; hover `--surface-hover`; on gives an `--accent` border; the whole card is the
+label, so a click anywhere toggles it. Use it for role grants and rules; a bare `Toggle` for a one-word setting.
+
 ## Checkbox and Radio — shipped
 
 `<Checkbox label? indeterminate? ...input props />` and `<Radio label? name ... />`: tick boxes we draw ourselves

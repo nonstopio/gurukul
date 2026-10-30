@@ -188,6 +188,7 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('button', { name: 'Advance bar' }));
     await user.click(screen.getByRole('button', { name: 'Advance ring' }));
     await user.click(screen.getByRole('switch', { name: 'Published' }));
+    await user.click(screen.getByRole('switch', { name: /Educator/ }));
     await user.click(screen.getByRole('radio', { name: /Sand/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
