@@ -55,6 +55,7 @@ else is a review blocker, and most of it fails `npm run check:design`.
 | A number with its label                 | `StatCard`                                                            | a card with a big `<p>`                                            |
 | A status word                           | `Chip tone=…` with the word                                           | coloured text alone                                                |
 | A person                                | `Avatar` (initials; colour by role)                                   | an `<img>` of a Google photo, a coloured `<span>`                  |
+| Pick several people from a search       | `PeoplePicker` (combobox; a pick adds a chip, clears and closes)      | a `Select` of everyone, a list left open after a choice            |
 | Something just happened                 | `useToast()`                                                          | an error `Callout` kept in state after a click                     |
 | Something is true about this page       | `Callout` (one per region)                                            | a toast that should have stayed                                    |
 | Confirm a destructive or costly action  | `Dialog` with a verb-plus-object primary                              | `window.confirm`, an inline "Are you sure?"                        |

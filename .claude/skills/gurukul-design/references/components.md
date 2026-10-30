@@ -171,7 +171,7 @@ of 148" and secondary Previous / Next buttons (disabled at the ends). Pages star
 
 ## EmailChipInput — shipped
 
-`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? />`. A labelled text
+`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? statusWords? />`. A labelled text
 input in a bordered box; emails become removable chips. Typing a comma, space, semicolon or newline,
 pressing Enter, pasting, or leaving the field commits what is typed: split on those separators,
 lower-cased, duplicates dropped. Backspace on an empty input removes the last chip. `value` and
@@ -181,8 +181,24 @@ The caller supplies `classify(email) => { status, reason? }` and writes the lege
 `describedBy` at it). Each chip says its status in words: `signedIn` `--accent-soft` "· signed in",
 `new` dashed `--border-strong` "· new", `alreadyAssigned` `--surface-sunken` "· already assigned",
 `rejected` `--danger-soft` with `--danger-line` and "· {reason}" (default "rejected"). The remove button
-is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. The list is named
+is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. `statusWords` swaps the
+words a status shows (the team dialog says "Invited" for `new`). The list is named
 "{label}: added emails". Focus ring on the box.
+
+## PeoplePicker — shipped
+
+`<PeoplePicker label value onChange search placeholder? removeLabel? />`; `Person` is
+`{ email, name?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
+`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"`
+`aria-multiselectable`. The caller owns `value` and `search(query) => Promise<Person[]>` (debounce and
+minimum length are its job); only the newest answer is shown. Choosing a row **adds a chip, clears
+the text, closes the list and keeps focus**; ArrowDown reopens, Backspace on an empty field removes
+the last chip, Escape closes the list (and stops there, so a Dialog around it stays open), Enter picks
+the active row. Rows are `Avatar`, name, email and role with the match in `<mark>` (`--saffron-soft`),
+and people already chosen say "Added". The list sits 4px under the field (`--shadow-menu`,
+`--radius-lg`, `--z-menu`, at most 22rem tall). A polite `role="status"` says "N people match".
+Chips are named "Remove {name}". Use it where a person is chosen; never leave the list open or the
+typed text behind after a pick.
 
 ## StepCard (Stepper.Step) — shipped
 
