@@ -64,7 +64,7 @@ describe('BlockView', () => {
     expect(document.querySelector('.file-link svg')).toBeTruthy();
   });
 
-  it('says "Video coming soon" for a video that is not recorded yet', () => {
+  it('shows nothing for a video that is not recorded yet', () => {
     show({
       type: 'video',
       id: 'v',
@@ -72,7 +72,7 @@ describe('BlockView', () => {
       url: 'https://www.youtube.com/watch?v=TODO_RECORD_VIDEO',
       captions: true,
     });
-    expect(screen.getByText('Video coming soon.')).toBeTruthy();
+    expect(screen.queryByText('Video coming soon.')).toBeNull();
     expect(document.querySelector('iframe')).toBeNull();
   });
 

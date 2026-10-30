@@ -35,4 +35,7 @@ const paths = await seedCourse(seedDb, {
 });
 const org = await seedOrgConfig(seedDb);
 console.warn(`Seeded ${paths.coursePath} and ${paths.answersPath} in ${projectId}.`);
+console.warn(
+  `${paths.draftPath}: ${paths.draftCreated ? 'created from the course' : 'already there, kept'}.`,
+);
 console.warn(`${org.path}: ${org.created ? 'created with the defaults' : 'already there, kept'}.`);

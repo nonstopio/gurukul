@@ -39,7 +39,13 @@ function optionState(
 }
 
 /** The ungraded "check yourself" block: the answer is revealed on submit, with no network. */
-function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
+function CheckBlock({
+  block,
+  onAnswered,
+}: {
+  block: Extract<Block, { type: 'check' }>;
+  onAnswered?: ((blockId: string) => void) | undefined;
+}) {
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   return (
@@ -63,7 +69,14 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
           {block.explanation}
         </p>
       ) : (
-        <Button variant="secondary" disabled={picked === null} onClick={() => setRevealed(true)}>
+        <Button
+          variant="secondary"
+          disabled={picked === null}
+          onClick={() => {
+            setRevealed(true);
+            onAnswered?.(block.id);
+          }}
+        >
           Show the answer
         </Button>
       )}
@@ -74,28 +87,22 @@ function CheckBlock({ block }: { block: Extract<Block, { type: 'check' }> }) {
 /**
  * One renderer for every block type. A block this app cannot read (`readCourse` made it
  * `unsupported`), or a type it does not know, renders a visible notice. With `onWatched`, a video
- * tracks how much of it has been played and reports when it counts as watched.
+ * tracks how much of it has been played and reports when it counts as watched; with `onAnswered`, a
+ * check reports when its answer has been shown. A video that is not recorded yet renders nothing.
  */
 export function BlockView({
   block,
   onWatched,
+  onAnswered,
 }: {
   block: Block | UnsupportedBlock;
   onWatched?: (blockId: string, watched: boolean) => void;
+  onAnswered?: (blockId: string) => void;
 }) {
   switch (block.type) {
     case 'video': {
       if (onWatched) return <TrackedVideo block={block} onWatched={onWatched} />;
-      if (isPlaceholderVideo(block.url))
-        return (
-          <VideoBlock
-            src=""
-            title={block.title ?? 'Lesson video'}
-            href={block.url}
-            caption={block.caption}
-            placeholder="Video coming soon."
-          />
-        );
+      if (isPlaceholderVideo(block.url)) return null;
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
         <VideoBlock
@@ -164,7 +171,7 @@ export function BlockView({
         </a>
       );
     case 'check':
-      return <CheckBlock block={block} />;
+      return <CheckBlock block={block} onAnswered={onAnswered} />;
     default:
       return (
         <p role="note" className="unsupported">

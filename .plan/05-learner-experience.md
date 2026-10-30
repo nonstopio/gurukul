@@ -13,8 +13,12 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    one, so "whole team" assignments and the team filter reach them.
 3. **Course overview** shows description, outcomes, the chapter list with
    per-item state, progress ring, due date and the resume button.
-4. **Lesson player** renders the lesson's blocks in its layout; the outline
-   rail shows where you are. "Mark complete" saves and moves to the next item.
+4. **Lesson player** renders the lesson's blocks in one centred column (a
+   video is a step in the flow, where the author placed it; an unrecorded
+   placeholder video is not shown); the outline rail shows where you are.
+   "Mark complete" saves and moves to the next item once the lesson's rule is
+   met and every check question has had its answer shown. Pressed earlier, or
+   when the next item is still locked, it stays put and a toast names what to do.
 5. **Quiz** after a chapter: one question per screen, answer feedback as
    configured, each answer saved in the browser as it is checked or left
    (with the draw and any verdict shown), so a reload carries on. The server

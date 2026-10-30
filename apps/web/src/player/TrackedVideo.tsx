@@ -92,17 +92,8 @@ export function TrackedVideo({
     : undefined;
   const caption =
     block.caption && status ? `${block.caption} — ${status}` : (block.caption ?? status);
-  if (comingSoon)
-    return (
-      <VideoBlock
-        className="tracked-video"
-        src=""
-        title={block.title ?? 'Lesson video'}
-        href={block.url}
-        caption={block.caption}
-        placeholder="Video coming soon."
-      />
-    );
+  // Not recorded yet: nothing to show, and nothing to wait for.
+  if (comingSoon) return null;
   return (
     <div className="tracked-video">
       {src ? (
