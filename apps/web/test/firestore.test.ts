@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   updates: [] as unknown[],
   update: (() => Promise.resolve()) as () => Promise<void>,
   snapCb: undefined as undefined | ((s: unknown) => void),
+  snapErr: undefined as unknown,
 }));
 vi.mock('firebase/firestore', () => ({
   initializeFirestore: vi.fn((_app, settings) => ({ kind: 'db', settings })),
@@ -16,8 +17,9 @@ vi.mock('firebase/firestore', () => ({
     state.updates.push([ref, patch]);
     return state.update();
   }),
-  onSnapshot: vi.fn((_r, cb) => {
+  onSnapshot: vi.fn((_r, cb, onError) => {
     state.snapCb = cb;
+    state.snapErr = onError;
     return () => {};
   }),
 }));
@@ -58,16 +60,22 @@ describe('openFirestore', () => {
 
   it('watches the profile, reporting a missing document as null', () => {
     const cb = vi.fn();
-    openFirestore({} as never, false).watchProfile('u', cb);
+    openFirestore({} as never, false).watchProfile('u', cb, vi.fn());
     state.snapCb?.({ exists: () => false });
     state.snapCb?.({ exists: () => true, data: () => ({ roles: ['learner'] }) });
     expect(cb).toHaveBeenNthCalledWith(1, null);
     expect(cb).toHaveBeenNthCalledWith(2, { roles: ['learner'] });
   });
 
+  it('hands a failed watch to the caller', () => {
+    const onError = vi.fn();
+    openFirestore({} as never, false).watchProfile('u', vi.fn(), onError);
+    expect(state.snapErr).toBe(onError);
+  });
+
   it('fills in the lower-cased name a profile lacks, once per watch', () => {
     const cb = vi.fn();
-    openFirestore({} as never, false).watchProfile('u', cb);
+    openFirestore({} as never, false).watchProfile('u', cb, vi.fn());
     const snap = (data: object) => ({ exists: () => true, ref: 'users/u', data: () => data });
     state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['learner'] }));
     state.snapCb?.(snap({ displayName: 'Ananya Rao', roles: ['learner'] }));
@@ -76,7 +84,7 @@ describe('openFirestore', () => {
   });
 
   it('leaves a profile whose lower-cased name is already in step', () => {
-    openFirestore({} as never, false).watchProfile('u', vi.fn());
+    openFirestore({} as never, false).watchProfile('u', vi.fn(), vi.fn());
     state.snapCb?.({
       exists: () => true,
       ref: 'users/u',
@@ -88,7 +96,7 @@ describe('openFirestore', () => {
   it('logs, without failing the watch, when the name cannot be saved', async () => {
     state.update = () => Promise.reject(Object.assign(new Error('denied'), { code: 'denied' }));
     const cb = vi.fn();
-    openFirestore({} as never, false).watchProfile('u', cb);
+    openFirestore({} as never, false).watchProfile('u', cb, vi.fn());
     state.snapCb?.({ exists: () => true, ref: 'users/u', data: () => ({ displayName: 'Ravi' }) });
     await vi.waitFor(() =>
       expect(log.warn).toHaveBeenCalledWith('Profile name key not saved', {

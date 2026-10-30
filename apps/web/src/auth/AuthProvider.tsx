@@ -113,25 +113,38 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       setError(null);
       setWrongAccount(false);
       setUser(u);
+      // Signed in to Google but not yet to Gurukul: show progress, not the sign-in button again.
+      setStatus('loading');
       let current = rolesFromClaims({});
       void service.claims(u, false).then((c) => {
         current = rolesFromClaims(c);
         setRoles(current);
       });
-      stopProfile.current = service.watchProfile(u.uid, (profile) => {
-        if (!profile) return;
-        const mirror = [...profile.roles].sort().join();
-        if (mirror !== [...current].sort().join()) {
-          void service.claims(u, true).then((c) => {
-            current = rolesFromClaims(c);
-            setRoles(current);
-          });
-        }
-        setTeam(profile.team ?? null);
-        setTeamIds(profile.teamIds ?? []);
-        setLabels(profile.labels ?? null);
-        setStatus('ready');
-      });
+      stopProfile.current = service.watchProfile(
+        u.uid,
+        (profile) => {
+          if (!profile) return;
+          const mirror = [...profile.roles].sort().join();
+          if (mirror !== [...current].sort().join()) {
+            void service.claims(u, true).then((c) => {
+              current = rolesFromClaims(c);
+              setRoles(current);
+            });
+          }
+          setTeam(profile.team ?? null);
+          setTeamIds(profile.teamIds ?? []);
+          setLabels(profile.labels ?? null);
+          setStatus('ready');
+        },
+        (e) => {
+          // A silent failure here left people on the sign-in page with nothing happening.
+          log.error('Profile watch failed', e);
+          setError(RETRY_MESSAGE);
+          setStatus('signedOut');
+          // Firebase does not announce the same account signing in twice: sign out so a retry does.
+          void service.signOut();
+        },
+      );
     });
     return () => {
       stop();
