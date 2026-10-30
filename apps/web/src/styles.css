@@ -172,3 +172,15 @@ body {
   color: var(--text-subtle);
   font: 400 var(--text-xs) var(--font-ui);
 }
+
+/* A route change fades and rises 8px. Keyed on the path, so each page enters fresh; under reduced
+   motion the page token is 0 and the page just appears. */
+.route-enter {
+  animation: route-in var(--dur-page) var(--ease);
+}
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

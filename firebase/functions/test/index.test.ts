@@ -8,6 +8,7 @@ const captured: {
   v1Options?: unknown;
   onCreate?: (u: unknown) => unknown;
   onWritten?: (e: unknown) => unknown;
+  onTeam?: (e: unknown) => unknown;
   onAttempt?: (e: unknown) => unknown;
   schedules: Record<string, { options: unknown; fn: () => unknown }>;
 } = { schedules: {} };
@@ -17,6 +18,7 @@ const handleCheckAnswer = vi.fn();
 const handleGradeAttempt = vi.fn();
 const handleRevokeCertificate = vi.fn();
 const handleProgressWrite = vi.fn().mockResolvedValue('updated');
+const handleTeamWrite = vi.fn().mockResolvedValue({ count: 1 });
 const handleAssignCourses = vi.fn();
 const handleResetCooldown = vi.fn();
 const handleRemindLearners = vi.fn();
@@ -50,8 +52,9 @@ vi.mock('firebase-functions/v2/firestore', () => ({
     captured.onAttempt = fn;
     return fn;
   },
-  onDocumentWritten: (_path: string, fn: (e: unknown) => unknown) => {
-    captured.onWritten = fn;
+  onDocumentWritten: (path: string, fn: (e: unknown) => unknown) => {
+    if (path.startsWith('teams/')) captured.onTeam = fn;
+    else captured.onWritten = fn;
     return fn;
   },
 }));
@@ -86,6 +89,7 @@ vi.mock('firebase-functions/v1', () => ({
 }));
 vi.mock('../src/profile.js', () => ({ handleUserCreated }));
 vi.mock('../src/progress.js', () => ({ handleProgressWrite }));
+vi.mock('../src/teams.js', () => ({ handleTeamWrite }));
 vi.mock('../src/analytics.js', () => ({ handleAttemptCreated, runDailyRollup }));
 vi.mock('../src/remind.js', () => ({ runDailyReminders }));
 vi.mock('../src/backup.js', () => ({ runWeeklyBackup }));
@@ -118,6 +122,24 @@ describe('index', () => {
     await import('../src/index.js');
     await captured.onCreate?.({ uid: 'u' });
     expect(handleUserCreated).toHaveBeenCalledWith(expect.anything(), { uid: 'u' });
+  });
+
+  it('wires the team trigger with the before and after data, tolerating a missing snapshot', async () => {
+    await import('../src/index.js');
+    await captured.onTeam?.({
+      params: { teamId: 'platform' },
+      data: { before: { data: () => undefined }, after: { data: () => ({ memberEmails: [] }) } },
+    });
+    expect(handleTeamWrite).toHaveBeenCalledWith(expect.anything(), 'platform', undefined, {
+      memberEmails: [],
+    });
+    await captured.onTeam?.({ params: { teamId: 'platform' }, data: undefined });
+    expect(handleTeamWrite).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'platform',
+      undefined,
+      undefined,
+    );
   });
 
   it('wires the progress trigger with the before and after data, tolerating a missing snapshot', async () => {

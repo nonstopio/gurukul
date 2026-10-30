@@ -137,6 +137,10 @@ export const LanguagesIcon = icon(
 );
 export const LogOutIcon = icon('LogOutIcon', <path d="M6 13.5H3.5v-11H6M10 11l3-3-3-3M13 8H6" />);
 export const MenuIcon = icon('MenuIcon', <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />);
+export const MoonIcon = icon(
+  'MoonIcon',
+  <path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.5 4.5 0 0 0 7 7z" />,
+);
 export const MoreIcon = icon(
   'MoreIcon',
   <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth="2.5" />,
@@ -170,5 +174,12 @@ export const UsersIcon = icon(
   <>
     <circle cx="6" cy="5.5" r="2.5" />
     <path d="M1.5 13.5c.4-2.4 2.2-4 4.5-4s4.1 1.6 4.5 4M10.5 3.2a2.5 2.5 0 0 1 0 4.6M12 9.8c1.4.5 2.3 1.8 2.5 3.7" />
+  </>,
+);
+export const SunIcon = icon(
+  'SunIcon',
+  <>
+    <circle cx="8" cy="8" r="2.75" />
+    <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" />
   </>,
 );

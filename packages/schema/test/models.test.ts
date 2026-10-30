@@ -11,10 +11,34 @@ import {
   orgConfigSchema,
   progressSchema,
   rolesFromClaims,
+  teamId,
+  teamSchema,
   userSchema,
   nameKey,
 } from '../src';
 import { ts } from './fixtures';
+
+describe('teams', () => {
+  const team = { name: ' Platform ', memberEmails: ['a@example.com'], createdAt: 1 };
+  it('validates a team and trims its name', () => {
+    expect(teamSchema.parse(team).name).toBe('Platform');
+    expect(teamSchema.safeParse({ ...team, name: ' ' }).success).toBe(false);
+    expect(teamSchema.safeParse({ ...team, memberEmails: ['nope'] }).success).toBe(false);
+    const many = Array.from({ length: 501 }, (_, i) => `p${i}@example.com`);
+    expect(teamSchema.safeParse({ ...team, memberEmails: many }).success).toBe(false);
+  });
+  it('makes a document id from the name', () => {
+    expect(teamId('Platform & Cloud team')).toBe('platform-cloud-team');
+    expect(teamId('!!!')).toBe('team');
+    expect(teamId('--  Design & UX !! ')).toBe('design-ux');
+    expect(teamId('a'.repeat(100))).toHaveLength(80);
+  });
+  it('stays fast on a long run of separators', () => {
+    const started = Date.now();
+    expect(teamId(`${'-'.repeat(50000)}x${'-'.repeat(50000)}`)).toBe('x');
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+});
 
 describe('roles', () => {
   it('makes everyone a learner and adds granted roles', () => {

@@ -15,11 +15,15 @@ The contract is `.claude/skills/gurukul-design/SKILL.md`; the values are
 
 ## Look in one paragraph
 
-Light work surfaces (`#F6F7F5` page, white cards, hairline borders), a dark ink
-chrome (`#061316` sidebars and focused top bars), NonStop green for action and
-progress (`#05764C` for text and fills, `#08A66A` for decoration, mint
-`#24D39A` only on chrome). Inter for UI, Fraunces for titles and ceremony,
-JetBrains Mono for code. The certificate is the one "paper and gold" surface.
+Two themes, Light and Dark, that follow the system until a person chooses (System / Light / Dark in
+the account menu and Profile, kept on the device). Light: a warm `#F6F7F3` page, white cards, a
+light-tinted sidebar that follows the theme (no permanent dark slab). Dark: deep green `#0E1511`
+ground. NonStop green is the one accent (`#0A6A46` in Light, `#46D39B` in Dark); saffron is a
+highlight fill (streaks, new, the loader flame), never text on a surface. Body text holds 11:1 or
+more, the palest text 5:1 or more, control edges 3:1 or more, in both themes. Inter for UI,
+Fraunces for titles and ceremony, JetBrains Mono for code. The certificate is the one "paper and
+gold" surface. The full system, with live previews, is the "Gurukul Design System" artifact
+(palette, motion, states, flows, where things go); this file is what the code follows.
 
 ## Component roadmap
 
@@ -43,10 +47,15 @@ WCAG 2.1 AA. Automated: axe-core (`test/axe.ts` helper) in component and page te
 Playwright axe scan on every route (M6). Manual per release: keyboard-only
 walkthrough of the learner path and Studio, VoiceOver spot check.
 
-## Dark mode
+## Dark mode and motion
 
-Not in v1. Tokens are role-based so a `[data-theme="dark"]` block can be added
-later without touching components.
+Roles keep their names; `tokens.css` declares Light values in `:root` and Dark values in
+`:root[data-theme='dark']` and, when no choice is saved, `@media (prefers-color-scheme: dark)`
+(a test keeps the two dark blocks identical). `index.html` applies the saved choice before first
+paint and shows a boot loader until the session is known. Motion tokens: `--ease` (out), `--ease-in`,
+`--ease-in-out`, `--ease-spring`; `--dur-instant` to `--dur-page`; all collapse to 0 under reduced
+motion except the loader's turn, which becomes an opacity pulse. Toasts stay 4s (success), 6s
+(info), 8s (warning) and until closed (error).
 
 ## Decisions
 

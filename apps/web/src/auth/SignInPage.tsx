@@ -1,6 +1,7 @@
-import { BookIcon, Button, Callout, CheckIcon, PageHeader, StarIcon } from '@gurukul/ui';
+import { BookIcon, Button, CheckIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
+import { SignInArt, rise } from './SignInArt';
 
 /** Google's four-colour "G", as their sign-in branding guidelines ask for on a Google button. */
 function GoogleMark() {
@@ -50,59 +51,58 @@ export function SignInPage() {
   }, [wrongAccount, error]);
   return (
     <main className="signin" id="content">
-      <section className="signin__hero" aria-label="About Gurukul">
-        <div className="signin__brand">
-          <img src="/nonstop-logo.png" alt="NonStop io" width="110" height="32" />
-          <span className="signin__brand-name" aria-hidden="true">
-            Gurukul
-          </span>
+      <div className="signin__brand rise" style={rise(0)}>
+        <img src="/nonstop-logo.png" alt="NonStop io" width="110" height="32" />
+        <span className="signin__brand-name" aria-hidden="true">
+          Gurukul
+        </span>
+      </div>
+      <section className="signin__copy" aria-label="Sign in">
+        <div className="rise" style={rise(1)}>
+          <PageHeader
+            eyebrow="NonStop Academy"
+            title="Welcome to Gurukul."
+            lead="Courses, Quizzes and certificates for every NonStopian. Sign in with your NonStop io Google account to pick up where you left off."
+          />
         </div>
-        <div className="signin__pitch">
-          <p className="signin__headline">
-            Courses, Quizzes and certificates for every NonStopian.
-          </p>
-          <figure className="signin__quote">
-            <blockquote lang="sa">विद्या ददाति विनयम्</blockquote>
-            <figcaption>Knowledge gives humility.</figcaption>
-          </figure>
-          <ul className="signin__benefits">
-            {BENEFITS.map((b) => (
-              <li key={b.text}>
-                <b.Icon size={20} />
-                {b.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-      <section className="signin__form" aria-label="Sign in">
-        <PageHeader
-          eyebrow="NonStop Academy"
-          title="Welcome to Gurukul."
-          lead="Sign in with your NonStop io Google account to pick up where you left off."
-        />
         {error ? (
-          <p ref={alert} role="alert" className="signin__error" tabIndex={-1}>
+          <p ref={alert} role="alert" className="signin__error rise" style={rise(2)} tabIndex={-1}>
             {error}
           </p>
         ) : null}
-        <Button
-          variant="primary"
-          icon={<GoogleMark />}
-          loading={pending}
-          onClick={() => start(wrongAccount ? { chooseAccount: true } : undefined)}
-        >
-          {wrongAccount ? 'Try another account' : 'Sign in with Google'}
-        </Button>
-        <Callout tone="tip" title="Assigned a course before you joined?">
-          Sign in with the same work email. Your courses are waiting for you.
-        </Callout>
-        <p className="learn-meta">Only @nonstopio.com Google accounts can sign in.</p>
+        <div className="signin__action rise" style={rise(2)}>
+          <Button
+            variant="primary"
+            icon={<GoogleMark />}
+            loading={pending}
+            onClick={() => start(wrongAccount ? { chooseAccount: true } : undefined)}
+          >
+            {wrongAccount ? 'Try another account' : 'Sign in with Google'}
+          </Button>
+          <p className="learn-meta">
+            Only @nonstopio.com Google accounts can sign in. Assigned a course before you joined?
+            Use the same work email and it is waiting for you.
+          </p>
+        </div>
+        <ul className="signin__benefits">
+          {BENEFITS.map((b, i) => (
+            <li key={b.text} className="rise" style={rise(3 + i)}>
+              <b.Icon size={20} />
+              {b.text}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <SignInArt />
+      <footer className="signin__footer rise" style={rise(6)}>
+        <p lang="sa" className="signin__sutra">
+          विद्या ददाति विनयम् <span lang="en">· Knowledge gives humility.</span>
+        </p>
         <p className="learn-meta">
           Trouble signing in? Write to{' '}
           <a href="mailto:gurukul@nonstopio.com">gurukul@nonstopio.com</a>.
         </p>
-      </section>
+      </footer>
     </main>
   );
 }

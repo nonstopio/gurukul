@@ -302,6 +302,17 @@ describe('firestoreGradingStore', () => {
     expect(await store.getProgress('u', 'git')).toEqual({ path: 'progress/u_git' });
   });
 
+  it('reads the teams a person is on, none for a profile without them', async () => {
+    const docs: Record<string, unknown> = { 'users/a': { teamIds: ['qa'] }, 'users/b': {} };
+    const db = {
+      doc: (path: string) => ({
+        get: async () => ({ get: (k: string) => (docs[path] as never)?.[k] }),
+      }),
+    } as never;
+    expect(await firestoreGradingStore(db).getTeamIds('a')).toEqual(['qa']);
+    expect(await firestoreGradingStore(db).getTeamIds('b')).toEqual([]);
+  });
+
   it('records the attempt and the Quiz result in one transaction', async () => {
     const set = vi.fn();
     const attemptRef = { id: 'att1' };

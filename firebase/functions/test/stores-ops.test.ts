@@ -621,6 +621,7 @@ describe('firestoreCourseStore', () => {
   const plan = {
     version: 3,
     course: { id: 'c', title: 'T' },
+    access: { visibility: 'teams', visibleTeamIds: ['qa'] },
     answers: { pk: { q: ['a'] } },
   } as never;
 
@@ -664,7 +665,13 @@ describe('firestoreCourseStore', () => {
     const decide = vi.fn().mockReturnValue(plan);
     expect(await firestoreCourseStore(db).release('c', 'asha', null, decide)).toBe(3);
     expect(decide).toHaveBeenCalledWith({ live, draft, snapshot: undefined });
-    const published = { id: 'c', title: 'T', publishedAt: 'NOW' };
+    const published = {
+      id: 'c',
+      title: 'T',
+      visibility: 'teams',
+      visibleTeamIds: ['qa'],
+      publishedAt: 'NOW',
+    };
     expect(tx.set).toHaveBeenCalledWith(expect.objectContaining({ path: 'courses/c' }), published);
     expect(tx.set).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'courses/c/private/answers' }),

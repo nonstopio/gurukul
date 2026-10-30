@@ -2,7 +2,7 @@ import { validateForPublish } from '@gurukul/schema';
 import { Button, Card, Chip, DragList, EmptyState, buttonClass, useToast } from '@gurukul/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { userMessageOf } from '../api';
+import { toastError } from '../errors';
 import { useUser } from '../auth/AuthProvider';
 import { useConsole } from '../console/ConsoleProvider';
 import { useAsync } from '../data/useAsync';
@@ -128,9 +128,12 @@ function Builder({
       toast.show('Saved to the question bank', { tone: 'success' });
     } catch (e) {
       log.error('Saving a question to the bank failed', e, ids);
-      toast.show(userMessageOf(e, "Couldn't save the question to the bank. Try again."), {
-        tone: 'danger',
-      });
+      toastError(
+        toast,
+        e,
+        "Couldn't save the question to the bank. Try again.",
+        () => void saveToBank(entry, tags),
+      );
     }
   };
 

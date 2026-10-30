@@ -16,6 +16,16 @@ interface AxeViolation {
  * on any serious or critical violation. The message names each rule and the elements it hit.
  */
 export async function expectNoSeriousViolations(page: Page): Promise<void> {
+  // Entrance animations and the boot loader's fade pass through low opacity, which axe reads as low
+  // contrast. Wait for every finite animation to end; looping ones (the loader) never do.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   await page.addScriptTag({ path: axePath });
   const violations = await page.evaluate(async () => {
     const axe = (window as unknown as { axe: { run: () => Promise<{ violations: unknown[] }> } })

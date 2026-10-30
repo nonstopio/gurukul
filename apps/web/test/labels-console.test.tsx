@@ -48,13 +48,25 @@ describe('the console in Gurukul names', () => {
 
   it('names the settings copy', async () => {
     await openApp('/admin/settings', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByText(/Shishyas pick their team from this list/)).toBeTruthy();
-    expect(screen.getByText(/remind people from Shishyas\./)).toBeTruthy();
+    expect(await screen.findByText(/remind people from Shishyas\./)).toBeTruthy();
+  });
+
+  it('names the teams copy', async () => {
+    await openApp('/admin/teams', { ...gurukulAdmin, console: fakeConsole() });
+    expect(await screen.findByText(/Shishyas also pick their own team/)).toBeTruthy();
   });
 
   it('names the assign toggle', async () => {
-    await openApp('/admin/assign', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByLabelText('Email Shishyas now')).toBeTruthy();
+    await openApp(
+      { pathname: '/admin/assign', state: { courseId: 'git', emails: ['a@nonstopio.com'] } },
+      { ...gurukulAdmin, console: fakeConsole() },
+    );
+    await screen.findByLabelText(/Git, the NonStop Way/);
+    for (const step of ['Who is it for?', 'Set the deadline']) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      await screen.findByRole('heading', { name: step });
+    }
+    expect(screen.getByLabelText('Email Shishyas now')).toBeTruthy();
   });
 
   it('names the roles, the matrix and the grant dialog', async () => {

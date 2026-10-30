@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import * as ui from '@gurukul/ui';
 import {
   Avatar,
+  AreaSwitcher,
   BarChart,
   BlockFrame,
   Breadcrumb,
@@ -19,12 +20,19 @@ import {
   Dialog,
   DragList,
   EmailChipInput,
+  PeoplePicker,
   EmptyState,
+  FlowPanel,
+  FlowSteps,
+  StateCard,
   FilterBar,
   FunnelBar,
+  GlobalLoader,
   Input,
   LayoutPicker,
   Menu,
+  MediaGallery,
+  MediaPreview,
   NavItem,
   Page,
   PageHeader,
@@ -43,6 +51,7 @@ import {
   Skeleton,
   StatCard,
   Stepper,
+  SuccessCheck,
   Tabs,
   Textarea,
   Toggle,
@@ -64,6 +73,7 @@ import type {
   CoverTheme,
   EmailClassification,
   PaletteItem,
+  Person,
   QuizOptionState,
   ToastTone,
   TypeTileKind,
@@ -79,8 +89,14 @@ const QUIZ_STATES: Array<[QuizOptionState, 'A' | 'B' | 'C' | 'D']> = [
   ['incorrect', 'C'],
   ['locked', 'D'],
 ];
+const MEDIA_ITEMS: ui.MediaGalleryItem[] = [
+  { id: 'v', name: 'setup-walkthrough.mp4', meta: 'Video · in 2 courses', kind: 'video' },
+  { id: 'p', name: 'review-checklist.pdf', meta: 'PDF · in 4 courses', kind: 'pdf' },
+  { id: 'a', name: 'welcome.mp3', meta: 'Audio · not used yet', kind: 'audio' },
+  { id: 'e', name: 'Firestore diagram', meta: 'Embed · in 1 course', kind: 'embed' },
+];
 const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'quiz'];
-const TOAST_TONES: ToastTone[] = ['info', 'success', 'danger'];
+const TOAST_TONES: ToastTone[] = ['success', 'info', 'warning', 'danger'];
 const FUNNEL = [
   { label: 'Started', value: 120 },
   { label: 'Finished Chapter 1', value: 96 },
@@ -161,7 +177,19 @@ function ToastExample() {
         <Button
           key={tone}
           variant="secondary"
-          onClick={() => toast.show(`A ${tone} toast`, { tone })}
+          onClick={() =>
+            toast.show(
+              'One line of detail.',
+              tone === 'danger'
+                ? {
+                    tone,
+                    title: 'Could not reach the server',
+                    code: 'NET-OFFLINE',
+                    action: { label: 'Retry', onSelect: () => toast.show('Trying again…') },
+                  }
+                : { tone, title: `A ${tone} toast` },
+            )
+          }
         >
           Toast: {tone}
         </Button>
@@ -269,6 +297,23 @@ function EmailExample() {
   );
 }
 
+const PICKER_PEOPLE: Person[] = [
+  { email: 'asha@example.com', name: 'Asha Menon', role: 'Educator', tone: 'educator' },
+  { email: 'arjun@example.com', name: 'Arjun Rao', role: 'Learner' },
+  { email: 'meera@example.com', name: 'Meera Nair', role: 'Learner' },
+];
+
+function PeoplePickerExample() {
+  const [chosen, setChosen] = useState<Person[]>([]);
+  const search = (q: string) =>
+    Promise.resolve(
+      PICKER_PEOPLE.filter((p) =>
+        [p.name, p.email].join(' ').toLowerCase().includes(q.toLowerCase()),
+      ),
+    );
+  return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
+}
+
 function SwatchExample() {
   const [theme, setTheme] = useState<CoverTheme>('forest');
   return <ColourSwatch label="Cover theme" value={theme} onChange={setTheme} />;
@@ -340,6 +385,18 @@ function DataTableExample() {
 function PaginationExample() {
   const [page, setPage] = useState(1);
   return <Pagination page={page} pageSize={3} total={9} onPageChange={setPage} />;
+}
+
+function MediaExample() {
+  const [selected, setSelected] = useState('v');
+  return (
+    <MediaGallery
+      label="Media examples"
+      items={MEDIA_ITEMS}
+      selectedId={selected}
+      onSelect={(item) => setSelected(item.id)}
+    />
+  );
 }
 
 function DragExample() {
@@ -618,11 +675,29 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
             name="Asha Rao"
             detail="asha@example.com"
             tone="admin"
+            roleLabel="Admin"
             menuLabel="Example account"
             items={[
               { label: 'Profile', onSelect: noop },
               { separator: true },
               { label: 'Sign out', onSelect: noop },
+            ]}
+          />
+        </div>
+      </Frame>
+    ),
+  },
+  AreaSwitcher: {
+    rule: 'Learn, Studio and Admin at the top of the sidebar, only for the areas the person may open; it shows only when there is more than one.',
+    Example: () => (
+      <Frame size="narrow">
+        <div className="ds-chrome ds-chrome--block">
+          <AreaSwitcher
+            label="Example areas"
+            items={[
+              { id: 'learn', label: 'Learn', href: '#learn' },
+              { id: 'studio', label: 'Studio', href: '#studio', current: true },
+              { id: 'admin', label: 'Admin', href: '#admin' },
             ]}
           />
         </div>
@@ -718,6 +793,27 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </div>
     ),
   },
+  FlowSteps: {
+    rule: 'The horizontal numbered steps of a flow: done, current, upcoming; "Step 2 of 4" on a phone. Use FlowPanel for the sliding body.',
+    Example: () => <FlowSteps steps={['Course', 'Audience', 'Schedule', 'Review']} current={1} />,
+  },
+  FlowPanel: {
+    rule: 'The body of one flow step; key it by step and it slides 24px in the direction of travel (fades under reduced motion).',
+    Example: () => (
+      <FlowPanel direction="forward">
+        <p>This panel slides in from the right. Going back slides in from the left.</p>
+      </FlowPanel>
+    ),
+  },
+  SuccessCheck: {
+    rule: 'A ring and tick that draw once when a task is done; decorative, so say the result in words beside it.',
+    Example: () => (
+      <div className="ds-stack">
+        <SuccessCheck />
+        <p>Assigned to 12 people.</p>
+      </div>
+    ),
+  },
   Callout: {
     rule: 'Something true about this page or region, one per region; not for something that just happened.',
     Example: () => (
@@ -740,6 +836,42 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       >
         Courses you are assigned appear here.
       </EmptyState>
+    ),
+  },
+  StateCard: {
+    rule: 'A region that failed, is offline or is not allowed: the sentence, the code and the next step. Empty is EmptyState.',
+    Example: () => (
+      <div className="ds-stack">
+        <StateCard
+          variant="error"
+          title="We could not load this course"
+          code="NET-TIMEOUT"
+          kind="Network"
+          actions={<Button>Try again</Button>}
+        >
+          The server did not answer in time. Your progress is safe.
+        </StateCard>
+        <StateCard variant="offline" title="You are offline">
+          Lessons you have already opened keep working.
+        </StateCard>
+        <StateCard
+          variant="forbidden"
+          title="This is for Educators"
+          code="AUTH-FORBIDDEN"
+          kind="Permission"
+        >
+          Ask an Admin on your team for access.
+        </StateCard>
+      </div>
+    ),
+  },
+  GlobalLoader: {
+    rule: 'A region or blocked operation whose layout is unknown: one label saying what is happening; a Skeleton whenever the layout is known.',
+    Example: () => (
+      <div className="ds-stack">
+        <GlobalLoader label="Loading media" hint="Taking longer than usual…" />
+        <GlobalLoader label="Saving" variant="inline" />
+      </div>
     ),
   },
   Skeleton: {
@@ -799,6 +931,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   EmailChipInput: {
     rule: 'Pasted emails as chips, each classified: new, signed in, already assigned or rejected with a reason.',
     Example: EmailExample,
+  },
+  PeoplePicker: {
+    rule: 'Type, pick: the person becomes a chip, the text clears, the list closes and focus stays.',
+    Example: PeoplePickerExample,
   },
   Sidebar: {
     rule: 'The ink navigation inside AppShell: brand, SidebarGroups of NavItems, the UserCard at the foot.',
@@ -895,6 +1031,19 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   LayoutPicker: {
     rule: 'How a block lays out: stacked or split.',
     Example: LayoutExample,
+  },
+  MediaGallery: {
+    rule: 'Media tiles with a real preview, name, size and where used; choose one to see it larger.',
+    Example: MediaExample,
+  },
+  MediaPreview: {
+    rule: 'The larger preview in a detail panel: an image, or a typed tile for everything else.',
+    Example: () => (
+      <>
+        <MediaPreview kind="video" size="large" />
+        <MediaPreview kind="pdf" size="large" />
+      </>
+    ),
   },
   ColourSwatch: {
     rule: 'A course cover theme, as radios that show their name.',

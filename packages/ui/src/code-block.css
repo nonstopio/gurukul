@@ -36,7 +36,7 @@
   transition: background-color var(--dur-fast) var(--ease);
 }
 .g-code__copy:hover {
-  background: var(--chrome-hover);
+  background: var(--code-hover);
 }
 .g-code__copy:focus-visible {
   outline: none;
@@ -70,8 +70,8 @@
   white-space: pre;
 }
 .g-code__line--highlight {
-  background: var(--chrome-active);
-  box-shadow: inset 2px 0 0 var(--chrome-accent);
+  background: var(--code-active);
+  box-shadow: inset 2px 0 0 var(--code-accent);
 }
 .g-code--terminal .g-code__line::before {
   content: '$ ';

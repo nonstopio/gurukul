@@ -17,7 +17,11 @@ import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
 import { fakeQuiz } from './fake-quiz';
 
-async function open(path: string, data = fakeData()) {
+async function open(
+  path: string,
+  data = fakeData(),
+  profile: { team?: string | null; teamIds?: string[] } = {},
+) {
   const f = fakeAuth();
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
   const view = render(
@@ -39,7 +43,14 @@ async function open(path: string, data = fakeData()) {
     f.emitUser(NONSTOP);
     await Promise.resolve();
   });
-  act(() => f.emitProfile({ roles: ['learner'], displayName: 'P', team: null }));
+  act(() =>
+    f.emitProfile({
+      roles: ['learner'],
+      displayName: 'P',
+      team: profile.team ?? null,
+      teamIds: profile.teamIds,
+    }),
+  );
   return { ...view, router, ...data };
 }
 
@@ -72,12 +83,12 @@ describe('Home', () => {
       '/',
       fakeData({ assignments: [assignment({ dueAt: new Date(Date.now() + 3 * 86_400_000) })] }),
     );
-    expect(await screen.findByRole('heading', { name: 'Start Git, the NonStop Way' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Start course' }).getAttribute('href')).toBe(
-      '/courses/git',
-    );
+    expect(await screen.findByRole('heading', { name: 'Pick your next course' })).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: /Start Git, the NonStop Way/ }).getAttribute('href'),
+    ).toBe('/courses/git');
     expect(screen.getByText('Mandatory')).toBeTruthy();
-    expect(screen.getByText(/Due in 3 days|Due in 4 days/)).toBeTruthy();
+    expect(screen.getAllByText(/Due in 3 days|Due in 4 days/).length).toBeGreaterThan(0);
   });
 
   it('continues the course in progress, and lists overdue and completed assignments', async () => {
@@ -157,7 +168,7 @@ describe('Home', () => {
 
   it('has no axe violations', async () => {
     const { container } = await open('/', fakeData({ assignments: [assignment()] }));
-    await screen.findByRole('heading', { name: /Start Git/ });
+    await screen.findByRole('heading', { name: 'Pick your next course' });
     expect(await axeViolations(container)).toEqual([]);
   });
 });
@@ -181,8 +192,8 @@ describe('Home handoff details', () => {
     expect(await screen.findByText(/You are \d+% through Git, the NonStop Way\./)).toBeTruthy();
     expect(screen.getAllByText('Foundation').length).toBe(1);
     expect(screen.getAllByText(/Due in/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Assigned by Kavya Rao')).toBeTruthy();
-    expect(screen.getByText(/Up next: /)).toBeTruthy();
+    expect(screen.getByText(/Assigned by Kavya Rao/)).toBeTruthy();
+    expect(screen.getByText(/Next lesson:/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Recent activity' })).toBeTruthy();
     expect(screen.getByText('Worked on Git, the NonStop Way')).toBeTruthy();
   });
@@ -226,41 +237,87 @@ describe('Catalogue', () => {
     makeCourse({ id: 'sql', title: 'SQL basics', level: 'advanced', status: 'archived' }),
   ];
 
-  it('lists courses and filters by level and "assigned to me"', async () => {
+  it('lists courses with their visibility, and filters by level and view', async () => {
     await open('/courses', fakeData({ courses, assignments: [assignment()] }));
     expect(await screen.findByRole('link', { name: 'SQL basics' })).toBeTruthy();
     expect(screen.getByText('Retired')).toBeTruthy();
     expect(screen.getByText('Assigned')).toBeTruthy();
+    expect(screen.getAllByText('Public').length).toBe(2);
     fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'advanced' } });
     expect(screen.queryByRole('link', { name: 'Git, the NonStop Way' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Level'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('switch', { name: 'Assigned to me' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assigned to me' }));
     expect(screen.queryByRole('link', { name: 'SQL basics' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
   });
 
-  it('says so when nothing matches, and clears the filters', async () => {
-    await open('/courses', fakeData({ courses }));
+  it('searches, sorts and holds the filters in the URL', async () => {
+    const { router } = await open('/courses', fakeData({ courses }));
     await screen.findByRole('link', { name: 'SQL basics' });
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'sql' } });
+    expect(router.state.location.search).toBe('?q=sql');
+    expect(screen.queryByRole('link', { name: 'Git, the NonStop Way' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'title' } });
+    expect(router.state.location.search).toBe('?sort=title');
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(titles).toEqual(['Git, the NonStop Way', 'SQL basics']);
+  });
+
+  it('starts from the filters in the URL, and filters by progress', async () => {
+    const done = progressRow({ courseId: 'sql', completedAt: new Date() });
+    const going = progressRow({ courseId: 'git', completedItemIds: ['l1'] });
+    await open('/courses?show=completed', fakeData({ courses, progress: [done, going] }));
+    expect(await screen.findByRole('link', { name: 'SQL basics' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Git, the NonStop Way' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'In progress' }));
+    expect(screen.getByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'SQL basics' })).toBeNull();
+  });
+
+  it('shows only the courses the person may open', async () => {
+    const mixed = [
+      { ...makeCourse(), visibility: 'public' as const, visibleTeamIds: [] },
+      {
+        ...makeCourse({ id: 'ops', title: 'Ops only' }),
+        visibility: 'teams' as const,
+        visibleTeamIds: ['ops'],
+      },
+      {
+        ...makeCourse({ id: 'mine', title: 'Platform only' }),
+        visibility: 'teams' as const,
+        visibleTeamIds: ['platform'],
+      },
+      {
+        ...makeCourse({ id: 'staff', title: 'Staff only' }),
+        visibility: 'staff' as const,
+        visibleTeamIds: [],
+      },
+    ];
+    const data = fakeData({ courses: mixed });
+    await open('/courses', data, { team: null, teamIds: ['platform'] });
+    expect(await screen.findByRole('link', { name: 'Platform only' })).toBeTruthy();
+    expect(screen.getByText('Team only')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Ops only' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Staff only' })).toBeNull();
+    expect(data.data.listCourses).toHaveBeenCalledWith({ teamIds: ['platform'], staff: false });
+  });
+
+  it('says so when nothing matches, and clears all filters', async () => {
+    const { router } = await open('/courses?show=assigned', fakeData({ courses }));
+    expect(await screen.findByText('No courses match')).toBeTruthy();
     const filters = screen.getByRole('group', { name: 'Filter courses' });
-    expect(within(filters).getByRole('status').textContent).toBe('2 of 2');
-    expect(within(filters).queryByRole('button', { name: 'Clear filters' })).toBeNull();
-    fireEvent.click(screen.getByRole('switch', { name: 'Assigned to me' }));
-    expect(screen.getByText('No courses match')).toBeTruthy();
-    expect(within(filters).getByRole('status').textContent).toBe('0 of 2');
-    fireEvent.click(within(filters).getByRole('button', { name: 'Clear filters' }));
+    expect(within(filters).getByRole('status').textContent).toBe('0 of 2 courses');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Clear all filters' })[0] as HTMLElement);
+    expect(router.state.location.search).toBe('');
     expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
-    expect(
-      (screen.getByRole('switch', { name: 'Assigned to me' }) as HTMLInputElement).checked,
-    ).toBe(false);
-    fireEvent.click(screen.getByRole('switch', { name: 'Assigned to me' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Show all courses' }));
-    expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
+    expect(within(filters).getByRole('status').textContent).toBe('2 of 2 courses');
+    expect(within(filters).queryByRole('button', { name: 'Clear all filters' })).toBeNull();
   });
 
   it('says when no course is published yet', async () => {
     await open('/courses', fakeData({ courses: [] }));
-    expect(await screen.findByRole('heading', { name: 'No courses published yet' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'No courses to show yet' })).toBeTruthy();
   });
 
   it('has no axe violations', async () => {

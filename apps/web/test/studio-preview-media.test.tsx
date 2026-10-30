@@ -248,24 +248,98 @@ describe('Media library', () => {
     },
   ];
 
-  it('lists media grouped by kind with where it is used', async () => {
+  const gallery = [
+    { type: 'file', id: 'f', url: 'https://x.test/guide.pdf?v=2', label: 'Guide' },
+    { type: 'file', id: 'a', url: 'https://x.test/hello.MP3', label: 'Hello' },
+    { type: 'file', id: 'z', url: 'https://x.test/data.zip', label: 'Data' },
+    { type: 'embed', id: 'e', url: 'https://www.example.com/demo', title: '' },
+  ];
+  const galleryRows = () => [
+    ...rows(),
+    {
+      live: makeCourse({ id: 'two', title: 'Two' }),
+      draft: draftDoc(
+        makeCourse({
+          id: 'two',
+          title: 'Two',
+          educatorIds: ['u1'],
+          chapters: [
+            {
+              id: 'p',
+              title: 'P',
+              items: [lesson('l9', { title: 'Nine', blocks: [...blocks, ...gallery] })],
+            },
+          ],
+        }),
+      ),
+    },
+  ];
+
+  it('shows a tile per link with its type and how many courses use it', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: galleryRows() }),
+      data: fakeData(),
+    });
+    const tiles = await screen.findByRole('list', { name: 'Media' });
+    expect(tiles.querySelectorAll('img')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /youtu\.be\/a.*Video · in 2 courses/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Diagram.*Image · in 2 courses/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Guide.*PDF · in 1 course/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Hello.*Audio/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Data.*File/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /example\.com\/demo.*Embed/ })).toBeTruthy();
+    expect(screen.getByText(/does not store uploads/)).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('searches and filters by type, and clears both', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: galleryRows() }),
+    });
+    await screen.findByRole('list', { name: 'Media' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'pdf' } });
+    expect(screen.getAllByRole('button', { name: /PDF/ })).toHaveLength(1);
+    expect(screen.getByText('1 of 6')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'all' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search media' }), {
+      target: { value: 'nothing like it' },
+    });
+    expect(screen.getByRole('heading', { name: 'No media matches' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('list', { name: 'Media' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search media' }), {
+      target: { value: 'hello' },
+    });
+    expect(screen.getByText('1 of 6')).toBeTruthy();
+  });
+
+  it('opens a detail drawer with where it is used, and closes it', async () => {
     await openApp('/studio/media', {
       roles: ['educator'],
       studio: fakeStudio({ courses: rows() }),
-      data: fakeData(),
     });
-    expect(await screen.findByRole('heading', { name: 'Videos (1)' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Images (1)' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: /Embeds/ })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: /Diagram/ }));
+    const drawer = screen.getByRole('dialog', { name: 'Diagram' });
+    expect(drawer.textContent).toContain('Image · used in 1 course');
+    expect(drawer.textContent).toContain('https://x.test/a.png');
+    expect(drawer.querySelector('img')?.getAttribute('src')).toBe('https://x.test/a.png');
     expect(
-      screen.getByText(
-        (_, el) =>
-          el?.tagName === 'P' &&
-          el.textContent === 'Used in Git, the NonStop Way › Intro, Git, the NonStop Way › More',
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText(/does not store uploads/)).toBeTruthy();
+      screen.getByRole('link', { name: 'Git, the NonStop Way › Intro' }).getAttribute('href'),
+    ).toBe('/studio/courses/git/lessons/l1');
     expect(await axeViolations(document.body)).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says "courses" in the drawer when a link is used in more than one', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: galleryRows() }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /youtu\.be\/a/ }));
+    expect(screen.getByRole('dialog').textContent).toContain('Video · used in 2 courses');
   });
 
   it('copies a link, and reports when it cannot', async () => {
@@ -275,9 +349,10 @@ describe('Media library', () => {
     });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    fireEvent.click(await screen.findByRole('button', { name: /Copy link for Diagram/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Diagram/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy link for Diagram/ }));
     expect(writeText).toHaveBeenCalledWith('https://x.test/a.png');
-    expect(await screen.findByText('Link copied.')).toBeTruthy();
+    expect(await screen.findByText('Link copied')).toBeTruthy();
     writeText.mockRejectedValue(new Error('no'));
     fireEvent.click(screen.getByRole('button', { name: /Copy link for Diagram/ }));
     expect(await screen.findByText(/Could not copy the link/)).toBeTruthy();

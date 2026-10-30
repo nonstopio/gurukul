@@ -9,6 +9,7 @@ import {
   rangeStart,
   visibleFailed,
   addTeam,
+  checkTeamName,
   assignmentsCsv,
   auditDetail,
   auditLabel,
@@ -583,5 +584,22 @@ describe('Needs attention model', () => {
     ]);
     expect(all.total).toBe(3);
     expect(pendingInvites(open, new Date('2026-03-04T00:00:00Z')).total).toBe(1);
+  });
+});
+
+describe('checkTeamName', () => {
+  const teams = [
+    { id: 'qa', name: 'QA' },
+    { id: 'dev', name: 'Dev' },
+  ];
+  it('trims a free name and refuses a blank, long or taken one', () => {
+    expect(checkTeamName(teams, '  Mobile ', null)).toEqual({ name: 'Mobile' });
+    expect(checkTeamName(teams, ' ', null)).toEqual({ error: 'Enter a team name.' });
+    expect(checkTeamName(teams, 'qa', null)).toEqual({ error: 'qa is already in the list.' });
+    expect(checkTeamName(teams, 'x'.repeat(81), null)).toHaveProperty('error');
+  });
+  it('lets a team being edited keep its own name', () => {
+    expect(checkTeamName(teams, 'qa', 'qa')).toEqual({ name: 'qa' });
+    expect(checkTeamName(teams, 'dev', 'qa')).toHaveProperty('error');
   });
 });

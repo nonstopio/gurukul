@@ -1,4 +1,10 @@
-import { DEFAULT_ORG_CONFIG, courseSchema, type Course, type TimestampLike } from '@gurukul/schema';
+import {
+  DEFAULT_ORG_CONFIG,
+  PUBLIC_ACCESS,
+  courseSchema,
+  type Course,
+  type TimestampLike,
+} from '@gurukul/schema';
 
 /** What the seeder needs from Firestore: write a document, or create one only if it is missing. */
 export interface SeedDb {
@@ -84,7 +90,8 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
 
   const coursePath = `courses/${parsed.data.id}`;
   const answersPath = `${coursePath}/private/answers`;
-  await db.set(coursePath, parsed.data);
+  // Public, as every course starts: the catalogue lists only courses that say who may open them.
+  await db.set(coursePath, { ...parsed.data, ...PUBLIC_ACCESS });
   await db.set(answersPath, input.answers);
   const draftPath = `${coursePath}/drafts/current`;
   const draftCreated = await db.createIfMissing(draftPath, {

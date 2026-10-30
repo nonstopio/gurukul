@@ -33,6 +33,7 @@
     "tracker": "node scripts/tracker.mjs",
     "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\"",
     "grant-admin": "tsx scripts/grant-admin.mjs",
+    "backfill-visibility": "tsx scripts/backfill-visibility.mjs",
     "seed": "npm run seed -w @gurukul/seed --",
     "check:design": "node scripts/check-design.mjs",
     "check:bundle": "node scripts/check-bundle-size.mjs apps/web/dist 320"

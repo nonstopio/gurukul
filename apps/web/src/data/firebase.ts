@@ -1,5 +1,5 @@
-import { progressId, readCourse } from '@gurukul/schema';
-import type { Course } from '@gurukul/schema';
+import { accessOf, progressId, readCourse } from '@gurukul/schema';
+import type { Course, CourseListing } from '@gurukul/schema';
 import {
   arrayUnion,
   collection,
@@ -83,6 +83,12 @@ export function toAttempt(id: string, d: Record<string, unknown>): AttemptRow {
   };
 }
 
+/**
+ * Teams one catalogue query can name: Firestore allows 30 combinations of `in` and
+ * `array-contains-any`, and the status filter uses two of them. A person is on a handful.
+ */
+export const TEAM_QUERY_LIMIT = 15;
+
 /** A course this app can show, or `null` (logged) for one it cannot read, so the rest still load. */
 function readable(courseId: string, raw: unknown): Course | null {
   const course = readCourse(raw);
@@ -90,18 +96,61 @@ function readable(courseId: string, raw: unknown): Course | null {
   return course;
 }
 
+/**
+ * A catalogue entry: the course plus who may open it. Only listings carry it. A single course
+ * stays the bare course object, because Studio compares it with the draft and the access fields
+ * are not part of what an Educator edits.
+ */
+function listed(courseId: string, raw: unknown): CourseListing | null {
+  const course = readable(courseId, raw);
+  return course && { ...course, ...accessOf(raw) };
+}
+
 export function firebaseLearnerData(db: Firestore): LearnerData {
   return {
-    async listCourses() {
-      const snap = await getDocs(
-        query(
-          collection(db, 'courses'),
-          where('status', 'in', ['published', 'archived']),
-          orderBy('publishedAt', 'desc'),
-          limit(COURSE_LIMIT),
-        ),
+    async listCourses(audience) {
+      const live = where('status', 'in', ['published', 'archived']);
+      // Educators and Admins open every course, so one plain query. Everyone else asks for the
+      // public courses and for the courses of their own teams: the rules only answer a listing
+      // that says so, which is how a course outside their reach never leaves the database.
+      const queries = audience?.staff
+        ? [
+            query(
+              collection(db, 'courses'),
+              live,
+              orderBy('publishedAt', 'desc'),
+              limit(COURSE_LIMIT),
+            ),
+          ]
+        : [
+            query(
+              collection(db, 'courses'),
+              live,
+              where('visibility', '==', 'public'),
+              limit(COURSE_LIMIT),
+            ),
+            ...(audience?.teamIds.length
+              ? [
+                  query(
+                    collection(db, 'courses'),
+                    live,
+                    where('visibility', '==', 'teams'),
+                    where(
+                      'visibleTeamIds',
+                      'array-contains-any',
+                      audience.teamIds.slice(0, TEAM_QUERY_LIMIT),
+                    ),
+                    limit(COURSE_LIMIT),
+                  ),
+                ]
+              : []),
+          ];
+      const snaps = await Promise.all(queries.map((q) => getDocs(q)));
+      const courses = snaps.flatMap((snap) =>
+        snap.docs.flatMap((d) => listed(d.id, d.data()) ?? []),
       );
-      return snap.docs.flatMap((d) => readable(d.id, d.data()) ?? []);
+      const millis = (c: CourseListing) => c.publishedAt?.toMillis() ?? 0;
+      return courses.sort((a, b) => millis(b) - millis(a));
     },
     async getCourse(courseId) {
       const snap = await getDoc(doc(db, 'courses', courseId));

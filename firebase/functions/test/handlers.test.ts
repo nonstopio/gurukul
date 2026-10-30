@@ -30,6 +30,7 @@ const learner = (over: object = {}): AuthedRequest => ({
 });
 const store = (over: object = {}): GradingStore => ({
   getCourse: vi.fn().mockResolvedValue(course()),
+  getTeamIds: vi.fn().mockResolvedValue([]),
   getAnswers: vi.fn().mockResolvedValue(answerKey),
   getProgress: vi.fn().mockResolvedValue(progress()),
   recordAttempt: vi.fn().mockResolvedValue({
@@ -94,6 +95,43 @@ describe('handleCheckAnswer', () => {
     });
     const boom = store({ getCourse: vi.fn().mockRejectedValue(new Error('boom')) });
     await expect(handleCheckAnswer(learner({ data: check }), boom)).rejects.toThrow('boom');
+  });
+});
+
+describe('staff and course visibility in the grading callables', () => {
+  const staffOnly = () =>
+    store({
+      getCourse: vi
+        .fn()
+        .mockResolvedValue({ ...course(), visibility: 'staff', visibleTeamIds: [] }),
+    });
+  const withToken = (claims: object, data: object) => {
+    const r = learner({ data });
+    return {
+      ...r,
+      auth: { ...r.auth, token: { ...(r.auth?.token as object), ...claims } },
+    } as AuthedRequest;
+  };
+  it('refuses a learner on a staff course and lets an Educator or Admin in', async () => {
+    await expect(handleCheckAnswer(learner({ data: check }), staffOnly())).rejects.toMatchObject({
+      code: 'AUTH_2001',
+    });
+    for (const claims of [{ educator: true }, { admin: true }]) {
+      expect(await handleCheckAnswer(withToken(claims, check), staffOnly())).toMatchObject({
+        correct: true,
+      });
+    }
+    const grade = {
+      courseId: 'git-basics',
+      quizId: 'pk',
+      questionIds: ['q1', 'q2'],
+      answers: { q1: ['a'] },
+    };
+    await expect(
+      handleGradeAttempt(learner({ data: grade }), staffOnly(), () => 0),
+    ).rejects.toMatchObject({
+      code: 'AUTH_2001',
+    });
   });
 });
 

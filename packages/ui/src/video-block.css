@@ -47,5 +47,5 @@
   height: 100%;
   margin: 0;
   font: 500 var(--text-md) / var(--leading-snug) var(--font-ui);
-  color: var(--chrome-text);
+  color: var(--code-text);
 }

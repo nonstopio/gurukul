@@ -69,7 +69,7 @@ describe('Profile', () => {
   it('says where teams come from when the org has none', async () => {
     await openApp('/profile', { labels: 'gurukul' });
     expect(
-      await screen.findByText('No teams yet: your Kulapati adds them in Org settings.'),
+      await screen.findByText('No teams yet: your Kulapati adds them on the Teams page.'),
     ).toBeTruthy();
   });
 
@@ -93,5 +93,16 @@ describe('Profile', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
     fireEvent.click(screen.getByRole('menuitem', { name: "What's new" }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/changelog'));
+  });
+
+  it('the account menu cycles the theme', async () => {
+    await openApp('/');
+    fireEvent.click(await screen.findByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
+    expect(screen.getByRole('menuitem', { name: /^Theme/ })).toBeTruthy();
   });
 });

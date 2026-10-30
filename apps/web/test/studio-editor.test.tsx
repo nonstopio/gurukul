@@ -759,7 +759,11 @@ describe('Course editor: publishing', () => {
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Publish v4' }));
     });
-    expect(studio.service.publishCourse).toHaveBeenCalledWith({ courseId: 'git' });
+    expect(studio.service.publishCourse).toHaveBeenCalledWith({
+      courseId: 'git',
+      visibility: 'public',
+      visibleTeamIds: [],
+    });
     expect(await screen.findByText('Published v4. Learners see it now.')).toBeTruthy();
     expect(await screen.findByText('Live: v4')).toBeTruthy();
     expect(studio.data.getDraft).toHaveBeenCalledTimes(2);
@@ -799,6 +803,74 @@ describe('Course editor: publishing', () => {
     });
     expect(await screen.findByText('Live: v4')).toBeTruthy();
     expect(log.warn).toHaveBeenCalledWith('Reloading the live course failed', { courseId: 'git' });
+  });
+
+  it('sets who can open the course: teams from the Admin list, and no publish without one', async () => {
+    const live = mine();
+    const learner = fakeData({ courses: [live], teams: ['Platform', 'QA Guild'] });
+    const { studio } = await open({ live, getCourse: learner });
+    vi.mocked(studio.data.getAccess).mockResolvedValue({
+      visibility: 'public',
+      visibleTeamIds: [],
+    });
+    await ready();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: /^Publish v/ });
+    const select = await within(dialog).findByLabelText('Visibility');
+    expect(within(dialog).getByText(/Every signed-in learner sees it/)).toBeTruthy();
+    fireEvent.change(select, { target: { value: 'staff' } });
+    expect(within(dialog).getByText(/Only educators and Admins see it/)).toBeTruthy();
+    fireEvent.change(select, { target: { value: 'teams' } });
+    expect(
+      within(dialog).getByText('Pick at least one team, or choose another visibility.'),
+    ).toBeTruthy();
+    expect(
+      (within(dialog).getByRole('button', { name: /^Publish v/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'QA Guild' }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
+    studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: /^Publish v/ }));
+    });
+    expect(studio.service.publishCourse).toHaveBeenCalledWith({
+      courseId: 'git',
+      visibility: 'teams',
+      visibleTeamIds: ['qa-guild'],
+    });
+  });
+
+  it('explains when no teams exist yet, and publishes without visibility when it cannot be read', async () => {
+    const live = mine();
+    const learner = fakeData({ courses: [live] });
+    learner.data.orgTeams = vi.fn().mockRejectedValue(new Error('x'));
+    const { studio } = await open({ live, getCourse: learner });
+    vi.mocked(studio.data.getAccess).mockResolvedValueOnce({
+      visibility: 'teams',
+      visibleTeamIds: ['x'],
+    });
+    await ready();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
+    });
+    const dialog = await screen.findByRole('dialog', { name: /^Publish v/ });
+    expect(await within(dialog).findByText(/An Admin adds teams in Admin/)).toBeTruthy();
+    expect(learner.data.orgTeams).toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    vi.mocked(studio.data.getAccess).mockRejectedValue(new Error('x'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
+    });
+    const again = await screen.findByRole('dialog', { name: /^Publish v/ });
+    expect(within(again).queryByLabelText('Visibility')).toBeNull();
+    studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
+    await act(async () => {
+      fireEvent.click(within(again).getByRole('button', { name: /^Publish v/ }));
+    });
+    expect(studio.service.publishCourse).toHaveBeenCalledWith({ courseId: 'git' });
   });
 
   it('warns in the publish dialog that publishing an archived course un-archives it', async () => {

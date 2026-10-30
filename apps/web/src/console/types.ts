@@ -3,6 +3,7 @@ import type {
   Course,
   CourseStats,
   OrgConfig,
+  Team,
   OrgStats,
   Reminder,
 } from '@gurukul/schema';
@@ -137,8 +138,23 @@ export interface ConsoleData {
   teams(): Promise<string[]>;
   /** `config/org`, with the defaults for anything not saved yet. */
   orgSettings(): Promise<OrgConfig>;
-  /** Writes the whole of `config/org`; the rules let only an Admin, and only this shape. */
+  /**
+   * Saves `config/org` except its team names, which only the Teams page changes; the rules let
+   * only an Admin, and only this shape.
+   */
   saveOrgSettings(settings: OrgConfig): Promise<void>;
+  /**
+   * Every team with its members, by name: the `teams/` documents, plus each name in
+   * `config/org.teams` that has none (a team made before teams had members) as a team with no members.
+   */
+  teamList(): Promise<Team[]>;
+  /**
+   * Creates (`previousName` null: fails when the id is taken) or updates a team, and keeps its name
+   * in `config/org.teams` (replacing `previousName`) in the same transaction.
+   */
+  saveTeam(team: Team, previousName: string | null): Promise<void>;
+  /** Deletes the team and its name from `config/org.teams`; profiles that picked it keep it. */
+  deleteTeam(team: Team): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
   auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
 }

@@ -7,7 +7,7 @@ export function firebaseStudioService(functions: Functions): StudioService {
     createCourse: (request) =>
       callApi<CreateCourseRequest, { courseId: string }>(functions, 'createCourse', request),
     publishCourse: (request) =>
-      callApi<{ courseId: string }, { version: number }>(functions, 'publishCourse', request),
+      callApi<typeof request, { version: number }>(functions, 'publishCourse', request),
     rollbackCourse: (request) =>
       callApi<{ courseId: string; version: number }, { version: number }>(
         functions,

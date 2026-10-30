@@ -255,6 +255,46 @@ describe('publishCourse', () => {
     ]);
   });
 
+  it('keeps the live visibility unless the publish sets one, and a missing one reads as public', async () => {
+    const live: LiveCourse = {
+      version: 2,
+      status: 'published',
+      educatorIds: ['asha'],
+      visibility: 'teams',
+      visibleTeamIds: ['platform'],
+    };
+    const kept = fake({ live });
+    await publishCourse(kept.store, asha, { courseId: 'c' });
+    expect(kept.plans[0]?.plan.access).toEqual({
+      visibility: 'teams',
+      visibleTeamIds: ['platform'],
+    });
+    const legacy = fake();
+    await publishCourse(legacy.store, asha, { courseId: 'c' });
+    expect(legacy.plans[0]?.plan.access).toEqual({ visibility: 'public', visibleTeamIds: [] });
+  });
+
+  it('publishes with the visibility the publisher chose, and refuses a bad one', async () => {
+    const f = fake();
+    await publishCourse(f.store, asha, {
+      courseId: 'c',
+      visibility: 'teams',
+      visibleTeamIds: ['qa'],
+    });
+    expect(f.plans[0]?.plan.access).toEqual({ visibility: 'teams', visibleTeamIds: ['qa'] });
+    await publishCourse(f.store, asha, { courseId: 'c', visibility: 'staff' });
+    expect(f.plans[1]?.plan.access).toEqual({ visibility: 'staff', visibleTeamIds: [] });
+    for (const bad of [
+      { visibility: 'everyone' },
+      { visibility: 'teams' },
+      { visibility: 'teams', visibleTeamIds: [] },
+    ]) {
+      await expect(
+        publishCourse(fake().store, asha, { courseId: 'c', ...bad }),
+      ).rejects.toMatchObject({ code: 'VAL_1002' });
+    }
+  });
+
   it('upgrades a draft saved at an older schemaVersion before validating and publishing it', async () => {
     upgradeOnce('Upgraded title');
     const f = fake();
@@ -327,6 +367,7 @@ describe('rollbackCourse', () => {
       educatorNames: { asha: 'Asha Rao' },
     });
     expect(plan.answers).toEqual(answerKey);
+    expect(plan.access).toEqual({ visibility: 'public', visibleTeamIds: [] });
     expect(plan.resetDraft).toEqual({ rev: 5, course: snapshot.course, answers: answerKey });
     expect(f.audits).toEqual([
       {

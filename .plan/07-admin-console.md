@@ -43,8 +43,8 @@ callable, Admin only:
 5. Return the classification so the UI shows the summary.
 
 Inputs supported by the UI: search people, paste emails (comma, space, new
-line), CSV upload (first column of emails, header optional), whole team (from
-`users.team`). The summary panel previews the classification **before**
+line), CSV upload (first column of emails, header optional), whole team (the members of a team on the Teams page, plus anyone whose profile
+names that team). The summary panel previews the classification **before**
 submitting by running the same pure classifier client-side; with several courses it also counts new and
 already-assigned people per course.
 Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
@@ -69,12 +69,22 @@ with several courses due gets one email listing them all, and nobody reminded th
 by the schedule or by an Admin, gets another. The time is fixed in the schedule, not
 an org setting; `config/org.reminders` only switches the daily run on or off.
 
+## Teams
+
+`/admin/teams` lists the teams with their member counts. **Create team** is one dialog: a name and
+members as email chips (paste many, separated by commas, spaces or new lines; each chip is checked and
+an invalid one says why; an address that has not signed in yet is marked Invited). A team needs
+at least one member unless the person ticks "Create empty team". A row opens the same dialog to edit the name
+and members; Delete asks first. Writes go straight to `teams/{id}` and `config/org.teams` in one
+transaction under the rules (no callable, no audit entry, as Org settings). A name in
+`config/org.teams` with no document shows as a team with no members. Assign courses picks a team and
+adds its members. Data: [02 · Data model](02-data-model.md#teams).
+
 ## Org settings
 
 `/admin/settings` edits `config/org` directly (the rules check the shape; no callable, so
-no audit entry): the teams list learners pick from (add, remove; names trimmed, unique ignoring
-case, at most 80 characters and 100 teams) the daily reminders switch and the certificate signatory (name and role printed on certificates issued from then on; a certificate keeps the one it was issued with). Removing a team
-leaves it on the profiles that have it. One Save writes the whole document.
+no audit entry): the daily reminders switch and the certificate signatory (name and role printed on certificates issued from then on; a certificate keeps the one it was issued with). Teams moved to the Teams page; Save keeps the team names it did not edit. Removing a team
+leaves it on the profiles that have it.
 
 ## Roles & access
 

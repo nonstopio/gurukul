@@ -10,6 +10,8 @@
  */
 
 :root {
+  color-scheme: light;
+
   /* ---- Scale: NonStop green (from nonstopio.com: #08A66A, #24D39A) ---- */
   --g-green-50: #e9f7f0;
   --g-green-100: #d3f0e2;
@@ -64,38 +66,38 @@
   --g-gold-700: #7a6431;
 
   /* ---- Roles: ground and text ---- */
-  --bg: var(--g-gray-50);
+  --bg: #f6f7f3;
   --surface: #ffffff;
-  --surface-sunken: var(--g-gray-100);
-  --surface-hover: var(--g-gray-25);
-  --text: var(--g-gray-900);
-  --text-body: var(--g-gray-700);
-  --text-muted: var(--g-gray-600);
-  --text-subtle: var(--g-gray-500); /* captions; 4.8:1 on white, do not go lighter */
-  --border: var(--g-gray-200);
-  --border-strong: var(--g-gray-300);
+  --surface-sunken: #eceee8;
+  --surface-hover: #f2f4ee;
+  --text: #121c17;
+  --text-body: #27352d;
+  --text-muted: #46554c;
+  --text-subtle: #566359; /* captions; 4.8:1 on white, do not go lighter */
+  --border: #d6dbd2;
+  --border-strong: #76847b;
 
   /* ---- Roles: accent (one hue) ---- */
-  --accent: var(--g-green-700);
-  --accent-hover: var(--g-green-800);
+  --accent: #0a6a46;
+  --accent-hover: #07563a;
   --accent-on: #ffffff;
-  --accent-soft: var(--g-green-50);
-  --accent-soft-text: var(--g-green-900);
-  --accent-decor: var(--g-green-500);
-  --accent-line: var(--g-green-200);
-  --accent-ring: var(--g-green-100);
+  --accent-soft: #dff2e8;
+  --accent-soft-text: #064a30;
+  --accent-decor: #16a272;
+  --accent-line: #a9d9c0;
+  --accent-ring: #cfeadb;
 
   /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
-  --chrome: var(--g-ink-950);
-  --chrome-raised: var(--g-ink-900);
-  --chrome-hover: var(--g-ink-700);
-  --chrome-active: var(--g-ink-800);
-  --chrome-line: var(--g-ink-600);
-  --chrome-text: var(--g-ink-100);
-  --chrome-text-strong: #ffffff;
-  --chrome-label: var(--g-ink-300);
-  --chrome-accent: var(--g-green-400);
-  --chrome-accent-on: var(--g-ink-950);
+  --chrome: #eef1ea;
+  --chrome-raised: #e4e9e0;
+  --chrome-hover: #e1e7dd;
+  --chrome-active: #dff2e8;
+  --chrome-line: #cfd6cb;
+  --chrome-text: #27352d;
+  --chrome-text-strong: #121c17;
+  --chrome-label: #566359;
+  --chrome-accent: #0a6a46;
+  --chrome-accent-on: #ffffff;
   --cover-forest: var(--g-ink-850);
   --cover-sand: var(--g-sand-300);
   --cover-sky: var(--g-sky-300);
@@ -107,27 +109,35 @@
   --avatar-admin: var(--g-sand-400);
   --avatar-on: var(--g-ink-950);
 
+  /* ---- Roles: saffron (highlight fills: streaks, new, the loader flame; never text on surface) ---- */
+  --saffron: #f2a02b;
+  --saffron-on: #2a1700;
+  --saffron-soft: #fdeccb;
+  --saffron-soft-text: #6b3a00;
+
   /* ---- Roles: overlays ---- */
-  --scrim: rgb(6 19 22 / 0.55);
+  --scrim: rgb(18 28 23 / 0.5);
 
   /* ---- Roles: state (only for real state, always paired with words) ---- */
-  --success: var(--g-green-700);
-  --success-soft: var(--g-green-50);
-  --warning: #93370d;
-  --warning-soft: #fef3e7;
-  --warning-line: #f6d9a8;
-  --danger: #b42318;
+  --success: #0a6a46;
+  --success-soft: #dff2e8;
+  --warning: #8a4b00;
+  --warning-soft: #fdeccb;
+  --warning-line: #f0cf8f;
+  --danger: #b3261e;
   --danger-on: #ffffff;
-  --danger-soft: #fef3f2;
-  --danger-line: var(--g-red-200);
-  --info: #1d4ed8;
-  --info-soft: #e8eef9;
-  --info-line: var(--g-blue-200);
+  --danger-soft: #fde8e6;
+  --danger-line: #f4b8b3;
+  --info: #1f5ab8;
+  --info-soft: #e3ecfb;
+  --info-line: #b3c9ee;
 
   /* ---- Roles: ceremony ---- */
   --paper: var(--g-paper);
   --gold: var(--g-gold-400);
   --gold-text: var(--g-gold-700);
+  --paper-ink: #27352d; /* text on the paper certificate, in both themes */
+  --paper-danger: #b3261e; /* the revoked stamp on paper, in both themes */
 
   /* ---- Roles: code ---- */
   --code-bg: #0a1714;
@@ -137,6 +147,10 @@
   --code-string: #9cc7ff;
   --code-comment: #8fa8a0;
   --code-warn: #f5a35c;
+  --code-hover: #1d2d26; /* hover and active grounds inside the always-dark code well */
+  --code-active: #123325;
+  --code-accent: var(--g-green-400);
+  --on-forest: #ffffff; /* text on the dark forest course cover, in both themes */
 
   /* ---- Type ---- */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -179,10 +193,10 @@
   --control-height: 44px; /* minimum touch target */
 
   /* ---- Elevation: hairlines first; shadow only for things that float ---- */
-  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-xs: 0 1px 2px rgb(18 28 23 / 0.08);
   --shadow-float: 0 30px 80px rgb(0 0 0 / 0.45);
-  --shadow-menu: 0 12px 32px rgb(16 24 40 / 0.14), 0 2px 6px rgb(16 24 40 / 0.06);
-  --focus-ring: 0 0 0 3px var(--g-green-100), 0 0 0 4px var(--g-green-700);
+  --shadow-menu: 0 12px 32px rgb(18 28 23 / 0.16), 0 2px 6px rgb(18 28 23 / 0.06);
+  --focus-ring: 0 0 0 3px var(--accent-ring), 0 0 0 4px var(--accent);
 
   /* ---- Layout: page widths (Page width=…) and the shell ---- */
   --width-reading: 48.75rem; /* 780: lessons, Quizzes, changelog, profile */
@@ -197,18 +211,131 @@
   --z-overlay: 100; /* dialogs, the command palette */
   --z-menu: 110; /* menus, above a dialog that holds them */
   --z-toast: 120;
+  --z-loader: 200; /* the global loader overlay, above everything */
 
   /* ---- Motion ---- */
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur-fast: 120ms;
-  --dur-base: 200ms;
-  --dur-slow: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1); /* ease-out: things entering */
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0); /* things leaving */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* things moving on screen */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* a check landing; rarely */
+  --dur-instant: 90ms;
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 400ms;
+  --dur-page: 500ms;
+  --dur-loader: 1600ms; /* one turn of the global loader; kept under reduced motion */
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
+    --dur-instant: 0ms;
     --dur-fast: 0ms;
     --dur-base: 0ms;
     --dur-slow: 0ms;
+    --dur-page: 0ms;
+  }
+}
+
+/* Dark: the same roles, new values. Chosen by the person (data-theme="dark") or, when they have
+   not chosen, by the system. Keep this block and the media block below identical. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e1511;
+  --surface: #151f1a;
+  --surface-sunken: #0a100d;
+  --surface-hover: #1c2923;
+  --text: #eaf2ec;
+  --text-body: #cfdbd3;
+  --text-muted: #aebdb3;
+  --text-subtle: #97a89d;
+  --border: #2a3a32;
+  --border-strong: #74897c;
+  --accent: #46d39b;
+  --accent-hover: #6fe0b2;
+  --accent-on: #04180f;
+  --accent-soft: #123325;
+  --accent-soft-text: #b4efd3;
+  --accent-decor: #46d39b;
+  --accent-line: #1f5a41;
+  --accent-ring: #164b36;
+  --chrome: #111a15;
+  --chrome-raised: #151f1a;
+  --chrome-hover: #1c2923;
+  --chrome-active: #123325;
+  --chrome-line: #2a3a32;
+  --chrome-text: #cfdbd3;
+  --chrome-text-strong: #eaf2ec;
+  --chrome-label: #97a89d;
+  --chrome-accent: #46d39b;
+  --chrome-accent-on: #04180f;
+  --saffron: #f5b24a;
+  --saffron-soft: #3a2a0e;
+  --saffron-soft-text: #fbd48c;
+  --scrim: rgb(0 0 0 / 0.65);
+  --success: #46d39b;
+  --success-soft: #123325;
+  --warning: #f2b24c;
+  --warning-soft: #3a2a0e;
+  --warning-line: #5a421a;
+  --danger: #ff8f86;
+  --danger-on: #2a0a07;
+  --danger-soft: #3d1a17;
+  --danger-line: #6b2c27;
+  --info: #8fb8ff;
+  --info-soft: #172a4a;
+  --info-line: #2d4f86;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-menu: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0e1511;
+    --surface: #151f1a;
+    --surface-sunken: #0a100d;
+    --surface-hover: #1c2923;
+    --text: #eaf2ec;
+    --text-body: #cfdbd3;
+    --text-muted: #aebdb3;
+    --text-subtle: #97a89d;
+    --border: #2a3a32;
+    --border-strong: #74897c;
+    --accent: #46d39b;
+    --accent-hover: #6fe0b2;
+    --accent-on: #04180f;
+    --accent-soft: #123325;
+    --accent-soft-text: #b4efd3;
+    --accent-decor: #46d39b;
+    --accent-line: #1f5a41;
+    --accent-ring: #164b36;
+    --chrome: #111a15;
+    --chrome-raised: #151f1a;
+    --chrome-hover: #1c2923;
+    --chrome-active: #123325;
+    --chrome-line: #2a3a32;
+    --chrome-text: #cfdbd3;
+    --chrome-text-strong: #eaf2ec;
+    --chrome-label: #97a89d;
+    --chrome-accent: #46d39b;
+    --chrome-accent-on: #04180f;
+    --saffron: #f5b24a;
+    --saffron-soft: #3a2a0e;
+    --saffron-soft-text: #fbd48c;
+    --scrim: rgb(0 0 0 / 0.65);
+    --success: #46d39b;
+    --success-soft: #123325;
+    --warning: #f2b24c;
+    --warning-soft: #3a2a0e;
+    --warning-line: #5a421a;
+    --danger: #ff8f86;
+    --danger-on: #2a0a07;
+    --danger-soft: #3d1a17;
+    --danger-line: #6b2c27;
+    --info: #8fb8ff;
+    --info-soft: #172a4a;
+    --info-line: #2d4f86;
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow-menu: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
   }
 }

@@ -1,12 +1,14 @@
 import { Button, Callout, Dialog, useToast } from '@gurukul/ui';
 import { diffCourses, itemsOf, validateForPublish } from '@gurukul/schema';
-import type { Course, PublishIssue } from '@gurukul/schema';
+import type { Course, CourseAccess, PublishIssue } from '@gurukul/schema';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiClientError, userMessageOf } from '../api';
+import { useLearnerData } from '../data/DataProvider';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
+import { VisibilityPicker } from './VisibilityPicker';
 import { changeSummary, issuesFromDetails, itemEditorPath, nameOf } from './studioModel';
 import type { Working } from './types';
 
@@ -35,9 +37,25 @@ export function PublishDialog({
   const summary = useMemo(() => changeSummary(live, work.course), [live, work.course]);
   const removedIds = useMemo(() => diffCourses(live, work.course).removed, [live, work.course]);
   const [completions, setCompletions] = useState<Record<string, number>>({});
+  const learner = useLearnerData();
+  // Who may open the course, as it is now; `null` until it loads (or when it cannot be read, in
+  // which case a publish leaves the live setting alone).
+  const [access, setAccess] = useState<CourseAccess | null>(null);
+  const [teams, setTeams] = useState<string[]>([]);
+  useEffect(() => {
+    data
+      .getAccess(courseId)
+      .then(setAccess)
+      .catch(() => log.warn('Reading the course visibility failed', { courseId }));
+    learner
+      .orgTeams()
+      .then(setTeams)
+      .catch(() => log.warn('Reading the team list failed', { courseId }));
+  }, [data, learner, courseId]);
+  const needsTeam = access?.visibility === 'teams' && access.visibleTeamIds.length === 0;
   const issues = refused ?? local;
   const items = useMemo(() => itemsOf(work.course), [work.course]);
-  const blocked = issues.length > 0;
+  const blocked = issues.length > 0 || needsTeam;
   const nothing =
     live !== null &&
     !summary.courseChanged &&
@@ -63,7 +81,9 @@ export function PublishDialog({
     setBusy(true);
     setFailure(null);
     try {
-      const { version } = await service.publishCourse({ courseId });
+      const { version } = await service.publishCourse(
+        access ? { courseId, ...access } : { courseId },
+      );
       toast.show(`Published v${version}. ${t.Learners} see it now.`, { tone: 'success' });
       onPublished(version);
       onClose();
@@ -152,7 +172,17 @@ export function PublishDialog({
           </>
         )}
       </section>
-      {blocked ? (
+      {access ? (
+        <>
+          <VisibilityPicker value={access} teams={teams} onChange={setAccess} />
+          {needsTeam ? (
+            <p className="sc-help" role="alert">
+              Pick at least one team, or choose another visibility.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {issues.length > 0 ? (
         <section aria-labelledby="problems-title" className="sc-problems">
           <h3 id="problems-title" className="sc-h3">
             Fix these first ({issues.length})
