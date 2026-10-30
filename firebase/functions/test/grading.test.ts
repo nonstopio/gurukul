@@ -16,6 +16,7 @@ const NOW = 1_000_000_000_000;
 function store(over: Partial<Record<keyof GradingStore, unknown>> = {}): GradingStore {
   return {
     getCourse: vi.fn().mockResolvedValue(course()),
+    getTeamIds: vi.fn().mockResolvedValue([]),
     getAnswers: vi.fn().mockResolvedValue(answerKey),
     getProgress: vi.fn().mockResolvedValue(progress()),
     recordAttempt: vi.fn(async (_a, decide: (p: unknown) => unknown) => ({
@@ -386,5 +387,32 @@ describe('gradeAttempt', () => {
       })),
     });
     await rejects(grade(s), 'PRK_4001');
+  });
+});
+
+describe('course visibility in grading', () => {
+  const teams = (teamIds: string[]) =>
+    store({
+      getCourse: vi
+        .fn()
+        .mockResolvedValue({ ...course(), visibility: 'teams', visibleTeamIds: ['platform'] }),
+      getTeamIds: vi.fn().mockResolvedValue(teamIds),
+    });
+  const staffOnly = store({
+    getCourse: vi.fn().mockResolvedValue({ ...course(), visibility: 'staff', visibleTeamIds: [] }),
+  });
+  const check = { courseId: 'git-basics', quizId: 'pk', questionId: 'q1', selected: ['a'] };
+
+  it('refuses checkAnswer and gradeAttempt for a course the person may not open', async () => {
+    await rejects(checkAnswer(teams(['qa']), 'u', check), 'AUTH_2001');
+    await rejects(grade(teams([])), 'AUTH_2001');
+    await rejects(checkAnswer(staffOnly, 'u', check), 'AUTH_2001');
+    await rejects(grade(staffOnly), 'AUTH_2001');
+  });
+  it('lets a team member through, and staff without a team lookup', async () => {
+    expect(await checkAnswer(teams(['platform']), 'u', check)).toMatchObject({ correct: true });
+    const s = staffOnly;
+    expect(await checkAnswer(s, 'u', check, true)).toMatchObject({ correct: true });
+    expect(s.getTeamIds).not.toHaveBeenCalled();
   });
 });

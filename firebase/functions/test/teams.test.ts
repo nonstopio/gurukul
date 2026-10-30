@@ -2,33 +2,64 @@ import { describe, expect, it, vi } from 'vitest';
 import { handleTeamWrite } from '../src/teams.js';
 import type { TeamStore } from '../src/teams.js';
 
-const store = (): TeamStore => ({ setMembership: vi.fn().mockResolvedValue(2) });
+/** An in-memory `teams/` and `users/`: `reconcile` reads the teams as they are when it runs. */
+function world(teams: Record<string, string[]>, profiles: Record<string, string[]>) {
+  const store: TeamStore = {
+    reconcile: vi.fn(async (emails: string[]) => {
+      let n = 0;
+      for (const e of emails) {
+        if (!(e in profiles)) continue;
+        profiles[e] = Object.keys(teams).filter((id) => teams[id]?.includes(e));
+        n += 1;
+      }
+      return n;
+    }),
+  };
+  return { store, teams, profiles };
+}
 
 describe('handleTeamWrite', () => {
-  it('adds the team to people who joined and removes it from people who left', async () => {
-    const s = store();
+  it('reconciles everyone the write listed before or after, once each', async () => {
+    const w = world(
+      { platform: ['b@x.com', 'c@x.com'] },
+      { 'a@x.com': ['platform'], 'b@x.com': [], 'c@x.com': [] },
+    );
     const out = await handleTeamWrite(
-      s,
+      w.store,
       'platform',
       { memberEmails: ['a@x.com', 'b@x.com'] },
       { memberEmails: ['b@x.com', 'c@x.com'] },
     );
-    expect(out).toEqual({ added: 2, removed: 2 });
-    expect(s.setMembership).toHaveBeenCalledWith('platform', ['c@x.com'], true);
-    expect(s.setMembership).toHaveBeenCalledWith('platform', ['a@x.com'], false);
+    expect(out).toEqual({ count: 3 });
+    expect(w.store.reconcile).toHaveBeenCalledWith(['a@x.com', 'b@x.com', 'c@x.com']);
+    expect(w.profiles).toEqual({
+      'a@x.com': [],
+      'b@x.com': ['platform'],
+      'c@x.com': ['platform'],
+    });
   });
-  it('treats a new team as all joined and a deleted team as all left', async () => {
-    const s = store();
-    await handleTeamWrite(s, 'qa', undefined, { memberEmails: ['a@x.com'] });
-    expect(s.setMembership).toHaveBeenLastCalledWith('qa', ['a@x.com'], true);
-    await handleTeamWrite(s, 'qa', { memberEmails: ['a@x.com'] }, undefined);
-    expect(s.setMembership).toHaveBeenLastCalledWith('qa', ['a@x.com'], false);
+  it('is idempotent: replaying the same event changes nothing', async () => {
+    const w = world({ qa: ['a@x.com'] }, { 'a@x.com': [] });
+    const before = { memberEmails: [] };
+    const after = { memberEmails: ['a@x.com'] };
+    await handleTeamWrite(w.store, 'qa', before, after);
+    await handleTeamWrite(w.store, 'qa', before, after);
+    expect(w.profiles['a@x.com']).toEqual(['qa']);
   });
-  it('writes nothing when the members did not change, or the team has none', async () => {
-    const s = store();
-    const same = { memberEmails: ['a@x.com'] };
-    expect(await handleTeamWrite(s, 'qa', same, same)).toEqual({ added: 0, removed: 0 });
-    await handleTeamWrite(s, 'qa', {}, {});
-    expect(s.setMembership).not.toHaveBeenCalled();
+  it('survives out-of-order delivery: a stale join event handled after the leave still ends right', async () => {
+    const w = world({ qa: [] }, { 'a@x.com': ['qa'] });
+    await handleTeamWrite(w.store, 'qa', { memberEmails: ['a@x.com'] }, { memberEmails: [] });
+    await handleTeamWrite(w.store, 'qa', { memberEmails: [] }, { memberEmails: ['a@x.com'] });
+    expect(w.profiles['a@x.com']).toEqual([]);
+  });
+  it('skips a person with no profile yet, and does nothing for an empty write', async () => {
+    const w = world({ qa: ['new@x.com'] }, {});
+    expect(
+      await handleTeamWrite(w.store, 'qa', undefined, { memberEmails: ['new@x.com'] }),
+    ).toEqual({
+      count: 0,
+    });
+    await handleTeamWrite(w.store, 'qa', {}, undefined);
+    expect(w.store.reconcile).toHaveBeenCalledOnce();
   });
 });

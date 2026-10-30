@@ -18,7 +18,7 @@ export interface ProfileDoc {
   nameLower: string;
   photoURL: string | null;
   team: null;
-  /** `teams/` ids this email is already on, so a person added to a team before signing in has them at once. */
+  /** Starts empty; `reconcileTeams` fills it from `teams/` right after the profile exists. */
   teamIds: string[];
   roles: ['learner'];
   grantedCourseIds: [];
@@ -29,15 +29,16 @@ export interface UserStore {
   createProfile(uid: string, profile: ProfileDoc): Promise<void>;
   /** Stamps `uid` on every assignment for `email` that has none yet; returns how many. */
   claimAssignments(email: string, uid: string): Promise<number>;
-  /** The ids of the teams whose members include `email`. */
-  teamIdsFor(email: string): Promise<string[]>;
+  /**
+   * Sets `teamIds` on the profile for `email` from the teams that list it, in one transaction
+   * (the current `teams/` state, never a remembered diff). Called after the profile is created, so
+   * a team written between the two steps is never lost, and the team trigger covers the rest.
+   */
+  reconcileTeams(email: string): Promise<void>;
 }
 
 /** The profile document for a new NonStop account. The display name falls back to the email's local part. */
-export function buildProfile(
-  user: NewUser & { email: string },
-  teamIds: string[] = [],
-): ProfileDoc {
+export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
   const email = user.email.toLowerCase();
   const displayName = user.displayName?.trim() || email.split('@')[0] || email;
   return {
@@ -46,7 +47,7 @@ export function buildProfile(
     nameLower: nameKey(displayName),
     photoURL: user.photoURL ?? null,
     team: null,
-    teamIds,
+    teamIds: [],
     roles: ['learner'],
     grantedCourseIds: [],
   };
@@ -65,11 +66,11 @@ export async function handleUserCreated(
     log.debug('Sign-up ignored', { uid: user.uid, reason: 'not a verified NonStop account' });
     return { created: false, claimed: 0 };
   }
-  const profile = buildProfile(
-    { ...user, email: user.email },
-    await store.teamIdsFor(user.email.toLowerCase()),
-  );
+  const profile = buildProfile({ ...user, email: user.email });
   await store.createProfile(user.uid, profile);
+  // After, not before: the team trigger skips a person with no profile yet, so a team written
+  // before this point is read here, and one written after it finds the profile.
+  await store.reconcileTeams(profile.email);
   const claimed = await store.claimAssignments(profile.email, user.uid);
   return { created: true, claimed };
 }

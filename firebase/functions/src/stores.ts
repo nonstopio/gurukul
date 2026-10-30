@@ -39,12 +39,8 @@ export function firestoreUserStore(db: Firestore): UserStore {
         .doc(`users/${uid}`)
         .set({ ...profile, createdAt: FieldValue.serverTimestamp() }, { merge: true });
     },
-    async teamIdsFor(email) {
-      const snap = await db
-        .collection('teams')
-        .where('memberEmails', 'array-contains', email)
-        .get();
-      return snap.docs.map((d) => d.id);
+    async reconcileTeams(email) {
+      await reconcileTeamIds(db, email);
     },
     async claimAssignments(email, uid) {
       const snap = await db
@@ -61,23 +57,29 @@ export function firestoreUserStore(db: Firestore): UserStore {
   };
 }
 
-/** `TeamStore` over the Admin SDK: moves a team id on or off the profiles of the given emails. */
+/**
+ * Sets `users/{uid}.teamIds` for the profile with `email` to the teams that list it, reading them
+ * inside the transaction that writes. Returns false when the email has no profile (yet).
+ */
+async function reconcileTeamIds(db: Firestore, email: string): Promise<boolean> {
+  const found = await db.collection('users').where('email', '==', email).limit(1).get();
+  const profile = found.docs[0];
+  if (!profile) return false;
+  await db.runTransaction(async (tx) => {
+    const teams = await tx.get(
+      db.collection('teams').where('memberEmails', 'array-contains', email),
+    );
+    tx.update(profile.ref, { teamIds: teams.docs.map((d) => d.id) });
+  });
+  return true;
+}
+
+/** `TeamStore` over the Admin SDK. A team lists at most 500 people, so one write is at most 500 small transactions. */
 export function firestoreTeamStore(db: Firestore): TeamStore {
   return {
-    async setMembership(teamId, emails, on) {
+    async reconcile(emails) {
       let count = 0;
-      for (const part of chunk(emails, 30)) {
-        const snap = await db.collection('users').where('email', 'in', part).get();
-        if (snap.empty) continue;
-        const batch = db.batch();
-        for (const d of snap.docs) {
-          batch.update(d.ref, {
-            teamIds: on ? FieldValue.arrayUnion(teamId) : FieldValue.arrayRemove(teamId),
-          });
-        }
-        await batch.commit();
-        count += snap.size;
-      }
+      for (const email of emails) if (await reconcileTeamIds(db, email)) count += 1;
       return count;
     },
   };
@@ -236,6 +238,9 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
 /** `GradingStore` over the Admin SDK. Kept thin: the decisions live in `grading.ts`. */
 export function firestoreGradingStore(db: Firestore): GradingStore {
   return {
+    async getTeamIds(uid) {
+      return ((await db.doc(`users/${uid}`).get()).get('teamIds') ?? []) as string[];
+    },
     async getCourse(courseId) {
       return (await db.doc(`courses/${courseId}`).get()).data();
     },

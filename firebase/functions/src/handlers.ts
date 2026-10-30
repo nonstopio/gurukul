@@ -72,13 +72,17 @@ function requireVerified(request: AuthedRequest): Caller {
 
 const requireLearner = (request: AuthedRequest): string => requireVerified(request).uid;
 
+/** Educators and Admins open every course, so grading skips the team lookup for them. */
+const isStaff = (request: AuthedRequest): boolean =>
+  request.auth?.token.educator === true || request.auth?.token.admin === true;
+
 /** `checkAnswer`: right or wrong for one question of a Quiz that reveals after each answer. */
 export async function handleCheckAnswer(
   request: AuthedRequest,
   store: GradingStore,
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
   const uid = requireLearner(request);
-  return checkAnswer(store, uid, asObject(request.data));
+  return checkAnswer(store, uid, asObject(request.data), isStaff(request));
 }
 
 /** `gradeAttempt`: scores and records one Quiz attempt. */
@@ -88,7 +92,7 @@ export async function handleGradeAttempt(
   now: () => number,
 ): Promise<AttemptResult> {
   const uid = requireLearner(request);
-  return gradeAttempt(store, uid, asObject(request.data), now());
+  return gradeAttempt(store, uid, asObject(request.data), now(), isStaff(request));
 }
 
 /** `revokeCertificate`: Admin-only; revokes (or restores) a certificate and audits it. */

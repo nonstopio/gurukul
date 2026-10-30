@@ -46,8 +46,12 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
   course counts as `public`). Rollback keeps the live course's visibility. The function writes
   both fields into `courses/{id}` with every release, and a version snapshot keeps them.
 - **Who is on a team** is `users/{uid}.teamIds`: the `onTeamWritten` function copies each
-  `teams/{id}` write onto the profiles of the emails that joined or left (and `onUserCreated`
-  fills it for a person added to a team before their first sign-in). A person cannot write it, so
+  `teams/{id}` write onto the profiles of everyone the write listed before or after: each profile is
+  reset, in a transaction, to the teams that list its email **now**, never to a diff, so retried or
+  reordered trigger events cannot leave it wrong. `onUserCreated` creates the profile first and
+  then reconciles it the same way, so a team written in between is not lost (a person with no
+  profile yet is skipped by the trigger and picked up there). The `checkAnswer` and `gradeAttempt`
+  callables apply the same `canOpen` rule on the server, so an id sent by hand opens nothing. A person cannot write it, so
   they cannot pick their way into a team's courses; `users.team` (the self-chosen name) is not used
   for access. Team names reach Studio through `config/org.teams` (readable by every signed-in
   person), so `teams/` stays Admin-only and member emails are never exposed.

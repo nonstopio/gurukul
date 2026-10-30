@@ -28,8 +28,8 @@ const store = firestoreTeamStore(db);
 for (const t of teams.docs) {
   const members = t.get('memberEmails') ?? [];
   if (apply) {
-    const { added } = await handleTeamWrite(store, t.id, undefined, { memberEmails: members });
-    console.log(`team ${t.id}: ${added} of ${members.length} members have a profile.`);
+    const { count } = await handleTeamWrite(store, t.id, undefined, { memberEmails: members });
+    console.log(`team ${t.id}: ${count} of ${members.length} members have a profile.`);
   } else {
     console.log(`team ${t.id}: ${members.length} members would be synced.`);
   }

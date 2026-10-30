@@ -96,7 +96,7 @@ export const onProgressWritten = onDocumentWritten('progress/{progressId}', asyn
 /** A team's members changed: keep each member's `teamIds` (what a course's team visibility reads) in step. */
 export const onTeamWritten = onDocumentWritten('teams/{teamId}', async (event) => {
   await runLogged(
-    { done: 'Team membership synced', failed: 'Team membership sync failed' },
+    { done: 'Team membership reconciled', failed: 'Team membership reconcile failed' },
     { teamId: event.params.teamId },
     () =>
       handleTeamWrite(
@@ -105,7 +105,7 @@ export const onTeamWritten = onDocumentWritten('teams/{teamId}', async (event) =
         event.data?.before.data(),
         event.data?.after.data(),
       ),
-    (r) => ({ fields: { added: r.added, removed: r.removed } }),
+    (r) => ({ fields: { count: r.count } }),
   );
 });
 
