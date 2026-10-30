@@ -22,6 +22,7 @@ import {
   EmptyState,
   FilterBar,
   FunnelBar,
+  GlobalLoader,
   Input,
   LayoutPicker,
   Menu,
@@ -740,6 +741,15 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       >
         Courses you are assigned appear here.
       </EmptyState>
+    ),
+  },
+  GlobalLoader: {
+    rule: 'A region or blocked operation whose layout is unknown: one label saying what is happening; a Skeleton whenever the layout is known.',
+    Example: () => (
+      <div className="ds-stack">
+        <GlobalLoader label="Loading media" hint="Taking longer than usual…" />
+        <GlobalLoader label="Saving" variant="inline" />
+      </div>
     ),
   },
   Skeleton: {

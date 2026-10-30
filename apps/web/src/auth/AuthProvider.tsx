@@ -3,6 +3,7 @@ import type { LabelSet, Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthService, AuthUser, SignInOptions } from './service';
+import { hideBootLoader } from '../boot';
 import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
@@ -72,6 +73,11 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [error, setError] = useState<string | null>(null);
   const [wrongAccount, setWrongAccount] = useState(false);
   const stopProfile = useRef<() => void>(() => {});
+
+  // The boot loader in index.html stays until the session is known.
+  useEffect(() => {
+    if (status !== 'loading') hideBootLoader();
+  }, [status]);
 
   useEffect(() => {
     service.finishRedirect().catch((e: unknown) => {

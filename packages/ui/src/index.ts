@@ -34,6 +34,8 @@ export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+export { GlobalLoader } from './GlobalLoader';
+export type { GlobalLoaderProps, GlobalLoaderVariant } from './GlobalLoader';
 export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 export { ToastProvider, useToast } from './Toast';
@@ -101,6 +103,7 @@ export {
   LockIcon,
   LogOutIcon,
   MenuIcon,
+  MoonIcon,
   MoreIcon,
   PenIcon,
   PlayIcon,
@@ -109,6 +112,7 @@ export {
   SettingsIcon,
   ShieldIcon,
   SparkIcon,
+  SunIcon,
   StarIcon,
   TextIcon,
   TrashIcon,

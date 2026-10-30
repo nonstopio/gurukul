@@ -31,7 +31,7 @@ const GROUPS: ReadonlyArray<readonly [string, SampleKind, RegExp]> = [
     'colour',
     /^--(bg|surface|border|scrim)|^--text(-(body|muted|subtle))?$/,
   ],
-  ['Accent', 'colour', /^--accent/],
+  ['Accent', 'colour', /^--(accent|saffron)/],
   ['Chrome and covers', 'colour', /^--(chrome|cover)/],
   ['People', 'colour', /^--avatar/],
   ['State', 'colour', /^--(success|warning|danger|info)/],

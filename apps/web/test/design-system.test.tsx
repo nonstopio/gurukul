@@ -45,7 +45,7 @@ describe('Design system: tokens', () => {
     const declared = css.slice(0, css.indexOf('@media')).match(/^\s*--[\w-]+:/gm) ?? [];
     expect(tokens).toHaveLength(declared.length);
     expect(tokens[0]?.name).toBe('--g-green-50');
-    expect(tokens.find((t) => t.name === '--dur-base')?.value).toBe('200ms');
+    expect(tokens.find((t) => t.name === '--dur-base')?.value).toBe('240ms');
     expect(tokens.find((t) => t.name === '--text-xs')?.value).toBe('0.75rem');
     expect(groupTokens(tokens).map((g) => g.label)).not.toContain('Other');
   });
@@ -72,7 +72,7 @@ describe('Design system: tokens', () => {
     }
     const accent = screen.getByRole('region', { name: 'Accent' });
     expect(within(accent).getByText('--accent')).toBeTruthy();
-    expect(within(accent).getByText('var(--g-green-700)')).toBeTruthy();
+    expect(within(accent).getByText('#0a6a46')).toBeTruthy();
     expect(screen.getByText('Roles, not scale steps')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
 

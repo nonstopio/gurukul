@@ -9,6 +9,7 @@ import {
   ImageIcon,
   LanguagesIcon,
   LogOutIcon,
+  MoonIcon,
   NavItem,
   PenIcon,
   SendIcon,
@@ -17,6 +18,7 @@ import {
   Sidebar,
   SidebarGroup,
   SparkIcon,
+  SunIcon,
   UserCard,
   UserIcon,
   UsersIcon,
@@ -43,6 +45,7 @@ import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
+import { nextTheme, useTheme } from './theme';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -131,6 +134,8 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   );
 }
 
+const THEME_LABEL = { system: 'System', light: 'Light', dark: 'Dark' } as const;
+
 /** The sidebar icon for each page, by its navigation id. A page without one shows none. */
 const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   home: HomeIcon,
@@ -173,6 +178,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const saveLabels = useSaveLabels();
+  const [theme, setTheme] = useTheme();
   const t = useTerms();
   const groups = useMemo(
     () => groupByArea(destinationsFor(areas, roles).map((d) => localizePage(d, t))),
@@ -206,6 +212,12 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
                   label: nextLabels === 'gurukul' ? 'Use Gurukul names' : 'Use plain English names',
                   icon: <LanguagesIcon />,
                   onSelect: () => void saveLabels(nextLabels),
+                },
+                {
+                  label: 'Theme',
+                  hint: THEME_LABEL[theme],
+                  icon: theme === 'dark' ? <MoonIcon /> : <SunIcon />,
+                  onSelect: () => setTheme(nextTheme(theme)),
                 },
                 {
                   label: "What's new",
