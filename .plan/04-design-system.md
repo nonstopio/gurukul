@@ -32,7 +32,7 @@ gold" surface. The full system, with live previews, is the "Gurukul Design Syste
 | M1 | Chip, ProgressBar, ProgressRing, Card, Sidebar + NavItem, TopBar, Field (Input, Select, Textarea), Toggle, Tabs, Callout, EmptyState, Skeleton, Toast |
 | M2 | CodeBlock (copy, highlight, terminal), VideoBlock (YouTube/Drive/Loom with captions), QuizOption, ResultRow, Breadcrumb |
 | M3 | Certificate, Seal, StatCard, BarChart (SVG, no chart library), FunnelBar |
-| M4 | DataTable (selection, pagination, sticky header), EmailChipInput, Stepper, Dialog |
+| M4 | DataTable (selection, pagination, sticky header), PeoplePicker (also takes emails), Stepper, Dialog |
 | M5 | DragList (keyboard reorderable), BlockFrame, ColourSwatch |
 
 Each component ships with: a recipe in `references/components.md`, tests for

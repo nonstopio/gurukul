@@ -26,7 +26,7 @@ test.describe('Admin', () => {
 
     // Paste the addresses (and one personal address that must be refused) into the chip box.
     await page.getByRole('button', { name: 'People' }).click();
-    await page.getByLabel('Email addresses').evaluate(
+    await page.getByRole('combobox', { name: 'Add people' }).evaluate(
       (input, text) => {
         const data = new DataTransfer();
         data.setData('text', text);
@@ -37,7 +37,7 @@ test.describe('Admin', () => {
       [...invitees, 'someone@gmail.com'].join('\n'),
     );
 
-    const chips = page.getByRole('list', { name: 'Email addresses: added emails' });
+    const chips = page.getByRole('list', { name: 'Add people: added people' });
     for (const email of invitees) {
       await expect(chips.getByRole('listitem').filter({ hasText: email })).toContainText('new');
     }
@@ -79,15 +79,15 @@ test.describe('Admin', () => {
     await page.getByRole('main').getByRole('button', { name: 'Create team' }).first().click();
     const dialog = page.getByRole('dialog', { name: 'Create team' });
     await dialog.getByLabel('Team name').fill('Mobile');
-    await dialog.getByLabel('Members').fill('new.joiner@nonstopio.com ');
+    await dialog.getByRole('combobox', { name: 'Members' }).fill('new.joiner@nonstopio.com ');
     await expect(dialog.getByText('new.joiner@nonstopio.com')).toBeVisible();
     await dialog.getByRole('button', { name: 'Create team' }).click();
     await expect(page.getByText('Created Mobile')).toBeVisible();
 
     await page.getByRole('main').getByRole('button', { name: 'Create team' }).click();
     await dialog.getByLabel('Team name').fill('Quality');
-    await dialog.getByLabel('Create empty team').check();
-    await dialog.getByRole('button', { name: 'Create empty team' }).click();
+    await dialog.getByRole('combobox', { name: 'Members' }).fill('qa.lead@nonstopio.com ');
+    await dialog.getByRole('button', { name: 'Create team' }).click();
     await expect(page.getByText('Created Quality')).toBeVisible();
     await expectNoSeriousViolations(page);
 

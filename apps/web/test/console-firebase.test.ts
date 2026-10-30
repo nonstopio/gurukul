@@ -272,6 +272,7 @@ describe('users', () => {
       uid: 'u9',
       email: '',
       displayName: '',
+      photoURL: null,
       team: null,
       roles: ['learner'],
       grantedCourseIds: [],

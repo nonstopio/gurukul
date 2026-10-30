@@ -17,7 +17,7 @@ const PATH = '/admin/teams';
 
 const dialog = () => screen.getByRole('dialog');
 const paste = (text: string) =>
-  fireEvent.paste(within(dialog()).getByLabelText('Members'), {
+  fireEvent.paste(within(dialog()).getByRole('combobox', { name: 'Members' }), {
     clipboardData: { getData: () => text },
   });
 const nameField = () => within(dialog()).getByLabelText('Team name');
@@ -77,7 +77,7 @@ describe('Create team', () => {
     );
     fireEvent.change(nameField(), { target: { value: '  Mobile ' } });
     paste('a@nonstopio.com, new@nonstopio.com\nnope@gmail.com');
-    const chips = within(dialog()).getByRole('list', { name: 'Members: added emails' });
+    const chips = within(dialog()).getByRole('list', { name: 'Members: added people' });
     await waitFor(() => expect(chips.textContent).toContain('a@nonstopio.com· signed in'));
     expect(chips.textContent).toContain('new@nonstopio.com· invited');
     expect(chips.textContent).toContain('nope@gmail.com· Not an @nonstopio.com address');
@@ -104,7 +104,7 @@ describe('Create team', () => {
     expect(c.data.teamList).toHaveBeenCalledTimes(2);
   });
 
-  it('wants a name, a unique name and at least one member unless told it may be empty', async () => {
+  it('wants a name, a unique name and at least one member', async () => {
     const c = fakeConsole({ teamList: [platform] });
     await openApp(PATH, { ...admin, console: c });
     fireEvent.click(
@@ -124,16 +124,13 @@ describe('Create team', () => {
     ).toBeTruthy();
     fireEvent.change(nameField(), { target: { value: 'Quality' } });
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
-    expect(
-      await within(dialog()).findByText('Add at least one member, or tick Create empty team.'),
-    ).toBeTruthy();
+    expect(await within(dialog()).findByText('Add at least one member.')).toBeTruthy();
     expect(c.data.saveTeam).not.toHaveBeenCalled();
-
-    fireEvent.click(within(dialog()).getByLabelText('Create empty team'));
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create empty team' }));
+    paste('a@nonstopio.com');
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
     await waitFor(() =>
       expect(c.data.saveTeam).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'quality', memberEmails: [] }),
+        expect.objectContaining({ id: 'quality', memberEmails: ['a@nonstopio.com'] }),
         null,
       ),
     );
@@ -159,8 +156,8 @@ describe('Create team', () => {
       (await screen.findAllByRole('button', { name: 'Create team' }))[0] as HTMLElement,
     );
     fireEvent.change(nameField(), { target: { value: 'Mobile' } });
-    fireEvent.click(within(dialog()).getByLabelText('Create empty team'));
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create empty team' }));
+    paste('a@nonstopio.com');
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
     expect(await screen.findByText('Could not save the team. Try again.')).toBeTruthy();
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
@@ -173,7 +170,6 @@ describe('Edit and delete', () => {
     const c = fakeConsole({ teamList: [platform] });
     await openApp(PATH, { ...admin, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Platform' }));
-    expect(within(dialog()).queryByLabelText('Create empty team')).toBeNull();
     expect(nameField()).toHaveProperty('value', 'Platform');
     fireEvent.change(nameField(), { target: { value: 'Platform' } });
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Remove b@nonstopio.com' }));
@@ -194,10 +190,14 @@ describe('Edit and delete', () => {
     expect(await screen.findByText('Saved Cloud')).toBeTruthy();
   });
 
-  it('may empty a team on edit, and stamps a team that had no document yet', async () => {
+  it('wants a member on edit too, and stamps a team that had no document yet', async () => {
     const c = fakeConsole({ teamList: [bare] });
     await openApp(PATH, { ...admin, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit QA' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    expect(await within(dialog()).findByText('Add at least one member.')).toBeTruthy();
+    expect(c.data.saveTeam).not.toHaveBeenCalled();
+    paste('q@nonstopio.com');
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
     await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
     const [saved, previous] = vi.mocked(c.data.saveTeam).mock.calls[0] as [Team, string | null];

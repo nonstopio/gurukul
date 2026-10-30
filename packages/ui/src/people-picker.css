@@ -34,11 +34,39 @@
   align-items: center;
   gap: var(--space-1);
   min-height: 32px;
-  padding: 0 var(--space-1) 0 var(--space-3);
+  padding: 0 var(--space-1) 0 var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-soft-text);
   font: 600 var(--text-sm) / 1 var(--font-ui);
+}
+.g-people__chip--signedIn {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.g-people__chip--new {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text-body);
+}
+.g-people__chip--alreadyAssigned {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+.g-people__chip--rejected {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px var(--danger-line);
+  color: var(--danger);
+}
+.g-people__status {
+  font-weight: 600;
+}
+.g-people__footer {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font: 500 var(--text-xs) / var(--leading-snug) var(--font-ui);
 }
 .g-people__remove {
   position: relative;

@@ -4,7 +4,6 @@ import {
   Button,
   ChoiceCard,
   Dialog,
-  EmailChipInput,
   EmptyState,
   Input,
   PlusIcon,
@@ -13,13 +12,13 @@ import {
   UsersIcon,
   useToast,
 } from '@gurukul/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { toastError } from '../errors';
-import { useDebounced } from '../data/useDebounced';
 import type { Loadable } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
-import { MAX_MEMBERS, SEARCH_DELAY_MS, checkTeamName, searchPrefix } from './model';
-import type { ConsoleData, UserRow } from './types';
+import { PeopleField } from './PeopleField';
+import { MAX_MEMBERS, checkTeamName } from './model';
+import type { ConsoleData } from './types';
 
 export type AudienceMode = 'teams' | 'people';
 
@@ -33,8 +32,11 @@ const MODES = [
 
 const stamp = () => Date.now();
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const newTeamClassifier = (email: string) =>
-  classifyEmails([email], { signedIn: new Set(), assigned: new Set() })[0] as ClassifiedEmail;
+/** A new team's chips say something only when an address cannot be a member. */
+const newTeamClassifier = (email: string) => {
+  const [c] = classifyEmails([email], { signedIn: new Set(), assigned: new Set() });
+  return c?.status === 'rejected' ? c : null;
+};
 
 /**
  * Step two of Assign: who gets the courses, either whole teams or a list of people, never both.
@@ -112,7 +114,7 @@ export function AudienceStep({
           onTeamNames={onTeamNames}
         />
       ) : (
-        <PeoplePicker data={data} emails={emails} onEmails={onEmails} classify={classify} />
+        <PeopleMode data={data} emails={emails} onEmails={onEmails} classify={classify} />
       )}
       <p className="console-muted" aria-live="polite">
         {summary}
@@ -181,6 +183,10 @@ function TeamsPicker({
     if (teams.some((x) => x.id === teamId(named.name))) {
       return setProblem('A team with a very similar name exists. Use a different name.');
     }
+    if (members.length === 0) return setProblem('Add at least one member.');
+    if (members.some((m) => newTeamClassifier(m)?.status === 'rejected')) {
+      return setProblem('Fix or remove the addresses marked rejected.');
+    }
     if (members.length > MAX_MEMBERS)
       return setProblem(`A team holds at most ${MAX_MEMBERS} people.`);
     setBusy(true);
@@ -237,11 +243,13 @@ function TeamsPicker({
             {creating ? (
               <div className="console-new-team">
                 <Input label="Team name" value={name} onChange={(e) => setName(e.target.value)} />
-                <EmailChipInput
-                  label="Members (optional)"
-                  value={members}
-                  onChange={setMembers}
+                <PeopleField
+                  data={data}
+                  label="Members"
+                  emails={members}
+                  onEmails={setMembers}
                   classify={newTeamClassifier}
+                  placeholder="Search by name, or paste emails"
                 />
                 {problem ? (
                   <p role="alert" className="console-problem">
@@ -298,7 +306,7 @@ function TeamsPicker({
   );
 }
 
-function PeoplePicker({
+function PeopleMode({
   data,
   emails,
   onEmails,
@@ -309,118 +317,23 @@ function PeoplePicker({
   onEmails: (emails: string[]) => void;
   classify: (email: string) => ClassifiedEmail;
 }) {
-  const [query, setQuery] = useState('');
-  const prefix = searchPrefix(useDebounced(query, SEARCH_DELAY_MS));
-  const [browse, setBrowse] = useState<{
-    rows: UserRow[];
-    next: string | null;
-    total: number | null;
-    failed: boolean;
-  }>({ rows: [], next: null, total: null, failed: false });
-  const [answer, setAnswer] = useState<{ prefix: string; rows: UserRow[] } | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const latest = useRef(0);
   const [dragging, setDragging] = useState(false);
-
-  // The first ten people, and how many there are, before anything is typed.
-  useEffect(() => {
-    let live = true;
-    Promise.all([data.usersPage(null, PAGE), data.userCount()]).then(
-      ([page, total]) =>
-        live && setBrowse({ rows: page.rows, next: page.nextCursor, total, failed: false }),
-      () => live && setBrowse((b) => ({ ...b, failed: true })),
-    );
-    return () => {
-      live = false;
-    };
-  }, [data]);
-
-  // A typed search answers instead; only the newest question's answer is shown.
-  useEffect(() => {
-    const mine = ++latest.current;
-    if (!prefix) return;
-    void data.searchUsers(prefix).then((rows) => {
-      if (mine === latest.current) setAnswer({ prefix, rows });
-    });
-  }, [data, prefix]);
-
-  const more = async () => {
-    setLoadingMore(true);
-    try {
-      const page = await data.usersPage(browse.next, PAGE);
-      setBrowse((b) => ({ ...b, rows: [...b.rows, ...page.rows], next: page.nextCursor }));
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const toggle = (email: string, on: boolean) =>
-    onEmails(on ? [...new Set([...emails, email])] : emails.filter((e) => e !== email));
   const readCsv = async (file: File | undefined) => {
     if (file) onEmails([...new Set([...emails, ...parseCsvEmails(await file.text())])]);
   };
-
-  // An answer counts only for the text it was asked about.
-  const found = prefix && answer?.prefix === prefix ? answer.rows : null;
-  const rows = found ?? browse.rows;
-  const searching = found !== null || (query.trim().length >= 2 && prefix === '');
   return (
     <>
-      <Input
-        label="Search people"
-        hideLabel
-        type="search"
-        placeholder="Search people by name or email"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <p className="console-muted" aria-live="polite">
-        {found !== null
-          ? `${plural(found.length, 'match', 'matches')} for “${query.trim()}”`
-          : browse.total === null
-            ? browse.failed
-              ? 'The list of people did not load. You can still add emails below.'
-              : 'Counting people…'
-            : `Showing ${rows.length} of ${plural(browse.total, 'person', 'people')}`}
-        {emails.length > 0 ? ` · ${emails.length} selected` : ''}
-      </p>
-      {rows.length === 0 && browse.total !== null && !searching ? (
-        <EmptyState title="Nobody has signed in yet">
-          Add the emails of the people you want to invite below.
-        </EmptyState>
-      ) : found !== null && found.length === 0 ? (
-        <EmptyState title={`No one matches “${query.trim()}”`}>
-          Not signed in yet? Add their email below and they are invited.
-        </EmptyState>
-      ) : (
-        <ul className="console-choice-grid">
-          {rows.map((u) => (
-            <ChoiceCard
-              key={u.uid}
-              icon={<UserIcon />}
-              title={u.displayName || u.email}
-              meta={u.displayName ? u.email : undefined}
-              selectLabel={u.email}
-              selected={emails.includes(u.email)}
-              onSelectedChange={(on) => toggle(u.email, on)}
-            />
-          ))}
-        </ul>
-      )}
-      {found === null && browse.next ? (
-        <Button variant="ghost" loading={loadingMore} onClick={() => void more()}>
-          Show more people
-        </Button>
-      ) : null}
-      <EmailChipInput
-        label="Email addresses"
-        value={emails}
-        onChange={onEmails}
+      <PeopleField
+        data={data}
+        label="Add people"
+        emails={emails}
+        onEmails={onEmails}
         classify={classify}
+        placeholder="Search by name or email, or paste a list of emails"
       />
       <p className="console-muted">
-        Everyone you pick appears above. Paste more emails, commas or new lines, to invite people
-        who have not signed in yet.
+        Pick people from the list, or paste emails to invite people who have not signed in yet:
+        commas, spaces or new lines all work.
       </p>
       <div className={dragging ? 'console-dropzone console-dropzone--over' : 'console-dropzone'}>
         <p>Drop a CSV file here, or choose one.</p>

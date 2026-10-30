@@ -169,36 +169,30 @@ empty. `footer` goes under a hairline.
 `<Pagination page pageSize total onPageChange label? />` is the footer: `<nav>` with a live "Showing 1–25
 of 148" and secondary Previous / Next buttons (disabled at the ends). Pages start at 1.
 
-## EmailChipInput — shipped
-
-`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? statusWords? />`. A labelled text
-input in a bordered box; emails become removable chips. Typing a comma, space, semicolon or newline,
-pressing Enter, pasting, or leaving the field commits what is typed: split on those separators,
-lower-cased, duplicates dropped. Backspace on an empty input removes the last chip. `value` and
-`onChange` are controlled; `splitEmails(text)` is exported for CSV and "whole team" flows.
-
-The caller supplies `classify(email) => { status, reason? }` and writes the legend (point
-`describedBy` at it). Each chip says its status in words: `signedIn` `--accent-soft` "· signed in",
-`new` dashed `--border-strong` "· new", `alreadyAssigned` `--surface-sunken` "· already assigned",
-`rejected` `--danger-soft` with `--danger-line` and "· {reason}" (default "rejected"). The remove button
-is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. `statusWords` swaps the
-words a status shows (the team dialog says "Invited" for `new`). The list is named
-"{label}: added emails". Focus ring on the box.
-
 ## PeoplePicker — shipped
 
-`<PeoplePicker label value onChange search placeholder? removeLabel? />`; `Person` is
-`{ email, name?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
-`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"`
-`aria-multiselectable`. The caller owns `value` and `search(query) => Promise<Person[]>` (debounce and
-minimum length are its job); only the newest answer is shown. Choosing a row **adds a chip, clears
-the text, closes the list and keeps focus**; ArrowDown reopens, Backspace on an empty field removes
-the last chip, Escape closes the list (and stops there, so a Dialog around it stays open), Enter picks
-the active row. Rows are `Avatar`, name, email and role with the match in `<mark>` (`--saffron-soft`),
-and people already chosen say "Added". The list sits 4px under the field (`--shadow-menu`,
-`--radius-lg`, `--z-menu`, at most 22rem tall). A polite `role="status"` says "N people match".
-Chips are named "Remove {name}". Use it where a person is chosen; never leave the list open or the
-typed text behind after a pick.
+The one way to pick people, everywhere: a Jira-style typeahead. `<PeoplePicker label value onChange search
+placeholder? removeLabel? allowEmails? classify? statusWords? total? describedBy? />`; `Person` is `{ email,
+name?, photoUrl?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
+`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` `aria-multiselectable`.
+**Focus lists the first people** (`search('')`); typing narrows by name or email. Rows are `Avatar` with the
+person's **photo** (initials when none), name, email and role, the match in `<mark>` (`--saffron-soft`), and
+"Added" for people already chosen; with `total`, a footer says "Showing 10 of 42 people". The caller owns
+`value` and `search(query) => Promise<Person[]>` (debounce and minimum length are its job); only the newest
+answer is shown. Choosing a row **adds a chip, clears the text, closes the list and keeps focus**; ArrowDown
+reopens, Backspace on an empty field removes the last chip, Escape closes the list (and stops there, so a
+Dialog around it stays open), Enter picks the active row.
+
+`allowEmails` is for someone who has not signed in yet: an email typed (then comma, `;` or a space) or pasted
+becomes a chip, a typed email nobody has is offered as "Add “x@y.com”", and an email left in the field on blur
+is kept; a name with spaces is never split. `classify(email) => { status, reason? } | null` makes each chip say
+what it means in words (`signedIn` `--accent-soft`, `new` hairline, `alreadyAssigned` `--surface-sunken`,
+`rejected` `--danger-soft`; `null` says nothing); `statusWords` changes the words ("new" → "Invited").
+`splitEmails(text)` is exported for CSV flows. Chips are named "Remove {name}" and listed as "{label}: added
+people". In `apps/web`, `PeopleField` wires it to the console's people (`usePeopleLookup`: first ten, then
+prefix search) and keeps plain emails for the page. Use it wherever a person or several are chosen (assign,
+team members); never a bare email box, never a checkbox list of everyone. The list sits 4px under the field
+(`--shadow-menu`, `--radius-lg`, `--z-menu`, at most 22rem tall).
 
 ## StepCard (Stepper.Step) — shipped
 

@@ -42,7 +42,7 @@ const back = () => fireEvent.click(screen.getByRole('button', { name: 'Back' }))
 const heading = (name: string) => screen.findByRole('heading', { level: 2, name });
 
 async function addEmails(...emails: string[]) {
-  const input = screen.getByLabelText('Email addresses');
+  const input = screen.getByRole('combobox', { name: 'Add people' });
   for (const e of emails) {
     fireEvent.change(input, { target: { value: e } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -211,48 +211,29 @@ describe('Assign: audience step, people', () => {
     expect(await screen.findByText(/1 person will be assigned\./)).toBeTruthy();
   });
 
-  it('shows the first people and how many there are, and picks them with a click', async () => {
-    const users = Array.from({ length: 4 }, (_, i) =>
-      userRow(i + 1, { displayName: `Person ${i + 1}`, email: `p${i + 1}@nonstopio.com` }),
-    );
+  it('lists the first people with their photos and how many there are, and picks one with a click', async () => {
+    const users = [
+      userRow(1, { displayName: 'Person 1', email: 'p1@nonstopio.com', photoURL: '/p1.png' }),
+      userRow(2, { displayName: 'Person 2', email: 'p2@nonstopio.com' }),
+    ];
     const c = setup({ users, count: 25 });
-    c.data.usersPage = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: users.slice(0, 3), nextCursor: 'c1' })
-      .mockResolvedValueOnce({ rows: users.slice(3), nextCursor: null });
     await open(c);
     await toAudience();
     people();
-    expect(await screen.findByText('Showing 3 of 25 people')).toBeTruthy();
+    const box = screen.getByRole('combobox', { name: 'Add people' });
+    fireEvent.focus(box);
+    expect(await screen.findByText('Showing 2 of 25 people')).toBeTruthy();
     expect(c.data.usersPage).toHaveBeenCalledWith(null, 10);
-    fireEvent.click(screen.getByLabelText('p1@nonstopio.com'));
-    expect(await screen.findByText(/1 selected/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Show more people' }));
-    expect(await screen.findByText('Person 4')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Show more people' })).toBeNull();
-    fireEvent.click(screen.getByLabelText('p1@nonstopio.com'));
-    expect(screen.queryByText(/1 selected/)).toBeNull();
+    expect(document.querySelector('.g-people__option img')?.getAttribute('src')).toBe('/p1.png');
+    fireEvent.mouseDown(screen.getByRole('option', { name: /Person 1/ }));
+    const added = screen.getByRole('list', { name: 'Add people: added people' });
+    expect(added.textContent).toContain('Person 1');
+    expect(await screen.findByText(/1 person will be assigned/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Person 1' }));
+    expect(await screen.findByText(/0 people will be assigned/)).toBeTruthy();
   });
 
-  it('says so when nobody has signed in or the list will not load', async () => {
-    await open(setup({ users: [], count: 0 }));
-    await toAudience();
-    people();
-    expect(await screen.findByRole('heading', { name: 'Nobody has signed in yet' })).toBeTruthy();
-  });
-
-  it('keeps working when the list of people fails to load', async () => {
-    const c = setup();
-    c.data.usersPage = vi.fn().mockRejectedValue(new Error('x'));
-    await open(c);
-    await toAudience();
-    people();
-    expect(await screen.findByText(/did not load/)).toBeTruthy();
-    await addEmails('a@nonstopio.com');
-    expect(await screen.findByText(/1 person will be assigned\./)).toBeTruthy();
-  });
-
-  it('searches people from two characters and counts the matches', async () => {
+  it('searches people from two characters, offers an email nobody has, and invites it', async () => {
     const c = setup({
       found: [
         userRow(7, { displayName: 'Ravi', email: 'ravi@nonstopio.com' }),
@@ -262,20 +243,22 @@ describe('Assign: audience step, people', () => {
     await open(c);
     await toAudience();
     people();
-    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    const box = screen.getByRole('combobox', { name: 'Add people' });
     fireEvent.change(box, { target: { value: 'r' } });
     await new Promise((r) => setTimeout(r, 350));
     expect(c.data.searchUsers).not.toHaveBeenCalled();
     fireEvent.change(box, { target: { value: 'rav' } });
-    expect(await screen.findByText('2 matches for “rav”')).toBeTruthy();
+    const ravi = await screen.findByRole('option', { name: /Ravi/ });
     expect(c.data.searchUsers).toHaveBeenCalledWith('rav');
-    fireEvent.click(screen.getByLabelText('ravi@nonstopio.com'));
-    fireEvent.click(screen.getByLabelText('sam@nonstopio.com'));
-    const added = screen.getByRole('list', { name: 'Email addresses: added emails' });
-    await waitFor(() => expect(added.textContent).toContain('ravi@nonstopio.com'));
+    fireEvent.mouseDown(ravi);
+    fireEvent.change(box, { target: { value: 'sam' } });
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /sam@nonstopio.com/ }));
+    fireEvent.change(box, { target: { value: 'guest@nonstopio.com' } });
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Add “guest@nonstopio.com”/ }));
+    const added = screen.getByRole('list', { name: 'Add people: added people' });
+    expect(added.textContent).toContain('Ravi');
     expect(added.textContent).toContain('sam@nonstopio.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Remove ravi@nonstopio.com' }));
-    await waitFor(() => expect(added.textContent).not.toContain('ravi@nonstopio.com'));
+    expect(added.textContent).toContain('guest@nonstopio.com');
   });
 
   it('shows only the answer to the newest search', async () => {
@@ -288,25 +271,24 @@ describe('Assign: audience step, people', () => {
     await open(c);
     await toAudience();
     people();
-    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    const box = screen.getByRole('combobox', { name: 'Add people' });
     fireEvent.change(box, { target: { value: 'ri' } });
     await waitFor(() => expect(c.data.searchUsers).toHaveBeenCalledWith('ri'));
     fireEvent.change(box, { target: { value: 'rit' } });
-    expect(await screen.findByText('1 match for “rit”')).toBeTruthy();
+    expect(await screen.findByRole('option', { name: /Rita/ })).toBeTruthy();
     slow([userRow(6, { displayName: 'Stale', email: 'stale@nonstopio.com' })]);
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByText('Stale')).toBeNull();
-    expect(screen.getByText('Rita')).toBeTruthy();
   });
 
   it('says no one matches, and that an email can still invite them', async () => {
     await open(setup({ found: [] }));
     await toAudience();
     people();
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search people' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add people' }), {
       target: { value: 'zzz' },
     });
-    expect(await screen.findByRole('heading', { name: 'No one matches “zzz”' })).toBeTruthy();
+    expect(await screen.findByText('No one matches “zzz”')).toBeTruthy();
   });
 
   it('reads a CSV, ignores an empty file choice, and shows the drop zone over a drag', async () => {
@@ -441,7 +423,7 @@ describe('Assign: audience step, teams', () => {
     await screen.findByRole('heading', { name: 'No teams yet' });
     fireEvent.click(screen.getByRole('button', { name: 'New team' }));
     fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Mobile' } });
-    const members = screen.getByLabelText('Members (optional)');
+    const members = screen.getByRole('combobox', { name: 'Members' });
     fireEvent.change(members, { target: { value: 'a@nonstopio.com' } });
     fireEvent.keyDown(members, { key: 'Enter' });
     fireEvent.click(screen.getByRole('button', { name: 'Create team' }));
@@ -477,7 +459,14 @@ describe('Assign: audience step, teams', () => {
       'A team with a very similar name exists. Use a different name.',
     );
     fireEvent.change(name, { target: { value: 'Huge' } });
-    const members = screen.getByLabelText('Members (optional)');
+    create();
+    expect(problem()?.textContent).toBe('Add at least one member.');
+    const members = screen.getByRole('combobox', { name: 'Members' });
+    fireEvent.change(members, { target: { value: 'nobody' } });
+    fireEvent.keyDown(members, { key: 'Enter' });
+    create();
+    expect(problem()?.textContent).toBe('Fix or remove the addresses marked rejected.');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove nobody' }));
     fireEvent.paste(members, {
       clipboardData: {
         getData: () => Array.from({ length: 501 }, (_, i) => `p${i}@nonstopio.com`).join(' '),
@@ -497,6 +486,9 @@ describe('Assign: audience step, teams', () => {
     await toAudience();
     fireEvent.click(await screen.findByRole('button', { name: 'New team' }));
     fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Mobile' } });
+    const members = screen.getByRole('combobox', { name: 'Members' });
+    fireEvent.change(members, { target: { value: 'a@nonstopio.com' } });
+    fireEvent.keyDown(members, { key: 'Enter' });
     fireEvent.click(screen.getByRole('button', { name: 'Create team' }));
     expect(await screen.findByText('Could not create the team. Try again.')).toBeTruthy();
     expect(screen.getByLabelText('Team name')).toBeTruthy();
@@ -511,7 +503,7 @@ describe('Assign: switching between teams and people', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     people();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('searchbox', { name: 'Search people' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Add people' })).toBeTruthy();
     teamsTab();
     expect(screen.getByRole('searchbox', { name: 'Search teams' })).toBeTruthy();
   });
@@ -534,7 +526,7 @@ describe('Assign: switching between teams and people', () => {
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Switch to people' }),
     );
-    expect(screen.getByRole('searchbox', { name: 'Search people' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Add people' })).toBeTruthy();
     expect(screen.getByText(/0 people will be assigned/)).toBeTruthy();
   });
 
@@ -641,7 +633,9 @@ describe('Assign: schedule and review', () => {
     await heading('Review and assign');
     fireEvent.click(screen.getByRole('button', { name: 'Change people' }));
     await heading('Who is it for?');
-    expect((screen.getByLabelText('Email addresses') as HTMLElement).isConnected).toBe(true);
+    expect((screen.getByRole('combobox', { name: 'Add people' }) as HTMLElement).isConnected).toBe(
+      true,
+    );
     next();
     next();
     fireEvent.click(screen.getByRole('button', { name: 'Change schedule' }));

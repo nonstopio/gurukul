@@ -39,7 +39,7 @@ top 24px on wide screens).
 | Step | Spec |
 |---|---|
 | 1 · Courses | Grid of checkbox cards (title, lessons · time); selected: 2px `--accent` border + pale ground |
-| 2 · People | Segmented tabs: Search people / Paste emails / Upload CSV / Whole team. Paste: `EmailChipInput` — chips classified as signed in (accent-soft), new ("· new", dashed), already assigned (sunken, "· already assigned"), rejected (danger-soft, reason). Legend below. CSV: drop zone + file input, parse client-side, show the same chips. Team: select + member count |
+| 2 · People | Segmented tabs: Search people / Paste emails / Upload CSV / Whole team. Paste: `PeoplePicker` — chips classified as signed in (accent-soft), new ("· new", dashed), already assigned (sunken, "· already assigned"), rejected (danger-soft, reason). Legend below. CSV: drop zone + file input, parse client-side, show the same chips. Team: select + member count |
 | 3 · Deadline | Due date (`<input type=date>`), reminder select, toggles "Email learners now", "Mandatory" |
 | Summary | Big count in Fraunces 40px "people will get {course}", `dl` of signed in / new / skipped / rejected / due, primary full-width "Assign to {n} people", note on how pending invites work |
 

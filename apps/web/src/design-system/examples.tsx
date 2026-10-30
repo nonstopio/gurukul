@@ -22,7 +22,6 @@ import {
   DataTable,
   Dialog,
   DragList,
-  EmailChipInput,
   PeoplePicker,
   EmptyState,
   FlowPanel,
@@ -74,7 +73,6 @@ import type {
   CalloutTone,
   ChipTone,
   CoverTheme,
-  EmailClassification,
   PaletteItem,
   Person,
   QuizOptionState,
@@ -136,13 +134,6 @@ const ICONS = Object.entries(ui).filter(([name]) => /^[A-Z]\w*Icon$/.test(name))
 const noop = () => undefined;
 const byId = (p: { id: string }) => p.id;
 const NAME_COLUMN = { id: 'name', header: 'Name', cell: (p: { name: string }) => p.name };
-
-function classify(email: string): EmailClassification {
-  if (email.startsWith('bad')) return { status: 'rejected', reason: 'not a NonStop address' };
-  if (email.startsWith('new')) return { status: 'new' };
-  if (email.startsWith('has')) return { status: 'alreadyAssigned' };
-  return { status: 'signedIn' };
-}
 
 /** A box that keeps a full-size component (sidebar, page, certificate) from taking the page. */
 function Frame({ size, children }: { size?: 'narrow' | 'wide'; children: ReactNode }) {
@@ -289,24 +280,6 @@ function ToggleExample() {
   );
 }
 
-function EmailExample() {
-  const [emails, setEmails] = useState([
-    'asha@example.com',
-    'new.person@example.com',
-    'has.course@example.com',
-    'bad@x.org',
-  ]);
-  return (
-    <EmailChipInput
-      label="Assign to"
-      value={emails}
-      onChange={setEmails}
-      classify={classify}
-      placeholder="Paste emails"
-    />
-  );
-}
-
 const PICKER_PEOPLE: Person[] = [
   { email: 'asha@example.com', name: 'Asha Menon', role: 'Educator', tone: 'educator' },
   { email: 'arjun@example.com', name: 'Arjun Rao', role: 'Learner' },
@@ -321,7 +294,20 @@ function PeoplePickerExample() {
         [p.name, p.email].join(' ').toLowerCase().includes(q.toLowerCase()),
       ),
     );
-  return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
+  return (
+    <PeoplePicker
+      label="Add people"
+      value={chosen}
+      onChange={setChosen}
+      search={search}
+      allowEmails
+      total={PICKER_PEOPLE.length}
+      classify={(email) =>
+        PICKER_PEOPLE.some((p) => p.email === email) ? null : { status: 'new' }
+      }
+      placeholder="Search by name or email"
+    />
+  );
 }
 
 function ChoiceCardExample() {
@@ -1054,12 +1040,8 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       />
     ),
   },
-  EmailChipInput: {
-    rule: 'Pasted emails as chips, each classified: new, signed in, already assigned or rejected with a reason.',
-    Example: EmailExample,
-  },
   PeoplePicker: {
-    rule: 'Type, pick: the person becomes a chip, the text clears, the list closes and focus stays.',
+    rule: 'The one way to pick people: focus lists the first few, type to narrow, click one and it becomes a chip; an email can be added too.',
     Example: PeoplePickerExample,
   },
   Sidebar: {

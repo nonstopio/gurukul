@@ -73,6 +73,7 @@ function toUser(uid: string, d: Record<string, unknown>): UserRow {
     uid,
     email: (d.email as string | undefined) ?? '',
     displayName: (d.displayName as string | undefined) ?? '',
+    photoURL: (d.photoURL as string | null | undefined) ?? null,
     team: (d.team as string | null | undefined) ?? null,
     roles: (d.roles as string[] | undefined) ?? ['learner'],
     grantedCourseIds: (d.grantedCourseIds as string[] | undefined) ?? [],

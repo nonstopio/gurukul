@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { UserRow } from '../src/console/types';
 import { usePeopleLookup, usePeopleSearch } from '../src/console/usePeopleSearch';
@@ -48,27 +48,79 @@ describe('usePeopleSearch', () => {
 });
 
 describe('usePeopleLookup', () => {
-  it('answers a person per match with their role, after a pause, and nothing for a short text', async () => {
-    const admin = { ...person('asha'), roles: ['learner', 'admin'], displayName: 'Asha' };
+  const lookup = (over: Record<string, unknown> = {}) => {
+    const data = {
+      searchUsers: vi.fn().mockResolvedValue([]),
+      usersPage: vi.fn().mockResolvedValue({ rows: [], nextCursor: null }),
+      userCount: vi.fn().mockResolvedValue(42),
+      ...over,
+    };
+    return { data, ...renderHook(() => usePeopleLookup(data as never)) };
+  };
+
+  it('answers a person per match with their role and photo, after a pause, and nothing for a short text', async () => {
+    const admin = {
+      ...person('asha'),
+      roles: ['learner', 'admin'],
+      displayName: 'Asha',
+      photoURL: 'https://img.example/asha.png',
+    };
     const educator = { ...person('ravi'), roles: ['learner', 'educator'], displayName: '' };
-    const searchUsers = vi.fn().mockResolvedValue([admin, educator, person('sam')]);
-    const { result } = renderHook(() => usePeopleLookup({ searchUsers }));
-    expect(await result.current('a')).toEqual([]);
-    expect(searchUsers).not.toHaveBeenCalled();
-    expect(await result.current(' As ')).toEqual([
-      { email: 'asha@nonstopio.com', name: 'Asha', role: 'Admin', tone: 'admin' },
-      { email: 'ravi@nonstopio.com', name: undefined, role: 'Educator', tone: 'educator' },
-      { email: 'sam@nonstopio.com', name: 'sam', role: 'Learner', tone: 'learner' },
+    const { data, result } = lookup({
+      searchUsers: vi.fn().mockResolvedValue([admin, educator, person('sam')]),
+    });
+    expect(await result.current.search('a')).toEqual([]);
+    expect(data.searchUsers).not.toHaveBeenCalled();
+    expect(await result.current.search(' As ')).toEqual([
+      {
+        email: 'asha@nonstopio.com',
+        name: 'Asha',
+        photoUrl: 'https://img.example/asha.png',
+        role: 'Admin',
+        tone: 'admin',
+      },
+      {
+        email: 'ravi@nonstopio.com',
+        name: undefined,
+        photoUrl: undefined,
+        role: 'Educator',
+        tone: 'educator',
+      },
+      {
+        email: 'sam@nonstopio.com',
+        name: 'sam',
+        photoUrl: undefined,
+        role: 'Learner',
+        tone: 'learner',
+      },
     ]);
-    expect(searchUsers).toHaveBeenCalledWith('as');
+    expect(data.searchUsers).toHaveBeenCalledWith('as');
+  });
+
+  it('answers the first ten people at once when nothing is typed, and says how many there are', async () => {
+    const { data, result } = lookup({
+      usersPage: vi.fn().mockResolvedValue({ rows: [person('sam')], nextCursor: null }),
+    });
+    expect(await result.current.search('  ')).toHaveLength(1);
+    expect(data.usersPage).toHaveBeenCalledWith(null, 10);
+    expect(data.searchUsers).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.total).toBe(42));
+  });
+
+  it('keeps working when the total cannot be read', async () => {
+    const { result } = lookup({ userCount: vi.fn().mockRejectedValue(new Error('x')) });
+    await act(async () => {});
+    expect(result.current.total).toBeUndefined();
   });
 
   it('reads once for a name typed quickly: an older call gives way to the newer', async () => {
-    const searchUsers = vi.fn().mockResolvedValue([person('ravi')]);
-    const { result } = renderHook(() => usePeopleLookup({ searchUsers }));
-    const [older, newer] = await Promise.all([result.current('ra'), result.current('rav')]);
+    const { data, result } = lookup({ searchUsers: vi.fn().mockResolvedValue([person('ravi')]) });
+    const [older, newer] = await Promise.all([
+      result.current.search('ra'),
+      result.current.search('rav'),
+    ]);
     expect(older).toEqual([]);
     expect(newer).toHaveLength(1);
-    expect(searchUsers).toHaveBeenCalledTimes(1);
+    expect(data.searchUsers).toHaveBeenCalledTimes(1);
   });
 });
