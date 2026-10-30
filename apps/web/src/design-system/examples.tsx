@@ -20,6 +20,7 @@ import {
   DragList,
   EmailChipInput,
   EmptyState,
+  StateCard,
   FilterBar,
   FunnelBar,
   GlobalLoader,
@@ -81,7 +82,7 @@ const QUIZ_STATES: Array<[QuizOptionState, 'A' | 'B' | 'C' | 'D']> = [
   ['locked', 'D'],
 ];
 const TYPE_KINDS: TypeTileKind[] = ['reading', 'video', 'code', 'quiz'];
-const TOAST_TONES: ToastTone[] = ['info', 'success', 'danger'];
+const TOAST_TONES: ToastTone[] = ['success', 'info', 'warning', 'danger'];
 const FUNNEL = [
   { label: 'Started', value: 120 },
   { label: 'Finished Chapter 1', value: 96 },
@@ -162,7 +163,19 @@ function ToastExample() {
         <Button
           key={tone}
           variant="secondary"
-          onClick={() => toast.show(`A ${tone} toast`, { tone })}
+          onClick={() =>
+            toast.show(
+              'One line of detail.',
+              tone === 'danger'
+                ? {
+                    tone,
+                    title: 'Could not reach the server',
+                    code: 'NET-OFFLINE',
+                    action: { label: 'Retry', onSelect: () => toast.show('Trying again…') },
+                  }
+                : { tone, title: `A ${tone} toast` },
+            )
+          }
         >
           Toast: {tone}
         </Button>
@@ -741,6 +754,33 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       >
         Courses you are assigned appear here.
       </EmptyState>
+    ),
+  },
+  StateCard: {
+    rule: 'A region that failed, is offline or is not allowed: the sentence, the code and the next step. Empty is EmptyState.',
+    Example: () => (
+      <div className="ds-stack">
+        <StateCard
+          variant="error"
+          title="We could not load this course"
+          code="NET-TIMEOUT"
+          kind="Network"
+          actions={<Button>Try again</Button>}
+        >
+          The server did not answer in time. Your progress is safe.
+        </StateCard>
+        <StateCard variant="offline" title="You are offline">
+          Lessons you have already opened keep working.
+        </StateCard>
+        <StateCard
+          variant="forbidden"
+          title="This is for Educators"
+          code="AUTH-FORBIDDEN"
+          kind="Permission"
+        >
+          Ask an Admin on your team for access.
+        </StateCard>
+      </div>
     ),
   },
   GlobalLoader: {

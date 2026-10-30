@@ -40,31 +40,32 @@ tokens. Look-and-feel reference: the "NonStop Gurukul — L&D Platform" canvas, 
 The first column is what you want; the second is the only accepted way to get it. Anything
 else is a review blocker, and most of it fails `npm run check:design`.
 
-| Need                                    | Use                                                                   | Never                                                              |
-| --------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| A page                                  | `Page` → `PageHeader` → content (see Page anatomy)                    | a bare `<div class="page">`, a page-specific max-width             |
-| A page title                            | `PageHeader title=…` (it renders the only `h1`)                       | `<h1 className="…">`, `TopBar` as a page header                    |
-| Navigation chrome                       | `AppShell` (sidebar) or `FocusedShell` (task); chosen in `routes.tsx` | a page drawing its own sidebar or top bar                          |
-| Who is signed in, sign out, profile     | `UserCard` in the shell (its `Menu`) and `/profile`                   | name text and buttons in a footer                                  |
-| A choice from a list (form or filter)   | `Select` (styled native `<select>` with label)                        | a raw `<select>`, a hand-built dropdown under an input             |
-| Actions on a thing (row, card, account) | `Menu` (menu button + `role="menu"`)                                  | a row of five small buttons, a `<details>` used as a menu          |
-| 2–4 mutually exclusive modes            | `SegmentedControl` (modes) or `Tabs` (views with panels)              | toggle buttons with `aria-pressed` rebuilt per page                |
-| A boolean setting                       | `Toggle` (`role="switch"`)                                            | a checkbox styled as a switch                                      |
-| Search + filters above a list           | `FilterBar` (search, `Select`s, toggles, Clear filters)               | `.filters` rows, a paragraph inside a filter row                   |
-| Tabular data                            | `DataTable` (read-only: no selection or paging, `rowHeader` column)   | `<table class="plain-table">`, a CSS grid pretending to be a table |
-| A number with its label                 | `StatCard`                                                            | a card with a big `<p>`                                            |
-| A status word                           | `Chip tone=…` with the word                                           | coloured text alone                                                |
-| A person                                | `Avatar` (initials; colour by role)                                   | an `<img>` of a Google photo, a coloured `<span>`                  |
-| Something just happened                 | `useToast()`                                                          | an error `Callout` kept in state after a click                     |
-| Something is true about this page       | `Callout` (one per region)                                            | a toast that should have stayed                                    |
-| Confirm a destructive or costly action  | `Dialog` with a verb-plus-object primary                              | `window.confirm`, an inline "Are you sure?"                        |
-| One record's detail beside a list       | `Dialog variant="drawer"`                                             | a new route for a quick look                                       |
-| First load of a page or region          | `PageSkeleton` / `Skeleton` in the final layout's shape               | "Loading…" text, a spinner                                         |
-| Waiting on a click                      | `Button loading`                                                      | a label swapped to "Saving…" by hand                               |
-| Nothing to show                         | `EmptyState` (what the emptiness means + one action)                  | "No data", an invented zero                                        |
-| A failed load                           | `Loaded` (warning `Callout` with Retry); shell stays usable           | a blank page, raw error text                                       |
-| An icon                                 | `Icon` / the named icons in `Icon.tsx`                                | an emoji, an inline one-off SVG for a UI icon                      |
-| A link that looks like a button         | `buttonClass(…)` on `<Link>`                                          | `<a href>` for an in-app route (full reload)                       |
+| Need                                     | Use                                                                      | Never                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| A page                                   | `Page` → `PageHeader` → content (see Page anatomy)                       | a bare `<div class="page">`, a page-specific max-width             |
+| A page title                             | `PageHeader title=…` (it renders the only `h1`)                          | `<h1 className="…">`, `TopBar` as a page header                    |
+| Navigation chrome                        | `AppShell` (sidebar) or `FocusedShell` (task); chosen in `routes.tsx`    | a page drawing its own sidebar or top bar                          |
+| Who is signed in, sign out, profile      | `UserCard` in the shell (its `Menu`) and `/profile`                      | name text and buttons in a footer                                  |
+| A choice from a list (form or filter)    | `Select` (styled native `<select>` with label)                           | a raw `<select>`, a hand-built dropdown under an input             |
+| Actions on a thing (row, card, account)  | `Menu` (menu button + `role="menu"`)                                     | a row of five small buttons, a `<details>` used as a menu          |
+| 2–4 mutually exclusive modes             | `SegmentedControl` (modes) or `Tabs` (views with panels)                 | toggle buttons with `aria-pressed` rebuilt per page                |
+| A boolean setting                        | `Toggle` (`role="switch"`)                                               | a checkbox styled as a switch                                      |
+| Search + filters above a list            | `FilterBar` (search, `Select`s, toggles, Clear filters)                  | `.filters` rows, a paragraph inside a filter row                   |
+| Tabular data                             | `DataTable` (read-only: no selection or paging, `rowHeader` column)      | `<table class="plain-table">`, a CSS grid pretending to be a table |
+| A number with its label                  | `StatCard`                                                               | a card with a big `<p>`                                            |
+| A status word                            | `Chip tone=…` with the word                                              | coloured text alone                                                |
+| A person                                 | `Avatar` (initials; colour by role)                                      | an `<img>` of a Google photo, a coloured `<span>`                  |
+| Something just happened                  | `useToast()`; a failed action: `toastError(toast, e, fallback)`          | an error `Callout` kept in state after a click                     |
+| Something is true about this page        | `Callout` (one per region)                                               | a toast that should have stayed                                    |
+| Confirm a destructive or costly action   | `Dialog` with a verb-plus-object primary                                 | `window.confirm`, an inline "Are you sure?"                        |
+| One record's detail beside a list        | `Dialog variant="drawer"`                                                | a new route for a quick look                                       |
+| First load of a page or region           | `PageSkeleton` / `Skeleton` in the final layout's shape                  | "Loading…" text, a spinner                                         |
+| Waiting on a click                       | `Button loading`                                                         | a label swapped to "Saving…" by hand                               |
+| Nothing to show                          | `EmptyState` (what the emptiness means + one action)                     | "No data", an invented zero                                        |
+| A failed load                            | `Loaded` (warning `Callout` with Retry); shell stays usable              | a blank page, raw error text                                       |
+| A page that is failed, offline or denied | `StateCard variant="error\|offline\|forbidden"` (sentence, code, action) | a bare 404 for a page someone may not open                         |
+| An icon                                  | `Icon` / the named icons in `Icon.tsx`                                   | an emoji, an inline one-off SVG for a UI icon                      |
+| A link that looks like a button          | `buttonClass(…)` on `<Link>`                                             | `<a href>` for an in-app route (full reload)                       |
 
 ## Page anatomy
 
@@ -127,7 +128,7 @@ Every region that loads data has all of these designed, and its test renders eac
 | Loading (action) | `Button loading`: label kept, `aria-busy`, disabled; the rest of the form stays readable               |
 | Empty            | `EmptyState`: icon, one sentence on what empty means, one action ("Assign a course")                   |
 | Error (load)     | `Loaded`: warning `Callout` with Retry inside the region; the shell and other regions keep working     |
-| Error (action)   | `useToast()` with `userMessageOf(e, …)`; field errors inline under the field                           |
+| Error (action)   | `toastError(toast, e, fallback)` (`apps/web/src/errors.ts`); field errors inline under the field       |
 | Not allowed      | `NotAllowedPage` inside the shell, with a link home                                                    |
 | Offline          | `OfflineBanner` under the top bar                                                                      |
 
@@ -154,26 +155,26 @@ A number that failed to load reads "Unavailable", never 0. A count still loading
 
 ## Rules at a glance
 
-| #   | Rule                                                                                       | A violation looks like                                              |
-| --- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| 1   | Components use a **role** token, never a scale step or raw colour                          | `color: #475467`, `background: var(--g-green-500)`                  |
-| 2   | **One accent hue.** Green is for the primary action, progress, links and "done"            | a blue primary button, a purple link                                |
-| 3   | `--accent-decor` (#08A66A) is decoration only                                              | brand green as text on white (3.2:1, fails)                         |
-| 4   | State colours only for real state, always with a word or icon                              | an orange "New" badge, red used for emphasis                        |
-| 5   | Three families, through their variables                                                    | `font-family: system-ui`, a fourth face                             |
-| 6   | Fraunces for titles, never for UI controls or body text                                    | a serif button label, serif table cells                             |
-| 7   | Hairlines first; shadow only for things that float (menus, dialogs, toasts, drawer)        | `box-shadow` on a resting card                                      |
-| 8   | 44px minimum touch target (`--control-height`); `size="sm"` 36px only in dense rows        | a 32px icon button in the main UI                                   |
-| 9   | Visible focus on every control (`--focus-ring`)                                            | `outline: none` with nothing in its place                           |
-| 10  | Text ≥ 4.5:1 on its ground (3:1 at 24px+)                                                  | `--g-gray-400` captions                                             |
-| 11  | Real elements: `<button>`, `<Link>`, `<input>` + `<label>`                                 | a clickable `<div>`, `<a href>` to an in-app route                  |
-| 12  | No emoji, no gradient washes, no left-border accent cards                                  | `🎉 Course complete!`                                               |
-| 13  | Sentence case; role and area names from `useTerms()`, never typed in copy                  | `MY LEARNING`, a literal "Admin" in a button label                  |
-| 14  | Motion on `--ease`, 120–320ms, reduced motion honoured                                     | a bounce, a looping shimmer                                         |
-| 15  | **No component markup in `apps/web`**: no `<select>`, `<table>`, `<h1>`                    | `<h1 className="page__title">`, `<table className="plain-table">`   |
-| 16  | **`apps/web` CSS is layout only**: tokens only, no colour, radius, shadow or font literals | `#fff`, `13px` font size or a `box-shadow` literal in `console.css` |
-| 17  | **One width system**: `Page width` reading / default / wide                                | `max-width: 960px` on a page class                                  |
-| 18  | z-index only from `--z-*` tokens                                                           | `z-index: 9999`                                                     |
+| #   | Rule                                                                                                 | A violation looks like                                              |
+| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 1   | Components use a **role** token, never a scale step or raw colour                                    | `color: #475467`, `background: var(--g-green-500)`                  |
+| 2   | **One accent hue.** Green is for the primary action, progress, links and "done"                      | a blue primary button, a purple link                                |
+| 3   | `--accent-decor` (#08A66A) is decoration only                                                        | brand green as text on white (3.2:1, fails)                         |
+| 4   | State colours only for real state, always with a word or icon                                        | an orange "New" badge, red used for emphasis                        |
+| 5   | Three families, through their variables                                                              | `font-family: system-ui`, a fourth face                             |
+| 6   | Fraunces for titles, never for UI controls or body text                                              | a serif button label, serif table cells                             |
+| 7   | Hairlines first; shadow only for things that float (menus, dialogs, toasts, drawer)                  | `box-shadow` on a resting card                                      |
+| 8   | 44px minimum touch target (`--control-height`); `size="sm"` 36px only in dense rows                  | a 32px icon button in the main UI                                   |
+| 9   | Visible focus on every control (`--focus-ring`)                                                      | `outline: none` with nothing in its place                           |
+| 10  | Text ≥ 4.5:1 on its ground (3:1 at 24px+)                                                            | `--g-gray-400` captions                                             |
+| 11  | Real elements: `<button>`, `<Link>`, `<input>` + `<label>`                                           | a clickable `<div>`, `<a href>` to an in-app route                  |
+| 12  | No emoji, no gradient washes, no left-border accent cards                                            | `🎉 Course complete!`                                               |
+| 13  | Sentence case; role and area names from `useTerms()`, never typed in copy                            | `MY LEARNING`, a literal "Admin" in a button label                  |
+| 14  | Motion on `--ease`, 120–320ms, reduced motion honoured; the only loop allowed is the global loader's | a bounce, a looping shimmer, a pulsing badge                        |
+| 15  | **No component markup in `apps/web`**: no `<select>`, `<table>`, `<h1>`                              | `<h1 className="page__title">`, `<table className="plain-table">`   |
+| 16  | **`apps/web` CSS is layout only**: tokens only, no colour, radius, shadow or font literals           | `#fff`, `13px` font size or a `box-shadow` literal in `console.css` |
+| 17  | **One width system**: `Page width` reading / default / wide                                          | `max-width: 960px` on a page class                                  |
+| 18  | z-index only from `--z-*` tokens                                                                     | `z-index: 9999`                                                     |
 
 Rules 1, 15, 16, 17 and 18 are checked by `npm run check:design` (`scripts/check-design.mjs`).
 

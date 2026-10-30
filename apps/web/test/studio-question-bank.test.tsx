@@ -135,5 +135,7 @@ describe('question bank', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete question' }));
     expect(await screen.findByText(/Couldn.t remove the question/)).toBeTruthy();
     expect(cards()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(studio.data.removeFromBank).toHaveBeenCalledTimes(2));
   });
 });

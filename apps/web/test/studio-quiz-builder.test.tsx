@@ -444,6 +444,8 @@ describe('Quiz builder: question bank', () => {
     vi.mocked(studio.data.addToBank).mockRejectedValueOnce(new Error('denied'));
     fireEvent.click(screen.getByRole('button', { name: 'Save to question bank' }));
     expect(await screen.findByText(/Couldn.t save the question to the bank/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(studio.data.addToBank).toHaveBeenCalledTimes(2));
   });
 
   it('imports a bank question with new ids and its answer key', async () => {

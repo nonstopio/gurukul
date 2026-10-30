@@ -140,7 +140,10 @@ describe('Design system: components', () => {
     const user = userEvent.setup();
     await openSection('components');
     await user.click(screen.getByRole('button', { name: 'Toast: danger' }));
-    expect(await screen.findByText('A danger toast')).toBeTruthy();
+    expect(await screen.findByText('Could not reach the server')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Toast: success' }));
+    expect(await screen.findByText('A success toast')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Open dialog' }));
     const dialog = await screen.findByRole('dialog', { name: 'Example dialog' });
     await user.click(within(dialog).getByRole('button', { name: 'Done' }));
