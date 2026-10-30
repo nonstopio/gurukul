@@ -8,6 +8,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  /* The same height with or without the Copy button, so blocks side by side match. */
+  min-height: calc(var(--control-height) + var(--space-2));
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
   background: var(--code-header);
 }
