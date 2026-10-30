@@ -1,0 +1,21 @@
+.g-success-check {
+  color: var(--success);
+  stroke: currentcolor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.g-success-check__ring,
+.g-success-check__tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: g-success-draw var(--dur-base) var(--ease-spring) both;
+}
+.g-success-check__tick {
+  animation-delay: var(--dur-fast);
+}
+@keyframes g-success-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}

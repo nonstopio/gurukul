@@ -22,6 +22,8 @@ import {
   EmailChipInput,
   PeoplePicker,
   EmptyState,
+  FlowPanel,
+  FlowSteps,
   StateCard,
   FilterBar,
   FunnelBar,
@@ -49,6 +51,7 @@ import {
   Skeleton,
   StatCard,
   Stepper,
+  SuccessCheck,
   Tabs,
   Textarea,
   Toggle,
@@ -787,6 +790,27 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <Stepper.Step number={2} title="Pick a course" headingAs="h3">
           What they learn.
         </Stepper.Step>
+      </div>
+    ),
+  },
+  FlowSteps: {
+    rule: 'The horizontal numbered steps of a flow: done, current, upcoming; "Step 2 of 4" on a phone. Use FlowPanel for the sliding body.',
+    Example: () => <FlowSteps steps={['Course', 'Audience', 'Schedule', 'Review']} current={1} />,
+  },
+  FlowPanel: {
+    rule: 'The body of one flow step; key it by step and it slides 24px in the direction of travel (fades under reduced motion).',
+    Example: () => (
+      <FlowPanel direction="forward">
+        <p>This panel slides in from the right. Going back slides in from the left.</p>
+      </FlowPanel>
+    ),
+  },
+  SuccessCheck: {
+    rule: 'A ring and tick that draw once when a task is done; decorative, so say the result in words beside it.',
+    Example: () => (
+      <div className="ds-stack">
+        <SuccessCheck />
+        <p>Assigned to 12 people.</p>
       </div>
     ),
   },

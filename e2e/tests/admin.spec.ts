@@ -21,6 +21,8 @@ test.describe('Admin', () => {
     await page.getByRole('main').getByRole('link', { name: 'Assign courses' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Assign courses' })).toBeVisible();
     await page.getByRole('checkbox', { name: new RegExp(GIT_COURSE.title) }).check();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Who is it for?' })).toBeVisible();
 
     // Paste the addresses (and one personal address that must be refused) into the chip box.
     await page.getByLabel('Email addresses').evaluate(
@@ -38,7 +40,11 @@ test.describe('Admin', () => {
     for (const email of invitees) {
       await expect(chips.getByRole('listitem').filter({ hasText: email })).toContainText('new');
     }
-    const summary = page.getByRole('complementary', { name: 'Summary' });
+    await expect(page.getByText('2 people will be assigned.')).toBeVisible();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Review and assign' })).toBeVisible();
+    const summary = page.getByRole('main');
     await expect(summary.getByText('New (pending invite)').locator('+ dd')).toHaveText('2');
     await expect(summary.getByText('Rejected', { exact: true }).locator('+ dd')).toHaveText('1');
     await expect(summary.getByRole('list', { name: 'Rejected addresses' })).toContainText(
@@ -47,6 +53,8 @@ test.describe('Admin', () => {
 
     await summary.getByRole('button', { name: 'Assign to 2 people' }).click();
 
+    await expect(page.getByRole('heading', { name: 'Assigned to 2 people' })).toBeVisible();
+    await page.getByRole('link', { name: 'View learners' }).click();
     await expect(page).toHaveURL(/\/admin\/learners(\?.*)?$/);
     await page.getByRole('tab', { name: /^Pending invite \(2\)/ }).click();
     const table = page.getByRole('table', { name: 'Learners' });

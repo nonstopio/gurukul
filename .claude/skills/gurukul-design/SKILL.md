@@ -71,6 +71,7 @@ else is a review blocker, and most of it fails `npm run check:design`.
 | ---------------------------------------  | ---------------------------------------------------------------------    | ------------------------------------------------------------------  |
 | A gallery of images, video, files        | `MediaGallery` (+ `MediaPreview` in the detail drawer)                   | a list of links, a grid of hand-rolled `<img>` cards                |
 | Pick several people from a search        | `PeoplePicker` (combobox; a pick adds a chip, clears and closes)         | a `Select` of everyone, a list left open after a choice             |
+| A task in ordered steps                  | `FlowSteps` + `FlowPanel`; `SuccessCheck` at the end                     | one long form, a wizard with no way back                            |
 
 ## Page anatomy
 
