@@ -167,7 +167,7 @@ export function PeoplePicker({
         className="g-people__list"
         role="listbox"
         aria-multiselectable="true"
-        aria-label={label}
+        aria-label={`${label}: matches`}
         hidden={!open}
       >
         {found.map((p, n) => {

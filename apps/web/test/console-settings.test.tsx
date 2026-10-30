@@ -11,12 +11,13 @@ const saveButton = () => screen.getByRole('button', { name: 'Save settings' }) a
 describe('Org settings', () => {
   it('starts empty, with reminders off and nothing to save', async () => {
     const { container } = await openApp('/admin/settings', { ...admin });
-    expect(await screen.findByText('No teams yet')).toBeTruthy();
+    expect(await screen.findByLabelText('Signatory name')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Org settings' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Organisation', selected: true })).toBeTruthy();
-    for (const name of ['Teams', 'Daily reminders', 'Certificate signatory']) {
+    for (const name of ['Daily reminders', 'Certificate signatory']) {
       expect(screen.getByRole('region', { name })).toBeTruthy();
     }
+    expect(screen.queryByRole('region', { name: 'Teams' })).toBeNull();
     expect(
       (screen.getByRole('switch', { name: 'Send daily reminders' }) as HTMLInputElement).checked,
     ).toBe(false);
@@ -42,38 +43,20 @@ describe('Org settings', () => {
     expect(screen.queryByRole('button', { name: 'Save settings' })).toBeNull();
     fail(new Error('offline'));
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('No teams yet')).toBeTruthy();
+    expect(await screen.findByLabelText('Signatory name')).toBeTruthy();
   });
 
-  it('adds and removes teams, turns reminders on and saves the whole document', async () => {
+  it('turns reminders on and saves the document with the team names it was given', async () => {
     const c = fakeConsole({ settings: { teams: ['QA'] } });
     const { container } = await openApp('/admin/settings', { ...admin, console: c });
-    const list = await screen.findByRole('list', { name: 'Teams' });
-    expect(within(list).getByText('QA')).toBeTruthy();
-
-    const input = screen.getByLabelText('New team');
-    fireEvent.click(screen.getByRole('button', { name: 'Add team' }));
-    expect(await screen.findByText('Enter a team name.')).toBeTruthy();
-    fireEvent.change(input, { target: { value: 'qa' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add team' }));
-    expect(await screen.findByText('qa is already in the list.')).toBeTruthy();
-    expect(await axeViolations(container)).toEqual([]);
-
-    fireEvent.change(input, { target: { value: ' Mobile ' } });
-    fireEvent.submit(input.closest('form') as HTMLFormElement);
-    expect(await within(list).findByText('Mobile')).toBeTruthy();
-    expect(screen.queryByText('qa is already in the list.')).toBeNull();
-    expect((input as HTMLInputElement).value).toBe('');
+    fireEvent.click(await screen.findByRole('switch', { name: 'Send daily reminders' }));
     expect(screen.getByText('You have unsaved changes.')).toBeTruthy();
-
-    fireEvent.click(within(list).getByRole('button', { name: 'Remove QA' }));
-    expect(within(list).queryByText('QA')).toBeNull();
-    fireEvent.click(screen.getByRole('switch', { name: 'Send daily reminders' }));
+    expect(await axeViolations(container)).toEqual([]);
     fireEvent.click(saveButton());
     await waitFor(() =>
       expect(c.data.saveOrgSettings).toHaveBeenCalledWith({
         domain: 'nonstopio.com',
-        teams: ['Mobile'],
+        teams: ['QA'],
         reminders: { enabled: true },
         signatory: DEFAULT_ORG_CONFIG.signatory,
       }),
@@ -137,7 +120,7 @@ describe('Org settings', () => {
 describe('Org settings tabs', () => {
   it('keeps the tab in the URL and loads the design system only when it is opened', async () => {
     const { router } = await openApp('/admin/settings', { ...admin });
-    await screen.findByText('No teams yet');
+    await screen.findByLabelText('Signatory name');
     expect(screen.queryByRole('tab', { name: 'Tokens' })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Design system' }));
     expect(router.state.location.search).toBe('?tab=design-system');

@@ -1,11 +1,13 @@
 import { classifyEmails, parseCsvEmails, summarize } from '@gurukul/schema';
-import type { ClassifiedEmail, Reminder } from '@gurukul/schema';
+import type { ClassifiedEmail, Reminder, Team } from '@gurukul/schema';
+import type { Person as PickerPerson } from '@gurukul/ui';
 import {
   Button,
   Card,
   EmailChipInput,
   Input,
   Page,
+  PeoplePicker,
   PageHeader,
   Select,
   StatCard,
@@ -22,7 +24,7 @@ import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { usePeopleSearch } from './usePeopleSearch';
+import { usePeopleLookup } from './usePeopleSearch';
 import type { AssignResult, KnownEmails } from './types';
 
 const lessonLabel = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
@@ -47,10 +49,11 @@ export function AssignPage() {
   const [mandatory, setMandatory] = useState(true);
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
-  const people = usePeopleSearch(data);
+  const findPeople = usePeopleLookup(data);
+  const [picked, setPicked] = useState<PickerPerson[]>([]);
   const [team, setTeam] = useState('');
-  const [teamCount, setTeamCount] = useState<{ team: string; size: number } | null>(null);
-  const teamSize = teamCount?.team === team ? teamCount.size : null;
+  const [teamPeople, setTeamPeople] = useState<{ team: string; emails: string[] } | null>(null);
+  const teamEmails = teamPeople?.team === team ? teamPeople.emails : null;
   const [dragging, setDragging] = useState(false);
   const [known, setKnown] = useState<KnownEmails>({
     signedIn: new Set(),
@@ -60,7 +63,7 @@ export function AssignPage() {
   const [failed, setFailed] = useState<AssignResult['failed']>([]);
   const result = useAsync(
     useCallback(async () => {
-      const [courses, teams] = await Promise.all([learner.listCourses(), data.teams()]);
+      const [courses, teams] = await Promise.all([learner.listCourses(), data.teamList()]);
       return { courses: courses.filter((c) => c.status === 'published'), teams };
     }, [learner, data]),
   );
@@ -73,14 +76,16 @@ export function AssignPage() {
     };
   }, [data, emails, courseIds]);
 
+  const teams = result.state === 'ready' ? result.value.teams : null;
   useEffect(() => {
-    if (!team) return;
-    let live = true;
-    void data.usersInTeam(team).then((rows) => live && setTeamCount({ team, size: rows.length }));
-    return () => {
-      live = false;
-    };
-  }, [data, team]);
+    if (!team || !teams) return;
+    // Everyone listed on the team, plus anyone whose profile says they are on it. An answer that
+    // lands after another team was chosen is ignored: `teamEmails` checks the team it belongs to.
+    void data.usersInTeam(team).then((rows) => {
+      const listed = (teams.find((t) => t.name === team) as Team).memberEmails;
+      setTeamPeople({ team, emails: [...new Set([...listed, ...rows.map((u) => u.email)])] });
+    });
+  }, [data, team, teams]);
 
   const readCsv = async (file: File | undefined) => {
     if (file) add(parseCsvEmails(await file.text()));
@@ -158,6 +163,8 @@ export function AssignPage() {
     }
   };
 
+  // The people chosen in the picker who are still on the list (removing a chip above drops them here).
+  const shown = picked.filter((p) => emails.includes(p.email));
   const ready = result.state === 'ready' ? result.value : null;
   const courses = ready?.courses ?? [];
 
@@ -256,7 +263,7 @@ export function AssignPage() {
         lead="Pick courses, pick people, set a deadline. The summary shows what will happen."
       />
       <Loaded loadable={result}>
-        {({ teams }) => (
+        {({ teams: found }) => (
           <>
             <Stepper.Step number={1} title="Courses">
               <ul className="console-choices">
@@ -302,22 +309,22 @@ export function AssignPage() {
                     id: 'search',
                     label: 'Search people',
                     panel: (
-                      <>
-                        <Input
-                          label="Search by name or email"
-                          value={people.query}
-                          onChange={(e) => void people.search(e.target.value)}
-                        />
-                        <ul className="console-rows" aria-label="People found">
-                          {people.found.map((u) => (
-                            <li key={u.uid}>
-                              <Button variant="secondary" onClick={() => add([u.email])}>
-                                Add {u.displayName || u.email}
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
+                      <PeoplePicker
+                        label="Search by name or email"
+                        value={shown}
+                        search={findPeople}
+                        onChange={(next) => {
+                          const kept = new Set(next.map((p) => p.email));
+                          const dropped = shown.filter((p) => !kept.has(p.email));
+                          setPicked(next);
+                          setEmails([
+                            ...new Set([
+                              ...emails.filter((e) => !dropped.some((p) => p.email === e)),
+                              ...next.map((p) => p.email),
+                            ]),
+                          ]);
+                        }}
+                      />
                     ),
                   },
                   {
@@ -356,25 +363,23 @@ export function AssignPage() {
                       <>
                         <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
                           <option value="">Choose a team</option>
-                          {teams.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                          {found.map((t) => (
+                            <option key={t.id} value={t.name}>
+                              {t.name}
                             </option>
                           ))}
                         </Select>
                         {team ? (
                           <p className="console-muted" aria-live="polite">
-                            {teamSize === null
+                            {teamEmails === null
                               ? 'Counting…'
-                              : `${teamSize} ${teamSize === 1 ? 'person' : 'people'} in ${team}`}
+                              : `${teamEmails.length} ${teamEmails.length === 1 ? 'person' : 'people'} in ${team}`}
                           </p>
                         ) : null}
                         <Button
                           variant="secondary"
-                          disabled={!team}
-                          onClick={async () =>
-                            add((await data.usersInTeam(team)).map((u) => u.email))
-                          }
+                          disabled={!teamEmails?.length}
+                          onClick={() => add(teamEmails as string[])}
                         >
                           Add everyone in this team
                         </Button>

@@ -19,6 +19,7 @@ export const ROUTE_PATHS = [
   '/admin',
   '/admin/learners',
   '/admin/assign',
+  '/admin/teams',
   '/admin/roles',
   '/admin/audit',
   '/admin/settings',

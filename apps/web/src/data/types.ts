@@ -86,7 +86,7 @@ export interface LearnerData {
   completeItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** Moves the resume point. */
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
-  /** The teams an Admin listed in Org settings (`config/org.teams`); empty before any. */
+  /** The names of the teams an Admin made on the Teams page (`config/org.teams`); empty before any. */
   orgTeams(): Promise<string[]>;
   /** Sets my team (`users/{uid}.team`); the rules accept only a listed team, or `null`. */
   setTeam(uid: string, team: string | null): Promise<void>;

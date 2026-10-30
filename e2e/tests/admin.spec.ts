@@ -57,19 +57,39 @@ test.describe('Admin', () => {
     }
   });
 
-  test('adds teams and turns reminders on, and the settings survive a reload', async ({ page }) => {
+  test('creates teams with members and turns reminders on, and both survive a reload', async ({
+    page,
+  }) => {
     await signedInAsLearner(page, meera);
     await grantRoles(meera.email, ['admin']);
+    await page.goto('/admin/teams');
+    await expect(page.getByRole('heading', { level: 1, name: 'Teams' })).toBeVisible();
+    // The seed's default: no teams.
+    await expect(page.getByText('No teams yet')).toBeVisible();
+
+    await page.getByRole('main').getByRole('button', { name: 'Create team' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Create team' });
+    await dialog.getByLabel('Team name').fill('Mobile');
+    await dialog.getByLabel('Members').fill('new.joiner@nonstopio.com ');
+    await expect(dialog.getByText('new.joiner@nonstopio.com')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Create team' }).click();
+    await expect(page.getByText('Created Mobile')).toBeVisible();
+
+    await page.getByRole('main').getByRole('button', { name: 'Create team' }).click();
+    await dialog.getByLabel('Team name').fill('Quality');
+    await dialog.getByLabel('Create empty team').check();
+    await dialog.getByRole('button', { name: 'Create empty team' }).click();
+    await expect(page.getByText('Created Quality')).toBeVisible();
+    await expectNoSeriousViolations(page);
+
+    await page.reload();
+    const teams = page.getByRole('table', { name: 'Teams' });
+    await expect(teams.getByRole('row', { name: /Mobile.*1 member/ })).toBeVisible();
+    await expect(teams.getByRole('row', { name: /Quality.*No members yet/ })).toBeVisible();
+
     await page.goto('/admin/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Org settings' })).toBeVisible();
-    // The seed's default: no teams, reminders off.
-    await expect(page.getByText('No teams yet')).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).not.toBeChecked();
-
-    for (const team of ['Mobile', 'Quality']) {
-      await page.getByLabel('New team').fill(team);
-      await page.getByRole('button', { name: 'Add team' }).click();
-    }
     // The switch's track covers its input, so click the label, as a person does.
     await page.getByText('Send daily reminders').click();
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
@@ -78,8 +98,6 @@ test.describe('Admin', () => {
     await expect(page.getByText('Settings saved')).toBeVisible();
 
     await page.reload();
-    const teams = page.getByRole('list', { name: 'Teams' });
-    await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
 
     // The Design system tab reads the real tokens.css in the built app.

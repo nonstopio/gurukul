@@ -29,6 +29,13 @@ export const navigation = {
       keywords: ['assign', 'invite', 'csv', 'deadline', 'due date'],
     },
     {
+      id: 'admin-teams',
+      path: '/admin/teams',
+      label: 'Teams',
+      description: 'Groups of people, with their members, to assign courses to together',
+      keywords: ['team', 'members', 'group', 'people'],
+    },
+    {
       id: 'admin-roles',
       path: '/admin/roles',
       label: 'Roles & access',
@@ -46,10 +53,9 @@ export const navigation = {
       id: 'admin-settings',
       path: '/admin/settings',
       label: 'Org settings',
-      description: 'The teams learners pick from, daily reminders and who signs certificates',
+      description: 'Daily reminders and who signs certificates',
       keywords: [
         'settings',
-        'teams',
         'reminders',
         'email',
         'organisation',

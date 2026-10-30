@@ -283,7 +283,7 @@ function PeoplePickerExample() {
   const search = (q: string) =>
     Promise.resolve(
       PICKER_PEOPLE.filter((p) =>
-        `${p.name ?? ''} ${p.email}`.toLowerCase().includes(q.toLowerCase()),
+        [p.name, p.email].join(' ').toLowerCase().includes(q.toLowerCase()),
       ),
     );
   return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;

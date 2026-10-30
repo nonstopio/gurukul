@@ -203,18 +203,31 @@ describe('Assign courses', () => {
     });
     await openApp(PATH, { ...admin, console: c, data: data() });
     await screen.findByLabelText(/Git, the NonStop Way/);
-    fireEvent.change(screen.getByLabelText('Search by name or email'), { target: { value: 'r' } });
+    const box = screen.getByRole('combobox', { name: 'Search by name or email' });
+    fireEvent.change(box, { target: { value: 'r' } });
+    expect(await screen.findByText('No one matches “r”')).toBeTruthy();
     expect(c.data.searchUsers).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Search by name or email'), {
-      target: { value: 'rav' },
-    });
-    fireEvent.click(await screen.findByRole('button', { name: 'Add Ravi' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add sam@nonstopio.com' }));
-    await waitFor(() =>
-      expect(
-        screen.getByRole('list', { name: 'Email addresses: added emails' }).textContent,
-      ).toContain('ravi@nonstopio.com'),
+    fireEvent.change(box, { target: { value: 'rav' } });
+    const ravi = await screen.findByRole('option', { name: /Ravi/ });
+    expect(c.data.searchUsers).toHaveBeenCalledTimes(1);
+    expect(c.data.searchUsers).toHaveBeenCalledWith('rav');
+    fireEvent.mouseDown(ravi);
+    expect((box as HTMLInputElement).value).toBe('');
+    fireEvent.change(box, { target: { value: 'sam' } });
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /sam@nonstopio.com/ }));
+    const added = screen.getByRole('list', { name: 'Email addresses: added emails' });
+    await waitFor(() => expect(added.textContent).toContain('ravi@nonstopio.com'));
+    expect(added.textContent).toContain('sam@nonstopio.com');
+    // Removing a person's chip in the picker takes them off the list too.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Ravi' }));
+    await waitFor(() => expect(added.textContent).not.toContain('ravi@nonstopio.com'));
+    // Removing one above drops them from the picker.
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Remove sam@nonstopio.com' })[0] as HTMLElement,
     );
+    expect(
+      screen.queryByRole('list', { name: 'Search by name or email: added people' }),
+    ).toBeNull();
   });
 
   it('shows the paste hint, reads a CSV, and ignores an empty file choice', async () => {
@@ -244,9 +257,35 @@ describe('Assign courses', () => {
     }) as HTMLButtonElement;
     expect(add.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    await screen.findByText('2 people in QA');
     fireEvent.click(add);
     await waitFor(() => expect(c.data.usersInTeam).toHaveBeenCalledWith('QA'));
     expect(await screen.findByText(/q2@nonstopio.com/)).toBeTruthy();
+  });
+});
+
+describe('Assign teams', () => {
+  it('adds the listed members of a team together with people whose profile names it', async () => {
+    const c = setup({
+      teamList: [
+        {
+          id: 'platform',
+          name: 'Platform',
+          memberEmails: ['m1@nonstopio.com', 'q1@nonstopio.com'],
+          createdAt: 5,
+        },
+      ],
+      team: [userRow(1, { email: 'q1@nonstopio.com' }), userRow(2, { email: 'q2@nonstopio.com' })],
+    });
+    await openApp(PATH, { ...admin, console: c, data: data() });
+    await screen.findByLabelText(/Git, the NonStop Way/);
+    fireEvent.click(screen.getByRole('tab', { name: 'Whole team' }));
+    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'Platform' } });
+    expect(await screen.findByText('3 people in Platform')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add everyone in this team' }));
+    const added = screen.getByRole('list', { name: 'Email addresses: added emails' });
+    await waitFor(() => expect(added.textContent).toContain('m1@nonstopio.com'));
+    expect(added.textContent).toContain('q2@nonstopio.com');
   });
 });
 

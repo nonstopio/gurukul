@@ -174,6 +174,9 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select Ravi Menon' }));
     await user.click(screen.getByRole('button', { name: 'Remove bad@x.org' }));
     expect(screen.queryByRole('button', { name: 'Remove bad@x.org' })).toBeNull();
+    await user.type(screen.getByRole('combobox', { name: 'Add people' }), 'mee');
+    await user.click(await screen.findByRole('option', { name: /Meera Nair/ }));
+    expect(screen.getByRole('button', { name: 'Remove Meera Nair' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Duplicate TEXT block' }));
     expect(screen.getByText('Duplicated')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Delete VIDEO block' }));

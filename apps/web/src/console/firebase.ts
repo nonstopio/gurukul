@@ -5,6 +5,8 @@ import {
   orgConfigSchema,
   orgStatsSchema,
   progressId,
+  teamId,
+  teamSchema,
 } from '@gurukul/schema';
 import {
   collection,
@@ -16,6 +18,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   setDoc,
   startAfter,
   where,
@@ -38,6 +41,24 @@ const RECENT_PROGRESS_LIMIT = 100;
 const USER_TARGETS = new Set(['roles.set', 'roles.bootstrap', 'cooldown.reset']);
 const SEARCH_LIMIT = 8;
 const COURSE_LIMIT = 100;
+/** The rules cap `config/org.teams` at 100, so there are never more team documents than this. */
+const TEAM_LIMIT = 100;
+
+/**
+ * `config/org` (the defaults when it does not exist yet) with `leaving` taken out of its team
+ * names and `joining` put in, matching names without regard to case.
+ */
+function withTeams(
+  org: Record<string, unknown> | undefined,
+  joining: string | null,
+  leaving: string | null,
+) {
+  const current = (org?.teams as string[] | undefined) ?? [];
+  const gone = new Set([leaving, joining].map((n) => n?.toLowerCase()));
+  const teams = current.filter((n) => !gone.has(n.toLowerCase()));
+  if (joining !== null) teams.push(joining);
+  return orgConfigSchema.parse({ ...DEFAULT_ORG_CONFIG, ...org, teams });
+}
 const PERSON_ASSIGNMENT_LIMIT = 50;
 const ATTEMPT_LIMIT = 10;
 const COURSE_LEARNER_LIMIT = 100;
@@ -294,7 +315,42 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
       });
     },
     async saveOrgSettings(settings) {
-      await setDoc(doc(db, 'config', 'org'), orgConfigSchema.parse(settings));
+      // Merged and without `teams`: the Teams page owns that list, so a stale settings form can
+      // never put back a team someone has since removed.
+      const { domain, reminders, signatory } = orgConfigSchema.parse(settings);
+      await setDoc(doc(db, 'config', 'org'), { domain, reminders, signatory }, { merge: true });
+    },
+    async teamList() {
+      const [snap, org] = await Promise.all([
+        getDocs(query(collection(db, 'teams'), limit(TEAM_LIMIT))),
+        getDoc(doc(db, 'config', 'org')),
+      ]);
+      const stored = snap.docs.map((d) => ({ id: d.id, ...teamSchema.parse(d.data()) }));
+      const named = new Set(stored.map((t) => t.name.toLowerCase()));
+      // A name with no document (made before teams had members) is a team with nobody on it.
+      const bare = ((org.data()?.teams as string[] | undefined) ?? [])
+        .filter((name) => !named.has(name.toLowerCase()))
+        .map((name) => ({ id: teamId(name), name, memberEmails: [], createdAt: 0 }));
+      return [...stored, ...bare].sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async saveTeam(team, previousName) {
+      const orgRef = doc(db, 'config', 'org');
+      const teamRef = doc(db, 'teams', team.id);
+      await runTransaction(db, async (tx) => {
+        const [org, existing] = await Promise.all([tx.get(orgRef), tx.get(teamRef)]);
+        if (previousName === null && existing.exists()) throw new Error('Team already exists');
+        const { name, memberEmails, createdAt } = team;
+        tx.set(teamRef, teamSchema.parse({ name, memberEmails, createdAt }));
+        tx.set(orgRef, withTeams(org.data(), team.name, previousName));
+      });
+    },
+    async deleteTeam(team) {
+      const orgRef = doc(db, 'config', 'org');
+      await runTransaction(db, async (tx) => {
+        const org = await tx.get(orgRef);
+        tx.delete(doc(db, 'teams', team.id));
+        tx.set(orgRef, withTeams(org.data(), null, team.name));
+      });
     },
     async auditPage(after, pageSize) {
       const base = [collection(db, 'audit'), orderBy('at', 'desc')] as const;
