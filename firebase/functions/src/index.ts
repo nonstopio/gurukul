@@ -30,6 +30,7 @@ import { runLogged } from './logging/trigger.js';
 import { runDailyReminders } from './remind.js';
 import { handleProgressWrite } from './progress.js';
 import { handleUserCreated } from './profile.js';
+import { handleTeamWrite } from './teams.js';
 import {
   firebaseRoleAdmin,
   firestoreBackupPort,
@@ -42,6 +43,7 @@ import {
   firestoreProgressStore,
   firestoreReminderStore,
   firestoreRollupStore,
+  firestoreTeamStore,
   firestoreUserStore,
 } from './stores.js';
 
@@ -88,6 +90,22 @@ export const onProgressWritten = onDocumentWritten('progress/{progressId}', asyn
         new Date(),
       ),
     (outcome) => ({ level: outcome === 'updated' ? 'info' : 'debug', fields: { outcome } }),
+  );
+});
+
+/** A team's members changed: keep each member's `teamIds` (what a course's team visibility reads) in step. */
+export const onTeamWritten = onDocumentWritten('teams/{teamId}', async (event) => {
+  await runLogged(
+    { done: 'Team membership reconciled', failed: 'Team membership reconcile failed' },
+    { teamId: event.params.teamId },
+    () =>
+      handleTeamWrite(
+        firestoreTeamStore(getFirestore()),
+        event.params.teamId,
+        event.data?.before.data(),
+        event.data?.after.data(),
+      ),
+    (r) => ({ fields: { count: r.count } }),
   );
 });
 

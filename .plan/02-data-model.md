@@ -8,8 +8,8 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Admin | self: `displayName`, `nameLower`, `team`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null` |
-| `courses/{courseId}` | **The published course object** | any signed-in user when `published` or `archived` (archived shows as Retired); every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Admin | self: `displayName`, `nameLower`, `team`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null`; `teamIds` is never writable from a client |
+| `courses/{courseId}` | **The published course object**, plus `visibility` and `visibleTeamIds` beside it (see [Course visibility](#course-visibility)) | any signed-in user when `published` or `archived` (archived shows as Retired) **and they may open it**: public, or a team they are on; every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
 | `courses/{courseId}/private/answers` | Quiz answer keys | never | never |
@@ -24,6 +24,50 @@ contract; the schema package is the executable one. They change together.
 | `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Admin | Admin (Teams page): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
+
+## Course visibility
+
+A published course says who may open it, in two fields on `courses/{id}` that sit **beside** the
+course object, not inside it (the course shape and `schemaVersion` do not change; `readCourse`
+ignores them, `accessOf` reads them):
+
+```ts
+visibility: 'public' | 'teams' | 'staff';   // missing reads as public
+visibleTeamIds: string[];                    // `teamId(name)` of each team, at most 30; used by `teams`
+```
+
+- `public`: everyone signed in. `teams`: people on at least one listed team. `staff`: every Educator
+  and Admin (they can open every course regardless: that is what Studio needs). Per team, not per
+  role, was the open question; `staff` is deliberately all staff rather than staff of a team, because
+  it costs nothing (it is a claim) and a team-scoped staff list would need a second membership
+  lookup in the rules for no known need. Revisit if a team wants its own Educator-only courses.
+- The publisher sets it in the Studio publish dialog; `publishCourse({ courseId, visibility?,
+  visibleTeamIds? })`. Left out, the live course keeps what it has (a never-published or older
+  course counts as `public`). Rollback keeps the live course's visibility. The function writes
+  both fields into `courses/{id}` with every release, and a version snapshot keeps them.
+- **Who is on a team** is `users/{uid}.teamIds`: the `onTeamWritten` function copies each
+  `teams/{id}` write onto the profiles of everyone the write listed before or after: each profile is
+  reset, in a transaction, to the teams that list its email **now**, never to a diff, so retried or
+  reordered trigger events cannot leave it wrong. `onUserCreated` creates the profile first and
+  then reconciles it the same way, so a team written in between is not lost (a person with no
+  profile yet is skipped by the trigger and picked up there). The `checkAnswer` and `gradeAttempt`
+  callables apply the same `canOpen` rule on the server, so an id sent by hand opens nothing. A person cannot write it, so
+  they cannot pick their way into a team's courses; `users.team` (the self-chosen name) is not used
+  for access. Team names reach Studio through `config/org.teams` (readable by every signed-in
+  person), so `teams/` stays Admin-only and member emails are never exposed.
+- **Rules** (`canOpenCourse`): a single read passes for public, a missing field, a listed team
+  (`visibleTeamIds.hasAny(myTeamIds())`, one `get` of the person's profile) or any Educator or
+  Admin. Starting a course (`progress` create) applies the same check. A **listing** must say what
+  it wants, so the rules can prove it: the catalogue runs `visibility == 'public'`, then
+  `visibility == 'teams'` with `visibleTeamIds array-contains-any` the person's own team ids
+  (at most 30). A listing that omits that is refused, and the emulator tests prove it.
+- **Existing courses**: a missing `visibility` still opens by id but cannot be listed, because a
+  query cannot match a missing field. `npm run backfill-visibility -- --apply` (once, on the
+  maintainer's machine, before the rules deploy; safe to re-run) writes `public` to every course
+  without one and fills `teamIds` for every team member. Every later publish writes it.
+- Cost: one extra query for a person with teams, one profile `get` per `teams` course read.
+  Limitation: assigning a team-only course to someone outside the team is not blocked; they see it
+  on Home but the course page refuses it.
 
 ## Teams
 
@@ -155,6 +199,7 @@ type User = {
   nameLower?: string;            // displayName lower-cased (`nameKey`), for search by name
   photoURL: string | null;
   team: string | null;
+  teamIds?: string[];            // `teamId(name)` of each `teams/` document that lists this email; set by functions only
   roles: Array<'learner' | 'educator' | 'admin'>;   // mirror of the claims
   grantedCourseIds: string[];
   createdAt: Timestamp;

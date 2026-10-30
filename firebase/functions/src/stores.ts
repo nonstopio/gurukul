@@ -18,6 +18,7 @@ import type { ProgressStore } from './progress.js';
 import type { ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
 import type { RoleAdmin } from './set-roles.js';
+import type { TeamStore } from './teams.js';
 
 /** Splits a list into pieces of at most `size`: Firestore caps `in` queries and batches. */
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -38,6 +39,9 @@ export function firestoreUserStore(db: Firestore): UserStore {
         .doc(`users/${uid}`)
         .set({ ...profile, createdAt: FieldValue.serverTimestamp() }, { merge: true });
     },
+    async reconcileTeams(email) {
+      await reconcileTeamIds(db, email);
+    },
     async claimAssignments(email, uid) {
       const snap = await db
         .collection('assignments')
@@ -49,6 +53,39 @@ export function firestoreUserStore(db: Firestore): UserStore {
       for (const d of snap.docs) batch.update(d.ref, { uid });
       await batch.commit();
       return snap.size;
+    },
+  };
+}
+
+/**
+ * Sets `users/{uid}.teamIds` for the profile with `email` to the teams that list it, reading them
+ * inside the transaction that writes. Returns false when the email has no profile (yet).
+ */
+async function reconcileTeamIds(db: Firestore, email: string): Promise<boolean> {
+  // More than one profile can carry an email (an Auth user deleted and made again), and each must
+  // lose a revoked team, so all are updated; five is far more than ever exists.
+  const found = await db.collection('users').where('email', '==', email).limit(5).get();
+  if (found.docs.length === 0) return false;
+  if (found.docs.length > 1) {
+    log.warn('Duplicate profiles reconciled', { count: found.docs.length });
+  }
+  await db.runTransaction(async (tx) => {
+    const teams = await tx.get(
+      db.collection('teams').where('memberEmails', 'array-contains', email),
+    );
+    const teamIds = teams.docs.map((d) => d.id);
+    for (const profile of found.docs) tx.update(profile.ref, { teamIds });
+  });
+  return true;
+}
+
+/** `TeamStore` over the Admin SDK. A team lists at most 500 people, so one write is at most 500 small transactions. */
+export function firestoreTeamStore(db: Firestore): TeamStore {
+  return {
+    async reconcile(emails) {
+      let count = 0;
+      for (const email of emails) if (await reconcileTeamIds(db, email)) count += 1;
+      return count;
     },
   };
 }
@@ -206,6 +243,9 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
 /** `GradingStore` over the Admin SDK. Kept thin: the decisions live in `grading.ts`. */
 export function firestoreGradingStore(db: Firestore): GradingStore {
   return {
+    async getTeamIds(uid) {
+      return ((await db.doc(`users/${uid}`).get()).get('teamIds') ?? []) as string[];
+    },
     async getCourse(courseId) {
       return (await db.doc(`courses/${courseId}`).get()).data();
     },
@@ -632,8 +672,9 @@ export function firestoreCourseStore(db: Firestore): CourseStore {
           snapshot: snapshot?.data() as VersionData | undefined,
         });
         const now = FieldValue.serverTimestamp();
-        const { version, course, answers } = plan;
-        const published = { ...course, publishedAt: now };
+        const { version, course, access, answers } = plan;
+        // The access sits beside the course object so rules and queries can read it.
+        const published = { ...course, ...access, publishedAt: now };
         tx.set(ref, published);
         tx.set(ref.collection('private').doc('answers'), answers);
         tx.set(ref.collection('versions').doc(`${version}`), {

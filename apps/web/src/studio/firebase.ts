@@ -1,4 +1,4 @@
-import { courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
+import { accessOf, courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
 import type { AnswerKeys, Course } from '@gurukul/schema';
 import {
   addDoc,
@@ -109,6 +109,9 @@ export function firebaseStudioData(db: Firestore): StudioData {
           return learners === null ? row : { ...row, learners };
         }),
       );
+    },
+    async getAccess(courseId) {
+      return accessOf((await getDoc(doc(db, 'courses', courseId))).data());
     },
     async getDraft(courseId) {
       const snap = await getDoc(draftRef(courseId));

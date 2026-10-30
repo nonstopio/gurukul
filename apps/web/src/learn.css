@@ -124,6 +124,20 @@
   gap: var(--space-6);
   align-items: stretch;
 }
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+.hero > .learn-stack {
+  flex: 1 1 16rem;
+}
+.hero__next {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
 .home-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));

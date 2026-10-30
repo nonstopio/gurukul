@@ -61,16 +61,48 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // The published course object. Everyone signed in reads published and archived courses
-    // (archived ones show as "Retired"); a never-published one (`status: 'draft'`) is readable by
-    // every Educator and Admin, so Studio lists every course. It holds no answer keys and
-    // no unpublished edits: those live in `drafts/` below, which stays the course's own Educators'.
-    // Only the publish function writes.
+    // The ids of the teams the signed-in person is on: `users/{uid}.teamIds`, kept by the
+    // `onTeamWritten` function from `teams/`, and never writable by the person (see `users` above).
+    // Costs one read, and only when a course is `teams`-visible.
+    function myTeamIds() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('teamIds', []);
+    }
+
+    // Whether the signed-in person may open a published course. Educators and Admins open every
+    // course (that is what `staff` visibility means). Everyone else opens a `public` one, and a
+    // `teams` one only when they are on one of its `visibleTeamIds`. A document written before
+    // visibility existed has neither field and reads as public. Used for single reads; a listing
+    // is stricter, because a query cannot be proven against a missing field (see `list` below).
+    function canOpenCourse(course) {
+      return isAdmin()
+        || request.auth.token.educator == true
+        || course.get('visibility', 'public') == 'public'
+        || (course.visibility == 'teams' && course.visibleTeamIds.hasAny(myTeamIds()));
+    }
+
+    // The published course object. Everyone signed in reads published and archived courses they
+    // may open (`canOpenCourse`; archived ones show as "Retired"); a never-published one
+    // (`status: 'draft'`) is readable by every Educator and Admin, so Studio lists every course. It
+    // holds no answer keys and no unpublished edits: those live in `drafts/` below, which stays the
+    // course's own Educators'. Only the publish function writes.
+    //
+    // A listing must say what it asks for: the catalogue runs `visibility == 'public'`, and
+    // `visibility == 'teams'` with `visibleTeamIds array-contains-any` the person's own teams, so
+    // the rules can prove every document returned is one they may open. Courses published before
+    // visibility existed carry `visibility: 'public'` from the one-off backfill
+    // (`scripts/backfill-visibility.mjs`); until then they still open by id but are not listed.
     match /courses/{courseId} {
-      allow read: if signedIn()
-        && (resource.data.status in ['published', 'archived']
-            || isAdmin()
-            || request.auth.token.educator == true);
+      allow get: if signedIn()
+        && (isAdmin()
+            || request.auth.token.educator == true
+            || (resource.data.status in ['published', 'archived'] && canOpenCourse(resource.data)));
+      allow list: if signedIn()
+        && (isAdmin()
+            || request.auth.token.educator == true
+            || (resource.data.status in ['published', 'archived']
+                && (resource.data.visibility == 'public'
+                    || (resource.data.visibility == 'teams'
+                        && resource.data.visibleTeamIds.hasAny(myTeamIds())))));
       allow write: if false;
 
       // The Studio's working copy: course plus answer keys (an Educator needs them to edit). Saved
@@ -168,6 +200,7 @@ service cloud.firestore {
         && request.resource.data.courseId is string
         && progressId == request.auth.uid + '_' + request.resource.data.courseId
         && get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.status == 'published'
+        && canOpenCourse(get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data)
         && request.resource.data.courseVersion is int
         && request.resource.data.startedAt == request.time
         && request.resource.data.lastActiveAt == request.time
