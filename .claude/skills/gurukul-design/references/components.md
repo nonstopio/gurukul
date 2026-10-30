@@ -207,6 +207,21 @@ A `<section aria-labelledby>` card (`--surface`, hairline, `--radius-xl`) with a
 badge (decorative) and the title in Fraunces `--text-xl`. The heading carries a visually hidden "Step N:"
 so the number is spoken. Stack several for a form; the sticky summary is the caller's layout.
 
+## FlowSteps, FlowPanel (Stepper.Flow) — shipped
+
+`<FlowSteps steps={['Course', …]} current={1} label? />` is a `<nav>` with an ordered list of numbered
+steps: done steps show a tick (and say "(done)" to a screen reader), the current one has
+`aria-current="step"` and an `--accent` underline. Under 40rem the list collapses to the sentence
+"Step 2 of 4: Audience". `<FlowPanel direction="forward|back" key={step}>` is the step body: it slides
+24px in from the side of travel over `--dur-slow` `--ease`, and only fades under reduced motion. The
+caller owns the step, the Back and Next buttons, validation (words under the step, focus moved to
+them) and moving focus to the step heading. Nothing is saved before the last step.
+
+## SuccessCheck — shipped
+
+`<SuccessCheck size? />`: a decorative `--success` ring and tick that draw once (`--dur-base`,
+`--ease-spring`). Put the result in words beside it (`role="status"`); never use it for a mere save.
+
 ## Dialog — shipped
 
 `<Dialog open onClose title size="md|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
