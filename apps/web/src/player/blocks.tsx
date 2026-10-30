@@ -1,9 +1,21 @@
 import { Callout, CodeBlock, FileIcon, QuizOption, VideoBlock } from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Markdown from 'react-markdown';
 import { isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { TrackedVideo } from './TrackedVideo';
+
+/** One line of Markdown (code, bold, italics) with no paragraph around it: a prompt or an option. */
+function Inline({ md }: { md: string }) {
+  return (
+    <Markdown
+      allowedElements={['p', 'code', 'strong', 'em']}
+      components={{ p: ({ children }) => <>{children}</> }}
+    >
+      {md}
+    </Markdown>
+  );
+}
 
 /** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
 export function Prose({ md }: { md: string }) {
@@ -51,14 +63,17 @@ function CheckBlock({
   onAnswered?: ((blockId: string) => void) | undefined;
 }) {
   const [picked, setPicked] = useState<number | null>(null);
+  const promptId = useId();
   const solved = picked !== null && (block.correct === undefined || picked === block.correct);
   const choose = (i: number) => {
     setPicked(i);
     if (block.correct === undefined || i === block.correct) onAnswered?.(block.id);
   };
   return (
-    <fieldset className="check">
-      <legend className="check__prompt">{block.prompt}</legend>
+    <div className="check" role="group" aria-labelledby={promptId}>
+      <p id={promptId} className="check__prompt">
+        <Inline md={block.prompt} />
+      </p>
       {block.options.map((option, i) => (
         <QuizOption
           key={option}
@@ -69,19 +84,19 @@ function CheckBlock({
           state={optionState(block.correct, picked, i)}
           onChange={() => choose(i)}
         >
-          {option}
+          <Inline md={option} />
         </QuizOption>
       ))}
       {solved ? (
         <p role="status" className="check__explanation">
-          {block.explanation}
+          <Inline md={block.explanation} />
         </p>
       ) : picked !== null ? (
         <p role="status" className="check__explanation">
           Not quite. Try another answer.
         </p>
       ) : null}
-    </fieldset>
+    </div>
   );
 }
 
@@ -127,7 +142,7 @@ export function BlockView({
         <CodeBlock
           code={block.code}
           copyable={block.copy}
-          variant={block.terminal ? 'terminal' : 'code'}
+          variant={block.terminal ? (block.copy ? 'terminal' : 'output') : 'code'}
           {...(block.file ? { fileName: block.file } : {})}
           {...(block.highlight ? { highlight: block.highlight } : {})}
         />

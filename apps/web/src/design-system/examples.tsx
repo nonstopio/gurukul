@@ -1037,7 +1037,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     ),
   },
   CodeBlock: {
-    rule: 'Code and terminal output with a copy button and highlighted lines.',
+    rule: 'Code and terminal commands with a copy button; what a command printed back is `output`, on a lighter ground with no prompt.',
     Example: () => (
       <div className="ds-stack">
         <CodeBlock
@@ -1046,6 +1046,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           highlight="2"
         />
         <CodeBlock code="npm test" variant="terminal" />
+        <CodeBlock code="Tests 12 passed" variant="output" copyable={false} />
       </div>
     ),
   },

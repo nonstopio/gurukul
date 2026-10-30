@@ -156,6 +156,26 @@ describe('progress update', () => {
       }),
     );
   });
+  it('lets the owner complete a first lesson, from an empty list', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'progress/nina_git'), {
+        uid: 'nina',
+        courseId: 'git',
+        courseVersion: 1,
+        completedItemIds: [],
+        lastItemId: null,
+        quiz: {},
+        percent: 0,
+      });
+    });
+    const ref = doc(as('nina'), 'progress/nina_git');
+    await assertSucceeds(
+      updateDoc(ref, { completedItemIds: arrayUnion('l1'), lastActiveAt: serverTimestamp() }),
+    );
+    await assertFails(
+      updateDoc(ref, { completedItemIds: ['l1', 'l2', 'l3'], lastActiveAt: serverTimestamp() }),
+    );
+  });
   it('denies removing a completed item, or an over-long list', async () => {
     const db = as('priya');
     await assertFails(

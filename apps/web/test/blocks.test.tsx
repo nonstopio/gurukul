@@ -99,6 +99,16 @@ describe('BlockView', () => {
     });
     expect(screen.getByText('terminal')).toBeTruthy();
     unmount();
+    const reply = show({
+      type: 'code',
+      id: 'c',
+      lang: 'sh',
+      code: 'git version 2.47.0',
+      copy: false,
+      terminal: true,
+    });
+    expect(screen.getByText('output')).toBeTruthy();
+    reply.unmount();
     show({
       type: 'code',
       id: 'c',
@@ -144,6 +154,21 @@ describe('BlockView', () => {
     show({ type: 'embed', id: 'e', url: 'https://evil.example/x', title: 'Playground' });
     expect(document.querySelector('iframe')).toBeNull();
     expect(screen.getByRole('link', { name: /Playground/ })).toBeTruthy();
+  });
+
+  it('renders inline code in a question, its options and its explanation', () => {
+    const { container } = show({
+      type: 'check',
+      id: 'm',
+      prompt: 'What does `--global` do?',
+      options: ['Sets it for **every** project', 'Only `this` one'],
+      correct: 0,
+      explanation: 'Use `--global` once.',
+    });
+    expect(screen.getByRole('group', { name: 'What does --global do?' })).toBeTruthy();
+    expect(container.querySelectorAll('code')).toHaveLength(2);
+    fireEvent.click(screen.getByLabelText(/every/));
+    expect(container.querySelectorAll('.check__explanation code')).toHaveLength(1);
   });
 
   it('shows the explanation the moment a learner picks on a question with no key', () => {

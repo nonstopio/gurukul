@@ -80,3 +80,14 @@
   color: var(--code-keyword);
   user-select: none;
 }
+
+/* What a command printed back: no prompt, a lighter ground and a hairline, so it reads as a reply. */
+.g-code--output {
+  background: var(--code-header);
+  box-shadow: inset 0 0 0 1px var(--code-active);
+}
+.g-code--output .g-code__header {
+  min-height: 0;
+  padding-block: var(--space-2) 0;
+  background: transparent;
+}

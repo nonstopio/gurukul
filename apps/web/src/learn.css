@@ -402,7 +402,15 @@ a.items__row:hover {
   background: var(--surface);
 }
 .check__prompt {
+  margin: 0;
   font-weight: 600;
+}
+.check__prompt code,
+.check__explanation code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  font: 400 0.9em var(--font-mono);
 }
 .check__explanation {
   margin: 0;

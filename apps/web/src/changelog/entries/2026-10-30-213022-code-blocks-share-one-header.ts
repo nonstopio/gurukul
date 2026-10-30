@@ -3,11 +3,14 @@ import type { ChangelogEntry } from '../types';
 export default {
   date: '2026-10-30',
   id: 'CODE-HEADER',
-  title: 'Code and terminal blocks in a lesson have the same header height',
+  title: 'A command and what it prints back look different in lessons',
   area: 'DESIGN',
   kind: 'fix',
   why:
-    'A command and its output sat one above the other, but the output block has no Copy button and ' +
-    'its header shrank to a thin strip, so the pair looked like two different designs.',
-  detail: ['Every block keeps the same header, with or without a Copy button.'],
+    'A command and its reply sat one above the other in the same dark frame, both labelled terminal, ' +
+    'so you could not tell what to type from what you should see.',
+  detail: [
+    'Replies are labelled output, have no $ prompt and sit on a lighter ground.',
+    'Commands keep the terminal frame and the Copy button.',
+  ],
 } satisfies ChangelogEntry;

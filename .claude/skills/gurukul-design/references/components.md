@@ -314,12 +314,14 @@ exception text; take the sentence and code from `describeError`.
 
 ## CodeBlock — shipped
 
-`<CodeBlock code fileName? variant="code|terminal" highlight="2,4-6" copyLabel? copiedLabel? failedLabel? />`.
+`<CodeBlock code fileName? variant="code|terminal|output" highlight="2,4-6" copyLabel? copiedLabel? failedLabel? />`.
 Header `--code-header`: name in mono 12px `--code-comment` (`fileName`, else "terminal" or "code") and a 44px
 Copy button (`--code-text`, hover `--chrome-hover`). Body `--code-bg`, `--code-text`, mono 13.5px/1.7, one
 block per line, `--radius-lg`. Highlighted lines (`highlight`, 1-based, numbers and ranges, junk ignored) get
 `--chrome-active` and a 2px `--chrome-accent` bar. `terminal` prefixes each line with a `$` prompt in
-`--code-keyword` drawn by CSS, so it is never copied or selected.
+`--code-keyword` drawn by CSS, so it is never copied or selected. `output` is what a command printed back:
+labelled "output", no prompt, body on `--code-header` with a hairline, so a command and its reply never look alike.
+The lesson player shows a terminal block with `copy: false` as `output`.
 
 Copy writes the whole `code` with `navigator.clipboard.writeText`, flips the button to "Copied" (check icon) for
 2s (a second click restarts the timer), and a `role="status"` region next to it announces "Copied". If the
