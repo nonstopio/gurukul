@@ -1,4 +1,4 @@
-import { Button, Card, Input, Textarea } from '@gurukul/ui';
+import { Button, Card, Input, PlusIcon, Textarea } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
@@ -51,6 +51,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
         </ul>
         <Button
           variant="secondary"
+          icon={<PlusIcon />}
           disabled={course.outcomes.length >= MAX_OUTCOMES}
           onClick={() => update(addOutcome)}
         >

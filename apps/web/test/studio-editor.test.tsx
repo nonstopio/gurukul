@@ -224,12 +224,12 @@ describe('Course editor: structure', () => {
     });
     expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
-      screen.getAllByRole('button', { name: '+ Lesson in chapter 1' })[0] as HTMLElement,
+      screen.getAllByRole('button', { name: 'Lesson in chapter 1' })[0] as HTMLElement,
     );
     expect(screen.getByRole('link', { name: 'Untitled lesson' }).getAttribute('href')).toMatch(
       /^\/studio\/courses\/git\/lessons\/lesson-/,
     );
-    fireEvent.click(screen.getByRole('button', { name: '+ Quiz in chapter 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz in chapter 1' }));
     expect(screen.getByRole('link', { name: 'Untitled Quiz' }).getAttribute('href')).toMatch(
       /quiz\/quiz-/,
     );

@@ -1,4 +1,4 @@
-import { Button, Input, Textarea } from '@gurukul/ui';
+import { Button, Input, PlusIcon, Textarea } from '@gurukul/ui';
 import {
   MAX_CHECK_OPTIONS,
   MIN_CHECK_OPTIONS,
@@ -52,10 +52,11 @@ export function CheckEditor({ block, onChange }: BlockEditorProps<'check'>) {
         ))}
         <Button
           variant="ghost"
+          icon={<PlusIcon />}
           disabled={block.options.length >= MAX_CHECK_OPTIONS}
           onClick={() => onChange(addCheckOption(block))}
         >
-          + Add answer
+          Add answer
         </Button>
         <p className="studio-muted">
           A check is not graded. Choose the right answer: {t.learners} see it marked, with the

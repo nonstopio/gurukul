@@ -25,7 +25,7 @@ test.describe('Educator in Studio', () => {
     await expect(page).toHaveURL(/\/studio\/courses\/testing-for-everyone$/);
     await page.getByRole('button', { name: 'Add chapter' }).click();
     await page.getByLabel('Title of chapter 1').fill('Why we test');
-    await page.getByRole('button', { name: /^\+ Lesson/ }).click();
+    await page.getByRole('button', { name: /^Lesson/ }).click();
     // The lesson page reads the saved draft, so let the autosave (one second after the edit) land
     // before opening it.
     const saveState = page.getByRole('status').filter({ hasText: /saved|saving|unsaved/i });
@@ -63,7 +63,7 @@ test.describe('Educator in Studio', () => {
     await page.getByLabel('Summary').fill('How to read a review comment and answer it well.');
     await page.getByRole('button', { name: 'Add chapter' }).click();
     await page.getByLabel('Title of chapter 1').fill('Reading comments');
-    await page.getByRole('button', { name: /^\+ Lesson/ }).click();
+    await page.getByRole('button', { name: /^Lesson/ }).click();
     const saveState = page.getByRole('status').filter({ hasText: /saved|saving|unsaved/i });
     await expect(saveState).toHaveText(/unsaved changes/);
     await expect(saveState).toHaveText(/· saved/);

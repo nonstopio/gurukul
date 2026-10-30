@@ -1,4 +1,4 @@
-import { Button, Dialog, Input, Select, Textarea } from '@gurukul/ui';
+import { Button, Dialog, Input, PlusIcon, Select, Textarea } from '@gurukul/ui';
 import { useState } from 'react';
 import { useTerms } from '../../labels/useTerms';
 import {
@@ -159,10 +159,11 @@ export function BankQuestionDialog({
           ) : null}
           <Button
             variant="ghost"
+            icon={<PlusIcon />}
             disabled={locked || question.options.length >= MAX_ANSWERS}
             onClick={() => edit((k) => addAnswer(k))}
           >
-            + Add answer
+            Add answer
           </Button>
         </fieldset>
         <Input

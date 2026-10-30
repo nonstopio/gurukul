@@ -68,6 +68,16 @@ describe('Button size and variants', () => {
     expect(screen.getByRole('button').className).toBe('g-btn g-btn--danger g-btn--sm');
   });
 
+  it('quiet is a class of its own', () => {
+    render(<Button variant="quiet">Rename</Button>);
+    expect(screen.getByRole('button').className).toBe('g-btn g-btn--quiet');
+  });
+
+  it('danger-quiet is a class of its own', () => {
+    render(<Button variant="danger-quiet">Delete</Button>);
+    expect(screen.getByRole('button').className).toBe('g-btn g-btn--danger-quiet');
+  });
+
   it('chrome-secondary is a class of its own', () => {
     render(<Button variant="chrome-secondary">Preview</Button>);
     expect(screen.getByRole('button').className).toBe('g-btn g-btn--chrome-secondary');
@@ -101,6 +111,8 @@ describe('Button accessibility', () => {
           Chrome
         </Button>
         <Button variant="danger">Delete course</Button>
+        <Button variant="quiet">Rename</Button>
+        <Button variant="danger-quiet">Delete</Button>
         <Button variant="chrome-secondary">Preview</Button>
         <Button size="sm" variant="secondary">
           Small

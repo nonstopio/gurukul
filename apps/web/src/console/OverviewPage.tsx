@@ -2,15 +2,16 @@ import { itemsOf } from '@gurukul/schema';
 import {
   BarChart,
   Button,
+  buttonClass,
   Card,
   DataTable,
+  DownloadIcon,
   EmptyState,
   FilterBar,
   Page,
   PageHeader,
   Select,
   StatCard,
-  buttonClass,
 } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -95,6 +96,7 @@ export function OverviewPage() {
             </Link>
             <Button
               variant="secondary"
+              icon={<DownloadIcon />}
               disabled={!ready || ready.assignments.length === 0}
               onClick={() =>
                 ready &&

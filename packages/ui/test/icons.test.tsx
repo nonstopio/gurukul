@@ -56,6 +56,6 @@ describe('Icon', () => {
   });
 
   it('exports every named icon', () => {
-    expect(named).toHaveLength(39);
+    expect(named).toHaveLength(42);
   });
 });

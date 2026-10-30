@@ -2,11 +2,16 @@ import {
   Button,
   Callout,
   Card,
+  ChevronDownIcon,
+  ChevronRightIcon,
   Chip,
   Dialog,
   DragList,
   Input,
+  PenIcon,
+  PlusIcon,
   Select,
+  TrashIcon,
   TypeTile,
 } from '@gurukul/ui';
 import { diffCourses, itemsOf } from '@gurukul/schema';
@@ -88,7 +93,11 @@ export function StructureTab({
               : `${t.Learners} keep their progress by lesson id, so renaming and moving are safe.`}
           </p>
         </div>
-        <Button variant="secondary" onClick={() => update((w) => addChapter(w, newId('chapter')))}>
+        <Button
+          variant="secondary"
+          icon={<PlusIcon />}
+          onClick={() => update((w) => addChapter(w, newId('chapter')))}
+        >
           {`Add ${t.chapter}`}
         </Button>
       </div>
@@ -113,50 +122,59 @@ export function StructureTab({
             return (
               <Card as="section" className="sc-chapter" aria-label={`${t.Chapter} ${index + 1}`}>
                 <div className="sc-chapter__head">
-                  {handle}
-                  <span className="sc-chapter__no">{`${t.Chapter} ${index + 1}`}</span>
-                  {open ? (
-                    <Input
-                      className="sc-chapter__input"
-                      label={`Title of ${t.chapter} ${index + 1}`}
-                      hideLabel
-                      value={chapter.title}
-                      maxLength={160}
-                      onChange={(e) => update((w) => renameChapter(w, chapter.id, e.target.value))}
-                    />
-                  ) : (
-                    <span className="sc-chapter__title">{chapter.title}</span>
-                  )}
-                  <span className="sc-chapter__meta">
-                    {chapter.items.length} {chapter.items.length === 1 ? 'item' : 'items'} ·{' '}
-                    {minutes} min
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-expanded={open}
-                    aria-controls={`chapter-body-${chapter.id}`}
-                    onClick={() => setCollapsed({ ...collapsed, [chapter.id]: open })}
-                  >
-                    {open ? 'Collapse' : 'Expand'}{' '}
-                    <span className="sr-only">{`${t.chapter} ${index + 1}`}</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
-                    onClick={() =>
-                      setConfirm({
-                        kind: 'chapter',
-                        id: chapter.id,
-                        title: chapter.title,
-                        count: chapter.items.length,
-                        learners: null,
-                      })
-                    }
-                  >
-                    Delete
-                  </Button>
+                  <div className="sc-chapter__top">
+                    {handle}
+                    <span className="sc-chapter__no">{`${t.Chapter} ${index + 1}`}</span>
+                    {open ? (
+                      <Input
+                        className="sc-chapter__input"
+                        label={`Title of ${t.chapter} ${index + 1}`}
+                        hideLabel
+                        value={chapter.title}
+                        maxLength={160}
+                        onChange={(e) =>
+                          update((w) => renameChapter(w, chapter.id, e.target.value))
+                        }
+                      />
+                    ) : (
+                      <span className="sc-chapter__title">{chapter.title}</span>
+                    )}
+                  </div>
+                  <div className="sc-actions">
+                    <span className="sc-chapter__meta">
+                      {chapter.items.length} {chapter.items.length === 1 ? 'item' : 'items'} ·{' '}
+                      {minutes} min
+                    </span>
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      icon={open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                      aria-expanded={open}
+                      aria-controls={`chapter-body-${chapter.id}`}
+                      onClick={() => setCollapsed({ ...collapsed, [chapter.id]: open })}
+                    >
+                      {open ? 'Collapse' : 'Expand'}{' '}
+                      <span className="sr-only">{`${t.chapter} ${index + 1}`}</span>
+                    </Button>
+                    <Button
+                      className="sc-actions__end"
+                      variant="danger-quiet"
+                      size="sm"
+                      icon={<TrashIcon />}
+                      aria-label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
+                      onClick={() =>
+                        setConfirm({
+                          kind: 'chapter',
+                          id: chapter.id,
+                          title: chapter.title,
+                          count: chapter.items.length,
+                          learners: null,
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
                 {open ? (
                   <div id={`chapter-body-${chapter.id}`} className="sc-chapter__body">
@@ -192,16 +210,18 @@ export function StructureTab({
                       <Button
                         variant="ghost"
                         size="sm"
+                        icon={<PlusIcon />}
                         onClick={() => update((w) => addLesson(w, chapter.id, newId('lesson')))}
                       >
-                        + Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
+                        Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        icon={<PlusIcon />}
                         onClick={() => update((w) => addQuiz(w, chapter.id, newId('quiz')))}
                       >
-                        + {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
+                        {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                     </div>
                   </div>
@@ -267,62 +287,74 @@ function ItemRow({
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="sc-item">
-      {handle}
-      <TypeTile kind={itemKind(item)} />
-      {renaming ? (
-        <Input
-          className="sc-item__input"
-          label={`Title of ${title}`}
-          hideLabel
-          value={item.title}
-          maxLength={160}
-          // eslint-disable-next-line jsx-a11y/no-autofocus -- focus moves to the field the person just asked to edit
-          autoFocus
-          onChange={(e) => onRename(e.target.value)}
-          onBlur={() => setRenaming(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') setRenaming(false);
-          }}
-        />
-      ) : (
-        <>
+      <div className="sc-item__top">
+        {handle}
+        <TypeTile kind={itemKind(item)} />
+        {renaming ? (
+          <Input
+            className="sc-item__input"
+            label={`Title of ${title}`}
+            hideLabel
+            value={item.title}
+            maxLength={160}
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- focus moves to the field the person just asked to edit
+            autoFocus
+            onChange={(e) => onRename(e.target.value)}
+            onBlur={() => setRenaming(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') setRenaming(false);
+            }}
+          />
+        ) : (
           <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
             {title}
           </Link>
+        )}
+        {diff.added.includes(item.id) ? <Chip tone="accent">New</Chip> : null}
+        {diff.edited.includes(item.id) ? <Chip tone="info">Edited</Chip> : null}
+        <span className="sc-item__meta">{itemMeta(item)}</span>
+      </div>
+      <div className="sc-actions">
+        {renaming ? null : (
           <Button
-            variant="ghost"
+            variant="quiet"
             size="sm"
+            icon={<PenIcon />}
             aria-label={`Rename ${title}`}
             onClick={() => setRenaming(true)}
           >
             Rename
           </Button>
-        </>
-      )}
-      {diff.added.includes(item.id) ? <Chip tone="accent">New</Chip> : null}
-      {diff.edited.includes(item.id) ? <Chip tone="info">Edited</Chip> : null}
-      <span className="sc-item__meta">{itemMeta(item)}</span>
-      {others.length > 0 ? (
-        <Select
-          className="sc-item__move"
-          label={`Move ${title} to another ${t.chapter}`}
-          hideLabel
-          value=""
-          onChange={(e) => onMoveTo(e.target.value)}
-        >
-          <option value="" disabled>
-            Move to…
-          </option>
-          {others.map((p) => (
-            <option key={p.id} value={p.id}>
-              {nameOf(p.title, `Untitled ${t.chapter}`)}
+        )}
+        {others.length > 0 ? (
+          <Select
+            className="sc-item__move"
+            label={`Move ${title} to another ${t.chapter}`}
+            hideLabel
+            value=""
+            onChange={(e) => onMoveTo(e.target.value)}
+          >
+            <option value="" disabled>
+              Move to…
             </option>
-          ))}
-        </Select>
-      ) : null}
-      <Button variant="ghost" size="sm" aria-label={`Delete ${title}`} onClick={onDelete}>
-        Delete
-      </Button>
+            {others.map((p) => (
+              <option key={p.id} value={p.id}>
+                {nameOf(p.title, `Untitled ${t.chapter}`)}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        <Button
+          className="sc-actions__end"
+          variant="danger-quiet"
+          size="sm"
+          icon={<TrashIcon />}
+          aria-label={`Delete ${title}`}
+          onClick={onDelete}
+        >
+          Delete
+        </Button>
+      </div>
     </div>
   );
 }

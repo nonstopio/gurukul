@@ -233,9 +233,9 @@ describe('Quiz builder: editing a question', () => {
     expect((screen.getByLabelText('Answer 2') as HTMLInputElement).value).toBe('False');
     expect(screen.queryByLabelText('Answer 3')).toBeNull();
     expect((screen.getByLabelText('Answer 1') as HTMLInputElement).readOnly).toBe(true);
-    expect(
-      (screen.getByRole('button', { name: '+ Add answer' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect((screen.getByRole('button', { name: 'Add answer' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect(
       (screen.getByRole('button', { name: 'Remove answer 1' }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -258,7 +258,7 @@ describe('Quiz builder: editing a question', () => {
 
   it('adds answers up to six and removes them down to two, keeping the key in step', async () => {
     const { studio } = await open();
-    const add = screen.getByRole('button', { name: '+ Add answer' }) as HTMLButtonElement;
+    const add = screen.getByRole('button', { name: 'Add answer' }) as HTMLButtonElement;
     for (let i = 0; i < 3; i++) fireEvent.click(add);
     expect(screen.getByLabelText('Answer 6')).toBeTruthy();
     expect(add.disabled).toBe(true);
@@ -312,7 +312,7 @@ describe('Quiz builder: a draft without answer keys', () => {
 describe('Quiz builder: the question list', () => {
   it('adds a question and opens it', async () => {
     const { studio } = await open();
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByRole('heading', { name: '4 questions' })).toBeTruthy();
     expect((screen.getByLabelText('Question (Markdown)') as HTMLTextAreaElement).value).toBe(
       'New question',

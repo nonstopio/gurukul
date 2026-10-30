@@ -8,6 +8,8 @@ import {
   Menu,
   Page,
   PageHeader,
+  PlusIcon,
+  UploadIcon,
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useMemo, useState } from 'react';
@@ -114,12 +116,15 @@ export function QuestionBankPage() {
     <>
       <Button
         variant="secondary"
+        icon={<UploadIcon />}
         disabled={courses.state !== 'ready'}
         onClick={() => setDialog('import')}
       >
         {`Import from a ${t.Quiz}`}
       </Button>
-      <Button onClick={() => setDialog('new')}>New question</Button>
+      <Button icon={<PlusIcon />} onClick={() => setDialog('new')}>
+        New question
+      </Button>
     </>
   );
 

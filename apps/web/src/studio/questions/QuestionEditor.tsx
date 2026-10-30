@@ -1,5 +1,5 @@
 import type { Lesson, PublishIssue } from '@gurukul/schema';
-import { Button, Callout, Input, Select, Textarea } from '@gurukul/ui';
+import { Button, Callout, Input, PlusIcon, Select, Textarea } from '@gurukul/ui';
 import { useState } from 'react';
 import { article } from '../../labels/terms';
 import { useTerms } from '../../labels/useTerms';
@@ -134,10 +134,11 @@ export function QuestionEditor({
         ) : null}
         <Button
           variant="ghost"
+          icon={<PlusIcon />}
           disabled={locked || question.options.length >= MAX_ANSWERS}
           onClick={() => onEdit((k) => addAnswer(k))}
         >
-          + Add answer
+          Add answer
         </Button>
       </fieldset>
       <Textarea

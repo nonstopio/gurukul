@@ -549,6 +549,11 @@ Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focu
 - `loading`: disabled, `aria-busy="true"`, label kept, a 16px `currentColor` spinner replaces the
   icon (still under reduced motion). Use it instead of swapping the label to "Saving…".
 - `size="sm"`: 36px, `--space-3` padding, dense rows only. `buttonClass(variant, extra, size?)`.
+- `quiet`: borderless, `--text-body`, hover `--surface-hover`. Neutral edits in a dense row (Rename, Collapse).
+- `danger-quiet`: borderless, `--danger` text, hover `--danger-soft`. The Delete or Remove in a row or card
+  that opens a confirmation; never the confirm itself. With a `TrashIcon`.
+- Roles in a row of actions, each with an icon: `quiet` neutral edits, `ghost` adding (`PlusIcon`),
+  `danger-quiet` removing. Grey, green and red, so no two actions read alike and a row stays light.
 - `danger`: `--danger` ground, `--danger-on` text — only the confirm of a destructive `Dialog`.
 - `chrome-secondary`: transparent, `--chrome-text`, `--chrome-line` border, hover
   `--chrome-hover` — secondary actions on the dark top bar (beside a `chrome` primary).

@@ -79,7 +79,14 @@ import type {
   TypeTileKind,
 } from '@gurukul/ui';
 
-const BUTTON_VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'danger'];
+const BUTTON_VARIANTS: ButtonVariant[] = [
+  'primary',
+  'secondary',
+  'ghost',
+  'quiet',
+  'danger-quiet',
+  'danger',
+];
 const CHROME_VARIANTS: ButtonVariant[] = ['chrome', 'chrome-secondary'];
 const CHIP_TONES: ChipTone[] = ['neutral', 'accent', 'warning', 'danger', 'info', 'solid'];
 const CALLOUT_TONES: CalloutTone[] = ['note', 'tip', 'warning'];

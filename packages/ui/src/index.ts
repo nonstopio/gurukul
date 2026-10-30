@@ -90,6 +90,7 @@ export { TypeTile } from './TypeTile';
 export type { TypeTileKind, TypeTileProps } from './TypeTile';
 export {
   AlertIcon,
+  DownloadIcon,
   AwardIcon,
   BookIcon,
   ChartIcon,
@@ -117,6 +118,7 @@ export {
   MoreIcon,
   PenIcon,
   PlayIcon,
+  PlusIcon,
   SearchIcon,
   SendIcon,
   SettingsIcon,
@@ -126,6 +128,7 @@ export {
   StarIcon,
   TextIcon,
   TrashIcon,
+  UploadIcon,
   UserIcon,
   UsersIcon,
   XIcon,

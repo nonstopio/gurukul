@@ -1,4 +1,13 @@
-import { Button, Card, ColourSwatch, Input, Select, Textarea, Toggle } from '@gurukul/ui';
+import {
+  Button,
+  Card,
+  ColourSwatch,
+  Input,
+  Select,
+  Textarea,
+  Toggle,
+  UploadIcon,
+} from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
@@ -76,7 +85,7 @@ export function DetailsPanel({
           value={course.cover.theme}
           onChange={(theme) => update((w) => setCoverTheme(w, theme))}
         />
-        <Button variant="secondary" disabled title="Uploads are not enabled">
+        <Button variant="secondary" icon={<UploadIcon />} disabled title="Uploads are not enabled">
           Upload cover image
         </Button>
       </Card>
