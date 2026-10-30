@@ -13,6 +13,7 @@ export const NONSTOP: AuthUser = {
 export function fakeAuth(claims: { educator?: boolean; admin?: boolean } = {}) {
   let userCb: (u: AuthUser | null) => void = () => {};
   let profileCb: (p: ProfileMirror | null) => void = () => {};
+  let profileErr: (e: unknown) => void = () => {};
   const service: AuthService = {
     onUser: vi.fn((cb) => {
       userCb = cb;
@@ -22,8 +23,9 @@ export function fakeAuth(claims: { educator?: boolean; admin?: boolean } = {}) {
     finishRedirect: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn().mockResolvedValue(undefined),
     claims: vi.fn().mockResolvedValue(claims),
-    watchProfile: vi.fn((_uid, cb) => {
+    watchProfile: vi.fn((_uid, cb, onError) => {
       profileCb = cb;
+      profileErr = onError;
       return vi.fn();
     }),
   };
@@ -32,5 +34,6 @@ export function fakeAuth(claims: { educator?: boolean; admin?: boolean } = {}) {
     emitUser: (u: AuthUser | null) => userCb(u),
     /** A profile without `labels` gets `generic`; pass `labels: undefined` for "not picked yet". */
     emitProfile: (p: ProfileMirror | null) => profileCb(p && { labels: 'generic', ...p }),
+    failProfile: (e: unknown) => profileErr(e),
   };
 }

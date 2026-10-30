@@ -61,6 +61,24 @@ describe('AuthProvider', () => {
     expect(f.service.claims).toHaveBeenCalledTimes(1);
   });
 
+  it('shows progress, not the sign-in page, between Google sign-in and the profile', () => {
+    const f = setup();
+    act(() => f.emitUser(null));
+    act(() => f.emitUser(NONSTOP));
+    expect(out()).toBe('loading|learner|');
+  });
+
+  it('asks to sign in again when the profile watch fails, instead of hanging', () => {
+    const f = setup();
+    act(() => f.emitUser(null));
+    act(() => f.emitUser(NONSTOP));
+    act(() => f.failProfile(Object.assign(new Error('denied'), { code: 'permission-denied' })));
+    expect(out()).toBe(`signedOut|learner|${RETRY_MESSAGE}`);
+    expect(f.service.signOut).toHaveBeenCalled();
+    act(() => f.emitUser(null));
+    expect(out()).toBe(`signedOut|learner|${RETRY_MESSAGE}`);
+  });
+
   it('takes roles from claims and lets an Admin into the console', async () => {
     const f = setup({ admin: true });
     act(() => f.emitUser(NONSTOP));
