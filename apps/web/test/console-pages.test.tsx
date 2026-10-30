@@ -398,6 +398,29 @@ describe('Roles & access', () => {
     expect(screen.getByText('No courses yet')).toBeTruthy();
   });
 
+  it('searches and pages a long list of courses in the grant dialog, keeping what was picked', async () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      makeCourse({ id: `c${i}`, title: `Topic ${String(i).padStart(2, '0')}` }),
+    );
+    const c = fakeConsole({ users: [educator], courses: many });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Asha' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Showing 6 of 14 courses/)).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Topic 13')).toBeNull();
+    fireEvent.click(within(dialog).getByLabelText('Topic 00'));
+    expect(within(dialog).getByText(/\d selected/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show 6 more' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show 2 more' }));
+    expect(within(dialog).getByLabelText('Topic 13')).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: /^Show \d+ more/ })).toBeNull();
+    fireEvent.change(within(dialog).getByRole('searchbox', { name: 'Search courses' }), {
+      target: { value: 'topic 07' },
+    });
+    expect(within(dialog).getByText(/1 of 14 courses match/)).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Topic 00')).toBeNull();
+  });
+
   it('edits an Educator: changes their courses and saves through setRoles', async () => {
     const c = fakeConsole({ users: [educator] });
     await openApp('/admin/roles', { ...adminCaller, console: c });

@@ -7,6 +7,7 @@ import {
   DataTable,
   Dialog,
   EmptyState,
+  Input,
   Page,
   PageHeader,
   PeoplePicker,
@@ -62,6 +63,9 @@ const STATUS_LABEL: Record<Course['status'], string | undefined> = {
   published: undefined,
   archived: 'Archived',
 };
+
+/** How many courses the grant dialog lists before "Show more". */
+const COURSES_SHOWN = 6;
 
 const STATUS_NOTE: Record<Course['status'], string> = {
   draft: ' (not published)',
@@ -245,6 +249,12 @@ function GrantDialog({
     initial ? held(initial) : { educator: true, admin: false },
   );
   const [courseIds, setCourseIds] = useState<string[]>(initial?.grantedCourseIds ?? []);
+  const [courseQuery, setCourseQuery] = useState('');
+  const [courseLimit, setCourseLimit] = useState(COURSES_SHOWN);
+  const matching = courses.filter((c) =>
+    c.title.toLowerCase().includes(courseQuery.trim().toLowerCase()),
+  );
+  const shown = matching.slice(0, courseLimit);
   const [saving, setSaving] = useState(false);
   const self = user?.uid === meUid;
   const wasAdmin = user?.roles.includes('admin') === true;
@@ -317,8 +327,25 @@ function GrantDialog({
       {user && roles.educator ? (
         <fieldset className="console-fieldset">
           <legend>Courses they may edit</legend>
+          <Input
+            label="Search courses"
+            hideLabel
+            type="search"
+            placeholder="Search courses"
+            value={courseQuery}
+            onChange={(e) => {
+              setCourseQuery(e.target.value);
+              setCourseLimit(COURSES_SHOWN);
+            }}
+          />
+          <p className="console-muted" aria-live="polite">
+            {courseQuery.trim()
+              ? `${matching.length} of ${courses.length} courses match`
+              : `Showing ${shown.length} of ${courses.length} courses`}
+            {courseIds.length > 0 ? ` · ${courseIds.length} selected` : ''}
+          </p>
           <ul className="learn-cards g-stagger">
-            {courses.map((c) => (
+            {shown.map((c) => (
               <CourseChoice
                 key={c.id}
                 course={c}
@@ -331,6 +358,11 @@ function GrantDialog({
               />
             ))}
           </ul>
+          {matching.length > shown.length ? (
+            <Button variant="ghost" onClick={() => setCourseLimit(courseLimit + COURSES_SHOWN)}>
+              {`Show ${Math.min(COURSES_SHOWN, matching.length - shown.length)} more`}
+            </Button>
+          ) : null}
         </fieldset>
       ) : null}
     </Dialog>
