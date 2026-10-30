@@ -177,3 +177,11 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+/* Inside a dialog the body scrolls and would clip a floating list to one row, so the list takes
+   its place in the flow there and the dialog scrolls instead. */
+.g-dialog__body .g-people__list {
+  position: static;
+  max-height: 16rem;
+  box-shadow: none;
+}
