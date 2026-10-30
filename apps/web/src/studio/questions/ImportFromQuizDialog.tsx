@@ -1,4 +1,4 @@
-import { Button, Dialog, EmptyState, Input, Select } from '@gurukul/ui';
+import { Button, Checkbox, Dialog, EmptyState, Input, Select } from '@gurukul/ui';
 import { useState } from 'react';
 import { useTerms } from '../../labels/useTerms';
 import { KIND_LABELS, parseTags } from '../questionEdit';
@@ -86,22 +86,22 @@ export function ImportFromQuizDialog({
                 <ul className="sc-rows" aria-label="Questions to import">
                   {source.questions.map((k) => (
                     <li key={k.question.id} className="sc-row">
-                      <label className="sc-bank__pick">
-                        <input
-                          type="checkbox"
-                          checked={picked.includes(k.question.id)}
-                          disabled={inBank(k)}
-                          onChange={() => toggle(k.question.id)}
-                        />
-                        <span>
-                          {k.question.prompt}
-                          <span className="sc-help">
-                            {' '}
-                            {KIND_LABELS[k.question.kind]}
-                            {inBank(k) ? ' · already in the bank' : ''}
+                      <Checkbox
+                        className="sc-bank__pick"
+                        checked={picked.includes(k.question.id)}
+                        disabled={inBank(k)}
+                        onChange={() => toggle(k.question.id)}
+                        label={
+                          <span>
+                            {k.question.prompt}
+                            <span className="sc-help">
+                              {' '}
+                              {KIND_LABELS[k.question.kind]}
+                              {inBank(k) ? ' · already in the bank' : ''}
+                            </span>
                           </span>
-                        </span>
-                      </label>
+                        }
+                      />
                     </li>
                   ))}
                 </ul>

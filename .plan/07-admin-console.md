@@ -12,7 +12,8 @@ analytics, Org settings. Handoff: `design-handoff/02-admin-console.md`.
   through everyone signed in, then the pending invites; any filter narrows to
   a bounded set (a team, a role, a course's assignments, search results) that
   the rest then filter in memory, and the tab counts follow the filters.
-  Search waits for a 250 ms pause in typing and starts at two characters.
+  Search waits for a 250 ms pause in typing and starts at two characters (the people field used to pick
+  people in Assign, Teams and Roles starts at one letter).
 - The Pending invite and Overdue tabs read every unclaimed (`uid == null`) and
   every overdue assignment, not only the newest 500, so their counts and the
   pending list are exact; reads grow with pending and overdue assignments only.
@@ -42,12 +43,16 @@ callable, Admin only:
 4. If `notify`, send an email per new assignment (see below).
 5. Return the classification so the UI shows the summary.
 
-Inputs supported by the UI: search people, paste emails (comma, space, new
-line), CSV upload (first column of emails, header optional), whole team (the members of a team on the Teams page, plus anyone whose profile
-names that team). The summary panel previews the classification **before**
+The audience is **teams or people, never both** (a Teams | People switch; changing it asks first when
+something is picked). Teams: search, pick several, make a new one on the spot (a name and at least one
+member); a picked team counts its listed members plus anyone whose profile names it. People: the shared
+`PeoplePicker` (focus lists the first ten with photos and how many there are, typing from one letter narrows
+by email or any word of the name), emails for people who have not signed in yet (typed, pasted, comma, space or
+new line), and a CSV upload (first column of emails, header optional). The summary panel previews the classification **before**
 submitting by running the same pure classifier client-side; with several courses it also counts new and
 already-assigned people per course.
-Courses show their lesson count, a chosen team shows its size, and the CSV tab takes a dropped
+Courses show twelve to a page with their picture, lesson count and minutes, search covers all of them, and the
+step buttons stay pinned to the bottom of the window. The CSV box takes a dropped
 file. After assigning exactly one course the console opens Learners filtered to it
 (`/admin/learners?course=<id>`).
 
@@ -74,11 +79,11 @@ an org setting; `config/org.reminders` only switches the daily run on or off.
 `/admin/teams` lists the teams with their member counts. **Create team** is one dialog: a name and
 members as email chips (paste many, separated by commas, spaces or new lines; each chip is checked and
 an invalid one says why; an address that has not signed in yet is marked Invited). A team needs
-at least one member unless the person ticks "Create empty team". A row opens the same dialog to edit the name
+at least one member (a team is never empty). A row opens the same dialog to edit the name
 and members; Delete asks first. Writes go straight to `teams/{id}` and `config/org.teams` in one
 transaction under the rules (no callable, no audit entry, as Org settings). A name in
-`config/org.teams` with no document shows as a team with no members. Assign courses picks a team and
-adds its members. Data: [02 · Data model](02-data-model.md#teams).
+`config/org.teams` with no document shows as a team with no members. Assign courses picks one or more teams
+and assigns their members. Data: [02 · Data model](02-data-model.md#teams).
 
 ## Org settings
 

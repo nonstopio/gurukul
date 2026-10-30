@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../src';
 import { axeViolations } from './axe';
 
-function Harness({ size, children }: { size?: 'md' | 'drawer'; children?: React.ReactNode }) {
+function Harness({
+  size,
+  children,
+}: {
+  size?: 'md' | 'lg' | 'drawer';
+  children?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -57,6 +63,13 @@ describe('Dialog', () => {
     render(<Harness>just text</Harness>);
     open();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+  });
+
+  it('lg size is a wider centred panel', () => {
+    render(<Harness size="lg" />);
+    open();
+    expect(screen.getByRole('dialog').className).toContain('g-dialog--lg');
+    expect(document.querySelector('.g-dialog-layer--lg')).toBeTruthy();
   });
 
   it('drawer size has its own class and layer', () => {

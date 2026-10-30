@@ -289,7 +289,7 @@ describe('check block editor', () => {
 
   it('adds answers up to six and removes them down to two', () => {
     const { last } = setup(newBlock('check'));
-    const add = screen.getByRole('button', { name: '+ Add answer' }) as HTMLButtonElement;
+    const add = screen.getByRole('button', { name: 'Add answer' }) as HTMLButtonElement;
     for (let i = 0; i < 4; i++) fireEvent.click(add);
     expect((last() as { options: string[] }).options).toHaveLength(6);
     expect(add.disabled).toBe(true);

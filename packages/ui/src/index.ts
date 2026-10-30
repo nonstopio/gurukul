@@ -28,6 +28,8 @@ export type {
   SelectProps,
   TextareaProps,
 } from './Field';
+export { ToggleCard } from './ToggleCard';
+export type { ToggleCardProps } from './ToggleCard';
 export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
 export { Tabs } from './Tabs';
@@ -36,6 +38,10 @@ export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+export { CourseTile } from './CourseTile';
+export type { CourseTileProps, CourseTileTheme } from './CourseTile';
+export { SearchCard } from './SearchCard';
+export type { SearchCardFilter, SearchCardProps } from './SearchCard';
 export { GlobalLoader } from './GlobalLoader';
 export type { GlobalLoaderProps, GlobalLoaderVariant } from './GlobalLoader';
 export { Skeleton } from './Skeleton';
@@ -62,10 +68,8 @@ export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
 export { DataTable, Pagination } from './DataTable';
 export type { DataTableColumn, DataTableProps, PaginationProps } from './DataTable';
-export { EmailChipInput, splitEmails } from './EmailChipInput';
-export type { EmailChipInputProps, EmailClassification, EmailStatus } from './EmailChipInput';
-export { PeoplePicker } from './PeoplePicker';
-export type { PeoplePickerProps, Person } from './PeoplePicker';
+export { PeoplePicker, splitEmails } from './PeoplePicker';
+export type { EmailClassification, EmailStatus, PeoplePickerProps, Person } from './PeoplePicker';
 export { FlowPanel, FlowSteps, StepCard, Stepper } from './Stepper';
 export type { FlowPanelProps, FlowStepsProps, StepCardProps } from './Stepper';
 export { SuccessCheck } from './SuccessCheck';
@@ -80,14 +84,13 @@ export { DragList, moveItem } from './DragList';
 export type { DragListProps } from './DragList';
 export { BlockFrame } from './BlockFrame';
 export type { BlockFrameProps } from './BlockFrame';
-export { LayoutPicker } from './LayoutPicker';
-export type { BlockLayout, LayoutPickerProps } from './LayoutPicker';
 export { ColourSwatch } from './ColourSwatch';
 export type { ColourSwatchProps, CoverTheme } from './ColourSwatch';
 export { TypeTile } from './TypeTile';
 export type { TypeTileKind, TypeTileProps } from './TypeTile';
 export {
   AlertIcon,
+  DownloadIcon,
   AwardIcon,
   BookIcon,
   ChartIcon,
@@ -115,15 +118,18 @@ export {
   MoreIcon,
   PenIcon,
   PlayIcon,
+  PlusIcon,
   SearchIcon,
   SendIcon,
   SettingsIcon,
   ShieldIcon,
   SparkIcon,
   SunIcon,
+  SwapIcon,
   StarIcon,
   TextIcon,
   TrashIcon,
+  UploadIcon,
   UserIcon,
   UsersIcon,
   XIcon,
@@ -131,6 +137,14 @@ export {
 export type { IconProps } from './Icon';
 export { Avatar, initials } from './Avatar';
 export type { AvatarProps, AvatarTone } from './Avatar';
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+export { Radio } from './Radio';
+export type { RadioProps } from './Radio';
+export { ChoiceCard } from './ChoiceCard';
+export type { ChoiceCardProps } from './ChoiceCard';
+export { IconButton, iconButtonClass } from './IconButton';
+export type { IconButtonProps, IconButtonTone } from './IconButton';
 export { Menu } from './Menu';
 export type { MenuProps, MenuEntry, MenuItem } from './Menu';
 export { UserCard } from './UserCard';

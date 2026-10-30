@@ -15,6 +15,8 @@ export interface UserCardProps {
   detail: string;
   /** Avatar colour by role. Default: `learner`. */
   tone?: AvatarTone | undefined;
+  /** The person's photo; the avatar shows it over the initials. */
+  photoUrl?: string | null | undefined;
   /** The person's role in their label set: a chip in the menu's header, under name and email. */
   roleLabel?: string | undefined;
   items: MenuEntry[];
@@ -29,6 +31,7 @@ export function UserCard({
   name,
   detail,
   tone,
+  photoUrl,
   roleLabel,
   items,
   menuLabel = 'Account',
@@ -53,7 +56,7 @@ export function UserCard({
       }
       trigger={
         <>
-          <Avatar name={name} tone={tone} size={36} />
+          <Avatar name={name} tone={tone} photoUrl={photoUrl} size={36} />
           <span className="g-user-card__text">
             <span className="g-user-card__name">
               <span className="g-user-card__hidden">{`${menuLabel}:`}</span> {name}

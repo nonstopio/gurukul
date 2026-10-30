@@ -66,7 +66,7 @@ A source offers only what the person can already read; the rules are still the g
 is one function in `records.ts` and one entry in `Frame`'s list.
 
 Records too many to load up front (people) are a `RecordLookup` instead: `find(prefix)` makes one
-bounded query, run from two characters once typing pauses (`SEARCH_DELAY_MS`, the Learners page's
+lookup (the console's `searchUsers` reads the roster once per five minutes and matches in memory), run from two characters once typing pauses (`SEARCH_DELAY_MS`, the Learners page's
 own), and only the newest answer is kept. The palette tells the provider what is typed through
 `onQueryChange`. People reuse the console's `searchUsers` and open `/admin/learners?learner=<uid>`,
 which opens the learner drawer.

@@ -339,7 +339,7 @@ describe('Roles & access', () => {
     expect(within(list).getAllByText('nameless@nonstopio.com')).toHaveLength(2);
     fireEvent.click(within(list).getByRole('button', { name: 'Edit Admin as Admin' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Admin/ }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: /Admin/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
@@ -360,10 +360,10 @@ describe('Roles & access', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Both' }));
     const dialog = await screen.findByRole('dialog');
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Educator/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('switch', { name: /Educator/ }) as HTMLInputElement).checked,
     ).toBe(true);
     expect(
-      (within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement).checked,
+      (within(dialog).getByRole('switch', { name: /Admin/ }) as HTMLInputElement).checked,
     ).toBe(true);
     fireEvent.click(within(dialog).getByLabelText('Work in progress (not published)'));
     fireEvent.click(within(dialog).getByLabelText('Old course (archived)'));
@@ -398,6 +398,72 @@ describe('Roles & access', () => {
     expect(screen.getByText('No courses yet')).toBeTruthy();
   });
 
+  it('reads the person again when they are picked, so an old search cannot undo a grant', async () => {
+    const stale = userRow(5, {
+      displayName: 'Ravi',
+      email: 'ravi@nonstopio.com',
+      roles: ['learner'],
+    });
+    const fresh = { ...stale, roles: ['learner', 'educator'] };
+    const c = fakeConsole({ found: [stale] });
+    c.data.usersByUid = vi.fn().mockResolvedValue([fresh]);
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
+    const educator = (await within(dialog).findByRole('switch', {
+      name: /Educator/,
+    })) as HTMLInputElement;
+    expect(c.data.usersByUid).toHaveBeenCalledWith([stale.uid]);
+    expect(educator.checked).toBe(true);
+  });
+
+  it('falls back to the searched profile when the fresh read finds nobody', async () => {
+    const found = userRow(5, { displayName: 'Ravi', email: 'ravi@nonstopio.com' });
+    const c = fakeConsole({ found: [found] });
+    c.data.usersByUid = vi.fn().mockResolvedValue([]);
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
+    expect(await within(dialog).findByRole('switch', { name: /Educator/ })).toBeTruthy();
+  });
+
+  it('searches and pages a long list of courses in the grant dialog, keeping what was picked', async () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      makeCourse({ id: `c${i}`, title: `Topic ${String(i).padStart(2, '0')}` }),
+    );
+    const c = fakeConsole({ users: [educator], courses: many });
+    await openApp('/admin/roles', { ...adminCaller, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Asha' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Showing 6 of 14 courses/)).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Topic 13')).toBeNull();
+    fireEvent.click(within(dialog).getByLabelText('Topic 00'));
+    expect(within(dialog).getByText(/\d selected/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show 6 more' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show 2 more' }));
+    expect(within(dialog).getByLabelText('Topic 13')).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: /^Show \d+ more/ })).toBeNull();
+    fireEvent.change(within(dialog).getByRole('searchbox', { name: 'Search courses' }), {
+      target: { value: 'topic 07' },
+    });
+    expect(within(dialog).getByText(/1 of 14 courses match/)).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Topic 00')).toBeNull();
+  });
+
   it('edits an Educator: changes their courses and saves through setRoles', async () => {
     const c = fakeConsole({ users: [educator] });
     await openApp('/admin/roles', { ...adminCaller, console: c });
@@ -424,19 +490,18 @@ describe('Roles & access', () => {
     const dialog = await screen.findByRole('dialog');
     const save = within(dialog).getByRole('button', { name: 'Save role' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'r' },
-    });
-    expect(c.data.searchUsers).not.toHaveBeenCalled();
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'rav' },
-    });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Ravi' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'rav' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Ravi/ }));
+    fireEvent.click(await within(dialog).findByRole('switch', { name: /Educator/ }));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
     fireEvent.click(within(dialog).getByLabelText(/Git, the NonStop Way/));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Educator/ }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: /Educator/ }));
     expect(within(dialog).queryByText('Courses they may edit')).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
@@ -463,11 +528,14 @@ describe('Roles & access', () => {
     expect(await screen.findByText('Updated solo@nonstopio.com')).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const grant = await screen.findByRole('dialog', { name: 'Grant a role' });
-    fireEvent.change(within(grant).getByLabelText('Find a person by name or email'), {
-      target: { value: 'sol' },
-    });
-    fireEvent.click(await within(grant).findByRole('button', { name: 'solo@nonstopio.com' }));
-    expect(within(grant).getByText(/· solo@nonstopio.com/)).toBeTruthy();
+    fireEvent.change(
+      within(grant).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'sol' },
+      },
+    );
+    fireEvent.mouseDown(await within(grant).findByRole('option', { name: /solo@nonstopio.com/ }));
+    expect(await within(grant).findByText(/· solo@nonstopio.com/)).toBeTruthy();
   });
 
   it('refuses to let an Admin remove their own role, and says so', async () => {
@@ -476,11 +544,14 @@ describe('Roles & access', () => {
     await openApp('/admin/roles', { ...adminCaller, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'me' },
-    });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
-    const box = within(dialog).getByRole('checkbox', { name: /Admin/ }) as HTMLInputElement;
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'me' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
+    const box = (await within(dialog).findByRole('switch', { name: /Admin/ })) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(box.checked).toBe(true);
     expect(within(dialog).getByText(/cannot remove your own Admin role/)).toBeTruthy();

@@ -45,6 +45,9 @@
     transform: translateY(8px) scale(0.97);
   }
 }
+.g-dialog--lg {
+  max-width: 56rem;
+}
 .g-dialog--drawer {
   max-width: 480px;
   height: 100%;

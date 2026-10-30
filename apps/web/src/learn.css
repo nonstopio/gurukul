@@ -85,38 +85,6 @@
   padding-left: var(--space-5);
 }
 
-/* ---- Course covers ---- */
-.cover-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  border-radius: var(--radius-lg);
-  color: var(--text);
-  font: 500 var(--text-lg) / 1 var(--font-display);
-}
-.cover-tile--small {
-  width: 3rem;
-  height: 3rem;
-}
-.cover-tile--large {
-  min-height: 6rem;
-  font-size: var(--text-3xl);
-}
-.cover-tile--forest {
-  background: var(--cover-forest);
-  color: var(--on-forest);
-}
-.cover-tile--sand {
-  background: var(--cover-sand);
-}
-.cover-tile--sky {
-  background: var(--cover-sky);
-}
-.cover-tile--stone {
-  background: var(--cover-stone);
-}
-
 /* ---- Home ---- */
 .continue {
   display: grid;
@@ -391,11 +359,23 @@ a.items__row:hover {
   font: var(--text-sm) var(--font-mono);
 }
 .figure {
+  display: grid;
   margin: 0;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .figure img {
+  display: block;
   max-width: 100%;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+}
+/* A caption reads as a caption: smaller, quieter, set apart from the paragraphs around it. */
+.figure figcaption {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-strong);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
 }
 .embed {
   width: 100%;
@@ -422,7 +402,15 @@ a.items__row:hover {
   background: var(--surface);
 }
 .check__prompt {
+  margin: 0;
   font-weight: 600;
+}
+.check__prompt code,
+.check__explanation code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  font: 400 0.9em var(--font-mono);
 }
 .check__explanation {
   margin: 0;
@@ -536,7 +524,7 @@ a.items__row:hover {
     'brand brand'
     'copy art'
     'foot foot';
-  align-content: start;
+  grid-template-rows: auto 1fr auto;
   gap: var(--space-8) var(--space-12);
   min-height: 100dvh;
   padding: var(--space-6) clamp(var(--space-5), 6vw, var(--space-16));
@@ -550,8 +538,13 @@ a.items__row:hover {
   gap: var(--space-4);
 }
 .signin__brand img {
-  height: var(--space-8);
+  height: var(--space-6);
   width: auto;
+  /* White artwork: it always sits on the forest ground, in both themes. */
+  box-sizing: content-box;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--cover-forest);
 }
 .signin__brand-name {
   padding-left: var(--space-4);
@@ -651,7 +644,7 @@ a.items__row:hover {
   fill: var(--saffron);
 }
 .signin-art__card,
-.signin-art__ring,
+.signin-art__ring-plate,
 .signin-art__seal,
 .signin-art__pill {
   position: absolute;
@@ -684,9 +677,10 @@ a.items__row:hover {
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-.signin-art__ring {
+.signin-art__ring-plate {
   top: 6%;
   left: 7%;
+  display: grid;
   padding: var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -738,6 +732,24 @@ a.items__row:hover {
   .signin-art {
     max-width: var(--width-form);
     margin-inline: auto;
+  }
+}
+/* Phones: a squarer plate, the card across it, the pill dropped and the seal smaller, so nothing overlaps the card text. */
+@media (width < 40rem) {
+  .signin-art {
+    aspect-ratio: 1 / 1;
+  }
+  .signin-art__card {
+    inset: 30% 6% auto 6%;
+  }
+  .signin-art__pill {
+    display: none;
+  }
+  .signin-art__seal {
+    scale: 0.7;
+    transform-origin: bottom right;
+    bottom: 4%;
+    right: 4%;
   }
 }
 

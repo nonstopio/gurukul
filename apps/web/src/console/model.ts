@@ -115,6 +115,22 @@ export const searchPrefix = (search: string): string => {
   return p.length >= 2 ? p : '';
 };
 
+/**
+ * Whether a person is found by what was typed: it starts their email, their whole name, or any
+ * word of their name ("ali" finds Farhan Ali, "farhan al" too). `prefix` is lower-cased already.
+ */
+export function matchesPerson(
+  user: Pick<UserRow, 'email' | 'displayName'>,
+  prefix: string,
+): boolean {
+  const name = user.displayName.toLowerCase();
+  return (
+    user.email.toLowerCase().startsWith(prefix) ||
+    name.startsWith(prefix) ||
+    name.split(/[^\p{L}\p{N}]+/u).some((word) => word.startsWith(prefix))
+  );
+}
+
 /** True when a filter narrows the table to a bounded set, held and paged in memory. */
 export const isFiltered = (f: LearnerFilters): boolean =>
   searchPrefix(f.search) !== '' || f.team !== '' || f.role !== '' || f.courseId !== '';

@@ -10,9 +10,12 @@ import {
   Input,
   Page,
   PageHeader,
+  PeoplePicker,
   StatCard,
+  ToggleCard,
   useToast,
 } from '@gurukul/ui';
+import type { Person } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
@@ -22,8 +25,9 @@ import type { Terms } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
+import { CourseChoice } from './CourseChoice';
 import { useConsole } from './ConsoleProvider';
-import { usePeopleSearch } from './usePeopleSearch';
+import { usePeopleLookup } from './usePeopleSearch';
 import type { UserRow } from './types';
 
 type RoleKind = 'learner' | 'educator' | 'admin';
@@ -40,6 +44,12 @@ const CARDS: Array<{ role: RoleKind; text: string }> = [
   { role: 'admin', text: 'Assigns courses, grants roles and sees everything.' },
 ];
 
+/** What each role does, in a line: on the role cards and on the switches. */
+const ROLE_TEXT = {
+  educator: CARDS[1]?.text,
+  admin: CARDS[2]?.text,
+};
+
 type MatrixRow = [string, string, string, string];
 
 const matrix = (t: Terms): MatrixRow[] => [
@@ -54,6 +64,15 @@ const held = (u: UserRow): Held => ({
   educator: u.roles.includes('educator'),
   admin: u.roles.includes('admin'),
 });
+
+const STATUS_LABEL: Record<Course['status'], string | undefined> = {
+  draft: 'Not published',
+  published: undefined,
+  archived: 'Archived',
+};
+
+/** How many courses the grant dialog lists before "Show more". */
+const COURSES_SHOWN = 6;
 
 const STATUS_NOTE: Record<Course['status'], string> = {
   draft: ' (not published)',
@@ -232,11 +251,17 @@ function GrantDialog({
   const { data } = useConsole();
   const t = useTerms();
   const [user, setUser] = useState<UserRow | null>(initial);
-  const people = usePeopleSearch(data);
+  const people = usePeopleLookup(data);
   const [roles, setRoles] = useState<Held>(
     initial ? held(initial) : { educator: true, admin: false },
   );
   const [courseIds, setCourseIds] = useState<string[]>(initial?.grantedCourseIds ?? []);
+  const [courseQuery, setCourseQuery] = useState('');
+  const [courseLimit, setCourseLimit] = useState(COURSES_SHOWN);
+  const matching = courses.filter((c) =>
+    c.title.toLowerCase().includes(courseQuery.trim().toLowerCase()),
+  );
+  const shown = matching.slice(0, courseLimit);
   const [saving, setSaving] = useState(false);
   const self = user?.uid === meUid;
   const wasAdmin = user?.roles.includes('admin') === true;
@@ -244,6 +269,7 @@ function GrantDialog({
   return (
     <Dialog
       open
+      size="lg"
       onClose={onClose}
       title={initial ? `Edit ${initial.displayName || initial.email}` : 'Grant a role'}
       footer={
@@ -265,50 +291,44 @@ function GrantDialog({
         </p>
       ) : (
         <>
-          <Input
+          <PeoplePicker
             label="Find a person by name or email"
-            value={people.query}
-            onChange={(e) => void people.search(e.target.value)}
+            value={[]}
+            search={people.search}
+            total={people.total}
+            onChange={(picked) => {
+              // One person is wanted: the first pick replaces this field with their roles. The
+              // search list can be minutes old, so their roles and courses are read fresh first.
+              const found = people.userOf((picked[0] as Person).email) as UserRow;
+              void data.usersByUid([found.uid]).then(([fresh]) => {
+                const u = fresh ?? found;
+                setUser(u);
+                setRoles(held(u));
+                setCourseIds(u.grantedCourseIds);
+              });
+            }}
           />
-          <ul className="console-rows" aria-label="People found">
-            {people.found.map((u) => (
-              <li key={u.uid}>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setUser(u);
-                    setRoles(held(u));
-                    setCourseIds(u.grantedCourseIds);
-                  }}
-                >
-                  {u.displayName || u.email}
-                </Button>
-              </li>
-            ))}
-          </ul>
         </>
       )}
       {user ? (
         <fieldset className="console-fieldset">
           <legend>Roles</legend>
           <p>{`Everyone is ${article(t.Learner)}. Add either or both of the roles below.`}</p>
-          <label className="console-choice">
-            <input
-              type="checkbox"
+          <div className="console-switches">
+            <ToggleCard
+              title={t.Educator}
+              description={ROLE_TEXT.educator}
               checked={roles.educator}
               onChange={(e) => setRoles({ ...roles, educator: e.target.checked })}
-            />{' '}
-            {t.Educator}
-          </label>
-          <label className="console-choice">
-            <input
-              type="checkbox"
+            />
+            <ToggleCard
+              title={t.Admin}
+              description={ROLE_TEXT.admin}
               checked={roles.admin}
               disabled={self && wasAdmin}
               onChange={(e) => setRoles({ ...roles, admin: e.target.checked })}
-            />{' '}
-            {t.Admin}
-          </label>
+            />
+          </div>
           {self && wasAdmin ? (
             <p>{`You cannot remove your own ${t.Admin} role. Ask another ${t.Admin}.`}</p>
           ) : null}
@@ -317,21 +337,42 @@ function GrantDialog({
       {user && roles.educator ? (
         <fieldset className="console-fieldset">
           <legend>Courses they may edit</legend>
-          {courses.map((c) => (
-            <label key={c.id} className="console-choice">
-              <input
-                type="checkbox"
-                checked={courseIds.includes(c.id)}
-                onChange={(e) =>
-                  setCourseIds(
-                    e.target.checked ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id),
-                  )
+          <Input
+            label="Search courses"
+            hideLabel
+            type="search"
+            placeholder="Search courses"
+            value={courseQuery}
+            onChange={(e) => {
+              setCourseQuery(e.target.value);
+              setCourseLimit(COURSES_SHOWN);
+            }}
+          />
+          <p className="console-muted" aria-live="polite">
+            {courseQuery.trim()
+              ? `${matching.length} of ${courses.length} courses match`
+              : `Showing ${shown.length} of ${courses.length} courses`}
+            {courseIds.length > 0 ? ` · ${courseIds.length} selected` : ''}
+          </p>
+          <ul className="console-course-grid g-stagger">
+            {shown.map((c) => (
+              <CourseChoice
+                key={c.id}
+                course={c}
+                label={`${c.title}${STATUS_NOTE[c.status]}`}
+                note={STATUS_LABEL[c.status]}
+                selected={courseIds.includes(c.id)}
+                onChange={(on) =>
+                  setCourseIds(on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id))
                 }
-              />{' '}
-              {c.title}
-              {STATUS_NOTE[c.status]}
-            </label>
-          ))}
+              />
+            ))}
+          </ul>
+          {matching.length > shown.length ? (
+            <Button variant="ghost" onClick={() => setCourseLimit(courseLimit + COURSES_SHOWN)}>
+              {`Show ${Math.min(COURSES_SHOWN, matching.length - shown.length)} more`}
+            </Button>
+          ) : null}
         </fieldset>
       ) : null}
     </Dialog>

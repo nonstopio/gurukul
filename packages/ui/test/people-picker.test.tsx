@@ -203,3 +203,296 @@ describe('PeoplePicker', () => {
     expect(screen.getByRole('button', { name: 'Drop asha@example.com' })).toBeTruthy();
   });
 });
+
+describe('PeoplePicker: like a Jira people field', () => {
+  function Emails({
+    onChange,
+    total,
+    classify,
+  }: {
+    onChange?: (p: Person[]) => void;
+    total?: number;
+    classify?: (
+      email: string,
+    ) => { status: 'new' | 'rejected' | 'signedIn'; reason?: string } | null;
+  }) {
+    const [value, setValue] = useState<Person[]>([]);
+    return (
+      <PeoplePicker
+        label="Add people"
+        value={value}
+        search={find}
+        allowEmails
+        total={total}
+        classify={classify as never}
+        statusWords={{ new: 'invited' }}
+        onChange={(v) => {
+          setValue(v);
+          onChange?.(v);
+        }}
+      />
+    );
+  }
+  const chips = () => screen.queryAllByRole('listitem').map((li) => li.textContent);
+
+  it('lists the first people when the field gets focus, with how many there are', async () => {
+    render(<Emails total={42} />);
+    fireEvent.focus(box());
+    expect(await screen.findAllByRole('option')).toHaveLength(3);
+    expect(screen.getByText('Showing 3 of 42 people')).toBeTruthy();
+    fireEvent.change(box(), { target: { value: 'asha' } });
+    await waitFor(() => expect(screen.queryByText(/Showing/)).toBeNull());
+  });
+
+  it('says "person" for a list of one, and nothing without a total', async () => {
+    const { unmount } = render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        search={() => Promise.resolve([PEOPLE[0] as Person])}
+        total={1}
+        onChange={() => {}}
+      />,
+    );
+    fireEvent.focus(box());
+    expect(await screen.findByText('Showing 1 of 1 person')).toBeTruthy();
+    unmount();
+    render(<Harness />);
+    fireEvent.focus(box());
+    await screen.findAllByRole('option');
+    expect(screen.queryByText(/Showing/)).toBeNull();
+  });
+
+  it('shows a photo for a person who has one, and initials for one who does not', async () => {
+    const withPhoto: Person = { email: 'p@example.com', name: 'Pia', photoUrl: '/p.png' };
+    const { container } = render(
+      <PeoplePicker
+        label="Add people"
+        value={[withPhoto]}
+        search={() => Promise.resolve([withPhoto, PEOPLE[1] as Person])}
+        onChange={() => {}}
+      />,
+    );
+    expect(container.querySelector('.g-people__chip img')?.getAttribute('src')).toBe('/p.png');
+    fireEvent.focus(box());
+    await screen.findAllByRole('option');
+    expect(container.querySelectorAll('.g-people__option img')).toHaveLength(1);
+  });
+
+  it('turns a typed email into a chip with Enter, and offers it when nobody matches', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'New@Example.com' } });
+    const offer = await screen.findByRole('option', { name: /Add “new@example.com”/ });
+    expect(offer.textContent).toContain('they are invited');
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'new@example.com' }]);
+    expect(box().value).toBe('');
+  });
+
+  it('adds the offered email with a click, and does not offer a person who is in the list', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'asha@example.com' } });
+    await screen.findAllByRole('option');
+    expect(screen.queryByRole('option', { name: /Add “/ })).toBeNull();
+    fireEvent.change(box(), { target: { value: 'zed@example.com' } });
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Add “zed@example.com”/ }));
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'zed@example.com' }]);
+  });
+
+  it('turns what is complete into chips when a comma or a space after an email is typed', async () => {
+    render(<Emails />);
+    fireEvent.change(box(), { target: { value: 'a@x.com, b@x.com' } });
+    expect(chips().filter((c) => c?.includes('@x.com'))).toHaveLength(1);
+    expect(box().value).toBe('b@x.com');
+    fireEvent.change(box(), { target: { value: 'b@x.com c' } });
+    expect(chips().filter((c) => c?.includes('@x.com'))).toHaveLength(2);
+    expect(box().value).toBe('c');
+    fireEvent.change(box(), { target: { value: 'Ananya Rao' } });
+    expect(box().value).toBe('Ananya Rao');
+  });
+
+  it('closes the list when an email is completed with nothing typed after it', async () => {
+    render(<Emails />);
+    fireEvent.focus(box());
+    await screen.findAllByRole('option');
+    fireEvent.change(box(), { target: { value: 'done@x.com ' } });
+    expect(chips().filter((c) => c?.includes('done@x.com'))).toHaveLength(1);
+    expect(box().value).toBe('');
+    expect(expanded()).toBe('false');
+  });
+
+  it('takes a pasted list of emails whole, and pastes anything else as search text', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.paste(box(), { clipboardData: { getData: () => 'A@x.com\nb@x.com, a@x.com' } });
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'a@x.com' }, { email: 'b@x.com' }]);
+    onChange.mockClear();
+    fireEvent.paste(box(), { clipboardData: { getData: () => 'ananya rao' } });
+    fireEvent.paste(box(), { clipboardData: { getData: () => '   ' } });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('does not touch a paste when emails are not allowed', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    fireEvent.paste(box(), { clipboardData: { getData: () => 'a@x.com' } });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps an email left in the field when it loses focus, and ignores plain text', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'ananya' } });
+    fireEvent.blur(box());
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(box(), { target: { value: 'late@x.com' } });
+    fireEvent.blur(box());
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'late@x.com' }]);
+  });
+
+  it('does not turn plain text into a chip on Enter, a comma or leaving the field', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'Rao, Ananya' } });
+    expect(box().value).toBe('Rao, Ananya');
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    fireEvent.blur(box());
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(box(), { target: { value: '@ali' } });
+    fireEvent.blur(box());
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps an email that is not a NonStop one, so it can be marked rejected', async () => {
+    const onChange = vi.fn();
+    render(
+      <Emails
+        onChange={onChange}
+        classify={(e) =>
+          e.endsWith('@gmail.com') ? { status: 'rejected', reason: 'not NonStop' } : null
+        }
+      />,
+    );
+    fireEvent.change(box(), { target: { value: 'x@gmail.com' } });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(chips().join()).toContain('not NonStop');
+  });
+
+  it('takes a whole typed email on Enter even while the list still shows an older search', async () => {
+    const onChange = vi.fn();
+    const old: Person = { email: 'ravi.kumar@example.com', name: 'Ravi Kumar' };
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        allowEmails
+        search={() => Promise.resolve([old])}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(box(), { target: { value: 'ravi' } });
+    await screen.findByRole('option', { name: /Ravi Kumar/ });
+    fireEvent.change(box(), { target: { value: 'ravi@x.com' } });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'ravi@x.com' }]);
+  });
+
+  it('picks the person with exactly the email typed, with their name', async () => {
+    const onChange = vi.fn();
+    const ravi: Person = { email: 'ravi@x.com', name: 'Ravi Kumar' };
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        allowEmails
+        search={() => Promise.resolve([ravi])}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(box(), { target: { value: 'ravi@x.com' } });
+    await screen.findByRole('option', { name: /Ravi Kumar/ });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'Ravi Kumar' })]);
+  });
+
+  it('says in words what each chip means', () => {
+    const classify = (e: string) =>
+      e.startsWith('n')
+        ? { status: 'new' as const }
+        : e.startsWith('r')
+          ? { status: 'rejected' as const }
+          : e.startsWith('s')
+            ? { status: 'signedIn' as const }
+            : null;
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={['n@x.com', 'r@x.com', 's@x.com', 'q@x.com'].map((email) => ({ email }))}
+        search={find}
+        classify={classify}
+        statusWords={{ new: 'invited' }}
+        onChange={() => {}}
+      />,
+    );
+    expect(chips().map((c) => c?.replace(/^[A-Z]+/, ''))).toEqual([
+      'n@x.com· invited',
+      'r@x.com· rejected',
+      's@x.com· signed in',
+      'q@x.com',
+    ]);
+  });
+
+  it('shows the default words for the remaining statuses', () => {
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[{ email: 'a@x.com' }, { email: 'b@x.com' }]}
+        search={find}
+        classify={(e) => (e.startsWith('a') ? { status: 'alreadyAssigned' } : { status: 'new' })}
+        onChange={() => {}}
+      />,
+    );
+    expect(chips().map((c) => c?.replace(/^[A-Z]+/, ''))).toEqual([
+      'a@x.com· already assigned',
+      'b@x.com· new',
+    ]);
+  });
+
+  it('asks for a name or an email when nothing is typed and nobody is listed', async () => {
+    render(
+      <PeoplePicker
+        label="Add people"
+        value={[]}
+        search={() => Promise.resolve([])}
+        allowEmails
+        onChange={() => {}}
+      />,
+    );
+    fireEvent.focus(box());
+    expect(await screen.findByText('Type a name or an email')).toBeTruthy();
+  });
+
+  it('ignores Enter on an open list with nobody in it when emails are not allowed', async () => {
+    const onChange = vi.fn();
+    render(<Harness search={() => Promise.resolve([])} onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'zzz' } });
+    await screen.findByText('No one matches “zzz”');
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('adds an email left in a closed field with Enter, and ignores one already chosen', async () => {
+    const onChange = vi.fn();
+    render(<Emails onChange={onChange} />);
+    fireEvent.change(box(), { target: { value: 'late@x.com' } });
+    await screen.findAllByRole('option');
+    fireEvent.keyDown(box(), { key: 'Escape' });
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith([{ email: 'late@x.com' }]);
+    onChange.mockClear();
+    fireEvent.paste(box(), { clipboardData: { getData: () => 'late@x.com' } });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

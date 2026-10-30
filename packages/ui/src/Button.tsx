@@ -2,12 +2,19 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import './button.css';
 
 export type ButtonVariant =
-  'primary' | 'secondary' | 'ghost' | 'danger' | 'chrome' | 'chrome-secondary';
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'quiet'
+  | 'danger'
+  | 'danger-quiet'
+  | 'chrome'
+  | 'chrome-secondary';
 
 export type ButtonSize = 'md' | 'sm';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual weight. One `primary` per view; `danger` only to confirm a destructive action. Default: `primary`. */
+  /** Visual weight. One `primary` per view; `danger` only to confirm a destructive action; `quiet` and `danger-quiet` are the borderless actions in a dense row (Rename; Delete, which starts a confirmation). Default: `primary`. */
   variant?: ButtonVariant;
   /** `sm` (36px) is for dense rows only. Default: `md` (44px). */
   size?: ButtonSize;

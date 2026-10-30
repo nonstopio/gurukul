@@ -42,6 +42,13 @@ describe('CodeBlock', () => {
     expect(container.querySelector('.g-code--terminal')).toBeTruthy();
   });
 
+  it('labels what a command printed back "output", with no prompt', () => {
+    const { container } = render(<CodeBlock code="git version 2.47.0" variant="output" />);
+    expect(screen.getByRole('region', { name: 'output' })).toBeTruthy();
+    expect(container.querySelector('.g-code--output')).toBeTruthy();
+    expect(container.querySelector('.g-code--terminal')).toBeNull();
+  });
+
   it('marks highlighted lines', () => {
     const { container } = render(<CodeBlock code={'1\n2\n3\n4'} highlight="2,4" />);
     const marked = [...container.querySelectorAll('[data-highlighted="true"]')].map(

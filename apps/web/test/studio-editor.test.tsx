@@ -224,12 +224,12 @@ describe('Course editor: structure', () => {
     });
     expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
-      screen.getAllByRole('button', { name: '+ Lesson in chapter 1' })[0] as HTMLElement,
+      screen.getAllByRole('button', { name: 'Lesson in chapter 1' })[0] as HTMLElement,
     );
     expect(screen.getByRole('link', { name: 'Untitled lesson' }).getAttribute('href')).toMatch(
       /^\/studio\/courses\/git\/lessons\/lesson-/,
     );
-    fireEvent.click(screen.getByRole('button', { name: '+ Quiz in chapter 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz in chapter 1' }));
     expect(screen.getByRole('link', { name: 'Untitled Quiz' }).getAttribute('href')).toMatch(
       /quiz\/quiz-/,
     );
@@ -286,11 +286,26 @@ describe('Course editor: structure', () => {
     ).toBeTruthy();
   });
 
+  it('numbers each item and keeps its icon actions apart from the link that opens it', async () => {
+    await open();
+    await ready();
+    const row = screen.getByRole('link', { name: 'Lesson l1' }).closest('.sc-item') as HTMLElement;
+    expect(row.textContent).toContain('1.1');
+    for (const name of ['Rename Lesson l1', 'Delete Lesson l1']) {
+      const button = within(row).getByRole('button', { name });
+      expect(row.contains(button)).toBe(true);
+      expect(button.getAttribute('data-tip')).toBeTruthy();
+    }
+    expect(
+      within(row).getByRole('button', { name: 'Move Lesson l1 to another chapter' }).dataset.tip,
+    ).toBe('Move to chapter');
+  });
+
   it('moves an item to another chapter', async () => {
     await open();
     await ready();
-    const select = screen.getByLabelText('Move Lesson l1 to another chapter') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'p2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Move Lesson l1 to another chapter' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'History' }));
     expect(
       within(screen.getByRole('list', { name: 'Items in Basics' })).queryByText('Lesson l1'),
     ).toBeNull();
@@ -829,9 +844,9 @@ describe('Course editor: publishing', () => {
     expect(
       (within(dialog).getByRole('button', { name: /^Publish v/ }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'QA Guild' }));
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'Platform' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'QA Guild' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
     studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /^Publish v/ }));

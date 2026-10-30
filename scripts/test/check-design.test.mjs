@@ -27,6 +27,25 @@ describe('check-design', () => {
     ]);
   });
 
+  it('flags a raw checkbox or radio in app TSX', () => {
+    const dir = repo({
+      'apps/web/src/Pick.tsx':
+        '<input type="checkbox" />\n<input type="radio" />\n<Checkbox label="ok" />',
+    });
+    assert.deepEqual(rules(dir), [
+      'apps/web/src/Pick.tsx:1 tick-box',
+      'apps/web/src/Pick.tsx:2 tick-box',
+    ]);
+  });
+
+  it('flags an email field, because people are picked with PeoplePicker', () => {
+    const dir = repo({
+      'apps/web/src/Who.tsx':
+        '<Input type="email" label="Who" />\n<PeoplePicker label="Add people" />',
+    });
+    assert.deepEqual(rules(dir), ['apps/web/src/Who.tsx:1 email-box']);
+  });
+
   it('keeps app CSS to layout and tokens', () => {
     const dir = repo({
       'apps/web/src/a.css': [

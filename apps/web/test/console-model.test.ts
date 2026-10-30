@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import {
+  matchesPerson,
   DATE_RANGES,
   MAX_TEAMS,
   failedTwice,
@@ -601,5 +602,17 @@ describe('checkTeamName', () => {
   it('lets a team being edited keep its own name', () => {
     expect(checkTeamName(teams, 'qa', 'qa')).toEqual({ name: 'qa' });
     expect(checkTeamName(teams, 'dev', 'qa')).toHaveProperty('error');
+  });
+});
+
+describe('matchesPerson', () => {
+  const farhan = { email: 'f.k@nonstopio.com', displayName: 'Farhan Ali' };
+  it('matches the start of the email, of the whole name and of any word in the name', () => {
+    expect(matchesPerson(farhan, 'f.k')).toBe(true);
+    expect(matchesPerson(farhan, 'farhan al')).toBe(true);
+    expect(matchesPerson(farhan, 'ali')).toBe(true);
+    expect(matchesPerson({ ...farhan, displayName: 'Zed Ali-Khan' }, 'khan')).toBe(true);
+    expect(matchesPerson(farhan, 'li')).toBe(false);
+    expect(matchesPerson({ email: 'a@x.com', displayName: '' }, 'zz')).toBe(false);
   });
 });

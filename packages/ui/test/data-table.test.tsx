@@ -227,3 +227,20 @@ describe('Pagination', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('Pagination wording', () => {
+  it('takes its own words for the two buttons', () => {
+    render(
+      <Pagination
+        page={2}
+        pageSize={10}
+        total={30}
+        onPageChange={() => {}}
+        previousLabel="Earlier"
+        nextLabel="Later"
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Earlier' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Later' })).toBeTruthy();
+  });
+});

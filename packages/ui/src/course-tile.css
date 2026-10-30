@@ -1,0 +1,198 @@
+.g-course-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text-body);
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease);
+}
+.g-course-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-menu);
+}
+.g-course-tile__cover {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  /* Every cover colour is a light or a dark ground that does not change with the theme, so the name on it uses a fixed ink. */
+  color: var(--paper-ink);
+}
+.g-course-tile__cover--forest {
+  background: var(--cover-forest);
+  color: var(--on-forest);
+}
+.g-course-tile__cover--sand {
+  background: var(--cover-sand);
+}
+.g-course-tile__cover--sky {
+  background: var(--cover-sky);
+}
+.g-course-tile__cover--stone {
+  background: var(--cover-stone);
+}
+.g-course-tile__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.g-course-tile__name {
+  display: -webkit-box;
+  padding: var(--space-4);
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font: 500 var(--text-2xl) / var(--leading-tight) var(--font-display);
+  text-align: center;
+  text-wrap: balance;
+}
+.g-course-tile__body {
+  /* A tinted foot under a hairline, so the picture and the text read as two parts. */
+  background: var(--surface-hover);
+  border-top: 1px solid var(--border);
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+.g-course-tile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.g-course-tile__title {
+  margin: 0;
+  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
+  color: var(--text);
+}
+.g-course-tile__summary,
+.g-course-tile__meta {
+  margin: 0;
+}
+.g-course-tile__summary {
+  color: var(--text-muted);
+}
+.g-course-tile__meta {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+}
+
+/* The whole tile is the link: the title's link stretches over it, so there is still one link for a
+   keyboard or a screen reader, and a click anywhere on the tile opens the course. */
+.g-course-tile__title a {
+  color: inherit;
+  text-decoration: none;
+}
+.g-course-tile__title a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.g-course-tile__title a:focus-visible {
+  outline: none;
+}
+.g-course-tile__title a:focus-visible::after {
+  box-shadow: var(--focus-ring);
+}
+.g-course-tile:hover .g-course-tile__title a {
+  text-decoration: underline;
+}
+
+/* Neutral chips are sunken grey; on the tinted foot they get the card's own surface and a hairline. */
+.g-course-tile .g-chip--neutral {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* A tile that is a choice (assign, grant): an invisible checkbox covers the whole tile, and picking it
+   rings the tile, pops the tick in and settles the picture. */
+.g-course-tile--choice {
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-course-tile__input {
+  /* Invisible, and as big as the tile, so a click anywhere (or a test's click on the box) lands on it. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.g-course-tile__check {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-raised);
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: 2px solid var(--paper-ink);
+  border-radius: var(--radius-pill);
+  /* Fixed colours: the badge sits on a picture, so it must not follow the theme. */
+  background: var(--paper);
+  color: transparent;
+  /* Hidden until the tile is hovered, focused or picked, so an unpicked tile is just the course. */
+  opacity: 0;
+  scale: 0.7;
+  transition:
+    opacity var(--dur-base) var(--ease),
+    scale var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-course-tile--choice:hover .g-course-tile__check,
+.g-course-tile--choice:has(.g-course-tile__input:focus-visible) .g-course-tile__check {
+  opacity: 1;
+  scale: 1;
+}
+.g-course-tile--choice:hover {
+  /* A tile you pick does not lift: it would move under the pointer between press and release. */
+  transform: none;
+}
+.g-course-tile--choice[data-selected='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.g-course-tile--choice[data-selected='true'] .g-course-tile__check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  opacity: 1;
+  scale: 1;
+  animation: g-course-tile-pop var(--dur-slow) var(--ease);
+}
+.g-course-tile__cover img,
+.g-course-tile__cover .g-course-tile__name {
+  transition: transform var(--dur-slow) var(--ease);
+}
+.g-course-tile--choice[data-selected='true'] .g-course-tile__cover img,
+.g-course-tile--choice[data-selected='true'] .g-course-tile__name {
+  transform: scale(1.04);
+}
+.g-course-tile--choice:has(.g-course-tile__input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+@keyframes g-course-tile-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

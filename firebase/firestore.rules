@@ -172,12 +172,14 @@ service cloud.firestore {
       // `completedItemIds` only grows the way arrayUnion(itemId) grows it: unchanged, or the same
       // list with one new item id (a string of 1-80 characters, the course object's id) on the end.
       // Rules cannot loop, so checking one appended entry is what keeps every entry a string.
+      // An empty `before` skips the prefix check: the emulator fails a `[0:0]` slice with an
+      // index error, which denied every learner's first completed lesson.
       function appendsAtMostOneItemId(before, after) {
         return after is list
           && after.size() <= 200
           && (after == before
               || (after.size() == before.size() + 1
-                  && after[0:before.size()] == before
+                  && (before.size() == 0 || after[0:before.size()] == before)
                   && after[before.size()] is string
                   && after[before.size()].size() >= 1
                   && after[before.size()].size() <= 80

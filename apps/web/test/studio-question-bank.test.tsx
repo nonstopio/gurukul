@@ -301,7 +301,7 @@ describe('new question', () => {
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Question type' }), {
       target: { value: 'multiple' },
     });
-    fireEvent.click(within(dialog).getByRole('button', { name: '+ Add answer' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add answer' }));
     fireEvent.change(within(dialog).getByLabelText('Question (Markdown)'), {
       target: { value: 'Pick two' },
     });

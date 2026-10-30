@@ -1,0 +1,55 @@
+.g-iconbtn {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: calc(var(--control-height) - var(--space-2));
+  height: calc(var(--control-height) - var(--space-2));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.g-iconbtn:hover:not(:disabled),
+.g-iconbtn[aria-expanded='true'] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.g-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-iconbtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.g-iconbtn--danger {
+  color: var(--danger);
+}
+.g-iconbtn--danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+/* The tooltip: the short `data-tip`, above the button, on hover and keyboard focus. */
+.g-iconbtn[data-tip]:hover::after,
+.g-iconbtn[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: var(--z-menu);
+  bottom: calc(100% + var(--space-1));
+  left: 50%;
+  translate: -50% 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--bg);
+  font: 500 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.g-iconbtn[aria-expanded='true']::after {
+  display: none;
+}

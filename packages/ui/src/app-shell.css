@@ -13,14 +13,14 @@
   z-index: var(--z-sticky);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--space-3);
   padding: var(--space-3) clamp(var(--space-4), 4vw, var(--space-12));
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 .g-app-shell .g-app-shell__menu {
-  margin-right: auto;
+  flex: none;
 }
 .g-app-shell__scrim {
   position: fixed;

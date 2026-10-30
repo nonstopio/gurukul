@@ -103,7 +103,9 @@ describe('Home', () => {
         progress: [progress],
       }),
     );
-    expect(await screen.findByRole('heading', { name: 'Git, the NonStop Way' })).toBeTruthy();
+    expect(
+      (await screen.findAllByRole('heading', { name: 'Git, the NonStop Way' })).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Resume lesson' }).getAttribute('href')).toBe(
       '/courses/git/learn/l2',
     );
@@ -132,7 +134,7 @@ describe('Home', () => {
         progress: [progressRow({ completedItemIds: ['l1'], completedAt: new Date() })],
       }),
     );
-    const row = (await screen.findByText('New lessons added')).closest('a') as HTMLElement;
+    const row = (await screen.findByText('New lessons added')).closest('li') as HTMLElement;
     expect(within(row).getByText('Retired')).toBeTruthy();
     expect(within(row).getByText('Completed')).toBeTruthy();
   });
@@ -303,10 +305,22 @@ describe('Catalogue', () => {
     expect(data.data.listCourses).toHaveBeenCalledWith({ teamIds: ['platform'], staff: false });
   });
 
+  it('shows the filters that are on as chips, and removes each one', async () => {
+    const { router } = await open('/courses?show=progress&level=foundation', fakeData({ courses }));
+    const search = await screen.findByRole('search', { name: 'Find a course' });
+    expect(within(search).getByText('Level: Foundation')).toBeTruthy();
+    fireEvent.click(
+      within(search).getByRole('button', { name: 'Remove filter: Level: Foundation' }),
+    );
+    expect(router.state.location.search).not.toContain('level');
+    fireEvent.click(within(search).getByRole('button', { name: /^Remove filter: / }));
+    expect(router.state.location.search).not.toContain('show');
+  });
+
   it('says so when nothing matches, and clears all filters', async () => {
     const { router } = await open('/courses?show=assigned', fakeData({ courses }));
     expect(await screen.findByText('No courses match')).toBeTruthy();
-    const filters = screen.getByRole('group', { name: 'Filter courses' });
+    const filters = screen.getByRole('search', { name: 'Find a course' });
     expect(within(filters).getByRole('status').textContent).toBe('0 of 2 courses');
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear all filters' })[0] as HTMLElement);
     expect(router.state.location.search).toBe('');
@@ -607,13 +621,11 @@ describe('Lesson player', () => {
 
     it('asks for the answer in a toast until it has been shown, then moves on', async () => {
       const { router } = await openWith([check('k')]);
-      const why =
-        'Answer the question in this lesson, then press Show the answer, to mark it complete.';
+      const why = 'Answer the question in this lesson to mark it complete.';
       fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
       await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
       expect(router.state.location.pathname).toBe('/courses/git/learn/c');
       fireEvent.click(screen.getByText('Yes'));
-      fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
       fireEvent.click(screen.getByRole('button', { name: /^Mark complete/ }));
       await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/d'));
     });
@@ -621,9 +633,7 @@ describe('Lesson player', () => {
     it('counts the questions left when there are several', async () => {
       await openWith([check('k'), check('m')]);
       expect(
-        await screen.findByText(
-          'Answer the 2 questions in this lesson, then press Show the answer, to mark it complete.',
-        ),
+        await screen.findByText('Answer the 2 questions in this lesson to mark it complete.'),
       ).toBeTruthy();
     });
   });

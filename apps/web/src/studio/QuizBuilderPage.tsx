@@ -1,5 +1,15 @@
 import { validateForPublish } from '@gurukul/schema';
-import { Button, Card, Chip, DragList, EmptyState, buttonClass, useToast } from '@gurukul/ui';
+import {
+  Button,
+  buttonClass,
+  Card,
+  Chip,
+  DragList,
+  EmptyState,
+  PlusIcon,
+  UploadIcon,
+  useToast,
+} from '@gurukul/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toastError } from '../errors';
@@ -162,8 +172,13 @@ function Builder({
             className="studio-qlist"
             title={`${count} ${count === 1 ? 'question' : 'questions'}`}
             actions={
-              <Button variant="ghost" size="sm" onClick={() => add(newQuestion())}>
-                + Add
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<PlusIcon />}
+                onClick={() => add(newQuestion())}
+              >
+                Add
               </Button>
             }
           >
@@ -199,7 +214,7 @@ function Builder({
                 </div>
               )}
             />
-            <Button variant="secondary" onClick={() => setImporting(true)}>
+            <Button variant="secondary" icon={<UploadIcon />} onClick={() => setImporting(true)}>
               Import from question bank
             </Button>
           </Card>
@@ -224,7 +239,11 @@ function Builder({
               <EmptyState
                 headingAs="h2"
                 title="No questions yet"
-                action={<Button onClick={() => add(newQuestion())}>Add the first question</Button>}
+                action={
+                  <Button icon={<PlusIcon />} onClick={() => add(newQuestion())}>
+                    Add the first question
+                  </Button>
+                }
               >
                 {`A ${t.Quiz} needs at least one question before it can be published.`}
               </EmptyState>

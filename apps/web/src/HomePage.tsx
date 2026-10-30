@@ -2,6 +2,7 @@ import {
   Button,
   Card,
   Chip,
+  CourseTile,
   EmptyState,
   Page,
   PageHeader,
@@ -9,6 +10,7 @@ import {
   buttonClass,
 } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
@@ -26,12 +28,13 @@ import {
   percentFor,
   recentActivity,
   statusLine,
+  courseImageUrl,
 } from './learn/model';
 import type { AssignedCourse } from './learn/model';
 import { suggestions } from './learn/hero';
 import { HomeContinue, PickNextCourse } from './learn/HomeContinue';
 import { TeamPrompt } from './learn/TeamPrompt';
-import { CoverTile, Loaded } from './learn/ui';
+import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
@@ -124,39 +127,44 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                         ) : undefined
                       }
                     >
-                      <ul className="learn-rows">
-                        {shown.map(({ assignment, course, progress: p }) => {
+                      <ul className="learn-cards g-stagger">
+                        {shown.map(({ assignment, course, progress: p }, i) => {
                           const due = assignment.dueAt ? dueLabel(assignment.dueAt, now()) : null;
                           return (
-                            <li key={assignment.id}>
-                              <Link to={`/courses/${course.id}`} className="course-row">
-                                <CoverTile cover={course.cover} size="small" />
-                                <span className="learn-stack">
-                                  <span className="course-row__title">{course.title}</span>
-                                  <ProgressBar
-                                    value={percentFor(course, p)}
-                                    label={`${course.title} progress`}
-                                  />
-                                  <span className="learn-chips">
-                                    {isRetired(course) ? <Chip tone="warning">Retired</Chip> : null}
-                                    {assignment.mandatory ? (
-                                      <Chip tone="neutral">Mandatory</Chip>
-                                    ) : null}
-                                    {due ? (
-                                      <Chip tone={due.overdue ? 'danger' : 'warning'}>
-                                        {due.text}
-                                      </Chip>
-                                    ) : null}
-                                    {assignment.status === 'completed' ? (
-                                      <Chip tone="solid">Completed</Chip>
-                                    ) : null}
-                                    {hasNewLessons(course, p) ? (
-                                      <Chip tone="info">New lessons added</Chip>
-                                    ) : null}
-                                  </span>
-                                </span>
-                              </Link>
-                            </li>
+                            <CourseTile
+                              as="li"
+                              key={assignment.id}
+                              title={course.title}
+                              heading={<Link to={`/courses/${course.id}`}>{course.title}</Link>}
+                              image={courseImageUrl(course)}
+                              theme={course.cover.theme}
+                              style={{ '--i': i } as CSSProperties}
+                              chips={
+                                <>
+                                  {isRetired(course) ? <Chip tone="warning">Retired</Chip> : null}
+                                  {assignment.mandatory ? (
+                                    <Chip tone="neutral">Mandatory</Chip>
+                                  ) : null}
+                                  {due ? (
+                                    <Chip tone={due.overdue ? 'danger' : 'warning'}>
+                                      {due.text}
+                                    </Chip>
+                                  ) : null}
+                                  {assignment.status === 'completed' ? (
+                                    <Chip tone="solid">Completed</Chip>
+                                  ) : null}
+                                  {hasNewLessons(course, p) ? (
+                                    <Chip tone="info">New lessons added</Chip>
+                                  ) : null}
+                                </>
+                              }
+                              extra={
+                                <ProgressBar
+                                  value={percentFor(course, p)}
+                                  label={`${course.title} progress`}
+                                />
+                              }
+                            />
                           );
                         })}
                       </ul>

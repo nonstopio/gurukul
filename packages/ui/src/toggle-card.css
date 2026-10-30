@@ -1,0 +1,55 @@
+.g-togglecard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--control-height);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-togglecard:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.g-togglecard:has(.g-toggle__input:checked) {
+  border-color: var(--accent);
+}
+.g-togglecard:has(.g-toggle__input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+.g-togglecard:has(.g-toggle__input:disabled) {
+  cursor: not-allowed;
+}
+.g-togglecard__text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.g-togglecard__title {
+  color: var(--text);
+  font: 600 var(--text-md) / var(--leading-snug) var(--font-ui);
+}
+.g-togglecard__desc {
+  color: var(--text-muted);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+}
+.g-togglecard__switch {
+  flex: none;
+  min-height: 0;
+}
+/* The input covers the switch only; the whole card is its label. */
+.g-togglecard__input {
+  inset: 0;
+  width: 100%;
+}
+.g-togglecard:has(.g-toggle__input:disabled) .g-togglecard__text,
+.g-togglecard:has(.g-toggle__input:disabled) .g-toggle__track {
+  opacity: 0.5;
+}

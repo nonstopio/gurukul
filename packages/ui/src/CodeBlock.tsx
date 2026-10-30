@@ -7,10 +7,13 @@ import './code-block.css';
 export interface CodeBlockProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   /** The code to show and copy. A single trailing newline is dropped. */
   code: string;
-  /** Shown in the header. Without one the header says "terminal" for `terminal`, else "code". */
+  /** Shown in the header. Without one the header says "terminal", "output" or "code" by variant. */
   fileName?: string;
-  /** `terminal` prefixes each line with a prompt that is not copied. Default: `code`. */
-  variant?: 'code' | 'terminal';
+  /**
+   * `terminal` prefixes each line with a prompt that is not copied. `output` is what a command
+   * printed back: no prompt, a lighter ground. Default: `code`.
+   */
+  variant?: 'code' | 'terminal' | 'output';
   /** Lines to highlight, 1-based: `"2,4-6"`. Anything that is not a number or range is ignored. */
   highlight?: string;
   /** Show the Copy button. Default: true. */
@@ -57,7 +60,8 @@ export function CodeBlock({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const terminal = variant === 'terminal';
-  const name = fileName ?? (terminal ? 'terminal' : 'code');
+  const output = variant === 'output';
+  const name = fileName ?? (terminal ? 'terminal' : output ? 'output' : 'code');
   const marked = parseHighlight(highlight);
   const lines = code.replace(/\n$/, '').split('\n');
 
@@ -73,7 +77,15 @@ export function CodeBlock({
   }
 
   return (
-    <div className={cx('g-code', terminal && 'g-code--terminal', className)} {...rest}>
+    <div
+      className={cx(
+        'g-code',
+        terminal && 'g-code--terminal',
+        output && 'g-code--output',
+        className,
+      )}
+      {...rest}
+    >
       <div className="g-code__header">
         <span className="g-code__name">{name}</span>
         {copyable ? (

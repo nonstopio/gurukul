@@ -12,14 +12,17 @@ import {
   Callout,
   Card,
   Certificate,
+  Checkbox,
   Chip,
+  ChoiceCard,
+  IconButton,
   CodeBlock,
   ColourSwatch,
   CommandPalette,
+  CourseTile,
   DataTable,
   Dialog,
   DragList,
-  EmailChipInput,
   PeoplePicker,
   EmptyState,
   FlowPanel,
@@ -29,7 +32,6 @@ import {
   FunnelBar,
   GlobalLoader,
   Input,
-  LayoutPicker,
   Menu,
   MediaGallery,
   MediaPreview,
@@ -39,11 +41,14 @@ import {
   PageSkeleton,
   Pagination,
   PenIcon,
+  Radio,
+  SwapIcon,
   ProgressBar,
   ProgressRing,
   QuizOption,
   ResultRow,
   Seal,
+  SearchCard,
   SegmentedControl,
   Select,
   Sidebar,
@@ -55,6 +60,7 @@ import {
   Tabs,
   Textarea,
   Toggle,
+  ToggleCard,
   TopBar,
   TrashIcon,
   TypeTile,
@@ -66,12 +72,10 @@ import {
   useToast,
 } from '@gurukul/ui';
 import type {
-  BlockLayout,
   ButtonVariant,
   CalloutTone,
   ChipTone,
   CoverTheme,
-  EmailClassification,
   PaletteItem,
   Person,
   QuizOptionState,
@@ -79,7 +83,14 @@ import type {
   TypeTileKind,
 } from '@gurukul/ui';
 
-const BUTTON_VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'danger'];
+const BUTTON_VARIANTS: ButtonVariant[] = [
+  'primary',
+  'secondary',
+  'ghost',
+  'quiet',
+  'danger-quiet',
+  'danger',
+];
 const CHROME_VARIANTS: ButtonVariant[] = ['chrome', 'chrome-secondary'];
 const CHIP_TONES: ChipTone[] = ['neutral', 'accent', 'warning', 'danger', 'info', 'solid'];
 const CALLOUT_TONES: CalloutTone[] = ['note', 'tip', 'warning'];
@@ -126,13 +137,6 @@ const ICONS = Object.entries(ui).filter(([name]) => /^[A-Z]\w*Icon$/.test(name))
 const noop = () => undefined;
 const byId = (p: { id: string }) => p.id;
 const NAME_COLUMN = { id: 'name', header: 'Name', cell: (p: { name: string }) => p.name };
-
-function classify(email: string): EmailClassification {
-  if (email.startsWith('bad')) return { status: 'rejected', reason: 'not a NonStop address' };
-  if (email.startsWith('new')) return { status: 'new' };
-  if (email.startsWith('has')) return { status: 'alreadyAssigned' };
-  return { status: 'signedIn' };
-}
 
 /** A box that keeps a full-size component (sidebar, page, certificate) from taking the page. */
 function Frame({ size, children }: { size?: 'narrow' | 'wide'; children: ReactNode }) {
@@ -269,6 +273,70 @@ function ProgressExample({ ring }: { ring?: boolean }) {
   );
 }
 
+function CheckExample() {
+  const [ticked, setTicked] = useState<string[]>(['git']);
+  const all = ['git', 'sql', 'docker'];
+  return (
+    <div className="ds-stack">
+      <Checkbox
+        label="Select all courses"
+        checked={ticked.length === all.length}
+        indeterminate={ticked.length > 0 && ticked.length < all.length}
+        onChange={() => setTicked(ticked.length === all.length ? [] : all)}
+      />
+      {all.map((id) => (
+        <Checkbox
+          key={id}
+          label={id.toUpperCase()}
+          checked={ticked.includes(id)}
+          onChange={() =>
+            setTicked(ticked.includes(id) ? ticked.filter((t) => t !== id) : [...ticked, id])
+          }
+        />
+      ))}
+      <Checkbox label="Not available" disabled />
+    </div>
+  );
+}
+
+function RadioExample() {
+  const [one, setOne] = useState('a');
+  return (
+    <div className="ds-stack">
+      {['a', 'b'].map((v) => (
+        <Radio
+          key={v}
+          name="ds-radio"
+          label={`Choice ${v.toUpperCase()}`}
+          checked={one === v}
+          onChange={() => setOne(v)}
+        />
+      ))}
+      <Radio name="ds-radio-off" label="Not available" disabled />
+    </div>
+  );
+}
+
+function ToggleCardExample() {
+  const [on, setOn] = useState(true);
+  return (
+    <div className="ds-stack">
+      <ToggleCard
+        title="Educator"
+        description="Builds and edits the courses they are granted."
+        checked={on}
+        onChange={(e) => setOn(e.target.checked)}
+      />
+      <ToggleCard
+        title="Admin"
+        description="Assigns courses and grants roles."
+        disabled
+        defaultChecked={false}
+      />
+    </div>
+  );
+}
+
 function ToggleExample() {
   const [on, setOn] = useState(true);
   return (
@@ -276,24 +344,6 @@ function ToggleExample() {
       <Toggle label="Published" checked={on} onChange={(e) => setOn(e.target.checked)} />
       <Toggle label="Disabled switch" disabled />
     </>
-  );
-}
-
-function EmailExample() {
-  const [emails, setEmails] = useState([
-    'asha@example.com',
-    'new.person@example.com',
-    'has.course@example.com',
-    'bad@x.org',
-  ]);
-  return (
-    <EmailChipInput
-      label="Assign to"
-      value={emails}
-      onChange={setEmails}
-      classify={classify}
-      placeholder="Paste emails"
-    />
   );
 }
 
@@ -311,17 +361,59 @@ function PeoplePickerExample() {
         [p.name, p.email].join(' ').toLowerCase().includes(q.toLowerCase()),
       ),
     );
-  return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
+  return (
+    <PeoplePicker
+      label="Add people"
+      value={chosen}
+      onChange={setChosen}
+      search={search}
+      allowEmails
+      total={PICKER_PEOPLE.length}
+      classify={(email) =>
+        PICKER_PEOPLE.some((p) => p.email === email) ? null : { status: 'new' }
+      }
+      placeholder="Search by name or email"
+    />
+  );
+}
+
+function ChoiceCardExample() {
+  const [picked, setPicked] = useState<string[]>(['Platform']);
+  const toggle = (name: string, on: boolean) =>
+    setPicked(on ? [...picked, name] : picked.filter((n) => n !== name));
+  return (
+    <ul className="ds-stack">
+      {['Platform', 'Mobile'].map((name) => (
+        <ChoiceCard
+          key={name}
+          icon={<UsersIcon />}
+          title={name}
+          meta="12 members"
+          selected={picked.includes(name)}
+          onSelectedChange={(on) => toggle(name, on)}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function TileChoiceExample() {
+  const [picked, setPicked] = useState(true);
+  return (
+    <CourseTile
+      title="Git, the NonStop Way"
+      theme="forest"
+      chips={<Chip tone="neutral">Foundation</Chip>}
+      meta="22 lessons · 190 min"
+      selected={picked}
+      onSelectedChange={setPicked}
+    />
+  );
 }
 
 function SwatchExample() {
   const [theme, setTheme] = useState<CoverTheme>('forest');
   return <ColourSwatch label="Cover theme" value={theme} onChange={setTheme} />;
-}
-
-function LayoutExample() {
-  const [layout, setLayout] = useState<BlockLayout>('stacked');
-  return <LayoutPicker label="Layout" value={layout} onChange={setLayout} />;
 }
 
 function QuizExample() {
@@ -561,6 +653,47 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   Field: 'the base of Input, Select and Textarea',
 };
 
+function SearchCardExample() {
+  const [q, setQ] = useState('git');
+  const [level, setLevel] = useState('foundation');
+  return (
+    <SearchCard
+      label="Find a course"
+      search={{
+        value: q,
+        onChange: setQ,
+        label: 'Search courses',
+        placeholder: 'Search courses by name or topic',
+      }}
+      views={
+        <SegmentedControl
+          label="Show"
+          value="all"
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'mine', label: 'Assigned to me' },
+          ]}
+          onChange={() => {}}
+        />
+      }
+      filters={
+        <Select label="Level" hideLabel value={level} onChange={(e) => setLevel(e.target.value)}>
+          <option value="">Any level</option>
+          <option value="foundation">Foundation</option>
+        </Select>
+      }
+      active={
+        level ? [{ id: 'level', label: 'Level: Foundation', onRemove: () => setLevel('') }] : []
+      }
+      count="1 of 4 courses"
+      onClear={() => {
+        setQ('');
+        setLevel('');
+      }}
+    />
+  );
+}
+
 /** One card per `@gurukul/ui` component, keyed by its export name, in reading order. */
 export const EXAMPLES: Readonly<Record<string, Example>> = {
   Page: {
@@ -704,6 +837,22 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </Frame>
     ),
   },
+  IconButton: {
+    rule: 'A quiet icon-only button for dense rows: rename, move, delete. The tooltip is the short verb.',
+    Example: () => (
+      <>
+        <IconButton label="Rename lesson" tip="Rename">
+          <PenIcon />
+        </IconButton>
+        <IconButton label="Change lesson chapter" tip="Change chapter">
+          <SwapIcon />
+        </IconButton>
+        <IconButton label="Delete lesson" tip="Delete" tone="danger">
+          <TrashIcon />
+        </IconButton>
+      </>
+    ),
+  },
   Menu: {
     rule: 'Actions on a thing (row, card, account): a menu button; destructive items last, after a separator.',
     Example: MenuExample,
@@ -750,6 +899,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <Textarea label="Summary" rows={3} defaultValue="One line on what this teaches." />
       </div>
     ),
+  },
+  ToggleCard: {
+    rule: 'A setting as a card: its name and a line about it on the left, the switch at the right edge, and the whole card toggles it.',
+    Example: ToggleCardExample,
   },
   Toggle: {
     rule: 'A boolean setting, a real switch with its label.',
@@ -865,6 +1018,44 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </div>
     ),
   },
+  CourseTile: {
+    rule: 'A course in any list is a tile: its picture, else its name on its own colour; the whole tile is the link, or the choice when picking courses.',
+    Example: () => (
+      <div className="ds-stack">
+        <CourseTile
+          title="Git, the NonStop Way"
+          theme="forest"
+          heading={<a href="#git">Git, the NonStop Way</a>}
+          chips={<Chip tone="neutral">Foundation</Chip>}
+          summary="Save your work, branch and undo mistakes without panic."
+          meta="22 lessons · 190 min"
+        />
+        <CourseTile
+          title="Accessible forms"
+          theme="sand"
+          heading={<a href="#forms">Accessible forms</a>}
+          summary="No picture: the name sits on the course colour."
+        />
+        <TileChoiceExample />
+      </div>
+    ),
+  },
+  Checkbox: {
+    rule: 'A drawn tick box for ticking things in a list, with a partial state for "select all"; a setting that is on or off is a Toggle.',
+    Example: CheckExample,
+  },
+  Radio: {
+    rule: 'The round one-of-many partner of Checkbox, drawn the same way.',
+    Example: RadioExample,
+  },
+  ChoiceCard: {
+    rule: 'One option in a pick-many list of teams or people: an icon, a name and a count, and the whole card is the checkbox.',
+    Example: ChoiceCardExample,
+  },
+  SearchCard: {
+    rule: 'A list people search: one card with a large search field, views, dropdowns, removable active filters and a count.',
+    Example: SearchCardExample,
+  },
   GlobalLoader: {
     rule: 'A region or blocked operation whose layout is unknown: one label saying what is happening; a Skeleton whenever the layout is known.',
     Example: () => (
@@ -928,12 +1119,8 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       />
     ),
   },
-  EmailChipInput: {
-    rule: 'Pasted emails as chips, each classified: new, signed in, already assigned or rejected with a reason.',
-    Example: EmailExample,
-  },
   PeoplePicker: {
-    rule: 'Type, pick: the person becomes a chip, the text clears, the list closes and focus stays.',
+    rule: 'The one way to pick people: focus lists the first few, type to narrow, click one and it becomes a chip; an email can be added too.',
     Example: PeoplePickerExample,
   },
   Sidebar: {
@@ -969,7 +1156,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     ),
   },
   CodeBlock: {
-    rule: 'Code and terminal output with a copy button and highlighted lines.',
+    rule: 'Code and terminal commands with a copy button; what a command printed back is `output`, on a lighter ground with no prompt.',
     Example: () => (
       <div className="ds-stack">
         <CodeBlock
@@ -978,6 +1165,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           highlight="2"
         />
         <CodeBlock code="npm test" variant="terminal" />
+        <CodeBlock code="Tests 12 passed" variant="output" copyable={false} />
       </div>
     ),
   },
@@ -1027,10 +1215,6 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   BlockFrame: {
     rule: 'A lesson block in the editor: label, grip, duplicate and delete, and its error.',
     Example: BlockFrameExample,
-  },
-  LayoutPicker: {
-    rule: 'How a block lays out: stacked or split.',
-    Example: LayoutExample,
   },
   MediaGallery: {
     rule: 'Media tiles with a real preview, name, size and where used; choose one to see it larger.',

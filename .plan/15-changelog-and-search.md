@@ -47,8 +47,8 @@ title, and, for Admins, anyone who has signed in, by the start of their name or 
 - Records (courses and lessons) come from `RecordSource`s in `navigation/records.ts`, loaded once
   when the palette first opens from the catalogue's own `listCourses` query, and ranked with the
   pages. An empty query lists pages only.
-- People (Admins only) come from a `RecordLookup`: the Learners page's own `searchUsers` prefix
-  query (two bounded reads), run from two characters once typing pauses for 250 ms, newest answer
+- People (Admins only) come from a `RecordLookup`: the console's `searchUsers` (the roster
+  read once per five minutes, matched in memory), run from two characters once typing pauses for 250 ms, newest answer
   only. A person opens `/admin/learners?learner=<uid>`, which opens their learner drawer.
 - Courses someone may edit (Educators and Admins) come from Studio's own `listCourses`,
   the reads `/studio` makes, loaded with the other sources; drafts never published are included,

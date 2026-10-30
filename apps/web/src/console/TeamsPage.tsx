@@ -5,7 +5,6 @@ import {
   Button,
   DataTable,
   Dialog,
-  EmailChipInput,
   EmptyState,
   Input,
   Page,
@@ -19,6 +18,7 @@ import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
+import { PeopleField } from './PeopleField';
 import { MAX_MEMBERS, checkTeamName } from './model';
 
 const members = (n: number) =>
@@ -174,7 +174,6 @@ function TeamDialog({
   const formId = useId();
   const [name, setName] = useState(team?.name ?? '');
   const [emails, setEmails] = useState<string[]>(team?.memberEmails ?? []);
-  const [empty, setEmpty] = useState(false);
   const [signedIn, setSignedIn] = useState<ReadonlySet<string>>(new Set());
   const [nameError, setNameError] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -209,8 +208,9 @@ function TeamDialog({
       return setError('Fix or remove the addresses marked invalid.');
     }
     if (emails.length > MAX_MEMBERS) return setError(`A team holds at most ${MAX_MEMBERS} people.`);
-    if (emails.length === 0 && !empty && !team) {
-      return setError('Add at least one member, or tick Create empty team.');
+    // A team with people cannot be emptied; one that was already empty may still be renamed.
+    if (emails.length === 0 && (!team || team.memberEmails.length > 0)) {
+      return setError('Add at least one member.');
     }
     const saved: Team = {
       id,
@@ -241,11 +241,7 @@ function TeamDialog({
             Cancel
           </Button>
           <Button type="submit" form={formId} loading={saving}>
-            {team
-              ? 'Save team'
-              : emails.length === 0 && empty
-                ? 'Create empty team'
-                : 'Create team'}
+            {team ? 'Save team' : 'Create team'}
           </Button>
         </>
       }
@@ -258,24 +254,19 @@ function TeamDialog({
           error={nameError}
           onChange={(e) => setName(e.target.value)}
         />
-        <EmailChipInput
+        <PeopleField
+          data={data}
           label="Members"
-          value={emails}
-          onChange={setEmails}
+          emails={emails}
+          onEmails={setEmails}
           classify={classify}
           statusWords={{ signedIn: 'signed in', new: 'invited' }}
-          placeholder="Paste emails, separated by commas or new lines"
+          placeholder="Search by name, or paste emails"
         />
         <p className="console-muted">
           People who have not signed in yet are marked invited: they join the team the moment they
           do.
         </p>
-        {team ? null : (
-          <label className="console-choice">
-            <input type="checkbox" checked={empty} onChange={(e) => setEmpty(e.target.checked)} />{' '}
-            Create empty team
-          </label>
-        )}
         {error ? <p role="alert">{error}</p> : null}
       </form>
     </Dialog>

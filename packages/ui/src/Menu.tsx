@@ -42,6 +42,8 @@ export interface MenuProps {
   align?: 'start' | 'end';
   /** Opens below or above the trigger. Default: `bottom`. */
   placement?: 'bottom' | 'top';
+  /** A short tooltip for an icon trigger (`iconButtonClass`): hover and focus show it. */
+  tip?: string;
   /** On the wrapper that positions the panel. */
   className?: string;
 }
@@ -56,6 +58,7 @@ export function Menu({
   header,
   align = 'end',
   placement = 'bottom',
+  tip,
   className,
 }: MenuProps) {
   const id = useId();
@@ -133,6 +136,7 @@ export function Menu({
         type="button"
         className={triggerClassName ?? 'g-menu__trigger'}
         aria-label={label}
+        data-tip={tip}
         aria-haspopup="menu"
         aria-expanded={Boolean(open)}
         aria-controls={menuId}

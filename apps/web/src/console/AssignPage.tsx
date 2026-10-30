@@ -1,42 +1,41 @@
-import { classifyEmails, parseCsvEmails, summarize, teamId } from '@gurukul/schema';
+import { classifyEmails, summarize } from '@gurukul/schema';
 import type { ClassifiedEmail, Reminder, Team } from '@gurukul/schema';
-import type { Person as PickerPerson } from '@gurukul/ui';
 import {
   Button,
-  EmailChipInput,
+  buttonClass,
   EmptyState,
   FlowPanel,
   FlowSteps,
   Input,
   Page,
   PageHeader,
-  PeoplePicker,
+  Pagination,
   Select,
   SuccessCheck,
-  Tabs,
   Toggle,
-  buttonClass,
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { toastError } from '../errors';
-import { countItems } from '../learn/model';
+import { log } from '../log';
+import { AudienceStep } from './AudienceStep';
+import type { AudienceMode } from './AudienceStep';
+import { CourseChoice } from './CourseChoice';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
-import { MAX_MEMBERS, checkTeamName } from './model';
-import { usePeopleLookup } from './usePeopleSearch';
 import type { AssignResult, KnownEmails } from './types';
 
-const lessonLabel = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
 const peopleLabel = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const NO_TEAMS: Team[] = [];
-const stamp = () => Date.now();
 const STEPS = ['Course', 'Audience', 'Schedule', 'Review'] as const;
+/** How many courses show on a page of the first step. */
+const COURSES_PER_PAGE = 12;
 const HEADINGS = ['Choose courses', 'Who is it for?', 'Set the deadline', 'Review and assign'];
 
 interface Prefill {
@@ -59,19 +58,19 @@ export function AssignPage() {
   const [problem, setProblem] = useState<{ message: string } | null>(null);
   const [courseIds, setCourseIds] = useState<string[]>(prefill.courseId ? [prefill.courseId] : []);
   const [query, setQuery] = useState('');
+  const [coursePage, setCoursePage] = useState(1);
   const [emails, setEmails] = useState<string[]>(prefill.emails ?? []);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState<Reminder>('weekly');
   const [mandatory, setMandatory] = useState(true);
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
-  const findPeople = usePeopleLookup(data);
-  const [picked, setPicked] = useState<PickerPerson[]>([]);
-  const [team, setTeam] = useState('');
-  const [newTeam, setNewTeam] = useState('');
-  const [teamPeople, setTeamPeople] = useState<{ team: string; emails: string[] } | null>(null);
-  const teamEmails = teamPeople?.team === team ? teamPeople.emails : null;
-  const [dragging, setDragging] = useState(false);
+  const [mode, setMode] = useState<AudienceMode>(prefill.emails?.length ? 'people' : 'teams');
+  const [teamNames, setTeamNames] = useState<string[]>([]);
+  // Each picked team's members, by team name: the people listed on it and anyone whose profile
+  // says they are on it.
+  const [members, setMembers] = useState<Record<string, string[]>>({});
+  const [madeTeams, setMadeTeams] = useState<Team[]>([]);
   const [known, setKnown] = useState<KnownEmails>({
     signedIn: new Set(),
     assigned: new Set(),
@@ -93,25 +92,46 @@ export function AssignPage() {
   );
   const teamList = useAsync(useCallback(() => data.teamList(), [data]));
   const courses = courseList.state === 'ready' ? courseList.value : [];
-  const teams = teamList.state === 'ready' ? teamList.value : NO_TEAMS;
+  const loadedTeams = teamList.state === 'ready' ? teamList.value : NO_TEAMS;
+  const teams = [...loadedTeams, ...madeTeams];
+  const teamsLoadable: Loadable<Team[]> =
+    teamList.state === 'ready' ? { state: 'ready', value: teams } : teamList;
+  // Who would be assigned: the people picked, or everyone on the teams picked.
+  const recipients =
+    mode === 'teams' ? [...new Set(teamNames.flatMap((n) => members[n] ?? []))] : emails;
+  const counting = mode === 'teams' && teamNames.some((n) => !(n in members));
 
   useEffect(() => {
     let live = true;
-    void data.knownEmails(emails, courseIds).then((k) => live && setKnown(k));
+    void data.knownEmails(recipients, courseIds).then((k) => live && setKnown(k));
     return () => {
       live = false;
     };
-  }, [data, emails, courseIds]);
+    // `recipients` is rebuilt every render; its contents are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, recipients.join(','), courseIds]);
 
+  // A team that was just picked has its members read once; the answer is kept by team name.
   useEffect(() => {
-    if (!team) return;
-    // Everyone listed on the team, plus anyone whose profile says they are on it. An answer that
-    // lands after another team was chosen is ignored: `teamEmails` checks the team it belongs to.
-    void data.usersInTeam(team).then((rows) => {
-      const listed = (teams.find((x) => x.name === team) as Team).memberEmails;
-      setTeamPeople({ team, emails: [...new Set([...listed, ...rows.map((u) => u.email)])] });
-    });
-  }, [data, team, teams]);
+    for (const name of teamNames) {
+      if (name in members) continue;
+      const listed = (teams.find((x) => x.name === name) as Team).memberEmails;
+      const keep = (emails: string[]) =>
+        setMembers((m) => ({ ...m, [name]: [...new Set([...listed, ...emails])] }));
+      data.usersInTeam(name).then(
+        (rows) => keep(rows.map((u) => u.email)),
+        (e: unknown) => {
+          // Without the profiles' answer the team's listed members still count.
+          log.warn('Reading a team failed', { code: (e as { code?: unknown }).code });
+          keep([]);
+          toast.show(`Could not read everyone on ${name}. Only its listed members are counted.`, {
+            tone: 'warning',
+          });
+        },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, teamNames]);
 
   // Each step's heading takes focus when the step changes; a problem takes it when one is shown.
   useEffect(() => {
@@ -122,13 +142,13 @@ export function AssignPage() {
   }, [problem]);
 
   const classify = (email: string) => classifyEmails([email], known)[0] as ClassifiedEmail;
-  const classified = classifyEmails(emails, known);
+  const classified = classifyEmails(recipients, known);
   const summary = summarize(classified);
   const assignable = summary.signedIn + summary.newInvites;
-  const add = (more: string[]) =>
-    setEmails([...new Set([...emails, ...more.map((e) => e.trim().toLowerCase())])]);
-  const readCsv = async (file: File | undefined) => {
-    if (file) add(parseCsvEmails(await file.text()));
+  const changeMode = (next: AudienceMode) => {
+    setMode(next);
+    setTeamNames([]);
+    setEmails([]);
   };
 
   const go = (to: number) => {
@@ -143,15 +163,11 @@ export function AssignPage() {
     if (step === 0)
       return courseIds.length === 0 ? 'Choose at least one course to continue.' : null;
     if (step !== 1) return null;
-    if (assignable === 0) return 'Add at least one person who can be assigned.';
-    if (!newTeam.trim()) return null;
-    const named = checkTeamName(teams, newTeam, null);
-    if ('error' in named) return named.error;
-    if (teams.some((x) => x.id === teamId(named.name))) {
-      return 'A team with a very similar name exists. Use a different name.';
-    }
-    if (assignable > MAX_MEMBERS) return `A team holds at most ${MAX_MEMBERS} people.`;
-    return null;
+    if (counting) return 'Counting the people on your teams. Try again in a moment.';
+    if (assignable > 0) return null;
+    return mode === 'teams'
+      ? 'Pick at least one team that has people who can be assigned.'
+      : 'Pick at least one person who can be assigned.';
   };
 
   const next = () => {
@@ -196,16 +212,7 @@ export function AssignPage() {
   const submit = async () => {
     setBusy(true);
     try {
-      if (newTeam.trim()) {
-        const name = newTeam.trim();
-        const members = classified.filter((c) => c.status !== 'rejected').map((c) => c.email);
-        await data.saveTeam(
-          { id: teamId(name), name, memberEmails: members, createdAt: stamp() },
-          null,
-        );
-        setNewTeam('');
-      }
-      finish([await send(courseIds, emails)]);
+      finish([await send(courseIds, recipients)]);
     } catch (e) {
       toastError(toast, e, 'Could not assign. Nothing was changed; try again.');
       setBusy(false);
@@ -236,21 +243,24 @@ export function AssignPage() {
     setDone(null);
     setCourseIds([]);
     setEmails([]);
-    setPicked([]);
+    setTeamNames([]);
+    setMembers({});
     setDue('');
     setStep(0);
     setDirection('back');
   };
 
-  // The people chosen in the picker who are still on the list (removing a chip above drops them here).
-  const shown = picked.filter((p) => emails.includes(p.email));
   const titleOf = (id: string) => courses.find((c) => c.id === id)?.title ?? id;
   const chosenTitles =
     courseIds.length === 1
       ? (courses.find((c) => c.id === courseIds[0])?.title ?? 'this course')
       : `${courseIds.length} courses`;
-  const shownCourses = courses.filter((c) =>
+  const matchingCourses = courses.filter((c) =>
     c.title.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  const shownCourses = matchingCourses.slice(
+    (coursePage - 1) * COURSES_PER_PAGE,
+    coursePage * COURSES_PER_PAGE,
   );
 
   const courseStep = (
@@ -259,7 +269,10 @@ export function AssignPage() {
         label="Search courses"
         type="search"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setCoursePage(1);
+        }}
       />
       <Loaded loadable={courseList}>
         {() =>
@@ -267,34 +280,41 @@ export function AssignPage() {
             <EmptyState title="No published courses yet">
               Publish a course in the Studio, then assign it here.
             </EmptyState>
-          ) : shownCourses.length === 0 ? (
+          ) : matchingCourses.length === 0 ? (
             <EmptyState title={`No course matches “${query.trim()}”`}>
               Try a shorter search.
             </EmptyState>
           ) : (
-            <ul className="console-choices">
-              {shownCourses.map((c) => (
-                <li key={c.id}>
-                  <label className="console-choice">
-                    <input
-                      type="checkbox"
-                      checked={courseIds.includes(c.id)}
-                      onChange={(e) =>
-                        setCourseIds(
-                          e.target.checked
-                            ? [...courseIds, c.id]
-                            : courseIds.filter((id) => id !== c.id),
-                        )
-                      }
-                    />
-                    <strong>{c.title}</strong>
-                    <span className="console-muted">
-                      {lessonLabel(countItems(c).lessons)} · {c.estimatedMinutes} min
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <>
+              {courseIds.length > 0 ? (
+                <p className="console-muted" aria-live="polite">
+                  {`${courseIds.length} selected`}
+                </p>
+              ) : null}
+              <ul className="learn-cards g-stagger">
+                {shownCourses.map((c) => (
+                  <CourseChoice
+                    key={c.id}
+                    course={c}
+                    selected={courseIds.includes(c.id)}
+                    onChange={(on) =>
+                      setCourseIds(
+                        on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id),
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+              <Pagination
+                label="Courses"
+                previousLabel="Earlier courses"
+                nextLabel="More courses"
+                page={coursePage}
+                pageSize={COURSES_PER_PAGE}
+                total={matchingCourses.length}
+                onPageChange={setCoursePage}
+              />
+            </>
           )
         }
       </Loaded>
@@ -302,123 +322,27 @@ export function AssignPage() {
   );
 
   const audienceStep = (
-    <>
-      <EmailChipInput
-        label="Email addresses"
-        value={emails}
-        onChange={setEmails}
-        classify={classify}
-      />
-      <p className="console-muted" aria-live="polite">
-        {`${peopleLabel(assignable)} will be assigned.`} Chips show whether each person has signed
-        in, is new (a pending invite), already has the course, or cannot be assigned.
-      </p>
-      <Tabs
-        label="Add people"
-        tabs={[
-          {
-            id: 'team',
-            label: 'Existing team',
-            panel: (
-              <Loaded loadable={teamList}>
-                {(found) =>
-                  found.length === 0 ? (
-                    <EmptyState title="No teams yet">
-                      Create one on the Teams page, or use the New team tab to make one now.
-                    </EmptyState>
-                  ) : (
-                    <>
-                      <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
-                        <option value="">Choose a team</option>
-                        {found.map((x) => (
-                          <option key={x.id} value={x.name}>
-                            {x.name}
-                          </option>
-                        ))}
-                      </Select>
-                      {team ? (
-                        <p className="console-muted" aria-live="polite">
-                          {teamEmails === null
-                            ? 'Counting…'
-                            : `${peopleLabel(teamEmails.length)} in ${team}`}
-                        </p>
-                      ) : null}
-                      <Button
-                        variant="secondary"
-                        disabled={!teamEmails?.length}
-                        onClick={() => add(teamEmails as string[])}
-                      >
-                        Add everyone in this team
-                      </Button>
-                    </>
-                  )
-                }
-              </Loaded>
-            ),
-          },
-          {
-            id: 'people',
-            label: 'People',
-            panel: (
-              <>
-                <PeoplePicker
-                  label="Search by name or email"
-                  value={shown}
-                  search={findPeople}
-                  onChange={(next) => {
-                    const kept = new Set(next.map((p) => p.email));
-                    const dropped = shown.filter((p) => !kept.has(p.email));
-                    setPicked(next);
-                    setEmails([
-                      ...new Set([
-                        ...emails.filter((e) => !dropped.some((p) => p.email === e)),
-                        ...next.map((p) => p.email),
-                      ]),
-                    ]);
-                  }}
-                />
-                <p className="console-muted">
-                  Or paste a list into the box above: commas, spaces or new lines all work.
-                </p>
-                <div
-                  className={
-                    dragging ? 'console-dropzone console-dropzone--over' : 'console-dropzone'
-                  }
-                >
-                  <p>Drop a CSV file here, or choose one.</p>
-                  <Input
-                    label="CSV file (emails in the first column)"
-                    type="file"
-                    accept=".csv,text/csv"
-                    onDragEnter={() => setDragging(true)}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={() => setDragging(false)}
-                    onChange={(e) => void readCsv(e.target.files?.[0])}
-                  />
-                </div>
-              </>
-            ),
-          },
-          {
-            id: 'new',
-            label: 'New team',
-            panel: (
-              <>
-                <Input
-                  label="New team name"
-                  value={newTeam}
-                  onChange={(e) => setNewTeam(e.target.value)}
-                />
-                <p className="console-muted">
-                  Add the members above. On Assign they are saved as this team, and the team appears
-                  on the Teams page. Leave the name empty to skip it.
-                </p>
-              </>
-            ),
-          },
-        ]}
-      />
-    </>
+    <AudienceStep
+      data={data}
+      mode={mode}
+      onMode={changeMode}
+      teamList={teamsLoadable}
+      onTeamCreated={(team) => setMadeTeams((m) => [...m, team])}
+      teamNames={teamNames}
+      onTeamNames={setTeamNames}
+      emails={emails}
+      onEmails={setEmails}
+      classify={classify}
+      summary={
+        counting
+          ? 'Counting the people on your teams…'
+          : `${peopleLabel(assignable)} will be assigned.${
+              mode === 'teams' && teamNames.length > 0
+                ? ` From ${teamNames.length} ${teamNames.length === 1 ? 'team' : 'teams'}: ${teamNames.join(', ')}.`
+                : ''
+            }`
+      }
+    />
   );
 
   const scheduleStep = (
@@ -457,7 +381,7 @@ export function AssignPage() {
         ) : (
           ' with no deadline'
         )}
-        {newTeam.trim() ? <>, and save them as the team {newTeam.trim()}</> : null}.
+        {mode === 'teams' && teamNames.length > 0 ? <>, from {teamNames.join(', ')}</> : null}.
       </p>
       <dl>
         <dt>Signed in</dt>
@@ -477,7 +401,7 @@ export function AssignPage() {
             .filter((c) => courseIds.includes(c.id))
             .map((c) => {
               const per = summarize(
-                classifyEmails(emails, {
+                classifyEmails(recipients, {
                   signedIn: known.signedIn,
                   assigned: known.byCourse[c.id] ?? new Set(),
                 }),

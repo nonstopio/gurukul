@@ -138,6 +138,24 @@ describe('Design system: components', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('lets the search card example be typed in, filtered and cleared', async () => {
+    const user = userEvent.setup();
+    await openSection('components');
+    const card = screen.getByRole('region', { name: 'SearchCard' });
+    const field = within(card).getByRole('searchbox', { name: 'Search courses' });
+    await user.type(field, 's');
+    expect((field as HTMLInputElement).value).toBe('gits');
+    await user.click(
+      within(card).getByRole('button', { name: 'Remove filter: Level: Foundation' }),
+    );
+    expect(within(card).queryByText('Level: Foundation')).toBeNull();
+    await user.selectOptions(within(card).getByLabelText('Level'), 'foundation');
+    expect(within(card).getByText('Level: Foundation')).toBeTruthy();
+    await user.click(within(card).getByRole('button', { name: 'Assigned to me' }));
+    await user.click(within(card).getByRole('button', { name: 'Clear all filters' }));
+    expect((field as HTMLInputElement).value).toBe('');
+  });
+
   it('shows toasts, a dialog, a drawer and the palette', async () => {
     const user = userEvent.setup();
     await openSection('components');
@@ -170,19 +188,29 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('button', { name: 'Advance bar' }));
     await user.click(screen.getByRole('button', { name: 'Advance ring' }));
     await user.click(screen.getByRole('switch', { name: 'Published' }));
+    await user.click(screen.getByRole('switch', { name: /Educator/ }));
     await user.click(screen.getByRole('radio', { name: /Sand/ }));
-    await user.click(screen.getByRole('button', { name: /Split/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select all courses' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select all courses' }));
+    await user.click(screen.getByRole('checkbox', { name: 'SQL' }));
+    await user.click(screen.getByRole('checkbox', { name: 'SQL' }));
+    await user.click(screen.getByRole('radio', { name: 'Choice B' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Mobile' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Platform' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Git, the NonStop Way' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Git, the NonStop Way' }));
     await user.click(screen.getByRole('checkbox', { name: /A checkbox answer/ }));
     await user.click(screen.getByRole('button', { name: /review-checklist/ }));
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('checkbox', { name: 'Select Ravi Menon' }));
-    await user.click(screen.getByRole('button', { name: 'Remove bad@x.org' }));
-    expect(screen.queryByRole('button', { name: 'Remove bad@x.org' })).toBeNull();
-    await user.type(screen.getByRole('combobox', { name: 'Add people' }), 'mee');
+    const people = screen.getByRole('combobox', { name: 'Add people' });
+    await user.type(people, 'mee');
     await user.click(await screen.findByRole('option', { name: /Meera Nair/ }));
     expect(screen.getByRole('button', { name: 'Remove Meera Nair' })).toBeTruthy();
+    await user.type(people, 'guest@x.org{Enter}');
+    expect(screen.getByRole('button', { name: 'Remove guest@x.org' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Duplicate TEXT block' }));
     expect(screen.getByText('Duplicated')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Delete VIDEO block' }));

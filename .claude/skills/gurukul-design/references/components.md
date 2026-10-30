@@ -169,36 +169,30 @@ empty. `footer` goes under a hairline.
 `<Pagination page pageSize total onPageChange label? />` is the footer: `<nav>` with a live "Showing 1–25
 of 148" and secondary Previous / Next buttons (disabled at the ends). Pages start at 1.
 
-## EmailChipInput — shipped
-
-`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? statusWords? />`. A labelled text
-input in a bordered box; emails become removable chips. Typing a comma, space, semicolon or newline,
-pressing Enter, pasting, or leaving the field commits what is typed: split on those separators,
-lower-cased, duplicates dropped. Backspace on an empty input removes the last chip. `value` and
-`onChange` are controlled; `splitEmails(text)` is exported for CSV and "whole team" flows.
-
-The caller supplies `classify(email) => { status, reason? }` and writes the legend (point
-`describedBy` at it). Each chip says its status in words: `signedIn` `--accent-soft` "· signed in",
-`new` dashed `--border-strong` "· new", `alreadyAssigned` `--surface-sunken` "· already assigned",
-`rejected` `--danger-soft` with `--danger-line` and "· {reason}" (default "rejected"). The remove button
-is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. `statusWords` swaps the
-words a status shows (the team dialog says "Invited" for `new`). The list is named
-"{label}: added emails". Focus ring on the box.
-
 ## PeoplePicker — shipped
 
-`<PeoplePicker label value onChange search placeholder? removeLabel? />`; `Person` is
-`{ email, name?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
-`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"`
-`aria-multiselectable`. The caller owns `value` and `search(query) => Promise<Person[]>` (debounce and
-minimum length are its job); only the newest answer is shown. Choosing a row **adds a chip, clears
-the text, closes the list and keeps focus**; ArrowDown reopens, Backspace on an empty field removes
-the last chip, Escape closes the list (and stops there, so a Dialog around it stays open), Enter picks
-the active row. Rows are `Avatar`, name, email and role with the match in `<mark>` (`--saffron-soft`),
-and people already chosen say "Added". The list sits 4px under the field (`--shadow-menu`,
-`--radius-lg`, `--z-menu`, at most 22rem tall). A polite `role="status"` says "N people match".
-Chips are named "Remove {name}". Use it where a person is chosen; never leave the list open or the
-typed text behind after a pick.
+The one way to pick people, everywhere: a Jira-style typeahead. `<PeoplePicker label value onChange search
+placeholder? removeLabel? allowEmails? classify? statusWords? total? describedBy? />`; `Person` is `{ email,
+name?, photoUrl?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
+`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` `aria-multiselectable`.
+**Focus lists the first people** (`search('')`); typing narrows by name or email. Rows are `Avatar` with the
+person's **photo** (initials when none), name, email and role, the match in `<mark>` (`--saffron-soft`), and
+"Added" for people already chosen; with `total`, a footer says "Showing 10 of 42 people". The caller owns
+`value` and `search(query) => Promise<Person[]>` (debounce and minimum length are its job); only the newest
+answer is shown. Choosing a row **adds a chip, clears the text, closes the list and keeps focus**; ArrowDown
+reopens, Backspace on an empty field removes the last chip, Escape closes the list (and stops there, so a
+Dialog around it stays open), Enter picks the active row.
+
+`allowEmails` is for someone who has not signed in yet: an email typed (then comma, `;` or a space) or pasted
+becomes a chip, a typed email nobody has is offered as "Add “x@y.com”", and an email left in the field on blur
+is kept; a name with spaces is never split. `classify(email) => { status, reason? } | null` makes each chip say
+what it means in words (`signedIn` `--accent-soft`, `new` hairline, `alreadyAssigned` `--surface-sunken`,
+`rejected` `--danger-soft`; `null` says nothing); `statusWords` changes the words ("new" → "Invited").
+`splitEmails(text)` is exported for CSV flows. Chips are named "Remove {name}" and listed as "{label}: added
+people". In `apps/web`, `PeopleField` wires it to the console's people (`usePeopleLookup`: first ten, then
+prefix search) and keeps plain emails for the page. Use it wherever a person or several are chosen (assign,
+team members); never a bare email box, never a checkbox list of everyone. The list sits 4px under the field
+(`--shadow-menu`, `--radius-lg`, `--z-menu`, at most 22rem tall).
 
 ## StepCard (Stepper.Step) — shipped
 
@@ -224,12 +218,12 @@ them) and moving focus to the step heading. Nothing is saved before the last ste
 
 ## Dialog — shipped
 
-`<Dialog open onClose title size="md|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
+`<Dialog open onClose title size="md|lg|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
 (`role="dialog" aria-modal="true" aria-labelledby` the Fraunces `h2` title). On open focus moves to the
 first focusable thing in the body (the close button if there is none); Tab and Shift+Tab wrap inside;
 Escape and the backdrop (a real button, ink at 55%) close; page scroll is locked and restored; focus
 returns to the opener on close. A 44px close button sits in the header. `md` is a centred panel, max
-560px, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
+560px, `lg` 56rem for a grid of cards, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
 `--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
 The caller owns `open`. One dialog at a time.
 
@@ -314,12 +308,14 @@ exception text; take the sentence and code from `describeError`.
 
 ## CodeBlock — shipped
 
-`<CodeBlock code fileName? variant="code|terminal" highlight="2,4-6" copyLabel? copiedLabel? failedLabel? />`.
+`<CodeBlock code fileName? variant="code|terminal|output" highlight="2,4-6" copyLabel? copiedLabel? failedLabel? />`.
 Header `--code-header`: name in mono 12px `--code-comment` (`fileName`, else "terminal" or "code") and a 44px
 Copy button (`--code-text`, hover `--chrome-hover`). Body `--code-bg`, `--code-text`, mono 13.5px/1.7, one
 block per line, `--radius-lg`. Highlighted lines (`highlight`, 1-based, numbers and ranges, junk ignored) get
 `--chrome-active` and a 2px `--chrome-accent` bar. `terminal` prefixes each line with a `$` prompt in
-`--code-keyword` drawn by CSS, so it is never copied or selected.
+`--code-keyword` drawn by CSS, so it is never copied or selected. `output` is what a command printed back:
+labelled "output", no prompt, body on `--code-header` with a hairline, so a command and its reply never look alike.
+The lesson player shows a terminal block with `copy: false` as `output`.
 
 Copy writes the whole `code` with `navigator.clipboard.writeText`, flips the button to "Copied" (check icon) for
 2s (a second click restarts the timer), and a `role="status"` region next to it announces "Copied". If the
@@ -405,7 +401,7 @@ chrome (sidebar, top bar) as well, since `visibility` keeps its space and could 
 `<StatCard label value sub? />`. A one-entry `<dl>`: `dt` label (12px caps, `--text-muted`), `dd` value
 (Fraunces 500 36px, `--text`), optional `dd` sub line. Hairline card like Card. Put several in a grid.
 
-## DragList, BlockFrame, LayoutPicker, ColourSwatch, TypeTile — shipped
+## DragList, BlockFrame, ColourSwatch, TypeTile — shipped
 
 `<DragList items itemKey renderItem onMove label itemLabel>`. An `<ol>` of `<li>`; `renderItem(item, { index, handle, dragging })`
 gets a real grip `<button>` (`handle`) that the caller places. The grip is named "Move {itemLabel}" and is
@@ -425,10 +421,6 @@ its row moves. Transitions use `--dur-*`, which are 0 under `prefers-reduced-mot
 `controls`, then 44px icon buttons "Duplicate {label} block" and "Delete {label} block", each only when its
 handler is given. `selected`: `--accent-decor` border, 2px. `error`: `--danger` border and, under the header, a
 `role="alert"` line with an icon on `--danger-soft`.
-
-`<LayoutPicker value="stacked|split|article" onChange label>`. A `role="group"` of three tile `<button aria-pressed>`
-with a mini SVG diagram and the name (Stacked, Split, Article). Pressed: `--accent-soft` ground, `--accent`
-border 2px.
 
 `<ColourSwatch value="forest|sand|sky|stone" onChange label>`. A `role="radiogroup"` of four real radios inside
 labels, each a 44px swatch (`--cover-forest|sand|sky|stone`) with its name beneath. Checked: `--accent` ring plus
@@ -455,6 +447,15 @@ first and last word ("Asha Rao" → AR), one word's first letter, an email's loc
 `--avatar-educator`, `admin` `--avatar-admin`; text `--avatar-on`, Inter 600. Sizes 24 / 34 / 36
 (default) / 48. Decorative (`aria-hidden`) because the name is always printed beside it; with
 `label` it becomes `role="img"`. Never a Google photo.
+
+## IconButton — shipped
+
+`<IconButton label tip? tone="neutral|danger">icon</IconButton>`: a 36px icon-only button for dense list rows
+(rename, move, delete). Quiet (`--text-muted`) until hover (`--surface-hover`); `danger` is `--danger`
+with `--danger-soft` on hover. `label` is the accessible name ("Rename What Git solves"); `tip` is the
+short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `iconButtonClass(tone?)` and
+`Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
+link (`position: relative; z-index: 1`).
 
 ## Menu — shipped
 
@@ -551,6 +552,11 @@ Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focu
 - `loading`: disabled, `aria-busy="true"`, label kept, a 16px `currentColor` spinner replaces the
   icon (still under reduced motion). Use it instead of swapping the label to "Saving…".
 - `size="sm"`: 36px, `--space-3` padding, dense rows only. `buttonClass(variant, extra, size?)`.
+- `quiet`: borderless, `--text-body`, hover `--surface-hover`. Neutral edits in a dense row (Rename, Collapse).
+- `danger-quiet`: borderless, `--danger` text, hover `--danger-soft`. The Delete or Remove in a row or card
+  that opens a confirmation; never the confirm itself. With a `TrashIcon`.
+- Roles in a row of actions, each with an icon: `quiet` neutral edits, `ghost` adding (`PlusIcon`),
+  `danger-quiet` removing. Grey, green and red, so no two actions read alike and a row stays light.
 - `danger`: `--danger` ground, `--danger-on` text — only the confirm of a destructive `Dialog`.
 - `chrome-secondary`: transparent, `--chrome-text`, `--chrome-line` border, hover
   `--chrome-hover` — secondary actions on the dark top bar (beside a `chrome` primary).
@@ -578,3 +584,53 @@ number columns, no selection and no paging. Never `<table class="plain-table">`.
 
 `placeholder="Video coming soon."` keeps the 16:9 dark frame and shows the message (with a play
 glyph) in it instead of a player; no open-in-new-tab link. Never bare text where a video goes.
+
+## CourseTile — shipped
+
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? theme chips? summary? extra? meta? />`.
+A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover
+colour, `forest` white ink, the others the fixed paper ink), then chips, the title, the summary, an
+`extra` block (a progress bar) and a meta line. The picture comes from `courseImageUrl(course)` (the
+first image in its lessons); a missing or broken picture falls back to the name, so there is never an
+empty box. **The whole tile is the link**: the title's link stretches over it, so keyboard and screen
+readers still meet one link, and hover lifts the tile and underlines the title. Lists use
+`.learn-cards` with `g-stagger`. Never a text-only row for a course.
+
+**Picking courses** (assign, grant): give the tile `selected` and `onSelectedChange` (apps/web wraps it as
+`CourseChoice`). A real checkbox named after the course sits in a badge on the cover and its label covers the
+whole tile, so a click anywhere toggles it. Selected: `--accent` 2px ring, the tick pops in (`--dur-slow`) and
+the picture settles; `:focus-visible` shows the focus ring. Never a checkbox beside a title for a course.
+
+## ToggleCard — shipped
+
+`<ToggleCard title description? checked onChange disabled? />`: a setting that deserves a sentence, as a card.
+Name and description on the left (`--text-md` 600 and `--text-muted`), the `Toggle` switch at the right edge,
+`--radius-lg` with a hairline; hover `--surface-hover`; on gives an `--accent` border; the whole card is the
+label, so a click anywhere toggles it. Use it for role grants and rules; a bare `Toggle` for a one-word setting.
+
+## Checkbox and Radio — shipped
+
+`<Checkbox label? indeterminate? ...input props />` and `<Radio label? name ... />`: tick boxes we draw ourselves
+over a real input (Space toggles, Tab reaches, 44px hit area, `aria-label` when there is no visible label). A
+22px box, `--border-strong` 2px; hover `--accent` border; picked fills `--accent` and the tick (or the Radio's
+dot) pops in (`--dur-base`); pressing shrinks it a little; `:focus-visible` shows `--focus-ring`; disabled is 50%.
+`indeterminate` draws a dash for "some of them" (a header "select all"; `DataTable` uses it). Never a native
+`<input type="checkbox|radio">`: an on/off setting is a `Toggle`, a list tick is a `Checkbox`.
+`Toggle` is 44×26 with a paper knob that glides and stretches a little under a press.
+
+## ChoiceCard — shipped
+
+`<ChoiceCard icon title meta? selected onSelectedChange selectLabel? disabled? as="li|div">`: one option in a pick-many list
+of teams or people (a course is a `CourseTile` with `onSelectedChange`). A `<label>` fills the card, so a click
+anywhere toggles the real checkbox inside; the icon sits in a tile (an icon, never a logo or photo), the title
+is `--text-md` 600, `meta` one muted line (a member count, an email). Picked: `--accent` ring on an
+`--accent-soft` card, the icon tile fills `--accent`, and the tick pops in (`--dur-slow`). Lay a list out with
+`.console-choice-grid`. `disabled` (a limit, e.g. 15 teams) dims it and blocks picking. Pair it with a search field and a count ("Showing 10 of 23 teams") and "Show more".
+
+## SearchCard — shipped
+
+`<SearchCard label search={{ value, onChange, label, placeholder? }} views? filters? active? count? onClear? />`.
+For a list people search (courses, media): one card, `role="search"`. A 52px search field with a
+leading icon, its own clear button and Esc to clear; under it the views (a `SegmentedControl` of 2 to 4) on the left and `Select`s (`hideLabel`) on the right; under that the filters that are on as
+removable chips (`Remove filter: Level: Foundation`), a Clear all filters button while anything is on,
+and the live result count. Filters belong in the URL. A table's header keeps `FilterBar`.

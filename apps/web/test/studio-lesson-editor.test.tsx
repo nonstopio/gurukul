@@ -162,19 +162,14 @@ describe('lesson editor: title and settings', () => {
     ).toBeTruthy();
   });
 
-  it('changes the layout, minutes, completion rule and type label', async () => {
+  it('changes the minutes, completion rule and type label', async () => {
     const { studio } = await open();
     await screen.findByLabelText('Lesson title');
-    const split = screen.getByRole('button', { name: /Split/ });
-    expect(split.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(split);
-    expect(split.getAttribute('aria-pressed')).toBe('true');
     fireEvent.change(screen.getByLabelText('Estimated minutes'), { target: { value: '25' } });
     fireEvent.change(screen.getByLabelText('Completion rule'), { target: { value: 'video90' } });
     fireEvent.change(screen.getByLabelText('Type label'), { target: { value: 'Hands-on' } });
     await saveNow();
     expect(savedLesson(studio)).toMatchObject({
-      layout: 'split',
       minutes: 25,
       completeWhen: 'video90',
       kindLabel: 'Hands-on',
@@ -230,6 +225,27 @@ describe('lesson editor: blocks', () => {
     });
     await saveNow();
     expect(savedLesson(studio).blocks[0]).toMatchObject({ id: 'b1', md: 'New body' });
+  });
+
+  it('previews any block as a learner sees it, with an Edit | Preview switch in its header', async () => {
+    await open(
+      courseWith([
+        { type: 'callout', id: 'c1', tone: 'tip', title: 'Heads up', md: 'Use `--global` once.' },
+      ]),
+    );
+    const group = await screen.findByRole('group', { name: 'Callout block' });
+    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+    expect(within(group).getByRole('group', { name: 'View Callout' })).toBeTruthy();
+    const edit = within(group).getByRole('button', { name: 'Edit' });
+    const preview = within(group).getByRole('button', { name: 'Preview' });
+    expect(edit.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(preview);
+    expect(preview.getAttribute('aria-pressed')).toBe('true');
+    expect(within(group).queryByLabelText('Text (Markdown)')).toBeNull();
+    expect(within(group).getByText('Heads up')).toBeTruthy();
+    expect(group.querySelector('code')?.textContent).toBe('--global');
+    fireEvent.click(edit);
+    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
   });
 
   it('duplicates a block right after the original with a new id', async () => {

@@ -88,23 +88,9 @@
   gap: var(--space-2);
   min-height: var(--control-height);
 }
-.console-choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.console-choices .console-choice {
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
 .console-fieldset {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-3);
   margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
@@ -200,4 +186,54 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
+}
+
+/* Assign: the Teams | People pick lists. */
+.console-pick-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.console-pick-head > :first-child {
+  flex: 1 1 14rem;
+}
+.console-new-team {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* The role switches in the grant dialog: one under the other. */
+.console-switches {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Courses to pick inside a dialog: smaller tiles, three or four across. */
+.console-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.console-fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The step buttons stay in view at the bottom of the window, however long the step is. */
+.console-flow > .console-flow-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  padding: var(--space-3) 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
 }

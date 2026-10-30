@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { BlockFrame, ColourSwatch, LayoutPicker, TypeTile, roleTokens } from '../src';
+import { BlockFrame, ColourSwatch, TypeTile, roleTokens } from '../src';
 import { axeViolations } from './axe';
 
 describe('BlockFrame', () => {
@@ -71,29 +71,6 @@ describe('BlockFrame', () => {
       </BlockFrame>,
     );
     expect(await axeViolations(container)).toEqual([]);
-  });
-});
-
-describe('LayoutPicker', () => {
-  it('shows three named tiles and marks the current one pressed', async () => {
-    const { container } = render(<LayoutPicker value="split" onChange={() => {}} label="Layout" />);
-    expect(screen.getByRole('group', { name: 'Layout' })).toBeTruthy();
-    const pressed = screen
-      .getAllByRole('button')
-      .map((b) => [b.textContent, b.getAttribute('aria-pressed')]);
-    expect(pressed).toEqual([
-      ['Stacked', 'false'],
-      ['Split', 'true'],
-      ['Article', 'false'],
-    ]);
-    expect(await axeViolations(container)).toEqual([]);
-  });
-
-  it('reports the chosen layout', () => {
-    const onChange = vi.fn();
-    render(<LayoutPicker value="stacked" onChange={onChange} label="Layout" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Article' }));
-    expect(onChange).toHaveBeenCalledWith('article');
   });
 });
 

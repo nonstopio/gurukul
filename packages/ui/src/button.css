@@ -44,6 +44,21 @@
 .g-btn--ghost:hover:not(:disabled) {
   background: var(--accent-soft);
 }
+.g-btn--quiet {
+  background: transparent;
+  color: var(--text-body);
+}
+.g-btn--quiet:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.g-btn--danger-quiet {
+  background: transparent;
+  color: var(--danger);
+}
+.g-btn--danger-quiet:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
 .g-btn--chrome {
   background: var(--chrome-accent);
   color: var(--chrome-accent-on);

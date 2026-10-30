@@ -2,11 +2,19 @@ import {
   Button,
   Callout,
   Card,
+  ChevronDownIcon,
+  ChevronRightIcon,
   Chip,
   Dialog,
   DragList,
+  IconButton,
+  iconButtonClass,
   Input,
-  Select,
+  Menu,
+  PenIcon,
+  PlusIcon,
+  SwapIcon,
+  TrashIcon,
   TypeTile,
 } from '@gurukul/ui';
 import { diffCourses, itemsOf } from '@gurukul/schema';
@@ -88,7 +96,11 @@ export function StructureTab({
               : `${t.Learners} keep their progress by lesson id, so renaming and moving are safe.`}
           </p>
         </div>
-        <Button variant="secondary" onClick={() => update((w) => addChapter(w, newId('chapter')))}>
+        <Button
+          variant="secondary"
+          icon={<PlusIcon />}
+          onClick={() => update((w) => addChapter(w, newId('chapter')))}
+        >
           {`Add ${t.chapter}`}
         </Button>
       </div>
@@ -131,20 +143,19 @@ export function StructureTab({
                     {chapter.items.length} {chapter.items.length === 1 ? 'item' : 'items'} ·{' '}
                     {minutes} min
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <IconButton
+                    label={`${open ? 'Collapse' : 'Expand'} ${t.chapter} ${index + 1}`}
+                    tip={open ? 'Collapse' : 'Expand'}
                     aria-expanded={open}
                     aria-controls={`chapter-body-${chapter.id}`}
                     onClick={() => setCollapsed({ ...collapsed, [chapter.id]: open })}
                   >
-                    {open ? 'Collapse' : 'Expand'}{' '}
-                    <span className="sr-only">{`${t.chapter} ${index + 1}`}</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
+                    {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                  </IconButton>
+                  <IconButton
+                    tone="danger"
+                    label={`Delete ${t.chapter} ${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
+                    tip="Delete"
                     onClick={() =>
                       setConfirm({
                         kind: 'chapter',
@@ -155,8 +166,8 @@ export function StructureTab({
                       })
                     }
                   >
-                    Delete
-                  </Button>
+                    <TrashIcon />
+                  </IconButton>
                 </div>
                 {open ? (
                   <div id={`chapter-body-${chapter.id}`} className="sc-chapter__body">
@@ -175,6 +186,7 @@ export function StructureTab({
                         renderItem={(item, ctx) => (
                           <ItemRow
                             item={item}
+                            number={`${index + 1}.${ctx.index + 1}`}
                             courseId={course.id}
                             handle={ctx.handle}
                             diff={diff}
@@ -192,16 +204,18 @@ export function StructureTab({
                       <Button
                         variant="ghost"
                         size="sm"
+                        icon={<PlusIcon />}
                         onClick={() => update((w) => addLesson(w, chapter.id, newId('lesson')))}
                       >
-                        + Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
+                        Lesson <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        icon={<PlusIcon />}
                         onClick={() => update((w) => addQuiz(w, chapter.id, newId('quiz')))}
                       >
-                        + {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
+                        {t.Quiz} <span className="sr-only">{`in ${t.chapter} ${index + 1}`}</span>
                       </Button>
                     </div>
                   </div>
@@ -245,6 +259,7 @@ export function StructureTab({
 
 function ItemRow({
   item,
+  number,
   courseId,
   handle,
   diff,
@@ -254,6 +269,8 @@ function ItemRow({
   onDelete,
 }: {
   item: Item;
+  /** Chapter and item position, like "1.2". */
+  number: string;
   courseId: string;
   handle: React.ReactNode;
   diff: CourseDiff;
@@ -269,6 +286,7 @@ function ItemRow({
     <div className="sc-item">
       {handle}
       <TypeTile kind={itemKind(item)} />
+      <span className="sc-item__no">{number}</span>
       {renaming ? (
         <Input
           className="sc-item__input"
@@ -285,44 +303,33 @@ function ItemRow({
           }}
         />
       ) : (
-        <>
-          <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
-            {title}
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={`Rename ${title}`}
-            onClick={() => setRenaming(true)}
-          >
-            Rename
-          </Button>
-        </>
+        <Link className="sc-item__title" to={itemEditorPath(courseId, item)}>
+          {title}
+        </Link>
       )}
       {diff.added.includes(item.id) ? <Chip tone="accent">New</Chip> : null}
       {diff.edited.includes(item.id) ? <Chip tone="info">Edited</Chip> : null}
       <span className="sc-item__meta">{itemMeta(item)}</span>
-      {others.length > 0 ? (
-        <Select
-          className="sc-item__move"
-          label={`Move ${title} to another ${t.chapter}`}
-          hideLabel
-          value=""
-          onChange={(e) => onMoveTo(e.target.value)}
-        >
-          <option value="" disabled>
-            Move to…
-          </option>
-          {others.map((p) => (
-            <option key={p.id} value={p.id}>
-              {nameOf(p.title, `Untitled ${t.chapter}`)}
-            </option>
-          ))}
-        </Select>
-      ) : null}
-      <Button variant="ghost" size="sm" aria-label={`Delete ${title}`} onClick={onDelete}>
-        Delete
-      </Button>
+      <div className="sc-item__actions">
+        <IconButton label={`Rename ${title}`} tip="Rename" onClick={() => setRenaming(true)}>
+          <PenIcon />
+        </IconButton>
+        {others.length > 0 ? (
+          <Menu
+            label={`Move ${title} to another ${t.chapter}`}
+            tip={`Move to ${t.chapter}`}
+            triggerClassName={iconButtonClass()}
+            trigger={<SwapIcon />}
+            items={others.map((p) => ({
+              label: nameOf(p.title, `Untitled ${t.chapter}`),
+              onSelect: () => onMoveTo(p.id),
+            }))}
+          />
+        ) : null}
+        <IconButton tone="danger" label={`Delete ${title}`} tip="Delete" onClick={onDelete}>
+          <TrashIcon />
+        </IconButton>
+      </div>
     </div>
   );
 }

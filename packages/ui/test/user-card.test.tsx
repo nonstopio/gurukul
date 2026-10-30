@@ -39,3 +39,17 @@ describe('UserCard', () => {
     expect(signOut).toHaveBeenCalledOnce();
   });
 });
+
+describe('UserCard photo', () => {
+  it('passes the photo to the avatar', () => {
+    const { container } = render(
+      <UserCard
+        name="Asha Rao"
+        detail="asha@example.com"
+        photoUrl="https://example.com/a.png"
+        items={[{ label: 'Profile', onSelect: () => {} }]}
+      />,
+    );
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://example.com/a.png');
+  });
+});

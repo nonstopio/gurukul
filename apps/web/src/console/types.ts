@@ -13,6 +13,8 @@ export interface UserRow {
   uid: string;
   email: string;
   displayName: string;
+  /** Their Google picture, saved at sign-in; null when they have none. */
+  photoURL?: string | null | undefined;
   team: string | null;
   roles: string[];
   grantedCourseIds: string[];

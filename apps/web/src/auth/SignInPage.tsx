@@ -1,4 +1,4 @@
-import { BookIcon, Button, CheckIcon, PageHeader, StarIcon } from '@gurukul/ui';
+import { Button, CheckIcon, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
 import { SignInArt, rise } from './SignInArt';
@@ -28,7 +28,7 @@ function GoogleMark() {
 }
 
 const BENEFITS = [
-  { Icon: BookIcon, text: 'Courses built by NonStopians, for NonStopians' },
+  { Icon: GridIcon, text: 'Courses built by NonStopians, for NonStopians' },
   { Icon: CheckIcon, text: 'Quizzes that show what you have learned' },
   { Icon: StarIcon, text: 'Certificates you can share and verify' },
 ] as const;

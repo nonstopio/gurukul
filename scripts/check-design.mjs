@@ -1,6 +1,7 @@
 // Fails when a screen draws what the design system owns (.claude/skills/gurukul-design/SKILL.md).
 //   node scripts/check-design.mjs [repoDir]
-// apps/web: no raw <select>, <table> or <h1> in TSX (use Select, DataTable, PageHeader), and CSS is
+// apps/web: no raw <select>, <table>, <h1> or email field in TSX (use Select, DataTable, PageHeader,
+// PeoplePicker), and CSS is
 // layout only: no colour literal, px font size, shadow, radius, z-index or max-width literal.
 // packages/ui: components use role tokens, never a scale step (--g-*) or a colour literal; only
 // tokens.css holds values. An exception is listed in ALLOW with its reason.
@@ -12,6 +13,16 @@ const MARKUP = [
   ['table', /<table\b/, 'raw <table>: use DataTable from @gurukul/ui'],
   ['h1', /<h1\b/, 'raw <h1>: the page title comes from PageHeader'],
   ['main', /<main\b/, 'raw <main>: the shell owns <main>; a page is a Page'],
+  [
+    'tick-box',
+    /\btype=["'](?:checkbox|radio)["']/,
+    'a raw checkbox or radio: use Toggle (on/off), Checkbox (tick in a list) or Radio (one of many)',
+  ],
+  [
+    'email-box',
+    /\btype=["']email["']/,
+    'an email field: people are picked with PeoplePicker (PeopleField in the console)',
+  ],
 ];
 
 const COLOUR = [

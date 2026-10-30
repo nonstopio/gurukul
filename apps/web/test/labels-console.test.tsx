@@ -81,12 +81,15 @@ describe('the console in Gurukul names', () => {
     expect(screen.getByRole('button', { name: 'Edit Me as Kulapati' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Grant a role' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Find a person by name or email'), {
-      target: { value: 'me' },
-    });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Me' }));
-    expect(within(dialog).getByText(/Everyone is a Shishya\./)).toBeTruthy();
-    expect(within(dialog).getByRole('checkbox', { name: 'Acharya' })).toBeTruthy();
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'Find a person by name or email' }),
+      {
+        target: { value: 'me' },
+      },
+    );
+    fireEvent.mouseDown(await within(dialog).findByRole('option', { name: /Me/ }));
+    expect(await within(dialog).findByText(/Everyone is a Shishya\./)).toBeTruthy();
+    expect(within(dialog).getByRole('switch', { name: /Acharya/ })).toBeTruthy();
     expect(
       within(dialog).getByText('You cannot remove your own Kulapati role. Ask another Kulapati.'),
     ).toBeTruthy();
