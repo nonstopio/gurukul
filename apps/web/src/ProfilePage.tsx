@@ -93,7 +93,7 @@ export function ProfilePage() {
   );
 }
 
-/** The team: picked from `config/org.teams`, saved on its own button. */
+/** The team: picked from `config/org.teams` (the names the Teams page keeps), saved on its own button. */
 function TeamForm() {
   const { uid } = useUser();
   const { team: saved } = useSession();
@@ -123,7 +123,7 @@ function TeamForm() {
       {(list) =>
         list.length === 0 ? (
           <p className="profile__note">
-            {`No teams yet: your ${t.admin} adds them in Org settings.`}
+            {`No teams yet: your ${t.admin} adds them on the Teams page.`}
           </p>
         ) : (
           <form className="profile__team" onSubmit={(e) => void save(e)}>

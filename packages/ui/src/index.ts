@@ -64,6 +64,8 @@ export { DataTable, Pagination } from './DataTable';
 export type { DataTableColumn, DataTableProps, PaginationProps } from './DataTable';
 export { EmailChipInput, splitEmails } from './EmailChipInput';
 export type { EmailChipInputProps, EmailClassification, EmailStatus } from './EmailChipInput';
+export { PeoplePicker } from './PeoplePicker';
+export type { PeoplePickerProps, Person } from './PeoplePicker';
 export { StepCard, Stepper } from './Stepper';
 export type { StepCardProps } from './Stepper';
 export { Dialog } from './Dialog';

@@ -69,7 +69,7 @@ describe('Profile', () => {
   it('says where teams come from when the org has none', async () => {
     await openApp('/profile', { labels: 'gurukul' });
     expect(
-      await screen.findByText('No teams yet: your Kulapati adds them in Org settings.'),
+      await screen.findByText('No teams yet: your Kulapati adds them on the Teams page.'),
     ).toBeTruthy();
   });
 

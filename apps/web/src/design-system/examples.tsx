@@ -20,6 +20,7 @@ import {
   Dialog,
   DragList,
   EmailChipInput,
+  PeoplePicker,
   EmptyState,
   StateCard,
   FilterBar,
@@ -69,6 +70,7 @@ import type {
   CoverTheme,
   EmailClassification,
   PaletteItem,
+  Person,
   QuizOptionState,
   ToastTone,
   TypeTileKind,
@@ -290,6 +292,23 @@ function EmailExample() {
       placeholder="Paste emails"
     />
   );
+}
+
+const PICKER_PEOPLE: Person[] = [
+  { email: 'asha@example.com', name: 'Asha Menon', role: 'Educator', tone: 'educator' },
+  { email: 'arjun@example.com', name: 'Arjun Rao', role: 'Learner' },
+  { email: 'meera@example.com', name: 'Meera Nair', role: 'Learner' },
+];
+
+function PeoplePickerExample() {
+  const [chosen, setChosen] = useState<Person[]>([]);
+  const search = (q: string) =>
+    Promise.resolve(
+      PICKER_PEOPLE.filter((p) =>
+        [p.name, p.email].join(' ').toLowerCase().includes(q.toLowerCase()),
+      ),
+    );
+  return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
 }
 
 function SwatchExample() {
@@ -888,6 +907,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   EmailChipInput: {
     rule: 'Pasted emails as chips, each classified: new, signed in, already assigned or rejected with a reason.',
     Example: EmailExample,
+  },
+  PeoplePicker: {
+    rule: 'Type, pick: the person becomes a chip, the text clears, the list closes and focus stays.',
+    Example: PeoplePickerExample,
   },
   Sidebar: {
     rule: 'The ink navigation inside AppShell: brand, SidebarGroups of NavItems, the UserCard at the foot.',

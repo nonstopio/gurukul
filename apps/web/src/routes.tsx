@@ -41,6 +41,7 @@ const DesignSystemPage = lazyPage(
   () => import('./design-system/DesignSystemPage'),
   'DesignSystemPage',
 );
+const TeamsPage = lazyPage(() => import('./console/TeamsPage'), 'TeamsPage');
 const SettingsPage = lazyPage(() => import('./console/SettingsPage'), 'SettingsPage');
 const CourseEditorPage = lazyPage(() => import('./studio/CourseEditorPage'), 'CourseEditorPage');
 const LessonEditorPage = lazyPage(() => import('./studio/LessonEditorPage'), 'LessonEditorPage');
@@ -86,6 +87,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/admin/assign': (
     <RequireRole any={['admin']}>
       <AssignPage />
+    </RequireRole>
+  ),
+  '/admin/teams': (
+    <RequireRole any={['admin']}>
+      <TeamsPage />
     </RequireRole>
   ),
   '/admin/roles': (

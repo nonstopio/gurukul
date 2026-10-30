@@ -48,8 +48,12 @@ describe('the console in Gurukul names', () => {
 
   it('names the settings copy', async () => {
     await openApp('/admin/settings', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByText(/Shishyas pick their team from this list/)).toBeTruthy();
-    expect(screen.getByText(/remind people from Shishyas\./)).toBeTruthy();
+    expect(await screen.findByText(/remind people from Shishyas\./)).toBeTruthy();
+  });
+
+  it('names the teams copy', async () => {
+    await openApp('/admin/teams', { ...gurukulAdmin, console: fakeConsole() });
+    expect(await screen.findByText(/Shishyas also pick their own team/)).toBeTruthy();
   });
 
   it('names the assign toggle', async () => {

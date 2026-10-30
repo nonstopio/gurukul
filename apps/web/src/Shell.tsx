@@ -156,6 +156,7 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'admin-overview': ChartIcon,
   'admin-learners': UsersIcon,
   'admin-assign': SendIcon,
+  'admin-teams': UsersIcon,
   'admin-roles': ShieldIcon,
   'admin-audit': ClockIcon,
   'admin-design-system': CodeIcon,

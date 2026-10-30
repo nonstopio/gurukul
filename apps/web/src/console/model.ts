@@ -483,6 +483,25 @@ export function addTeam(
   return { teams: [...teams, team] };
 }
 
+/** The most people on one team; the rules cap `teams/{id}.memberEmails` at the same number. */
+export const MAX_MEMBERS = 500;
+
+/**
+ * The trimmed name for a team, or why it cannot be used: the same checks as `addTeam`, against the
+ * other teams (the one being edited, `selfId`, may keep its own name).
+ */
+export function checkTeamName(
+  teams: readonly { id: string; name: string }[],
+  name: string,
+  selfId: string | null,
+): { name: string } | { error: string } {
+  const checked = addTeam(
+    teams.filter((t) => t.id !== selfId).map((t) => t.name),
+    name,
+  );
+  return 'error' in checked ? checked : { name: name.trim() };
+}
+
 export type DateRange = '30d' | 'quarter' | 'all';
 
 export const DATE_RANGES: ReadonlyArray<{ id: DateRange; label: string }> = [

@@ -260,6 +260,22 @@ service cloud.firestore {
         && request.resource.data.signatory.role.size() <= 120;
     }
 
+    // A team and its members (`teams/{id}`): names are public through `config/org.teams`, the
+    // member emails are the Admin's alone. The Teams page writes it in one transaction with
+    // `config/org.teams`. Rules cannot loop over a list, so each email's shape is the app's check
+    // (`teamSchema`); the key set, name and list size are checked here.
+    match /teams/{teamId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'memberEmails', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.memberEmails is list
+        && request.resource.data.memberEmails.size() <= 500
+        && request.resource.data.createdAt is number;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

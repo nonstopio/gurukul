@@ -20,9 +20,27 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
 | `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list (at most 100), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings) |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings) |
+| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Admin | Admin (Teams page): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
+
+## Teams
+
+A team is `{ id, name, memberEmails[], createdAt }`: the document `teams/{id}` holds `name`,
+`memberEmails` (lower-cased, unique, at most 500, so a document stays a few tens of KB) and
+`createdAt` (milliseconds). `id` is a slug of the name. Members are keyed by **email**, like
+assignments, so a person can be on a team before their first sign-in.
+
+Why a collection, and why `config/org.teams` stays: `users.team` is a name and its rule checks the
+name against the `config/org.teams` list with one `get()`, which every signed-in learner also reads
+to fill the profile's team picker. Putting members into that document would make every learner
+download every member list, and a few hundred emails per team would approach the 1 MiB document
+limit. So the lists live in `teams/` (Admin only: it holds other people's emails) and
+`config/org.teams` keeps only the names, rewritten in the same transaction as every team write.
+A name in `config/org.teams` with no `teams/` document (a team made before this) is a team with no
+members: the Teams page lists it, and saving it creates its document. Cost: one read of
+`teams/` per Teams page or Assign visit (at most 100 documents), no listeners, nothing on learner pages.
 
 ## The course object
 

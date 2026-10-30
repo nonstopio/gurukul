@@ -1,7 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
-import { log } from '../src/log';
 import type { BankQuestion, StudioCourse } from '../src/studio/types';
 import { axeViolations } from './axe';
 import { lesson, makeCourse } from './fake-data';

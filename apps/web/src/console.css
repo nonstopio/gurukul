@@ -146,7 +146,7 @@
   font-size: var(--text-sm);
 }
 
-/* Org settings: team rows inside the Teams card, the add-team row, the form columns. */
+/* Org settings: the form columns. */
 .settings {
   display: grid;
   gap: var(--space-6);
@@ -157,33 +157,6 @@
 }
 .settings p {
   margin: 0;
-}
-.settings-teams {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.settings-team {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-block: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-.settings-team:first-child {
-  border-top: 0;
-}
-.settings-add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--space-3);
-}
-.settings-add .g-field {
-  flex: 1 1 15rem;
-  max-width: var(--width-form);
 }
 .settings-fields {
   display: grid;
