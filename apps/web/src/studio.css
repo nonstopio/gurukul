@@ -592,6 +592,19 @@
   font: var(--text-sm) var(--font-mono);
   overflow-wrap: anywhere;
 }
+.sc-media__detail {
+  display: grid;
+  gap: var(--space-3);
+}
+.sc-media__detail p {
+  margin: 0;
+}
+.sc-media__uses {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
 .sc-bank__row {
   display: grid;
   justify-items: start;
