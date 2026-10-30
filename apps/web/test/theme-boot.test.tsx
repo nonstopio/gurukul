@@ -1,3 +1,4 @@
+import { renderToString } from 'react-dom/server';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOT_LOADER_ID, BOOT_MIN_MS, hideBootLoader } from '../src/boot';
@@ -8,6 +9,23 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
   document.body.innerHTML = '';
   vi.restoreAllMocks();
+});
+
+describe('theme storage and server render', () => {
+  it('falls back to system when storage is blocked', () => {
+    const spy = vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(readTheme()).toBe('system');
+    spy.mockRestore();
+  });
+
+  it('renders as system on the server', () => {
+    function Probe() {
+      return <span>{useTheme()[0]}</span>;
+    }
+    expect(renderToString(<Probe />)).toContain('system');
+  });
 });
 
 describe('theme', () => {

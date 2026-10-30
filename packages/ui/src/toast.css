@@ -17,33 +17,121 @@
   width: min(100%, 24rem);
 }
 .g-toast {
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-1) var(--space-4) var(--space-4);
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
   pointer-events: auto;
+  animation: g-toast-in var(--dur-base) var(--ease) both;
+}
+.g-toast[data-leaving] {
+  animation: g-toast-out var(--dur-fast) var(--ease-in) both;
+}
+@keyframes g-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--space-6));
+  }
+}
+@keyframes g-toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--space-6));
+  }
 }
 .g-toast--success {
   background: var(--success-soft);
   border-color: var(--accent-line);
 }
+.g-toast--success .g-toast__icon {
+  color: var(--success);
+}
 .g-toast--danger {
   background: var(--danger-soft);
   border-color: var(--danger-line);
+}
+.g-toast--danger .g-toast__icon {
+  color: var(--danger);
 }
 .g-toast--info {
   background: var(--info-soft);
   border-color: var(--info-line);
 }
-.g-toast__message {
+.g-toast--info .g-toast__icon {
+  color: var(--info);
+}
+.g-toast--warning {
+  background: var(--warning-soft);
+  border-color: var(--warning-line);
+}
+.g-toast--warning .g-toast__icon {
+  color: var(--warning);
+}
+.g-toast__icon {
+  flex: none;
+  display: inline-grid;
+  margin-top: var(--space-1);
+}
+.g-toast__body {
   flex: 1;
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+.g-toast__title,
+.g-toast__message {
   margin: 0;
   font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
   color: var(--text);
+}
+.g-toast__title {
+  font-weight: 600;
+}
+.g-toast__message {
+  font-weight: 400;
+  color: var(--text-body);
+}
+.g-toast__code {
+  font: 400 var(--text-xs) / var(--leading-snug) var(--font-mono);
+  color: var(--text-muted);
+}
+.g-toast__action {
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.g-toast__action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-toast__timer {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: g-toast-timer linear forwards;
+}
+.g-toast[data-paused] .g-toast__timer {
+  animation-play-state: paused;
+}
+@keyframes g-toast-timer {
+  to {
+    transform: scaleX(0);
+  }
 }
 .g-toast__close {
   display: inline-grid;
@@ -71,4 +159,9 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-toast__timer {
+    animation: none;
+  }
 }

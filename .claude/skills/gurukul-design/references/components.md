@@ -252,12 +252,34 @@ const id = toast.show('Progress saved', { tone: 'success', duration: 5000 });
 toast.dismiss(id);
 ```
 
-Tones `info` (default), `success`, `danger`. The provider keeps two live regions mounted from the
-start: `role="status"` (polite) for info and success, `role="alert"` (assertive) for danger. Toasts
-stack bottom-right (full width on a phone), `--surface`-family soft ground with its line,
-`--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel` (default
-"Dismiss"). Auto-dismiss after `duration` ms (`0` keeps it until dismissed); the timer is cleared on
-manual dismiss. `useToast` outside a provider throws.
+Tones `info` (default), `success`, `warning`, `danger`. Options: `title` (bold first line; the
+message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `action`
+(`{ label, onSelect }`, closes the toast after it runs), `duration`. Default time by tone: success
+4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an
+icon plus a screen-reader word, never colour alone. A thin timer bar runs down and the timeout
+pauses on hover and focus, resuming with what was left. Three at a time: the oldest is dropped.
+Enter on `--ease` / `--dur-base`, exit on `--ease-in` / `--dur-fast`; under reduced motion the
+durations are 0. The provider keeps two live regions mounted from the start: `role="status"` for
+info, success and warning, `role="alert"` for danger. Toasts stack bottom-right (full width on a
+phone), `--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel`
+(default "Dismiss"). `useToast` outside a provider throws.
+
+A failed action goes through `toastError(toast, error, fallback, retry?)` in
+`apps/web/src/errors.ts`: `describeError` maps an `ApiClientError` to a type (network, permission,
+validation, not-found, conflict, rate-limit, server), the catalog's sentence, a retry rule and a UI
+code; a rate limit warns, everything else is a danger toast, and Retry shows only when the error is
+retryable and the caller passes `retry`. A toast is never the only place an error that blocks work
+appears: a form error stays on the form.
+
+## StateCard — shipped
+
+`<StateCard variant="error|offline|forbidden" title code? kind? actions? headingAs?>message</StateCard>`.
+A bordered `--surface` block: tinted icon square (danger, warning, sunken), the title in the display
+face, one or two sentences, `code · kind` in mono (`NET-TIMEOUT · Network`), then the actions (Retry
+primary, a way back secondary). `error` has `role="alert"`, `offline` `role="status"`, `forbidden`
+no live role (it is a page, not an event). Empty is not here: use `EmptyState`, and a filtered-empty
+list offers "Clear filters" inside it. Loading is `Skeleton` / `GlobalLoader`. Never show raw
+exception text; take the sentence and code from `describeError`.
 
 ## CodeBlock — shipped
 

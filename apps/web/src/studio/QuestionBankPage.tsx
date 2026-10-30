@@ -10,7 +10,7 @@ import {
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
-import { userMessageOf } from '../api';
+import { toastError } from '../errors';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
@@ -49,7 +49,7 @@ export function QuestionBankPage() {
       setReload((n) => n + 1);
     } catch (e) {
       log.error('Removing a question from the bank failed', e, { questionId: entry.question.id });
-      toast.show(userMessageOf(e, "Couldn't remove the question. Try again."), { tone: 'danger' });
+      toastError(toast, e, "Couldn't remove the question. Try again.", () => void remove(entry));
     }
   };
 
