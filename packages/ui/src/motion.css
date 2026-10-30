@@ -1,0 +1,13 @@
+/* Motion helpers. Lists enter with a stagger: give each child `style={{ '--i': index }}`; the
+   first eight step 30ms apart and the rest arrive with the eighth. Only opacity and transform
+   move; under reduced motion the duration token is 0, so everything appears at once. */
+.g-stagger > * {
+  animation: g-rise var(--dur-base) var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 7) * 30ms);
+}
+@keyframes g-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

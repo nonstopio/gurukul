@@ -22,6 +22,11 @@ export const userSchema = z.object({
   nameLower: z.string().max(120).optional(),
   photoURL: z.string().nullable(),
   team: z.string().max(80).nullable(),
+  /**
+   * `teamId(name)` of every team (`teams/`) whose members include this email, kept by the functions
+   * (never by the person), because a course's `teams` visibility reads it. Absent means none.
+   */
+  teamIds: z.array(z.string().max(80)).max(100).optional(),
   labels: labelSetSchema.optional(),
   roles: z.array(roleSchema).min(1),
   grantedCourseIds: z.array(z.string()),
@@ -41,6 +46,30 @@ export const orgConfigSchema = z.object({
   signatory: z.object({ name: z.string().min(1).max(120), role: z.string().min(1).max(120) }),
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
+
+/**
+ * `teams/{id}`: a team and its members, keyed by email so a person can be on a team before their
+ * first sign-in. `config/org.teams` keeps the names only (what a learner picks from).
+ */
+export const teamSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  memberEmails: z.array(z.email().max(254)).max(500),
+  /** Milliseconds since the epoch. */
+  createdAt: z.number(),
+});
+export type TeamDoc = z.infer<typeof teamSchema>;
+export type Team = TeamDoc & { id: string };
+
+/** The document id for a team name: lower-case letters and digits joined by hyphens. */
+export const teamId = (name: string): string => {
+  const dashed = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  // Trim the hyphens at both ends with two linear scans (a `-+$` regex is flagged as polynomial).
+  let start = 0;
+  let end = dashed.length;
+  while (start < end && dashed[start] === '-') start++;
+  while (end > start && dashed[end - 1] === '-') end--;
+  return dashed.slice(start, end).slice(0, 80) || 'team';
+};
 
 export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',

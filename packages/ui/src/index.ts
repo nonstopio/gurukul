@@ -14,6 +14,8 @@ export { Card } from './Card';
 export type { CardProps } from './Card';
 export { Sidebar, SidebarGroup } from './Sidebar';
 export type { SidebarProps, SidebarGroupProps } from './Sidebar';
+export { AreaSwitcher } from './AreaSwitcher';
+export type { AreaSwitcherItem, AreaSwitcherProps } from './AreaSwitcher';
 export { NavItem } from './NavItem';
 export type { NavItemProps, NavItemRenderProps } from './NavItem';
 export { TopBar, topBarBackClass } from './TopBar';
@@ -34,10 +36,14 @@ export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+export { GlobalLoader } from './GlobalLoader';
+export type { GlobalLoaderProps, GlobalLoaderVariant } from './GlobalLoader';
 export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
-export { ToastProvider, useToast } from './Toast';
-export type { ToastApi, ToastOptions, ToastProviderProps, ToastTone } from './Toast';
+export { ToastProvider, useToast, TOAST_DURATIONS } from './Toast';
+export type { ToastAction, ToastApi, ToastOptions, ToastProviderProps, ToastTone } from './Toast';
+export { StateCard } from './StateCard';
+export type { StateCardProps, StateCardVariant } from './StateCard';
 export { CodeBlock, parseHighlight } from './CodeBlock';
 export type { CodeBlockProps } from './CodeBlock';
 export { VideoBlock } from './VideoBlock';
@@ -58,8 +64,12 @@ export { DataTable, Pagination } from './DataTable';
 export type { DataTableColumn, DataTableProps, PaginationProps } from './DataTable';
 export { EmailChipInput, splitEmails } from './EmailChipInput';
 export type { EmailChipInputProps, EmailClassification, EmailStatus } from './EmailChipInput';
-export { StepCard, Stepper } from './Stepper';
-export type { StepCardProps } from './Stepper';
+export { PeoplePicker } from './PeoplePicker';
+export type { PeoplePickerProps, Person } from './PeoplePicker';
+export { FlowPanel, FlowSteps, StepCard, Stepper } from './Stepper';
+export type { FlowPanelProps, FlowStepsProps, StepCardProps } from './Stepper';
+export { SuccessCheck } from './SuccessCheck';
+export type { SuccessCheckProps } from './SuccessCheck';
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
 export { BarChart, niceMax } from './BarChart';
@@ -101,6 +111,7 @@ export {
   LockIcon,
   LogOutIcon,
   MenuIcon,
+  MoonIcon,
   MoreIcon,
   PenIcon,
   PlayIcon,
@@ -109,6 +120,7 @@ export {
   SettingsIcon,
   ShieldIcon,
   SparkIcon,
+  SunIcon,
   StarIcon,
   TextIcon,
   TrashIcon,
@@ -135,3 +147,11 @@ export { FilterBar } from './FilterBar';
 export type { FilterBarProps } from './FilterBar';
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps } from './SegmentedControl';
+export { MediaGallery, MediaPreview, mediaKindName } from './MediaGallery';
+export type {
+  MediaGalleryItem,
+  MediaGalleryProps,
+  MediaKind,
+  MediaPreviewProps,
+} from './MediaGallery';
+import './motion.css';

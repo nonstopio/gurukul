@@ -13,7 +13,7 @@
   background: var(--cover-forest);
   transform: scale(calc(100cqw / 1123px));
   transform-origin: top left;
-  color: var(--text-body);
+  color: var(--paper-ink);
 }
 .g-cert__inner {
   position: relative;
@@ -67,7 +67,7 @@
   margin: 0;
   padding: 10px 0;
   background: var(--danger-soft);
-  border-block: 2px solid var(--danger);
+  border-block: 2px solid var(--paper-danger);
   color: var(--danger);
   font: 700 22px / 1 var(--font-ui);
   letter-spacing: 0.2em;

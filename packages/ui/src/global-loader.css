@@ -1,0 +1,116 @@
+.g-loader {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.g-loader--section {
+  min-height: 12rem;
+  align-content: center;
+  padding: var(--space-8);
+}
+.g-loader--overlay {
+  padding: var(--space-6) var(--space-8);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-menu);
+  animation: g-loader-in var(--dur-slow) var(--ease) both;
+}
+.g-loader--inline {
+  display: inline-grid;
+}
+.g-loader-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+}
+
+.g-loader__mark {
+  width: 4.5rem;
+  height: 4.5rem;
+  overflow: visible;
+}
+.g-loader--inline .g-loader__mark {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.g-loader__track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 3;
+  opacity: 0.4;
+}
+.g-loader__arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 60 160;
+  transform-origin: 36px 36px;
+  animation: g-loader-turn var(--dur-loader) linear infinite;
+}
+.g-loader__flame {
+  fill: var(--saffron);
+  transform-origin: 36px 50px;
+  animation: g-loader-breathe var(--dur-loader) var(--ease-in-out) infinite;
+}
+.g-loader__label {
+  color: var(--text);
+  font-weight: 600;
+}
+.g-loader__hint {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+}
+.g-loader__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes g-loader-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes g-loader-breathe {
+  0%,
+  100% {
+    transform: scale(0.88);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+@keyframes g-loader-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion: no turning, no scaling; the flame only pulses in opacity so it still reads as alive. */
+@media (prefers-reduced-motion: reduce) {
+  .g-loader__arc {
+    animation: none;
+  }
+  .g-loader__flame {
+    animation: g-loader-pulse var(--dur-loader) ease-in-out infinite;
+  }
+  @keyframes g-loader-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+}

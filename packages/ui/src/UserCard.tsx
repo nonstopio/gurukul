@@ -3,6 +3,7 @@
 
 import { Avatar } from './Avatar';
 import type { AvatarTone } from './Avatar';
+import { Chip } from './Chip';
 import { ChevronDownIcon } from './Icon';
 import { Menu } from './Menu';
 import type { MenuEntry } from './Menu';
@@ -14,6 +15,8 @@ export interface UserCardProps {
   detail: string;
   /** Avatar colour by role. Default: `learner`. */
   tone?: AvatarTone | undefined;
+  /** The person's role in their label set: a chip in the menu's header, under name and email. */
+  roleLabel?: string | undefined;
   items: MenuEntry[];
   /**
    * Names the menu: the trigger reads "<menuLabel>: <name> <detail>", the prefix visually hidden
@@ -22,7 +25,14 @@ export interface UserCardProps {
   menuLabel?: string;
 }
 
-export function UserCard({ name, detail, tone, items, menuLabel = 'Account' }: UserCardProps) {
+export function UserCard({
+  name,
+  detail,
+  tone,
+  roleLabel,
+  items,
+  menuLabel = 'Account',
+}: UserCardProps) {
   return (
     <Menu
       className="g-user-card"
@@ -30,6 +40,17 @@ export function UserCard({ name, detail, tone, items, menuLabel = 'Account' }: U
       placement="top"
       align="start"
       items={items}
+      header={
+        roleLabel ? (
+          <>
+            <span className="g-user-card__head-name">{name}</span>
+            <span className="g-user-card__head-detail">{detail}</span>
+            <Chip tone={tone === undefined || tone === 'learner' ? 'neutral' : 'accent'}>
+              {roleLabel}
+            </Chip>
+          </>
+        ) : undefined
+      }
       trigger={
         <>
           <Avatar name={name} tone={tone} size={36} />

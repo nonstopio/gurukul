@@ -1,4 +1,4 @@
-import { courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
+import { accessOf, courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
 import type { AnswerKeys, Course } from '@gurukul/schema';
 import {
   addDoc,
@@ -12,6 +12,7 @@ import {
   orderBy,
   query,
   runTransaction,
+  updateDoc,
   serverTimestamp,
   where,
 } from 'firebase/firestore';
@@ -109,6 +110,9 @@ export function firebaseStudioData(db: Firestore): StudioData {
         }),
       );
     },
+    async getAccess(courseId) {
+      return accessOf((await getDoc(doc(db, 'courses', courseId))).data());
+    },
     async getDraft(courseId) {
       const snap = await getDoc(draftRef(courseId));
       return snap.exists() ? toDraft(snap.data()) : null;
@@ -173,6 +177,13 @@ export function firebaseStudioData(db: Firestore): StudioData {
         createdAt: serverTimestamp(),
       });
       return ref.id;
+    },
+    async updateInBank(id, entry) {
+      await updateDoc(doc(db, 'questionBank', id), {
+        question: cleanForFirestore(entry.question),
+        answers: entry.answers,
+        tags: entry.tags,
+      });
     },
     async removeFromBank(id) {
       await deleteDoc(doc(db, 'questionBank', id));

@@ -1,0 +1,151 @@
+.g-people {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-ui);
+}
+.g-people__label {
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.g-people__box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.g-people__box:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.g-people__chips {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-people__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+}
+.g-people__remove {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+/* The visible button is small; this widens the hit area to the 44px target. */
+.g-people__remove::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+.g-people__remove:hover {
+  background: var(--border);
+}
+.g-people__remove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-people__input {
+  flex: 1 1 14ch;
+  min-width: 14ch;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: 400 var(--text-md) / 1.4 var(--font-ui);
+  color: var(--text);
+}
+/* 4px under the field, above a dialog that holds it. */
+.g-people__list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-menu);
+  max-height: 22rem;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-menu);
+}
+.g-people__list[hidden] {
+  display: none;
+}
+.g-people__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.g-people__option:hover {
+  background: var(--surface-sunken);
+}
+.g-people__option--active {
+  background: var(--accent-soft);
+}
+.g-people__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-people__who strong {
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.g-people__meta {
+  font: 400 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.g-people__mark {
+  background: var(--saffron-soft);
+  color: var(--saffron-soft-text);
+  border-radius: var(--radius-sm);
+}
+.g-people__added {
+  margin-left: auto;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  color: var(--accent);
+}
+.g-people__empty {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--text-muted);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+}
+.g-people__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

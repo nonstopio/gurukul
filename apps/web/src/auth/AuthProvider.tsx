@@ -3,6 +3,7 @@ import type { LabelSet, Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthService, AuthUser, SignInOptions } from './service';
+import { hideBootLoader } from '../boot';
 import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
@@ -13,6 +14,8 @@ export interface Session {
   roles: Role[];
   /** The team on the profile (`users/{uid}.team`); `null` until the person picks one. */
   team: string | null;
+  /** The teams the person is on, which decide the `teams` courses they may open. */
+  teamIds: string[];
   /** Which names the app shows (`users/{uid}.labels`); `null` until the person picks. */
   labels: LabelSet | null;
   /** Why sign-in failed, or why a non-NonStop account was signed back out. */
@@ -68,10 +71,16 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [user, setUser] = useState<AuthUser | null>(null);
   const [roles, setRoles] = useState<Role[]>(['learner']);
   const [team, setTeam] = useState<string | null>(null);
+  const [teamIds, setTeamIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<LabelSet | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wrongAccount, setWrongAccount] = useState(false);
   const stopProfile = useRef<() => void>(() => {});
+
+  // The boot loader in index.html stays until the session is known.
+  useEffect(() => {
+    if (status !== 'loading') hideBootLoader();
+  }, [status]);
 
   useEffect(() => {
     service.finishRedirect().catch((e: unknown) => {
@@ -88,6 +97,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
         setUser(null);
         setRoles(['learner']);
         setTeam(null);
+        setTeamIds([]);
         setLabels(null);
         setStatus('signedOut');
         return;
@@ -122,6 +132,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
             });
           }
           setTeam(profile.team ?? null);
+          setTeamIds(profile.teamIds ?? []);
           setLabels(profile.labels ?? null);
           setStatus('ready');
         },
@@ -147,6 +158,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       user,
       roles,
       team,
+      teamIds,
       labels,
       error,
       wrongAccount,
@@ -161,7 +173,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       },
       signOut: () => service.signOut(),
     }),
-    [status, user, roles, team, labels, error, wrongAccount, service],
+    [status, user, roles, team, teamIds, labels, error, wrongAccount, service],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

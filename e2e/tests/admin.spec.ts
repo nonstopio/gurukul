@@ -21,6 +21,8 @@ test.describe('Admin', () => {
     await page.getByRole('main').getByRole('link', { name: 'Assign courses' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Assign courses' })).toBeVisible();
     await page.getByRole('checkbox', { name: new RegExp(GIT_COURSE.title) }).check();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Who is it for?' })).toBeVisible();
 
     // Paste the addresses (and one personal address that must be refused) into the chip box.
     await page.getByLabel('Email addresses').evaluate(
@@ -38,7 +40,11 @@ test.describe('Admin', () => {
     for (const email of invitees) {
       await expect(chips.getByRole('listitem').filter({ hasText: email })).toContainText('new');
     }
-    const summary = page.getByRole('complementary', { name: 'Summary' });
+    await expect(page.getByText('2 people will be assigned.')).toBeVisible();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Review and assign' })).toBeVisible();
+    const summary = page.getByRole('main');
     await expect(summary.getByText('New (pending invite)').locator('+ dd')).toHaveText('2');
     await expect(summary.getByText('Rejected', { exact: true }).locator('+ dd')).toHaveText('1');
     await expect(summary.getByRole('list', { name: 'Rejected addresses' })).toContainText(
@@ -47,6 +53,8 @@ test.describe('Admin', () => {
 
     await summary.getByRole('button', { name: 'Assign to 2 people' }).click();
 
+    await expect(page.getByRole('heading', { name: 'Assigned to 2 people' })).toBeVisible();
+    await page.getByRole('link', { name: 'View learners' }).click();
     await expect(page).toHaveURL(/\/admin\/learners(\?.*)?$/);
     await page.getByRole('tab', { name: /^Pending invite \(2\)/ }).click();
     const table = page.getByRole('table', { name: 'Learners' });
@@ -57,19 +65,39 @@ test.describe('Admin', () => {
     }
   });
 
-  test('adds teams and turns reminders on, and the settings survive a reload', async ({ page }) => {
+  test('creates teams with members and turns reminders on, and both survive a reload', async ({
+    page,
+  }) => {
     await signedInAsLearner(page, meera);
     await grantRoles(meera.email, ['admin']);
+    await page.goto('/admin/teams');
+    await expect(page.getByRole('heading', { level: 1, name: 'Teams' })).toBeVisible();
+    // The seed's default: no teams.
+    await expect(page.getByText('No teams yet')).toBeVisible();
+
+    await page.getByRole('main').getByRole('button', { name: 'Create team' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Create team' });
+    await dialog.getByLabel('Team name').fill('Mobile');
+    await dialog.getByLabel('Members').fill('new.joiner@nonstopio.com ');
+    await expect(dialog.getByText('new.joiner@nonstopio.com')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Create team' }).click();
+    await expect(page.getByText('Created Mobile')).toBeVisible();
+
+    await page.getByRole('main').getByRole('button', { name: 'Create team' }).click();
+    await dialog.getByLabel('Team name').fill('Quality');
+    await dialog.getByLabel('Create empty team').check();
+    await dialog.getByRole('button', { name: 'Create empty team' }).click();
+    await expect(page.getByText('Created Quality')).toBeVisible();
+    await expectNoSeriousViolations(page);
+
+    await page.reload();
+    const teams = page.getByRole('table', { name: 'Teams' });
+    await expect(teams.getByRole('row', { name: /Mobile.*1 member/ })).toBeVisible();
+    await expect(teams.getByRole('row', { name: /Quality.*No members yet/ })).toBeVisible();
+
     await page.goto('/admin/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Org settings' })).toBeVisible();
-    // The seed's default: no teams, reminders off.
-    await expect(page.getByText('No teams yet')).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).not.toBeChecked();
-
-    for (const team of ['Mobile', 'Quality']) {
-      await page.getByLabel('New team').fill(team);
-      await page.getByRole('button', { name: 'Add team' }).click();
-    }
     // The switch's track covers its input, so click the label, as a person does.
     await page.getByText('Send daily reminders').click();
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
@@ -78,13 +106,14 @@ test.describe('Admin', () => {
     await expect(page.getByText('Settings saved')).toBeVisible();
 
     await page.reload();
-    const teams = page.getByRole('list', { name: 'Teams' });
-    await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
 
-    // The Design system tab reads the real tokens.css in the built app.
-    await page.getByRole('tab', { name: 'Design system' }).click();
-    await expect(page).toHaveURL(/tab=design-system/);
+    // The Design system page reads the real tokens.css in the built app.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Design system' })
+      .click();
+    await expect(page).toHaveURL(/\/admin\/design-system/);
     await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
     await expectNoSeriousViolations(page);
 

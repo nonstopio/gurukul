@@ -30,6 +30,8 @@ export default defineConfig({
     baseURL: APP_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // E2E_COLOR_SCHEME=dark re-runs every spec, axe contrast checks included, in the dark theme.
+    colorScheme: process.env.E2E_COLOR_SCHEME === 'dark' ? 'dark' : 'light',
   },
   projects: [
     {

@@ -26,9 +26,9 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 19 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
-| Redesign | 8 | 0 | 0 | 0 |
+| Redesign | 16 | 0 | 0 | 0 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 144 | 0 | 0 | 12 |
+| **Total** | 152 | 0 | 0 | 12 |
 
 ## Pick order
 
@@ -265,6 +265,14 @@ Plan: `18-redesign.md`, `04-design-system.md`.
 | `RDS-06` | Admin console screens on the components | done | `RDS-04` | `apps/web/src/console/` on Page, PageHeader, FilterBar, DataTable, Menu; `apps/web/src/console.css` |
 | `RDS-07` | Studio screens on the components; editors in the focused shell | done | `RDS-04` | `apps/web/src/studio/`: editors and preview in `FOCUSED` with a sticky TopBar frame (`EditorBar`), `SegmentedControl` replaces `blocks/Segmented`; `apps/web/src/studio.css` |
 | `RDS-08` | `styles.css` split per area, layout only; Changelog and error pages | done | `RDS-05` | `styles.css` split into `learn.css`, `console.css`, `studio.css` (2,154 → about 1,700 lines); old shared classes (`.page`, `.page__title`, `.plain-table`, `.filters`, `.app*`) deleted; Changelog on Page and FilterBar |
+| `RDS-09` | Light and dark themes, clearer colours, global loader | done | `RDS-08` | `packages/ui/src/tokens.css` (roles keep names; dark blocks; saffron; motion), `GlobalLoader`, boot loader in `apps/web/index.html`, `apps/web/src/theme.ts`, `boot.ts` |
+| `RDS-10` | Toasts by kind, StateCard, one error lookup | done | `RDS-09` | `packages/ui/src/Toast.tsx`, `StateCard.tsx`, `apps/web/src/errors.ts` |
+| `RDS-11` | Area switcher, Design system on its own Admin page, motion | done | `RDS-09` | `packages/ui/src/AreaSwitcher.tsx`, `motion.css`, `apps/web/src/Shell.tsx`, `design-system/DesignSystemPage.tsx` (`/admin/design-system`) |
+| `RDS-12` | Teams with members, multi-select people picker | done | `RDS-10` | `teams/{id}` (`firebase/firestore.rules`, `packages/schema/src/user.ts`), `apps/web/src/console/TeamsPage.tsx`, `packages/ui/src/PeoplePicker.tsx` |
+| `RDS-13` | Assign as a four-step horizontal flow | done | `RDS-12` | `apps/web/src/console/AssignPage.tsx`, `packages/ui/src/Stepper.tsx` (`FlowSteps`, `FlowPanel`), `SuccessCheck.tsx` |
+| `RDS-14` | Catalogue search and filters, course visibility, Home hero | done | `RDS-12` | `courses/{id}.visibility`, `visibleTeamIds` and `users.teamIds` (rules, `firebase/functions/src/teams.ts`, `grading.ts`), `apps/web/src/CoursesPage.tsx`, `HomePage.tsx`, `studio/PublishDialog.tsx`. Before the rules deploy run `npm run backfill-visibility -- --apply` once |
+| `RDS-15` | Studio media gallery and question bank that can create and import | done | `RDS-09` | `packages/ui/src/MediaGallery.tsx`, `apps/web/src/studio/MediaPage.tsx`, `QuestionBankPage.tsx`, `questions/`. Left: media upload (no Storage in v1), asset picker in the lesson editor |
+| `RDS-16` | Sign-in page as a two-column hero | done | `RDS-09` | `apps/web/src/auth/SignInPage.tsx`, `SignInArt.tsx` |
 
 ## Plan upkeep
 

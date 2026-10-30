@@ -19,7 +19,9 @@ const admin = { roles: ['admin'] as Array<'admin'> };
 
 async function openSection(section?: string) {
   const query = section ? `&section=${section}` : '';
-  const view = await openApp(`/admin/settings?tab=design-system${query}`, { ...admin });
+  const view = await openApp(`/admin/design-system${query ? `?${query.slice(1)}` : ''}`, {
+    ...admin,
+  });
   await screen.findByRole('tablist', { name: 'Design system sections' });
   return view;
 }
@@ -45,7 +47,7 @@ describe('Design system: tokens', () => {
     const declared = css.slice(0, css.indexOf('@media')).match(/^\s*--[\w-]+:/gm) ?? [];
     expect(tokens).toHaveLength(declared.length);
     expect(tokens[0]?.name).toBe('--g-green-50');
-    expect(tokens.find((t) => t.name === '--dur-base')?.value).toBe('200ms');
+    expect(tokens.find((t) => t.name === '--dur-base')?.value).toBe('240ms');
     expect(tokens.find((t) => t.name === '--text-xs')?.value).toBe('0.75rem');
     expect(groupTokens(tokens).map((g) => g.label)).not.toContain('Other');
   });
@@ -72,7 +74,7 @@ describe('Design system: tokens', () => {
     }
     const accent = screen.getByRole('region', { name: 'Accent' });
     expect(within(accent).getByText('--accent')).toBeTruthy();
-    expect(within(accent).getByText('var(--g-green-700)')).toBeTruthy();
+    expect(within(accent).getByText('#0a6a46')).toBeTruthy();
     expect(screen.getByText('Roles, not scale steps')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
 
@@ -100,7 +102,7 @@ describe('Design system: sections', () => {
     const { router } = await openSection('nonsense');
     expect(screen.getByRole('tab', { name: 'Tokens', selected: true })).toBeTruthy();
     await user.click(screen.getByRole('tab', { name: 'Type' }));
-    expect(router.state.location.search).toBe('?tab=design-system&section=type');
+    expect(router.state.location.search).toBe('?section=type');
     expect(screen.getByRole('region', { name: 'Families' })).toBeTruthy();
   });
 
@@ -140,7 +142,10 @@ describe('Design system: components', () => {
     const user = userEvent.setup();
     await openSection('components');
     await user.click(screen.getByRole('button', { name: 'Toast: danger' }));
-    expect(await screen.findByText('A danger toast')).toBeTruthy();
+    expect(await screen.findByText('Could not reach the server')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Toast: success' }));
+    expect(await screen.findByText('A success toast')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Open dialog' }));
     const dialog = await screen.findByRole('dialog', { name: 'Example dialog' });
     await user.click(within(dialog).getByRole('button', { name: 'Done' }));
@@ -170,10 +175,14 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('radio', { name: /Answer in the idle state/ }));
     await user.click(screen.getByRole('checkbox', { name: /A checkbox answer/ }));
+    await user.click(screen.getByRole('button', { name: /review-checklist/ }));
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('checkbox', { name: 'Select Ravi Menon' }));
     await user.click(screen.getByRole('button', { name: 'Remove bad@x.org' }));
     expect(screen.queryByRole('button', { name: 'Remove bad@x.org' })).toBeNull();
+    await user.type(screen.getByRole('combobox', { name: 'Add people' }), 'mee');
+    await user.click(await screen.findByRole('option', { name: /Meera Nair/ }));
+    expect(screen.getByRole('button', { name: 'Remove Meera Nair' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Duplicate TEXT block' }));
     expect(screen.getByText('Duplicated')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Delete VIDEO block' }));

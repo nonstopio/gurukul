@@ -29,6 +29,8 @@ export interface EmailChipInputProps {
   describedBy?: string;
   /** Accessible name of a chip's remove button. Default: "Remove {email}". */
   removeLabel?: (email: string) => string;
+  /** The words a status shows on its chip, where the default does not fit ("new" → "Invited"). */
+  statusWords?: Partial<Record<EmailStatus, string>>;
 }
 
 const SEPARATORS = /[\s,;]+/;
@@ -56,6 +58,7 @@ export function EmailChipInput({
   placeholder = 'name@nonstopio.com',
   describedBy,
   removeLabel = (email) => `Remove ${email}`,
+  statusWords,
 }: EmailChipInputProps) {
   const id = useId();
   const [text, setText] = useState('');
@@ -108,7 +111,9 @@ export function EmailChipInput({
             {value.map((email) => {
               const { status, reason } = classify(email);
               const words =
-                status === 'rejected' ? (reason ?? STATUS_WORDS.rejected) : STATUS_WORDS[status];
+                status === 'rejected'
+                  ? (reason ?? statusWords?.rejected ?? STATUS_WORDS.rejected)
+                  : (statusWords?.[status] ?? STATUS_WORDS[status]);
               return (
                 <li key={email} className={cx('g-emails__chip', `g-emails__chip--${status}`)}>
                   <span className="g-emails__addr">{email}</span>

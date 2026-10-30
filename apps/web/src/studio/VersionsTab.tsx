@@ -1,7 +1,7 @@
 import { Button, Callout, Card, Chip, Dialog, EmptyState, useToast } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
-import { userMessageOf } from '../api';
+import { toastError } from '../errors';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
@@ -32,7 +32,7 @@ export function VersionsTab({
 
   const fail = (what: string, error: unknown, fallback: string) => {
     log.error(what, error, { courseId: course.id });
-    toast.show(userMessageOf(error, fallback), { tone: 'danger' });
+    toastError(toast, error, fallback);
   };
 
   const rollBack = async (from: number) => {

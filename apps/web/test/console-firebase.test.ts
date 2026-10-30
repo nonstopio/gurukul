@@ -28,8 +28,30 @@ vi.mock('firebase/firestore', () => ({
   limit: (n: number) => ({ limit: n }),
   orderBy: (f: string, d?: string) => ({ orderBy: [f, d] }),
   query: (...parts: unknown[]) => ({ parts }),
-  setDoc: async (ref: { path: string }, value: unknown) => {
-    store.docs.set(ref.path, value);
+  setDoc: async (ref: { path: string }, value: object, opts?: { merge?: boolean }) => {
+    store.docs.set(
+      ref.path,
+      opts?.merge ? { ...(store.docs.get(ref.path) as object), ...value } : value,
+    );
+  },
+  runTransaction: async (
+    _db: unknown,
+    run: (tx: {
+      get: (ref: { path: string }) => Promise<{ exists: () => boolean; data: () => unknown }>;
+      set: (ref: { path: string }, value: unknown) => void;
+      delete: (ref: { path: string }) => void;
+    }) => Promise<void>,
+  ) => {
+    const writes: Array<() => void> = [];
+    await run({
+      get: async (ref) => ({
+        exists: () => store.docs.has(ref.path),
+        data: () => store.docs.get(ref.path),
+      }),
+      set: (ref, value) => writes.push(() => store.docs.set(ref.path, value)),
+      delete: (ref) => writes.push(() => store.docs.delete(ref.path)),
+    });
+    writes.forEach((w) => w());
   },
   startAfter: (...v: unknown[]) => ({ startAfter: v }),
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
@@ -93,8 +115,60 @@ describe('stats and config', () => {
       signatory: { name: 'Ravi Sample', role: 'Dean' },
     };
     await data.saveOrgSettings(settings);
-    expect(store.docs.get('config/org')).toEqual(settings);
-    expect(await data.orgSettings()).toEqual(settings);
+    // The team names are the Teams page's: saving settings keeps the ones already stored.
+    expect(store.docs.get('config/org')).toEqual({ ...settings, teams: ['QA'] });
+    expect(await data.orgSettings()).toEqual({ ...settings, teams: ['QA'] });
+  });
+});
+
+describe('teams', () => {
+  const body = { name: 'Platform', memberEmails: ['a@nonstopio.com'], createdAt: 5 };
+
+  it('lists team documents by name, then names with no document as empty teams', async () => {
+    store.docs.set('config/org', { teams: ['Zed', 'platform', 'Quality'] });
+    store.queue = [[d('t2', { ...body, name: 'Mobile' }), d('t1', body)]];
+    expect(await data.teamList()).toEqual([
+      { id: 't2', name: 'Mobile', memberEmails: ['a@nonstopio.com'], createdAt: 5 },
+      { id: 't1', ...body },
+      { id: 'quality', name: 'Quality', memberEmails: [], createdAt: 0 },
+      { id: 'zed', name: 'Zed', memberEmails: [], createdAt: 0 },
+    ]);
+    store.queue = [[]];
+    store.docs.delete('config/org');
+    expect(await data.teamList()).toEqual([]);
+  });
+
+  it('creates a team and its name together, on the defaults when there is no config', async () => {
+    await data.saveTeam({ id: 'platform', ...body }, null);
+    expect(store.docs.get('teams/platform')).toEqual(body);
+    expect(store.docs.get('config/org')).toEqual({ ...DEFAULT_ORG_CONFIG, teams: ['Platform'] });
+    await expect(data.saveTeam({ id: 'platform', ...body }, null)).rejects.toThrow('already');
+  });
+
+  it('renames a team in the name list, ignoring case, and leaves a name it replaces nowhere', async () => {
+    store.docs.set('teams/platform', body);
+    store.docs.set('config/org', { ...DEFAULT_ORG_CONFIG, teams: ['QA', 'platform'] });
+    await data.saveTeam({ id: 'platform', ...body, name: 'Platform & Cloud' }, 'Platform');
+    expect(store.docs.get('teams/platform')).toMatchObject({ name: 'Platform & Cloud' });
+    expect((store.docs.get('config/org') as { teams: string[] }).teams).toEqual([
+      'QA',
+      'Platform & Cloud',
+    ]);
+  });
+
+  it('adopts a name that had no document, without failing on its absence', async () => {
+    store.docs.set('config/org', { ...DEFAULT_ORG_CONFIG, teams: ['Platform'] });
+    await data.saveTeam({ id: 'platform', ...body }, 'Platform');
+    expect(store.docs.get('teams/platform')).toEqual(body);
+    expect((store.docs.get('config/org') as { teams: string[] }).teams).toEqual(['Platform']);
+  });
+
+  it('deletes the document and the name', async () => {
+    store.docs.set('teams/platform', body);
+    store.docs.set('config/org', { ...DEFAULT_ORG_CONFIG, teams: ['QA', 'Platform'] });
+    await data.deleteTeam({ id: 'platform', ...body });
+    expect(store.docs.has('teams/platform')).toBe(false);
+    expect((store.docs.get('config/org') as { teams: string[] }).teams).toEqual(['QA']);
   });
 });
 

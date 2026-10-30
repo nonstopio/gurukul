@@ -1,4 +1,12 @@
-import { ApiException, itemStates, itemsOf, migrateCourse, progressSchema } from '@gurukul/schema';
+import {
+  ApiException,
+  accessOf,
+  canOpen,
+  itemStates,
+  itemsOf,
+  migrateCourse,
+  progressSchema,
+} from '@gurukul/schema';
 import type { Course, Quiz, QuizResult, Question } from '@gurukul/schema';
 import { log } from './logging/log.js';
 import { badField } from './validation.js';
@@ -30,6 +38,8 @@ export interface AttemptRecord {
 export interface GradingStore {
   /** The course document, or undefined when it does not exist. */
   getCourse(courseId: string): Promise<unknown | undefined>;
+  /** `users/{uid}.teamIds`: the teams the person is on, which decide the `teams` courses they may open. */
+  getTeamIds(uid: string): Promise<string[]>;
   /** `courses/{id}/private/answers`: `{ [quizId]: { [questionId]: optionIds } }`. */
   getAnswers(courseId: string): Promise<unknown | undefined>;
   /** `progress/{uid}_{courseId}`, or undefined when the learner has not started. */
@@ -80,11 +90,19 @@ export function isCorrect(kind: Question['kind'], selected: string[], key: strin
 /** The published course, its Quiz and that Quiz's answer key. Rejects unknown ids. */
 async function load(
   store: GradingStore,
+  who: { uid: string; staff: boolean },
   courseId: string,
   quizId: string,
 ): Promise<{ course: Course; quiz: Quiz }> {
   const raw = await store.getCourse(courseId);
   if (raw === undefined) throw new ApiException('CRS_2001', [courseId]);
+  // The same rule the catalogue and the course read follow (`canOpenCourse` in firestore.rules): a
+  // person who cannot open a course cannot take its Quizzes either, whatever id they send.
+  const teamIds = who.staff ? [] : await store.getTeamIds(who.uid);
+  if (!canOpen(accessOf(raw), { teamIds, staff: who.staff })) {
+    log.warn('Course not open to this person', { uid: who.uid, courseId });
+    throw new ApiException('AUTH_2001', ['this course']);
+  }
   let course: Course;
   try {
     course = migrateCourse(raw);
@@ -128,6 +146,7 @@ export async function checkAnswer(
   store: GradingStore,
   uid: string,
   data: { courseId?: unknown; quizId?: unknown; questionId?: unknown; selected?: unknown },
+  staff = false,
 ): Promise<{ correct: boolean; correctOptionIds: string[]; explanation: string }> {
   const { courseId, quizId, questionId, selected } = data;
   if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
@@ -137,7 +156,7 @@ export async function checkAnswer(
   if (!isStringArray(selected))
     throw badField('selected', selected, 'must be a list of option ids');
   log.debug('Checking an answer', { uid, courseId, quizId, questionId });
-  const { course, quiz } = await load(store, courseId, quizId);
+  const { course, quiz } = await load(store, { uid, staff }, courseId, quizId);
   if (quiz.revealAnswers !== 'each') throw new ApiException('PRK_1001', [quizId]);
   const question = quiz.questions.find((q) => q.id === questionId);
   if (!question) throw new ApiException('VAL_1003', ['question', questionId]);
@@ -202,6 +221,7 @@ export async function gradeAttempt(
   uid: string,
   data: { courseId?: unknown; quizId?: unknown; questionIds?: unknown; answers?: unknown },
   now: number,
+  staff = false,
 ): Promise<AttemptResult> {
   const { courseId, quizId, questionIds, answers } = data;
   if (!isNonEmptyString(courseId)) throw badField('courseId', courseId, 'must be a course id');
@@ -219,7 +239,7 @@ export async function gradeAttempt(
   }
   const given = answers as Record<string, string[]>;
   log.debug('Grading started', { uid, courseId, quizId, questionCount: questionIds.length });
-  const { course, quiz } = await load(store, courseId, quizId);
+  const { course, quiz } = await load(store, { uid, staff }, courseId, quizId);
 
   const shown = Math.min(quiz.questionsShown, quiz.questions.length);
   const known = new Set(quiz.questions.map((q) => q.id));

@@ -6,6 +6,7 @@ import {
   Chip,
   EmptyState,
   ProgressBar,
+  GlobalLoader,
   ProgressRing,
   Skeleton,
   type CalloutTone,
@@ -232,6 +233,31 @@ describe('display components accessibility', () => {
         </div>
       </main>,
     );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('GlobalLoader', () => {
+  it('names what is happening in a polite status region', () => {
+    render(<GlobalLoader label="Loading media" hint="Taking longer than usual…" />);
+    const status = screen.getByRole('status');
+    expect(status.className).toBe('g-loader g-loader--section');
+    expect(screen.getByText('Loading media')).toBeTruthy();
+    expect(screen.getByText('Taking longer than usual…')).toBeTruthy();
+  });
+
+  it('covers the screen under a scrim as an overlay', () => {
+    render(<GlobalLoader label="Assigning" variant="overlay" />);
+    expect(screen.getByRole('status').parentElement?.className).toBe('g-loader-scrim');
+  });
+
+  it('keeps only a hidden name beside the mark inline', () => {
+    render(<GlobalLoader label="Saving" variant="inline" />);
+    expect(screen.getByText('Saving').className).toBe('g-loader__sr');
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<GlobalLoader label="Loading media" />);
     expect(await axeViolations(container)).toEqual([]);
   });
 });

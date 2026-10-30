@@ -1,7 +1,8 @@
 import { vi } from 'vitest';
 import { courseStatsSchema, orgStatsSchema } from '@gurukul/schema';
 import { DEFAULT_ORG_CONFIG } from '@gurukul/schema';
-import type { CourseStats, OrgConfig, OrgStats } from '@gurukul/schema';
+import { teamId } from '@gurukul/schema';
+import type { CourseStats, OrgConfig, OrgStats, Team } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import type { ProgressRow } from '../src/data/types';
 import { makeCourse } from './fake-data';
@@ -34,6 +35,8 @@ export function fakeConsole(
     org?: Partial<OrgStats>;
     course?: Partial<CourseStats>;
     teams?: string[];
+    /** Teams with members for the Teams page and Assign; defaults to `teams` as empty teams. */
+    teamList?: Team[];
     count?: number;
     team?: UserRow[];
     found?: UserRow[];
@@ -89,6 +92,18 @@ export function fakeConsole(
     auditPage: vi.fn().mockResolvedValue({ rows: init.audit ?? [], nextCursor: null }),
     orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
     saveOrgSettings: vi.fn().mockResolvedValue(undefined),
+    teamList: vi.fn(
+      async () =>
+        init.teamList ??
+        (init.teams ?? []).map((name) => ({
+          id: teamId(name),
+          name,
+          memberEmails: [],
+          createdAt: 0,
+        })),
+    ),
+    saveTeam: vi.fn().mockResolvedValue(undefined),
+    deleteTeam: vi.fn().mockResolvedValue(undefined),
   };
   const service: ConsoleService = {
     assignCourses: vi.fn().mockResolvedValue({

@@ -18,6 +18,8 @@ export interface ProfileDoc {
   nameLower: string;
   photoURL: string | null;
   team: null;
+  /** Starts empty; `reconcileTeams` fills it from `teams/` right after the profile exists. */
+  teamIds: string[];
   roles: ['learner'];
   grantedCourseIds: [];
 }
@@ -27,6 +29,12 @@ export interface UserStore {
   createProfile(uid: string, profile: ProfileDoc): Promise<void>;
   /** Stamps `uid` on every assignment for `email` that has none yet; returns how many. */
   claimAssignments(email: string, uid: string): Promise<number>;
+  /**
+   * Sets `teamIds` on the profile for `email` from the teams that list it, in one transaction
+   * (the current `teams/` state, never a remembered diff). Called after the profile is created, so
+   * a team written between the two steps is never lost, and the team trigger covers the rest.
+   */
+  reconcileTeams(email: string): Promise<void>;
 }
 
 /** The profile document for a new NonStop account. The display name falls back to the email's local part. */
@@ -39,6 +47,7 @@ export function buildProfile(user: NewUser & { email: string }): ProfileDoc {
     nameLower: nameKey(displayName),
     photoURL: user.photoURL ?? null,
     team: null,
+    teamIds: [],
     roles: ['learner'],
     grantedCourseIds: [],
   };
@@ -59,6 +68,9 @@ export async function handleUserCreated(
   }
   const profile = buildProfile({ ...user, email: user.email });
   await store.createProfile(user.uid, profile);
+  // After, not before: the team trigger skips a person with no profile yet, so a team written
+  // before this point is read here, and one written after it finds the profile.
+  await store.reconcileTeams(profile.email);
   const claimed = await store.claimAssignments(profile.email, user.uid);
   return { created: true, claimed };
 }

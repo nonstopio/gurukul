@@ -1,4 +1,4 @@
-import type { Course, LabelSet } from '@gurukul/schema';
+import type { Audience, Course, CourseListing, LabelSet } from '@gurukul/schema';
 
 /** One of my assignments, with dates already as `Date` so screens never touch Firestore types. */
 export interface AssignmentRow {
@@ -63,8 +63,11 @@ export interface CertificateRow {
  * stay inside the free quota.
  */
 export interface LearnerData {
-  /** Published and archived courses, newest first. */
-  listCourses(): Promise<Course[]>;
+  /**
+   * Published and archived courses the person may open, newest first, each with its visibility.
+   * `audience` is who is asking: the rules answer only a listing made for the person's own teams.
+   */
+  listCourses(audience?: Audience): Promise<CourseListing[]>;
   getCourse(courseId: string): Promise<Course | null>;
   myAssignments(uid: string): Promise<AssignmentRow[]>;
   myProgress(uid: string): Promise<ProgressRow[]>;
@@ -86,7 +89,7 @@ export interface LearnerData {
   completeItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** Moves the resume point. */
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
-  /** The teams an Admin listed in Org settings (`config/org.teams`); empty before any. */
+  /** The names of the teams an Admin made on the Teams page (`config/org.teams`); empty before any. */
   orgTeams(): Promise<string[]>;
   /** Sets my team (`users/{uid}.team`); the rules accept only a listed team, or `null`. */
   setTeam(uid: string, team: string | null): Promise<void>;

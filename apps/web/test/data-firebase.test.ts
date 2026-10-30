@@ -6,6 +6,7 @@ const store = vi.hoisted(() => ({
   queryDocs: [] as Array<{ id: string; data: () => unknown }>,
   snapCb: undefined as undefined | ((s: unknown) => void),
   calls: [] as unknown[][],
+  queries: [] as unknown[],
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -17,7 +18,10 @@ vi.mock('firebase/firestore', () => ({
     exists: () => store.docs.has(ref.path),
     data: () => store.docs.get(ref.path),
   }),
-  getDocs: async () => ({ docs: store.queryDocs }),
+  getDocs: async (q: unknown) => {
+    store.queries.push(q);
+    return { docs: store.queryDocs };
+  },
   limit: (n: number) => ({ limit: n }),
   onSnapshot: (_ref: unknown, cb: (s: unknown) => void) => {
     store.snapCb = cb;
@@ -45,12 +49,55 @@ beforeEach(() => {
   store.docs.clear();
   store.queryDocs = [];
   store.calls = [];
+  store.queries = [];
 });
 
 describe('firebaseLearnerData', () => {
   it('lists courses through the schema', async () => {
     store.queryDocs = [{ id: 'git', data: () => course() }];
     expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+  });
+
+  it('lists for a person with teams: public courses, and their own teams’ courses, newest first', async () => {
+    const old = { ...course(), id: 'old', publishedAt: null, visibility: 'public' };
+    const fresh = {
+      ...course(),
+      id: 'fresh',
+      publishedAt: ts(9),
+      visibility: 'teams',
+      visibleTeamIds: ['qa'],
+    };
+    store.queryDocs = [
+      { id: 'old', data: () => old },
+      { id: 'fresh', data: () => fresh },
+    ];
+    const teams = Array.from({ length: 20 }, (_, i) => `t${i}`);
+    const listed = await data.listCourses({ teamIds: teams, staff: false });
+    expect(store.queries).toHaveLength(2);
+    const filters = (store.queries as { parts: { where?: unknown[] }[] }[]).map((q) =>
+      q.parts.flatMap((p) => (p.where ? [p.where] : [])),
+    );
+    expect(filters[0]).toContainEqual(['visibility', '==', 'public']);
+    expect(filters[1]).toContainEqual(['visibility', '==', 'teams']);
+    expect(filters[1]).toContainEqual(['visibleTeamIds', 'array-contains-any', teams.slice(0, 15)]);
+    expect(listed.map((c) => c.id)).toEqual(['fresh', 'fresh', 'old', 'old']);
+    expect(listed[0]).toMatchObject({ visibility: 'teams', visibleTeamIds: ['qa'] });
+    expect(listed[3]).toMatchObject({ visibility: 'public', visibleTeamIds: [] });
+  });
+
+  it('lists only the public courses for a person with no teams, and everything for staff', async () => {
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    await data.listCourses({ teamIds: [], staff: false });
+    expect(store.queries).toHaveLength(1);
+    store.queries = [];
+    await data.listCourses();
+    expect(store.queries).toHaveLength(1);
+    store.queries = [];
+    await data.listCourses({ teamIds: [], staff: true });
+    expect(store.queries).toHaveLength(1);
+    const parts = (store.queries[0] as { parts: { where?: unknown[]; orderBy?: unknown }[] }).parts;
+    expect(parts.some((p) => p.orderBy)).toBe(true);
+    expect(parts.some((p) => p.where?.[0] === 'visibility')).toBe(false);
   });
 
   it('gets one course, or null when it is missing', async () => {

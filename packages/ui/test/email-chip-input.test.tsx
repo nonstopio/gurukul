@@ -194,3 +194,18 @@ describe('StepCard', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('EmailChipInput statusWords', () => {
+  it('swaps the words a status shows, for statuses and for a reasonless rejection', () => {
+    render(
+      <EmailChipInput
+        label="Emails"
+        value={['new@x.com', 'nr@x.com', 'a@x.com']}
+        onChange={() => {}}
+        classify={classify}
+        statusWords={{ new: 'invited', rejected: 'not valid' }}
+      />,
+    );
+    expect(chips()).toEqual(['new@x.com· invited', 'nr@x.com· not valid', 'a@x.com· signed in']);
+  });
+});

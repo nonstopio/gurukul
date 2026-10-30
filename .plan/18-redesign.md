@@ -116,3 +116,24 @@ genuinely changed, such as a menu replacing a button).
 `npm run check` (100% coverage in every workspace, the design checker), `npm run e2e`, axe on
 every page test, screenshots at 1280 and 390 of each area, keyboard pass on shell, menu and
 drawer.
+
+## Round 2: themes, feedback, flows (RDS-09 to RDS-15)
+
+After the first full pass an Admin walked the deployed app and found the colours, contrast and
+structure wanting. Decisions, all in the "Gurukul Design System" artifact and `04-design-system.md`:
+
+- **Light and Dark themes**, a theme-following sidebar, a branded global loader (boot and blocked
+  operations), motion tokens and entrances.
+- **Feedback**: toasts by kind with set times, StateCard for failed, offline and denied pages, one
+  lookup from API error codes to a type, a sentence, a code and a retry rule.
+- **Where things go**: an area switcher (Learn, Studio, Admin); Design system, Teams on their own
+  Admin pages; Profile in the account menu.
+- **Teams hold their members** (`teams/{id}`, Admin-only); a multi-select people picker.
+- **Assign is a four-step horizontal flow**; the catalogue gets search, filters and visibility;
+  Home leads with a continue-learning hero.
+- **Studio**: the media library is a gallery with previews; the question bank can create, import,
+  edit and delete questions.
+- **Sign-in page** redesigned as a calm two-column hero.
+
+Not in this round: media upload (no Storage in v1), file sizes for linked media, an asset picker
+in the lesson editor, "same toast twice becomes one with a count".

@@ -35,7 +35,7 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-menu);
   font-family: var(--font-ui);
-  animation: g-menu-in var(--dur-fast) var(--ease);
+  animation: g-menu-in var(--dur-base) var(--ease);
 }
 .g-menu__panel--bottom {
   top: calc(100% + var(--space-1));
@@ -52,10 +52,21 @@
 @keyframes g-menu-in {
   from {
     opacity: 0;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
+    transform: none;
   }
+}
+.g-menu__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-1);
 }
 .g-menu__item {
   display: flex;

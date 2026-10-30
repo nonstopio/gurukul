@@ -1,14 +1,17 @@
 import {
   AppShell,
+  AreaSwitcher,
   AwardIcon,
   ChartIcon,
   ChecklistIcon,
   ClockIcon,
+  CodeIcon,
   GridIcon,
   HomeIcon,
   ImageIcon,
   LanguagesIcon,
   LogOutIcon,
+  MoonIcon,
   NavItem,
   PenIcon,
   SendIcon,
@@ -17,6 +20,7 @@ import {
   Sidebar,
   SidebarGroup,
   SparkIcon,
+  SunIcon,
   UserCard,
   UserIcon,
   UsersIcon,
@@ -43,6 +47,7 @@ import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
+import { nextTheme, useTheme } from './theme';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -62,6 +67,14 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
   const groups = new Map<string, Destination[]>();
   for (const d of destinations) groups.set(d.areaName, [...(groups.get(d.areaName) ?? []), d]);
   return [...groups];
+}
+
+export type AreaKey = 'learn' | 'studio' | 'admin';
+
+/** The area a route belongs to, by its first segment: what the switcher highlights. */
+export function areaKeyOf(path: string): AreaKey {
+  if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
+  return path === '/studio' || path.startsWith('/studio/') ? 'studio' : 'learn';
 }
 
 /**
@@ -131,6 +144,8 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   );
 }
 
+const THEME_LABEL = { system: 'System', light: 'Light', dark: 'Dark' } as const;
+
 /** The sidebar icon for each page, by its navigation id. A page without one shows none. */
 const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   home: HomeIcon,
@@ -141,8 +156,10 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'admin-overview': ChartIcon,
   'admin-learners': UsersIcon,
   'admin-assign': SendIcon,
+  'admin-teams': UsersIcon,
   'admin-roles': ShieldIcon,
   'admin-audit': ClockIcon,
+  'admin-design-system': CodeIcon,
   'admin-settings': SettingsIcon,
   'studio-courses': PenIcon,
   'studio-bank': ChecklistIcon,
@@ -173,12 +190,23 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const saveLabels = useSaveLabels();
+  const [theme, setTheme] = useTheme();
   const t = useTerms();
-  const groups = useMemo(
-    () => groupByArea(destinationsFor(areas, roles).map((d) => localizePage(d, t))),
+  const destinations = useMemo(
+    () => destinationsFor(areas, roles).map((d) => localizePage(d, t)),
     [areas, roles, t],
   );
   const here = pathname.replace(/\/+$/, '') || '/';
+  const area = areaKeyOf(here);
+  // The areas this person may open, in Learn, Studio, Admin order, each starting at its first page.
+  const switcher = (['learn', 'studio', 'admin'] as const).flatMap((key) => {
+    const first = destinations.find((d) => areaKeyOf(d.path) === key);
+    return first ? [{ key, first }] : [];
+  });
+  const groups = groupByArea(
+    switcher.length > 1 ? destinations.filter((d) => areaKeyOf(d.path) === area) : destinations,
+  );
+  const areaName = { learn: 'Learn', studio: t.Studio, admin: t.Admin };
   const tone = topRole(roles);
   const nextLabels: LabelSet = labels === 'gurukul' ? 'generic' : 'gurukul';
 
@@ -195,8 +223,22 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               <span className="app__brand">Gurukul</span>
             </>
           }
+          switcher={
+            switcher.length > 1 ? (
+              <AreaSwitcher
+                items={switcher.map(({ key, first }) => ({
+                  id: key,
+                  label: areaName[key],
+                  href: first.path,
+                  current: key === area,
+                  render: (props) => <Link to={first.path} {...(props as Omit<LinkProps, 'to'>)} />,
+                }))}
+              />
+            ) : undefined
+          }
           footer={
             <UserCard
+              roleLabel={{ admin: t.Admin, educator: t.Educator, learner: t.Learner }[tone]}
               name={user.displayName ?? String(user.email)}
               detail={String(user.email)}
               tone={tone}
@@ -206,6 +248,12 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
                   label: nextLabels === 'gurukul' ? 'Use Gurukul names' : 'Use plain English names',
                   icon: <LanguagesIcon />,
                   onSelect: () => void saveLabels(nextLabels),
+                },
+                {
+                  label: 'Theme',
+                  hint: THEME_LABEL[theme],
+                  icon: theme === 'dark' ? <MoonIcon /> : <SunIcon />,
+                  onSelect: () => setTheme(nextTheme(theme)),
                 },
                 {
                   label: "What's new",
@@ -246,7 +294,9 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       <main id="content" className="app__main">
         <OfflineBanner />
         <Suspense fallback={<PageLoading />}>
-          <Outlet />
+          <div key={pathname} className="route-enter">
+            <Outlet />
+          </div>
         </Suspense>
       </main>
     </AppShell>

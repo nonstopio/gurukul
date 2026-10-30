@@ -41,7 +41,7 @@ swallow `mousedown` so a click never steals focus. Twenty rows, then "Show N mor
 ## Icon — shipped
 
 `<Icon size? label?>{paths}</Icon>` and one named component per glyph in use (`CheckIcon`, `XIcon`,
-`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and Org settings → Design system).
+`AlertIcon`, `LockIcon`, `SearchIcon`, …; the full list is in `src/Icon.tsx` and Admin → Design system).
 Lucide-style stroke on a 16-unit grid: `currentColor`, 1.5 stroke, round caps and joins, 16px by default.
 Decorative (`aria-hidden="true"`) unless given `label`, which makes it `role="img"` with that name; an
 icon-only button names the button instead. Any SVG attribute (`className`, `strokeWidth`) passes through.
@@ -171,7 +171,7 @@ of 148" and secondary Previous / Next buttons (disabled at the ends). Pages star
 
 ## EmailChipInput — shipped
 
-`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? />`. A labelled text
+`<EmailChipInput label value onChange classify placeholder? describedBy? removeLabel? statusWords? />`. A labelled text
 input in a bordered box; emails become removable chips. Typing a comma, space, semicolon or newline,
 pressing Enter, pasting, or leaving the field commits what is typed: split on those separators,
 lower-cased, duplicates dropped. Backspace on an empty input removes the last chip. `value` and
@@ -181,8 +181,24 @@ The caller supplies `classify(email) => { status, reason? }` and writes the lege
 `describedBy` at it). Each chip says its status in words: `signedIn` `--accent-soft` "· signed in",
 `new` dashed `--border-strong` "· new", `alreadyAssigned` `--surface-sunken` "· already assigned",
 `rejected` `--danger-soft` with `--danger-line` and "· {reason}" (default "rejected"). The remove button
-is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. The list is named
+is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. `statusWords` swaps the
+words a status shows (the team dialog says "Invited" for `new`). The list is named
 "{label}: added emails". Focus ring on the box.
+
+## PeoplePicker — shipped
+
+`<PeoplePicker label value onChange search placeholder? removeLabel? />`; `Person` is
+`{ email, name?, role?, tone? }`. A multi-select combobox: the input is `role="combobox"` with
+`aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"`
+`aria-multiselectable`. The caller owns `value` and `search(query) => Promise<Person[]>` (debounce and
+minimum length are its job); only the newest answer is shown. Choosing a row **adds a chip, clears
+the text, closes the list and keeps focus**; ArrowDown reopens, Backspace on an empty field removes
+the last chip, Escape closes the list (and stops there, so a Dialog around it stays open), Enter picks
+the active row. Rows are `Avatar`, name, email and role with the match in `<mark>` (`--saffron-soft`),
+and people already chosen say "Added". The list sits 4px under the field (`--shadow-menu`,
+`--radius-lg`, `--z-menu`, at most 22rem tall). A polite `role="status"` says "N people match".
+Chips are named "Remove {name}". Use it where a person is chosen; never leave the list open or the
+typed text behind after a pick.
 
 ## StepCard (Stepper.Step) — shipped
 
@@ -190,6 +206,21 @@ is named "Remove {email}" (`removeLabel` to change) and its hit area is 44px. Th
 A `<section aria-labelledby>` card (`--surface`, hairline, `--radius-xl`) with a 32px `--accent` number
 badge (decorative) and the title in Fraunces `--text-xl`. The heading carries a visually hidden "Step N:"
 so the number is spoken. Stack several for a form; the sticky summary is the caller's layout.
+
+## FlowSteps, FlowPanel (Stepper.Flow) — shipped
+
+`<FlowSteps steps={['Course', …]} current={1} label? />` is a `<nav>` with an ordered list of numbered
+steps: done steps show a tick (and say "(done)" to a screen reader), the current one has
+`aria-current="step"` and an `--accent` underline. Under 40rem the list collapses to the sentence
+"Step 2 of 4: Audience". `<FlowPanel direction="forward|back" key={step}>` is the step body: it slides
+24px in from the side of travel over `--dur-slow` `--ease`, and only fades under reduced motion. The
+caller owns the step, the Back and Next buttons, validation (words under the step, focus moved to
+them) and moving focus to the step heading. Nothing is saved before the last step.
+
+## SuccessCheck — shipped
+
+`<SuccessCheck size? />`: a decorative `--success` ring and tick that draw once (`--dur-base`,
+`--ease-spring`). Put the result in words beside it (`role="status"`); never use it for a mere save.
 
 ## Dialog — shipped
 
@@ -252,12 +283,34 @@ const id = toast.show('Progress saved', { tone: 'success', duration: 5000 });
 toast.dismiss(id);
 ```
 
-Tones `info` (default), `success`, `danger`. The provider keeps two live regions mounted from the
-start: `role="status"` (polite) for info and success, `role="alert"` (assertive) for danger. Toasts
-stack bottom-right (full width on a phone), `--surface`-family soft ground with its line,
-`--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel` (default
-"Dismiss"). Auto-dismiss after `duration` ms (`0` keeps it until dismissed); the timer is cleared on
-manual dismiss. `useToast` outside a provider throws.
+Tones `info` (default), `success`, `warning`, `danger`. Options: `title` (bold first line; the
+message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `action`
+(`{ label, onSelect }`, closes the toast after it runs), `duration`. Default time by tone: success
+4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an
+icon plus a screen-reader word, never colour alone. A thin timer bar runs down and the timeout
+pauses on hover and focus, resuming with what was left. Three at a time: the oldest is dropped.
+Enter on `--ease` / `--dur-base`, exit on `--ease-in` / `--dur-fast`; under reduced motion the
+durations are 0. The provider keeps two live regions mounted from the start: `role="status"` for
+info, success and warning, `role="alert"` for danger. Toasts stack bottom-right (full width on a
+phone), `--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel`
+(default "Dismiss"). `useToast` outside a provider throws.
+
+A failed action goes through `toastError(toast, error, fallback, retry?)` in
+`apps/web/src/errors.ts`: `describeError` maps an `ApiClientError` to a type (network, permission,
+validation, not-found, conflict, rate-limit, server), the catalog's sentence, a retry rule and a UI
+code; a rate limit warns, everything else is a danger toast, and Retry shows only when the error is
+retryable and the caller passes `retry`. A toast is never the only place an error that blocks work
+appears: a form error stays on the form.
+
+## StateCard — shipped
+
+`<StateCard variant="error|offline|forbidden" title code? kind? actions? headingAs?>message</StateCard>`.
+A bordered `--surface` block: tinted icon square (danger, warning, sunken), the title in the display
+face, one or two sentences, `code · kind` in mono (`NET-TIMEOUT · Network`), then the actions (Retry
+primary, a way back secondary). `error` has `role="alert"`, `offline` `role="status"`, `forbidden`
+no live role (it is a page, not an event). Empty is not here: use `EmptyState`, and a filtered-empty
+list offers "Clear filters" inside it. Loading is `Skeleton` / `GlobalLoader`. Never show raw
+exception text; take the sentence and code from `describeError`.
 
 ## CodeBlock — shipped
 
@@ -384,6 +437,16 @@ a check icon, never colour alone. Focus draws the ring on the swatch. The cover 
 `<TypeTile kind="reading|video|code|quiz">`. A 30px, `--radius-sm` tile with an icon and the kind as visually
 hidden text. reading `--surface-sunken`, video `--accent-soft`, code `--code-bg`, Quiz `--warning-soft`.
 
+## MediaGallery, MediaPreview — shipped
+
+`<MediaGallery label items selectedId? onSelect>`. A `<ul>` grid (`minmax(10rem, 1fr)`) of tile `<button aria-pressed>`:
+`MediaPreview` on top, the name (one line, ellipsis) and a `meta` line ("PDF · in 3 courses"). Pressed: `--accent`
+border. Items are `{ id, name, meta, kind, url? }`, `kind` one of image, video, embed, pdf, audio, file.
+`<MediaPreview kind url? size="tile|large">` is the preview alone, for the detail panel: an image shows its
+thumbnail (and falls back to the typed tile when it does not load); every other kind is an icon on a tinted tile
+with the kind's name, never colour alone. `mediaKindName(kind)` gives the name for filter chips. The page owns
+search, type chips (`Chip`/pressed buttons), the detail (`Dialog size="drawer"`) and Copy link.
+
 ## Avatar — shipped
 
 `<Avatar name tone? size? label?>`: initials in a circle. Initials are the first letters of the
@@ -411,9 +474,31 @@ card, account). `items` are `{ label, onSelect, icon?, danger?, disabled?, hint?
   `onSelect`, closes and returns focus; Escape closes, returns focus and does not reach an outer
   dialog; Tab closes; a press outside closes.
 
+## AreaSwitcher — shipped
+
+`<AreaSwitcher items label?>` with `Sidebar switcher={…}` — Learn, Studio and Admin as a compact
+row of links under the brand: `<nav aria-label="Areas">` on `--chrome-raised`, each link 44px,
+`--radius-sm`, hover `--chrome-hover`, the current area `--chrome-active` with `aria-current="page"`
+(colour changes on `--dur-base`). Items are `{ id, label, href, current?, render? }`; `render` lets
+the router draw the link (as `NavItem`). Render it only when the person may open more than one
+area; the app derives the areas from the navigation catalog and the current one from the route. With
+a switcher the sidebar lists only the current area's pages; the others are one click away.
+
+## Motion — shipped
+
+Only `opacity` and `transform` move, on tokens: a route change fades and rises 8px over
+`--dur-page` (`.route-enter` on the keyed page wrapper in `Shell`; focus handling is `routeFocus`,
+unchanged). Menu and command-palette lists rise 6px over `--dur-base`; the dialog panel rises and
+scales from 0.97, its scrim fades, the drawer slides, all over `--dur-slow` on `--ease`. A list
+enters staggered with `className="g-stagger"` on its parent and `style={{ '--i': index }}` on each
+child: 30ms a step, the first eight only. Reduced motion sets every `--dur-*` to 0, so nothing
+stays mid-movement; never add a transform animation with a literal duration.
+
 ## UserCard — shipped
 
-`<UserCard name detail tone items menuLabel?>` — the signed-in person at the foot of the sidebar;
+`<UserCard name detail tone roleLabel? items menuLabel?>` — the signed-in person at the foot of the sidebar;
+`roleLabel` (their role in their label set) fills the menu's header (name, email, role `Chip`) above
+the items, via `Menu header`;
 the whole card is the account `Menu` trigger (named "Account: Asha Rao"). Avatar 36, name 600
 `--text-sm` `--chrome-text-strong`, detail `--text-xs` `--chrome-text`, both ellipsised; chevron
 up; `--chrome-raised`, hover `--chrome-hover`. Menu opens upward, card-wide. Its items are

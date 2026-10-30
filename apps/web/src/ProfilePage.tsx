@@ -24,6 +24,8 @@ import type { Terms } from './labels/terms';
 import { useTerms } from './labels/useTerms';
 import { Loaded } from './learn/ui';
 import { log } from './log';
+import { THEME_CHOICES, useTheme } from './theme';
+import type { ThemeChoice } from './theme';
 
 /** What each role lets a person do, in their own label set. */
 function roleRows(t: Terms): Record<Role, { name: string; can: string }> {
@@ -83,6 +85,7 @@ export function ProfilePage() {
         <div className="profile__prefs">
           <TeamForm />
           <LabelsChoice />
+          <ThemeChoiceControl />
         </div>
       </Card>
       <Learning />
@@ -90,7 +93,7 @@ export function ProfilePage() {
   );
 }
 
-/** The team: picked from `config/org.teams`, saved on its own button. */
+/** The team: picked from `config/org.teams` (the names the Teams page keeps), saved on its own button. */
 function TeamForm() {
   const { uid } = useUser();
   const { team: saved } = useSession();
@@ -120,7 +123,7 @@ function TeamForm() {
       {(list) =>
         list.length === 0 ? (
           <p className="profile__note">
-            {`No teams yet: your ${t.admin} adds them in Org settings.`}
+            {`No teams yet: your ${t.admin} adds them on the Teams page.`}
           </p>
         ) : (
           <form className="profile__team" onSubmit={(e) => void save(e)}>
@@ -164,6 +167,24 @@ function LabelsChoice() {
         value={labels}
         options={LABEL_OPTIONS.map((o) => ({ value: o.set, label: o.title }))}
         onChange={(set) => void save(set)}
+      />
+    </div>
+  );
+}
+
+const THEME_TITLE: Record<ThemeChoice, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+
+/** Light, Dark, or follow the device; applied at once and remembered on this device. */
+function ThemeChoiceControl() {
+  const [theme, setTheme] = useTheme();
+  return (
+    <div className="profile__labels">
+      <p className="profile__label">Appearance</p>
+      <SegmentedControl<ThemeChoice>
+        label="Appearance"
+        value={theme}
+        options={THEME_CHOICES.map((c) => ({ value: c, label: THEME_TITLE[c] }))}
+        onChange={setTheme}
       />
     </div>
   );

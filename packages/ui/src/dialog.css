@@ -18,6 +18,12 @@
   border: 0;
   background: var(--scrim);
   cursor: default;
+  animation: g-dialog-fade var(--dur-slow) var(--ease);
+}
+@keyframes g-dialog-fade {
+  from {
+    opacity: 0;
+  }
 }
 .g-dialog {
   position: relative;
@@ -31,6 +37,13 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-float);
   font-family: var(--font-ui);
+  animation: g-dialog-rise var(--dur-slow) var(--ease);
+}
+@keyframes g-dialog-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
 }
 .g-dialog--drawer {
   max-width: 480px;

@@ -38,8 +38,10 @@ export function fakeStudio(
     getVersion: vi.fn(async (_id: string, version: number) => init.versionDocs?.[version] ?? null),
     questionBank: vi.fn().mockResolvedValue(init.bank ?? []),
     addToBank: vi.fn().mockResolvedValue('bank-1'),
+    updateInBank: vi.fn().mockResolvedValue(undefined),
     removeFromBank: vi.fn().mockResolvedValue(undefined),
     completedCount: vi.fn().mockResolvedValue(0),
+    getAccess: vi.fn().mockResolvedValue({ visibility: 'public', visibleTeamIds: [] }),
   };
   const service: StudioService = {
     createCourse: vi.fn().mockResolvedValue({ courseId: 'new-course' }),
