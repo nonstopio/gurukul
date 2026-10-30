@@ -621,13 +621,11 @@ describe('Lesson player', () => {
 
     it('asks for the answer in a toast until it has been shown, then moves on', async () => {
       const { router } = await openWith([check('k')]);
-      const why =
-        'Answer the question in this lesson, then press Show the answer, to mark it complete.';
+      const why = 'Answer the question in this lesson to mark it complete.';
       fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
       await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
       expect(router.state.location.pathname).toBe('/courses/git/learn/c');
       fireEvent.click(screen.getByText('Yes'));
-      fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
       fireEvent.click(screen.getByRole('button', { name: /^Mark complete/ }));
       await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/d'));
     });
@@ -635,9 +633,7 @@ describe('Lesson player', () => {
     it('counts the questions left when there are several', async () => {
       await openWith([check('k'), check('m')]);
       expect(
-        await screen.findByText(
-          'Answer the 2 questions in this lesson, then press Show the answer, to mark it complete.',
-        ),
+        await screen.findByText('Answer the 2 questions in this lesson to mark it complete.'),
       ).toBeTruthy();
     });
   });

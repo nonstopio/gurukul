@@ -1,4 +1,4 @@
-import { Callout, CodeBlock, FileIcon, QuizOption, VideoBlock, Button } from '@gurukul/ui';
+import { Callout, CodeBlock, FileIcon, QuizOption, VideoBlock } from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
@@ -31,14 +31,18 @@ function optionState(
   correct: number | undefined,
   picked: number | null,
   i: number,
-  revealed: boolean,
 ): 'idle' | 'locked' | 'correct' | 'incorrect' {
-  if (!revealed) return 'idle';
-  if (correct === i) return 'correct';
-  return correct !== undefined && picked === i ? 'incorrect' : 'locked';
+  if (picked === null) return 'idle';
+  // A question with no key is answered by any pick; a wrong pick stays open to try again.
+  if (correct === undefined || picked === correct) return correct === i ? 'correct' : 'locked';
+  return picked === i ? 'incorrect' : 'idle';
 }
 
-/** The ungraded "check yourself" block: the answer is revealed on submit, with no network. */
+/**
+ * The ungraded "check yourself" block, with instant feedback and no network: choosing an option
+ * marks it at once. A wrong pick says so and stays open to try another; the right pick (or any pick
+ * on a question with no key) shows the explanation, locks the options and counts as answered.
+ */
 function CheckBlock({
   block,
   onAnswered,
@@ -47,7 +51,11 @@ function CheckBlock({
   onAnswered?: ((blockId: string) => void) | undefined;
 }) {
   const [picked, setPicked] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  const solved = picked !== null && (block.correct === undefined || picked === block.correct);
+  const choose = (i: number) => {
+    setPicked(i);
+    if (block.correct === undefined || i === block.correct) onAnswered?.(block.id);
+  };
   return (
     <fieldset className="check">
       <legend className="check__prompt">{block.prompt}</legend>
@@ -58,28 +66,21 @@ function CheckBlock({
           value={String(i)}
           letter={LETTERS[i % LETTERS.length] as (typeof LETTERS)[number]}
           checked={picked === i}
-          state={optionState(block.correct, picked, i, revealed)}
-          onChange={() => setPicked(i)}
+          state={optionState(block.correct, picked, i)}
+          onChange={() => choose(i)}
         >
           {option}
         </QuizOption>
       ))}
-      {revealed ? (
+      {solved ? (
         <p role="status" className="check__explanation">
           {block.explanation}
         </p>
-      ) : (
-        <Button
-          variant="secondary"
-          disabled={picked === null}
-          onClick={() => {
-            setRevealed(true);
-            onAnswered?.(block.id);
-          }}
-        >
-          Show the answer
-        </Button>
-      )}
+      ) : picked !== null ? (
+        <p role="status" className="check__explanation">
+          Not quite. Try another answer.
+        </p>
+      ) : null}
     </fieldset>
   );
 }

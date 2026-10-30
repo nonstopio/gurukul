@@ -46,7 +46,7 @@ test.describe('Learner', () => {
     await expect(page).toHaveURL(/\/learn\/what-git-solves$/);
 
     await page.locator('label.g-quiz-option').filter({ hasText: 'Every saved version' }).click();
-    await page.getByRole('button', { name: 'Show the answer' }).click();
+    await expect(page.getByText('Correct', { exact: true })).toBeVisible();
     await markComplete.click();
 
     await expect(page).toHaveURL(/\/learn\/install-and-configure-git$/);

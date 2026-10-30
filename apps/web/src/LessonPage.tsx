@@ -204,7 +204,7 @@ function Player({
     : watching && !videosDone
       ? 'Watch 90% of the video to mark this lesson complete.'
       : checksLeft > 0
-        ? `Answer the ${checksLeft === 1 ? 'question' : `${checksLeft} questions`} in this lesson, then press Show the answer, to mark it complete.`
+        ? `Answer the ${checksLeft === 1 ? 'question' : `${checksLeft} questions`} in this lesson to mark it complete.`
         : lesson.completeWhen === 'scrolled' && !atEnd
           ? 'Read to the end to mark this lesson complete.'
           : null;

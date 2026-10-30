@@ -1,10 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Block } from '@gurukul/schema';
 import { BlockView, Prose } from '../src/player/blocks';
 import { axeViolations } from './axe';
 
-const show = (block: unknown) => render(<BlockView block={block as Block} />);
+const show = (block: unknown, props: Partial<Parameters<typeof BlockView>[0]> = {}) =>
+  render(<BlockView block={block as Block} {...props} />);
 
 describe('Prose', () => {
   it('renders markdown, opens links in a new tab, and drops raw HTML', () => {
@@ -145,51 +146,65 @@ describe('BlockView', () => {
     expect(screen.getByRole('link', { name: /Playground/ })).toBeTruthy();
   });
 
-  it('lets a learner check an ungraded question and reveals the explanation', () => {
-    show({
-      type: 'check',
-      id: 'k',
-      prompt: 'Which?',
-      options: ['One', 'Two'],
-      explanation: 'Because two.',
-    });
-    const reveal = screen.getByRole('button', { name: 'Show the answer' }) as HTMLButtonElement;
-    expect(reveal.disabled).toBe(true);
+  it('shows the explanation the moment a learner picks on a question with no key', () => {
+    const onAnswered = vi.fn();
+    show(
+      {
+        type: 'check',
+        id: 'k',
+        prompt: 'Which?',
+        options: ['One', 'Two'],
+        explanation: 'Because two.',
+      },
+      { onAnswered },
+    );
+    expect(screen.queryByRole('status')).toBeNull();
     fireEvent.click(screen.getByLabelText(/Two/));
-    fireEvent.click(reveal);
     expect(screen.getByRole('status').textContent).toBe('Because two.');
-    expect(screen.queryByRole('button', { name: 'Show the answer' })).toBeNull();
+    expect(onAnswered).toHaveBeenCalledWith('k');
   });
 
-  it('marks the right option and a wrong pick when the answer is revealed', () => {
-    show({
-      type: 'check',
-      id: 'k',
-      prompt: 'Which?',
-      options: ['One', 'Two', 'Three'],
-      correct: 1,
-      explanation: 'Because two.',
-    });
+  it('marks a wrong pick at once, keeps the other options open and does not count it as answered', () => {
+    const onAnswered = vi.fn();
+    show(
+      {
+        type: 'check',
+        id: 'k',
+        prompt: 'Which?',
+        options: ['One', 'Two', 'Three'],
+        correct: 1,
+        explanation: 'Because two.',
+      },
+      { onAnswered },
+    );
     fireEvent.click(screen.getByLabelText(/One/));
-    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
     expect(screen.getByText('Incorrect')).toBeTruthy();
-    expect(screen.getByText('Correct')).toBeTruthy();
-    expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByText('Correct')).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Not quite. Try another answer.');
+    expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(false);
+    expect(onAnswered).not.toHaveBeenCalled();
   });
 
-  it('marks only the right option when the pick was right', () => {
-    show({
-      type: 'check',
-      id: 'k',
-      prompt: 'Which?',
-      options: ['One', 'Two'],
-      correct: 1,
-      explanation: 'Because two.',
-    });
+  it('lets a learner correct a wrong pick: the right one shows the explanation and locks the rest', () => {
+    const onAnswered = vi.fn();
+    show(
+      {
+        type: 'check',
+        id: 'k',
+        prompt: 'Which?',
+        options: ['One', 'Two', 'Three'],
+        correct: 1,
+        explanation: 'Because two.',
+      },
+      { onAnswered },
+    );
+    fireEvent.click(screen.getByLabelText(/One/));
     fireEvent.click(screen.getByLabelText(/Two/));
-    fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
     expect(screen.getByText('Correct')).toBeTruthy();
     expect(screen.queryByText('Incorrect')).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Because two.');
+    expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(true);
+    expect(onAnswered).toHaveBeenCalledTimes(1);
   });
 
   it('shows a visible notice for a block type it does not know', () => {
