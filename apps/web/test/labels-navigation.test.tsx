@@ -1,7 +1,9 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { terms } from '../src/labels/terms';
+import { AREAS } from '../src/navigation';
 import { localize } from '../src/navigation/localize';
+import { navIcon } from '../src/Shell';
 import { fakeConsole, userRow } from './fake-console';
 import { openApp } from './harness';
 
@@ -48,5 +50,13 @@ describe('navigation in Gurukul names', () => {
     expect((await screen.findByRole('option', { name: /Asha Rao/ })).textContent).toContain(
       'Shishyas',
     );
+  });
+});
+
+describe('sidebar icons', () => {
+  it('gives every page in the navigation an icon, and none to an unknown id', () => {
+    const ids = AREAS.flatMap((a) => a.pages.map((p) => p.id));
+    expect(ids.filter((id) => navIcon(id) === undefined)).toEqual([]);
+    expect(navIcon('no-such-page')).toBeUndefined();
   });
 });

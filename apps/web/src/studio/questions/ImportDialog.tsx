@@ -43,13 +43,13 @@ export function ImportDialog({
             );
           }
           return (
-            <ul className="studio-bank-list" aria-label="Bank questions">
+            <ul className="sc-rows" aria-label="Bank questions">
               {found.map((b) => (
-                <li key={b.id} className="studio-bank-item">
-                  <div>
-                    <p className="studio-bank-item__prompt">{b.question.prompt}</p>
-                    <p className="studio-muted">
-                      <Chip>{KIND_LABELS[b.question.kind]}</Chip>{' '}
+                <li key={b.id} className="sc-row">
+                  <div className="sc-media__main">
+                    <p className="sc-bank__prompt">{b.question.prompt}</p>
+                    <p className="sc-chips">
+                      <Chip>{KIND_LABELS[b.question.kind]}</Chip>
                       {b.tags.map((tag) => (
                         <Chip key={tag} tone="info">
                           {tag}
@@ -57,7 +57,7 @@ export function ImportDialog({
                       ))}
                     </p>
                   </div>
-                  <Button variant="secondary" onClick={() => onImport(b)}>
+                  <Button variant="secondary" size="sm" onClick={() => onImport(b)}>
                     Add to this {t.Quiz}
                   </Button>
                 </li>

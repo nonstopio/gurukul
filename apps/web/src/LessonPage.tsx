@@ -3,13 +3,20 @@ import type { Course, ItemState, Lesson, Chapter } from '@gurukul/schema';
 import {
   Button,
   Callout,
+  CheckIcon,
+  ChevronLeftIcon,
   Chip,
+  LockIcon,
+  Page,
+  PageHeader,
+  PlayIcon,
   ProgressBar,
   TopBar,
   buttonClass,
   topBarBackClass,
   useToast,
 } from '@gurukul/ui';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useUser } from './auth/AuthProvider';
@@ -18,7 +25,7 @@ import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { isRetired, percentFor } from './learn/model';
 import { itemPath } from './quiz/model';
-import { Loaded, RetiredNote } from './learn/ui';
+import { LoadedPage, RetiredNote } from './learn/ui';
 import { BlockView } from './player/blocks';
 import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
@@ -57,7 +64,7 @@ export function LessonPage() {
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
 
   return (
-    <Loaded loadable={result}>
+    <LoadedPage loadable={result} width="reading">
       {(course) =>
         course === null ? (
           <Navigate to="/courses" replace />
@@ -65,7 +72,7 @@ export function LessonPage() {
           <Player course={course} itemId={itemId} progress={progress} uid={uid} />
         )
       }
-    </Loaded>
+    </LoadedPage>
   );
 }
 
@@ -154,15 +161,17 @@ function Player({
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
-        <main className="page">
-          <h1 className="page__title">{item.title}</h1>
+        <Page width="reading">
+          <PageHeader title={item.title} />
           <Callout tone="note" title="Locked for now">
             <p>{`Finish the earlier items, and pass any ${t.Quiz} before this one, to open it.`}</p>
           </Callout>
-          <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
-            Back to the outline
-          </Link>
-        </main>
+          <div className="learn-buttons">
+            <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+              Back to the outline
+            </Link>
+          </div>
+        </Page>
       </>
     );
   }
@@ -223,65 +232,74 @@ function Player({
       />
       <div className="player">
         <OutlineRail course={course} itemId={itemId} states={states} />
-        <main className={`article article--${lesson.layout}`}>
-          <p className="article__kicker">
-            {t.Chapter} {chapterIndex + 1} · Lesson {lessonsBefore + 1} of {lessonCount}
-          </p>
-          <h1 className="article__title">{lesson.title}</h1>
-          <p className="article__chips">
-            {lesson.kindLabel ? <Chip tone="accent">{lesson.kindLabel}</Chip> : null}
-            <Chip>{lesson.minutes} min</Chip>
-          </p>
-          {isRetired(course) ? <RetiredNote /> : null}
-          {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
-          {lesson.blocks.map((b) => {
-            const view = (
-              <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
-            );
-            // Split layout: the first video sits beside the text and stays in view (≥1100px).
-            return b.id === splitVideoId ? (
-              <div key={b.id} className="article__media">
-                {view}
-              </div>
-            ) : (
-              view
-            );
-          })}
-          <div ref={endRef} aria-hidden="true" />
-          {waitingFor ? (
-            <p id="complete-hint" className="article__hint">
-              {waitingFor}
-            </p>
-          ) : null}
-          <footer className="article__footer">
-            {prev ? (
-              <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
-                <span aria-hidden="true">◂ </span>
-                Previous<span className="sr-only">:</span> {prev.title}
-              </Link>
+        <Page width={lesson.layout === 'split' ? 'wide' : 'reading'}>
+          <div className={`article article--${lesson.layout}`}>
+            <PageHeader
+              eyebrow={`${t.Chapter} ${chapterIndex + 1} · Lesson ${lessonsBefore + 1} of ${lessonCount}`}
+              title={lesson.title}
+              meta={
+                <>
+                  {lesson.kindLabel ? <Chip tone="accent">{lesson.kindLabel}</Chip> : null}
+                  <Chip>{lesson.minutes} min</Chip>
+                </>
+              }
+            />
+            {isRetired(course) ? <RetiredNote /> : null}
+            {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
+            {lesson.blocks.map((b) => {
+              const view = (
+                <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
+              );
+              // Split layout: the first video sits beside the text and stays in view (≥1100px).
+              return b.id === splitVideoId ? (
+                <div key={b.id} className="article__media">
+                  {view}
+                </div>
+              ) : (
+                view
+              );
+            })}
+            <div ref={endRef} aria-hidden="true" />
+            {waitingFor ? (
+              <p id="complete-hint" className="article__hint">
+                {waitingFor}
+              </p>
             ) : null}
-            <Button
-              disabled={!!waitingFor}
-              onClick={complete}
-              {...(waitingFor ? { title: waitingFor, 'aria-describedby': 'complete-hint' } : {})}
-            >
-              {done
-                ? next
-                  ? 'Next'
-                  : 'Back to the course'
-                : next
-                  ? 'Mark complete'
-                  : 'Finish course'}
-              {next ? ` · ${next.title}` : ''}
-            </Button>
-          </footer>
-        </main>
+            <footer className="article__footer">
+              {prev ? (
+                <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
+                  <ChevronLeftIcon />
+                  Previous<span className="sr-only">:</span> {prev.title}
+                </Link>
+              ) : null}
+              <Button
+                disabled={!!waitingFor}
+                onClick={complete}
+                {...(waitingFor ? { title: waitingFor, 'aria-describedby': 'complete-hint' } : {})}
+              >
+                {done
+                  ? next
+                    ? 'Next'
+                    : 'Back to the course'
+                  : next
+                    ? 'Mark complete'
+                    : 'Finish course'}
+                {next ? ` · ${next.title}` : ''}
+              </Button>
+            </footer>
+          </div>
+        </Page>
       </div>
     </>
   );
 }
 
-const STATE_GLYPH: Record<ItemState, string> = { done: '✓', current: '▶', locked: '🔒', todo: '○' };
+const STATE_ICON: Record<ItemState, ReactNode> = {
+  done: <CheckIcon />,
+  current: <PlayIcon />,
+  locked: <LockIcon />,
+  todo: null,
+};
 const STATE_WORD: Record<ItemState, string> = {
   done: 'Done',
   current: 'Up next',
@@ -316,7 +334,7 @@ function OutlineRail({
               aria-controls={listId}
               onClick={() => setToggled((was) => ({ ...was, [p.id]: !open }))}
             >
-              <span className="rail__kicker">
+              <span className="learn-label">
                 {t.Chapter} {n + 1}
               </span>
               <span>{p.title}</span>
@@ -327,7 +345,7 @@ function OutlineRail({
                 const inner = (
                   <>
                     <span aria-hidden="true" className={`rail__icon rail__icon--${st}`}>
-                      {STATE_GLYPH[st]}
+                      {STATE_ICON[st]}
                     </span>
                     {i.title}
                     <span className="sr-only"> ({STATE_WORD[st]})</span>

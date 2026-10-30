@@ -86,7 +86,16 @@ export function BlockView({
   switch (block.type) {
     case 'video': {
       if (onWatched) return <TrackedVideo block={block} onWatched={onWatched} />;
-      if (isPlaceholderVideo(block.url)) return <p>Video coming soon.</p>;
+      if (isPlaceholderVideo(block.url))
+        return (
+          <VideoBlock
+            src=""
+            title={block.title ?? 'Lesson video'}
+            href={block.url}
+            caption={block.caption}
+            placeholder="Video coming soon."
+          />
+        );
       const src = videoEmbedUrl(block.provider, block.url);
       return src ? (
         <VideoBlock

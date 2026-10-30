@@ -1,5 +1,17 @@
 import { itemsOf } from '@gurukul/schema';
-import { BarChart, Button, EmptyState, Select, StatCard, buttonClass } from '@gurukul/ui';
+import {
+  BarChart,
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  Page,
+  PageHeader,
+  Select,
+  StatCard,
+  buttonClass,
+} from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
@@ -68,36 +80,52 @@ export function OverviewPage() {
   }, [data, learner, now]);
   const result = useAsync(load);
 
+  const ready = result.state === 'ready' ? result.value : null;
+
   return (
-    <main className="page console">
-      <p className="article__kicker">{`${t.Admin} · ${t.Analytics}`}</p>
-      <h1 className="page__title">Overview</h1>
-      <div className="cert-actions">
-        <Link className={buttonClass('primary')} to="/admin/assign">
-          Assign courses
-        </Link>
-        <Link className={buttonClass('secondary')} to="/admin/learners">
-          {t.Learners}
-        </Link>
-        <Link className={buttonClass('secondary')} to="/admin/roles">
-          Roles & access
-        </Link>
-        <Link className={buttonClass('secondary')} to="/admin/audit">
-          Audit log
-        </Link>
-      </div>
+    <Page width="wide">
+      <PageHeader
+        eyebrow={`${t.Admin} · ${t.Analytics}`}
+        title="Overview"
+        lead="Figures are for the whole organisation; the filters narrow Needs attention."
+        actions={
+          <>
+            <Link className={buttonClass('ghost')} to="/admin/audit">
+              Audit log
+            </Link>
+            <Button
+              variant="secondary"
+              disabled={!ready || ready.assignments.length === 0}
+              onClick={() =>
+                ready &&
+                downloadCsv(
+                  'assignments.csv',
+                  assignmentsCsv(
+                    ready.assignments,
+                    new Map(ready.rows.map(({ course }) => [course.id, course.title])),
+                  ),
+                )
+              }
+            >
+              Export CSV
+            </Button>
+            <Link className={buttonClass('primary')} to="/admin/assign">
+              Assign courses
+            </Link>
+          </>
+        }
+      />
       <Loaded loadable={result}>
-        {({ org, assignments, open, overdue, rows, attention, teams }) => {
+        {({ org, open, overdue, rows, attention, teams }) => {
           const pending = new Set(open.filter((a) => a.uid === null).map((a) => a.email)).size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
-          const titles = new Map(rows.map(({ course }) => [course.id, course.title]));
           const done = pct(org.assignmentsCompleted, org.assignmentsTotal);
           const avgScore = pct(org.quizScoreSum, org.quizScoreCount);
           const firstTry = pct(org.quizFirstTryPassed, org.quizFirstTryTotal);
           return (
             <>
-              <div className="stats">
+              <div className="console-stats">
                 <StatCard
                   label={`Active ${t.learners} (30 days)`}
                   value={org.usersTotal > 0 ? String(org.activeLearners30d) : '—'}
@@ -136,35 +164,7 @@ export function OverviewPage() {
                 />
               </div>
 
-              <div className="filters">
-                <Select
-                  label="Date range"
-                  value={range}
-                  onChange={(e) => setRange(e.target.value as DateRange)}
-                >
-                  {DATE_RANGES.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.label}
-                    </option>
-                  ))}
-                </Select>
-                <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
-                  <option value="">All teams</option>
-                  {teams.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
-                <p className="attention__more">
-                  Narrows Needs attention below; the figures above are for the whole organisation.
-                </p>
-              </div>
-
-              <NeedsAttention input={attention} start={rangeStart(range, now)} team={team} />
-
-              <section aria-labelledby="weekly-title" className="home-section">
-                <h2 id="weekly-title">Lessons completed per week</h2>
+              <Card title="Lessons completed per week">
                 {quiet ? (
                   <EmptyState title="No activity yet">
                     Completed lessons will appear here week by week.
@@ -177,66 +177,103 @@ export function OverviewPage() {
                     labelHeader="Week"
                   />
                 )}
-              </section>
+              </Card>
 
-              <section aria-labelledby="funnel-title" className="home-section">
-                <h2 id="funnel-title">Courses</h2>
-                <Button
-                  variant="secondary"
-                  disabled={assignments.length === 0}
-                  onClick={() =>
-                    downloadCsv('assignments.csv', assignmentsCsv(assignments, titles))
-                  }
-                >
-                  Export CSV
-                </Button>
+              <NeedsAttention
+                input={attention}
+                start={rangeStart(range, now)}
+                team={team}
+                filters={
+                  <FilterBar label="Filter Needs attention">
+                    <Select
+                      label="Date range"
+                      hideLabel
+                      value={range}
+                      onChange={(e) => setRange(e.target.value as DateRange)}
+                    >
+                      {DATE_RANGES.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      label="Team"
+                      hideLabel
+                      value={team}
+                      onChange={(e) => setTeam(e.target.value)}
+                    >
+                      <option value="">Any team</option>
+                      {teams.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FilterBar>
+                }
+              />
+
+              <Card title="Courses">
                 {rows.length === 0 ? (
                   <EmptyState title="No courses yet">
                     Published courses appear here with their funnel.
                   </EmptyState>
                 ) : (
-                  <table className="plain-table">
-                    <caption className="sr-only">Course funnel</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Course</th>
-                        <th scope="col">Assigned</th>
-                        <th scope="col">Started</th>
-                        <th scope="col">Completed</th>
-                        <th scope="col">Average score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map(({ course, stats }) => {
-                        const avg =
+                  <DataTable
+                    caption="Course funnel"
+                    rows={rows}
+                    rowKey={(r) => r.course.id}
+                    columns={[
+                      {
+                        id: 'course',
+                        header: 'Course',
+                        rowHeader: true,
+                        cell: ({ course }) => (
+                          <span className="console-row__text">
+                            <Link to={`/admin/courses/${course.id}`}>{course.title}</Link>
+                            <span className="console-muted">{itemsOf(course).length} items</span>
+                          </span>
+                        ),
+                      },
+                      {
+                        id: 'assigned',
+                        header: 'Assigned',
+                        align: 'end',
+                        cell: (r) => r.stats.assigned,
+                      },
+                      {
+                        id: 'started',
+                        header: 'Started',
+                        align: 'end',
+                        cell: (r) => r.stats.started,
+                      },
+                      {
+                        id: 'completed',
+                        header: 'Completed',
+                        align: 'end',
+                        cell: ({ stats }) => {
+                          const completion = pct(stats.completed, stats.assigned);
+                          return `${stats.completed}${completion === null ? '' : ` (${completion}%)`}`;
+                        },
+                      },
+                      {
+                        id: 'score',
+                        header: 'Average score',
+                        align: 'end',
+                        cell: ({ stats }) =>
                           stats.scoreCount > 0
-                            ? Math.round((stats.scoreSum / stats.scoreCount) * 100)
-                            : null;
-                        const completion = pct(stats.completed, stats.assigned);
-                        return (
-                          <tr key={course.id}>
-                            <th scope="row">
-                              <Link to={`/admin/courses/${course.id}`}>{course.title}</Link>
-                              <span className="items__kind">{itemsOf(course).length} items</span>
-                            </th>
-                            <td>{stats.assigned}</td>
-                            <td>{stats.started}</td>
-                            <td>
-                              {stats.completed}
-                              {completion === null ? '' : ` (${completion}%)`}
-                            </td>
-                            <td>{avg === null ? '—' : `${avg}%`}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                            ? `${Math.round((stats.scoreSum / stats.scoreCount) * 100)}%`
+                            : '—',
+                      },
+                    ]}
+                  />
                 )}
-              </section>
+              </Card>
             </>
           );
         }}
       </Loaded>
-    </main>
+    </Page>
   );
 }

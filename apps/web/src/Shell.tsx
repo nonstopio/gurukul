@@ -1,12 +1,37 @@
-import { NavItem, Sidebar, SidebarGroup, Button } from '@gurukul/ui';
+import {
+  AppShell,
+  AwardIcon,
+  ChartIcon,
+  ChecklistIcon,
+  ClockIcon,
+  GridIcon,
+  HomeIcon,
+  ImageIcon,
+  LanguagesIcon,
+  LogOutIcon,
+  NavItem,
+  PenIcon,
+  SendIcon,
+  SettingsIcon,
+  ShieldIcon,
+  Sidebar,
+  SidebarGroup,
+  SparkIcon,
+  UserCard,
+  UserIcon,
+  UsersIcon,
+} from '@gurukul/ui';
+import type { AvatarTone } from '@gurukul/ui';
+import type { LabelSet, Role } from '@gurukul/schema';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
 import { PageLoading } from './learn/ui';
-import { LabelSwitch } from './labels/LabelChoice';
+import { useSaveLabels } from './labels/LabelChoice';
 import { terms } from './labels/terms';
 import type { Terms } from './labels/terms';
 import { useTerms } from './labels/useTerms';
@@ -106,93 +131,140 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   );
 }
 
+/** The sidebar icon for each page, by its navigation id. A page without one shows none. */
+const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
+  home: HomeIcon,
+  catalogue: GridIcon,
+  certificates: AwardIcon,
+  profile: UserIcon,
+  changelog: SparkIcon,
+  'admin-overview': ChartIcon,
+  'admin-learners': UsersIcon,
+  'admin-assign': SendIcon,
+  'admin-roles': ShieldIcon,
+  'admin-audit': ClockIcon,
+  'admin-settings': SettingsIcon,
+  'studio-courses': PenIcon,
+  'studio-bank': ChecklistIcon,
+  'studio-media': ImageIcon,
+};
+
+/** The sidebar icon for a page, by its navigation id; none for an id without one. */
+export function navIcon(id: string): ReactNode {
+  const Glyph = NAV_ICONS[id];
+  return Glyph ? <Glyph /> : undefined;
+}
+
+/** The highest role picks the avatar's colour. */
+export function topRole(roles: readonly Role[]): AvatarTone {
+  if (roles.includes('admin')) return 'admin';
+  return roles.includes('educator') ? 'educator' : 'learner';
+}
+
 /**
  * The sidebar layout: the sidebar (generated from the same navigation metadata as search, filtered
- * to the session's roles), the search trigger, and the routed page.
+ * to the session's roles) with the person's card and account menu pinned at its foot, the search
+ * bar, and the routed page inside the one `<main>`. `AppShell` keeps the sidebar on screen and
+ * turns it into a drawer on narrow screens.
  */
 export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
-  const { roles, signOut } = useSession();
+  const { roles, signOut, labels } = useSession();
   const user = useUser();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const saveLabels = useSaveLabels();
   const t = useTerms();
   const groups = useMemo(
     () => groupByArea(destinationsFor(areas, roles).map((d) => localizePage(d, t))),
     [areas, roles, t],
   );
-  // Below 560px the sidebar is a menu the button opens; it closes again when a page is picked.
-  const [menuOpen, setMenuOpen] = useState(false);
+  const here = pathname.replace(/\/+$/, '') || '/';
+  const tone = topRole(roles);
+  const nextLabels: LabelSet = labels === 'gurukul' ? 'generic' : 'gurukul';
 
   return (
-    <div className="app">
-      <Sidebar
-        id="app-sidebar"
-        className={menuOpen ? 'app__sidebar app__sidebar--open' : 'app__sidebar'}
-        label="Main"
-        brand={<span className="app__brand">Gurukul</span>}
-        footer={
-          <div className="app__user">
-            <span>{user.displayName ?? user.email}</span>
-            <LabelSwitch />
-            <Button variant="chrome" onClick={() => void signOut()}>
-              Sign out
-            </Button>
-          </div>
-        }
-      >
-        {groups.map(([name, pages]) => (
-          <SidebarGroup key={name} label={name}>
-            {pages.map((p) => (
-              <NavItem
-                key={p.id}
-                href={p.path}
-                current={(pathname.replace(/\/+$/, '') || '/') === p.path}
-                render={(props) => (
-                  <Link
-                    to={p.path}
-                    {...(props as Omit<LinkProps, 'to'>)}
-                    onClick={() => setMenuOpen(false)}
-                  />
-                )}
-              >
-                {p.label}
-              </NavItem>
-            ))}
-          </SidebarGroup>
-        ))}
-      </Sidebar>
-      <div className="app__content" id="content">
-        <div className="app__bar">
-          <Button
-            variant="secondary"
-            className="app__menu"
-            aria-expanded={menuOpen}
-            aria-controls="app-sidebar"
-            onClick={() => setMenuOpen((o) => !o)}
-          >
-            Menu
-          </Button>
-          <SearchTrigger />
-        </div>
+    <AppShell
+      navKey={pathname}
+      bar={<SearchTrigger />}
+      sidebar={
+        <Sidebar
+          label="Main"
+          brand={
+            <>
+              <img src="/nonstop-logo.png" alt="NonStop io" height="26" className="app__logo" />
+              <span className="app__brand">Gurukul</span>
+            </>
+          }
+          footer={
+            <UserCard
+              name={user.displayName ?? String(user.email)}
+              detail={String(user.email)}
+              tone={tone}
+              items={[
+                { label: 'Profile', icon: <UserIcon />, onSelect: () => void navigate('/profile') },
+                {
+                  label: nextLabels === 'gurukul' ? 'Use Gurukul names' : 'Use plain English names',
+                  icon: <LanguagesIcon />,
+                  onSelect: () => void saveLabels(nextLabels),
+                },
+                {
+                  label: "What's new",
+                  icon: <SparkIcon />,
+                  onSelect: () => void navigate('/changelog'),
+                },
+                { separator: true },
+                {
+                  label: 'Sign out',
+                  icon: <LogOutIcon />,
+                  danger: true,
+                  onSelect: () => void signOut(),
+                },
+              ]}
+            />
+          }
+        >
+          {groups.map(([name, pages]) => (
+            <SidebarGroup key={name} label={name}>
+              {pages.map((p) => {
+                return (
+                  <NavItem
+                    key={p.id}
+                    href={p.path}
+                    current={here === p.path}
+                    icon={navIcon(p.id)}
+                    render={(props) => <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />}
+                  >
+                    {p.label}
+                  </NavItem>
+                );
+              })}
+            </SidebarGroup>
+          ))}
+        </Sidebar>
+      }
+    >
+      <main id="content" className="app__main">
         <OfflineBanner />
         <Suspense fallback={<PageLoading />}>
           <Outlet />
         </Suspense>
-      </div>
-    </div>
+      </main>
+    </AppShell>
   );
 }
 
 /**
- * The focused layout for the lesson, Quiz and result: no sidebar, so the page's own dark
- * `TopBar` (back link, course title, progress) is the only chrome. Search stays on Ctrl K / ⌘K.
+ * The focused layout for the lesson, Quiz, result and Studio editors: no sidebar, so the page's
+ * own sticky dark `TopBar` (back link, title, progress or save state) is the only chrome. Search
+ * stays on Ctrl K / ⌘K.
  */
 export function FocusedShell() {
   return (
-    <div className="focused" id="content">
+    <main className="focused" id="content">
       <OfflineBanner />
       <Suspense fallback={<PageLoading />}>
         <Outlet />
       </Suspense>
-    </div>
+    </main>
   );
 }

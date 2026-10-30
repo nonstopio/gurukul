@@ -16,6 +16,8 @@ export interface DataTableColumn<T> {
   cell: (row: T) => ReactNode;
   /** `end` right-aligns numbers. Default: `start`. */
   align?: 'start' | 'end';
+  /** Draws this column's cells as row headers (`<th scope="row">`), usually the first column. */
+  rowHeader?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -82,7 +84,7 @@ export function DataTable<T>({
     if (e.key === 'Enter' && e.target === e.currentTarget) onRowClick?.(row);
   };
 
-  const style = maxHeight ? ({ '--g-table-max-height': maxHeight } as CSSProperties) : undefined;
+  const style = maxHeight ? ({ '--table-max-height': maxHeight } as CSSProperties) : undefined;
 
   return (
     <div className="g-table">
@@ -138,11 +140,18 @@ export function DataTable<T>({
                       />
                     </td>
                   ) : null}
-                  {columns.map((c) => (
-                    <td key={c.id} className={cx(c.align === 'end' && 'g-table__end')}>
-                      {c.cell(row)}
-                    </td>
-                  ))}
+                  {columns.map((c) => {
+                    const Cell = c.rowHeader ? 'th' : 'td';
+                    return (
+                      <Cell
+                        key={c.id}
+                        scope={c.rowHeader ? 'row' : undefined}
+                        className={cx(c.align === 'end' && 'g-table__end')}
+                      >
+                        {c.cell(row)}
+                      </Cell>
+                    );
+                  })}
                 </tr>
               );
             })}

@@ -1,4 +1,4 @@
-import { Callout, StatCard, buttonClass } from '@gurukul/ui';
+import { Callout, Card, DataTable, EmptyState, Skeleton, StatCard, buttonClass } from '@gurukul/ui';
 import { useCallback } from 'react';
 import { Link } from 'react-router';
 import { useConsole } from '../console/ConsoleProvider';
@@ -49,49 +49,53 @@ export function AnalyticsTab({
         </Callout>
       )}
       {result.state === 'loading' ? (
-        <p role="status">Loading the numbers…</p>
+        <Loading label="Loading the numbers…" />
       ) : result.state === 'error' ? (
         <Callout tone="warning" title="The numbers are not available" role="alert">
           <p>You may not have access to them, or the connection dropped. Try again later.</p>
         </Callout>
       ) : (
-        <div className="stats">
+        <div className="sc-stats">
           <StatCard label="Assigned" value={String(result.value.assigned)} />
           <StatCard label="Started" value={String(result.value.started)} />
           <StatCard label="Completed" value={String(result.value.completed)} />
           <StatCard label="Certified" value={String(result.value.certified)} />
         </div>
       )}
-      <h3 className="sc-h3">{t.Learners}</h3>
-      {learners.state === 'loading' ? (
-        <p role="status">{`Loading the ${t.learners}…`}</p>
-      ) : learners.state === 'error' ? (
-        <Callout tone="warning" title={`The ${t.learners} are not available`} role="alert">
-          <p>You may not have access to them, or the connection dropped. Try again later.</p>
-        </Callout>
-      ) : learners.value.length === 0 ? (
-        <p>No one has started this course yet.</p>
-      ) : (
-        <table className="plain-table">
-          <caption className="sr-only">People who started this course</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t.Learner}</th>
-              <th scope="col">Progress</th>
-              <th scope="col">Last active</th>
-            </tr>
-          </thead>
-          <tbody>
-            {learners.value.map((l) => (
-              <tr key={l.uid}>
-                <th scope="row">{l.displayName === '' ? 'Name not recorded' : l.displayName}</th>
-                <td>{l.percent}%</td>
-                <td>{l.lastActiveAt === null ? '—' : l.lastActiveAt.toISOString().slice(0, 10)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <Card title={t.Learners} titleAs="h3">
+        {learners.state === 'loading' ? (
+          <Loading label={`Loading the ${t.learners}…`} />
+        ) : learners.state === 'error' ? (
+          <Callout tone="warning" title={`The ${t.learners} are not available`} role="alert">
+            <p>You may not have access to them, or the connection dropped. Try again later.</p>
+          </Callout>
+        ) : learners.value.length === 0 ? (
+          <EmptyState title="No one has started this course yet" headingAs="h4">
+            {`${t.Learners} appear here once they open the course.`}
+          </EmptyState>
+        ) : (
+          <DataTable
+            caption="People who started this course"
+            rows={learners.value}
+            rowKey={(l) => l.uid}
+            columns={[
+              {
+                id: 'name',
+                header: t.Learner,
+                rowHeader: true,
+                cell: (l) => (l.displayName === '' ? 'Name not recorded' : l.displayName),
+              },
+              { id: 'progress', header: 'Progress', align: 'end', cell: (l) => `${l.percent}%` },
+              {
+                id: 'active',
+                header: 'Last active',
+                cell: (l) =>
+                  l.lastActiveAt === null ? '—' : l.lastActiveAt.toISOString().slice(0, 10),
+              },
+            ]}
+          />
+        )}
+      </Card>
       {admin ? (
         <p>
           <Link className={buttonClass('secondary')} to={`/admin/courses/${courseId}`}>
@@ -100,5 +104,15 @@ export function AnalyticsTab({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/** A region still loading: skeletons in its shape, the words for screen readers. */
+function Loading({ label }: { label: string }) {
+  return (
+    <div role="status" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      <Skeleton shape="block" height={72} />
+    </div>
   );
 }

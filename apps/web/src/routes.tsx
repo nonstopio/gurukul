@@ -44,6 +44,7 @@ const QuizBuilderPage = lazyPage(() => import('./studio/QuizBuilderPage'), 'Quiz
 const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage');
 const QuestionBankPage = lazyPage(() => import('./studio/QuestionBankPage'), 'QuestionBankPage');
 const StudioCoursesPage = lazyPage(() => import('./studio/StudioCoursesPage'), 'StudioCoursesPage');
+const ProfilePage = lazyPage(() => import('./ProfilePage'), 'ProfilePage');
 const LessonPage = lazyPage(() => import('./LessonPage'), 'LessonPage');
 const QuizPage = lazyPage(() => import('./quiz/QuizPage'), 'QuizPage');
 const ResultPage = lazyPage(() => import('./quiz/ResultPage'), 'ResultPage');
@@ -58,6 +59,7 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/': <HomePage />,
   '/changelog': <ChangelogPage />,
   '/courses': <CoursesPage />,
+  '/profile': <ProfilePage />,
   '/courses/:courseId': <CoursePage />,
   '/courses/:courseId/learn/:itemId': <LessonPage />,
   '/courses/:courseId/quiz/:quizId': <QuizPage />,
@@ -141,32 +143,19 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
 /** Pages anyone can open, signed in or not: certificate verification, which employers use. */
 const PUBLIC: readonly RoutePath[] = ['/verify/:id'];
 
-/** Pages that leave the sidebar for the focused layout: the page's own top bar is the chrome. */
+/**
+ * Pages that leave the sidebar for the focused layout: the page's own sticky top bar (back link,
+ * title, progress or save state) is the chrome. The player, the Quiz, and every Studio editor.
+ */
 export const FOCUSED: readonly RoutePath[] = [
   '/courses/:courseId/learn/:itemId',
   '/courses/:courseId/quiz/:quizId',
   '/courses/:courseId/quiz/:quizId/result',
+  '/studio/courses/:courseId',
+  '/studio/courses/:courseId/lessons/:lessonId',
+  '/studio/courses/:courseId/quiz/:quizId',
+  '/studio/courses/:courseId/preview/:itemId',
 ];
-
-/**
- * Pages that exist only in development builds. `/__ui` is the component gallery; it is not in
- * `ROUTE_PATHS` or any area's navigation, so search never offers it. The `import.meta.env.DEV`
- * check is replaced at build time, which drops the branch and the gallery's chunk from production.
- */
-function devRoutes(): RouteObject[] {
-  if (!import.meta.env.DEV) return [];
-  const UiGalleryPage = lazyPage(() => import('./ui-gallery/UiGalleryPage'), 'UiGalleryPage');
-  return [
-    {
-      path: '/__ui',
-      element: (
-        <Suspense fallback={<PageLoading />}>
-          <UiGalleryPage />
-        </Suspense>
-      ),
-    },
-  ];
-}
 
 /**
  * The data-router route objects: public pages, then everything behind sign-in inside the frame —
@@ -181,7 +170,6 @@ export function appRoutes(): RouteObject[] {
     element: <Suspense fallback={<PageLoading />}>{element}</Suspense>,
   });
   return [
-    ...devRoutes(),
     ...entries.filter(([path]) => PUBLIC.includes(path)).map(publicRoute),
     {
       element: <RequireSession />,

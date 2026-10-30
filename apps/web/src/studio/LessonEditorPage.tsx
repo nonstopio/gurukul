@@ -2,6 +2,7 @@ import { validateForPublish } from '@gurukul/schema';
 import type { Block, BlockType, Lesson } from '@gurukul/schema';
 import {
   BlockFrame,
+  Card,
   DragList,
   EmptyState,
   Input,
@@ -32,7 +33,7 @@ import {
 } from './lessonEdit';
 import { newId } from './ids';
 import { patch } from './patch';
-import { itemEditorPath } from './studioModel';
+import { itemEditorPath, nameOf } from './studioModel';
 import type { Terms } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import type { Working } from './types';
@@ -50,13 +51,9 @@ export function LessonEditorPage() {
   const { courseId = '', lessonId = '' } = useParams();
   const draft = useDraft(courseId);
   return (
-    <main className="page studio-editor">
-      <DraftGate draft={draft}>
-        {(work) => (
-          <LessonEditor draft={draft} work={work} courseId={courseId} lessonId={lessonId} />
-        )}
-      </DraftGate>
-    </main>
+    <DraftGate draft={draft} title="Lesson editor">
+      {(work) => <LessonEditor draft={draft} work={work} courseId={courseId} lessonId={lessonId} />}
+    </DraftGate>
   );
 }
 
@@ -120,10 +117,13 @@ function LessonEditor({
     },
     { label: lesson?.title || 'Lesson' },
   ];
+  const back = {
+    to: `/studio/courses/${courseId}`,
+    label: nameOf(work.course.title, 'Untitled course'),
+  };
   if (!lesson) {
     return (
-      <>
-        <EditorBar crumbs={crumbs} draft={draft} />
+      <EditorBar title="Lesson not found" back={back} crumbs={crumbs} draft={draft}>
         <EmptyState
           headingAs="h2"
           title="This lesson does not exist"
@@ -135,7 +135,7 @@ function LessonEditor({
         >
           It may have been deleted or moved.
         </EmptyState>
-      </>
+      </EditorBar>
     );
   }
 
@@ -167,6 +167,8 @@ function LessonEditor({
   return (
     <>
       <EditorBar
+        title={lesson.title || 'Untitled lesson'}
+        back={back}
         crumbs={crumbs}
         draft={draft}
         actions={
@@ -174,118 +176,112 @@ function LessonEditor({
             {`Preview as ${terms.learner}`}
           </PreviewLink>
         }
-      />
-      <div className="studio-cols">
-        <nav className="studio-rail" aria-label="Lessons in this course">
-          <h2 className="studio-micro">{`Lessons and ${terms.Quizzes}`}</h2>
-          <ul>
-            {work.course.chapters
-              .flatMap((p) => p.items)
-              .map((i) => (
-                <li key={i.id}>
-                  <Link
-                    to={itemEditorPath(courseId, i)}
-                    aria-current={i.id === lessonId ? 'page' : undefined}
+      >
+        <div className="studio-cols">
+          <Card className="studio-rail" title={`Lessons and ${terms.Quizzes}`}>
+            <nav aria-label="Lessons in this course">
+              <ul>
+                {work.course.chapters
+                  .flatMap((p) => p.items)
+                  .map((i) => (
+                    <li key={i.id}>
+                      <Link
+                        to={itemEditorPath(courseId, i)}
+                        aria-current={i.id === lessonId ? 'page' : undefined}
+                      >
+                        {i.title ||
+                          (i.type === 'lesson' ? 'Untitled lesson' : `Untitled ${terms.Quiz}`)}
+                        {i.type === 'quiz' ? (
+                          <span className="studio-rail__kind">{` ${terms.Quiz}`}</span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </nav>
+          </Card>
+
+          <section className="studio-canvas" aria-label="Lesson content">
+            <Input
+              label="Lesson title"
+              value={lesson.title}
+              error={titleIssue?.message}
+              onChange={(e) => edit((l) => ({ ...l, title: e.target.value }))}
+            />
+            <DragList
+              className="studio-blocks"
+              label="Blocks"
+              items={lesson.blocks}
+              itemKey={(b) => b.id}
+              itemLabel={(b) => `${BLOCK_LABELS[b.type]} block`}
+              onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
+              renderItem={(block, { handle }) => (
+                <div data-block-id={block.id}>
+                  <BlockFrame
+                    label={BLOCK_LABELS[block.type]}
+                    handle={handle}
+                    selected={selected === block.id}
+                    error={messages(block.id)}
+                    onDuplicate={() => duplicate(block.id)}
+                    onDelete={() => remove(block)}
                   >
-                    {i.title ||
-                      (i.type === 'lesson' ? 'Untitled lesson' : `Untitled ${terms.Quiz}`)}
-                    {i.type === 'quiz' ? (
-                      <span className="studio-rail__kind">{` ${terms.Quiz}`}</span>
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-          </ul>
-        </nav>
+                    <BlockEditor
+                      block={block}
+                      onChange={(next) => edit((l) => replaceBlock(l, next))}
+                    />
+                  </BlockFrame>
+                </div>
+              )}
+            />
+            {lesson.blocks.length === 0 ? (
+              <EmptyState title="This lesson is empty" headingAs="h2">
+                Add a block below to start writing it.
+              </EmptyState>
+            ) : null}
+            <BlockPalette onAdd={add} />
+          </section>
 
-        <section className="studio-canvas" aria-label="Lesson content">
-          <label className="studio-micro" htmlFor="lesson-title">
-            Lesson title
-          </label>
-          <input
-            id="lesson-title"
-            className="studio-title"
-            value={lesson.title}
-            aria-invalid={titleIssue ? true : undefined}
-            onChange={(e) => edit((l) => ({ ...l, title: e.target.value }))}
-          />
-          {titleIssue ? (
-            <p className="studio-error" role="alert">
-              {titleIssue.message}
-            </p>
-          ) : null}
-          <DragList
-            className="studio-blocks"
-            label="Blocks"
-            items={lesson.blocks}
-            itemKey={(b) => b.id}
-            itemLabel={(b) => `${BLOCK_LABELS[b.type]} block`}
-            onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
-            renderItem={(block, { handle }) => (
-              <div data-block-id={block.id}>
-                <BlockFrame
-                  label={BLOCK_LABELS[block.type]}
-                  handle={handle}
-                  selected={selected === block.id}
-                  error={messages(block.id)}
-                  onDuplicate={() => duplicate(block.id)}
-                  onDelete={() => remove(block)}
-                >
-                  <BlockEditor
-                    block={block}
-                    onChange={(next) => edit((l) => replaceBlock(l, next))}
-                  />
-                </BlockFrame>
-              </div>
-            )}
-          />
-          {lesson.blocks.length === 0 ? (
-            <p className="studio-muted">
-              <strong>This lesson is empty.</strong> Add a block below to start writing it.
-            </p>
-          ) : null}
-          <BlockPalette onAdd={add} />
-        </section>
-
-        <aside className="studio-settings" aria-label="Lesson settings">
-          <h2 className="studio-micro">Layout</h2>
-          <LayoutPicker
-            label="Layout"
-            value={lesson.layout}
-            onChange={(layout) => edit((l) => ({ ...l, layout }))}
-          />
-          <Input
-            label="Estimated minutes"
-            type="number"
-            min={0}
-            max={600}
-            value={lesson.minutes}
-            onChange={(e) => edit((l) => ({ ...l, minutes: parseMinutes(e.target.value) }))}
-          />
-          <Select
-            label="Completion rule"
-            value={lesson.completeWhen}
-            onChange={(e) =>
-              edit((l) => ({ ...l, completeWhen: e.target.value as Lesson['completeWhen'] }))
-            }
-          >
-            {completion(terms).map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </Select>
-          <Input
-            label="Type label"
-            hint="Shown beside the lesson, for example Reading or Hands-on."
-            value={lesson.kindLabel ?? ''}
-            onChange={(e) => edit((l) => patch(l, { kindLabel: e.target.value || undefined }))}
-          />
-          <p className="studio-muted">
-            Every block is plain JSON, so a lesson can be reviewed and restored like code.
-          </p>
-        </aside>
-      </div>
+          <aside className="studio-settings" aria-label="Lesson settings">
+            <Card className="sc-panel" title="Layout">
+              <LayoutPicker
+                label="Layout"
+                value={lesson.layout}
+                onChange={(layout) => edit((l) => ({ ...l, layout }))}
+              />
+              <Input
+                label="Estimated minutes"
+                type="number"
+                min={0}
+                max={600}
+                value={lesson.minutes}
+                onChange={(e) => edit((l) => ({ ...l, minutes: parseMinutes(e.target.value) }))}
+              />
+              <Select
+                label="Completion rule"
+                value={lesson.completeWhen}
+                onChange={(e) =>
+                  edit((l) => ({ ...l, completeWhen: e.target.value as Lesson['completeWhen'] }))
+                }
+              >
+                {completion(terms).map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                label="Type label"
+                hint="Shown beside the lesson, for example Reading or Hands-on."
+                value={lesson.kindLabel ?? ''}
+                onChange={(e) => edit((l) => patch(l, { kindLabel: e.target.value || undefined }))}
+              />
+              <p className="sc-help">
+                Every block is plain JSON, so a lesson can be reviewed and restored like code.
+              </p>
+            </Card>
+          </aside>
+        </div>
+      </EditorBar>
       {pendingDelete ? (
         <ConfirmDialog
           title={`Delete this ${BLOCK_LABELS[pendingDelete.type].toLowerCase()} block?`}

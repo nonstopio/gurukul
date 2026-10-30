@@ -82,6 +82,12 @@ test.describe('Admin', () => {
     await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
 
+    // The Design system tab reads the real tokens.css in the built app.
+    await page.getByRole('tab', { name: 'Design system' }).click();
+    await expect(page).toHaveURL(/tab=design-system/);
+    await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
+    await expectNoSeriousViolations(page);
+
     // Meera has no team yet, so Home now asks her to pick one from the saved list.
     await page.goto('/');
     const prompt = page.getByRole('heading', { name: 'Which team are you in?' });

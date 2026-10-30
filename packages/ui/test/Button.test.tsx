@@ -36,6 +36,44 @@ describe('Button', () => {
   });
 });
 
+describe('Button loading', () => {
+  it('disables, marks busy, keeps the label and swaps the icon for a spinner', () => {
+    const { container } = render(
+      <Button loading icon={<svg data-testid="icon" />}>
+        Save settings
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Save settings' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(screen.queryByTestId('icon')).toBeNull();
+    expect(container.querySelector('.g-btn__spinner')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('is not busy by default and honours disabled on its own', () => {
+    render(<Button disabled>Save</Button>);
+    const button = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.hasAttribute('aria-busy')).toBe(false);
+  });
+});
+
+describe('Button size and variants', () => {
+  it('sm adds the dense class', () => {
+    render(
+      <Button size="sm" variant="danger">
+        Remove
+      </Button>,
+    );
+    expect(screen.getByRole('button').className).toBe('g-btn g-btn--danger g-btn--sm');
+  });
+
+  it('chrome-secondary is a class of its own', () => {
+    render(<Button variant="chrome-secondary">Preview</Button>);
+    expect(screen.getByRole('button').className).toBe('g-btn g-btn--chrome-secondary');
+  });
+});
+
 describe('buttonClass', () => {
   it('defaults to primary with no extra class', () => {
     expect(buttonClass()).toBe('g-btn g-btn--primary');
@@ -43,6 +81,10 @@ describe('buttonClass', () => {
 
   it('lets links borrow the button look', () => {
     expect(buttonClass('chrome', 'full')).toBe('g-btn g-btn--chrome full');
+  });
+
+  it('takes an optional size', () => {
+    expect(buttonClass('secondary', undefined, 'sm')).toBe('g-btn g-btn--secondary g-btn--sm');
   });
 });
 
@@ -57,6 +99,14 @@ describe('Button accessibility', () => {
         </Button>
         <Button variant="chrome" disabled>
           Chrome
+        </Button>
+        <Button variant="danger">Delete course</Button>
+        <Button variant="chrome-secondary">Preview</Button>
+        <Button size="sm" variant="secondary">
+          Small
+        </Button>
+        <Button loading icon={<svg />}>
+          Saving
         </Button>
       </>,
     );

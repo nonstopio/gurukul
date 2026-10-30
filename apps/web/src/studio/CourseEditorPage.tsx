@@ -3,16 +3,17 @@ import {
   Callout,
   Chip,
   EmptyState,
-  Skeleton,
+  Page,
+  PageSkeleton,
   Tabs,
   TopBar,
   buttonClass,
-  topBarBackClass,
   useToast,
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import { itemsOf } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
+import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
@@ -24,10 +25,11 @@ import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { AnalyticsTab } from './AnalyticsTab';
 import { DetailsPanel } from './DetailsPanel';
+import { StudioBack } from './DraftGate';
 import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
-import { educatorSummary, canEdit } from './studioModel';
+import { educatorSummary, canEdit, nameOf } from './studioModel';
 import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import { useSaveLabel } from './saveLabel';
 import { useDraft } from './useDraft';
@@ -35,11 +37,23 @@ import { VersionsTab } from './VersionsTab';
 
 type TabId = 'structure' | 'landing' | 'certificate' | 'analytics' | 'versions';
 
-function Back() {
+/** A course editor state that is not the editor itself: the top bar with its title, then a page. */
+function Frame({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Link className={topBarBackClass} to="/studio">
-      {useTerms().Studio}
-    </Link>
+    <>
+      <TopBar title={title} back={<StudioBack />} />
+      <Page width="reading">{children}</Page>
+    </>
+  );
+}
+
+function BackToStudio() {
+  return (
+    <p>
+      <Link className={buttonClass('secondary')} to="/studio">
+        {`Back to ${useTerms().Studio}`}
+      </Link>
+    </p>
   );
 }
 
@@ -51,54 +65,51 @@ export function CourseEditorPage() {
   const admin = useSession().roles.includes('admin');
   const t = useTerms();
   const result = useAsync(useCallback(() => learner.getCourse(courseId), [learner, courseId]));
-
-  return (
-    <Loaded loadable={result}>
-      {(live) => {
-        if (!live) {
-          return (
-            <main className="page">
-              <EmptyState
-                title="This course does not exist"
-                headingAs="h2"
-                action={
-                  <Link className={buttonClass('secondary')} to="/studio">
-                    {`Back to ${t.Studio}`}
-                  </Link>
-                }
-              >
-                It may have been removed, or the address is wrong.
-              </EmptyState>
-            </main>
-          );
-        }
-        if (!canEdit(live, uid, admin)) {
-          const educators = educatorSummary(live, t);
-          return (
-            <main className="page">
-              <h1 className="page__title">{live.title}</h1>
-              <Callout tone="note" title="View only">
-                <p>
-                  {`You are not one of this course's ${t.Educators}, so you can read it but not change it. Ask ${article(t.Admin)} for edit access.`}
-                </p>
-                {educators ? (
-                  <p>
-                    {educators.label}: {educators.names}.
-                  </p>
-                ) : null}
-              </Callout>
-              <p>
-                <Link className={buttonClass('secondary')} to="/studio">
-                  {`Back to ${t.Studio}`}
-                </Link>
-              </p>
-            </main>
-          );
-        }
-        return <Editor key={live.id} initial={live} admin={admin} />;
-      }}
-    </Loaded>
+  const body = (
+    <Loaded loadable={result}>{(live) => <Gate live={live} uid={uid} admin={admin} />}</Loaded>
   );
+  // Until the course arrives the page has no title of its own, so the bar names the area.
+  return result.state === 'ready' ? body : <Frame title={t.Studio}>{body}</Frame>;
+}
+
+function Gate({ live, uid, admin }: { live: Course | null; uid: string; admin: boolean }) {
+  const t = useTerms();
+  if (!live) {
+    return (
+      <Frame title="Course not found">
+        <EmptyState
+          title="This course does not exist"
+          headingAs="h2"
+          action={
+            <Link className={buttonClass('secondary')} to="/studio">
+              {`Back to ${t.Studio}`}
+            </Link>
+          }
+        >
+          It may have been removed, or the address is wrong.
+        </EmptyState>
+      </Frame>
+    );
+  }
+  if (!canEdit(live, uid, admin)) {
+    const educators = educatorSummary(live, t);
+    return (
+      <Frame title={live.title}>
+        <Callout tone="note" title="View only">
+          <p>
+            {`You are not one of this course's ${t.Educators}, so you can read it but not change it. Ask ${article(t.Admin)} for edit access.`}
+          </p>
+          {educators ? (
+            <p>
+              {educators.label}: {educators.names}.
+            </p>
+          ) : null}
+        </Callout>
+        <BackToStudio />
+      </Frame>
+    );
+  }
+  return <Editor key={live.id} initial={live} admin={admin} />;
 }
 
 function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
@@ -120,21 +131,18 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
     setLive(fresh ?? { ...live, ...fallback });
   };
 
+  const name = nameOf(live.title, 'Untitled course');
   if (draft.status === 'loading') {
     return (
-      <main className="page" aria-busy="true">
-        <p role="status" className="sr-only">
-          Loading the draft
-        </p>
-        <Skeleton shape="block" height={72} className="loading-row" />
-        <Skeleton shape="block" height={72} className="loading-row" />
-      </main>
+      <>
+        <TopBar title={name} back={<StudioBack />} />
+        <PageSkeleton width="wide" label="Loading the draft" />
+      </>
     );
   }
   if (draft.status === 'error' || draft.status === 'missing' || !draft.work) {
     return (
-      <main className="page">
-        <h1 className="page__title">{live.title}</h1>
+      <Frame title={name}>
         {draft.status === 'missing' ? (
           <EmptyState title="There is no draft for this course" headingAs="h2">
             {`The draft is created with the course. Ask ${article(t.Admin)} to check it.`}
@@ -147,12 +155,8 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
             </Button>
           </Callout>
         )}
-        <p>
-          <Link className={buttonClass('secondary')} to="/studio">
-            {`Back to ${t.Studio}`}
-          </Link>
-        </p>
-      </main>
+        <BackToStudio />
+      </Frame>
     );
   }
 
@@ -170,7 +174,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
     draft.save === 'error' ? (
       <span role="status">
         Couldn&apos;t save —{' '}
-        <Button variant="ghost" onClick={() => void draft.saveNow()}>
+        <Button variant="chrome-secondary" size="sm" onClick={() => void draft.saveNow()}>
           retry
         </Button>
       </span>
@@ -184,9 +188,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
       label: 'Structure',
       panel: (
         <div className="sc-editor">
-          <div className="sc-editor__main">
-            <StructureTab course={course} live={published ? live : null} update={update} />
-          </div>
+          <StructureTab course={course} live={published ? live : null} update={update} />
           <DetailsPanel course={course} educators={live} update={update} />
         </div>
       ),
@@ -231,26 +233,30 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
     <>
       <TopBar
         title={course.title || 'Untitled course'}
-        back={<Back />}
+        back={<StudioBack />}
         status={
-          <>
+          <div className="sc-status">
             <Chip tone={published ? 'accent' : 'neutral'}>
               {published ? `Live: v${live.version}` : 'Not published'}
             </Chip>
             {status}
-          </>
+          </div>
         }
         actions={
           <>
             {first ? (
               <Link
-                className={buttonClass('secondary')}
+                className={buttonClass('chrome-secondary')}
                 to={`/studio/courses/${courseId}/preview/${first.id}`}
               >
                 {`Preview as ${t.learner}`}
               </Link>
             ) : (
-              <Button variant="secondary" disabled title="Add a lesson to preview the course">
+              <Button
+                variant="chrome-secondary"
+                disabled
+                title="Add a lesson to preview the course"
+              >
                 {`Preview as ${t.learner}`}
               </Button>
             )}
@@ -261,7 +267,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
         }
       />
       <LeaveGuard draft={draft} />
-      <main className="page studio-page">
+      <Page width="wide">
         <RestoreNotice draft={draft} />
         {draft.save === 'conflict' ? (
           <Callout tone="warning" title="Someone else saved this draft" role="alert">
@@ -277,7 +283,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
           value={tab}
           onValueChange={(id) => setTab(id as TabId)}
         />
-      </main>
+      </Page>
       {publishing ? (
         <PublishDialog
           work={work}

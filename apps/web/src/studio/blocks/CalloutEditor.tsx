@@ -1,6 +1,5 @@
-import { Input, Textarea } from '@gurukul/ui';
+import { Input, SegmentedControl, Textarea } from '@gurukul/ui';
 import { patch } from '../patch';
-import { Segmented } from './Segmented';
 import type { BlockEditorProps } from './types';
 
 const TONES = [
@@ -13,7 +12,7 @@ const TONES = [
 export function CalloutEditor({ block, onChange }: BlockEditorProps<'callout'>) {
   return (
     <div className="studio-fields">
-      <Segmented
+      <SegmentedControl
         label="Tone"
         value={block.tone}
         options={TONES}

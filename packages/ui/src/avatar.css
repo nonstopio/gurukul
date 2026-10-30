@@ -1,0 +1,32 @@
+.g-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--avatar-learner);
+  color: var(--avatar-on);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+  user-select: none;
+}
+.g-avatar--educator {
+  background: var(--avatar-educator);
+}
+.g-avatar--admin {
+  background: var(--avatar-admin);
+}
+.g-avatar--24 {
+  width: 24px;
+  height: 24px;
+  font-size: var(--text-xs);
+}
+.g-avatar--34 {
+  width: 34px;
+  height: 34px;
+}
+.g-avatar--48 {
+  width: 48px;
+  height: 48px;
+  font-size: var(--text-lg);
+}

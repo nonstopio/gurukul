@@ -2,9 +2,13 @@ import { classifyEmails, parseCsvEmails, summarize } from '@gurukul/schema';
 import type { ClassifiedEmail, Reminder } from '@gurukul/schema';
 import {
   Button,
+  Card,
   EmailChipInput,
   Input,
+  Page,
+  PageHeader,
   Select,
+  StatCard,
   Stepper,
   Tabs,
   Toggle,
@@ -154,181 +158,25 @@ export function AssignPage() {
     }
   };
 
+  const ready = result.state === 'ready' ? result.value : null;
+  const courses = ready?.courses ?? [];
+
   return (
-    <main className="page console">
-      <p className="article__kicker">{t.Admin}</p>
-      <h1 className="page__title">Assign courses</h1>
-      <Loaded loadable={result}>
-        {({ courses, teams }) => (
-          <div className="assign">
-            <div className="assign__steps">
-              <Stepper.Step number={1} title="Courses">
-                <ul className="course-grid">
-                  {courses.map((c) => (
-                    <li key={c.id}>
-                      <label className="choice course-choice">
-                        <input
-                          type="checkbox"
-                          checked={courseIds.includes(c.id)}
-                          onChange={(e) =>
-                            setCourseIds(
-                              e.target.checked
-                                ? [...courseIds, c.id]
-                                : courseIds.filter((id) => id !== c.id),
-                            )
-                          }
-                        />{' '}
-                        <strong>{c.title}</strong>
-                        <span className="items__kind">
-                          {lessonLabel(countItems(c).lessons)} · {c.estimatedMinutes} min
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </Stepper.Step>
-
-              <Stepper.Step number={2} title="People">
-                <EmailChipInput
-                  label="Email addresses"
-                  value={emails}
-                  onChange={setEmails}
-                  classify={classify}
-                />
-                <p className="items__kind">
-                  Chips show whether each person has signed in, is new (a pending invite), already
-                  has the course, or cannot be assigned.
-                </p>
-                <Tabs
-                  label="Add people"
-                  tabs={[
-                    {
-                      id: 'search',
-                      label: 'Search people',
-                      panel: (
-                        <>
-                          <Input
-                            label="Search by name or email"
-                            value={people.query}
-                            onChange={(e) => void people.search(e.target.value)}
-                          />
-                          <ul className="course-list" aria-label="People found">
-                            {people.found.map((u) => (
-                              <li key={u.uid}>
-                                <Button variant="secondary" onClick={() => add([u.email])}>
-                                  Add {u.displayName || u.email}
-                                </Button>
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      ),
-                    },
-                    {
-                      id: 'paste',
-                      label: 'Paste emails',
-                      panel: (
-                        <p>
-                          Paste a list into the box above: commas, spaces or new lines all work.
-                        </p>
-                      ),
-                    },
-                    {
-                      id: 'csv',
-                      label: 'Upload CSV',
-                      panel: (
-                        <div className={dragging ? 'dropzone dropzone--over' : 'dropzone'}>
-                          <p>Drop a CSV file here, or choose one.</p>
-                          <Input
-                            label="CSV file (emails in the first column)"
-                            type="file"
-                            accept=".csv,text/csv"
-                            onDragEnter={() => setDragging(true)}
-                            onDragLeave={() => setDragging(false)}
-                            onDrop={() => setDragging(false)}
-                            onChange={(e) => void readCsv(e.target.files?.[0])}
-                          />
-                        </div>
-                      ),
-                    },
-                    {
-                      id: 'team',
-                      label: 'Whole team',
-                      panel: (
-                        <>
-                          <Select
-                            label="Team"
-                            value={team}
-                            onChange={(e) => setTeam(e.target.value)}
-                          >
-                            <option value="">Choose a team</option>
-                            {teams.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </Select>
-                          {team ? (
-                            <p className="items__kind" aria-live="polite">
-                              {teamSize === null
-                                ? 'Counting…'
-                                : `${teamSize} ${teamSize === 1 ? 'person' : 'people'} in ${team}`}
-                            </p>
-                          ) : null}
-                          <Button
-                            variant="secondary"
-                            disabled={!team}
-                            onClick={async () =>
-                              add((await data.usersInTeam(team)).map((u) => u.email))
-                            }
-                          >
-                            Add everyone in this team
-                          </Button>
-                        </>
-                      ),
-                    },
-                  ]}
-                />
-              </Stepper.Step>
-
-              <Stepper.Step number={3} title="Deadline">
-                <Input
-                  label="Due date"
-                  type="date"
-                  value={due}
-                  onChange={(e) => setDue(e.target.value)}
-                />
-                <Select
-                  label="Reminders"
-                  value={reminder}
-                  onChange={(e) => setReminder(e.target.value as Reminder)}
-                >
-                  <option value="weekly">Weekly</option>
-                  <option value="beforeDue">Before the due date</option>
-                  <option value="none">None</option>
-                </Select>
-                <Toggle
-                  label="Mandatory"
-                  checked={mandatory}
-                  onChange={(e) => setMandatory(e.target.checked)}
-                />
-                <Toggle
-                  label={`Email ${t.learners} now`}
-                  checked={notify}
-                  onChange={(e) => setNotify(e.target.checked)}
-                />
-              </Stepper.Step>
-            </div>
-
-            <aside className="assign__summary" aria-label="Summary">
-              <p className="assign__big">{assignable}</p>
-              <p>
-                {assignable === 1 ? 'person will' : 'people will'} get{' '}
-                {courseIds.length === 1
+    <Page
+      aside={
+        ready ? (
+          <aside aria-label="Summary" className="console-flow">
+            <StatCard
+              label="Will be assigned"
+              value={String(assignable)}
+              sub={`${assignable === 1 ? 'person will' : 'people will'} get ${
+                courseIds.length === 1
                   ? (courses.find((c) => c.id === courseIds[0])?.title ?? 'this course')
-                  : `${courseIds.length} courses`}
-              </p>
-              <dl className="course__stats">
+                  : `${courseIds.length} courses`
+              }`}
+            />
+            <Card className="console-flow">
+              <dl>
                 <dt>Signed in</dt>
                 <dd>{summary.signedIn}</dd>
                 <dt>New (pending invite)</dt>
@@ -361,7 +209,7 @@ export function AssignPage() {
                 </ul>
               ) : null}
               {failed.length > 0 ? (
-                <div role="alert">
+                <div role="alert" className="console-flow">
                   <p>These could not be saved:</p>
                   <ul aria-label="Failed assignments">
                     {failed.map((f) => (
@@ -385,22 +233,188 @@ export function AssignPage() {
                 </ul>
               ) : null}
               <Button
-                disabled={busy || courseIds.length === 0 || assignable === 0}
+                disabled={courseIds.length === 0 || assignable === 0}
+                loading={busy}
                 onClick={() => void submit()}
-                aria-busy={busy}
               >
                 {assignable > 0
                   ? `Assign to ${assignable} ${assignable === 1 ? 'person' : 'people'}`
                   : 'Assign'}
               </Button>
-              <p className="items__kind">
+              <p className="console-muted">
                 People who have not signed in yet are invited: the course appears the first time
                 they sign in with their NonStop account.
               </p>
-            </aside>
-          </div>
+            </Card>
+          </aside>
+        ) : undefined
+      }
+    >
+      <PageHeader
+        eyebrow={t.Admin}
+        title="Assign courses"
+        lead="Pick courses, pick people, set a deadline. The summary shows what will happen."
+      />
+      <Loaded loadable={result}>
+        {({ teams }) => (
+          <>
+            <Stepper.Step number={1} title="Courses">
+              <ul className="console-choices">
+                {courses.map((c) => (
+                  <li key={c.id}>
+                    <label className="console-choice">
+                      <input
+                        type="checkbox"
+                        checked={courseIds.includes(c.id)}
+                        onChange={(e) =>
+                          setCourseIds(
+                            e.target.checked
+                              ? [...courseIds, c.id]
+                              : courseIds.filter((id) => id !== c.id),
+                          )
+                        }
+                      />
+                      <strong>{c.title}</strong>
+                      <span className="console-muted">
+                        {lessonLabel(countItems(c).lessons)} · {c.estimatedMinutes} min
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </Stepper.Step>
+
+            <Stepper.Step number={2} title="People">
+              <EmailChipInput
+                label="Email addresses"
+                value={emails}
+                onChange={setEmails}
+                classify={classify}
+              />
+              <p className="console-muted">
+                Chips show whether each person has signed in, is new (a pending invite), already has
+                the course, or cannot be assigned.
+              </p>
+              <Tabs
+                label="Add people"
+                tabs={[
+                  {
+                    id: 'search',
+                    label: 'Search people',
+                    panel: (
+                      <>
+                        <Input
+                          label="Search by name or email"
+                          value={people.query}
+                          onChange={(e) => void people.search(e.target.value)}
+                        />
+                        <ul className="console-rows" aria-label="People found">
+                          {people.found.map((u) => (
+                            <li key={u.uid}>
+                              <Button variant="secondary" onClick={() => add([u.email])}>
+                                Add {u.displayName || u.email}
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ),
+                  },
+                  {
+                    id: 'paste',
+                    label: 'Paste emails',
+                    panel: (
+                      <p>Paste a list into the box above: commas, spaces or new lines all work.</p>
+                    ),
+                  },
+                  {
+                    id: 'csv',
+                    label: 'Upload CSV',
+                    panel: (
+                      <div
+                        className={
+                          dragging ? 'console-dropzone console-dropzone--over' : 'console-dropzone'
+                        }
+                      >
+                        <p>Drop a CSV file here, or choose one.</p>
+                        <Input
+                          label="CSV file (emails in the first column)"
+                          type="file"
+                          accept=".csv,text/csv"
+                          onDragEnter={() => setDragging(true)}
+                          onDragLeave={() => setDragging(false)}
+                          onDrop={() => setDragging(false)}
+                          onChange={(e) => void readCsv(e.target.files?.[0])}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'team',
+                    label: 'Whole team',
+                    panel: (
+                      <>
+                        <Select label="Team" value={team} onChange={(e) => setTeam(e.target.value)}>
+                          <option value="">Choose a team</option>
+                          {teams.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </Select>
+                        {team ? (
+                          <p className="console-muted" aria-live="polite">
+                            {teamSize === null
+                              ? 'Counting…'
+                              : `${teamSize} ${teamSize === 1 ? 'person' : 'people'} in ${team}`}
+                          </p>
+                        ) : null}
+                        <Button
+                          variant="secondary"
+                          disabled={!team}
+                          onClick={async () =>
+                            add((await data.usersInTeam(team)).map((u) => u.email))
+                          }
+                        >
+                          Add everyone in this team
+                        </Button>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            </Stepper.Step>
+
+            <Stepper.Step number={3} title="Deadline">
+              <Input
+                label="Due date"
+                type="date"
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+              />
+              <Select
+                label="Reminders"
+                value={reminder}
+                onChange={(e) => setReminder(e.target.value as Reminder)}
+              >
+                <option value="weekly">Weekly</option>
+                <option value="beforeDue">Before the due date</option>
+                <option value="none">None</option>
+              </Select>
+              <Toggle
+                label="Mandatory"
+                checked={mandatory}
+                onChange={(e) => setMandatory(e.target.checked)}
+              />
+              <Toggle
+                label={`Email ${t.learners} now`}
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+              />
+            </Stepper.Step>
+          </>
         )}
       </Loaded>
-    </main>
+    </Page>
   );
 }

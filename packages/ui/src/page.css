@@ -1,0 +1,37 @@
+/* content-box: the --width-* token is the content's width; the padding sits outside it. */
+.g-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-12)) var(--space-16);
+}
+.g-page--reading {
+  --page-width: var(--width-reading);
+}
+.g-page--default {
+  --page-width: var(--width-default);
+}
+.g-page--wide {
+  --page-width: var(--width-wide);
+}
+.g-page__main,
+.g-page__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+@media (width >= 64rem) {
+  .g-page--aside {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+  /* The aside (a summary, settings) stays in view under the sticky top bar while the main column scrolls. */
+  .g-page__aside {
+    position: sticky;
+    top: calc(var(--control-height) + var(--space-8));
+  }
+}

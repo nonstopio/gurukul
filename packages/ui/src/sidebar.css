@@ -1,5 +1,7 @@
 .g-sidebar {
   display: flex;
+  box-sizing: border-box;
+  height: 100%;
   flex-direction: column;
   gap: var(--space-6);
   padding: var(--space-6) var(--space-4);
@@ -14,10 +16,21 @@
   font: 500 var(--text-xl) / var(--leading-tight) var(--font-display);
   color: var(--chrome-accent);
 }
+.g-sidebar__brand,
+.g-sidebar__footer {
+  flex: none;
+}
+/* In a fixed-height sidebar the nav scrolls and the footer stays put. The padding keeps nav items'
+   focus rings inside the scroll box. */
 .g-sidebar__nav {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-5);
+  min-height: 0;
+  margin: calc(-1 * var(--space-1));
+  padding: var(--space-1);
+  overflow-y: auto;
 }
 .g-sidebar__group {
   display: flex;

@@ -113,6 +113,29 @@ describe('Card', () => {
     const card = screen.getByRole('region', { name: 'Current chapter' });
     expect(card.className).toBe('g-card g-card--highlighted x');
   });
+
+  it('with a title is a section named by its heading, with actions beside it', () => {
+    render(
+      <Card title="Teams" actions={<button type="button">Add team</button>}>
+        Body
+      </Card>,
+    );
+    const card = screen.getByRole('region', { name: 'Teams' });
+    expect(card.tagName).toBe('SECTION');
+    expect(screen.getByRole('heading', { level: 2, name: 'Teams' })).toBeTruthy();
+    expect(card.querySelector('.g-card__actions button')?.textContent).toBe('Add team');
+  });
+
+  it('takes a lower heading level and an explicit element, without actions', () => {
+    render(
+      <Card as="article" title="Chapter 1" titleAs="h3">
+        Body
+      </Card>,
+    );
+    expect(screen.getByRole('article').getAttribute('aria-labelledby')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Chapter 1' })).toBeTruthy();
+    expect(document.querySelector('.g-card__actions')).toBeNull();
+  });
 });
 
 describe('Callout', () => {

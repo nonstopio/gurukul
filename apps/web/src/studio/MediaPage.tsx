@@ -1,9 +1,19 @@
-import { Button, Callout, Card, EmptyState, buttonClass, useToast } from '@gurukul/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  EmptyState,
+  Page,
+  PageHeader,
+  buttonClass,
+  useToast,
+} from '@gurukul/ui';
 import { useCallback } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
 import { MEDIA_KINDS, collectMedia } from './studioModel';
@@ -22,6 +32,7 @@ export function MediaPage() {
   const { uid } = useUser();
   const admin = useSession().roles.includes('admin');
   const toast = useToast();
+  const t = useTerms();
   const result = useAsync(
     useCallback(
       () => data.listCourses(uid, admin).then((rows) => collectMedia(rows)),
@@ -40,8 +51,8 @@ export function MediaPage() {
   };
 
   return (
-    <main className="page studio-page">
-      <h1 className="page__title">Media library</h1>
+    <Page>
+      <PageHeader eyebrow={t.Studio} title="Media library" />
       <Callout tone="note" title="Links only, for now">
         <p>
           Gurukul does not store uploads yet. This lists the videos, images, embeds and files your
@@ -67,11 +78,8 @@ export function MediaPage() {
               {MEDIA_KINDS.map((kind) => {
                 const group = entries.filter((e) => e.kind === kind);
                 return group.length === 0 ? null : (
-                  <section key={kind} aria-labelledby={`media-${kind}`} className="home-section">
-                    <h2 id={`media-${kind}`}>
-                      {HEADINGS[kind]} ({group.length})
-                    </h2>
-                    <ul className="sc-media">
+                  <Card key={kind} title={`${HEADINGS[kind]} (${group.length})`}>
+                    <ul className="sc-rows">
                       {group.map((entry) => (
                         <MediaRow
                           key={entry.url}
@@ -80,38 +88,36 @@ export function MediaPage() {
                         />
                       ))}
                     </ul>
-                  </section>
+                  </Card>
                 );
               })}
             </>
           )
         }
       </Loaded>
-    </main>
+    </Page>
   );
 }
 
 function MediaRow({ entry, onCopy }: { entry: MediaEntry; onCopy: () => void }) {
   return (
-    <li>
-      <Card className="sc-media__row">
-        <div className="sc-media__main">
-          <p className="sc-media__label">{entry.label}</p>
-          <p className="sc-media__url">{entry.url}</p>
-          <p className="sc-help">
-            Used in{' '}
-            {entry.usedIn.map((u, i) => (
-              <span key={`${u.courseId}-${u.itemId}`}>
-                {i > 0 ? ', ' : ''}
-                {u.courseTitle} › {u.itemTitle}
-              </span>
-            ))}
-          </p>
-        </div>
-        <Button variant="secondary" onClick={onCopy}>
-          Copy link <span className="sr-only">for {entry.label}</span>
-        </Button>
-      </Card>
+    <li className="sc-row">
+      <div className="sc-media__main">
+        <p className="sc-media__label">{entry.label}</p>
+        <p className="sc-media__url">{entry.url}</p>
+        <p className="sc-help">
+          Used in{' '}
+          {entry.usedIn.map((u, i) => (
+            <span key={`${u.courseId}-${u.itemId}`}>
+              {i > 0 ? ', ' : ''}
+              {u.courseTitle} › {u.itemTitle}
+            </span>
+          ))}
+        </p>
+      </div>
+      <Button variant="secondary" size="sm" onClick={onCopy}>
+        Copy link <span className="sr-only">for {entry.label}</span>
+      </Button>
     </li>
   );
 }

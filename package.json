@@ -25,7 +25,7 @@
     "test:triggers": "npm run test:emulator -w @gurukul/functions",
     "e2e": "npm run test -w @gurukul/e2e",
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run validate:navigation && npm run test:tooling && npm run coverage && npm run build && npm run check:bundle",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run validate:navigation && npm run check:design && npm run test:tooling && npm run coverage && npm run build && npm run check:bundle",
     "emulators": "npm run build -w @gurukul/functions && firebase emulators:start --project demo-gurukul",
     "prepare": "husky",
     "changelog:new": "sh scripts/changelog-new.sh",
@@ -34,6 +34,7 @@
     "test:tooling": "node --test \".claude/hooks/test/*.test.mjs\" \"scripts/test/*.test.mjs\"",
     "grant-admin": "tsx scripts/grant-admin.mjs",
     "seed": "npm run seed -w @gurukul/seed --",
+    "check:design": "node scripts/check-design.mjs",
     "check:bundle": "node scripts/check-bundle-size.mjs apps/web/dist 320"
   },
   "devDependencies": {

@@ -47,6 +47,43 @@ describe('Field controls', () => {
     expect(select.getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('Select wraps the native element with a decorative chevron', () => {
+    render(
+      <Select label="Course">
+        <option>Git basics</option>
+      </Select>,
+    );
+    const select = screen.getByRole('combobox', { name: 'Course' });
+    expect(select.parentElement?.className).toBe('g-select');
+    const chevron = select.nextElementSibling;
+    expect(chevron?.tagName).toBe('svg');
+    expect(chevron?.getAttribute('aria-hidden')).toBe('true');
+    expect(chevron?.getAttribute('class')).toBe('g-select__chevron');
+  });
+
+  it('hideLabel keeps the label as the accessible name but hides it visually', () => {
+    render(
+      <>
+        <Input label="Search learners" hideLabel />
+        <Select label="Status" hideLabel>
+          <option>Any status</option>
+        </Select>
+        <Textarea label="Note" hideLabel />
+      </>,
+    );
+    for (const name of ['Search learners', 'Status', 'Note']) {
+      const label = screen.getByText(name);
+      expect(label.tagName).toBe('LABEL');
+      expect(label.className).toBe('g-field__label g-visually-hidden');
+      expect(screen.getByLabelText(name)).toBeTruthy();
+    }
+  });
+
+  it('shows the label by default', () => {
+    render(<Input label="Name" />);
+    expect(screen.getByText('Name').className).toBe('g-field__label');
+  });
+
   it('Textarea is labelled and editable', () => {
     const onChange = vi.fn();
     render(<Textarea label="Summary" onChange={onChange} />);
@@ -74,6 +111,11 @@ describe('Field controls', () => {
           <option>Learner</option>
         </Select>
         <Textarea label="Notes" />
+        <Input label="Search" hideLabel placeholder="Name or email" />
+        <Select label="Status" hideLabel error="Pick one" disabled>
+          <option>Any status</option>
+        </Select>
+        <Input label="Locked" disabled defaultValue="x" />
       </form>,
     );
     expect(await axeViolations(container)).toEqual([]);

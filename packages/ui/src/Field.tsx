@@ -6,7 +6,7 @@ import type {
   TextareaHTMLAttributes,
 } from 'react';
 import { cx } from './cx';
-import { AlertIcon } from './Icon';
+import { AlertIcon, ChevronDownIcon } from './Icon';
 import './field.css';
 
 /** What a `Field` hands its control so label, hint and error are wired for assistive tech. */
@@ -17,8 +17,10 @@ export interface FieldControlProps {
 }
 
 export interface FieldProps {
-  /** The visible label, always shown above the control. */
+  /** The label, shown above the control. */
   label: string;
+  /** Hides the label visually; it stays the control's accessible name. Only inside `FilterBar`. */
+  hideLabel?: boolean | undefined;
   /** Help text under the label. */
   hint?: string | undefined;
   /** Error text. When set, the control is `aria-invalid` and the message is linked to it. */
@@ -31,7 +33,7 @@ export interface FieldProps {
 }
 
 /** A label above a control, with optional hint and error. Use `Input`, `Select` or `Textarea`. */
-export function Field({ label, hint, error, id, className, children }: FieldProps) {
+export function Field({ label, hideLabel, hint, error, id, className, children }: FieldProps) {
   const uid = useId();
   const controlId = id ?? `${uid}-control`;
   const hintId = `${uid}-hint`;
@@ -39,7 +41,7 @@ export function Field({ label, hint, error, id, className, children }: FieldProp
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ');
   return (
     <div className={cx('g-field', className)}>
-      <label className="g-field__label" htmlFor={controlId}>
+      <label className={cx('g-field__label', hideLabel && 'g-visually-hidden')} htmlFor={controlId}>
         {label}
       </label>
       {hint ? (
@@ -62,14 +64,21 @@ export function Field({ label, hint, error, id, className, children }: FieldProp
   );
 }
 
-type Shared = Pick<FieldProps, 'label' | 'hint' | 'error'>;
+type Shared = Pick<FieldProps, 'label' | 'hideLabel' | 'hint' | 'error'>;
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement>, Shared {}
 
 /** A labelled text input. */
-export function Input({ label, hint, error, id, className, ...rest }: InputProps) {
+export function Input({ label, hideLabel, hint, error, id, className, ...rest }: InputProps) {
   return (
-    <Field label={label} hint={hint} error={error} id={id} className={className}>
+    <Field
+      label={label}
+      hideLabel={hideLabel}
+      hint={hint}
+      error={error}
+      id={id}
+      className={className}
+    >
       {(control) => <input className="g-control" {...rest} {...control} />}
     </Field>
   );
@@ -77,14 +86,33 @@ export function Input({ label, hint, error, id, className, ...rest }: InputProps
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement>, Shared {}
 
-/** A labelled native select. Pass `<option>`s as children. */
-export function Select({ label, hint, error, id, className, children, ...rest }: SelectProps) {
+/** A labelled native select with our chevron. Pass `<option>`s as children. */
+export function Select({
+  label,
+  hideLabel,
+  hint,
+  error,
+  id,
+  className,
+  children,
+  ...rest
+}: SelectProps) {
   return (
-    <Field label={label} hint={hint} error={error} id={id} className={className}>
+    <Field
+      label={label}
+      hideLabel={hideLabel}
+      hint={hint}
+      error={error}
+      id={id}
+      className={className}
+    >
       {(control) => (
-        <select className="g-control g-control--select" {...rest} {...control}>
-          {children}
-        </select>
+        <span className="g-select">
+          <select className="g-control g-control--select" {...rest} {...control}>
+            {children}
+          </select>
+          <ChevronDownIcon className="g-select__chevron" />
+        </span>
       )}
     </Field>
   );
@@ -93,9 +121,16 @@ export function Select({ label, hint, error, id, className, children, ...rest }:
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>, Shared {}
 
 /** A labelled textarea. */
-export function Textarea({ label, hint, error, id, className, ...rest }: TextareaProps) {
+export function Textarea({ label, hideLabel, hint, error, id, className, ...rest }: TextareaProps) {
   return (
-    <Field label={label} hint={hint} error={error} id={id} className={className}>
+    <Field
+      label={label}
+      hideLabel={hideLabel}
+      hint={hint}
+      error={error}
+      id={id}
+      className={className}
+    >
       {(control) => <textarea className="g-control g-control--textarea" {...rest} {...control} />}
     </Field>
   );

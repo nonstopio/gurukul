@@ -1,4 +1,4 @@
-import { Card, Chip, EmptyState, LockIcon, Tabs, Button } from '@gurukul/ui';
+import { Button, Card, Chip, EmptyState, LockIcon, Page, PageHeader, Tabs } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -39,15 +39,13 @@ export function StudioCoursesPage() {
   const editable = rows.filter((r) => canEdit(r.live, uid, admin)).map((r) => r.live);
 
   return (
-    <main className="page studio-page">
-      <header className="sc-head">
-        <div>
-          <p className="sc-kicker">{t.Studio}</p>
-          <h1 className="page__title sc-head__title">Courses</h1>
-          <p className="sc-head__line">{`Build courses ${t.chapter} by ${t.chapter}.`}</p>
-        </div>
-        <Button onClick={() => setCreating(true)}>New course</Button>
-      </header>
+    <Page width="wide">
+      <PageHeader
+        eyebrow={t.Studio}
+        title="Courses"
+        lead={`Build courses ${t.chapter} by ${t.chapter}.`}
+        actions={<Button onClick={() => setCreating(true)}>New course</Button>}
+      />
       <Loaded loadable={result}>
         {(list) => (
           <CourseTabs
@@ -60,7 +58,7 @@ export function StudioCoursesPage() {
         )}
       </Loaded>
       <NewCourseDialog open={creating} onClose={() => setCreating(false)} editable={editable} />
-    </main>
+    </Page>
   );
 }
 
@@ -83,7 +81,15 @@ function CourseTabs({
     if (id !== tab) return null;
     const shown = rows.filter((r) => inTab(r, id));
     return shown.length === 0 ? (
-      <EmptyState title={empty} headingAs="h2" action={<Button onClick={onNew}>New course</Button>}>
+      <EmptyState
+        title={empty}
+        headingAs="h2"
+        action={
+          <Button variant="secondary" onClick={onNew}>
+            New course
+          </Button>
+        }
+      >
         Start a blank course, or duplicate one you already have.
       </EmptyState>
     ) : (
@@ -91,14 +97,11 @@ function CourseTabs({
         {shown.map((row) => (
           <CourseCard key={row.live.id} row={row} uid={uid} admin={admin} now={now} />
         ))}
-        <li>
-          <button type="button" className="sc-new" onClick={onNew}>
-            <span className="sc-new__plus" aria-hidden="true">
-              +
-            </span>
-            <span className="sc-new__title">Start a new course</span>
-            <span className="sc-new__text">Blank, or duplicate an existing one</span>
-          </button>
+        <li className="sc-new">
+          <Button variant="secondary" onClick={onNew}>
+            Start a new course
+          </Button>
+          <p className="sc-card__meta">Blank, or duplicate an existing one</p>
         </li>
       </ul>
     );

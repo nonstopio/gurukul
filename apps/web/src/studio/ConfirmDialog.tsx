@@ -25,7 +25,9 @@ export function ConfirmDialog({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="danger" onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
         </>
       }
     >

@@ -25,7 +25,7 @@ nearest nested `CLAUDE.md` before editing `apps/`, `packages/` or `firebase/`.
 | `.claude/hooks/`                                     | Node hooks, tested in `hooks/test/`: `claude-md-nudge` (names the CLAUDE.md, rules and skills governing an edited file), `changelog-nudge`, `navigation-nudge`, `api-response-nudge`, `logging-nudge`, `prod-guard` (asks before firebase CLI against production), `secret-write-guard` (asks before writing a secret into this public repo) |
 | `.claude/settings.json`                              | Hook registration, permission denies, and the `ponytail` and `firebase` plugins (enabled for every contributor by the maintainer's choice)                                                                                                                                                                                                   |
 | `.husky/`, `commitlint.config.mjs`                   | Git hooks: `pre-commit` (changelog names, lint-staged), `commit-msg` (commitlint), `pre-push` (`scripts/pre-push.sh`). Installed by `npm ci`                                                                                                                                                                                                 |
-| `scripts/`                                           | `changelog-new.sh`, `check-changelog-names.sh`, `check-rules-coverage.mjs` (every rules expression evaluated), `pre-push.sh`, `pushed-files.sh`, `tracker.mjs` (`.plan/tracker.md` status and check); tested in `scripts/test/`                                                                                                              |
+| `scripts/`                                           | `changelog-new.sh`, `check-changelog-names.sh`, `check-rules-coverage.mjs` (every rules expression evaluated), `check-design.mjs` (design system markup and token rules), `pre-push.sh`, `pushed-files.sh`, `tracker.mjs` (`.plan/tracker.md` status and check); tested in `scripts/test/`                                                   |
 | `.plan/`                                             | The reviewed product and engineering plan. Code follows the plan; change the plan first. `tracker.md` is its status, item by item                                                                                                                                                                                                            |
 | `.github/`                                           | CI, PR title, preview and production deploy, CodeQL, Dependabot, PR and issue templates                                                                                                                                                                                                                                                      |
 
@@ -90,7 +90,7 @@ one; if a hook cannot run, say so. Check they are on with `git config core.hooks
 
 ## Required checks
 
-1. `npm run check` from the root: lint, format, typecheck, navigation validator, hook and
+1. `npm run check` from the root: lint, format, typecheck, navigation validator, design checker, hook and
    script tests, 100% coverage in every workspace, build, bundle budget. CI also runs the
    emulator jobs `check` skips, so a change to the app, UI, schema, functions, rules or seed runs
    `npm run e2e` before pushing (`.claude/rules/end-to-end.md`); the pre-push hook runs it for you. The `ci` and `pr-title` checks gate merges.

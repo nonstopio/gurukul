@@ -1,4 +1,4 @@
-import { Button, Callout, Chip, Dialog, EmptyState, useToast } from '@gurukul/ui';
+import { Button, Callout, Card, Chip, Dialog, EmptyState, useToast } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { userMessageOf } from '../api';
@@ -78,38 +78,43 @@ export function VersionsTab({
               Versions appear here each time you publish.
             </EmptyState>
           ) : (
-            <ul className="sc-versions">
-              {rows.map((row) => (
-                <li key={row.version} className="sc-version">
-                  <span className="sc-version__no">v{row.version}</span>
-                  <span className="sc-version__title">{row.title}</span>
-                  <span className="sc-version__date">
-                    {row.publishedAt ? row.publishedAt.toISOString().slice(0, 10) : 'No date'}
-                  </span>
-                  {row.version === course.version ? (
-                    <Chip tone="accent">Live</Chip>
-                  ) : (
-                    <Button variant="secondary" onClick={() => setTarget(row.version)}>
-                      Roll back <span className="sr-only">to v{row.version}</span>
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <Card>
+              <ul className="sc-rows">
+                {rows.map((row) => (
+                  <li key={row.version} className="sc-row">
+                    <span className="sc-version__no">v{row.version}</span>
+                    <span className="sc-version__title">{row.title}</span>
+                    <span className="sc-version__date">
+                      {row.publishedAt ? row.publishedAt.toISOString().slice(0, 10) : 'No date'}
+                    </span>
+                    {row.version === course.version ? (
+                      <Chip tone="accent">Live</Chip>
+                    ) : (
+                      <Button variant="secondary" size="sm" onClick={() => setTarget(row.version)}>
+                        Roll back <span className="sr-only">to v{row.version}</span>
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )
         }
       </Loaded>
 
       {admin && course.status !== 'draft' ? (
-        <div className="sc-archive">
-          <h3 className="sc-h3">{archived ? 'This course is archived' : 'Retire this course'}</h3>
+        <Card
+          className="sc-panel"
+          title={archived ? 'This course is archived' : 'Retire this course'}
+          titleAs="h3"
+        >
           <p className="sc-help">
             {archived
               ? `${t.Learners} cannot open it. Restore it to make the live version available again.`
               : `Archiving hides it from the catalogue. ${t.Learners} who started it keep their progress.`}
           </p>
           {archived ? (
-            <Button variant="secondary" disabled={busy} onClick={() => void archive(false)}>
+            <Button variant="secondary" loading={busy} onClick={() => void archive(false)}>
               Restore course
             </Button>
           ) : (
@@ -117,7 +122,7 @@ export function VersionsTab({
               Archive course
             </Button>
           )}
-        </div>
+        </Card>
       ) : null}
 
       {target !== null ? (
@@ -130,7 +135,7 @@ export function VersionsTab({
               <Button variant="secondary" onClick={() => setTarget(null)}>
                 Cancel
               </Button>
-              <Button disabled={busy} onClick={() => void rollBack(target)}>
+              <Button loading={busy} onClick={() => void rollBack(target)}>
                 Roll back
               </Button>
             </>
@@ -153,7 +158,7 @@ export function VersionsTab({
             <Button variant="secondary" onClick={() => setArchiving(false)}>
               Keep it live
             </Button>
-            <Button disabled={busy} onClick={() => void archive(true)}>
+            <Button loading={busy} onClick={() => void archive(true)}>
               Archive course
             </Button>
           </>

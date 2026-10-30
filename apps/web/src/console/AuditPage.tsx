@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState } from '@gurukul/ui';
+import { Button, DataTable, EmptyState, Page, PageHeader, useToast } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
@@ -17,12 +17,11 @@ export function AuditPage() {
   const t = useTerms();
   const first = useAsync(useCallback(() => data.auditPage(null, PAGE_SIZE), [data]));
   const [later, setLater] = useState<{ rows: AuditRow[]; cursor: AuditCursor | null } | null>(null);
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
 
   const loadMore = async (from: AuditCursor) => {
     setLoading(true);
-    setFailed(false);
     try {
       const page = await data.auditPage(from, PAGE_SIZE);
       setLater((prev) => ({
@@ -31,16 +30,20 @@ export function AuditPage() {
       }));
     } catch (e) {
       log.error('Audit page failed to load', e);
-      setFailed(true);
+      toast.show('Could not load more entries. Check your connection and try again.', {
+        tone: 'danger',
+      });
     }
     setLoading(false);
   };
 
   return (
-    <main className="page console">
-      <p className="article__kicker">{t.Admin}</p>
-      <h1 className="page__title">Audit log</h1>
-      <p>Every recorded action, newest first. Nothing here can be edited.</p>
+    <Page width="wide">
+      <PageHeader
+        eyebrow={t.Admin}
+        title="Audit log"
+        lead="Every recorded action, newest first. Nothing here can be edited."
+      />
       <Loaded loadable={first}>
         {(page) => {
           const rows = [...page.rows, ...(later?.rows ?? [])];
@@ -57,7 +60,12 @@ export function AuditPage() {
                   </EmptyState>
                 }
                 columns={[
-                  { id: 'when', header: 'When', cell: (r) => (r.at ? longDate(r.at) : '—') },
+                  {
+                    id: 'when',
+                    header: 'When',
+                    rowHeader: true,
+                    cell: (r) => (r.at ? longDate(r.at) : '—'),
+                  },
                   { id: 'who', header: 'Who', cell: (r) => r.by },
                   { id: 'what', header: 'Action', cell: (r) => auditLabel(r.action, t) },
                   { id: 'target', header: 'Target', cell: (r) => r.target ?? '—' },
@@ -68,20 +76,17 @@ export function AuditPage() {
                   },
                 ]}
               />
-              {failed && (
-                <p role="alert">
-                  Could not load more entries. Check your connection and try again.
-                </p>
-              )}
               {next !== null && (
-                <Button variant="secondary" disabled={loading} onClick={() => void loadMore(next)}>
-                  {loading ? 'Loading…' : 'Load older entries'}
-                </Button>
+                <div>
+                  <Button variant="secondary" loading={loading} onClick={() => void loadMore(next)}>
+                    Load older entries
+                  </Button>
+                </div>
               )}
             </>
           );
         }}
       </Loaded>
-    </main>
+    </Page>
   );
 }

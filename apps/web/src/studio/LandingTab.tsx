@@ -27,10 +27,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
           onChange={(e) => update((w) => patchCourse(w, { description: e.target.value }))}
         />
       </Card>
-      <Card as="section" aria-labelledby="outcomes-title" className="sc-panel">
-        <h3 id="outcomes-title" className="sc-h3">
-          {`What ${t.learners} will be able to do`}
-        </h3>
+      <Card title={`What ${t.learners} will be able to do`} titleAs="h3" className="sc-panel">
         {course.outcomes.length === 0 ? <p className="sc-help">No outcomes yet.</p> : null}
         <ul className="sc-outcomes">
           {course.outcomes.map((outcome, i) => (
@@ -43,6 +40,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
               />
               <Button
                 variant="ghost"
+                size="sm"
                 aria-label={`Remove outcome ${i + 1}`}
                 onClick={() => update((w) => removeOutcome(w, i))}
               >

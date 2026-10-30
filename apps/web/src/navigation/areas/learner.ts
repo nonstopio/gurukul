@@ -27,6 +27,13 @@ export const navigation = {
       description: 'Certificates you have earned',
       keywords: ['credential', 'diploma', 'completion', 'download'],
     },
+    {
+      id: 'profile',
+      path: '/profile',
+      label: 'Profile',
+      description: 'Your account, roles, team and which names Gurukul uses',
+      keywords: ['account', 'me', 'team', 'labels', 'names', 'sign out', 'settings'],
+    },
   ],
   unlisted: {
     '/courses/:courseId': { context: 'needs a course id; reached from the catalogue or Home' },

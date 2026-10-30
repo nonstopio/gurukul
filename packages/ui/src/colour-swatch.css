@@ -62,7 +62,7 @@
   box-shadow:
     0 0 0 2px var(--surface),
     0 0 0 4px var(--accent),
-    0 0 0 7px var(--g-green-100);
+    0 0 0 7px var(--accent-ring);
 }
 .g-swatch__name {
   font: 500 var(--text-xs) / var(--leading-snug) var(--font-ui);

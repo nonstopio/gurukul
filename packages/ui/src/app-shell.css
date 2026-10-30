@@ -1,0 +1,84 @@
+/* The sidebar layout. ≥ 64rem: sticky full-height sidebar column. Below: a drawer behind a Menu
+   button. Only the document scrolls; nothing here sets overflow on a full-height wrapper. */
+.g-app-shell {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+.g-app-shell__content {
+  min-width: 0;
+}
+.g-app-shell__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) clamp(var(--space-4), 4vw, var(--space-12));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.g-app-shell .g-app-shell__menu {
+  margin-right: auto;
+}
+.g-app-shell__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+  padding: 0;
+  border: 0;
+  background: var(--scrim);
+}
+.g-app-shell__sidebar > .g-sidebar {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+@media (width >= 64rem) {
+  .g-app-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+  .g-app-shell__sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+  }
+  .g-app-shell .g-app-shell__menu,
+  .g-app-shell__scrim {
+    display: none;
+  }
+}
+
+@media (width < 64rem) {
+  /* Closed, the drawer is off-screen and hidden, so its links leave the Tab order. */
+  .g-app-shell__sidebar {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: var(--z-drawer);
+    width: min(85vw, 18rem);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform var(--dur-base) var(--ease),
+      visibility var(--dur-base);
+  }
+  .g-app-shell--open .g-app-shell__sidebar {
+    transform: none;
+    visibility: visible;
+  }
+}
+
+/* Printing (a certificate): the page only, without the chrome. */
+@media print {
+  .g-app-shell {
+    display: block;
+  }
+  .g-app-shell__sidebar,
+  .g-app-shell__bar,
+  .g-app-shell__scrim {
+    display: none;
+  }
+}

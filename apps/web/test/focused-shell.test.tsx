@@ -24,7 +24,8 @@ describe('focused shell', () => {
     await screen.findByRole('heading', { level: 1, name: 'Lesson l3' });
     expect(headings()).toEqual(['Lesson l3']);
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
-    expect(screen.getByRole('banner').textContent).toContain('Git, the NonStop Way');
+    // The top bar is the first header; the page's own PageHeader follows it.
+    expect(screen.getAllByRole('banner')[0]?.textContent).toContain('Git, the NonStop Way');
     expect(screen.getByText('60% · 3 / 5')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Skip to content' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
@@ -41,7 +42,8 @@ describe('focused shell', () => {
     await screen.findByText('Question 1 of 1');
     expect(headings()).toEqual(['Quiz I']);
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
-    expect(screen.getByRole('banner').textContent).toContain('Git, the NonStop Way');
+    // The top bar is the first header; the page's own PageHeader follows it.
+    expect(screen.getAllByRole('banner')[0]?.textContent).toContain('Git, the NonStop Way');
   });
 
   it('keeps one h1 on a Quiz that is not open yet', async () => {

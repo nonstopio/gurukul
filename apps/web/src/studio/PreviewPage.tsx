@@ -3,8 +3,12 @@ import type { AnswerKeys, Quiz } from '@gurukul/schema';
 import {
   Button,
   Callout,
+  Card,
+  ChevronLeftIcon,
   EmptyState,
-  Skeleton,
+  Page,
+  PageHeader,
+  PageSkeleton,
   TopBar,
   buttonClass,
   topBarBackClass,
@@ -35,39 +39,44 @@ export function PreviewPage() {
   const editor = `/studio/courses/${courseId}`;
   const back = (
     <Link className={topBarBackClass} to={editor}>
+      <ChevronLeftIcon size={16} />
       Back to the editor
     </Link>
   );
+  const title = `Preview as ${t.learner}`;
 
   if (draft.status === 'loading') {
     return (
-      <main className="page" aria-busy="true">
-        <p role="status" className="sr-only">
-          Loading the preview
-        </p>
-        <Skeleton shape="block" height={72} className="loading-row" />
-      </main>
+      <>
+        <TopBar title={title} back={back} />
+        <PageSkeleton width="wide" label="Loading the preview" />
+      </>
     );
   }
   if (draft.status !== 'ready' || !draft.work) {
     return (
-      <main className="page">
-        <EmptyState
-          title={
-            draft.status === 'missing' ? 'There is no draft to preview' : 'The preview did not load'
-          }
-          headingAs="h2"
-          action={
-            <Link className={buttonClass('secondary')} to="/studio">
-              {`Back to ${t.Studio}`}
-            </Link>
-          }
-        >
-          {draft.status === 'missing'
-            ? 'This course has no draft yet.'
-            : 'You may not have access to this draft, or the connection dropped.'}
-        </EmptyState>
-      </main>
+      <>
+        <TopBar title={title} back={back} />
+        <Page width="reading">
+          <EmptyState
+            title={
+              draft.status === 'missing'
+                ? 'There is no draft to preview'
+                : 'The preview did not load'
+            }
+            headingAs="h2"
+            action={
+              <Link className={buttonClass('secondary')} to="/studio">
+                {`Back to ${t.Studio}`}
+              </Link>
+            }
+          >
+            {draft.status === 'missing'
+              ? 'This course has no draft yet.'
+              : 'You may not have access to this draft, or the connection dropped.'}
+          </EmptyState>
+        </Page>
+      </>
     );
   }
   const { course, answers } = draft.work;
@@ -77,12 +86,12 @@ export function PreviewPage() {
   if (!item) {
     return (
       <>
-        <TopBar title={course.title} back={back} />
-        <main className="page">
+        <TopBar title={title} back={back} />
+        <Page width="reading">
           <EmptyState title="That item is not in this draft" headingAs="h2">
             It may have been deleted. Pick another from the editor.
           </EmptyState>
-        </main>
+        </Page>
       </>
     );
   }
@@ -92,63 +101,66 @@ export function PreviewPage() {
   return (
     <>
       <TopBar
-        title={course.title}
+        title={`${title} · ${nameOf(course.title, 'Untitled course')}`}
+        titleAs="p"
         back={back}
         actions={
-          <Link className={buttonClass('secondary')} to={itemEditorPath(courseId, item)}>
+          <Link className={buttonClass('chrome-secondary')} to={itemEditorPath(courseId, item)}>
             {`Edit this ${item.type === 'lesson' ? 'lesson' : t.Quiz}`}
           </Link>
         }
       />
-      <div className="sc-banner">
+      <Page width="wide">
         <Callout tone="note" title="Preview — progress is not saved" role="status">
           <p>{`This is your draft as ${article(t.learner)} would see it. Nothing you do here is recorded.`}</p>
         </Callout>
-      </div>
-      <div className="player">
-        <nav className="rail" aria-label="Course outline">
-          <ol>
-            {items.map((i) => (
-              <li key={i.id}>
-                <Link
-                  to={previewPath(courseId, i.id)}
-                  {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
-                >
-                  {nameOf(i.title, 'Untitled')}
+        <div className="sc-preview">
+          <Card className="studio-rail">
+            <nav aria-label="Course outline">
+              <ol>
+                {items.map((i) => (
+                  <li key={i.id}>
+                    <Link
+                      to={previewPath(courseId, i.id)}
+                      {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
+                    >
+                      {nameOf(i.title, 'Untitled')}
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </Card>
+          <div className={item.type === 'lesson' ? `article article--${item.layout}` : 'article'}>
+            <PageHeader
+              eyebrow={`${item.type === 'lesson' ? 'Lesson' : t.Quiz} ${index + 1} of ${items.length}`}
+              title={nameOf(item.title, 'Untitled')}
+            />
+            {item.type === 'lesson' ? (
+              <>
+                {item.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
+                {item.blocks.map((b) => (
+                  <BlockView key={b.id} block={b} />
+                ))}
+              </>
+            ) : (
+              <PreviewExam key={item.id} courseId={courseId} quiz={item} answers={answers} />
+            )}
+            <footer className="sc-preview__footer">
+              {prev ? (
+                <Link className={buttonClass('secondary')} to={previewPath(courseId, prev.id)}>
+                  Previous
                 </Link>
-              </li>
-            ))}
-          </ol>
-        </nav>
-        <main className={item.type === 'lesson' ? `article article--${item.layout}` : 'article'}>
-          <p className="article__kicker">
-            {`${item.type === 'lesson' ? 'Lesson' : t.Quiz} ${index + 1} of ${items.length}`}
-          </p>
-          <h1 className="article__title">{nameOf(item.title, 'Untitled')}</h1>
-          {item.type === 'lesson' ? (
-            <>
-              {item.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
-              {item.blocks.map((b) => (
-                <BlockView key={b.id} block={b} />
-              ))}
-            </>
-          ) : (
-            <PreviewExam key={item.id} courseId={courseId} quiz={item} answers={answers} />
-          )}
-          <footer className="article__footer">
-            {prev ? (
-              <Link className={buttonClass('secondary')} to={previewPath(courseId, prev.id)}>
-                Previous
-              </Link>
-            ) : null}
-            {next ? (
-              <Link className={buttonClass('primary')} to={previewPath(courseId, next.id)}>
-                Next
-              </Link>
-            ) : null}
-          </footer>
-        </main>
-      </div>
+              ) : null}
+              {next ? (
+                <Link className={buttonClass('primary')} to={previewPath(courseId, next.id)}>
+                  Next
+                </Link>
+              ) : null}
+            </footer>
+          </div>
+        </div>
+      </Page>
     </>
   );
 }
@@ -190,11 +202,11 @@ function PreviewExam({
       isCorrect(picked[q.id] as string[], answers[quiz.id]?.[q.id] ?? []),
     ).length;
     return (
-      <div className="exam">
+      <div className="sc-exam">
         <Callout tone="tip" title="Preview finished" role="status">
           <p>{`You answered ${right} of ${total} correctly. This attempt was not recorded.`}</p>
         </Callout>
-        <div className="exam__actions">
+        <div className="sc-exam__actions">
           <Button
             variant="secondary"
             onClick={() => {
@@ -235,13 +247,13 @@ function PreviewExam({
   };
 
   return (
-    <div className="exam">
-      <p className="article__kicker">
+    <div className="sc-exam">
+      <p className="studio-micro">
         Question {index + 1} of {total}
       </p>
       <QuestionFields question={question} picked={mine} stateOf={stateOf} onPick={pick} />
       {done ? (
-        <div role="status" className="exam__feedback">
+        <div role="status">
           {key.length === 0 ? (
             <p>No correct answer is marked yet. Mark one in the builder.</p>
           ) : (
@@ -250,7 +262,7 @@ function PreviewExam({
           <Prose md={question.explanation} />
         </div>
       ) : null}
-      <div className="exam__actions">
+      <div className="sc-exam__actions">
         {done ? (
           <Button onClick={() => setIndex(index + 1)}>
             {index === total - 1 ? 'Finish preview' : 'Next question'}

@@ -1,5 +1,18 @@
 import { estimateMinutes, itemsOf } from '@gurukul/schema';
-import { Button, Callout, Certificate, EmptyState, buttonClass, useToast } from '@gurukul/ui';
+import {
+  Breadcrumb,
+  Button,
+  Callout,
+  Card,
+  Certificate,
+  Chip,
+  EmptyState,
+  Page,
+  PageHeader,
+  StatCard,
+  buttonClass,
+  useToast,
+} from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
@@ -8,7 +21,7 @@ import type { CertificateRow, ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { durationLabel, nextAssigned } from '../learn/model';
 import type { AssignedCourse } from '../learn/model';
-import { Loaded } from '../learn/ui';
+import { Loaded, LoadedPage } from '../learn/ui';
 import { linkedInUrl, longDate } from '../quiz/model';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
@@ -52,13 +65,10 @@ function useNoIndex() {
   }, []);
 }
 
-/** `/certificates/:id` for the owner: the certificate, Download PDF, LinkedIn and copy-link actions. */
-export function CertificatePage() {
-  const { id = '' } = useParams();
-  const data = useLearnerData();
+/** Copies a certificate's public verify link, and says whether it worked. */
+function useCopyVerifyLink() {
   const toast = useToast();
-  const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
-  const copy = async () => {
+  return async (id: string) => {
     try {
       await navigator.clipboard.writeText(verifyUrl(id));
       toast.show('Link copied');
@@ -67,41 +77,73 @@ export function CertificatePage() {
       toast.show('Could not copy the link.', { tone: 'danger' });
     }
   };
+}
+
+/** `/certificates/:id` for the owner: the certificate, Download PDF, LinkedIn and copy-link actions. */
+export function CertificatePage() {
+  const { id = '' } = useParams();
+  const data = useLearnerData();
+  const copy = useCopyVerifyLink();
+  const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
   return (
-    <main className="page cert-page">
-      <Loaded loadable={result}>
-        {(c) =>
-          c === null ? (
-            <EmptyState title="Certificate not found">
-              Check the address, or open it from your certificates.
-            </EmptyState>
+    <LoadedPage loadable={result}>
+      {(c) => (
+        <Page>
+          {c === null ? (
+            <PageHeader
+              title="Certificate not found"
+              lead="Check the address, or open it from your certificates."
+              actions={
+                <Link className={buttonClass('secondary')} to="/certificates">
+                  Your certificates
+                </Link>
+              }
+            />
           ) : (
             <>
-              <div className="cert-actions">
-                <Button onClick={() => window.print()}>Download PDF</Button>
-                <a
-                  className={buttonClass('secondary')}
-                  href={linkedInUrl({
-                    title: c.courseTitle,
-                    credentialId: c.id,
-                    verifyUrl: verifyUrl(c.id),
-                    issuedAt: c.issuedAt,
-                  })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Add to LinkedIn
-                </a>
-                <Button variant="secondary" onClick={() => void copy()}>
-                  Copy verify link
-                </Button>
-              </div>
+              <PageHeader
+                breadcrumb={
+                  <Breadcrumb
+                    items={[
+                      {
+                        label: 'Certificates',
+                        render: (p) => <Link to="/certificates" {...(p as object)} />,
+                      },
+                      { label: c.id },
+                    ]}
+                  />
+                }
+                title={c.courseTitle}
+                meta={c.revoked ? <Chip tone="danger">Revoked</Chip> : undefined}
+                lead={`Issued ${longDate(c.issuedAt)}. Anyone with the verify link can check it is genuine.`}
+                actions={
+                  <>
+                    <Button variant="secondary" onClick={() => void copy(c.id)}>
+                      Copy verify link
+                    </Button>
+                    <a
+                      className={buttonClass('secondary')}
+                      href={linkedInUrl({
+                        title: c.courseTitle,
+                        credentialId: c.id,
+                        verifyUrl: verifyUrl(c.id),
+                        issuedAt: c.issuedAt,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Add to LinkedIn
+                    </a>
+                    <Button onClick={() => window.print()}>Download PDF</Button>
+                  </>
+                }
+              />
               <CertificateSheet c={c} />
             </>
-          )
-        }
-      </Loaded>
-    </main>
+          )}
+        </Page>
+      )}
+    </LoadedPage>
   );
 }
 
@@ -111,19 +153,23 @@ export function VerifyPage() {
   const data = useLearnerData();
   const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
   useNoIndex();
+  const eyebrow = 'NonStop Gurukul · Certificate check';
+  // No shell here (anyone may open it, signed in or not), so the page owns its `main`.
   return (
-    <main className="page verify">
-      <p className="article__kicker">NonStop Gurukul · Certificate check</p>
-      <Loaded loadable={result}>
+    <main id="content">
+      <LoadedPage loadable={result}>
         {(c) =>
           c === null ? (
-            <>
-              <h1 className="page__title">Certificate not found</h1>
-              <p>No certificate has the id {id}. Check it was typed correctly.</p>
-            </>
+            <Page>
+              <PageHeader
+                eyebrow={eyebrow}
+                title="Certificate not found"
+                lead={`No certificate has the id ${id}. Check it was typed correctly.`}
+              />
+            </Page>
           ) : (
-            <>
-              <h1 className="page__title">{c.revoked ? 'Revoked' : 'Valid'}</h1>
+            <Page>
+              <PageHeader eyebrow={eyebrow} title={c.revoked ? 'Revoked' : 'Valid'} />
               <Callout
                 tone={c.revoked ? 'warning' : 'tip'}
                 title={
@@ -140,10 +186,10 @@ export function VerifyPage() {
                 </p>
               </Callout>
               <CertificateSheet c={c} />
-            </>
+            </Page>
           )
         }
-      </Loaded>
+      </LoadedPage>
     </main>
   );
 }
@@ -155,47 +201,64 @@ export function CertificatesPage() {
   const uid = useUser().uid;
   const result = useAsync(useCallback(() => data.myCertificates(uid), [data, uid]));
   return (
-    <main className="page">
-      <h1 className="page__title">Certificates</h1>
+    <Page>
+      <PageHeader
+        title="Certificates"
+        lead="Every certificate you have earned, newest first. Each one has a public verify link."
+      />
       <Loaded loadable={result}>
         {(list) =>
           list.length === 0 ? (
-            <EmptyState title="No certificates yet">
+            <EmptyState
+              title="No certificates yet"
+              headingAs="h2"
+              action={
+                <Link className={buttonClass('secondary')} to="/courses">
+                  Browse the catalogue
+                </Link>
+              }
+            >
               {`Finish a course and pass its ${t.Quizzes} to earn one.`}
             </EmptyState>
           ) : (
-            <ul className="course-list">
-              {list.map((c) => (
-                <li key={c.id}>
-                  <Link className="course-row" to={`/certificates/${c.id}`}>
-                    <span className="course-row__title">{c.courseTitle}</span>
-                    <span className="course-row__meta">
-                      {c.id} · {longDate(c.issuedAt)}
-                      {c.revoked ? ' · Revoked' : ''}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <Card>
+              <ul className="learn-rows">
+                {list.map((c) => (
+                  <li key={c.id}>
+                    <Link className="course-row" to={`/certificates/${c.id}`}>
+                      <span className="learn-stack">
+                        <span className="course-row__title">{c.courseTitle}</span>
+                        <span className="learn-meta">
+                          {c.id} · {longDate(c.issuedAt)}
+                        </span>
+                      </span>
+                      {c.revoked ? <Chip tone="danger">Revoked</Chip> : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )
         }
       </Loaded>
-    </main>
+    </Page>
   );
 }
 
-/** The real certificate, scaled down, tilted and linked: what the learner just earned. */
+/** The real certificate, scaled down and linked: what the learner just earned. */
 function CertificateThumb({ id }: { id: string }) {
   const data = useLearnerData();
   const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
   if (result.state !== 'ready' || result.value === null) return null;
   return (
-    <Link className="complete__thumb" to={`/certificates/${id}`}>
-      <span className="sr-only">Open the certificate for {result.value.courseTitle}</span>
-      <div aria-hidden="true" inert>
-        <CertificateSheet c={result.value} />
-      </div>
-    </Link>
+    <Card title="Your certificate">
+      <Link className="certificate-thumb" to={`/certificates/${id}`}>
+        <span className="sr-only">Open the certificate for {result.value.courseTitle}</span>
+        <div aria-hidden="true" inert>
+          <CertificateSheet c={result.value} />
+        </div>
+      </Link>
+    </Card>
   );
 }
 
@@ -228,26 +291,29 @@ function UpNextCard({ courseId }: { courseId: string }) {
   if (result.state !== 'ready') return null;
   const next = result.value;
   return (
-    <section className="complete__next" aria-labelledby="complete-next">
-      <h2 id="complete-next" className="complete__next-title">
-        Up next in your queue
-      </h2>
-      {next ? (
-        <>
-          <p className="complete__next-course">{next.course.title}</p>
-          <Link className={buttonClass('chrome')} to={`/courses/${next.course.id}`}>
-            {next.progress ? 'Continue' : 'Start'} {next.course.title}
-          </Link>
-        </>
-      ) : (
-        <>
-          <p className="complete__next-course">Nothing else is assigned to you.</p>
-          <Link className={buttonClass('chrome')} to="/courses">
-            Browse more courses
-          </Link>
-        </>
-      )}
-    </section>
+    <Card title="Up next in your queue">
+      <div className="learn-stack">
+        {next ? (
+          <>
+            <p className="learn-display">{next.course.title}</p>
+            <div className="learn-buttons">
+              <Link className={buttonClass('secondary')} to={`/courses/${next.course.id}`}>
+                {next.progress ? 'Continue' : 'Start'} {next.course.title}
+              </Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="learn-muted">Nothing else is assigned to you.</p>
+            <div className="learn-buttons">
+              <Link className={buttonClass('secondary')} to="/courses">
+                Browse more courses
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -256,29 +322,22 @@ export function CompletePage() {
   const { courseId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
-  const toast = useToast();
+  const copy = useCopyVerifyLink();
   const t = useTerms();
   const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
   const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
-  const copy = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(verifyUrl(id));
-      toast.show('Link copied');
-    } catch {
-      log.warn('Copy link failed', { credentialId: id });
-      toast.show('Could not copy the link.', { tone: 'danger' });
-    }
-  };
 
   return (
-    <main className="page complete">
-      <Loaded loadable={result}>
-        {(course) => {
-          if (!course || !progress?.completedAt) {
-            return (
+    <LoadedPage loadable={result}>
+      {(course) => {
+        if (!course || !progress?.completedAt) {
+          return (
+            <Page>
+              <PageHeader title={course ? course.title : 'Course not found'} />
               <EmptyState
                 title="Not finished yet"
+                headingAs="h2"
                 action={
                   <Link className={buttonClass('secondary')} to={`/courses/${courseId}`}>
                     Back to the course
@@ -287,71 +346,65 @@ export function CompletePage() {
               >
                 {`Finish every lesson and pass every ${t.Quiz} to complete the course.`}
               </EmptyState>
-            );
-          }
-          const quizzes = itemsOf(course).filter((i) => i.type === 'quiz');
-          const best = quizzes.map((p) => progress.quiz[p.id]?.best ?? 0);
-          const average = best.length
-            ? Math.round((best.reduce((a, b) => a + b, 0) / best.length) * 100)
-            : null;
-          const certificateId = course.rules.certificate ? progress.certificateId : null;
-          return (
-            <div className="complete__panel">
-              <div className="complete__main">
-                <p className="complete__kicker">Course complete</p>
-                <h1 className="complete__title">{course.title}, done.</h1>
-                <dl className="complete__stats">
-                  <div>
-                    <dt>Completed on</dt>
-                    <dd>{longDate(progress.completedAt)}</dd>
-                  </div>
-                  {average !== null ? (
-                    <div>
-                      <dt>{`${t.Quiz} average`}</dt>
-                      <dd>{`${average}%`}</dd>
-                    </div>
-                  ) : null}
-                  <div>
-                    <dt>Time invested</dt>
-                    <dd>{durationLabel(estimateMinutes(course))}</dd>
-                  </div>
-                </dl>
-                {course.rules.certificate ? (
-                  certificateId ? (
-                    <div className="complete__actions">
-                      <Link className={buttonClass('chrome')} to={`/certificates/${certificateId}`}>
-                        View and download certificate
-                      </Link>
-                      <a
-                        className={buttonClass('ghost')}
-                        href={linkedInUrl({
-                          title: course.title,
-                          credentialId: certificateId,
-                          verifyUrl: verifyUrl(certificateId),
-                          issuedAt: progress.completedAt,
-                        })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Add to LinkedIn
-                      </a>
-                      <Button variant="ghost" onClick={() => void copy(certificateId)}>
-                        Copy verify link
-                      </Button>
-                    </div>
-                  ) : (
-                    <p role="status">Preparing your certificate…</p>
-                  )
-                ) : null}
-              </div>
-              <div className="complete__side">
-                {certificateId ? <CertificateThumb id={certificateId} /> : null}
-                <UpNextCard courseId={course.id} />
-              </div>
-            </div>
+            </Page>
           );
-        }}
-      </Loaded>
-    </main>
+        }
+        const quizzes = itemsOf(course).filter((i) => i.type === 'quiz');
+        const best = quizzes.map((p) => progress.quiz[p.id]?.best ?? 0);
+        const average = best.length
+          ? Math.round((best.reduce((a, b) => a + b, 0) / best.length) * 100)
+          : null;
+        const certificateId = course.rules.certificate ? progress.certificateId : null;
+        return (
+          <Page>
+            <PageHeader
+              eyebrow="Course complete"
+              title={`${course.title}, done.`}
+              actions={
+                certificateId ? (
+                  <>
+                    <Button variant="secondary" onClick={() => void copy(certificateId)}>
+                      Copy verify link
+                    </Button>
+                    <a
+                      className={buttonClass('secondary')}
+                      href={linkedInUrl({
+                        title: course.title,
+                        credentialId: certificateId,
+                        verifyUrl: verifyUrl(certificateId),
+                        issuedAt: progress.completedAt,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Add to LinkedIn
+                    </a>
+                    <Link className={buttonClass('primary')} to={`/certificates/${certificateId}`}>
+                      View and download certificate
+                    </Link>
+                  </>
+                ) : undefined
+              }
+            />
+            {course.rules.certificate && !certificateId ? (
+              <p role="status" className="learn-muted">
+                Preparing your certificate…
+              </p>
+            ) : null}
+            <div className="learn-stats">
+              <StatCard label="Completed on" value={longDate(progress.completedAt)} />
+              {average !== null ? (
+                <StatCard label={`${t.Quiz} average`} value={`${average}%`} />
+              ) : null}
+              <StatCard label="Time invested" value={durationLabel(estimateMinutes(course))} />
+            </div>
+            <div className="complete-grid">
+              {certificateId ? <CertificateThumb id={certificateId} /> : null}
+              <UpNextCard courseId={course.id} />
+            </div>
+          </Page>
+        );
+      }}
+    </LoadedPage>
   );
 }

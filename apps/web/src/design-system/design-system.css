@@ -1,0 +1,145 @@
+/* Org settings → Design system: layout and specimens only, tokens only (.claude/rules/design.md). */
+
+.ds-section,
+.ds-stack {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.ds-stack {
+  gap: var(--space-3);
+}
+.ds-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ds-examples,
+.ds-icons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.ds-examples > * {
+  max-width: 100%;
+}
+.ds-icons li,
+.ds-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ds-footer {
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.ds-stats,
+.ds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: var(--space-4);
+  flex: 1 1 100%;
+}
+.ds-form {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--width-form);
+}
+
+/* A full-size component (page, sidebar, certificate) shown inside a hairline box. */
+.ds-frame {
+  width: 100%;
+  max-width: var(--width-form);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.ds-frame--narrow {
+  max-width: var(--sidebar-width);
+}
+.ds-frame--wide {
+  max-width: none;
+}
+.ds-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--chrome);
+}
+.ds-chrome--block {
+  display: block;
+  border-radius: 0;
+}
+
+/* Rows separated by hairlines. */
+.ds-rows > li,
+.ds-token {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.ds-rows > li:first-child,
+.ds-token:first-child {
+  border-top: 0;
+}
+.ds-rows p {
+  margin: 0;
+}
+.ds-token {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+.ds-token__value {
+  overflow-wrap: anywhere;
+}
+@media (width < 40rem) {
+  .ds-token {
+    grid-template-columns: 4rem minmax(0, 1fr);
+  }
+  .ds-token__value {
+    grid-column: 2;
+  }
+}
+.ds-specimen {
+  overflow-wrap: anywhere;
+}
+
+/* Token specimens: each sets one property to var(--name) inline. */
+.ds-token__sample {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.ds-swatch,
+.ds-shape {
+  width: var(--space-10);
+  height: var(--space-10);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.ds-swatch {
+  border-radius: var(--radius-pill);
+}
+.ds-bar,
+.ds-motion {
+  display: block;
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-decor);
+}
+.ds-motion {
+  width: var(--space-6);
+  transition-property: transform;
+}
+.ds-token:hover .ds-motion {
+  transform: translateX(var(--space-8));
+}
+.ds-leading {
+  width: 4rem;
+}

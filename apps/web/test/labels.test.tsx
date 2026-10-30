@@ -63,14 +63,16 @@ describe('choosing a label set', () => {
     expect(await screen.findByText('Could not save your choice. Try again.')).toBeTruthy();
   });
 
-  it('switches from the sidebar, both ways', async () => {
+  it('switches from the account menu, both ways', async () => {
     const data = fakeData();
     const { unmount } = await openApp('/', { data, labels: 'gurukul' });
-    fireEvent.click(await screen.findByRole('button', { name: 'Use plain English names' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Use plain English names' }));
     expect(data.data.setLabels).toHaveBeenCalledWith('u1', 'generic');
     unmount();
     await openApp('/', { data });
-    fireEvent.click(await screen.findByRole('button', { name: 'Use Gurukul names' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Use Gurukul names' }));
     expect(data.data.setLabels).toHaveBeenLastCalledWith('u1', 'gurukul');
   });
 });

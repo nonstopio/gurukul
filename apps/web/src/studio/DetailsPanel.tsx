@@ -25,10 +25,7 @@ export function DetailsPanel({
   const t = useTerms();
   return (
     <aside className="sc-details" aria-label="Course details">
-      <Card as="section" aria-labelledby="details-title" className="sc-panel">
-        <h2 id="details-title" className="sc-h3">
-          Course details
-        </h2>
+      <Card title="Course details" className="sc-panel">
         <Input
           label="Title"
           value={course.title}
@@ -84,10 +81,7 @@ export function DetailsPanel({
         </Button>
       </Card>
 
-      <Card as="section" aria-labelledby="rules-title" className="sc-panel">
-        <h2 id="rules-title" className="sc-h3">
-          Learning rules
-        </h2>
+      <Card title="Learning rules" className="sc-panel">
         <Toggle
           label={`${t.Learners} go in order`}
           checked={course.rules.sequential}
@@ -105,10 +99,7 @@ export function DetailsPanel({
         />
       </Card>
 
-      <Card as="section" aria-labelledby="educators-title" className="sc-panel">
-        <h2 id="educators-title" className="sc-h3">
-          {`${t.Educators} with edit access`}
-        </h2>
+      <Card title={`${t.Educators} with edit access`} className="sc-panel">
         <p className="sc-help">
           {educators.educatorIds.length} {educators.educatorIds.length === 1 ? 'person' : 'people'}.{' '}
           {`${article(t.Admin).replace(/^a/, 'A')} changes this list in the console.`}

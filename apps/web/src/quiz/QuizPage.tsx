@@ -4,6 +4,8 @@ import {
   Button,
   Callout,
   Dialog,
+  Page,
+  PageHeader,
   TopBar,
   buttonClass,
   topBarBackClass,
@@ -16,7 +18,7 @@ import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { isRetired } from '../learn/model';
-import { Loaded, RetiredNote } from '../learn/ui';
+import { LoadedPage, RetiredNote } from '../learn/ui';
 import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
 import {
   answerLetters,
@@ -49,7 +51,7 @@ export function QuizPage() {
   useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
 
   return (
-    <Loaded loadable={result}>
+    <LoadedPage loadable={result} width="reading">
       {(course) => {
         const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
         if (!course || quiz?.type !== 'quiz') return <Navigate to="/courses" replace />;
@@ -57,7 +59,7 @@ export function QuizPage() {
           <Exam course={course} quiz={quiz} progress={progress} />
         );
       }}
-    </Loaded>
+    </LoadedPage>
   );
 }
 
@@ -85,13 +87,15 @@ function Exam({
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
-        <main className="page">
-          <h1 className="page__title">{quiz.title}</h1>
+        <Page width="reading">
+          <PageHeader title={quiz.title} />
           <RetiredNote />
-          <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
-            Back to the outline
-          </Link>
-        </main>
+          <div className="learn-buttons">
+            <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+              Back to the outline
+            </Link>
+          </div>
+        </Page>
       </>
     );
   }
@@ -99,8 +103,8 @@ function Exam({
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
-        <main className="page">
-          <h1 className="page__title">{quiz.title}</h1>
+        <Page width="reading">
+          <PageHeader title={quiz.title} />
           <Callout tone="note" title={wait > 0 ? 'Retake not open yet' : 'Locked for now'}>
             <p>
               {wait > 0
@@ -108,10 +112,12 @@ function Exam({
                 : 'Finish the earlier lessons first.'}
             </p>
           </Callout>
-          <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
-            Back to the outline
-          </Link>
-        </main>
+          <div className="learn-buttons">
+            <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+              Back to the outline
+            </Link>
+          </div>
+        </Page>
       </>
     );
   }
@@ -293,11 +299,8 @@ function Questions({
         back={back}
         status={<span>Answers are saved on this device as you go</span>}
       />
-      <main className="page exam">
-        <h1 className="exam__title">{quiz.title}</h1>
-        <p className="article__kicker">
-          Question {index + 1} of {questions.length}
-        </p>
+      <Page width="reading">
+        <PageHeader eyebrow={`Question ${index + 1} of ${questions.length}`} title={quiz.title} />
         <ol className="segments" aria-label="Question progress">
           {questions.map((q, i) => (
             <li
@@ -331,18 +334,18 @@ function Questions({
               ? `Retakes allowed after ${quiz.cooldownMinutes} minutes`
               : 'Retakes allowed straight away'}
           </p>
-          <div className="exam__actions">
+          <div className="learn-buttons">
             {index > 0 ? (
               <Button variant="secondary" disabled={busy} onClick={() => move(index - 1)}>
                 Previous
               </Button>
             ) : null}
-            <Button disabled={!ready} onClick={onPrimary} aria-busy={busy}>
+            <Button disabled={!ready} loading={busy} onClick={onPrimary}>
               {primary}
             </Button>
           </div>
         </footer>
-      </main>
+      </Page>
       <Dialog
         open={leaving}
         title={`Leave this ${t.Quiz}?`}
