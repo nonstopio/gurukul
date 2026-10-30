@@ -141,6 +141,32 @@ const PLATFORM = {
 };
 const QA = { id: 'qa', name: 'QA', memberEmails: ['q9@nonstopio.com'], createdAt: 6 };
 
+describe('Assign: a long list of courses', () => {
+  const many = Array.from({ length: 30 }, (_, i) =>
+    makeCourse({ id: `c${i}`, title: `Topic ${String(i).padStart(2, '0')}` }),
+  );
+
+  it('shows twelve courses a page, keeps what was picked across pages, and searches from page one', async () => {
+    await open(setup(), fakeData({ courses: many }));
+    expect(await screen.findByLabelText('Topic 00')).toBeTruthy();
+    expect(screen.queryByLabelText('Topic 12')).toBeNull();
+    expect(screen.getByText(/Showing 1–12 of 30/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Topic 03'));
+    expect(screen.getByText('1 selected')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'More courses' }));
+    expect(screen.getByLabelText('Topic 12')).toBeTruthy();
+    expect(screen.getByText(/Showing 13–24 of 30/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Topic 13'));
+    expect(screen.getByText('2 selected')).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search courses' }), {
+      target: { value: 'topic 2' },
+    });
+    expect(screen.getByText(/Showing 1–10 of 10/)).toBeTruthy();
+    expect(screen.getByLabelText('Topic 20')).toBeTruthy();
+    expect(screen.getByText('2 selected')).toBeTruthy();
+  });
+});
+
 describe('Assign: audience step, people', () => {
   it('classifies pasted emails, counts who will be assigned and needs one person', async () => {
     const c = setup();

@@ -165,6 +165,9 @@ export interface PaginationProps {
   onPageChange: (page: number) => void;
   /** Accessible name of the navigation. Default: "Pagination". */
   label?: string;
+  /** The words on the two buttons, where "Next" would be confused with another Next on the page. */
+  previousLabel?: string;
+  nextLabel?: string;
 }
 
 /** "Showing 1–25 of 148" with Previous and Next. Pages are 1-based. */
@@ -174,6 +177,8 @@ export function Pagination({
   total,
   onPageChange,
   label = 'Pagination',
+  previousLabel = 'Previous',
+  nextLabel = 'Next',
 }: PaginationProps) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -185,10 +190,10 @@ export function Pagination({
       </p>
       <div className="g-pager__actions">
         <Button variant="secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
+          {previousLabel}
         </Button>
         <Button variant="secondary" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>
-          Next
+          {nextLabel}
         </Button>
       </div>
     </nav>

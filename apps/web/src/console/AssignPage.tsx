@@ -2,16 +2,17 @@ import { classifyEmails, summarize } from '@gurukul/schema';
 import type { ClassifiedEmail, Reminder, Team } from '@gurukul/schema';
 import {
   Button,
+  buttonClass,
   EmptyState,
   FlowPanel,
   FlowSteps,
   Input,
   Page,
   PageHeader,
+  Pagination,
   Select,
   SuccessCheck,
   Toggle,
-  buttonClass,
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -32,6 +33,8 @@ const peopleLabel = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const NO_TEAMS: Team[] = [];
 const STEPS = ['Course', 'Audience', 'Schedule', 'Review'] as const;
+/** How many courses show on a page of the first step. */
+const COURSES_PER_PAGE = 12;
 const HEADINGS = ['Choose courses', 'Who is it for?', 'Set the deadline', 'Review and assign'];
 
 interface Prefill {
@@ -54,6 +57,7 @@ export function AssignPage() {
   const [problem, setProblem] = useState<{ message: string } | null>(null);
   const [courseIds, setCourseIds] = useState<string[]>(prefill.courseId ? [prefill.courseId] : []);
   const [query, setQuery] = useState('');
+  const [coursePage, setCoursePage] = useState(1);
   const [emails, setEmails] = useState<string[]>(prefill.emails ?? []);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState<Reminder>('weekly');
@@ -242,8 +246,12 @@ export function AssignPage() {
     courseIds.length === 1
       ? (courses.find((c) => c.id === courseIds[0])?.title ?? 'this course')
       : `${courseIds.length} courses`;
-  const shownCourses = courses.filter((c) =>
+  const matchingCourses = courses.filter((c) =>
     c.title.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  const shownCourses = matchingCourses.slice(
+    (coursePage - 1) * COURSES_PER_PAGE,
+    coursePage * COURSES_PER_PAGE,
   );
 
   const courseStep = (
@@ -252,7 +260,10 @@ export function AssignPage() {
         label="Search courses"
         type="search"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setCoursePage(1);
+        }}
       />
       <Loaded loadable={courseList}>
         {() =>
@@ -260,23 +271,41 @@ export function AssignPage() {
             <EmptyState title="No published courses yet">
               Publish a course in the Studio, then assign it here.
             </EmptyState>
-          ) : shownCourses.length === 0 ? (
+          ) : matchingCourses.length === 0 ? (
             <EmptyState title={`No course matches “${query.trim()}”`}>
               Try a shorter search.
             </EmptyState>
           ) : (
-            <ul className="learn-cards g-stagger">
-              {shownCourses.map((c) => (
-                <CourseChoice
-                  key={c.id}
-                  course={c}
-                  selected={courseIds.includes(c.id)}
-                  onChange={(on) =>
-                    setCourseIds(on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id))
-                  }
-                />
-              ))}
-            </ul>
+            <>
+              {courseIds.length > 0 ? (
+                <p className="console-muted" aria-live="polite">
+                  {`${courseIds.length} selected`}
+                </p>
+              ) : null}
+              <ul className="learn-cards g-stagger">
+                {shownCourses.map((c) => (
+                  <CourseChoice
+                    key={c.id}
+                    course={c}
+                    selected={courseIds.includes(c.id)}
+                    onChange={(on) =>
+                      setCourseIds(
+                        on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id),
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+              <Pagination
+                label="Courses"
+                previousLabel="Earlier courses"
+                nextLabel="More courses"
+                page={coursePage}
+                pageSize={COURSES_PER_PAGE}
+                total={matchingCourses.length}
+                onPageChange={setCoursePage}
+              />
+            </>
           )
         }
       </Loaded>

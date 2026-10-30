@@ -227,3 +227,13 @@
   font-weight: 600;
   color: var(--text);
 }
+
+/* The step buttons stay in view at the bottom of the window, however long the step is. */
+.console-flow > .console-flow-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  padding: var(--space-3) 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
