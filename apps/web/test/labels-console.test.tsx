@@ -57,8 +57,16 @@ describe('the console in Gurukul names', () => {
   });
 
   it('names the assign toggle', async () => {
-    await openApp('/admin/assign', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByLabelText('Email Shishyas now')).toBeTruthy();
+    await openApp(
+      { pathname: '/admin/assign', state: { courseId: 'git', emails: ['a@nonstopio.com'] } },
+      { ...gurukulAdmin, console: fakeConsole() },
+    );
+    await screen.findByLabelText(/Git, the NonStop Way/);
+    for (const step of ['Who is it for?', 'Set the deadline']) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      await screen.findByRole('heading', { name: step });
+    }
+    expect(screen.getByLabelText('Email Shishyas now')).toBeTruthy();
   });
 
   it('names the roles, the matrix and the grant dialog', async () => {
