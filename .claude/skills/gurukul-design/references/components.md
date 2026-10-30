@@ -602,6 +602,11 @@ empty box. **The whole tile is the link**: the title's link stretches over it, s
 readers still meet one link, and hover lifts the tile and underlines the title. Lists use
 `.learn-cards` with `g-stagger`. Never a text-only row for a course.
 
+**Picking courses** (assign, grant): give the tile `selected` and `onSelectedChange` (apps/web wraps it as
+`CourseChoice`). A real checkbox named after the course sits in a badge on the cover and its label covers the
+whole tile, so a click anywhere toggles it. Selected: `--accent` 2px ring, the tick pops in (`--dur-slow`) and
+the picture settles; `:focus-visible` shows the focus ring. Never a checkbox beside a title for a course.
+
 ## SearchCard — shipped
 
 `<SearchCard label search={{ value, onChange, label, placeholder? }} views? filters? active? count? onClear? />`.

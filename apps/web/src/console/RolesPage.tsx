@@ -22,6 +22,7 @@ import type { Terms } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
+import { CourseChoice } from './CourseChoice';
 import { useConsole } from './ConsoleProvider';
 import { usePeopleSearch } from './usePeopleSearch';
 import type { UserRow } from './types';
@@ -54,6 +55,12 @@ const held = (u: UserRow): Held => ({
   educator: u.roles.includes('educator'),
   admin: u.roles.includes('admin'),
 });
+
+const STATUS_LABEL: Record<Course['status'], string | undefined> = {
+  draft: 'Not published',
+  published: undefined,
+  archived: 'Archived',
+};
 
 const STATUS_NOTE: Record<Course['status'], string> = {
   draft: ' (not published)',
@@ -317,21 +324,20 @@ function GrantDialog({
       {user && roles.educator ? (
         <fieldset className="console-fieldset">
           <legend>Courses they may edit</legend>
-          {courses.map((c) => (
-            <label key={c.id} className="console-choice">
-              <input
-                type="checkbox"
-                checked={courseIds.includes(c.id)}
-                onChange={(e) =>
-                  setCourseIds(
-                    e.target.checked ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id),
-                  )
+          <ul className="learn-cards g-stagger">
+            {courses.map((c) => (
+              <CourseChoice
+                key={c.id}
+                course={c}
+                label={`${c.title}${STATUS_NOTE[c.status]}`}
+                note={STATUS_LABEL[c.status]}
+                selected={courseIds.includes(c.id)}
+                onChange={(on) =>
+                  setCourseIds(on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id))
                 }
-              />{' '}
-              {c.title}
-              {STATUS_NOTE[c.status]}
-            </label>
-          ))}
+              />
+            ))}
+          </ul>
         </fieldset>
       ) : null}
     </Dialog>

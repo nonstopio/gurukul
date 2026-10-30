@@ -323,6 +323,20 @@ function PeoplePickerExample() {
   return <PeoplePicker label="Add people" value={chosen} onChange={setChosen} search={search} />;
 }
 
+function TileChoiceExample() {
+  const [picked, setPicked] = useState(true);
+  return (
+    <CourseTile
+      title="Git, the NonStop Way"
+      theme="forest"
+      chips={<Chip tone="neutral">Foundation</Chip>}
+      meta="22 lessons · 190 min"
+      selected={picked}
+      onSelectedChange={setPicked}
+    />
+  );
+}
+
 function SwatchExample() {
   const [theme, setTheme] = useState<CoverTheme>('forest');
   return <ColourSwatch label="Cover theme" value={theme} onChange={setTheme} />;
@@ -927,7 +941,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     ),
   },
   CourseTile: {
-    rule: 'A course in any list is a tile: its picture, else its name on its own colour; the whole tile is the link.',
+    rule: 'A course in any list is a tile: its picture, else its name on its own colour; the whole tile is the link, or the choice when picking courses.',
     Example: () => (
       <div className="ds-stack">
         <CourseTile
@@ -944,6 +958,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           heading={<a href="#forms">Accessible forms</a>}
           summary="No picture: the name sits on the course colour."
         />
+        <TileChoiceExample />
       </div>
     ),
   },

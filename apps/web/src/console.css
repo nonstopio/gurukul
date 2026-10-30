@@ -88,20 +88,6 @@
   gap: var(--space-2);
   min-height: var(--control-height);
 }
-.console-choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.console-choices .console-choice {
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
 .console-fieldset {
   display: grid;
   gap: var(--space-1);

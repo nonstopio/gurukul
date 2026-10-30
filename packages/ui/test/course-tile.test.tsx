@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CourseTile } from '../src';
 import { axeViolations } from './axe';
 
@@ -56,6 +56,34 @@ describe('CourseTile', () => {
   it('uses the plain title when no heading is given', () => {
     render(<CourseTile title="Plain" theme="sky" />);
     expect(screen.getByRole('heading', { name: 'Plain' })).toBeTruthy();
+  });
+
+  it('is a choice when given onSelectedChange: a named checkbox that toggles', async () => {
+    const onSelectedChange = vi.fn();
+    const { container, rerender } = render(
+      <CourseTile
+        title="Git"
+        theme="sand"
+        selected={false}
+        selectLabel="Choose Git"
+        onSelectedChange={onSelectedChange}
+      />,
+    );
+    const box = screen.getByRole('checkbox', { name: 'Choose Git' }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(container.querySelector('article')?.getAttribute('data-selected')).toBe('false');
+    fireEvent.click(box);
+    expect(onSelectedChange).toHaveBeenCalledWith(true);
+    rerender(<CourseTile title="Git" theme="sand" selected onSelectedChange={onSelectedChange} />);
+    expect(container.querySelector('article')?.getAttribute('data-selected')).toBe('true');
+    expect((screen.getByRole('checkbox', { name: 'Git' }) as HTMLInputElement).checked).toBe(true);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('has no checkbox and no selection state when it is not a choice', () => {
+    const { container } = render(tile());
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(container.querySelector('article')?.hasAttribute('data-selected')).toBe(false);
   });
 
   it('has no axe violations', async () => {

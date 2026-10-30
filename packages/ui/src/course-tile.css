@@ -110,3 +110,87 @@
   background: var(--surface);
   border: 1px solid var(--border);
 }
+
+/* A tile that is a choice (assign, grant): the whole tile is the checkbox's label, and picking it
+   rings the tile, pops the tick in and settles the picture. */
+.g-course-tile--choice {
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-course-tile__select::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.g-course-tile__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.g-course-tile__check {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-raised);
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: 2px solid var(--paper-ink);
+  border-radius: var(--radius-pill);
+  /* Fixed colours: the badge sits on a picture, so it must not follow the theme. */
+  background: var(--paper);
+  color: transparent;
+  /* Hidden until the tile is hovered, focused or picked, so an unpicked tile is just the course. */
+  opacity: 0;
+  scale: 0.7;
+  transition:
+    opacity var(--dur-base) var(--ease),
+    scale var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-course-tile--choice:hover .g-course-tile__check,
+.g-course-tile--choice:has(.g-course-tile__input:focus-visible) .g-course-tile__check {
+  opacity: 1;
+  scale: 1;
+}
+.g-course-tile--choice[data-selected='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.g-course-tile--choice[data-selected='true'] .g-course-tile__check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  opacity: 1;
+  scale: 1;
+  animation: g-course-tile-pop var(--dur-slow) var(--ease);
+}
+.g-course-tile__cover img,
+.g-course-tile__cover .g-course-tile__name {
+  transition: transform var(--dur-slow) var(--ease);
+}
+.g-course-tile--choice[data-selected='true'] .g-course-tile__cover img,
+.g-course-tile--choice[data-selected='true'] .g-course-tile__name {
+  transform: scale(1.04);
+}
+.g-course-tile--choice:has(.g-course-tile__input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+@keyframes g-course-tile-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

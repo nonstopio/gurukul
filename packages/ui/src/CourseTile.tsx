@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { CheckIcon } from './Icon';
 import './course-tile.css';
 
 export type CourseTileTheme = 'forest' | 'sand' | 'sky' | 'stone';
@@ -24,6 +25,14 @@ export interface CourseTileProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   extra?: ReactNode;
   /** The element to render. Default: `article`. */
   as?: 'article' | 'li';
+  /**
+   * Makes the tile a choice: a checkbox badge on the cover, and a click anywhere on the tile toggles
+   * it. Use a plain `heading` (no link). Pair with `selected` and `selectLabel`.
+   */
+  onSelectedChange?: ((next: boolean) => void) | undefined;
+  selected?: boolean | undefined;
+  /** The checkbox's accessible name, e.g. "Git, the NonStop Way". Default: `title`. */
+  selectLabel?: string | undefined;
 }
 
 /**
@@ -40,6 +49,9 @@ export function CourseTile({
   meta,
   extra,
   as: Tag = 'article',
+  onSelectedChange,
+  selected = false,
+  selectLabel,
   className,
   ...rest
 }: CourseTileProps) {
@@ -47,7 +59,25 @@ export function CourseTile({
   const [failed, setFailed] = useState<string | null>(null);
   const showImage = image && failed !== image;
   return (
-    <Tag className={cx('g-course-tile', className)} {...rest}>
+    <Tag
+      className={cx('g-course-tile', onSelectedChange && 'g-course-tile--choice', className)}
+      data-selected={onSelectedChange ? selected : undefined}
+      {...rest}
+    >
+      {onSelectedChange ? (
+        <label className="g-course-tile__select">
+          <input
+            type="checkbox"
+            className="g-course-tile__input"
+            checked={selected}
+            aria-label={selectLabel ?? title}
+            onChange={(e) => onSelectedChange(e.target.checked)}
+          />
+          <span className="g-course-tile__check" aria-hidden="true">
+            <CheckIcon size={16} strokeWidth={2.5} />
+          </span>
+        </label>
+      ) : null}
       <div className={`g-course-tile__cover g-course-tile__cover--${theme}`} aria-hidden="true">
         {showImage ? (
           <img src={image} alt="" loading="lazy" onError={() => setFailed(image)} />

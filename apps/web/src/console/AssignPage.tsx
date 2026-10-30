@@ -21,7 +21,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { toastError } from '../errors';
-import { countItems } from '../learn/model';
+import { CourseChoice } from './CourseChoice';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
@@ -31,7 +31,6 @@ import { MAX_MEMBERS, checkTeamName } from './model';
 import { usePeopleLookup } from './usePeopleSearch';
 import type { AssignResult, KnownEmails } from './types';
 
-const lessonLabel = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
 const peopleLabel = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const NO_TEAMS: Team[] = [];
@@ -272,27 +271,16 @@ export function AssignPage() {
               Try a shorter search.
             </EmptyState>
           ) : (
-            <ul className="console-choices">
+            <ul className="learn-cards g-stagger">
               {shownCourses.map((c) => (
-                <li key={c.id}>
-                  <label className="console-choice">
-                    <input
-                      type="checkbox"
-                      checked={courseIds.includes(c.id)}
-                      onChange={(e) =>
-                        setCourseIds(
-                          e.target.checked
-                            ? [...courseIds, c.id]
-                            : courseIds.filter((id) => id !== c.id),
-                        )
-                      }
-                    />
-                    <strong>{c.title}</strong>
-                    <span className="console-muted">
-                      {lessonLabel(countItems(c).lessons)} · {c.estimatedMinutes} min
-                    </span>
-                  </label>
-                </li>
+                <CourseChoice
+                  key={c.id}
+                  course={c}
+                  selected={courseIds.includes(c.id)}
+                  onChange={(on) =>
+                    setCourseIds(on ? [...courseIds, c.id] : courseIds.filter((id) => id !== c.id))
+                  }
+                />
               ))}
             </ul>
           )

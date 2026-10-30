@@ -20,7 +20,7 @@ touch. These are blocking rules, not preferences.
 - **`apps/web` CSS is layout only** (grid, flex, gap, order, columns) with tokens: no hex, no
   `rgb()`, no px font size, no `box-shadow`, no `border-radius` literal, no raw `z-index`.
 - **A card that stands for one destination is clickable all over.** One real link (its title)
-  stretched over the card with `::after { inset: 0 }`; never only the title, never a `<div onClick>`,
+  stretched over the card with `::after { inset: 0 }`; never only the title, never a `<div onClick>`, never a checkbox beside a course's name (a course you pick is a `CourseTile` with `onSelectedChange`),
   never a link nested in a clickable card. A course in any list is a `CourseTile`: its picture,
   else the first image in the course, else its name on its own colour. A list people search gets a
   `SearchCard`, not loose inputs.
