@@ -514,24 +514,23 @@ a.items__row:hover {
   }
 }
 
-/* ---- Sign-in (no shell): the ink pitch on the left, the light sign-in panel on the right ---- */
+/* ---- Sign-in (no shell): a calm two-column hero, copy left, a drawn course card right ---- */
 .signin {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'brand brand'
+    'copy art'
+    'foot foot';
+  align-content: start;
+  gap: var(--space-8) var(--space-12);
   min-height: 100dvh;
+  padding: var(--space-6) clamp(var(--space-5), 6vw, var(--space-16));
   background: var(--bg);
-}
-.signin__hero {
-  display: flex;
-  flex: 1 1 35rem;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-12);
-  padding: var(--space-12) clamp(var(--space-5), 6vw, var(--space-16));
-  background: var(--chrome);
-  color: var(--chrome-text);
+  color: var(--text-body);
 }
 .signin__brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -542,33 +541,28 @@ a.items__row:hover {
 }
 .signin__brand-name {
   padding-left: var(--space-4);
-  border-left: 1px solid var(--chrome-line);
+  border-left: 1px solid var(--border-strong);
   font: 500 var(--text-xl) / 1 var(--font-display);
-  color: var(--chrome-accent);
+  color: var(--text);
 }
-.signin__pitch {
-  display: grid;
-  gap: var(--space-6);
+.signin__copy {
+  grid-area: copy;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-8);
 }
-.signin__headline {
-  margin: 0;
-  font: 500 clamp(var(--text-3xl), 4vw, var(--text-5xl)) / var(--leading-tight) var(--font-display);
-  color: var(--chrome-text-strong);
+.signin__copy .g-page-header__title {
+  font-size: var(--text-5xl);
   text-wrap: balance;
 }
-.signin__quote {
+.signin__action {
   display: grid;
-  gap: var(--space-1);
-  margin: 0;
+  gap: var(--space-3);
+  justify-items: start;
 }
-.signin__quote blockquote {
+.signin__action .learn-meta {
   margin: 0;
-  font: 500 var(--text-xl) / var(--leading-tight) var(--font-display);
-  color: var(--chrome-text-strong);
-}
-.signin__quote figcaption {
-  font-size: var(--text-sm);
-  color: var(--chrome-label);
 }
 .signin__benefits {
   display: grid;
@@ -576,6 +570,7 @@ a.items__row:hover {
   margin: 0;
   padding: 0;
   list-style: none;
+  color: var(--text-muted);
 }
 .signin__benefits li {
   display: flex;
@@ -584,22 +579,29 @@ a.items__row:hover {
 }
 .signin__benefits svg {
   flex: none;
-  color: var(--chrome-accent);
+  color: var(--accent);
 }
-.signin__form {
+.signin__footer {
+  grid-area: foot;
   display: flex;
-  flex: 1 1 26rem;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-6);
-  width: min(100%, var(--width-form));
-  margin-inline: auto;
-  padding: var(--space-12) clamp(var(--space-5), 5vw, var(--space-12));
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
 }
-.signin__form .g-btn {
-  width: 100%;
+.signin__footer p {
+  margin: 0;
 }
-.signin__form .learn-meta a {
+.signin__sutra {
+  font: 500 var(--text-md) / var(--leading-snug) var(--font-display);
+  color: var(--text);
+}
+.signin__sutra span {
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-subtle);
+}
+.signin__footer a {
   color: var(--accent);
 }
 .signin__error {
@@ -610,9 +612,118 @@ a.items__row:hover {
   background: var(--warning-soft);
   color: var(--warning);
 }
-@media (width < 40rem) {
-  .signin__benefits {
-    display: none;
+
+/* The drawn course card: a slab, a 24px disc pitch, and three cards that rise in over it. */
+.signin-art {
+  grid-area: art;
+  position: relative;
+  align-self: center;
+  aspect-ratio: 8 / 7;
+  width: 100%;
+}
+.signin-art__plate {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-xl);
+}
+.signin-art__slab {
+  fill: var(--accent-soft);
+}
+.signin-art__disc {
+  fill: var(--accent-line);
+}
+.signin-art__sun {
+  fill: var(--saffron);
+}
+.signin-art__card,
+.signin-art__ring,
+.signin-art__seal,
+.signin-art__pill {
+  position: absolute;
+  box-shadow: var(--shadow-menu);
+}
+.signin-art__card {
+  inset: 26% 20% auto 7%;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.signin-art__card p {
+  margin: 0;
+}
+.signin-art__kicker {
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+.signin-art__title {
+  font: 500 var(--text-lg) / var(--leading-snug) var(--font-display);
+  color: var(--text);
+}
+.signin-art__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.signin-art__ring {
+  top: 6%;
+  left: 7%;
+  padding: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+.signin-art__seal {
+  right: 6%;
+  bottom: 8%;
+  border-radius: var(--radius-pill);
+}
+.signin-art__pill {
+  bottom: 12%;
+  left: 12%;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--saffron);
+  color: var(--saffron-on);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+  box-shadow: none;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-3));
+  }
+}
+.rise {
+  animation: rise-in var(--dur-slow) var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}
+@media (width < 56rem) {
+  .signin {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'brand'
+      'copy'
+      'art'
+      'foot';
+    gap: var(--space-8);
+  }
+  .signin__copy .g-page-header__title {
+    font-size: var(--text-3xl);
+  }
+  .signin-art {
+    max-width: var(--width-form);
+    margin-inline: auto;
   }
 }
 
