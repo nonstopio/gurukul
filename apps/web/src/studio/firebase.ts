@@ -12,6 +12,7 @@ import {
   orderBy,
   query,
   runTransaction,
+  updateDoc,
   serverTimestamp,
   where,
 } from 'firebase/firestore';
@@ -173,6 +174,13 @@ export function firebaseStudioData(db: Firestore): StudioData {
         createdAt: serverTimestamp(),
       });
       return ref.id;
+    },
+    async updateInBank(id, entry) {
+      await updateDoc(doc(db, 'questionBank', id), {
+        question: cleanForFirestore(entry.question),
+        answers: entry.answers,
+        tags: entry.tags,
+      });
     },
     async removeFromBank(id) {
       await deleteDoc(doc(db, 'questionBank', id));

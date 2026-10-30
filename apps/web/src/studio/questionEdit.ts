@@ -1,8 +1,9 @@
+import { itemsOf } from '@gurukul/schema';
 import type { Course, CourseStats, Quiz, Question } from '@gurukul/schema';
 import { moveItem } from '@gurukul/ui';
 import { newId } from './ids';
 import { patch } from './patch';
-import type { BankQuestion, Working } from './types';
+import type { BankQuestion, StudioCourse, Working } from './types';
 
 export const MIN_ANSWERS = 2;
 export const MAX_ANSWERS = 6;
@@ -149,6 +150,80 @@ export function matchBank(bank: readonly BankQuestion[], search: string): BankQu
       b.question.prompt.toLowerCase().includes(needle) ||
       b.tags.some((t) => t.toLowerCase().includes(needle)),
   );
+}
+
+const samePrompt = (a: string, b: string): boolean =>
+  a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** A Quiz of a course the person can read, with its questions and their keys (from the draft). */
+export interface QuizSource {
+  /** `{courseId}/{quizId}`. */
+  id: string;
+  /** "Course › Quiz", for a list. */
+  label: string;
+  questions: Keyed[];
+}
+
+/**
+ * Every Quiz in the courses the person may edit (a draft is where the keys are), with its questions
+ * and their correct answers. A question without a key is left out: it could not be graded.
+ */
+export function quizSources(rows: readonly StudioCourse[]): QuizSource[] {
+  return rows.flatMap(({ draft }) =>
+    draft
+      ? itemsOf(draft.course).flatMap((item) =>
+          item.type === 'quiz'
+            ? [
+                {
+                  id: `${draft.course.id}/${item.id}`,
+                  label: `${draft.course.title} › ${item.title}`,
+                  questions: item.questions.flatMap((question) => {
+                    const key = draft.answers[item.id]?.[question.id] ?? [];
+                    return key.length > 0
+                      ? [{ question, key: syncKey(question.kind, question.options, key) }]
+                      : [];
+                  }),
+                },
+              ]
+            : [],
+        )
+      : [],
+  );
+}
+
+/**
+ * Where a bank question is used: the "Course › Quiz" of every Quiz (draft where there is one, else
+ * live) holding a question with the same text. A copy is not linked to its bank entry, so the text
+ * is what ties them together.
+ */
+export function bankUsage(prompt: string, rows: readonly StudioCourse[]): string[] {
+  return rows.flatMap(({ live, draft }) => {
+    const course = draft?.course ?? live;
+    return itemsOf(course).flatMap((item) =>
+      item.type === 'quiz' && item.questions.some((q) => samePrompt(q.prompt, prompt))
+        ? [`${course.title} › ${item.title}`]
+        : [],
+    );
+  });
+}
+
+export interface QuestionProblems {
+  prompt?: string;
+  answers?: string;
+  explanation?: string;
+}
+
+/** What stops a question being saved to the bank: a blank prompt, explanation or answer. */
+export function questionProblems({ question }: Keyed): QuestionProblems {
+  return {
+    ...(question.prompt.trim() === '' && { prompt: 'Write the question.' }),
+    ...(question.options.some((o) => o.text.trim() === '') && {
+      answers: 'Every answer needs text. Remove the ones you do not need.',
+    }),
+    ...(question.explanation.trim() === '' && {
+      explanation: 'Explain the right answer; it is shown after answering.',
+    }),
+  };
 }
 
 /** Fewer than half got it right first time, from at least three tries. */
