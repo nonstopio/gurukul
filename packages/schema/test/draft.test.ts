@@ -274,6 +274,22 @@ describe('diffCourses and countUnpublished', () => {
     expect(countUnpublished(d)).toBe(4);
   });
 
+  it('ignores the Educator list, which publishing takes from the live course', () => {
+    const live = good();
+    const draft = JSON.parse(JSON.stringify(live)) as Course;
+    live.educatorIds = ['u1', 'u2'];
+    live.educatorNames = { u1: 'Asha Rao', u2: 'Vikram Shah' };
+    expect(diffCourses(live, draft).courseChanged).toBe(false);
+  });
+
+  it('compares a draft saved before a schema change in the shape publishing gives it', () => {
+    const live = good();
+    const old = JSON.parse(JSON.stringify(live)) as Partial<Course>;
+    delete old.educatorNames;
+    const draft = { ...old, schemaVersion: 1 } as unknown as Course;
+    expect(countUnpublished(diffCourses(live, draft))).toBe(0);
+  });
+
   it('counts a reordered chapter as a course-level change', () => {
     const live = good();
     const draft = JSON.parse(JSON.stringify(live)) as Course;

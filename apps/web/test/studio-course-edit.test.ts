@@ -254,6 +254,12 @@ describe('studioModel', () => {
     expect(unpublishedEdits({ live, draft: draftDoc(edited) })).toBe(1);
   });
 
+  it('counts no edit when an Admin changed only who may edit the live course', () => {
+    const draft = draftDoc(makeCourse());
+    const live = makeCourse({ educatorIds: ['u1', 'u2'], educatorNames: { u2: 'Asha Rao' } });
+    expect(unpublishedEdits({ live, draft })).toBe(0);
+  });
+
   it('summarises changes with titles', () => {
     const live = makeCourse();
     const draft = makeCourse({
