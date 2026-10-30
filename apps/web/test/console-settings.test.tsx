@@ -5,6 +5,12 @@ import { axeViolations } from './axe';
 import { fakeConsole } from './fake-console';
 import { openApp } from './harness';
 
+// Vitest empties every CSS import, `?raw` included; the browser build gets the real file.
+vi.mock('@gurukul/ui/tokens.css?raw', async () => {
+  const { readFileSync } = await import('node:fs');
+  return { default: readFileSync('../../packages/ui/src/tokens.css', 'utf8') };
+});
+
 const admin = { roles: ['admin'] as Array<'admin'> };
 const saveButton = () => screen.getByRole('button', { name: 'Save settings' }) as HTMLButtonElement;
 
@@ -13,7 +19,7 @@ describe('Org settings', () => {
     const { container } = await openApp('/admin/settings', { ...admin });
     expect(await screen.findByText('No teams yet')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Org settings' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Organisation', selected: true })).toBeTruthy();
+    expect(screen.queryByRole('tab')).toBeNull();
     for (const name of ['Teams', 'Daily reminders', 'Certificate signatory']) {
       expect(screen.getByRole('region', { name })).toBeTruthy();
     }
@@ -37,8 +43,7 @@ describe('Org settings', () => {
       .mockResolvedValue(DEFAULT_ORG_CONFIG);
     await openApp('/admin/settings', { ...admin, console: c });
     expect(screen.getByRole('heading', { level: 1, name: 'Org settings' })).toBeTruthy();
-    const panel = screen.getByRole('tabpanel', { name: 'Organisation' });
-    expect(within(panel).getByRole('status').getAttribute('aria-busy')).toBe('true');
+    expect(screen.getAllByRole('status').map((e) => e.getAttribute('aria-busy'))).toContain('true');
     expect(screen.queryByRole('button', { name: 'Save settings' })).toBeNull();
     fail(new Error('offline'));
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
@@ -134,16 +139,19 @@ describe('Org settings', () => {
   });
 });
 
-describe('Org settings tabs', () => {
-  it('keeps the tab in the URL and loads the design system only when it is opened', async () => {
-    const { router } = await openApp('/admin/settings', { ...admin });
-    await screen.findByText('No teams yet');
-    expect(screen.queryByRole('tab', { name: 'Tokens' })).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Design system' }));
-    expect(router.state.location.search).toBe('?tab=design-system');
-    expect(await screen.findByRole('tab', { name: 'Tokens', selected: true })).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Organisation' }));
-    expect(router.state.location.search).toBe('?tab=organisation');
-    expect(screen.queryByRole('tab', { name: 'Tokens' })).toBeNull();
+describe('Design system moved out of Org settings', () => {
+  it('sends the old tab link to its own page, keeping the section', async () => {
+    const { router } = await openApp('/admin/settings?tab=design-system&section=type', {
+      ...admin,
+    });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Design system' })).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/admin/design-system');
+    expect(router.state.location.search).toBe('?section=type');
+  });
+
+  it('redirects without a section when the old link had none', async () => {
+    const { router } = await openApp('/admin/settings?tab=design-system', { ...admin });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Design system' })).toBeTruthy();
+    expect(router.state.location.search).toBe('');
   });
 });

@@ -22,8 +22,8 @@ plain English; copy takes them from `useTerms()` (`apps/web/src/labels/`), never
 
 **Where the truth lives.** Values: `packages/ui/src/tokens.css` (when it and this file
 disagree, the CSS is right and this file is stale: fix it here). Recipes, states and keyboard
-contracts per component: `references/components.md`. Live examples: Org settings → Design system
-(`/admin/settings?tab=design-system`), which renders the real components and reads the real
+contracts per component: `references/components.md`. Live examples: Admin → Design system
+(`/admin/design-system`), which renders the real components and reads the real
 tokens. Look-and-feel reference: the "NonStop Gurukul — L&D Platform" canvas, summarised in
 `.plan/design-handoff/`. Why the rules are strict: `.plan/18-redesign.md`.
 
@@ -40,31 +40,33 @@ tokens. Look-and-feel reference: the "NonStop Gurukul — L&D Platform" canvas, 
 The first column is what you want; the second is the only accepted way to get it. Anything
 else is a review blocker, and most of it fails `npm run check:design`.
 
-| Need                                    | Use                                                                   | Never                                                              |
-| --------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| A page                                  | `Page` → `PageHeader` → content (see Page anatomy)                    | a bare `<div class="page">`, a page-specific max-width             |
-| A page title                            | `PageHeader title=…` (it renders the only `h1`)                       | `<h1 className="…">`, `TopBar` as a page header                    |
-| Navigation chrome                       | `AppShell` (sidebar) or `FocusedShell` (task); chosen in `routes.tsx` | a page drawing its own sidebar or top bar                          |
-| Who is signed in, sign out, profile     | `UserCard` in the shell (its `Menu`) and `/profile`                   | name text and buttons in a footer                                  |
-| A choice from a list (form or filter)   | `Select` (styled native `<select>` with label)                        | a raw `<select>`, a hand-built dropdown under an input             |
-| Actions on a thing (row, card, account) | `Menu` (menu button + `role="menu"`)                                  | a row of five small buttons, a `<details>` used as a menu          |
-| 2–4 mutually exclusive modes            | `SegmentedControl` (modes) or `Tabs` (views with panels)              | toggle buttons with `aria-pressed` rebuilt per page                |
-| A boolean setting                       | `Toggle` (`role="switch"`)                                            | a checkbox styled as a switch                                      |
-| Search + filters above a list           | `FilterBar` (search, `Select`s, toggles, Clear filters)               | `.filters` rows, a paragraph inside a filter row                   |
-| Tabular data                            | `DataTable` (read-only: no selection or paging, `rowHeader` column)   | `<table class="plain-table">`, a CSS grid pretending to be a table |
-| A number with its label                 | `StatCard`                                                            | a card with a big `<p>`                                            |
-| A status word                           | `Chip tone=…` with the word                                           | coloured text alone                                                |
-| A person                                | `Avatar` (initials; colour by role)                                   | an `<img>` of a Google photo, a coloured `<span>`                  |
-| Something just happened                 | `useToast()`                                                          | an error `Callout` kept in state after a click                     |
-| Something is true about this page       | `Callout` (one per region)                                            | a toast that should have stayed                                    |
-| Confirm a destructive or costly action  | `Dialog` with a verb-plus-object primary                              | `window.confirm`, an inline "Are you sure?"                        |
-| One record's detail beside a list       | `Dialog variant="drawer"`                                             | a new route for a quick look                                       |
-| First load of a page or region          | `PageSkeleton` / `Skeleton` in the final layout's shape               | "Loading…" text, a spinner                                         |
-| Waiting on a click                      | `Button loading`                                                      | a label swapped to "Saving…" by hand                               |
-| Nothing to show                         | `EmptyState` (what the emptiness means + one action)                  | "No data", an invented zero                                        |
-| A failed load                           | `Loaded` (warning `Callout` with Retry); shell stays usable           | a blank page, raw error text                                       |
-| An icon                                 | `Icon` / the named icons in `Icon.tsx`                                | an emoji, an inline one-off SVG for a UI icon                      |
-| A link that looks like a button         | `buttonClass(…)` on `<Link>`                                          | `<a href>` for an in-app route (full reload)                       |
+| Need                                    | Use                                                                    | Never                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| A page                                  | `Page` → `PageHeader` → content (see Page anatomy)                     | a bare `<div class="page">`, a page-specific max-width              |
+| A page title                            | `PageHeader title=…` (it renders the only `h1`)                        | `<h1 className="…">`, `TopBar` as a page header                     |
+| Navigation chrome                       | `AppShell` (sidebar) or `FocusedShell` (task); chosen in `routes.tsx`  | a page drawing its own sidebar or top bar                           |
+| Who is signed in, sign out, profile     | `UserCard` in the shell (its `Menu`: name, email, role) and `/profile` | name text and buttons in a footer                                   |
+| Moving between Learn, Studio and Admin  | `AreaSwitcher` in the `Sidebar` (only with more than one area)         | links to other areas mixed into one long nav                        |
+| A list or page that enters              | `.route-enter`, `g-stagger` + `--i` (see references/components.md)     | a keyframe with a literal duration, a transform-only reduced motion |
+| A choice from a list (form or filter)   | `Select` (styled native `<select>` with label)                         | a raw `<select>`, a hand-built dropdown under an input              |
+| Actions on a thing (row, card, account) | `Menu` (menu button + `role="menu"`)                                   | a row of five small buttons, a `<details>` used as a menu           |
+| 2–4 mutually exclusive modes            | `SegmentedControl` (modes) or `Tabs` (views with panels)               | toggle buttons with `aria-pressed` rebuilt per page                 |
+| A boolean setting                       | `Toggle` (`role="switch"`)                                             | a checkbox styled as a switch                                       |
+| Search + filters above a list           | `FilterBar` (search, `Select`s, toggles, Clear filters)                | `.filters` rows, a paragraph inside a filter row                    |
+| Tabular data                            | `DataTable` (read-only: no selection or paging, `rowHeader` column)    | `<table class="plain-table">`, a CSS grid pretending to be a table  |
+| A number with its label                 | `StatCard`                                                             | a card with a big `<p>`                                             |
+| A status word                           | `Chip tone=…` with the word                                            | coloured text alone                                                 |
+| A person                                | `Avatar` (initials; colour by role)                                    | an `<img>` of a Google photo, a coloured `<span>`                   |
+| Something just happened                 | `useToast()`                                                           | an error `Callout` kept in state after a click                      |
+| Something is true about this page       | `Callout` (one per region)                                             | a toast that should have stayed                                     |
+| Confirm a destructive or costly action  | `Dialog` with a verb-plus-object primary                               | `window.confirm`, an inline "Are you sure?"                         |
+| One record's detail beside a list       | `Dialog variant="drawer"`                                              | a new route for a quick look                                        |
+| First load of a page or region          | `PageSkeleton` / `Skeleton` in the final layout's shape                | "Loading…" text, a spinner                                          |
+| Waiting on a click                      | `Button loading`                                                       | a label swapped to "Saving…" by hand                                |
+| Nothing to show                         | `EmptyState` (what the emptiness means + one action)                   | "No data", an invented zero                                         |
+| A failed load                           | `Loaded` (warning `Callout` with Retry); shell stays usable            | a blank page, raw error text                                        |
+| An icon                                 | `Icon` / the named icons in `Icon.tsx`                                 | an emoji, an inline one-off SVG for a UI icon                       |
+| A link that looks like a button         | `buttonClass(…)` on `<Link>`                                           | `<a href>` for an in-app route (full reload)                        |
 
 ## Page anatomy
 
@@ -111,11 +113,20 @@ height: 100dvh`; its nav scrolls inside it when it is taller than the window; th
 - **Below 1024px** the sidebar becomes a drawer opened from a Menu button in the top bar:
   scrim, Escape and scrim click close it, focus moves into it and returns to the button,
   navigating closes it. The page never has a sidebar stacked above it.
+- **Areas.** The sidebar belongs to one area: Learn (`/`, catalogue, certificates, profile,
+  changelog), Studio (`/studio…`) or Admin (`/admin…`, with Design system its own page beside Org
+  settings). When the person may open more than one, an `AreaSwitcher` under the brand moves
+  between them, the current one follows the route, and the nav lists only that area's pages. A
+  person with one area sees no switcher. Global search still reaches every page they may open.
+- **Motion.** The routed page enters with a fade and 8px rise (`.route-enter`, `--dur-page`);
+  focus still moves to the new `h1`. The active nav item and switcher link change colour on
+  `--dur-base`; the drawer, dialogs and lists use the durations in `references/components.md`
+  (Motion). Reduced motion zeroes the durations.
 - **The page scrolls, not the shell.** Only the document scrolls; no page sets `overflow` on a
   full-height wrapper (it breaks sticky, find-in-page and scroll restore).
 - Nav items have an 18px icon and a label; the current item has `aria-current="page"`.
-- The `UserCard` shows avatar, name, and email or role; its `Menu` holds Profile, the label
-  switch, What's new and Sign out. Sign out is never more than two clicks from any page.
+- The `UserCard` shows avatar, name, and email or role; its `Menu` opens on a header with name,
+  email and a role chip, then Profile, the label switch, Theme, What's new and Sign out. Sign out is never more than two clicks from any page.
 
 ## States
 

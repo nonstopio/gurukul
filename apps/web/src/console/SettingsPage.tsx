@@ -1,19 +1,8 @@
-import {
-  Button,
-  Card,
-  EmptyState,
-  Input,
-  Page,
-  PageHeader,
-  Skeleton,
-  Tabs,
-  Toggle,
-  useToast,
-} from '@gurukul/ui';
+import { Button, Card, EmptyState, Input, Page, PageHeader, Toggle, useToast } from '@gurukul/ui';
 import type { OrgConfig } from '@gurukul/schema';
-import { Suspense, lazy, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useSearchParams } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useAsync } from '../data/useAsync';
 import { log } from '../log';
 import { Loaded } from '../learn/ui';
@@ -21,54 +10,26 @@ import { useTerms } from '../labels/useTerms';
 import { useConsole } from './ConsoleProvider';
 import { addTeam } from './model';
 
-// Its own chunk: only an Admin who opens the tab downloads every example component.
-const DesignSystem = lazy(async () => ({
-  default: (await import('../design-system/DesignSystem')).DesignSystem,
-}));
-
 /**
  * `/admin/settings`: the teams learners pick from, the daily reminders and the certificate
- * signatory (`?tab=organisation`, the default), and the live design system (`?tab=design-system`).
+ * signatory. The design system used to be a tab here; its old `?tab=design-system` links land on
+ * `/admin/design-system`.
  */
 export function SettingsPage() {
   const { data } = useConsole();
   const t = useTerms();
   const result = useAsync(useCallback(() => data.orgSettings(), [data]));
-  const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'design-system' ? 'design-system' : 'organisation';
+  const [params] = useSearchParams();
+  if (params.get('tab') === 'design-system') {
+    const section = params.get('section');
+    const search = section ? `?${new URLSearchParams({ section })}` : '';
+    return <Navigate replace to={{ pathname: '/admin/design-system', search }} />;
+  }
 
   return (
     <Page>
       <PageHeader eyebrow={t.Admin} title="Org settings" />
-      <Tabs
-        label="Org settings"
-        value={tab}
-        onValueChange={(id) => setParams({ tab: id })}
-        tabs={[
-          {
-            id: 'organisation',
-            label: 'Organisation',
-            panel: <Loaded loadable={result}>{(saved) => <SettingsForm saved={saved} />}</Loaded>,
-          },
-          {
-            id: 'design-system',
-            label: 'Design system',
-            panel:
-              tab === 'design-system' ? (
-                <Suspense
-                  fallback={
-                    <div role="status" aria-busy="true">
-                      <span className="sr-only">Loading</span>
-                      <Skeleton shape="block" height="8rem" />
-                    </div>
-                  }
-                >
-                  <DesignSystem />
-                </Suspense>
-              ) : null,
-          },
-        ]}
-      />
+      <Loaded loadable={result}>{(saved) => <SettingsForm saved={saved} />}</Loaded>
     </Page>
   );
 }

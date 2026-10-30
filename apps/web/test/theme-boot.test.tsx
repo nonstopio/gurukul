@@ -1,13 +1,30 @@
 import { act, renderHook } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOT_LOADER_ID, BOOT_MIN_MS, hideBootLoader } from '../src/boot';
 import { THEME_KEY, applyTheme, nextTheme, readTheme, setTheme, useTheme } from '../src/theme';
 
 afterEach(() => {
+  vi.restoreAllMocks();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   document.body.innerHTML = '';
-  vi.restoreAllMocks();
+});
+
+describe('theme in odd environments', () => {
+  it('reads system when the browser throws on touching storage', () => {
+    vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    expect(readTheme()).toBe('system');
+  });
+
+  it('renders system on the server', () => {
+    function Probe() {
+      return <p>{useTheme()[0]}</p>;
+    }
+    expect(renderToString(<Probe />)).toContain('system');
+  });
 });
 
 describe('theme', () => {

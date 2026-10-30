@@ -82,9 +82,12 @@ test.describe('Admin', () => {
     await expect(teams.getByRole('listitem')).toHaveText([/Mobile/, /Quality/]);
     await expect(page.getByRole('switch', { name: 'Send daily reminders' })).toBeChecked();
 
-    // The Design system tab reads the real tokens.css in the built app.
-    await page.getByRole('tab', { name: 'Design system' }).click();
-    await expect(page).toHaveURL(/tab=design-system/);
+    // The Design system page reads the real tokens.css in the built app.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Design system' })
+      .click();
+    await expect(page).toHaveURL(/\/admin\/design-system/);
     await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
     await expectNoSeriousViolations(page);
 
