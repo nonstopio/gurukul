@@ -27,6 +27,14 @@ describe('theme', () => {
     ).toBe('system');
   });
 
+  it('treats a blocked localStorage as system', () => {
+    const spy = vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(readTheme()).toBe('system');
+    spy.mockRestore();
+  });
+
   it('applies a choice to the root and clears it for system', () => {
     applyTheme('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');

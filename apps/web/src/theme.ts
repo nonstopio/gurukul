@@ -65,10 +65,6 @@ const subscribe = (l: () => void) => {
 
 /** `[choice, setTheme]`, shared by the account menu and the Profile page. */
 export function useTheme(): readonly [ThemeChoice, (choice: ThemeChoice) => void] {
-  const choice = useSyncExternalStore(
-    subscribe,
-    () => readTheme(),
-    () => 'system' as const,
-  );
+  const choice = useSyncExternalStore(subscribe, () => readTheme());
   return [choice, setTheme] as const;
 }

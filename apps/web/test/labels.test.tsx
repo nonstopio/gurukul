@@ -75,4 +75,18 @@ describe('choosing a label set', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Use Gurukul names' }));
     expect(data.data.setLabels).toHaveBeenLastCalledWith('u1', 'gurukul');
   });
+
+  it('cycles the theme from the account menu and shows the choice', async () => {
+    await openApp('/');
+    fireEvent.click(await screen.findByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
+    expect(screen.getByRole('menuitem', { name: /^Theme/ }).textContent).toContain('Dark');
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+  });
 });
