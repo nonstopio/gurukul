@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { toCertificate, toProgress } from '../data/firebase';
+import { matchesPerson } from './model';
 import type { AssignmentFull, AttemptSummary, AuditRow, ConsoleData, UserRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
@@ -40,6 +41,13 @@ const RECENT_PROGRESS_LIMIT = 100;
 /** Audit actions whose `target` is a person's uid, shown as a name. */
 const USER_TARGETS = new Set(['roles.set', 'roles.bootstrap', 'cooldown.reset']);
 const SEARCH_LIMIT = 8;
+/**
+ * People search reads everyone once and matches in memory, because Firestore can only match the
+ * start of a field and a last name is not the start of one. Sized for the org (about 200 people);
+ * past a few hundred, store word prefixes on each profile and query those instead.
+ */
+const ROSTER_LIMIT = 500;
+const ROSTER_MS = 5 * 60 * 1000;
 const COURSE_LIMIT = 100;
 /** The rules cap `config/org.teams` at 100, so there are never more team documents than this. */
 const TEAM_LIMIT = 100;
@@ -99,6 +107,21 @@ const overdueAt = (now: Date) =>
   [where('status', 'in', ['assigned', 'started']), where('dueAt', '<', now)] as const;
 
 export function firebaseConsoleData(db: Firestore): ConsoleData {
+  let roster: { at: number; rows: Promise<UserRow[]> } | null = null;
+  /** Everyone who has signed in, read at most once every few minutes. */
+  const people = (): Promise<UserRow[]> => {
+    if (!roster || Date.now() - roster.at > ROSTER_MS) {
+      const rows = getDocs(
+        query(collection(db, 'users'), orderBy('email'), limit(ROSTER_LIMIT)),
+      ).then((snap) => snap.docs.map((d) => toUser(d.id, d.data())));
+      // A failed read is not kept: the next search tries again.
+      rows.catch(() => {
+        roster = null;
+      });
+      roster = { at: Date.now(), rows };
+    }
+    return roster.rows;
+  };
   return {
     async orgStats() {
       const snap = await getDoc(doc(db, 'stats', 'org'));
@@ -236,20 +259,10 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     },
     async searchUsers(prefix) {
       const p = prefix.trim().toLowerCase();
-      const by = (field: 'email' | 'nameLower') =>
-        getDocs(
-          query(
-            collection(db, 'users'),
-            orderBy(field),
-            where(field, '>=', p),
-            where(field, '<=', `${p}\uf8ff`),
-            limit(SEARCH_LIMIT),
-          ),
-        );
-      const [byEmail, byName] = await Promise.all([by('email'), by('nameLower')]);
-      const found = new Map<string, UserRow>();
-      for (const d of [...byEmail.docs, ...byName.docs]) found.set(d.id, toUser(d.id, d.data()));
-      return [...found.values()].slice(0, SEARCH_LIMIT);
+      const found = (await people()).filter((u) => matchesPerson(u, p));
+      // People whose email starts with it come first, then the rest, each in email order.
+      const byEmail = found.filter((u) => u.email.toLowerCase().startsWith(p));
+      return [...new Set([...byEmail, ...found])].slice(0, SEARCH_LIMIT);
     },
     async usersInTeam(team) {
       const snap = await getDocs(

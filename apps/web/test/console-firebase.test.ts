@@ -6,6 +6,7 @@ const store = vi.hoisted(() => ({
   queue: [] as Array<Array<{ id: string; data: () => unknown }>>,
   queries: [] as unknown[][],
   count: 0,
+  fail: false,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -22,6 +23,10 @@ vi.mock('firebase/firestore', () => ({
   }),
   getDocs: async (q: { parts: unknown[] }) => {
     store.queries.push(q.parts);
+    if (store.fail) {
+      store.fail = false;
+      throw new Error('offline');
+    }
     const docs = store.queue.shift() ?? [];
     return { docs, empty: docs.length === 0 };
   },
@@ -282,22 +287,46 @@ describe('users', () => {
     expect(await data.userCount()).toBe(148);
   });
 
-  it('searches by email and by name prefix, email matches first, each person once', async () => {
-    store.queue = [[user(1)], [user(2), user(1)]];
-    expect((await data.searchUsers('  U1 ')).map((u) => u.uid)).toEqual(['u1', 'u2']);
-    expect(store.queries[0]).toContainEqual({ where: ['email', '>=', 'u1'] });
-    expect(store.queries[0]).toContainEqual({ where: ['email', '<=', 'u1\uf8ff'] });
-    expect(store.queries[1]).toContainEqual({ orderBy: ['nameLower', undefined] });
-    expect(store.queries[1]).toContainEqual({ where: ['nameLower', '>=', 'u1'] });
-    expect(store.queries[1]).toContainEqual({ limit: 8 });
+  const fresh = () => firebaseConsoleData({} as never);
+
+  it('finds people by the start of their email, name or any word of their name, email matches first', async () => {
+    store.queue = [
+      [
+        d('u1', { email: 'farhan.ali@nonstopio.com', displayName: 'Farhan Ali' }),
+        d('u2', { email: 'ali.k@nonstopio.com', displayName: 'Kabir Mehta' }),
+        d('u3', { email: 'zed@nonstopio.com', displayName: 'Zed Ali-Khan' }),
+        d('u4', { email: 'tara@nonstopio.com', displayName: 'Tara Iyer' }),
+      ],
+    ];
+    const people = fresh();
+    expect((await people.searchUsers('  ALI ')).map((u) => u.uid)).toEqual(['u2', 'u1', 'u3']);
+    expect(store.queries[0]).toContainEqual({ orderBy: ['email', undefined] });
+    expect(store.queries[0]).toContainEqual({ limit: 500 });
+    expect((await people.searchUsers('farhan al')).map((u) => u.uid)).toEqual(['u1']);
+    expect(store.queries).toHaveLength(1);
+  });
+
+  it('reads everyone again after a few minutes', async () => {
+    store.queue = [[user(1)], [user(2)]];
+    const people = fresh();
+    await people.searchUsers('u1');
+    const later = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 6 * 60 * 1000);
+    expect((await people.searchUsers('u2')).map((u) => u.uid)).toEqual(['u2']);
+    expect(store.queries).toHaveLength(2);
+    later.mockRestore();
+  });
+
+  it('tries again after a read that failed', async () => {
+    const people = fresh();
+    store.fail = true;
+    await expect(people.searchUsers('u')).rejects.toThrow('offline');
+    store.queue = [[user(3)]];
+    expect((await people.searchUsers('u3')).map((u) => u.uid)).toEqual(['u3']);
   });
 
   it('returns at most 8 people from a search', async () => {
-    store.queue = [
-      Array.from({ length: 8 }, (_, i) => user(i)),
-      Array.from({ length: 8 }, (_, i) => user(i + 10)),
-    ];
-    expect(await data.searchUsers('u')).toHaveLength(8);
+    store.queue = [Array.from({ length: 12 }, (_, i) => user(i))];
+    expect(await fresh().searchUsers('u')).toHaveLength(8);
   });
 
   it('lists a team', async () => {
