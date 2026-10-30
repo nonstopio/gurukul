@@ -27,6 +27,10 @@ export const roleTokens = [
   'chrome-label',
   'chrome-accent',
   'cover-forest',
+  'on-forest',
+  'code-hover',
+  'code-active',
+  'code-accent',
   'cover-sand',
   'cover-sky',
   'cover-stone',
@@ -49,6 +53,8 @@ export const roleTokens = [
   'paper',
   'gold',
   'gold-text',
+  'paper-ink',
+  'paper-danger',
 ] as const;
 
 export type RoleToken = (typeof roleTokens)[number];

@@ -136,6 +136,8 @@
   --paper: var(--g-paper);
   --gold: var(--g-gold-400);
   --gold-text: var(--g-gold-700);
+  --paper-ink: #27352d; /* text on the paper certificate, in both themes */
+  --paper-danger: #b3261e; /* the revoked stamp on paper, in both themes */
 
   /* ---- Roles: code ---- */
   --code-bg: #0a1714;
@@ -145,6 +147,10 @@
   --code-string: #9cc7ff;
   --code-comment: #8fa8a0;
   --code-warn: #f5a35c;
+  --code-hover: #1d2d26; /* hover and active grounds inside the always-dark code well */
+  --code-active: #123325;
+  --code-accent: var(--g-green-400);
+  --on-forest: #ffffff; /* text on the dark forest course cover, in both themes */
 
   /* ---- Type ---- */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;

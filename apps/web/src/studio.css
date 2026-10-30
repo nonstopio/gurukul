@@ -105,7 +105,7 @@
 }
 .sc-card__cover--forest {
   background: var(--cover-forest);
-  color: var(--chrome-text-strong);
+  color: var(--on-forest);
 }
 .sc-card__cover--sand {
   background: var(--cover-sand);
