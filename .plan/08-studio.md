@@ -47,7 +47,8 @@ builder. Handoff: `design-handoff/03-studio.md`.
   Image (URL + required alt text), Embed (allow-listed), File (link), Check
   (ungraded inline question).
 - Lesson settings: layout (Stacked, Split, Article — the "how content is
-  rendered" choice), estimated time, completion rule, type label.
+  rendered" choice; the player renders Split as one column like Stacked, so
+  the video stays in the reading flow), estimated time, completion rule, type label.
 - Validation inline: a video URL that is not a supported host, an image
   without alt text, an empty block — each blocks publishing with a clear message.
 

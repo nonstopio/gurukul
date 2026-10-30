@@ -37,10 +37,16 @@ test.describe('Learner', () => {
     const progress = page.getByRole('progressbar', { name: 'Course progress' });
     await expect(progress).toHaveAttribute('aria-valuenow', '0');
 
-    // The first lesson's video is not recorded yet, so it says so and does not hold the lesson back.
-    await expect(page.getByText('Video coming soon.')).toBeVisible();
-    const markComplete = page.getByRole('button', { name: 'Mark complete' });
-    await expect(markComplete).toBeEnabled();
+    // The first lesson's video is not recorded yet, so it is not shown and does not hold the lesson back.
+    await expect(page.getByText('Video coming soon.')).toHaveCount(0);
+    // Its check question does: until the answer is shown, the button says what is missing.
+    const markComplete = page.getByRole('button', { name: /^Mark complete/ });
+    await markComplete.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Answer the question' })).toBeVisible();
+    await expect(page).toHaveURL(/\/learn\/what-git-solves$/);
+
+    await page.locator('label.g-quiz-option').filter({ hasText: 'Every saved version' }).click();
+    await page.getByRole('button', { name: 'Show the answer' }).click();
     await markComplete.click();
 
     await expect(page).toHaveURL(/\/learn\/install-and-configure-git$/);

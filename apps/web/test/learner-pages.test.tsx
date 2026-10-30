@@ -523,6 +523,88 @@ describe('Lesson player', () => {
     ).toBeTruthy();
   });
 
+  describe('check questions', () => {
+    const check = (id: string) => ({
+      type: 'check' as const,
+      id,
+      prompt: `Question ${id}?`,
+      options: ['Yes', 'No'],
+      correct: 0,
+      explanation: `Because ${id}`,
+    });
+    const openWith = (blocks: object[]) =>
+      open(
+        '/courses/git/learn/c',
+        fakeData({
+          courses: [
+            makeCourse({
+              chapters: [
+                { id: 'p', title: 'P', items: [lesson('c', { blocks }), lesson('d')] as never },
+              ],
+            }),
+          ],
+          watched: started({ lastItemId: 'c' }),
+        }),
+      );
+
+    it('asks for the answer in a toast until it has been shown, then moves on', async () => {
+      const { router } = await openWith([check('k')]);
+      const why =
+        'Answer the question in this lesson, then press Show the answer, to mark it complete.';
+      fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
+      await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
+      expect(router.state.location.pathname).toBe('/courses/git/learn/c');
+      fireEvent.click(screen.getByText('Yes'));
+      fireEvent.click(screen.getByRole('button', { name: 'Show the answer' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Mark complete/ }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/d'));
+    });
+
+    it('counts the questions left when there are several', async () => {
+      await openWith([check('k'), check('m')]);
+      expect(
+        await screen.findByText(
+          'Answer the 2 questions in this lesson, then press Show the answer, to mark it complete.',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  describe('a locked next item', () => {
+    it('names the unfinished lesson in a toast instead of opening a locked one', async () => {
+      const d = fakeData({ watched: started({ lastItemId: 'l2' }) });
+      const { router } = await open('/courses/git/learn/l2', d);
+      fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
+      expect(await screen.findByText('Finish "Lesson l1" to open the next lesson.')).toBeTruthy();
+      expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l2');
+      expect(router.state.location.pathname).toBe('/courses/git/learn/l2');
+    });
+
+    it('names the Quiz to pass when one stands in the way', async () => {
+      const quiz = makeCourse().chapters[1]?.items[1];
+      const course = makeCourse({
+        chapters: [
+          {
+            id: 'p',
+            title: 'P',
+            items: [lesson('a'), quiz, lesson('b'), lesson('c')] as never,
+          },
+        ],
+      });
+      await open(
+        '/courses/git/learn/b',
+        fakeData({
+          courses: [course],
+          watched: started({ lastItemId: 'b', completedItemIds: ['a', 'b'] }),
+        }),
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /^Next/ }));
+      expect(
+        await screen.findByText('Pass the Quiz "Quiz I" to open the next lesson.'),
+      ).toBeTruthy();
+    });
+  });
+
   describe('video lessons', () => {
     const drive = {
       type: 'video' as const,
@@ -547,46 +629,46 @@ describe('Lesson player', () => {
     const markComplete = async () =>
       (await screen.findByRole('button', { name: /^Mark complete/ })) as HTMLButtonElement;
 
-    it('waits for the video on a video90 lesson, and says why', async () => {
-      await openWith([lesson('v', { completeWhen: 'video90', blocks: [drive] }), lesson('w')]);
+    it('waits for the video on a video90 lesson, and a press says why in a toast', async () => {
+      const { router } = await openWith([
+        lesson('v', { completeWhen: 'video90', blocks: [drive] }),
+        lesson('w'),
+      ]);
       const button = await markComplete();
-      expect(button.disabled).toBe(true);
       const why = 'Watch 90% of the video to mark this lesson complete.';
-      expect(button.title).toBe(why);
       expect(
         document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent,
       ).toBe(why);
+      fireEvent.click(button);
+      await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
+      expect(router.state.location.pathname).toBe('/courses/git/learn/v');
       fireEvent.click(screen.getByRole('switch', { name: 'I have watched the video' }));
-      expect(button.disabled).toBe(false);
-      expect(button.title).toBe('');
-      expect(screen.queryByText(why)).toBeNull();
+      expect(button.getAttribute('aria-describedby')).toBeNull();
+      fireEvent.click(button);
+      await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/w'));
     });
 
-    it('puts the first video of a split lesson in a media column, and no other layout', async () => {
+    it('renders a split lesson as one column, like every other layout', async () => {
       const split = await openWith([
         lesson('v', { layout: 'split', blocks: [drive] }),
         lesson('w'),
       ]);
       await screen.findByRole('heading', { level: 1 });
-      expect(split.container.querySelector('.article--split > .article__media')).toBeTruthy();
-      split.unmount();
-      const stacked = await openWith([lesson('v', { blocks: [drive] }), lesson('w')]);
-      await screen.findByRole('heading', { level: 1 });
-      expect(stacked.container.querySelector('.article__media')).toBeNull();
+      expect(split.container.querySelector('.article__media')).toBeNull();
     });
 
     it('waits for the video on any lesson when the course requires watching', async () => {
       await openWith([lesson('v', { blocks: [drive] }), lesson('w')], true);
-      expect((await markComplete()).disabled).toBe(true);
+      expect((await markComplete()).getAttribute('aria-describedby')).toBe('complete-hint');
     });
 
     it('does not wait when nothing asks for it, or there is no video', async () => {
       const first = await openWith([lesson('v', { blocks: [drive] }), lesson('w')]);
-      expect((await markComplete()).disabled).toBe(false);
+      expect((await markComplete()).getAttribute('aria-describedby')).toBeNull();
       expect(screen.queryByRole('switch')).toBeNull();
       first.unmount();
       await openWith([lesson('v', { completeWhen: 'video90' }), lesson('w')]);
-      expect((await markComplete()).disabled).toBe(false);
+      expect((await markComplete()).getAttribute('aria-describedby')).toBeNull();
     });
   });
 
@@ -605,7 +687,7 @@ describe('Lesson player', () => {
       const button = (await screen.findByRole('button', {
         name: /^Mark complete/,
       })) as HTMLButtonElement;
-      await waitFor(() => expect(button.disabled).toBe(false));
+      await waitFor(() => expect(button.getAttribute('aria-describedby')).toBeNull());
     });
 
     it('waits until the end of the lesson scrolls into view', async () => {
@@ -629,14 +711,14 @@ describe('Lesson player', () => {
       const button = (await screen.findByRole('button', {
         name: /^Mark complete/,
       })) as HTMLButtonElement;
-      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('aria-describedby')).toBe('complete-hint');
       // The observer starts in an effect that can run after the button is on screen; a notify
       // before then would reach nobody.
       await waitFor(() => expect(observe).toHaveBeenCalled());
       act(() => notify([{ isIntersecting: false }]));
-      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('aria-describedby')).toBe('complete-hint');
       act(() => notify([{ isIntersecting: true }]));
-      expect(button.disabled).toBe(false);
+      expect(button.getAttribute('aria-describedby')).toBeNull();
       unmount();
       expect(disconnect).toHaveBeenCalled();
       vi.unstubAllGlobals();

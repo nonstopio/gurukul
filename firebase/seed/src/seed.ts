@@ -19,6 +19,9 @@ export interface SeedInput {
 export interface SeedResult {
   coursePath: string;
   answersPath: string;
+  draftPath: string;
+  /** False when a draft was already there and was kept. */
+  draftCreated: boolean;
 }
 
 const ONE_CORRECT_OPTION = new Set(['single', 'trueFalse', 'codeOutput']);
@@ -65,8 +68,10 @@ export function answerKeyProblems(course: Course, answers: AnswerKeys): string[]
 }
 
 /**
- * Validates the course and its answer key, then writes `courses/{id}` (no answers in it) and
- * `courses/{id}/private/answers`. Nothing is written unless both validate.
+ * Validates the course and its answer key, then writes `courses/{id}` (no answers in it),
+ * `courses/{id}/private/answers` and, when there is none, the Studio draft `drafts/current` (rev 1,
+ * as `createCourse` makes it): without one the course cannot be edited. An existing draft is an
+ * Educator's work and is kept. Nothing is written unless both validate.
  */
 export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResult> {
   const parsed = courseSchema.safeParse({ ...input.course, publishedAt: input.now });
@@ -81,7 +86,15 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
   const answersPath = `${coursePath}/private/answers`;
   await db.set(coursePath, parsed.data);
   await db.set(answersPath, input.answers);
-  return { coursePath, answersPath };
+  const draftPath = `${coursePath}/drafts/current`;
+  const draftCreated = await db.createIfMissing(draftPath, {
+    rev: 1,
+    updatedAt: input.now,
+    updatedBy: 'seed',
+    course: parsed.data,
+    answers: input.answers,
+  });
+  return { coursePath, answersPath, draftPath, draftCreated };
 }
 
 /**

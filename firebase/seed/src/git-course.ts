@@ -167,7 +167,6 @@ const chapter1: Chapter = {
   title: 'Why version control',
   items: [
     lesson('what-git-solves', 'What Git solves', 7, 'video', [
-      video(420),
       md(
         "## Meera's first task",
         '',
@@ -182,7 +181,9 @@ const chapter1: Chapter = {
         'Four copies, and nobody remembers which one is current. Who changed the price of masala chai? Why? Was it on purpose?',
         '',
         'This is the problem Git solves.',
-        '',
+      ),
+      video(420),
+      md(
         '## Git is a save button with a memory',
         '',
         'Think of a video game. Before a hard level you save, so that if things go wrong you can go back. Git gives your project the same thing. Each save is called a **commit**. A commit remembers:',

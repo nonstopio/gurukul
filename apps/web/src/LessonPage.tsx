@@ -103,6 +103,12 @@ function Player({
     (blockId: string, ok: boolean) => setWatched((w) => ({ ...w, [`${itemId}/${blockId}`]: ok })),
     [itemId],
   );
+  // Which check questions have had their answer shown, keyed the same way.
+  const [answered, setAnswered] = useState<Record<string, boolean>>({});
+  const onAnswered = useCallback(
+    (blockId: string) => setAnswered((a) => ({ ...a, [`${itemId}/${blockId}`]: true })),
+    [itemId],
+  );
   const endRef = useRef<HTMLDivElement>(null);
   const atEnd = useReachedEnd(endRef, itemId);
   const known = index >= 0;
@@ -188,20 +194,36 @@ function Player({
     )
     .filter((i) => i.type === 'lesson').length;
   const done = s === 'done';
-  const splitVideoId =
-    lesson.layout === 'split' ? lesson.blocks.find((b) => b.type === 'video')?.id : undefined;
   const watching = needsWatching(lesson, course.rules.requireVideoWatch);
   const videosDone = videosOf(lesson).every((v) => watched[`${lesson.id}/${v.id}`]);
+  const checksLeft = lesson.blocks.filter(
+    (b) => b.type === 'check' && !answered[`${lesson.id}/${b.id}`],
+  ).length;
   const waitingFor = done
     ? null
     : watching && !videosDone
       ? 'Watch 90% of the video to mark this lesson complete.'
-      : lesson.completeWhen === 'scrolled' && !atEnd
-        ? 'Read to the end to mark this lesson complete.'
-        : null;
+      : checksLeft > 0
+        ? `Answer the ${checksLeft === 1 ? 'question' : `${checksLeft} questions`} in this lesson, then press Show the answer, to mark it complete.`
+        : lesson.completeWhen === 'scrolled' && !atEnd
+          ? 'Read to the end to mark this lesson complete.'
+          : null;
   // The write lands in the local cache at once and syncs when it can, so moving on never waits
   // for the server: offline, it would wait until the connection came back.
   const complete = () => {
+    if (waitingFor) {
+      toast.show(waitingFor);
+      return;
+    }
+    // Never walk into a locked item: say what still stands in the way instead.
+    const after = itemStates(course, {
+      ...state,
+      completedItemIds: [...state.completedItemIds, lesson.id],
+    });
+    const blocker =
+      next && after[next.id] === 'locked'
+        ? items.slice(0, index + 1).find((i) => i.id !== lesson.id && after[i.id] !== 'done')
+        : undefined;
     if (!done) {
       data.completeItem(uid, course.id, lesson.id).catch((e: unknown) => {
         log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
@@ -209,6 +231,14 @@ function Player({
           tone: 'danger',
         });
       });
+    }
+    if (blocker) {
+      toast.show(
+        blocker.type === 'quiz'
+          ? `Pass the ${t.Quiz} "${blocker.title}" to open the next lesson.`
+          : `Finish "${blocker.title}" to open the next lesson.`,
+      );
+      return;
     }
     const finished = items.every((i) => i.id === lesson.id || states[i.id] === 'done');
     goTo(
@@ -232,7 +262,7 @@ function Player({
       />
       <div className="player">
         <OutlineRail course={course} itemId={itemId} states={states} />
-        <Page width={lesson.layout === 'split' ? 'wide' : 'reading'}>
+        <Page width="reading">
           <div className={`article article--${lesson.layout}`}>
             <PageHeader
               eyebrow={`${t.Chapter} ${chapterIndex + 1} · Lesson ${lessonsBefore + 1} of ${lessonCount}`}
@@ -246,19 +276,15 @@ function Player({
             />
             {isRetired(course) ? <RetiredNote /> : null}
             {lesson.blocks.length === 0 ? <p>This lesson is empty.</p> : null}
-            {lesson.blocks.map((b) => {
-              const view = (
-                <BlockView key={b.id} block={b} {...(watching && !done ? { onWatched } : {})} />
-              );
-              // Split layout: the first video sits beside the text and stays in view (≥1100px).
-              return b.id === splitVideoId ? (
-                <div key={b.id} className="article__media">
-                  {view}
-                </div>
-              ) : (
-                view
-              );
-            })}
+            {/* One column for every layout: a video is a step in the flow, where the author put it. */}
+            {lesson.blocks.map((b) => (
+              <BlockView
+                key={b.id}
+                block={b}
+                onAnswered={onAnswered}
+                {...(watching && !done ? { onWatched } : {})}
+              />
+            ))}
             <div ref={endRef} aria-hidden="true" />
             {waitingFor ? (
               <p id="complete-hint" className="article__hint">
@@ -273,9 +299,8 @@ function Player({
                 </Link>
               ) : null}
               <Button
-                disabled={!!waitingFor}
                 onClick={complete}
-                {...(waitingFor ? { title: waitingFor, 'aria-describedby': 'complete-hint' } : {})}
+                {...(waitingFor ? { 'aria-describedby': 'complete-hint' } : {})}
               >
                 {done
                   ? next

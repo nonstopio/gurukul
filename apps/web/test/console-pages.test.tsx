@@ -145,7 +145,12 @@ describe('Overview CSV export', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     const c = fakeConsole({ assignments: [asg('a@nonstopio.com')] });
     await openApp('/admin', { ...adminCaller, console: c });
-    fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
+    const button = (await screen.findByRole('button', {
+      name: 'Export CSV',
+    })) as HTMLButtonElement;
+    // The button is on screen, disabled, before the assignments load.
+    await waitFor(() => expect(button.disabled).toBe(false));
+    fireEvent.click(button);
     expect(create).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revoke).toHaveBeenCalledWith('blob:csv');

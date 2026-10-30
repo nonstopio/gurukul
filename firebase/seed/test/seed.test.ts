@@ -35,11 +35,32 @@ describe('seedCourse', () => {
     expect(result).toEqual({
       coursePath: 'courses/git-the-nonstop-way',
       answersPath: 'courses/git-the-nonstop-way/private/answers',
+      draftPath: 'courses/git-the-nonstop-way/drafts/current',
+      draftCreated: true,
     });
-    expect(writes.map((w) => w.path)).toEqual([result.coursePath, result.answersPath]);
+    expect(writes.map((w) => w.path)).toEqual([
+      result.coursePath,
+      result.answersPath,
+      result.draftPath,
+    ]);
+    expect(writes[2]?.data).toEqual({
+      rev: 1,
+      updatedAt: now,
+      updatedBy: 'seed',
+      course: writes[0]?.data,
+      answers: gitAnswers,
+    });
     expect((writes[0]?.data as Course).publishedAt).toBe(now);
     expect(writes[1]?.data).toEqual(gitAnswers);
     expect(JSON.stringify(writes[0]?.data)).not.toContain('"quiz-i-q1":["a"]');
+  });
+
+  it('keeps a draft that is already there, so re-seeding never discards Studio edits', async () => {
+    const { db, writes } = fakeDb();
+    writes.push({ path: 'courses/git-the-nonstop-way/drafts/current', data: 'edited' });
+    const result = await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
+    expect(result.draftCreated).toBe(false);
+    expect(writes[0]?.data).toBe('edited');
   });
 
   it('rejects an invalid course and writes nothing', async () => {
