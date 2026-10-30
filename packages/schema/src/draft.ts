@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { COURSE_SCHEMA_VERSION, courseSchema } from './course';
 import type { Block, Course, Item, Question } from './course';
 import { isEmbedAllowed, videoEmbedUrl } from './media';
+import { upgradeCourse } from './migrations';
 import { itemsOf } from './progress';
 import { timestamp } from './timestamp';
 
@@ -260,10 +261,13 @@ const stable = (value: unknown): string =>
 
 /**
  * What changed between the live course and the draft, by item id. `published` is null for a course
- * that was never published: every item is then "added". Drives "2 unpublished edits" and the
- * publish dialog's summary.
+ * that was never published: every item is then "added". Only what publishing would change counts:
+ * the draft is compared in today's schema, and the Educator list (taken from the live course) is
+ * ignored. Drives "2 unpublished edits" and the publish dialog's summary.
  */
-export function diffCourses(published: Course | null, draft: Course): CourseDiff {
+export function diffCourses(published: Course | null, stored: Course): CourseDiff {
+  // Publishing upgrades the draft to today's schema; the stored draft keeps its old shape until then.
+  const draft = upgradeCourse(stored) as Course;
   const before = new Map((published ? itemsOf(published) : []).map((i) => [i.id, stable(i)]));
   const after = new Map(itemsOf(draft).map((i) => [i.id, stable(i)]));
   const strip = (c: Course) => ({
@@ -277,6 +281,10 @@ export function diffCourses(published: Course | null, draft: Course): CourseDiff
     publishedAt: null,
     status: 'x',
     estimatedMinutes: 0,
+    // Publishing takes these from the live course, never the draft, and a role grant changes only
+    // the live copy: a difference here is not an edit the Educator can publish.
+    educatorIds: [],
+    educatorNames: {},
   });
   return {
     added: [...after.keys()].filter((id) => !before.has(id)),
