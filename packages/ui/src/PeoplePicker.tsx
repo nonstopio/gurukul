@@ -158,7 +158,9 @@ export function PeoplePicker({
       if (complete.length > 0 && complete.every((p) => LOOKS_LIKE_EMAIL.test(p))) {
         addEmails(complete);
         setText(tail);
-        void ask(tail);
+        // Nothing left typed: the list closes rather than reopening over what is below.
+        if (tail) void ask(tail);
+        else close();
         return;
       }
     }

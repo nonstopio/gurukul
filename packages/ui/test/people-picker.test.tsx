@@ -313,6 +313,16 @@ describe('PeoplePicker: like a Jira people field', () => {
     expect(box().value).toBe('Ananya Rao');
   });
 
+  it('closes the list when an email is completed with nothing typed after it', async () => {
+    render(<Emails />);
+    fireEvent.focus(box());
+    await screen.findAllByRole('option');
+    fireEvent.change(box(), { target: { value: 'done@x.com ' } });
+    expect(chips().filter((c) => c?.includes('done@x.com'))).toHaveLength(1);
+    expect(box().value).toBe('');
+    expect(expanded()).toBe('false');
+  });
+
   it('takes a pasted list of emails whole, and pastes anything else as search text', async () => {
     const onChange = vi.fn();
     render(<Emails onChange={onChange} />);

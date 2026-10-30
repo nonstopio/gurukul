@@ -178,10 +178,11 @@
   clip-path: inset(50%);
 }
 
-/* Inside a dialog the body scrolls and would clip a floating list to one row, so the list takes
-   its place in the flow there and the dialog scrolls instead. */
+/* A dialog body scrolls and would clip the floating list to one row, so while a list is open its body
+   lets it show. The list stays out of the flow, so closing it never moves the buttons under the pointer. */
+.g-dialog__body:has(.g-people__list:not([hidden])) {
+  overflow: visible;
+}
 .g-dialog__body .g-people__list {
-  position: static;
-  max-height: 16rem;
-  box-shadow: none;
+  max-height: 14rem;
 }

@@ -94,7 +94,7 @@ test.describe('Admin', () => {
     await page.reload();
     const teams = page.getByRole('table', { name: 'Teams' });
     await expect(teams.getByRole('row', { name: /Mobile.*1 member/ })).toBeVisible();
-    await expect(teams.getByRole('row', { name: /Quality.*No members yet/ })).toBeVisible();
+    await expect(teams.getByRole('row', { name: /Quality.*1 member/ })).toBeVisible();
 
     await page.goto('/admin/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Org settings' })).toBeVisible();

@@ -18,6 +18,11 @@ interface AxeViolation {
 export async function expectNoSeriousViolations(page: Page): Promise<void> {
   // Entrance animations and the boot loader's fade pass through low opacity, which axe reads as low
   // contrast. Wait for every finite animation to end; looping ones (the loader) never do.
+  // Two frames first: an animation that a render has just started only exists after the next frame.
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))),
+  );
   await page.evaluate(() =>
     Promise.all(
       document

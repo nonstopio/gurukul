@@ -111,7 +111,7 @@
   border: 1px solid var(--border);
 }
 
-/* A tile that is a choice (assign, grant): the whole tile is the checkbox's label, and picking it
+/* A tile that is a choice (assign, grant): an invisible checkbox covers the whole tile, and picking it
    rings the tile, pops the tick in and settles the picture. */
 .g-course-tile--choice {
   cursor: pointer;
@@ -120,17 +120,15 @@
     box-shadow var(--dur-base) var(--ease),
     border-color var(--dur-base) var(--ease);
 }
-.g-course-tile__select::after {
-  content: '';
+.g-course-tile__input {
+  /* Invisible, and as big as the tile, so a click anywhere (or a test's click on the box) lands on it. */
   position: absolute;
   inset: 0;
-  border-radius: inherit;
-}
-.g-course-tile__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
+  cursor: pointer;
 }
 .g-course-tile__check {
   position: absolute;
@@ -159,6 +157,10 @@
 .g-course-tile--choice:has(.g-course-tile__input:focus-visible) .g-course-tile__check {
   opacity: 1;
   scale: 1;
+}
+.g-course-tile--choice:hover {
+  /* A tile you pick does not lift: it would move under the pointer between press and release. */
+  transform: none;
 }
 .g-course-tile--choice[data-selected='true'] {
   border-color: var(--accent);
