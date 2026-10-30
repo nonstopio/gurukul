@@ -359,11 +359,23 @@ a.items__row:hover {
   font: var(--text-sm) var(--font-mono);
 }
 .figure {
+  display: grid;
   margin: 0;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .figure img {
+  display: block;
   max-width: 100%;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+}
+/* A caption reads as a caption: smaller, quieter, set apart from the paragraphs around it. */
+.figure figcaption {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-strong);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
 }
 .embed {
   width: 100%;
