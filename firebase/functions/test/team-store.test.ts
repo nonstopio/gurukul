@@ -4,14 +4,14 @@ import { firestoreTeamStore, firestoreUserStore } from '../src/stores.js';
 vi.mock('firebase-admin/firestore', () => ({ FieldValue: { serverTimestamp: () => 'NOW' } }));
 
 /** `profiles` maps an email to its profile ref; the transaction reads `teams`. */
-function dbWith(profiles: Record<string, string>, teams: string[]) {
+function dbWith(profiles: Record<string, string | string[]>, teams: string[]) {
   const update = vi.fn();
   const tx = { get: vi.fn(async () => ({ docs: teams.map((id) => ({ id })) })), update };
   const db = {
     collection: () => ({
       where: (_field: string, _op: string, email: string) => ({
         limit: () => ({
-          get: async () => ({ docs: profiles[email] ? [{ ref: profiles[email] }] : [] }),
+          get: async () => ({ docs: [profiles[email] ?? []].flat().map((ref) => ({ ref })) }),
         }),
       }),
     }),
@@ -27,6 +27,14 @@ describe('team membership on profiles', () => {
     expect(update).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith('ref:a', { teamIds: ['platform', 'qa'] });
     expect(tx.get).toHaveBeenCalledOnce();
+  });
+
+  it('updates every profile that shares an email, so none keeps a revoked team', async () => {
+    const { db, update } = dbWith({ 'a@x.com': ['ref:old', 'ref:new'] }, ['qa']);
+    expect(await firestoreTeamStore(db).reconcile(['a@x.com'])).toBe(1);
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenCalledWith('ref:old', { teamIds: ['qa'] });
+    expect(update).toHaveBeenCalledWith('ref:new', { teamIds: ['qa'] });
   });
 
   it('reconciles a new profile, and skips an email with no profile', async () => {

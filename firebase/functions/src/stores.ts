@@ -62,14 +62,19 @@ export function firestoreUserStore(db: Firestore): UserStore {
  * inside the transaction that writes. Returns false when the email has no profile (yet).
  */
 async function reconcileTeamIds(db: Firestore, email: string): Promise<boolean> {
-  const found = await db.collection('users').where('email', '==', email).limit(1).get();
-  const profile = found.docs[0];
-  if (!profile) return false;
+  // More than one profile can carry an email (an Auth user deleted and made again), and each must
+  // lose a revoked team, so all are updated; five is far more than ever exists.
+  const found = await db.collection('users').where('email', '==', email).limit(5).get();
+  if (found.docs.length === 0) return false;
+  if (found.docs.length > 1) {
+    log.warn('Duplicate profiles reconciled', { count: found.docs.length });
+  }
   await db.runTransaction(async (tx) => {
     const teams = await tx.get(
       db.collection('teams').where('memberEmails', 'array-contains', email),
     );
-    tx.update(profile.ref, { teamIds: teams.docs.map((d) => d.id) });
+    const teamIds = teams.docs.map((d) => d.id);
+    for (const profile of found.docs) tx.update(profile.ref, { teamIds });
   });
   return true;
 }
