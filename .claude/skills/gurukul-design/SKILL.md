@@ -68,6 +68,8 @@ else is a review blocker, and most of it fails `npm run check:design`.
 | A page that is failed, offline or denied | `StateCard variant="error\|offline\|forbidden"` (sentence, code, action) | a bare 404 for a page someone may not open                          |
 | An icon                                  | `Icon` / the named icons in `Icon.tsx`                                   | an emoji, an inline one-off SVG for a UI icon                       |
 | A link that looks like a button          | `buttonClass(…)` on `<Link>`                                             | `<a href>` for an in-app route (full reload)                        |
+| ---------------------------------------  | ---------------------------------------------------------------------    | ------------------------------------------------------------------  |
+| A gallery of images, video, files        | `MediaGallery` (+ `MediaPreview` in the detail drawer)                   | a list of links, a grid of hand-rolled `<img>` cards                |
 
 ## Page anatomy
 

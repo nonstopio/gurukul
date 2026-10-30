@@ -34,6 +34,9 @@ vi.mock('firebase/firestore', () => ({
     const docs = store.queue.shift() ?? [];
     return { docs };
   },
+  updateDoc: async (ref: { path: string }, data: unknown) => {
+    store.writes.push(['update', ref.path, data]);
+  },
   limit: (n: number) => ({ limit: n }),
   orderBy: (f: string, d?: string) => ({ orderBy: [f, d] }),
   query: (...parts: unknown[]) => ({ parts }),
@@ -233,7 +236,7 @@ describe('versions', () => {
 });
 
 describe('question bank', () => {
-  it('lists, adds and removes questions', async () => {
+  it('lists, adds, edits and removes questions', async () => {
     store.queue = [
       [
         d('b1', { question: { id: 'k1' }, answers: ['a'], tags: ['git'], createdBy: 'u1' }),
@@ -253,8 +256,18 @@ describe('question bank', () => {
       'add',
       { question: { id: 'k1' }, answers: ['a'], tags: [], createdBy: 'u1', createdAt: 'NOW' },
     ]);
+    await data.updateInBank('b1', {
+      question: { id: 'k1', note: undefined } as never,
+      answers: ['b'],
+      tags: ['sql'],
+    });
+    expect(store.writes[1]).toEqual([
+      'update',
+      'questionBank/b1',
+      { question: { id: 'k1' }, answers: ['b'], tags: ['sql'] },
+    ]);
     await data.removeFromBank('b1');
-    expect(store.writes[1]).toEqual(['delete', 'questionBank/b1']);
+    expect(store.writes[2]).toEqual(['delete', 'questionBank/b1']);
   });
 
   it('counts the learners who completed a lesson with one count query', async () => {

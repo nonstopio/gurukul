@@ -90,9 +90,7 @@ describe('Studio in Gurukul names', () => {
     ).toBeTruthy();
 
     await gurukul('/studio/bank', fakeStudio());
-    expect(
-      await screen.findByText(/Open a Pariksha and choose Save to question bank/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/drop into any Pariksha, so you never retype/)).toBeTruthy();
   });
 
   it('names who may edit a missing draft', async () => {

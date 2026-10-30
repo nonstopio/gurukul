@@ -1,6 +1,6 @@
 import { countUnpublished, diffCourses, itemsOf } from '@gurukul/schema';
 import type { Block, Course, CourseDiff, Item, PublishIssue } from '@gurukul/schema';
-import type { TypeTileKind } from '@gurukul/ui';
+import type { MediaKind as TileKind, TypeTileKind } from '@gurukul/ui';
 import type { Terms } from '../labels/terms';
 import type { StudioCourse } from './types';
 
@@ -184,5 +184,43 @@ export function collectMedia(rows: readonly StudioCourse[]): MediaEntry[] {
   }
   return [...found.values()].sort(
     (a, b) => MEDIA_KINDS.indexOf(a.kind) - MEDIA_KINDS.indexOf(b.kind),
+  );
+}
+
+/** The gallery kind of an entry: a linked file is a PDF or audio when its address ends that way. */
+export function galleryKind(entry: Pick<MediaEntry, 'kind' | 'url'>): TileKind {
+  if (entry.kind !== 'file') return entry.kind;
+  const path = entry.url.split(/[?#]/, 1)[0] as string;
+  if (/\.pdf$/i.test(path)) return 'pdf';
+  return /\.(mp3|wav|m4a|ogg|aac)$/i.test(path) ? 'audio' : 'file';
+}
+
+/** A short name for a tile: the label when the block has one, else the address without its scheme. */
+export const mediaName = (entry: MediaEntry): string =>
+  entry.label === entry.url ? entry.url.replace(/^https?:\/\/(www\.)?/, '') : entry.label;
+
+/** In how many different courses an entry is used. */
+export const courseCount = (entry: MediaEntry): number =>
+  new Set(entry.usedIn.map((u) => u.courseId)).size;
+
+/** "in 3 courses" or "in 1 course", for a tile's second line. */
+export function usedText(entry: MediaEntry): string {
+  const n = courseCount(entry);
+  return `in ${n} ${n === 1 ? 'course' : 'courses'}`;
+}
+
+/** Entries of one gallery kind (or all) whose name, address or a course title contains `search`. */
+export function filterMedia(
+  entries: readonly MediaEntry[],
+  search: string,
+  kind: TileKind | 'all',
+): MediaEntry[] {
+  const needle = search.trim().toLowerCase();
+  return entries.filter(
+    (e) =>
+      (kind === 'all' || galleryKind(e) === kind) &&
+      [mediaName(e), e.url, ...e.usedIn.map((u) => u.courseTitle)].some((text) =>
+        text.toLowerCase().includes(needle),
+      ),
   );
 }

@@ -53,6 +53,8 @@ export interface StudioData {
   getVersion(courseId: string, version: number): Promise<Course | null>;
   questionBank(): Promise<BankQuestion[]>;
   addToBank(entry: Omit<BankQuestion, 'id' | 'createdBy'>, uid: string): Promise<string>;
+  /** Rewrites an entry's question, answers and tags (its creator or an Admin; the rules enforce it). */
+  updateInBank(id: string, entry: Omit<BankQuestion, 'id' | 'createdBy'>): Promise<void>;
   removeFromBank(id: string): Promise<void>;
   /** How many learners have completed this lesson (one count query; Admin and the course's Educators may run it). */
   completedCount(courseId: string, lessonId: string): Promise<number>;

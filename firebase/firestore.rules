@@ -112,7 +112,7 @@ service cloud.firestore {
     }
 
     // The shared question bank: any Educator or Admin reads and adds; the creator or an Admin
-    // removes. Entries are never edited. Learners have no access.
+    // edits the question, its answers and its tags, or removes it. Learners have no access.
     match /questionBank/{entryId} {
       allow read: if signedIn() && (request.auth.token.educator == true || request.auth.token.admin == true);
       allow create: if signedIn()
@@ -125,7 +125,12 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       allow delete: if isAdmin()
         || (signedIn() && request.auth.token.educator == true && resource.data.createdBy == request.auth.uid);
-      allow update: if false;
+      allow update: if (isAdmin()
+          || (signedIn() && request.auth.token.educator == true && resource.data.createdBy == request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['question', 'answers', 'tags'])
+        && request.resource.data.question is map
+        && request.resource.data.answers is list
+        && request.resource.data.tags is list;
     }
 
     // One learner's state in one course, `{uid}_{courseId}`. The learner creates it (starting or

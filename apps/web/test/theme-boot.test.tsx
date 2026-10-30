@@ -1,4 +1,3 @@
-import { renderToString } from 'react-dom/server';
 import { act, renderHook } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
