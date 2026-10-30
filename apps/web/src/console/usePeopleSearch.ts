@@ -31,8 +31,8 @@ export const FIRST_PEOPLE = 10;
 
 /**
  * What a `PeoplePicker` needs to find people: `search`, and `total`, the number of people who have
- * signed in. Focus with nothing typed answers the first ten people; from two characters on it
- * answers those whose email or name starts with the text, after a pause. A call answers only if no
+ * signed in. Focus with nothing typed answers the first ten people; from the first character on it
+ * answers those whose email or any word of the name starts with the text, after a pause. A call answers only if no
  * newer call arrived during the pause; the picker ignores an older answer anyway, so those resolve
  * to nothing without reading.
  */
@@ -72,10 +72,10 @@ export function usePeopleLookup(
   const search = useCallback(
     async (text: string): Promise<Person[]> => {
       const mine = ++latest.current;
-      if (!text.trim()) return (await data.usersPage(null, FIRST_PEOPLE)).rows.map(toPerson);
+      const prefix = text.trim().toLowerCase();
+      if (!prefix) return (await data.usersPage(null, FIRST_PEOPLE)).rows.map(toPerson);
       await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
-      const prefix = searchPrefix(text);
-      if (mine !== latest.current || !prefix) return [];
+      if (mine !== latest.current) return [];
       return (await data.searchUsers(prefix)).map(toPerson);
     },
     [data, toPerson],

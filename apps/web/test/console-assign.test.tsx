@@ -233,7 +233,7 @@ describe('Assign: audience step, people', () => {
     expect(await screen.findByText(/0 people will be assigned/)).toBeTruthy();
   });
 
-  it('searches people from two characters, offers an email nobody has, and invites it', async () => {
+  it('searches people from one letter, offers an email nobody has, and invites it', async () => {
     const c = setup({
       found: [
         userRow(7, { displayName: 'Ravi', email: 'ravi@nonstopio.com' }),
@@ -245,11 +245,11 @@ describe('Assign: audience step, people', () => {
     people();
     const box = screen.getByRole('combobox', { name: 'Add people' });
     fireEvent.change(box, { target: { value: 'r' } });
-    await new Promise((r) => setTimeout(r, 350));
-    expect(c.data.searchUsers).not.toHaveBeenCalled();
+    await screen.findByRole('option', { name: /Ravi/ });
+    expect(c.data.searchUsers).toHaveBeenCalledWith('r');
     fireEvent.change(box, { target: { value: 'rav' } });
+    await waitFor(() => expect(c.data.searchUsers).toHaveBeenCalledWith('rav'));
     const ravi = await screen.findByRole('option', { name: /Ravi/ });
-    expect(c.data.searchUsers).toHaveBeenCalledWith('rav');
     fireEvent.mouseDown(ravi);
     fireEvent.change(box, { target: { value: 'sam' } });
     fireEvent.mouseDown(await screen.findByRole('option', { name: /sam@nonstopio.com/ }));

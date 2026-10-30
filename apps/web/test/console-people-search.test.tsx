@@ -58,7 +58,7 @@ describe('usePeopleLookup', () => {
     return { data, ...renderHook(() => usePeopleLookup(data as never)) };
   };
 
-  it('answers a person per match with their role and photo, after a pause, and nothing for a short text', async () => {
+  it('answers a person per match with their role and photo, after a pause, from one letter', async () => {
     const admin = {
       ...person('asha'),
       roles: ['learner', 'admin'],
@@ -69,8 +69,6 @@ describe('usePeopleLookup', () => {
     const { data, result } = lookup({
       searchUsers: vi.fn().mockResolvedValue([admin, educator, person('sam')]),
     });
-    expect(await result.current.search('a')).toEqual([]);
-    expect(data.searchUsers).not.toHaveBeenCalled();
     expect(await result.current.search(' As ')).toEqual([
       {
         email: 'asha@nonstopio.com',
