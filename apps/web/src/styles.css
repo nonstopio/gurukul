@@ -92,13 +92,33 @@ body {
 /* The sidebar brand: logo, hairline, product name (AppShell does the layout). */
 .app__logo {
   display: block;
-  height: 1.25rem;
+  height: 1.75rem;
   width: auto;
-  /* The logo is white artwork: it always sits on the forest ground, in both themes. */
-  box-sizing: content-box;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--cover-forest);
+}
+/* The logo ships as two files: dark ink for a light page, white for a dark one. */
+.logo-wrap {
+  display: block;
+}
+.logo {
+  display: block;
+  width: auto;
+}
+.logo--paper {
+  display: none;
+}
+:root[data-theme='dark'] .logo--ink {
+  display: none;
+}
+:root[data-theme='dark'] .logo--paper {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .logo--ink {
+    display: none;
+  }
+  :root:not([data-theme='light']) .logo--paper {
+    display: block;
+  }
 }
 .app__brand {
   font: 500 var(--text-lg) / 1 var(--font-display);

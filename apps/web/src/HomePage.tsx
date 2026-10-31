@@ -36,6 +36,7 @@ import { HomeContinue, PickNextCourse } from './learn/HomeContinue';
 import { TeamPrompt } from './learn/TeamPrompt';
 import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
+import { useAudience } from './data/useAudience';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
@@ -44,11 +45,12 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   const { team } = useSession();
   const data = useLearnerData();
   const uid = user.uid;
+  const audience = useAudience();
   const load = useCallback(async () => {
     const [assignments, progress, courses, certificates] = await Promise.all([
       data.myAssignments(uid),
       data.myProgress(uid),
-      data.listCourses(),
+      data.listCourses(audience),
       data.myCertificates(uid),
     ]);
     const assigned: AssignedCourse[] = assignments.flatMap((assignment) => {
@@ -64,7 +66,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
       current: continueCourse(courses, progress),
       activity: recentActivity(courses, progress, certificates),
     };
-  }, [data, uid]);
+  }, [data, uid, audience]);
   const result = useAsync(load);
   const name = firstName(user.displayName);
   const t = useTerms();
@@ -129,7 +131,10 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                     >
                       <ul className="learn-cards g-stagger">
                         {shown.map(({ assignment, course, progress: p }, i) => {
-                          const due = assignment.dueAt ? dueLabel(assignment.dueAt, now()) : null;
+                          const due =
+                            assignment.dueAt && assignment.status !== 'completed'
+                              ? dueLabel(assignment.dueAt, now())
+                              : null;
                           return (
                             <CourseTile
                               as="li"

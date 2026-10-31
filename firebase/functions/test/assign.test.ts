@@ -9,12 +9,14 @@ const admin = {
   name: ' Kavya Rao ',
   claims: { admin: true },
 };
+const FUTURE = Date.UTC(2100, 0, 1);
 const published = (title: string) => ({ status: 'published', title });
 const id = (course: string, email: string) => assignmentId(course, emailKey(email));
 
 function setup(over: Partial<AssignStore> = {}) {
   const store: AssignStore = {
     courses: vi.fn().mockResolvedValue({ git: published('Git'), sql: published('SQL') }),
+    audiences: vi.fn().mockResolvedValue(new Map()),
     signedInUsers: vi.fn().mockResolvedValue(new Map([['priya@nonstopio.com', 'priya']])),
     existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
     createAssignments: vi.fn().mockResolvedValue([]),
@@ -38,7 +40,7 @@ const request = (over: Record<string, unknown> = {}) => ({
 describe('assignCourses', () => {
   it('assigns, stamps the uid of people who already signed in and reports the summary', async () => {
     const { store, mailer, deps } = setup();
-    const out = await assignCourses(deps, admin, request({ dueAt: 5000 }));
+    const out = await assignCourses(deps, admin, request({ dueAt: FUTURE }));
     expect(out).toEqual({
       summary: {
         signedIn: 1,
@@ -60,7 +62,7 @@ describe('assignCourses', () => {
         email: 'priya@nonstopio.com',
         uid: 'priya',
         courseId: 'git',
-        dueAt: 5000,
+        dueAt: FUTURE,
         mandatory: true,
         reminder: 'weekly',
       },
@@ -69,7 +71,7 @@ describe('assignCourses', () => {
         email: 'new@nonstopio.com',
         uid: null,
         courseId: 'git',
-        dueAt: 5000,
+        dueAt: FUTURE,
         mandatory: true,
         reminder: 'weekly',
       },
@@ -103,7 +105,7 @@ describe('assignCourses', () => {
     const out = await assignCourses(
       deps,
       admin,
-      request({ courseIds: ['git', 'sql', 'git'], notify: true, dueAt: Date.UTC(2026, 10, 1) }),
+      request({ courseIds: ['git', 'sql', 'git'], notify: true, dueAt: FUTURE }),
     );
     expect(out.summary).toMatchObject({ signedIn: 1, newInvites: 2, alreadyAssigned: 1 });
     expect(out.summary.rejected).toHaveLength(2);
@@ -200,6 +202,83 @@ describe('assignCourses', () => {
     await expect(
       assignCourses(deps, { uid: 'x', email: 'x@gmail.com', claims: { admin: true } }, request()),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
+    expect(store.courses).not.toHaveBeenCalled();
+  });
+});
+
+describe('a course limited to teams or staff', () => {
+  const restricted = (visibility: 'teams' | 'staff') => ({
+    git: {
+      ...published('Git'),
+      access: { visibility, visibleTeamIds: visibility === 'teams' ? ['qa'] : [] },
+    },
+    sql: published('SQL'),
+  });
+
+  it('is not assigned to a signed-in person it would not open for, and says so', async () => {
+    const { store, deps } = setup({
+      courses: vi.fn().mockResolvedValue(restricted('teams')),
+      audiences: vi
+        .fn()
+        .mockResolvedValue(new Map([['priya', { teamIds: ['dev'], staff: false }]])),
+    });
+    const out = await assignCourses(deps, admin, request({ courseIds: ['git', 'sql'] }));
+    expect(out.failed).toEqual([{ email: 'priya@nonstopio.com', courseId: 'git' }]);
+    expect(store.createAssignments).toHaveBeenCalledWith(
+      'k',
+      'Kavya Rao',
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: id('git', 'priya@nonstopio.com') }),
+      ]),
+    );
+    expect(store.audiences).toHaveBeenCalledWith(['priya']);
+  });
+
+  it('is assigned to a member of a listed team, to staff, and to someone not signed in yet', async () => {
+    for (const [visibility, who] of [
+      ['teams', { teamIds: ['qa'], staff: false }],
+      ['staff', { teamIds: [], staff: true }],
+    ] as const) {
+      const { deps } = setup({
+        courses: vi.fn().mockResolvedValue(restricted(visibility)),
+        audiences: vi.fn().mockResolvedValue(new Map([['priya', who]])),
+      });
+      expect((await assignCourses(deps, admin, request({ courseIds: ['git'] }))).failed).toEqual(
+        [],
+      );
+    }
+    const unknown = setup({
+      courses: vi.fn().mockResolvedValue(restricted('staff')),
+      signedInUsers: vi.fn().mockResolvedValue(new Map()),
+    });
+    expect(
+      (await assignCourses(unknown.deps, admin, request({ courseIds: ['git'] }))).failed,
+    ).toEqual([]);
+  });
+
+  it('asks nothing about people when every course is public', async () => {
+    const { store, deps } = setup();
+    await assignCourses(deps, admin, request());
+    expect(store.audiences).not.toHaveBeenCalled();
+  });
+});
+
+describe('a mail failure', () => {
+  it('does not undo the saved assignments', async () => {
+    const { mailer, deps } = setup();
+    mailer.send.mockRejectedValue(new Error('mail down'));
+    const out = await assignCourses(deps, admin, request({ notify: true }));
+    expect(out.notified).toBe(0);
+    expect(out.assigned).toBeGreaterThan(0);
+  });
+});
+
+describe('a deadline in the past', () => {
+  it('is refused before anything is read or written', async () => {
+    const { store, deps } = setup();
+    await expect(
+      assignCourses(deps, admin, request({ dueAt: Date.now() - 86_400_000 })),
+    ).rejects.toMatchObject({ code: 'VAL_1002' });
     expect(store.courses).not.toHaveBeenCalled();
   });
 });

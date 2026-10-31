@@ -181,6 +181,24 @@ describe('remindLearners', () => {
     expect(narrowed.store.forCourse).not.toHaveBeenCalled();
   });
 
+  it('stamps the people already emailed when a later send fails', async () => {
+    const { store, mailer, deps } = setup({
+      forEmails: vi.fn().mockResolvedValue([cand('c'), cand('d')]),
+    });
+    mailer.send.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('mail down'));
+    await expect(
+      remindLearners(deps, admin, { emails: ['c@nonstopio.com', 'd@nonstopio.com'] }, NOW),
+    ).rejects.toThrow('mail down');
+    expect(store.markReminded).toHaveBeenCalledWith(['c']);
+  });
+
+  it('stamps nobody when the first send fails', async () => {
+    const { store, mailer, deps } = setup();
+    mailer.send.mockRejectedValue(new Error('mail down'));
+    await expect(remindLearners(deps, admin, { courseId: 'git' }, NOW)).rejects.toThrow();
+    expect(store.markReminded).not.toHaveBeenCalled();
+  });
+
   it('falls back to the course id when the title is unknown', async () => {
     const { mailer, deps } = setup({ courseTitles: vi.fn().mockResolvedValue({}) });
     await remindLearners(deps, admin, { courseId: 'git' }, NOW);

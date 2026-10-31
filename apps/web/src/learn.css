@@ -537,14 +537,8 @@ a.items__row:hover {
   align-items: center;
   gap: var(--space-4);
 }
-.signin__brand img {
-  height: var(--space-6);
-  width: auto;
-  /* White artwork: it always sits on the forest ground, in both themes. */
-  box-sizing: content-box;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--cover-forest);
+.signin__brand .logo {
+  height: var(--space-8);
 }
 .signin__brand-name {
   padding-left: var(--space-4);

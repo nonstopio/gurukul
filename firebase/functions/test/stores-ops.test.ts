@@ -122,6 +122,39 @@ describe('firebaseRoleAdmin course grants', () => {
 });
 
 describe('firestoreAssignStore', () => {
+  it('reads each person’s teams and whether they are staff', async () => {
+    const data: Record<string, Record<string, unknown>> = {
+      a: { roles: ['educator'], teamIds: ['qa'] },
+      b: { roles: ['learner'] },
+      d: {},
+    };
+    const db = {
+      doc: vi.fn((p: string) => p),
+      getAll: vi
+        .fn()
+        .mockResolvedValue(
+          ['a', 'b', 'd'].map((id) => ({ id, get: (k: string) => data[id]?.[k] })),
+        ),
+    } as never;
+    expect(await firestoreAssignStore(db).audiences(['a', 'b', 'd'])).toEqual(
+      new Map([
+        ['a', { teamIds: ['qa'], staff: true }],
+        ['b', { teamIds: [], staff: false }],
+        ['d', { teamIds: [], staff: false }],
+      ]),
+    );
+    const admin = {
+      doc: vi.fn((p: string) => p),
+      getAll: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'c', get: (k: string) => (k === 'roles' ? ['admin'] : undefined) },
+        ]),
+    } as never;
+    expect((await firestoreAssignStore(admin).audiences(['c'])).get('c')?.staff).toBe(true);
+    expect(await firestoreAssignStore(db).audiences([])).toEqual(new Map());
+  });
+
   it('reads course status and title, undefined for a missing course', async () => {
     const db = {
       doc: vi.fn((p: string) => p),
@@ -133,7 +166,11 @@ describe('firestoreAssignStore', () => {
         ]),
     } as never;
     expect(await firestoreAssignStore(db).courses(['git', 'gone'])).toEqual({
-      git: { status: 'published', title: 'Git' },
+      git: {
+        status: 'published',
+        title: 'Git',
+        access: { visibility: 'public', visibleTeamIds: [] },
+      },
       gone: undefined,
     });
   });
@@ -175,6 +212,7 @@ describe('firestoreAssignStore', () => {
     const batches = [batchOf(), batchOf()];
     const db = {
       doc: vi.fn((p: string) => p),
+      getAll: vi.fn().mockResolvedValue([{ exists: false, id: 'priya_git' }]),
       batch: vi.fn().mockReturnValueOnce(batches[0]).mockReturnValueOnce(batches[1]),
     } as never;
     const docs = Array.from({ length: 401 }, (_, i) => ({
@@ -209,6 +247,38 @@ describe('firestoreAssignStore', () => {
     );
     expect(batches[0]?.commit).toHaveBeenCalledOnce();
     expect(batches[1]?.commit).toHaveBeenCalledOnce();
+  });
+
+  it('starts an assignment as started or completed when the person already has progress', async () => {
+    const batch = batchOf();
+    const db = {
+      doc: vi.fn((p: string) => p),
+      getAll: vi.fn().mockResolvedValue([
+        { exists: true, id: 'priya_git', data: () => ({ completedAt: 5 }) },
+        { exists: true, id: 'ravi_git', data: () => ({ completedAt: null }) },
+      ]),
+      batch: vi.fn().mockReturnValue(batch),
+    } as never;
+    const doc = (uid: string) => ({
+      id: `git__${uid}`,
+      email: `${uid}@nonstopio.com`,
+      uid,
+      courseId: 'git',
+      dueAt: null,
+      mandatory: true,
+      reminder: 'weekly' as const,
+    });
+    await firestoreAssignStore(db).createAssignments('k', null, [doc('priya'), doc('ravi')]);
+    expect(batch.create).toHaveBeenNthCalledWith(
+      1,
+      'assignments/git__priya',
+      expect.objectContaining({ status: 'completed' }),
+    );
+    expect(batch.create).toHaveBeenNthCalledWith(
+      2,
+      'assignments/git__ravi',
+      expect.objectContaining({ status: 'started' }),
+    );
   });
 
   it('returns the ids of a batch that failed and still writes the others', async () => {

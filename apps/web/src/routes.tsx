@@ -8,6 +8,7 @@ import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
 import { PageLoading } from './learn/ui';
+import { DesktopOnly } from './studio/DesktopOnly';
 import type { RoutePath } from './route-paths';
 import { FocusedShell, Frame, Shell } from './Shell';
 
@@ -121,37 +122,51 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   ),
   '/studio': (
     <RequireRole any={['educator', 'admin']}>
-      <StudioCoursesPage />
+      <DesktopOnly>
+        <StudioCoursesPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/courses/:courseId': (
     <RequireRole any={['educator', 'admin']}>
-      <CourseEditorPage />
+      <DesktopOnly>
+        <CourseEditorPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/courses/:courseId/lessons/:lessonId': (
     <RequireRole any={['educator', 'admin']}>
-      <LessonEditorPage />
+      <DesktopOnly>
+        <LessonEditorPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/courses/:courseId/quiz/:quizId': (
     <RequireRole any={['educator', 'admin']}>
-      <QuizBuilderPage />
+      <DesktopOnly>
+        <QuizBuilderPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/courses/:courseId/preview/:itemId': (
     <RequireRole any={['educator', 'admin']}>
-      <PreviewPage />
+      <DesktopOnly>
+        <PreviewPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/bank': (
     <RequireRole any={['educator', 'admin']}>
-      <QuestionBankPage />
+      <DesktopOnly>
+        <QuestionBankPage />
+      </DesktopOnly>
     </RequireRole>
   ),
   '/studio/media': (
     <RequireRole any={['educator', 'admin']}>
-      <MediaPage />
+      <DesktopOnly>
+        <MediaPage />
+      </DesktopOnly>
     </RequireRole>
   ),
 };

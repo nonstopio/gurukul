@@ -219,6 +219,8 @@ export async function publishCourse(
   log.debug('Publishing a course', { courseId });
   const version = await store.release(courseId, caller.uid, null, ({ live, draft }) => {
     const current = requireEditor(caller, live, courseId, 'publishCourse');
+    // A retired course stays retired: publishing would quietly reopen grading and assignment.
+    if (current.status === 'archived') throw new ApiException('CRS_1004', [courseId]);
     if (draft === undefined) throw new ApiException('CRS_2001', [courseId]);
     // A draft saved at an older schemaVersion is brought up to date before it is judged or published.
     const upgraded = upgradeCourse(draft.course) as Course;
@@ -257,6 +259,7 @@ export async function rollbackCourse(
   log.debug('Rolling a course back', { courseId, count: from });
   const version = await store.release(courseId, caller.uid, from, ({ live, draft, snapshot }) => {
     const current = requireEditor(caller, live, courseId, 'rollbackCourse');
+    if (current.status === 'archived') throw new ApiException('CRS_1004', [courseId]);
     if (snapshot === undefined) throw new ApiException('CRS_2002', [courseId, String(from)]);
     const next = current.version + 1;
     // An old snapshot is republished in today's shape, and the draft resets to that same shape.

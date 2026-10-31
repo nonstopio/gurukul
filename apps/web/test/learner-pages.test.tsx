@@ -547,6 +547,18 @@ describe('Lesson player', () => {
     expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l1');
   });
 
+  it('creates the progress document before saving when the course was not started yet', async () => {
+    const d = fakeData();
+    await open('/courses/git/learn/l1', d);
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
+    await waitFor(() => expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l1'));
+    const started = d.data.startCourse as ReturnType<typeof vi.fn>;
+    const saved = d.data.completeItem as ReturnType<typeof vi.fn>;
+    expect(Math.min(...started.mock.invocationCallOrder)).toBeLessThan(
+      saved.mock.invocationCallOrder[0] as number,
+    );
+  });
+
   it('finishes the course on the last lesson and opens the completion screen', async () => {
     const course = makeCourse({ chapters: [{ id: 'p', title: 'P', items: [lesson('only')] }] });
     const d = fakeData({ courses: [course], watched: started({ lastItemId: 'only' }) });

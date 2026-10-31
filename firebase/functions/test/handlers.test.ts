@@ -223,6 +223,7 @@ describe('console callables', () => {
     const mailer = { send: vi.fn().mockResolvedValue(undefined) };
     const assignStore = {
       courses: vi.fn().mockResolvedValue({ git: { status: 'published', title: 'Git' } }),
+      audiences: vi.fn().mockResolvedValue(new Map()),
       signedInUsers: vi.fn().mockResolvedValue(new Map()),
       existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
       createAssignments: vi.fn().mockResolvedValue([]),

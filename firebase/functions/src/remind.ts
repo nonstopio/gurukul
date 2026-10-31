@@ -110,19 +110,26 @@ export interface ReminderStore {
 async function deliver(store: ReminderStore, mailer: Mailer, due: Selection['due']): Promise<void> {
   const all = due.flatMap((p) => p.assignments);
   const titles = await store.courseTitles([...new Set(all.map((c) => c.courseId))]);
-  for (const { email, assignments } of due) {
-    await mailer.send(
-      buildReminderEmail(
-        email,
-        assignments.map((c) => ({
-          id: c.courseId,
-          title: titles[c.courseId] ?? c.courseId,
-          dueAt: c.dueAt,
-        })),
-      ),
-    );
+  // Stamp only the people actually emailed, even if a later send fails: otherwise the next run
+  // mails the earlier ones again and the one-email-a-day limit means nothing.
+  const sent: string[] = [];
+  try {
+    for (const { email, assignments } of due) {
+      await mailer.send(
+        buildReminderEmail(
+          email,
+          assignments.map((c) => ({
+            id: c.courseId,
+            title: titles[c.courseId] ?? c.courseId,
+            dueAt: c.dueAt,
+          })),
+        ),
+      );
+      sent.push(...assignments.map((c) => c.id));
+    }
+  } finally {
+    if (sent.length > 0) await store.markReminded(sent);
   }
-  await store.markReminded(all.map((c) => c.id));
 }
 
 /**

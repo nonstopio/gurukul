@@ -120,9 +120,14 @@ export function resumeItemId(
   state: ProgressState & { lastItemId: string | null },
 ): string | null {
   const items = itemsOf(course);
-  if (state.lastItemId !== null && items.some((i) => i.id === state.lastItemId)) {
+  const states = itemStates(course, state);
+  // A saved item that is locked now (a Quiz was added before it) is not somewhere to resume.
+  if (
+    state.lastItemId !== null &&
+    items.some((i) => i.id === state.lastItemId) &&
+    states[state.lastItemId] !== 'locked'
+  ) {
     return state.lastItemId;
   }
-  const states = itemStates(course, state);
   return items.find((i) => states[i.id] === 'current')?.id ?? items[0]?.id ?? null;
 }

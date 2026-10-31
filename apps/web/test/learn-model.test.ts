@@ -152,6 +152,18 @@ describe('dueLabel and firstName', () => {
     });
     expect(dueLabel(new Date('2026-03-07T12:00:00Z'), now).text).toBe('Overdue by 3 days');
   });
+  it('counts calendar days, so a late-evening deadline is not a day early or late', () => {
+    const deadline = new Date(2026, 2, 5, 23, 59, 59);
+    expect(dueLabel(deadline, new Date(2026, 2, 5, 9, 0))).toEqual({
+      text: 'Due today',
+      overdue: false,
+    });
+    expect(dueLabel(deadline, new Date(2026, 2, 4, 9, 0)).text).toBe('Due in 1 day');
+    expect(dueLabel(deadline, new Date(2026, 2, 6, 8, 0))).toEqual({
+      text: 'Overdue by 1 day',
+      overdue: true,
+    });
+  });
   it('takes the first word of the name, or nothing', () => {
     expect(firstName(' Priya  Kulkarni')).toBe('Priya');
     expect(firstName('')).toBe('');

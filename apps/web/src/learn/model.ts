@@ -84,9 +84,15 @@ export function continueCourse(
 
 const DAY = 86_400_000;
 
-/** "Due in 3 days", "Due today", "Overdue by 2 days" — whole days, calendar-free on purpose. */
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/**
+ * "Due in 3 days", "Due today", "Overdue by 2 days", counted in calendar days of the viewer's own
+ * day: a deadline of 23:59 on the 5th reads "Due today" all of the 5th and "Overdue by 1 day"
+ * from the morning of the 6th, not a day late.
+ */
 export function dueLabel(dueAt: Date, now: Date): { text: string; overdue: boolean } {
-  const days = Math.ceil((dueAt.getTime() - now.getTime()) / DAY);
+  const days = Math.round((startOfDay(dueAt) - startOfDay(now)) / DAY);
   if (days < 0) return { text: `Overdue by ${-days} day${days === -1 ? '' : 's'}`, overdue: true };
   if (days === 0) return { text: 'Due today', overdue: false };
   return { text: `Due in ${days} day${days === 1 ? '' : 's'}`, overdue: false };

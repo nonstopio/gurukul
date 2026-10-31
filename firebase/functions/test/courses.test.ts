@@ -89,6 +89,20 @@ function fake(state: Partial<ReleaseState> & { drafts?: boolean; taken?: boolean
   return out;
 }
 
+describe('a retired course', () => {
+  it('is not reopened by a publish or a rollback', async () => {
+    const f = fake({
+      live: { version: 2, status: 'archived', educatorIds: ['asha'] },
+    });
+    await expect(publishCourse(f.store, asha, { courseId: 'c' })).rejects.toMatchObject({
+      code: 'CRS_1004',
+    });
+    await expect(
+      rollbackCourse(f.store, asha, { courseId: 'c', version: 1 }),
+    ).rejects.toMatchObject({ code: 'CRS_1004' });
+  });
+});
+
 const request = { title: 'Git basics', slug: 'git-basics', level: 'foundation', theme: 'forest' };
 
 describe('createCourse', () => {

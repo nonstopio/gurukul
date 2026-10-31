@@ -23,6 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useAudience } from '../data/useAudience';
 import { useDebounced } from '../data/useDebounced';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
@@ -75,13 +76,14 @@ export function LearnersPage() {
   const { data } = useConsole();
   const t = useTerms();
   const learner = useLearnerData();
+  const audience = useAudience();
   const [now] = useState(() => new Date());
   const meta = useAsync(
     useCallback(async () => {
       const [newest, open, courses, teams, total] = await Promise.all([
         data.assignments(),
         data.openAssignments(now),
-        learner.listCourses(),
+        learner.listCourses(audience),
         data.teams(),
         data.userCount(),
       ]);
@@ -95,7 +97,7 @@ export function LearnersPage() {
         overdue: onTab(people, 'overdue', assignments, now).length,
       };
       return { assignments, courses, teams, total, people, pending, counts };
-    }, [data, learner, now]),
+    }, [data, learner, audience, now]),
   );
 
   return (

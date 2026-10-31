@@ -615,6 +615,27 @@ describe('Assign: switching between teams and people', () => {
 });
 
 describe('Assign: schedule and review', () => {
+  it('will not move past a due date that is already gone', async () => {
+    const c = setup();
+    await open(c);
+    await pick(/Git, the NonStop Way/);
+    next();
+    await heading('Who is it for?');
+    people();
+    await addEmails('a@nonstopio.com');
+    await screen.findByText(/1 person will be assigned\./);
+    next();
+    await heading('Set the deadline');
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2020-01-01' } });
+    next();
+    expect((problem() as HTMLElement).textContent).toBe('The due date cannot be in the past.');
+    await heading('Set the deadline');
+    // No deadline at all is fine.
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '' } });
+    next();
+    await heading('Review and assign');
+  });
+
   it('assigns with the deadline, reminder and toggles, then shows the success state', async () => {
     const c = setup();
     const { container } = await open(c);
@@ -632,13 +653,13 @@ describe('Assign: schedule and review', () => {
     await screen.findByText(/2 people will be assigned\./);
     next();
     await heading('Set the deadline');
-    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2100-12-01' } });
     fireEvent.change(screen.getByLabelText('Reminders'), { target: { value: 'beforeDue' } });
     fireEvent.click(screen.getByRole('switch', { name: 'Mandatory' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Email learners now' }));
     next();
     await heading('Review and assign');
-    expect(sentence()).toBe('Assign Git, the NonStop Way to 2 people, due 2026-12-01.');
+    expect(sentence()).toBe('Assign Git, the NonStop Way to 2 people, due 2100-12-01.');
     expect(
       within(screen.getByRole('list', { name: 'Rejected addresses' })).getByText(/bad@x: /),
     ).toBeTruthy();
@@ -647,7 +668,7 @@ describe('Assign: schedule and review', () => {
       '1',
       '1',
       '2',
-      '2026-12-01',
+      '2100-12-01',
     ]);
     expect(await axeViolations(container)).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Assign to 2 people' }));
@@ -655,7 +676,7 @@ describe('Assign: schedule and review', () => {
       expect(c.service.assignCourses).toHaveBeenCalledWith({
         courseIds: ['git'],
         emails: ['a@nonstopio.com', 'new@nonstopio.com', 'c@nonstopio.com', 'bad@x', 'x@gmail.com'],
-        dueAt: Date.parse('2026-12-01T23:59:59'),
+        dueAt: Date.parse('2100-12-01T23:59:59'),
         mandatory: false,
         reminder: 'beforeDue',
         notify: false,

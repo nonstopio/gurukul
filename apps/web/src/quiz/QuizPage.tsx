@@ -73,6 +73,17 @@ function Exam({
   progress: ProgressRow | null;
 }) {
   const [now] = useState(() => new Date());
+  const data = useLearnerData();
+  const uid = useUser().uid;
+  // Grading needs a started course. A Quiz can be the first thing opened (a pre-test, a deep
+  // link), and only the lesson player used to start one, so every submit failed.
+  useEffect(() => {
+    if (progress === null && !isRetired(course)) {
+      data.startCourse(uid, course).catch((e: unknown) => {
+        log.error('Starting the course failed', e, { uid, courseId: course.id });
+      });
+    }
+  }, [data, uid, course, progress]);
   const t = useTerms();
   const states = itemStates(course, progress ?? EMPTY);
   const back = (

@@ -25,6 +25,7 @@ import { Loaded, LoadedPage } from '../learn/ui';
 import { linkedInUrl, longDate } from '../quiz/model';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { useAudience } from '../data/useAudience';
 
 /** The address links point at: `VITE_SITE_URL` when set (the custom domain), else where the app is open. */
 export function siteOrigin(
@@ -266,12 +267,13 @@ function CertificateThumb({ id }: { id: string }) {
 function UpNextCard({ courseId }: { courseId: string }) {
   const data = useLearnerData();
   const uid = useUser().uid;
+  const audience = useAudience();
   const result = useAsync(
     useCallback(async () => {
       const [assignments, progress, courses] = await Promise.all([
         data.myAssignments(uid),
         data.myProgress(uid),
-        data.listCourses(),
+        data.listCourses(audience),
       ]);
       const rows: AssignedCourse[] = assignments.flatMap((assignment) => {
         const course = courses.find((c) => c.id === assignment.courseId);
@@ -286,7 +288,7 @@ function UpNextCard({ courseId }: { courseId: string }) {
           : [];
       });
       return nextAssigned(rows, courseId);
-    }, [data, uid, courseId]),
+    }, [data, uid, courseId, audience]),
   );
   if (result.state !== 'ready') return null;
   const next = result.value;
