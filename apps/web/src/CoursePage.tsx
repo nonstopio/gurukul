@@ -125,7 +125,7 @@ function Overview({
   };
   const educators = Object.values(course.educatorNames);
   const t = useTerms();
-  const due = dueAt ? dueLabel(dueAt, now()) : null;
+  const due = dueAt && !progress?.completedAt ? dueLabel(dueAt, now()) : null;
   const isOpen = (id: string) => open[id] ?? id === currentChapter?.id;
 
   const aside = (

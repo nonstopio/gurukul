@@ -239,6 +239,14 @@ describe('progress update', () => {
       }),
     );
   });
+  it('denies a resume point that is not an item id: far too long', async () => {
+    await assertFails(
+      updateDoc(doc(as('priya'), 'progress/priya_git'), {
+        lastItemId: 'x'.repeat(81),
+        lastActiveAt: serverTimestamp(),
+      }),
+    );
+  });
   it("denies someone else's update, a forged timestamp and a delete", async () => {
     await assertFails(
       updateDoc(doc(as('rohan'), 'progress/priya_git'), {

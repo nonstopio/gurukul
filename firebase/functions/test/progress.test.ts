@@ -191,6 +191,12 @@ describe('handleProgressWrite', () => {
       expect(s.issueCertificate).toHaveBeenCalledOnce();
     });
 
+    it('issues no certificate for a retired course', async () => {
+      const s = store({ ...course, status: 'archived' });
+      await run(s, 'u_git', done, done);
+      expect(s.issueCertificate).not.toHaveBeenCalled();
+    });
+
     it('stays quiet when another run already issued it', async () => {
       const s = store(course, null);
       expect(await run(s, 'u_git', done, done)).toBe('unchanged');

@@ -1,7 +1,13 @@
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { DEFAULT_ORG_CONFIG, orgConfigSchema, progressId as progressDocId } from '@gurukul/schema';
+import {
+  DEFAULT_ORG_CONFIG,
+  accessOf,
+  orgConfigSchema,
+  progressId as progressDocId,
+} from '@gurukul/schema';
+import type { Audience } from '@gurukul/schema';
 import { addChapterCompletions } from './analytics.js';
 import type { AttemptStatsStore, RollupStore } from './analytics.js';
 import type { AssignStore } from './assign.js';
@@ -310,10 +316,31 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
         snaps.map((snap, i) => [
           ids[i],
           snap.exists
-            ? { status: snap.get('status'), title: String(snap.get('title')) }
+            ? {
+                status: snap.get('status'),
+                title: String(snap.get('title')),
+                access: accessOf({
+                  visibility: snap.get('visibility'),
+                  visibleTeamIds: snap.get('visibleTeamIds'),
+                }),
+              }
             : undefined,
         ]),
       );
+    },
+    async audiences(uids) {
+      const found = new Map<string, Audience>();
+      for (const part of chunk(uids, 300)) {
+        const snaps = await db.getAll(...part.map((uid) => db.doc(`users/${uid}`)));
+        for (const snap of snaps) {
+          const roles: string[] = snap.get('roles') ?? [];
+          found.set(snap.id, {
+            teamIds: snap.get('teamIds') ?? [],
+            staff: roles.includes('educator') || roles.includes('admin'),
+          });
+        }
+      }
+      return found;
     },
     async signedInUsers(emails) {
       const found = new Map<string, string>();
@@ -335,7 +362,20 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
       const failed: string[] = [];
       for (const part of chunk(docs, 400)) {
         const batch = db.batch();
+        // Someone who already started or finished the course starts out as such, not "assigned":
+        // otherwise a finished course turns overdue and gets reminders.
+        const refs = part
+          .filter((d) => d.uid !== null)
+          .map((d) => db.doc(`progress/${d.uid}_${d.courseId}`));
+        const rows = new Map(
+          (refs.length > 0 ? await db.getAll(...refs) : [])
+            .filter((snap) => snap.exists)
+            .map((snap) => [snap.id, snap.data()]),
+        );
         for (const d of part) {
+          const row = rows.get(`${d.uid}_${d.courseId}`);
+          const status =
+            row === undefined ? 'assigned' : row?.['completedAt'] ? 'completed' : 'started';
           // `create` fails on an existing id, so a race can never overwrite an assignment.
           batch.create(db.doc(`assignments/${d.id}`), {
             email: d.email,
@@ -347,7 +387,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             dueAt: d.dueAt === null ? null : Timestamp.fromMillis(d.dueAt),
             mandatory: d.mandatory,
             reminder: d.reminder,
-            status: 'assigned',
+            status,
           });
         }
         try {

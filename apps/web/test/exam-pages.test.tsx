@@ -53,6 +53,19 @@ beforeAll(() =>
 );
 
 describe('Quiz screen', () => {
+  it('starts the course when a Quiz is the first thing opened, so grading has progress', async () => {
+    const d = data(courseWith(), null as never);
+    await openApp(PATH, { data: d, quiz: fakeQuiz() });
+    await waitFor(() => expect(d.data.startCourse).toHaveBeenCalledWith('u1', expect.anything()));
+  });
+
+  it('logs and carries on when starting the course fails', async () => {
+    const d = data(courseWith(), null as never);
+    d.data.startCourse = vi.fn().mockRejectedValue(new Error('denied'));
+    await openApp(PATH, { data: d, quiz: fakeQuiz() });
+    await waitFor(() => expect(d.data.startCourse).toHaveBeenCalled());
+  });
+
   it('asks one question at a time and checks each answer when answers are revealed', async () => {
     const quiz = fakeQuiz({
       checkAnswer: vi

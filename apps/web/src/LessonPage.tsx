@@ -225,12 +225,16 @@ function Player({
         ? items.slice(0, index + 1).find((i) => i.id !== lesson.id && after[i.id] !== 'done')
         : undefined;
     if (!done) {
-      data.completeItem(uid, course.id, lesson.id).catch((e: unknown) => {
-        log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
-        toast.show(`Could not save your progress on "${lesson.title}". Open it and try again.`, {
-          tone: 'danger',
+      // The progress document is created on first open; if that write has not landed yet, an
+      // update would be refused (nothing to update), so create it first.
+      (progress === null ? data.startCourse(uid, course) : Promise.resolve())
+        .then(() => data.completeItem(uid, course.id, lesson.id))
+        .catch((e: unknown) => {
+          log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
+          toast.show(`Could not save your progress on "${lesson.title}". Open it and try again.`, {
+            tone: 'danger',
+          });
         });
-      });
     }
     if (blocker) {
       toast.show(

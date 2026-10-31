@@ -24,6 +24,7 @@ import type { AudienceMode } from './AudienceStep';
 import { CourseChoice } from './CourseChoice';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useAudience } from '../data/useAudience';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
@@ -36,6 +37,9 @@ const NO_TEAMS: Team[] = [];
 const STEPS = ['Course', 'Audience', 'Schedule', 'Review'] as const;
 /** How many courses show on a page of the first step. */
 const COURSES_PER_PAGE = 12;
+/** Today's date as `YYYY-MM-DD` in the person's own time zone, the format a date field uses. */
+const today = () => new Date().toLocaleDateString('en-CA');
+
 const HEADINGS = ['Choose courses', 'Who is it for?', 'Set the deadline', 'Review and assign'];
 
 interface Prefill {
@@ -51,6 +55,7 @@ export function AssignPage() {
   const { data, service } = useConsole();
   const t = useTerms();
   const learner = useLearnerData();
+  const audience = useAudience();
   const toast = useToast();
   const prefill = (useLocation().state ?? {}) as Prefill;
   const [step, setStep] = useState(0);
@@ -86,9 +91,9 @@ export function AssignPage() {
 
   const courseList = useAsync(
     useCallback(async () => {
-      const courses = await learner.listCourses();
+      const courses = await learner.listCourses(audience);
       return courses.filter((c) => c.status === 'published');
-    }, [learner]),
+    }, [learner, audience]),
   );
   const teamList = useAsync(useCallback(() => data.teamList(), [data]));
   const courses = courseList.state === 'ready' ? courseList.value : [];
@@ -162,7 +167,8 @@ export function AssignPage() {
   const check = (): string | null => {
     if (step === 0)
       return courseIds.length === 0 ? 'Choose at least one course to continue.' : null;
-    if (step !== 1) return null;
+    // Steps 0-2 have a Next button; the review step does not, so what follows is step 1.
+    if (step === 2) return due && due < today() ? 'The due date cannot be in the past.' : null;
     if (counting) return 'Counting the people on your teams. Try again in a moment.';
     if (assignable > 0) return null;
     return mode === 'teams'
@@ -347,7 +353,13 @@ export function AssignPage() {
 
   const scheduleStep = (
     <>
-      <Input label="Due date" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+      <Input
+        label="Due date"
+        type="date"
+        min={today()}
+        value={due}
+        onChange={(e) => setDue(e.target.value)}
+      />
       <Select
         label="Reminders"
         value={reminder}

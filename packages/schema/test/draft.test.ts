@@ -108,6 +108,32 @@ describe('validateForPublish', () => {
     ).toBe(true);
   });
 
+  it('does not let a too-small number or empty id through as if it were fine', () => {
+    const c = good();
+    const lesson = itemAt(c, 0);
+    if (lesson.type === 'lesson') lesson.minutes = -5;
+    expect(codes(c)).toContain('schema');
+    const named = good();
+    chapterAt(named, 0).title = '';
+    expect(codes(named)).not.toContain('schema');
+  });
+
+  it('refuses a pass mark of 0, and a certificate with no Quiz or no title', () => {
+    const zero = good();
+    zero.rules.passMark = 0;
+    expect(codes(zero)).toContain('rules.passMark');
+    const lessonsOnly = good();
+    for (const ch of lessonsOnly.chapters) ch.items = ch.items.filter((i) => i.type === 'lesson');
+    expect(codes(lessonsOnly)).toContain('certificate.noQuiz');
+    lessonsOnly.rules.certificate = false;
+    expect(codes(lessonsOnly)).not.toContain('certificate.noQuiz');
+    const untitled = good();
+    untitled.certificate.title = ' ';
+    expect(codes(untitled)).toContain('certificate.title');
+    untitled.rules.certificate = false;
+    expect(codes(untitled)).not.toContain('certificate.title');
+  });
+
   it('reports a value that is not a course at all, without crashing', () => {
     const issues = validateForPublish(null as unknown as Course, {});
     expect(issues).toHaveLength(1);
@@ -151,6 +177,8 @@ describe('validateForPublish', () => {
     ],
     [{ type: 'callout', id: 'k', tone: 'tip', md: '' }, 'block.callout.empty'],
     [{ type: 'image', id: 'i', url: 'https://x.test/a.png', alt: '' }, 'block.image.alt'],
+    [{ type: 'image', id: 'i', url: 'http://x.test/a.png', alt: 'a' }, 'block.image.url'],
+    [{ type: 'file', id: 'f', url: 'javascript:alert(1)', label: 'x' }, 'block.file.url'],
     [{ type: 'embed', id: 'e', url: 'https://evil.test/x', title: 't' }, 'block.embed.host'],
     [{ type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: ' ' }, 'block.file.label'],
     [

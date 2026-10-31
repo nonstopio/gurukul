@@ -215,7 +215,9 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
     async startCourse(uid, course) {
       const ref = doc(db, 'progress', progressId(uid, course.id));
       if ((await getDoc(ref)).exists()) return;
-      await setDoc(ref, {
+      // Two opens at once both see "missing"; the second create is then an update the rules
+      // refuse. The course is started either way, so that is not a failure.
+      const fresh = {
         uid,
         courseId: course.id,
         courseVersion: course.version,
@@ -227,7 +229,13 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
         percent: 0,
         completedAt: null,
         certificateId: null,
-      });
+      };
+      try {
+        await setDoc(ref, fresh);
+      } catch (e) {
+        const denied = (e as { code?: string }).code === 'permission-denied';
+        if (!denied || !(await getDoc(ref)).exists()) throw e;
+      }
     },
     async completeItem(uid, courseId, itemId) {
       await updateDoc(doc(db, 'progress', progressId(uid, courseId)), {

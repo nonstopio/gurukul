@@ -38,6 +38,7 @@ import { PageLoading } from './learn/ui';
 import { useSaveLabels } from './labels/LabelChoice';
 import { terms } from './labels/terms';
 import type { Terms } from './labels/terms';
+import { Logo } from './Logo';
 import { useTerms } from './labels/useTerms';
 import { OfflineBanner } from './OfflineBanner';
 import { focusPageOnArrival, pageStart } from './routeFocus';
@@ -219,7 +220,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           label="Main"
           brand={
             <>
-              <img src="/nonstop-logo.png" alt="NonStop io" height="26" className="app__logo" />
+              <Logo className="app__logo" />
               <span className="app__brand">Gurukul</span>
             </>
           }

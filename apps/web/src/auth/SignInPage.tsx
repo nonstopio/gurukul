@@ -2,6 +2,7 @@ import { Button, CheckIcon, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
 import { SignInArt, rise } from './SignInArt';
+import { Logo } from '../Logo';
 
 /** Google's four-colour "G", as their sign-in branding guidelines ask for on a Google button. */
 function GoogleMark() {
@@ -52,7 +53,7 @@ export function SignInPage() {
   return (
     <main className="signin" id="content">
       <div className="signin__brand rise" style={rise(0)}>
-        <img src="/nonstop-logo.png" alt="NonStop io" width="110" height="32" />
+        <Logo />
         <span className="signin__brand-name" aria-hidden="true">
           Gurukul
         </span>

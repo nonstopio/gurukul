@@ -81,7 +81,13 @@ export async function handleProgressWrite(
     await store.writeDerived(progressId, { percent, completed });
     updated = true;
   }
-  if (percent === 100 && course.rules.certificate && now.certificateId === null) {
+  // A retired course takes no new certificates, whatever lessons were ticked after retirement.
+  if (
+    percent === 100 &&
+    course.rules.certificate &&
+    course.status === 'published' &&
+    now.certificateId === null
+  ) {
     const signatory = await store.signatory();
     const issued = await store.issueCertificate(progressId, {
       uid: now.uid,

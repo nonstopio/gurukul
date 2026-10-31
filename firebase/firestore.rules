@@ -206,7 +206,8 @@ service cloud.firestore {
         && request.resource.data.courseVersion is int
         && request.resource.data.startedAt == request.time
         && request.resource.data.lastActiveAt == request.time
-        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && (request.resource.data.lastItemId == null
+            || (request.resource.data.lastItemId is string && request.resource.data.lastItemId.size() <= 80))
         && request.resource.data.completedItemIds == []
         && request.resource.data.quiz == {}
         && request.resource.data.percent == 0
@@ -218,7 +219,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['completedItemIds', 'lastItemId', 'lastActiveAt', 'courseVersion'])
         && appendsAtMostOneItemId(resource.data.completedItemIds, request.resource.data.completedItemIds)
-        && (request.resource.data.lastItemId == null || request.resource.data.lastItemId is string)
+        && (request.resource.data.lastItemId == null
+            || (request.resource.data.lastItemId is string && request.resource.data.lastItemId.size() <= 80))
         && request.resource.data.lastActiveAt == request.time
         && request.resource.data.courseVersion is int;
 

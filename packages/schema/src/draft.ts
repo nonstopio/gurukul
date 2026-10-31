@@ -59,7 +59,8 @@ export function blankCourse(init: {
     status: 'draft',
     version: 0,
     publishedAt: null,
-    rules: { sequential: true, passMark: 0.7, certificate: true, requireVideoWatch: false },
+    // Off until the Educator adds a Quiz: a certificate needs one to be earned.
+    rules: { sequential: true, passMark: 0.7, certificate: false, requireVideoWatch: false },
     certificate: { title: init.title },
     chapters: [],
     estimatedMinutes: 0,
@@ -83,6 +84,12 @@ export interface PublishIssue {
 
 const blank = (s: string) => s.trim() === '';
 
+/** Fields where the schema's lower bound is a real rule nothing else words for the Educator. */
+const NUMBERS_AND_IDS = new Set(['questionsShown', 'minutes', 'cooldownMinutes', 'id', 'lang']);
+
+/** Links a learner opens or loads must be https: no `javascript:`, `data:` or plain `http:`. */
+const isHttps = (url: string) => /^https:\/\//i.test(url);
+
 function blockIssues(itemId: string, b: Block): PublishIssue[] {
   const at = { itemId, blockId: b.id };
   const issue = (code: string, message: string): PublishIssue => ({ code, message, ...at });
@@ -103,9 +110,14 @@ function blockIssues(itemId: string, b: Block): PublishIssue[] {
     case 'callout':
       return blank(b.md) ? [issue('block.callout.empty', 'A callout has no text.')] : [];
     case 'image':
-      return blank(b.alt)
-        ? [issue('block.image.alt', 'An image needs alt text for people who cannot see it.')]
-        : [];
+      return [
+        ...(blank(b.alt)
+          ? [issue('block.image.alt', 'An image needs alt text for people who cannot see it.')]
+          : []),
+        ...(isHttps(b.url)
+          ? []
+          : [issue('block.image.url', 'The image link must start with https://.')]),
+      ];
     case 'embed':
       return isEmbedAllowed(b.url)
         ? []
@@ -116,7 +128,12 @@ function blockIssues(itemId: string, b: Block): PublishIssue[] {
             ),
           ];
     case 'file':
-      return blank(b.label) ? [issue('block.file.label', 'A file link needs a label.')] : [];
+      return [
+        ...(blank(b.label) ? [issue('block.file.label', 'A file link needs a label.')] : []),
+        ...(isHttps(b.url)
+          ? []
+          : [issue('block.file.url', 'The file link must start with https://.')]),
+      ];
     case 'check': {
       const out: PublishIssue[] = [];
       if (blank(b.prompt))
@@ -168,8 +185,11 @@ export function validateForPublish(course: Course, answers: AnswerKeys): Publish
   const out: PublishIssue[] = [];
   const parsed = courseSchema.safeParse(course);
   if (!parsed.success) {
-    // "Too small" (an empty title, no questions) is reported in words below; the rest is shape.
-    for (const i of parsed.error.issues.filter((x) => x.code !== 'too_small')) {
+    // "Too small" on a text or a list (an empty title, no questions) is reported in words below.
+    // On a number or an id it is not: 0 questions shown, negative minutes, an empty id.
+    const wordedBelow = (x: { code: string; path: PropertyKey[] }) =>
+      x.code === 'too_small' && !NUMBERS_AND_IDS.has(String(x.path[x.path.length - 1]));
+    for (const i of parsed.error.issues.filter((x) => !wordedBelow(x))) {
       out.push({ code: 'schema', message: `${i.path.join('.') || 'course'}: ${i.message}` });
     }
   }
@@ -189,6 +209,21 @@ function contentIssues(course: Course, answers: AnswerKeys): PublishIssue[] {
   const items: Item[] = itemsOf(course);
   if (items.length === 0)
     out.push({ code: 'course.empty', message: 'Add at least one lesson before publishing.' });
+
+  if (course.rules.passMark <= 0)
+    out.push({
+      code: 'rules.passMark',
+      message: 'The pass mark must be above 0%, or every attempt passes.',
+    });
+  if (course.rules.certificate) {
+    if (!items.some((i) => i.type === 'quiz'))
+      out.push({
+        code: 'certificate.noQuiz',
+        message: 'A certificate needs a Quiz to earn it: add one, or turn the certificate off.',
+      });
+    if (blank(course.certificate.title))
+      out.push({ code: 'certificate.title', message: 'The certificate needs a title.' });
+  }
 
   const seen = new Set<string>();
   const dupe = (id: string, itemId?: string) => {

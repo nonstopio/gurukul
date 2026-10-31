@@ -138,7 +138,12 @@ describe('isChapterPassed', () => {
 describe('resumeItemId', () => {
   const course = makeCourse();
   it('opens the saved item when it still exists', () => {
-    expect(resumeItemId(course, { ...none, lastItemId: 'l3' })).toBe('l3');
+    expect(resumeItemId(course, { ...none, completedItemIds: ['l1'], lastItemId: 'q1' })).toBe(
+      'q1',
+    );
+  });
+  it('skips a saved item that is locked, such as one behind a Quiz added later', () => {
+    expect(resumeItemId(course, { ...none, lastItemId: 'l3' })).toBe('l1');
   });
   it('falls back to the first unfinished item when it was deleted or never set', () => {
     expect(resumeItemId(course, { ...none, lastItemId: 'gone' })).toBe('l1');

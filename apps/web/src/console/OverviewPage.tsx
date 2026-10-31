@@ -17,6 +17,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
+import { useAudience } from '../data/useAudience';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
@@ -40,13 +41,14 @@ export function OverviewPage() {
   const { data } = useConsole();
   const t = useTerms();
   const learner = useLearnerData();
+  const audience = useAudience();
   const [now] = useState(() => new Date());
   const [range, setRange] = useState<DateRange>('all');
   const [team, setTeam] = useState('');
   const load = useCallback(async () => {
     const [org, courses, assignments, open, overdue, recent, teams] = await Promise.all([
       data.orgStats(),
-      learner.listCourses(),
+      learner.listCourses(audience),
       data.assignments(),
       data.openAssignments(now),
       data.overdueCount(now),
@@ -78,7 +80,7 @@ export function OverviewPage() {
       now,
     };
     return { org, assignments, open, overdue, rows, attention, teams };
-  }, [data, learner, now]);
+  }, [data, learner, audience, now]);
   const result = useAsync(load);
 
   const ready = result.state === 'ready' ? result.value : null;

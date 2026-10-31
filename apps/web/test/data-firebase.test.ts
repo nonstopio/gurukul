@@ -7,6 +7,8 @@ const store = vi.hoisted(() => ({
   snapCb: undefined as undefined | ((s: unknown) => void),
   calls: [] as unknown[][],
   queries: [] as unknown[],
+  setError: undefined as unknown,
+  createdByRival: false,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -31,6 +33,10 @@ vi.mock('firebase/firestore', () => ({
   query: (...parts: unknown[]) => ({ parts }),
   serverTimestamp: () => 'NOW',
   setDoc: async (ref: { path: string }, data: unknown) => {
+    if (store.setError) {
+      if (store.createdByRival) store.docs.set(ref.path, {});
+      throw store.setError;
+    }
     store.calls.push(['set', ref.path, data]);
   },
   updateDoc: async (ref: { path: string }, data: unknown) => {
@@ -49,6 +55,8 @@ beforeEach(() => {
   store.docs.clear();
   store.queryDocs = [];
   store.calls = [];
+  store.setError = undefined;
+  store.createdByRival = false;
   store.queries = [];
 });
 
@@ -300,6 +308,20 @@ describe('firebaseLearnerData', () => {
     store.calls = [];
     await data.startCourse('u', { id: 'git', version: 3 });
     expect(store.calls).toEqual([]);
+  });
+
+  it('treats a refused create as started when the document turned up meanwhile', async () => {
+    const denied = Object.assign(new Error('denied'), { code: 'permission-denied' });
+    store.setError = denied;
+    // Another open created it first: the refusal is not a failure.
+    store.createdByRival = true;
+    await data.startCourse('u', { id: 'git', version: 3 });
+    store.docs.clear();
+    store.createdByRival = false;
+    // Still missing, or a different error: it is a failure.
+    await expect(data.startCourse('u', { id: 'git', version: 3 })).rejects.toBe(denied);
+    store.setError = new Error('offline');
+    await expect(data.startCourse('u', { id: 'git', version: 3 })).rejects.toThrow('offline');
   });
 
   it('appends a completed lesson as a set union and moves the resume point', async () => {

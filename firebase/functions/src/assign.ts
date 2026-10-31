@@ -1,6 +1,12 @@
 import { createHmac } from 'node:crypto';
-import { ApiException, assignmentId, classifyEmails, summarize } from '@gurukul/schema';
-import type { AssignSummary, ClassifiedEmail, Reminder } from '@gurukul/schema';
+import { ApiException, assignmentId, canOpen, classifyEmails, summarize } from '@gurukul/schema';
+import type {
+  AssignSummary,
+  Audience,
+  ClassifiedEmail,
+  CourseAccess,
+  Reminder,
+} from '@gurukul/schema';
 import { requireAdmin } from './errors.js';
 import type { AuditEntry, Caller } from './errors.js';
 import { log } from './logging/log.js';
@@ -22,7 +28,11 @@ export interface NewAssignment {
 /** Where `assignCourses` reads and writes. `stores.ts` adapts the Admin SDK. */
 export interface AssignStore {
   /** Status and title of each course id; undefined for one that does not exist. */
-  courses(ids: string[]): Promise<Record<string, { status: unknown; title: string } | undefined>>;
+  courses(
+    ids: string[],
+  ): Promise<Record<string, { status: unknown; title: string; access?: CourseAccess } | undefined>>;
+  /** Who may open which courses: teams and role of each signed-in person, by uid. */
+  audiences(uids: string[]): Promise<Map<string, Audience>>;
   /** For each email that has a `users` doc, its uid. */
   signedInUsers(emails: string[]): Promise<Map<string, string>>;
   /** Which of these assignment ids already exist. */
@@ -110,16 +120,22 @@ export async function assignCourses(
 ): Promise<AssignResult> {
   requireAdmin(caller, 'assignCourses');
   const req = parseAssignRequest(data);
+  // An assignment due before it is made is overdue on day one: refuse it.
+  if (req.dueAt !== null && req.dueAt < Date.now()) {
+    throw badField('dueAt', req.dueAt, 'must not be in the past');
+  }
   const { store } = deps;
   log.debug('Assigning courses', { count: req.emails.length, courseCount: req.courseIds.length });
 
   const found = await store.courses(req.courseIds);
   const titles = new Map<string, string>();
+  const access = new Map<string, CourseAccess | undefined>();
   for (const id of req.courseIds) {
     const course = found[id];
     if (course === undefined) throw new ApiException('CRS_2001', [id]);
     if (course.status !== 'published') throw new ApiException('CRS_1001', [id]);
     titles.set(id, course.title);
+    access.set(id, course.access);
   }
 
   const first = classifyEmails(req.emails, { signedIn: new Set(), assigned: new Set() });
@@ -133,13 +149,31 @@ export async function assignCourses(
     alreadyAssigned: 0,
     rejected: summarize(first).rejected,
   };
+  // A course limited to teams or to staff is not offered to a signed-in person it would not open
+  // for: they would get an email with a dead link. Someone not signed in yet has no profile to
+  // check, so they are assigned and the course opens for them if their team lists them.
+  const restricted = req.courseIds.some(
+    (id) => (access.get(id)?.visibility ?? 'public') !== 'public',
+  );
+  const audiences = restricted
+    ? await store.audiences([...users.values()])
+    : new Map<string, Audience>();
+  const refused: { email: string; courseId: string }[] = [];
   const docs: NewAssignment[] = [];
   const newByEmail = new Map<string, { id: string; title: string }[]>();
   for (const courseId of req.courseIds) {
-    const ids = new Map(valid.map((email) => [assignmentId(courseId, emailKey(email)), email]));
+    const rule = access.get(courseId);
+    const mayOpen = (email: string): boolean => {
+      const uid = users.get(email);
+      const who = uid === undefined ? undefined : audiences.get(uid);
+      return rule === undefined || who === undefined || canOpen(rule, who);
+    };
+    const allowed = valid.filter(mayOpen);
+    refused.push(...valid.filter((e) => !mayOpen(e)).map((email) => ({ email, courseId })));
+    const ids = new Map(allowed.map((email) => [assignmentId(courseId, emailKey(email)), email]));
     const existing = await store.existingAssignmentIds([...ids.keys()]);
     const assigned = new Set([...ids].filter(([id]) => existing.has(id)).map(([, email]) => email));
-    const classified: ClassifiedEmail[] = classifyEmails(valid, { signedIn, assigned });
+    const classified: ClassifiedEmail[] = classifyEmails(allowed, { signedIn, assigned });
     const part = summarize(classified);
     summary.signedIn += part.signedIn;
     summary.newInvites += part.newInvites;
@@ -168,9 +202,12 @@ export async function assignCourses(
       : [],
   );
   const created = docs.filter((d) => !failedIds.has(d.id));
-  const failed = docs
-    .filter((d) => failedIds.has(d.id))
-    .map((d) => ({ email: d.email, courseId: d.courseId }));
+  const failed = [
+    ...docs
+      .filter((d) => failedIds.has(d.id))
+      .map((d) => ({ email: d.email, courseId: d.courseId })),
+    ...refused,
+  ];
   if (created.length > 0) {
     const written: Record<string, number> = {};
     for (const d of created) written[d.courseId] = (written[d.courseId] ?? 0) + 1;
@@ -191,8 +228,14 @@ export async function assignCourses(
     for (const [email, courses] of newByEmail) {
       const got = courses.filter((c) => !failedIds.has(assignmentId(c.id, emailKey(email))));
       if (got.length === 0) continue;
-      await deps.mailer.send(buildAssignedEmail(email, got, req.dueAt));
-      notified += 1;
+      // The assignments are already saved: a mail failure must not turn the call into a failure,
+      // or a retry would find everything "already assigned" and tell nobody.
+      try {
+        await deps.mailer.send(buildAssignedEmail(email, got, req.dueAt));
+        notified += 1;
+      } catch {
+        log.warn('Assignment email failed', { count: got.length });
+      }
     }
   }
   log.info('Courses assigned', {
