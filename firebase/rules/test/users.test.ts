@@ -69,6 +69,14 @@ describe('users/{uid}', () => {
     await assertSucceeds(getDoc(doc(db, 'users/priya')));
   });
 
+  it('lets an educator read any profile, for the Teams page', async () => {
+    const db = nonstop('meera', { educator: true });
+    await assertSucceeds(getDoc(doc(db, 'users/priya')));
+    await assertFails(
+      getDoc(doc(nonstop('meera', { educator: true, email: 'm@gmail.com' }), 'users/priya')),
+    );
+  });
+
   it('denies a personal Gmail account, even for its own uid', async () => {
     const db = nonstop('priya', { email: 'priya@gmail.com' });
     await assertFails(getDoc(doc(db, 'users/priya')));
@@ -114,16 +122,21 @@ describe('users/{uid}', () => {
     await assertFails(deleteDoc(doc(nonstop('priya'), 'users/priya')));
   });
 
-  it('lets a person change their display name and team', async () => {
+  it('lets a person change their display name', async () => {
     const db = nonstop('priya');
     await assertSucceeds(
-      updateDoc(doc(db, 'users/priya'), {
-        displayName: 'Priya N',
-        nameLower: 'priya n',
-        team: 'QA',
-      }),
+      updateDoc(doc(db, 'users/priya'), { displayName: 'Priya N', nameLower: 'priya n' }),
     );
-    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: null }));
+  });
+
+  it('denies a person picking, clearing or faking a team', async () => {
+    const db = nonstop('priya');
+    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'Dev' }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users/priya'), { team: 'Old' });
+    });
+    await assertFails(updateDoc(doc(db, 'users/priya'), { team: null }));
+    await assertFails(updateDoc(doc(db, 'users/priya'), { teamIds: ['dev'] }));
   });
 
   it('lets a person pick which names the app shows them', async () => {
@@ -183,26 +196,6 @@ describe('users/{uid}', () => {
       updateDoc(doc(db, 'users/priya'), {
         displayName: 'x'.repeat(121),
         nameLower: 'x'.repeat(121),
-      }),
-    );
-    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'x'.repeat(81) }));
-    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 7 }));
-  });
-
-  it('accepts only a team from the org list', async () => {
-    const db = nonstop('priya');
-    await assertFails(updateDoc(doc(db, 'users/priya'), { team: 'Sales' }));
-    await assertSucceeds(updateDoc(doc(db, 'users/priya'), { team: 'Dev' }));
-  });
-
-  it('keeps a team the Admin later removed through a name change', async () => {
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), 'users/priya'), { team: 'Retired team' });
-    });
-    await assertSucceeds(
-      updateDoc(doc(nonstop('priya'), 'users/priya'), {
-        displayName: 'Priya K',
-        nameLower: 'priya k',
       }),
     );
   });

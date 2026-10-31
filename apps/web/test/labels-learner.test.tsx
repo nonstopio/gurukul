@@ -16,17 +16,14 @@ beforeAll(() =>
 );
 
 describe('learner screens in Gurukul names', () => {
-  it('Home: kicker, status line and team prompt', async () => {
+  it('Home: kicker and status line', async () => {
     const watched = started({ completedItemIds: ['l1'] });
     await openApp('/', {
       labels,
-      data: fakeData({ progress: [watched], teams: ['Mobile'] }),
+      data: fakeData({ progress: [watched] }),
     });
     expect(await screen.findByText('Shishya · My learning')).toBeTruthy();
     expect(await screen.findByText(/left to finish the Basics Parva\./)).toBeTruthy();
-    expect(
-      await screen.findByText('Your Kulapati uses it to assign courses to a whole team.'),
-    ).toBeTruthy();
   });
 
   it('catalogue and course overview', async () => {

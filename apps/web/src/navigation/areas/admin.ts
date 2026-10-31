@@ -29,13 +29,6 @@ export const navigation = {
       keywords: ['assign', 'invite', 'csv', 'deadline', 'due date'],
     },
     {
-      id: 'admin-teams',
-      path: '/admin/teams',
-      label: 'Teams',
-      description: 'Groups of people, with their members, to assign courses to together',
-      keywords: ['team', 'members', 'group', 'people'],
-    },
-    {
       id: 'admin-roles',
       path: '/admin/roles',
       label: 'Roles & access',

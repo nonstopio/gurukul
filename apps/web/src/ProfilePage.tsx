@@ -7,13 +7,11 @@ import {
   Page,
   PageHeader,
   SegmentedControl,
-  Select,
   StatCard,
-  useToast,
 } from '@gurukul/ui';
+import { teamId } from '@gurukul/schema';
 import type { LabelSet, Role } from '@gurukul/schema';
-import { useCallback, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useCallback } from 'react';
 import { Link } from 'react-router';
 import { useLabelSet, useSession, useUser } from './auth/AuthProvider';
 import { topRole } from './Shell';
@@ -23,7 +21,6 @@ import { LABEL_OPTIONS, useSaveLabels } from './labels/LabelChoice';
 import type { Terms } from './labels/terms';
 import { useTerms } from './labels/useTerms';
 import { Loaded } from './learn/ui';
-import { log } from './log';
 import { THEME_CHOICES, useTheme } from './theme';
 import type { ThemeChoice } from './theme';
 
@@ -40,8 +37,8 @@ function roleRows(t: Terms): Record<Role, { name: string; can: string }> {
 }
 
 /**
- * `/profile`: who you are (from Google, read only), your roles, the team and label set you can
- * change, and your learning in three numbers. Reached from the account menu.
+ * `/profile`: who you are (from Google, read only), your roles, the teams you are on (read only),
+ * the label set you can change, and your learning in three numbers. Reached from the account menu.
  */
 export function ProfilePage() {
   const { roles, signOut } = useSession();
@@ -83,7 +80,7 @@ export function ProfilePage() {
       </Card>
       <Card title="Preferences">
         <div className="profile__prefs">
-          <TeamForm />
+          <TeamList />
           <LabelsChoice />
           <ThemeChoiceControl />
         </div>
@@ -93,64 +90,38 @@ export function ProfilePage() {
   );
 }
 
-/** The team: picked from `config/org.teams` (the names the Teams page keeps), saved on its own button. */
-function TeamForm() {
-  const { uid } = useUser();
-  const { team: saved } = useSession();
+/**
+ * The teams you are on, read only: Educators and Admins keep them on the Teams page. A person can be on
+ * several. Names come from `config/org.teams`; the profile holds only ids (`teamIds`).
+ */
+function TeamList() {
+  const { teamIds } = useSession();
   const data = useLearnerData();
-  const toast = useToast();
   const t = useTerms();
   const teams = useAsync(useCallback(() => data.orgTeams(), [data]));
-  const [team, setTeam] = useState(saved ?? '');
-  const [saving, setSaving] = useState(false);
-
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await data.setTeam(uid, team === '' ? null : team);
-      toast.show('Team saved', { tone: 'success' });
-    } catch (err) {
-      log.error('Saving team failed', err, { uid });
-      toast.show('Could not save your team. Try again.', { tone: 'danger' });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <Loaded loadable={teams} skeleton={1}>
-      {(list) =>
-        list.length === 0 ? (
-          <p className="profile__note">
-            {`No teams yet: your ${t.admin} adds them on the Teams page.`}
-          </p>
-        ) : (
-          <form className="profile__team" onSubmit={(e) => void save(e)}>
-            <Select
-              label="Team"
-              hint="Used to assign courses to a whole team."
-              value={team}
-              onChange={(e) => setTeam(e.target.value)}
-            >
-              <option value="">No team</option>
-              {list.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </Select>
-            <Button
-              type="submit"
-              variant="secondary"
-              loading={saving}
-              disabled={team === (saved ?? '')}
-            >
-              Save team
-            </Button>
-          </form>
-        )
-      }
+      {(names) => {
+        const mine = names.filter((name) => teamIds.includes(teamId(name)));
+        return (
+          <div className="profile__teams">
+            <p className="profile__label">Teams</p>
+            {mine.length === 0 ? (
+              <p className="profile__note">{`You are not on a team yet. Your ${t.admin} adds people to teams.`}</p>
+            ) : (
+              <ul className="profile__chips" aria-label="Your teams">
+                {mine.map((name) => (
+                  <li key={name}>
+                    <Chip tone="neutral">{name}</Chip>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="profile__note">Used to assign courses to a whole team.</p>
+          </div>
+        );
+      }}
     </Loaded>
   );
 }

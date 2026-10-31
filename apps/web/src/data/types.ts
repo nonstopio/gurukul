@@ -91,8 +91,6 @@ export interface LearnerData {
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** The names of the teams an Admin made on the Teams page (`config/org.teams`); empty before any. */
   orgTeams(): Promise<string[]>;
-  /** Sets my team (`users/{uid}.team`); the rules accept only a listed team, or `null`. */
-  setTeam(uid: string, team: string | null): Promise<void>;
   /** Which names the app shows this person (`users/{uid}.labels`). */
   setLabels(uid: string, labels: LabelSet): Promise<void>;
 }

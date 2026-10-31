@@ -12,8 +12,6 @@ export interface Session {
   status: SessionStatus;
   user: AuthUser | null;
   roles: Role[];
-  /** The team on the profile (`users/{uid}.team`); `null` until the person picks one. */
-  team: string | null;
   /** The teams the person is on, which decide the `teams` courses they may open. */
   teamIds: string[];
   /** Which names the app shows (`users/{uid}.labels`); `null` until the person picks. */
@@ -70,7 +68,6 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [roles, setRoles] = useState<Role[]>(['learner']);
-  const [team, setTeam] = useState<string | null>(null);
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<LabelSet | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +93,6 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       if (!u) {
         setUser(null);
         setRoles(['learner']);
-        setTeam(null);
         setTeamIds([]);
         setLabels(null);
         setStatus('signedOut');
@@ -131,7 +127,6 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
               setRoles(current);
             });
           }
-          setTeam(profile.team ?? null);
           setTeamIds(profile.teamIds ?? []);
           setLabels(profile.labels ?? null);
           setStatus('ready');
@@ -157,7 +152,6 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       status,
       user,
       roles,
-      team,
       teamIds,
       labels,
       error,
@@ -173,7 +167,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       },
       signOut: () => service.signOut(),
     }),
-    [status, user, roles, team, teamIds, labels, error, wrongAccount, service],
+    [status, user, roles, teamIds, labels, error, wrongAccount, service],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

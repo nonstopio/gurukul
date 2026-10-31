@@ -254,9 +254,6 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
       const snap = await getDoc(doc(db, 'config', 'org'));
       return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
     },
-    async setTeam(uid, team) {
-      await updateDoc(doc(db, 'users', uid), { team });
-    },
     async setLabels(uid, labels) {
       await updateDoc(doc(db, 'users', uid), { labels });
     },

@@ -479,6 +479,12 @@ describe('Course overview', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Course not found' })).toBeTruthy();
   });
 
+  it('does not ask a learner with no team to pick one', async () => {
+    await open('/', fakeData({ teams: ['QA'] }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Namaste, Priya' })).toBeTruthy();
+    expect(screen.queryByText('Which team are you in?')).toBeNull();
+  });
+
   it('shows a page-shaped skeleton, then a plain warning with Retry when the course fails', async () => {
     const d = fakeData();
     const get = d.data.getCourse;

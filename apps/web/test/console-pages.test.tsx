@@ -662,7 +662,7 @@ describe('Overview: Needs attention', () => {
   it('narrows the lists by team and by date range', async () => {
     const c = fakeConsole({
       teams: ['QA'],
-      team: [userRow(1, { team: 'QA', email: 'in@nonstopio.com' })],
+      team: [userRow(1, { teamIds: ['qa'], email: 'in@nonstopio.com' })],
       assignments: [],
       open: [
         asg('in@nonstopio.com', { uid: 'u1', dueAt: past, status: 'started' }),

@@ -13,7 +13,7 @@ const platform: Team = {
   createdAt: 5,
 };
 const bare: Team = { id: 'qa', name: 'QA', memberEmails: [], createdAt: 0 };
-const PATH = '/admin/teams';
+const PATH = '/studio/teams';
 
 const dialog = () => screen.getByRole('dialog');
 const paste = (text: string) =>
@@ -23,6 +23,22 @@ const paste = (text: string) =>
 const nameField = () => within(dialog()).getByLabelText('Team name');
 
 describe('Teams page', () => {
+  it('opens for an Educator, who is not an Admin', async () => {
+    await openApp(PATH, { roles: ['educator'], console: fakeConsole({ teamList: [platform] }) });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Teams' })).toBeTruthy();
+    expect(await screen.findByText('Platform')).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('link', { name: 'Teams' })).toBeTruthy();
+  });
+
+  it('stays closed to a Learner, and has left the Admin console', async () => {
+    const { unmount } = await openApp(PATH, { console: fakeConsole() });
+    expect(await screen.findByRole('heading', { name: /do not have access/ })).toBeTruthy();
+    unmount();
+    await openApp('/admin/teams', { ...admin, console: fakeConsole() });
+    expect(await screen.findByRole('heading', { name: 'This page does not exist.' })).toBeTruthy();
+  });
+
   it('lists teams with member counts, a team with no document as empty', async () => {
     const c = fakeConsole({
       teamList: [

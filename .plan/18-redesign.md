@@ -128,7 +128,7 @@ structure wanting. Decisions, all in the "Gurukul Design System" artifact and `0
   lookup from API error codes to a type, a sentence, a code and a retry rule.
 - **Where things go**: an area switcher (Learn, Studio, Admin); Design system, Teams on their own
   Admin pages; Profile in the account menu.
-- **Teams hold their members** (`teams/{id}`, Admin-only); a multi-select people picker.
+- **Teams hold their members** (`teams/{id}`, Educators and Admins); a multi-select people picker.
 - **Assign is a four-step horizontal flow**; the catalogue gets search, filters and visibility;
   Home leads with a continue-learning hero.
 - **Studio**: the media library is a gallery with previews; the question bank can create, import,

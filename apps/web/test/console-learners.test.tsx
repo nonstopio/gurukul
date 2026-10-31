@@ -21,7 +21,7 @@ const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull 
 });
 const late = new Date(Date.now() - 5 * 86_400_000);
 const users = [
-  userRow(1, { displayName: 'Priya', team: 'QA', roles: ['learner', 'educator'] }),
+  userRow(1, { displayName: 'Priya', teamIds: ['qa'], roles: ['learner', 'educator'] }),
   userRow(2, { displayName: 'Rohan' }),
 ];
 const assignments = [
@@ -34,6 +34,16 @@ function setup(over: Parameters<typeof fakeConsole>[0] = {}) {
 }
 
 describe('Learners', () => {
+  it('shows every team a person is on in the Team column', async () => {
+    const c = setup({
+      users: [userRow(1, { displayName: 'Priya', teamIds: ['qa', 'dev'] })],
+      teams: ['QA', 'Dev'],
+    });
+    await openApp('/admin/learners', { ...admin, console: c });
+    await screen.findByText('Priya');
+    expect(screen.getByText('QA, Dev')).toBeTruthy();
+  });
+
   it('lists people with their courses, status and tab counts', async () => {
     const c = setup();
     const { container } = await openApp('/admin/learners', { ...admin, console: c });
@@ -160,8 +170,8 @@ describe('Learners', () => {
 
   it('combines filters with each other and with the tab', async () => {
     const team = [
-      userRow(1, { displayName: 'Priya', team: 'QA', roles: ['learner', 'educator'] }),
-      userRow(3, { displayName: 'Meera', team: 'QA' }),
+      userRow(1, { displayName: 'Priya', teamIds: ['qa'], roles: ['learner', 'educator'] }),
+      userRow(3, { displayName: 'Meera', teamIds: ['qa'] }),
     ];
     const c = setup({ team });
     await openApp('/admin/learners', { ...admin, console: c });
@@ -217,7 +227,7 @@ describe('Learners', () => {
 
   it('paginates a team client-side and clears the selection when the page changes', async () => {
     const team = Array.from({ length: 26 }, (_, i) =>
-      userRow(i + 100, { displayName: `T${i}`, team: 'QA' }),
+      userRow(i + 100, { displayName: `T${i}`, teamIds: ['qa'] }),
     );
     const c = setup({ team });
     await openApp('/admin/learners', { ...admin, console: c });
@@ -234,7 +244,7 @@ describe('Learners', () => {
 
   describe('select all across pages', () => {
     const team = Array.from({ length: 26 }, (_, i) =>
-      userRow(i + 100, { displayName: `T${i}`, team: 'QA' }),
+      userRow(i + 100, { displayName: `T${i}`, teamIds: ['qa'] }),
     );
     const tickPage = () => fireEvent.click(screen.getByLabelText('Select all rows on this page'));
 

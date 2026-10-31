@@ -815,14 +815,18 @@ a.items__row:hover {
   display: grid;
   gap: var(--space-6);
 }
-.profile__team {
+.profile__teams {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+.profile__chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-.profile__team > .g-field {
-  flex: 1 1 16rem;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .profile__labels {
   display: grid;

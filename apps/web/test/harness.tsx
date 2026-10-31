@@ -25,8 +25,8 @@ export async function openApp(
     labels?: LabelSet | null;
     /** Overrides on the signed-in Google user (a missing display name, say). */
     user?: Partial<AuthUser>;
-    /** The team on the profile; none by default. */
-    team?: string | null;
+    /** `teamId` of each team the person is on; none by default. */
+    teamIds?: string[];
   } = {},
 ) {
   const claims = Object.fromEntries((opts.roles ?? []).map((r) => [r, true]));
@@ -54,7 +54,8 @@ export async function openApp(
       f.emitProfile({
         roles: ['learner', ...(opts.roles ?? [])],
         displayName: 'P',
-        team: opts.team ?? null,
+        team: null,
+        teamIds: opts.teamIds ?? [],
         labels: opts.labels === null ? undefined : (opts.labels ?? 'generic'),
       }),
     );

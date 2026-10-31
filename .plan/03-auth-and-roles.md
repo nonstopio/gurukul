@@ -56,7 +56,7 @@ function signedIn()     { request.auth != null && token.email_verified && email 
 function isAdmin()   { signedIn() && token.admin == true }
 function isEducatorOf(c) { signedIn() && token.educator == true && request.auth.uid in get(/courses/$(c)).data.educatorIds }
 
-users/{uid}                 read: self || admin;  update: self, only displayName/team
+users/{uid}                 read: self || educator || admin;  update: self, only displayName/nameLower/labels
 courses/{c}                 get/list: signedIn && status in [published, archived] && may open (public, or a listed team) || any educator || isAdmin
                             (a listing must ask for visibility == 'public', or 'teams' + the person's own team ids)
 courses/{c}/drafts/{d}      read, write: isEducatorOf(c) || isAdmin   (shape validated)

@@ -90,11 +90,6 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
       <AssignPage />
     </RequireRole>
   ),
-  '/admin/teams': (
-    <RequireRole any={['admin']}>
-      <TeamsPage />
-    </RequireRole>
-  ),
   '/admin/roles': (
     <RequireRole any={['admin']}>
       <RolesPage />
@@ -118,6 +113,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/admin/courses/:courseId': (
     <RequireRole any={['admin']}>
       <CourseAnalyticsPage />
+    </RequireRole>
+  ),
+  '/studio/teams': (
+    <RequireRole any={['educator', 'admin']}>
+      <TeamsPage />
     </RequireRole>
   ),
   '/studio': (

@@ -36,10 +36,17 @@ describe('teams/{id}', () => {
     await assertSucceeds(updateDoc(doc(admin(), 'teams/platform'), { memberEmails: [] }));
     await assertSucceeds(deleteDoc(doc(admin(), 'teams/platform')));
   });
-  it('denies a learner, an educator, another domain and a signed-out visitor every operation', async () => {
+  it('lets an educator read, create, update and delete a team', async () => {
+    const db = as('meera', { educator: true });
+    await assertSucceeds(getDoc(doc(db, 'teams/platform')));
+    await assertSucceeds(setDoc(doc(db, 'teams/qa'), { ...valid, name: 'QA' }));
+    await assertSucceeds(updateDoc(doc(db, 'teams/platform'), { memberEmails: [] }));
+    await assertSucceeds(deleteDoc(doc(db, 'teams/platform')));
+  });
+  it('denies a learner, another domain and a signed-out visitor every operation', async () => {
     const others = [
       as('priya'),
-      as('priya', { educator: true }),
+      as('priya', { email: 'p@gmail.com', educator: true }),
       as('priya', { email: 'p@gmail.com', admin: true }),
       env.unauthenticatedContext().firestore(),
     ];
