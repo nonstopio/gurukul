@@ -540,12 +540,6 @@ a.items__row:hover {
 .signin__brand .logo {
   height: var(--space-8);
 }
-.signin__brand-name {
-  padding-left: var(--space-4);
-  border-left: 1px solid var(--border-strong);
-  font: 500 var(--text-xl) / 1 var(--font-display);
-  color: var(--text);
-}
 .signin__copy {
   grid-area: copy;
   display: flex;

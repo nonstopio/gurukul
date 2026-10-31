@@ -54,9 +54,6 @@ export function SignInPage() {
     <main className="signin" id="content">
       <div className="signin__brand rise" style={rise(0)}>
         <Logo />
-        <span className="signin__brand-name" aria-hidden="true">
-          Gurukul
-        </span>
       </div>
       <section className="signin__copy" aria-label="Sign in">
         <div className="rise" style={rise(1)}>
