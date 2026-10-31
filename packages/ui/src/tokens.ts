@@ -55,6 +55,19 @@ export const roleTokens = [
   'gold-text',
   'paper-ink',
   'paper-danger',
+  'paper-danger-soft',
+  'paper-muted',
+  'cert-accent',
+  'cert-dot',
+  'cert-ring',
+  'wax-gloss',
+  'wax-shine',
+  'wax-light',
+  'wax',
+  'wax-relief',
+  'wax-well',
+  'wax-deep',
+  'wax-shadow',
 ] as const;
 
 export type RoleToken = (typeof roleTokens)[number];

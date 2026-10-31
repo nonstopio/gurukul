@@ -1249,13 +1249,13 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     Example: SwatchExample,
   },
   Seal: {
-    rule: 'The certificate seal; ceremony surfaces only.',
+    rule: 'The green wax seal: certificates and ceremony surfaces only.',
     Example: () => (
       <Seal label="Seal of NonStop Gurukul" ringText="NONSTOP GURUKUL · CERTIFIED · " />
     ),
   },
   Certificate: {
-    rule: 'The certificate artwork on paper; a long name shrinks to fit; a revoked one says so.',
+    rule: 'The certificate on paper; the course title leads; long titles and names shrink to fit; a revoked one says so.',
     Example: () => (
       <>
         <Frame size="wide">

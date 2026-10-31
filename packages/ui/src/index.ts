@@ -62,7 +62,7 @@ export { Breadcrumb } from './Breadcrumb';
 export type { BreadcrumbItem, BreadcrumbProps } from './Breadcrumb';
 export { Seal } from './Seal';
 export type { SealProps } from './Seal';
-export { Certificate, nameFontSize, printCertificateClass } from './Certificate';
+export { Certificate, courseFontSize, nameFontSize, printCertificateClass } from './Certificate';
 export type { CertificateProps } from './Certificate';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';

@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Certificate, Seal, StatCard, nameFontSize, printCertificateClass } from '../src';
+import {
+  Certificate,
+  Seal,
+  StatCard,
+  courseFontSize,
+  nameFontSize,
+  printCertificateClass,
+} from '../src';
 import { axeViolations } from './axe';
 
 const cert = {
@@ -16,29 +23,76 @@ const cert = {
 };
 
 describe('nameFontSize', () => {
-  it('is 66 for names up to 28 characters', () => {
-    expect(nameFontSize('Priya Kulkarni')).toBe(66);
-    expect(nameFontSize('a'.repeat(28))).toBe(66);
-    expect(nameFontSize(`  ${'a'.repeat(28)}  `)).toBe(66);
+  it('is 32 for names up to 40 characters', () => {
+    expect(nameFontSize('Priya Kulkarni')).toBe(32);
+    expect(nameFontSize('a'.repeat(40))).toBe(32);
+    expect(nameFontSize(`  ${'a'.repeat(40)}  `)).toBe(32);
   });
   it('shrinks for longer names', () => {
-    expect(nameFontSize('a'.repeat(32))).toBe(57);
+    expect(nameFontSize('a'.repeat(50))).toBe(25);
   });
-  it('never goes below 44', () => {
-    expect(nameFontSize('a'.repeat(42))).toBe(44);
-    expect(nameFontSize('a'.repeat(200))).toBe(44);
+  it('never goes below 22', () => {
+    expect(nameFontSize('a'.repeat(59))).toBe(22);
+    expect(nameFontSize('a'.repeat(200))).toBe(22);
+  });
+});
+
+describe('courseFontSize', () => {
+  it('is 72 for titles up to 22 characters', () => {
+    expect(courseFontSize('Git for teams')).toBe(72);
+    expect(courseFontSize(`  ${'a'.repeat(22)}  `)).toBe(72);
+  });
+  it('shrinks for longer titles', () => {
+    expect(courseFontSize('a'.repeat(33))).toBe(48);
+  });
+  it('never goes below 40', () => {
+    expect(courseFontSize('a'.repeat(40))).toBe(40);
+    expect(courseFontSize('a'.repeat(120))).toBe(40);
   });
 });
 
 describe('Seal', () => {
-  it('is an image with a label and the ring text on a path', () => {
+  it('is one labelled image whose ring text runs on its own circle path', () => {
     const { container } = render(<Seal label="Seal of X" ringText="X · CERTIFIED · " />);
-    expect(screen.getByRole('img', { name: 'Seal of X' }).getAttribute('width')).toBe('132');
-    expect(container.querySelector('textPath')?.textContent).toBe('X · CERTIFIED · ');
-    expect(container.querySelector('textPath')?.getAttribute('href')).toBe(
-      `#${container.querySelector('path')?.id}`,
+    const svg = screen.getByRole('img', { name: 'Seal of X' });
+    expect(svg.getAttribute('width')).toBe('132');
+    expect(svg.getAttribute('viewBox')).toBe('0 0 200 200');
+    const paths = container.querySelectorAll('textPath');
+    expect(paths).toHaveLength(3);
+    const ring = container.querySelector('defs path');
+    for (const path of paths) {
+      expect(path.textContent).toBe('X · CERTIFIED · ');
+      expect(path.getAttribute('href')).toBe(`#${ring?.id}`);
+    }
+    const marks = container.querySelectorAll('.g-seal__mark');
+    expect([...marks].map((m) => m.textContent)).toEqual(['G', 'G', 'G']);
+  });
+  it('draws wax: a cast shadow, a body, a raised rim, a pressed well and three relief layers', () => {
+    const { container } = render(<Seal label="s" ringText="r" />);
+    for (const part of ['cast', 'body', 'rim', 'well']) {
+      expect(container.querySelectorAll(`.g-seal__${part}`)).toHaveLength(1);
+    }
+    expect(container.querySelectorAll('.g-seal__gloss')).toHaveLength(2);
+    for (const layer of ['light', 'dark', 'face']) {
+      expect(container.querySelector(`.g-seal__layer--${layer}`)).toBeTruthy();
+    }
+  });
+  it('points every paint at its own gradients, so two seals on a page do not collide', () => {
+    const { container } = render(
+      <>
+        <Seal label="a" ringText="r" />
+        <Seal label="b" ringText="r" />
+      </>,
     );
-    expect(container.querySelector('.g-seal__mark')?.textContent).toBe('G');
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(id).toMatch(/^[a-zA-Z0-9_-]+$/);
+    for (const el of container.querySelectorAll('[fill^="url("], [stroke^="url("], [filter]')) {
+      for (const attr of ['fill', 'stroke', 'filter']) {
+        const ref = /^url\(#(.+)\)$/.exec(el.getAttribute(attr) ?? '')?.[1];
+        if (ref) expect(ids).toContain(ref);
+      }
+    }
   });
   it('takes a size, a centre mark and a class', () => {
     const { container } = render(
@@ -48,6 +102,13 @@ describe('Seal', () => {
     expect(svg?.getAttribute('width')).toBe('64');
     expect(svg?.getAttribute('class')).toBe('g-seal x');
     expect(container.querySelector('.g-seal__mark')?.textContent).toBe('N');
+  });
+  it('colours wax with wax roles only', () => {
+    const css = readFileSync(resolve(import.meta.dirname, '../src/seal.css'), 'utf8');
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    for (const role of ['wax', 'wax-light', 'wax-deep', 'wax-shine', 'wax-shadow']) {
+      expect(css).toContain(`var(--${role})`);
+    }
   });
   it('has no axe violations', async () => {
     const { container } = render(<Seal label="Seal" ringText="r" />);
@@ -97,11 +158,38 @@ describe('Certificate', () => {
     expect(screen.getByText(/Revoked: this certificate is no longer valid/)).toBeTruthy();
     expect(container.firstElementChild?.className).toContain('g-cert--revoked');
   });
-  it('sizes the name by length', () => {
+  it('sizes the name and the course title by length', () => {
     const { rerender } = render(<Certificate {...cert} />);
-    expect(screen.getByText('Priya Kulkarni').style.fontSize).toBe('66px');
-    rerender(<Certificate {...cert} learnerName={'Long '.repeat(9).trim()} />);
-    expect(screen.getByText('Long '.repeat(9).trim()).style.fontSize).toBe('44px');
+    expect(screen.getByText('Priya Kulkarni').style.fontSize).toBe('32px');
+    expect(screen.getByText('Git, the NonStop Way').style.fontSize).toBe('72px');
+    const longName = 'Long '.repeat(11).trim();
+    const longCourse = 'A very long course title about many things';
+    rerender(<Certificate {...cert} learnerName={longName} courseTitle={longCourse} />);
+    expect(screen.getByText(longName).style.fontSize).toBe('23px');
+    expect(screen.getByText(longCourse).style.fontSize).toBe('40px');
+  });
+  it('makes the course title the largest line and the name a smaller one', () => {
+    render(<Certificate {...cert} />);
+    expect(screen.getByText('Git, the NonStop Way').className).toBe('g-cert__course');
+    expect(screen.getByText('Priya Kulkarni').className).toBe('g-cert__name');
+    expect(screen.getByText('has completed the course')).toBeTruthy();
+  });
+  it('heads the sheet with the organisation and draws its art out of the reading order', () => {
+    const { container } = render(<Certificate {...cert} />);
+    expect(container.querySelector('.g-cert__org')?.textContent).toBe('NonStop Gurukul');
+    expect(container.querySelector('.g-cert__art')?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('.g-cert__divider')?.getAttribute('aria-hidden')).toBe('true');
+    const seal = screen.getByRole('img', { name: 'Seal of NonStop Gurukul' });
+    expect(seal.getAttribute('width')).toBe('180');
+    expect(container.querySelector('textPath')?.textContent).toBe('NONSTOP GURUKUL · CERTIFIED · ');
+  });
+  it('labels the details Issued, Credential and Verify', () => {
+    const { container } = render(<Certificate {...cert} />);
+    expect([...container.querySelectorAll('dt')].map((dt) => dt.textContent)).toEqual([
+      'Issued',
+      'Credential',
+      'Verify',
+    ]);
   });
   it('has no axe violations, valid or revoked', async () => {
     const { container, rerender } = render(<Certificate {...cert} />);
@@ -114,5 +202,13 @@ describe('Certificate', () => {
     expect(css).toMatch(/@page\s*{\s*size: A4 landscape;\s*margin: 0;/);
     expect(css).toContain(`.${printCertificateClass} .g-cert__sheet`);
     expect(css).toMatch(/body \*\s*{\s*visibility: hidden/);
+    expect(css).toMatch(/print-color-adjust: exact/);
+  });
+  it('keeps the paper colours fixed: no theme-dependent role and no colour literal', () => {
+    const css = readFileSync(resolve(import.meta.dirname, '../src/certificate.css'), 'utf8');
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    for (const role of ['accent', 'text', 'text-muted', 'surface', 'bg', 'danger', 'danger-soft']) {
+      expect(css).not.toContain(`var(--${role})`);
+    }
   });
 });

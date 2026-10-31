@@ -138,6 +138,21 @@
   --gold-text: var(--g-gold-700);
   --paper-ink: #27352d; /* text on the paper certificate, in both themes */
   --paper-danger: #b3261e; /* the revoked stamp on paper, in both themes */
+  --paper-danger-soft: #fde8e6; /* the revoked band's ground on paper, in both themes */
+  --paper-muted: #46554c; /* secondary lines on the paper certificate, in both themes */
+  --cert-accent: #0a6a46; /* course title and accent lines on paper, in both themes */
+  --cert-dot: rgb(10 106 70 / 0.16); /* the dot grid behind the certificate */
+  --cert-ring: rgb(10 106 70 / 0.16); /* the large rings behind the certificate */
+
+  /* ---- Roles: wax (the green wax seal; the same in both themes) ---- */
+  --wax-gloss: #ffffff;
+  --wax-shine: #9ee6c2;
+  --wax-light: #2f9468;
+  --wax: #0a6a46;
+  --wax-relief: #0c7a52;
+  --wax-well: #075236;
+  --wax-deep: #053d27;
+  --wax-shadow: #021a10;
 
   /* ---- Roles: code ---- */
   --code-bg: #0a1714;

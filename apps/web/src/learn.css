@@ -682,7 +682,7 @@ a.items__row:hover {
 .signin-art__seal {
   right: 6%;
   bottom: 8%;
-  border-radius: var(--radius-pill);
+  box-shadow: none; /* the wax seal casts its own shadow and is not round */
 }
 .signin-art__pill {
   bottom: 12%;
