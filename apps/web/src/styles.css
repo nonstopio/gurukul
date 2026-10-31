@@ -89,7 +89,7 @@ body {
   font: 500 var(--text-sm) var(--font-mono);
   color: var(--text-subtle);
 }
-/* The sidebar brand: logo, hairline, product name (AppShell does the layout). */
+/* The sidebar brand: the Gurukul logo (AppShell does the layout). */
 .app__logo {
   display: block;
   height: 1.75rem;
@@ -119,10 +119,6 @@ body {
   :root:not([data-theme='light']) .logo--paper {
     display: block;
   }
-}
-.app__brand {
-  font: 500 var(--text-lg) / 1 var(--font-display);
-  color: var(--chrome-accent);
 }
 .app__offline {
   margin: 0 var(--space-4) var(--space-4);
