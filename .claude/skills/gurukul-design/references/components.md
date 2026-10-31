@@ -377,20 +377,29 @@ chevron separators are `aria-hidden` SVG. The last item is the current page: pla
 ## Seal, Certificate, StatCard — shipped
 
 `<Seal label="Seal of NonStop Gurukul" ringText="NONSTOP GURUKUL · CERTIFIED · " centerText="G" size={132} />`.
-SVG with `role="img"` and the required `label`. `--cover-forest` disc, two `--gold` rings, `ringText` on a
-circle path (`textPath`, spread over the whole circle, so end it with a separator), `centerText` in Fraunces
-italic. Path id comes from `useId`, so several seals can share a page.
+A green wax seal, SVG with `role="img"` and the required `label`, drawn on a 200x200 box: a poured outline
+with soft lobes and a blurred cast shadow, a radial-gradient body, a raised rim (`--wax-shine` to
+`--wax-deep`) around a pressed well, two gloss strokes, and the design in relief: the ring, a ring of beads,
+`ringText` on a circle path (spread over the whole circle, so end it with a separator) and `centerText` in
+Fraunces 600. Relief is three copies of the design (light edge up-left, dark edge down-right, face on top),
+not filters, so it stays crisp in print. Colours are the `--wax-*` roles only, the same in both themes. Ids
+come from `useId`, cleaned to `[a-zA-Z0-9_-]`, so several seals can share a page.
 
 `<Certificate learnerName courseTitle issuedOn credentialId verifyUrl signatoryName signatoryRole revoked? organisation? />`.
 Designed at 1123x794 (A4 landscape) and scaled to its container's width in CSS only
 (`container-type: inline-size`, `scale(calc(100cqw / 1123px))`); the container needs a width, the height
-follows. Spec in `.plan/design-handoff/01-learner.md` section 08: 22px `--cover-forest` frame, `--paper` sheet,
-18px inset, 1px `--gold` hairline, four corner ornaments, "Gurukul" badge as text (no PNG), title 13px/600
-0.42em `--gold-text`, Fraunces italic lines, course Fraunces 500 38px, footer with signature, 132px Seal,
-organisation, date, credential id and verify URL (plain text so it survives print). All real, selectable text.
-`organisation` defaults to "NonStop Gurukul" and feeds the seal. `revoked` adds a band reading "Revoked:
-this certificate is no longer valid" (danger colour plus words); the certificate stays readable.
-`nameFontSize(name)` (exported, pure): 66px up to 28 characters, then `floor(66*28/length)`, minimum 44px.
+follows. Spec in `.plan/design-handoff/01-learner.md` section 08: `--paper` sheet with a `--cert-dot` grid,
+`--cert-ring` and `--gold` rings and two `--cert-accent` traces (one `aria-hidden` SVG), a 1px `--gold`
+frame 26px in, the organisation in 12px caps `--gold-text`, "Certificate of completion" Fraunces italic 30px,
+a gold rule-diamond-rule divider, the name in the UI font 600 (`nameFontSize`), the course title as the
+largest line in Fraunces 500 `--cert-accent` (`courseFontSize`), a footer with the signature on the left and
+Issued, Credential and Verify on the right, and a 180px wax Seal tilted -8deg over the details. All real,
+selectable text. `organisation` defaults to "NonStop Gurukul" and feeds the heading and the seal. `revoked`
+adds a band reading "Revoked: this certificate is no longer valid" (danger colour plus words); the
+certificate stays readable. `nameFontSize(name)`: 32px up to 40 characters, then `floor(32*40/length)`,
+minimum 22px. `courseFontSize(title)`: 72px up to 22 characters, then `floor(72*22/length)`, minimum 40px,
+wrapping to a second line. Paper roles (`--paper-ink`, `--paper-muted`, `--paper-danger`, `--paper-danger-soft`, `--cert-*`, `--wax-*`) are fixed in
+both themes; never use theme roles such as `--accent` or `--text` on the sheet.
 
 **Print pattern.** `Certificate` always carries `printCertificateClass` (`g-cert-print`). In `@media print`
 (`@page { size: A4 landscape; margin: 0 }`) everything under `body` is `visibility: hidden` except the

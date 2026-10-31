@@ -1,24 +1,91 @@
+/* The green wax seal. Wax roles are the same in both themes: a seal is a physical object. */
 .g-seal {
   display: block;
   flex: none;
+  overflow: visible;
 }
-.g-seal__disc {
-  fill: var(--cover-forest);
+.g-seal__stop--light {
+  stop-color: var(--wax-light);
 }
-.g-seal__ring {
+.g-seal__stop--wax {
+  stop-color: var(--wax);
+}
+.g-seal__stop--deep {
+  stop-color: var(--wax-deep);
+}
+.g-seal__stop--relief {
+  stop-color: var(--wax-relief);
+}
+.g-seal__stop--well {
+  stop-color: var(--wax-well);
+}
+.g-seal__stop--shine {
+  stop-color: var(--wax-shine);
+}
+.g-seal__stop--shadow {
+  stop-color: var(--wax-shadow);
+}
+.g-seal__stop--soft {
+  stop-opacity: 0.6;
+}
+.g-seal__stop--clear {
+  stop-opacity: 0;
+}
+.g-seal__cast {
+  fill: var(--wax-shadow);
+  fill-opacity: 0.3;
+}
+.g-seal__body {
+  stroke-width: 2.5;
+}
+.g-seal__rim {
   fill: none;
-  stroke: var(--gold);
-  stroke-width: 1.5;
+  stroke-width: 8;
 }
-.g-seal__ring--inner {
-  stroke-width: 1;
+.g-seal__well {
+  stroke-width: 3;
+}
+.g-seal__gloss {
+  fill: none;
+  stroke: var(--wax-gloss);
+  stroke-opacity: 0.6;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.g-seal__gloss--edge {
+  stroke-opacity: 0.32;
+  stroke-width: 3;
+}
+.g-seal__relief-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.g-seal__beads {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 0 6.28;
 }
 .g-seal__ring-text {
-  fill: var(--gold);
-  font: 600 9px / 1 var(--font-ui);
-  letter-spacing: 0.12em;
+  fill: currentColor;
+  font: 700 10px / 1 var(--font-ui);
+  letter-spacing: 0.16em;
 }
 .g-seal__mark {
-  fill: var(--gold);
-  font: italic 500 40px / 1 var(--font-display);
+  fill: currentColor;
+  font: 600 54px / 1 var(--font-display);
+  font-variation-settings: 'opsz' 144;
+}
+.g-seal__layer--light {
+  color: var(--wax-shine);
+  opacity: 0.6;
+}
+.g-seal__layer--dark {
+  color: var(--wax-shadow);
+  opacity: 0.75;
+}
+.g-seal__layer--face {
+  color: var(--wax-relief);
 }

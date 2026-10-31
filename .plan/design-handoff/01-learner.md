@@ -163,13 +163,14 @@ prints exactly one page with no app chrome.
 
 | Element | Spec |
 |---|---|
-| Frame | 22px `--cover-forest` border; `--paper` sheet with 18px inset; 1px `--gold` hairline; 4 corner ornaments |
-| Badge | Dark rounded plate with logo + "Gurukul" (the logo needs a dark ground) |
-| Title | "CERTIFICATE OF COMPLETION", 13px/600, 0.42em tracking, `--gold-text` |
-| Lines | Fraunces italic 19px `#3D4F49`-ish role `--text-body` on paper |
-| Name | Fraunces italic 66px; shrink to fit for names > 28 characters (min 44px) |
-| Course | Fraunces 500 38px `--cover-forest` |
-| Footer grid | signature block · seal (132px, forest + gold, text on circle path) · "Certified by NonStop Gurukul", date, credential id, verify URL |
+| Ground | `--paper` with a 26px dot grid (`--cert-dot`), large rings top-left and bottom-right (`--cert-ring`, `--gold`), two short `--cert-accent` traces |
+| Frame | 1px `--gold` hairline, 26px in from the edge |
+| Heading | The organisation, 12px/600, 0.4em tracking, `--gold-text`; "Certificate of completion" Fraunces italic 30px; a gold rule-diamond-rule divider |
+| Lines | "This certifies that" and "has completed the course", UI font 16px, `--paper-muted` |
+| Name | UI font 600, 32px; shrinks for names over 40 characters (min 22px) |
+| Course | The largest line: Fraunces 500 72px `--cert-accent`; shrinks for titles over 22 characters (min 40px), then wraps |
+| Footer | Signature rule, name and role on the left; Issued, Credential, Verify on the right |
+| Seal | Green wax seal, 180px, tilted -8°, centred on the bottom-right rings above the details; `--wax-*` roles, the same in both themes |
 
 **Verify page:** small header, the certificate, and a status panel: "Valid —
 issued 9 November 2026 to Priya Kulkarni for Git, the NonStop Way (version 3)"
