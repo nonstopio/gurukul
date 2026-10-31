@@ -11,8 +11,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    Resume button, a due-soon chip) for the most recent in-progress course, or "Pick your next
    course" with up to three suggestions when nothing is in progress,
    assigned courses (mandatory first, then by due date), and recent activity.
-   A learner with no team (and a teams list in Org settings) is asked to pick
-   one, so "whole team" assignments and the team filter reach them.
+   Teams are not picked by learners: an Admin adds people to teams, and the profile lists the
+   teams a person is on, read only (a person can be on several).
 3. **Course overview** shows description, outcomes, the chapter list with
    per-item state, progress ring, due date and the resume button.
 4. **Lesson player** renders the lesson's blocks in one centred column (a

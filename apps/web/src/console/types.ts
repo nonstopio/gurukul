@@ -15,7 +15,8 @@ export interface UserRow {
   displayName: string;
   /** Their Google picture, saved at sign-in; null when they have none. */
   photoURL?: string | null | undefined;
-  team: string | null;
+  /** `teamId` of each team they are on (`users/{uid}.teamIds`); none until a team lists them. */
+  teamIds: string[];
   roles: string[];
   grantedCourseIds: string[];
   createdAt: Date | null;

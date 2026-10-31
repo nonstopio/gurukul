@@ -12,7 +12,7 @@ import {
 import { useCallback, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { useSession, useUser } from './auth/AuthProvider';
+import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import {
@@ -33,7 +33,6 @@ import {
 import type { AssignedCourse } from './learn/model';
 import { suggestions } from './learn/hero';
 import { HomeContinue, PickNextCourse } from './learn/HomeContinue';
-import { TeamPrompt } from './learn/TeamPrompt';
 import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
 import { useAudience } from './data/useAudience';
@@ -42,7 +41,6 @@ import { useAudience } from './data/useAudience';
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   const [showAll, setShowAll] = useState(false);
   const user = useUser();
-  const { team } = useSession();
   const data = useLearnerData();
   const uid = user.uid;
   const audience = useAudience();
@@ -79,7 +77,6 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
         title={name ? `Namaste, ${name}` : 'Namaste'}
         lead={current ? statusLine(current.course, current.progress, t) : undefined}
       />
-      {team === null ? <TeamPrompt /> : null}
       <Loaded loadable={result}>
         {({ assigned, courses, progress, activity }) => {
           const currentAssignment = current

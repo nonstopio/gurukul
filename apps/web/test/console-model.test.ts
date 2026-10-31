@@ -45,7 +45,7 @@ const user = (n: number, over: Partial<UserRow> = {}): UserRow => ({
   uid: `u${n}`,
   email: `u${n}@nonstopio.com`,
   displayName: `User ${n}`,
-  team: 'QA',
+  teamIds: ['qa'],
   roles: ['learner'],
   grantedCourseIds: [],
   createdAt: null,
@@ -74,7 +74,7 @@ describe('isOverdue', () => {
 
 describe('buildLearnerRows', () => {
   const rows = buildLearnerRows(
-    [user(1), user(2, { displayName: '', roles: ['learner', 'educator'], team: null })],
+    [user(1), user(2, { displayName: '', roles: ['learner', 'educator'], teamIds: [] })],
     [
       asg('u1@nonstopio.com', { uid: 'u1', status: 'completed' }),
       asg('u1@nonstopio.com', { uid: 'u1', courseId: 'sql', dueAt: new Date('2026-03-01') }),
@@ -272,8 +272,8 @@ describe('learner filters', () => {
   it('combines search, team, role and course over people and pending invites', () => {
     const users = [
       user(1, { roles: ['learner', 'educator'] }),
-      user(2, { team: 'Dev' }),
-      user(3, { team: null }),
+      user(2, { teamIds: ['dev'] }),
+      user(3, { teamIds: [] }),
     ];
     expect(emails(filterPeople(users, scope, none))).toEqual([
       'a@nonstopio.com',
@@ -300,8 +300,8 @@ describe('learner filters', () => {
 
   it('matches a search against the start of a signed-in name, with a team or role chosen', () => {
     const users = [
-      user(1, { displayName: 'Ananya Rao', team: 'QA' }),
-      user(2, { displayName: 'Ravi K', team: 'QA' }),
+      user(1, { displayName: 'Ananya Rao', teamIds: ['qa'] }),
+      user(2, { displayName: 'Ravi K', teamIds: ['qa'] }),
     ];
     const qa = { ...none, team: 'QA' };
     expect(emails(filterPeople(users, scope, { ...qa, search: 'Anan' }))).toEqual([

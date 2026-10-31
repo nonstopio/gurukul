@@ -8,7 +8,7 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Admin | self: `displayName`, `nameLower`, `team`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; a changed `team` must be in `config/org.teams` or `null`; `teamIds` is never writable from a client |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Educator, Admin (an Educator reads the roster to pick team members) | self: `displayName`, `nameLower`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; `team` and `teamIds` are never writable from a client |
 | `courses/{courseId}` | **The published course object**, plus `visibility` and `visibleTeamIds` beside it (see [Course visibility](#course-visibility)) | any signed-in user when `published` or `archived` (archived shows as Retired) **and they may open it**: public, or a team they are on; every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
@@ -20,8 +20,8 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
 | `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings) |
-| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Admin | Admin (Teams page): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator may change only `teams` (Teams page) |
+| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Educator, Admin | Educator, Admin (Teams page, `/studio/teams`): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
 
@@ -52,9 +52,9 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
   then reconciles it the same way, so a team written in between is not lost (a person with no
   profile yet is skipped by the trigger and picked up there). The `checkAnswer` and `gradeAttempt`
   callables apply the same `canOpen` rule on the server, so an id sent by hand opens nothing. A person cannot write it, so
-  they cannot pick their way into a team's courses; `users.team` (the self-chosen name) is not used
-  for access. Team names reach Studio through `config/org.teams` (readable by every signed-in
-  person), so `teams/` stays Admin-only and member emails are never exposed.
+  they cannot pick their way into a team's courses; `users.team` is a retired field nobody writes
+  or reads (`npm run backfill-teams` moved its values into `teams/` once); a person is on any number of teams, and sees them (read only) on the profile. Team names reach Studio through `config/org.teams` (readable by every signed-in
+  person), so `teams/` stays staff-only (Educators and Admins) and member emails are never exposed to learners.
 - **Rules** (`canOpenCourse`): a single read passes for public, a missing field, a listed team
   (`visibleTeamIds.hasAny(myTeamIds())`, one `get` of the person's profile) or any Educator or
   Admin. Starting a course (`progress` create) applies the same check. A **listing** must say what
@@ -76,11 +76,10 @@ A team is `{ id, name, memberEmails[], createdAt }`: the document `teams/{id}` h
 `createdAt` (milliseconds). `id` is a slug of the name. Members are keyed by **email**, like
 assignments, so a person can be on a team before their first sign-in.
 
-Why a collection, and why `config/org.teams` stays: `users.team` is a name and its rule checks the
-name against the `config/org.teams` list with one `get()`, which every signed-in learner also reads
-to fill the profile's team picker. Putting members into that document would make every learner
+Why a collection, and why `config/org.teams` stays: every signed-in person reads the names to show
+their teams on the profile and to pick teams for a course. Putting members into that document would make every learner
 download every member list, and a few hundred emails per team would approach the 1 MiB document
-limit. So the lists live in `teams/` (Admin only: it holds other people's emails) and
+limit. So the lists live in `teams/` (Educators and Admins only: it holds other people's emails) and
 `config/org.teams` keeps only the names, rewritten in the same transaction as every team write.
 A name in `config/org.teams` with no `teams/` document (a team made before this) is a team with no
 members: the Teams page lists it, and saving it creates its document. Cost: one read of

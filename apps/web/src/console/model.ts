@@ -1,4 +1,4 @@
-import { lastWeeks, nameKey } from '@gurukul/schema';
+import { lastWeeks, nameKey, teamId } from '@gurukul/schema';
 import type { Course, CourseStats, OrgStats, Quiz } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import { article } from '../labels/terms';
@@ -13,7 +13,7 @@ export interface LearnerRow {
   uid: string | null;
   email: string;
   name: string;
-  team: string | null;
+  teamIds: string[];
   roles: string[];
   status: LearnerStatus;
   /** Courses assigned / how many are done. */
@@ -55,7 +55,7 @@ export function buildLearnerRows(
       uid: u.uid,
       email: u.email,
       name: u.displayName || u.email,
-      team: u.team,
+      teamIds: u.teamIds,
       roles: u.roles,
       status: 'active',
       assigned: mine.length,
@@ -78,7 +78,7 @@ export function buildLearnerRows(
       uid: null,
       email,
       name: email,
-      team: null,
+      teamIds: [],
       roles: [],
       status: 'invited',
       assigned: list.length,
@@ -188,7 +188,7 @@ export function filterPeople(
     .filter(
       (u) =>
         (searched ? inScope(u.email) : matches(u.email) || named(u)) &&
-        (f.team === '' || u.team === f.team) &&
+        (f.team === '' || u.teamIds.includes(teamId(f.team))) &&
         (f.role === '' || u.roles.includes(f.role)),
     )
     .map((u): Person => ({ email: u.email, uid: u.uid, user: u }));

@@ -16,6 +16,7 @@ import {
   useToast,
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
+import { teamId } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -50,6 +51,10 @@ import type { AssignmentFull, UserPage, UserRow } from './types';
 export const PAGE_SIZE = 25;
 /** People per read when "Select all" walks the whole list. */
 const SELECT_ALL_READ = 100;
+
+/** The names of the teams a person is on, from the org's names, or a dash for none. */
+const teamNames = (all: readonly string[], ids: readonly string[]): string =>
+  all.filter((name) => ids.includes(teamId(name))).join(', ') || '—';
 
 function tabItems(
   counts: Record<LearnerTab, number>,
@@ -361,7 +366,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
                 </span>
               ),
             },
-            { id: 'team', header: 'Team', cell: (r) => r.team ?? '—' },
+            { id: 'team', header: 'Team', cell: (r) => teamNames(meta.teams, r.teamIds) },
             {
               id: 'role',
               header: 'Role',

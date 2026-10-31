@@ -25,7 +25,7 @@ const members = (n: number) =>
   n === 0 ? 'No members yet' : `${n} ${n === 1 ? 'member' : 'members'}`;
 
 /**
- * `/admin/teams`: the teams with their members. A team is created and edited in one dialog (a name
+ * `/studio/teams`: the teams with their members. A team is created and edited in one dialog (a name
  * and member emails) and deleted after a confirmation. Writes go straight to Firestore under the
  * rules, like Org settings.
  */
@@ -61,9 +61,9 @@ export function TeamsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow={t.Admin}
+        eyebrow={t.Studio}
         title="Teams"
-        lead={`Groups of people you can assign courses to together. ${t.Learners} also pick their own team on their profile.`}
+        lead={`Groups of people you can assign courses to together. ${t.Learners} see the teams they are on on their profile.`}
         actions={<Button onClick={() => setEditing('new')}>Create team</Button>}
       />
       <Loaded loadable={result}>

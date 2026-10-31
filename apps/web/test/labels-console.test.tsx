@@ -52,8 +52,8 @@ describe('the console in Gurukul names', () => {
   });
 
   it('names the teams copy', async () => {
-    await openApp('/admin/teams', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByText(/Shishyas also pick their own team/)).toBeTruthy();
+    await openApp('/studio/teams', { ...gurukulAdmin, console: fakeConsole() });
+    expect(await screen.findByText(/Shishyas see the teams they are on/)).toBeTruthy();
   });
 
   it('names the assign toggle', async () => {

@@ -345,11 +345,6 @@ describe('firebaseLearnerData', () => {
     expect(await data.orgTeams()).toEqual(['QA', 'Dev']);
   });
 
-  it('writes only the team to my profile', async () => {
-    await data.setTeam('u', 'QA');
-    expect(store.calls).toEqual([['update', 'users/u', { team: 'QA' }]]);
-  });
-
   it('writes only the label set to my profile', async () => {
     await data.setLabels('u', 'gurukul');
     expect(store.calls).toEqual([['update', 'users/u', { labels: 'gurukul' }]]);

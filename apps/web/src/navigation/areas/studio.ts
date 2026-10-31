@@ -15,6 +15,13 @@ export const navigation = {
       keywords: ['courses', 'author', 'edit', 'create', 'studio'],
     },
     {
+      id: 'studio-teams',
+      path: '/studio/teams',
+      label: 'Teams',
+      description: 'Groups of people, with their members, to assign courses to together',
+      keywords: ['team', 'members', 'group', 'people'],
+    },
+    {
       id: 'studio-bank',
       path: '/studio/bank',
       label: 'Question bank',

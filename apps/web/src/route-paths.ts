@@ -19,7 +19,6 @@ export const ROUTE_PATHS = [
   '/admin',
   '/admin/learners',
   '/admin/assign',
-  '/admin/teams',
   '/admin/roles',
   '/admin/audit',
   '/admin/design-system',
@@ -30,6 +29,7 @@ export const ROUTE_PATHS = [
   '/studio/courses/:courseId/lessons/:lessonId',
   '/studio/courses/:courseId/quiz/:quizId',
   '/studio/courses/:courseId/preview/:itemId',
+  '/studio/teams',
   '/studio/bank',
   '/studio/media',
 ] as const;

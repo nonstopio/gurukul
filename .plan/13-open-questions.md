@@ -11,7 +11,7 @@ Each has a recommendation. Answer inline or in the review.
 | 5 | Who signs certificates (name, role)? | **Resolved:** the signatory is a setting in the Admin console, not code (`GIT-05`) | M3 |
 | 6 | Public name and URL: `nonstop-gurukul.web.app`, or a custom domain like `academy.nonstopio.com`? | **Resolved:** custom domain `gurukul.nonstopio.com` (`OPS-18`, DNS in `OPS-24`) | M6 |
 | 7 | Should Educators see learner names in course analytics? | **Resolved:** yes, for their own courses only (`KUL-25`) | M4 |
-| 8 | Teams list: where does a learner's team come from? | **Resolved as recommended, built:** the list lives in `config/org.teams`, which an Admin edits in Org settings (`/admin/settings`); Home asks a learner with no team to pick one, and the rules accept only a listed team (or none) on `users/{uid}.team` | M1 |
+| 8 | Teams list: where does a learner's team come from? | **Resolved as recommended, built:** the list lives in `config/org.teams`, which the Teams page keeps; later superseded: learners no longer pick a team; Educators and Admins keep `teams/{id}.memberEmails` and the profile shows the teams a person is on, read only | M1 |
 | 9 | Self-enrolment in unassigned courses? | Yes, all published courses are open to every NonStopian | M2 |
 | 10 | Licence holder line: "NonStop io Technologies" correct legal name? | **Resolved:** "NonStop io Technologies Pvt. Ltd.", now in `LICENSE` | before going public |
 | 11 | Staging project for previews instead of sharing production data? | Not for v1; add if previews cause trouble | — |

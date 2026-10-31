@@ -45,7 +45,7 @@ callable, Admin only:
 
 The audience is **teams or people, never both** (a Teams | People switch; changing it asks first when
 something is picked). Teams: search, pick several, make a new one on the spot (a name and at least one
-member); a picked team counts its listed members plus anyone whose profile names it. People: the shared
+member); a picked team counts its listed members plus anyone whose profile lists it in `teamIds`. People: the shared
 `PeoplePicker` (focus lists the first ten with photos and how many there are, typing from one letter narrows
 by email or any word of the name), emails for people who have not signed in yet (typed, pasted, comma, space or
 new line), and a CSV upload (first column of emails, header optional). The summary panel previews the classification **before**
@@ -76,7 +76,7 @@ an org setting; `config/org.reminders` only switches the daily run on or off.
 
 ## Teams
 
-`/admin/teams` lists the teams with their member counts. **Create team** is one dialog: a name and
+`/studio/teams` (Educators and Admins; it sits under Studio) lists the teams with their member counts. **Create team** is one dialog: a name and
 members as email chips (paste many, separated by commas, spaces or new lines; each chip is checked and
 an invalid one says why; an address that has not signed in yet is marked Invited). A team needs
 at least one member (a team is never empty). A row opens the same dialog to edit the name

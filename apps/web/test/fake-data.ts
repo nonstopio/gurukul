@@ -151,7 +151,6 @@ export function fakeData(
     completeItem: vi.fn().mockResolvedValue(undefined),
     setLastItem: vi.fn().mockResolvedValue(undefined),
     orgTeams: vi.fn().mockResolvedValue(init.teams ?? []),
-    setTeam: vi.fn().mockResolvedValue(undefined),
     setLabels: vi.fn().mockResolvedValue(undefined),
   };
   return { data, emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)) };

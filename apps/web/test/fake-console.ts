@@ -20,7 +20,7 @@ export const userRow = (n: number, over: Partial<UserRow> = {}): UserRow => ({
   email: `user${n}@nonstopio.com`,
   displayName: `User ${n}`,
   photoURL: null,
-  team: null,
+  teamIds: [],
   roles: ['learner'],
   grantedCourseIds: [],
   createdAt: null,

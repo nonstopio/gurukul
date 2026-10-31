@@ -82,8 +82,22 @@ describe('config/org', () => {
       }),
     );
   });
-  it('denies writes by a learner or an educator', async () => {
+  it('lets an educator change the teams list and nothing else', async () => {
+    const edu = as('meera', { educator: true });
+    await assertSucceeds(updateDoc(doc(edu, 'config/org'), { teams: ['QA', 'Dev', 'Ops'] }));
+    await assertFails(updateDoc(doc(edu, 'config/org'), { teams: 'QA' }));
+    await assertFails(
+      updateDoc(doc(edu, 'config/org'), { teams: Array.from({ length: 101 }, (_, i) => `T${i}`) }),
+    );
+    await assertFails(updateDoc(doc(edu, 'config/org'), { 'reminders.enabled': false }));
+    await assertFails(updateDoc(doc(edu, 'config/org'), { teams: [], 'reminders.enabled': false }));
+    await assertFails(
+      updateDoc(doc(edu, 'config/org'), { signatory: { name: 'Ravi Sample', role: 'Dean' } }),
+    );
+  });
+  it('denies writes by a learner, and an educator creating it', async () => {
     await assertFails(updateDoc(doc(as('priya'), 'config/org'), { teams: [] }));
+    await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/org')));
     await assertFails(setDoc(doc(as('priya', { educator: true }), 'config/org'), valid));
   });
   it('denies a bad shape: extra keys, another domain, wrong types, too many teams', async () => {

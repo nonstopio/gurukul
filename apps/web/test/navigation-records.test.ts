@@ -160,7 +160,7 @@ const person = (over: Partial<UserRow> = {}): UserRow => ({
   uid: 'u1',
   email: 'asha.rao@example.com',
   displayName: 'Asha Rao',
-  team: null,
+  teamIds: [],
   roles: [],
   grantedCourseIds: [],
   createdAt: null,
@@ -171,7 +171,7 @@ describe('personDestinations', () => {
   it('names each person, with their email and team beneath, opening their drawer', () => {
     const [a, b] = personDestinations(
       [
-        person({ team: 'Mobile' }),
+        person({ teamIds: ['mobile'] }),
         person({ uid: 'u/2', displayName: '', email: 'no.name@example.com' }),
       ],
       GENERIC,
@@ -181,7 +181,7 @@ describe('personDestinations', () => {
       path: '/admin/learners?learner=u1',
       label: 'Asha Rao',
       areaName: 'Learners',
-      description: 'asha.rao@example.com · Mobile',
+      description: 'asha.rao@example.com',
       keywords: ['person', 'learner'],
       kind: 'Person',
     });

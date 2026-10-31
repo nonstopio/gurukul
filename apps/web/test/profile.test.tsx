@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from './axe';
 import { certificateRow, fakeData, progressRow } from './fake-data';
@@ -41,35 +41,43 @@ describe('Profile', () => {
     ).toBeTruthy();
   });
 
-  it('saves a new team, and says so when the save fails', async () => {
-    const data = fakeData({ teams: ['QA', 'Dev'] });
-    await openApp('/profile', { data });
-    const team = await screen.findByLabelText('Team');
-    const save = screen.getByRole('button', { name: 'Save team' }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
-    fireEvent.change(team, { target: { value: 'Dev' } });
-    await act(async () => fireEvent.click(save));
-    expect(data.data.setTeam).toHaveBeenCalledWith('u1', 'Dev');
-    expect(await screen.findByText('Team saved')).toBeTruthy();
-
-    data.data.setTeam = vi.fn().mockRejectedValue(new Error('denied'));
-    fireEvent.change(team, { target: { value: 'QA' } });
-    await act(async () => fireEvent.click(save));
-    expect(await screen.findByText('Could not save your team. Try again.')).toBeTruthy();
-  });
-
-  it('clears a saved team with "No team"', async () => {
-    const data = fakeData({ teams: ['QA'] });
-    await openApp('/profile', { data, team: 'QA' });
-    fireEvent.change(await screen.findByLabelText('Team'), { target: { value: '' } });
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save team' })));
-    expect(data.data.setTeam).toHaveBeenCalledWith('u1', null);
-  });
-
-  it('says where teams come from when the org has none', async () => {
-    await openApp('/profile', { labels: 'gurukul' });
+  it('lists every team you are on, read only', async () => {
+    const data = fakeData({ teams: ['QA', 'Dev', 'Design Ops'] });
+    await openApp('/profile', { data, teamIds: ['qa', 'design-ops'] });
+    const list = await screen.findByRole('list', { name: 'Your teams' });
     expect(
-      await screen.findByText('No teams yet: your Kulapati adds them on the Teams page.'),
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['QA', 'Design Ops']);
+    expect(screen.queryByRole('button', { name: 'Save team' })).toBeNull();
+    expect(screen.queryByLabelText('Team')).toBeNull();
+  });
+
+  it('says so, with a retry, when the team names cannot be read', async () => {
+    const data = fakeData({ teams: ['QA'] });
+    data.data.orgTeams = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(['QA']);
+    await openApp('/profile', { data, teamIds: ['qa'] });
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    const list = await screen.findByRole('list', { name: 'Your teams' });
+    expect(within(list).getByText('QA')).toBeTruthy();
+  });
+
+  it('skips a team that is no longer on the org list', async () => {
+    const data = fakeData({ teams: ['QA'] });
+    await openApp('/profile', { data, teamIds: ['qa', 'retired'] });
+    const list = await screen.findByRole('list', { name: 'Your teams' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('says so when you are on no team', async () => {
+    const data = fakeData({ teams: ['QA'] });
+    await openApp('/profile', { data, labels: 'gurukul' });
+    expect(
+      await screen.findByText('You are not on a team yet. Your Kulapati adds people to teams.'),
     ).toBeTruthy();
   });
 

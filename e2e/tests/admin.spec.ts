@@ -71,7 +71,7 @@ test.describe('Admin', () => {
   }) => {
     await signedInAsLearner(page, meera);
     await grantRoles(meera.email, ['admin']);
-    await page.goto('/admin/teams');
+    await page.goto('/studio/teams');
     await expect(page.getByRole('heading', { level: 1, name: 'Teams' })).toBeVisible();
     // The seed's default: no teams.
     await expect(page.getByText('No teams yet')).toBeVisible();
@@ -118,16 +118,10 @@ test.describe('Admin', () => {
     await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
     await expectNoSeriousViolations(page);
 
-    // Meera has no team yet, so Home now asks her to pick one from the saved list.
-    await page.goto('/');
-    const prompt = page.getByRole('heading', { name: 'Which team are you in?' });
-    await expect(prompt).toBeVisible();
-    await page.getByLabel('Team', { exact: true }).selectOption('Quality');
-    await page.getByRole('button', { name: 'Save team' }).click();
-    await expect(prompt).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: /Namaste/ })).toBeVisible();
-    await expect(prompt).toHaveCount(0);
+    // Meera is on neither team, so her profile says so and offers no way to pick one.
+    await page.goto('/profile');
+    await expect(page.getByText('You are not on a team yet.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save team' })).toHaveCount(0);
   });
 
   test('a Learner cannot open the Admin console', async ({ page }) => {

@@ -83,7 +83,7 @@ function toUser(uid: string, d: Record<string, unknown>): UserRow {
     email: (d.email as string | undefined) ?? '',
     displayName: (d.displayName as string | undefined) ?? '',
     photoURL: (d.photoURL as string | null | undefined) ?? null,
-    team: (d.team as string | null | undefined) ?? null,
+    teamIds: (d.teamIds as string[] | undefined) ?? [],
     roles: (d.roles as string[] | undefined) ?? ['learner'],
     grantedCourseIds: (d.grantedCourseIds as string[] | undefined) ?? [],
     createdAt: date(d.createdAt as Ts),
@@ -273,7 +273,11 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     },
     async usersInTeam(team) {
       const snap = await getDocs(
-        query(collection(db, 'users'), where('team', '==', team), limit(500)),
+        query(
+          collection(db, 'users'),
+          where('teamIds', 'array-contains', teamId(team)),
+          limit(500),
+        ),
       );
       return snap.docs.map((d) => toUser(d.id, d.data()));
     },

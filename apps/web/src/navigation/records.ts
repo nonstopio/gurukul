@@ -105,14 +105,14 @@ export function editableCourseSource(
 /** Where a person found in search opens: the Learners page, with their drawer open. */
 export const learnerPath = (uid: string) => `/admin/learners?learner=${encodeURIComponent(uid)}`;
 
-/** Each person by name, with their email (and team) underneath; matched by either. */
+/** Each person by name, with their email underneath; matched by either. */
 export function personDestinations(users: readonly UserRow[], t: Terms): Destination[] {
   return users.map((u) => ({
     id: `person:${u.uid}`,
     path: learnerPath(u.uid),
     label: u.displayName || u.email,
     areaName: t.Learners,
-    description: u.team ? `${u.email} · ${u.team}` : u.email,
+    description: u.email,
     keywords: ['person', 'learner'],
     kind: 'Person',
   }));

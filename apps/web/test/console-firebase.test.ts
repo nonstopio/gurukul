@@ -72,7 +72,7 @@ const user = (n: number) =>
   d(`u${n}`, {
     email: `u${n}@nonstopio.com`,
     displayName: `U${n}`,
-    team: 'QA',
+    teamIds: ['qa'],
     roles: ['learner', 'educator'],
     grantedCourseIds: ['git'],
     createdAt: ts(5),
@@ -278,7 +278,7 @@ describe('users', () => {
       email: '',
       displayName: '',
       photoURL: null,
-      team: null,
+      teamIds: [],
       roles: ['learner'],
       grantedCourseIds: [],
       createdAt: null,
@@ -339,7 +339,8 @@ describe('users', () => {
 
   it('lists a team', async () => {
     store.queue = [[user(2)]];
-    expect((await data.usersInTeam('QA'))[0]?.team).toBe('QA');
+    expect((await data.usersInTeam('QA'))[0]?.teamIds).toEqual(['qa']);
+    expect(store.queries[0]).toContainEqual({ where: ['teamIds', 'array-contains', 'qa'] });
   });
 
   it('reads profiles by uid in chunks of 30', async () => {
