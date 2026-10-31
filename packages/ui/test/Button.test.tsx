@@ -30,6 +30,17 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Assign' })).toBeTruthy();
   });
 
+  it('keeps the icon and the spinner direct children, which the icon-side padding rule selects', () => {
+    const { container } = render(
+      <>
+        <Button icon={<svg />}>Add</Button>
+        <Button loading>Saving</Button>
+      </>,
+    );
+    expect(container.querySelector('.g-btn > .g-btn__icon')).not.toBeNull();
+    expect(container.querySelector('.g-btn > .g-btn__spinner')).not.toBeNull();
+  });
+
   it('renders no icon wrapper without an icon', () => {
     const { container } = render(<Button variant="ghost">Skip</Button>);
     expect(container.querySelector('.g-btn__icon')).toBeNull();

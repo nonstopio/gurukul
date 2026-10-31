@@ -5,7 +5,7 @@ import {
   Input,
   Select,
   Textarea,
-  Toggle,
+  ToggleCard,
   UploadIcon,
 } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
@@ -91,18 +91,18 @@ export function DetailsPanel({
       </Card>
 
       <Card title="Learning rules" className="sc-panel">
-        <Toggle
-          label={`${t.Learners} go in order`}
+        <ToggleCard
+          title={`${t.Learners} go in order`}
           checked={course.rules.sequential}
           onChange={(e) => update((w) => setRule(w, 'sequential', e.target.checked))}
         />
-        <Toggle
-          label="Issue a certificate"
+        <ToggleCard
+          title="Issue a certificate"
           checked={course.rules.certificate}
           onChange={(e) => update((w) => setRule(w, 'certificate', e.target.checked))}
         />
-        <Toggle
-          label="Require watching videos"
+        <ToggleCard
+          title="Require watching videos"
           checked={course.rules.requireVideoWatch}
           onChange={(e) => update((w) => setRule(w, 'requireVideoWatch', e.target.checked))}
         />

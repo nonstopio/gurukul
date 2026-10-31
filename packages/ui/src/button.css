@@ -85,6 +85,10 @@
 .g-btn__icon {
   display: inline-flex;
 }
+/* The icon side gets less padding, so icon and label sit centred as a pair. */
+.g-btn:has(> .g-btn__icon, > .g-btn__spinner) {
+  padding-inline-start: var(--space-3);
+}
 .g-btn[aria-busy='true'] {
   cursor: progress;
 }

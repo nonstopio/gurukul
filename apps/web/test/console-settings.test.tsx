@@ -24,9 +24,10 @@ describe('Org settings', () => {
       expect(screen.getByRole('region', { name })).toBeTruthy();
     }
     expect(screen.queryByRole('region', { name: 'Teams' })).toBeNull();
-    expect(
-      (screen.getByRole('switch', { name: 'Send daily reminders' }) as HTMLInputElement).checked,
-    ).toBe(false);
+    const reminders = screen.getByRole('switch', { name: 'Send daily reminders' });
+    expect((reminders as HTMLInputElement).checked).toBe(false);
+    expect(reminders.closest('label')?.className).toContain('g-togglecard');
+    expect(reminders.getAttribute('aria-describedby')).toBeTruthy();
     expect(saveButton().disabled).toBe(true);
     expect(screen.queryByText('You have unsaved changes.')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);

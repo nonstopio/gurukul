@@ -551,6 +551,8 @@ Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focu
 
 - `loading`: disabled, `aria-busy="true"`, label kept, a 16px `currentColor` spinner replaces the
   icon (still under reduced motion). Use it instead of swapping the label to "Saving…".
+- Padding: a button with an icon or spinner has `--space-3` on the icon side and `--space-4` on the other, so the pair sits centred.
+  Icons go on create and tool actions and on a row of quiet row actions where every button has one; never on Save, Cancel or Back.
 - `size="sm"`: 36px, `--space-3` padding, dense rows only. `buttonClass(variant, extra, size?)`.
 - `quiet`: borderless, `--text-body`, hover `--surface-hover`. Neutral edits in a dense row (Rename, Collapse).
 - `danger-quiet`: borderless, `--danger` text, hover `--danger-soft`. The Delete or Remove in a row or card
@@ -606,7 +608,7 @@ the picture settles; `:focus-visible` shows the focus ring. Never a checkbox bes
 `<ToggleCard title description? checked onChange disabled? />`: a setting that deserves a sentence, as a card.
 Name and description on the left (`--text-md` 600 and `--text-muted`), the `Toggle` switch at the right edge,
 `--radius-lg` with a hairline; hover `--surface-hover`; on gives an `--accent` border; the whole card is the
-label, so a click anywhere toggles it. Use it for role grants and rules; a bare `Toggle` for a one-word setting.
+label, so a click anywhere toggles it. Use it for every on/off setting, with or without a description, so the switch is always at the right edge; a bare `Toggle` only for an attestation ("I have watched the video").
 
 ## Checkbox and Radio — shipped
 

@@ -164,6 +164,15 @@ body {
   outline: none;
   box-shadow: var(--focus-ring);
 }
+/*
+ * routeFocus moves focus to the page's h1 (or main) after each navigation so a screen reader starts
+ * there. That target is not a control, and the browser's default ring around it reads as a stray
+ * selection on every page open. Nothing here is operable, so no ring is drawn.
+ */
+main:focus,
+main h1:focus {
+  outline: none;
+}
 .load-retry {
   margin-top: var(--space-3);
 }

@@ -62,6 +62,9 @@
 .ds-frame--wide {
   max-width: none;
 }
+.ds-frame--padded {
+  padding: var(--space-6);
+}
 .ds-chrome {
   display: flex;
   flex-wrap: wrap;
