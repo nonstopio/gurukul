@@ -139,8 +139,23 @@ const byId = (p: { id: string }) => p.id;
 const NAME_COLUMN = { id: 'name', header: 'Name', cell: (p: { name: string }) => p.name };
 
 /** A box that keeps a full-size component (sidebar, page, certificate) from taking the page. */
-function Frame({ size, children }: { size?: 'narrow' | 'wide'; children: ReactNode }) {
-  return <div className={`ds-frame${size ? ` ds-frame--${size}` : ''}`}>{children}</div>;
+function Frame({
+  size,
+  padded,
+  children,
+}: {
+  size?: 'narrow' | 'wide';
+  /** For a component that has no padding of its own, so it does not sit on the border. */
+  padded?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`ds-frame${size ? ` ds-frame--${size}` : ''}${padded ? ' ds-frame--padded' : ''}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function ButtonExample() {
@@ -709,7 +724,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   PageHeader: {
     rule: 'The top of every page and its only h1: eyebrow, title, lead, at most one primary action.',
     Example: () => (
-      <Frame size="wide">
+      <Frame size="wide" padded>
         <PageHeader
           titleAs="h2"
           breadcrumb={

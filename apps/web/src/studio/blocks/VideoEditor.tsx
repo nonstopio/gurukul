@@ -1,5 +1,5 @@
 import { videoEmbedUrl } from '@gurukul/schema';
-import { Chip, Input, Select, Toggle } from '@gurukul/ui';
+import { Chip, Input, Select, ToggleCard } from '@gurukul/ui';
 import { useTerms } from '../../labels/useTerms';
 import { patch } from '../patch';
 import type { BlockEditorProps } from './types';
@@ -47,8 +47,8 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
           <iframe src={embed} title="Video preview" loading="lazy" allowFullScreen />
         </div>
       ) : null}
-      <Toggle
-        label="Captions are available"
+      <ToggleCard
+        title="Captions are available"
         checked={block.captions}
         onChange={(e) => onChange({ ...block, captions: e.target.checked })}
       />

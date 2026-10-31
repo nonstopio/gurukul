@@ -1,4 +1,4 @@
-import { Button, Card, Input, Page, PageHeader, Toggle, useToast } from '@gurukul/ui';
+import { Button, Card, Input, Page, PageHeader, ToggleCard, useToast } from '@gurukul/ui';
 import type { OrgConfig } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
@@ -66,13 +66,9 @@ function SettingsForm({ saved: initial }: { saved: OrgConfig }) {
   return (
     <div className="settings">
       <Card title="Daily reminders">
-        <p>
-          A daily run at 04:00 UTC (09:30 in India) sends the reminders each mandatory course was
-          assigned with, weekly or before it is due, as at most one email per person a day. Off,
-          nobody is reminded automatically; you can still remind people from {terms.Learners}.
-        </p>
-        <Toggle
-          label="Send daily reminders"
+        <ToggleCard
+          title="Send daily reminders"
+          description={`A daily run at 04:00 UTC (09:30 in India) sends the reminders each mandatory course was assigned with, weekly or before it is due, as at most one email per person a day. Off, nobody is reminded automatically; you can still remind people from ${terms.Learners}.`}
           checked={reminders}
           onChange={(e) => setReminders(e.target.checked)}
         />

@@ -12,7 +12,7 @@ import {
   Pagination,
   Select,
   SuccessCheck,
-  Toggle,
+  ToggleCard,
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -357,13 +357,13 @@ export function AssignPage() {
         <option value="beforeDue">Before the due date</option>
         <option value="none">None</option>
       </Select>
-      <Toggle
-        label="Mandatory"
+      <ToggleCard
+        title="Mandatory"
         checked={mandatory}
         onChange={(e) => setMandatory(e.target.checked)}
       />
-      <Toggle
-        label={`Email ${t.learners} now`}
+      <ToggleCard
+        title={`Email ${t.learners} now`}
         checked={notify}
         onChange={(e) => setNotify(e.target.checked)}
       />

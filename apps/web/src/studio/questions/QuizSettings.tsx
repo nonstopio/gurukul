@@ -1,5 +1,5 @@
 import type { Quiz } from '@gurukul/schema';
-import { Callout, Input, Select, Toggle } from '@gurukul/ui';
+import { Callout, Input, Select, ToggleCard } from '@gurukul/ui';
 import { parseCooldown, parsePassMark, parseShown, passMarkText } from '../questionEdit';
 import { patch } from '../patch';
 import { useTerms } from '../../labels/useTerms';
@@ -62,13 +62,13 @@ export function QuizSettings({
           onChange((p) => ({ ...p, cooldownMinutes: parseCooldown(e.target.value) }))
         }
       />
-      <Toggle
-        label="Shuffle answer order"
+      <ToggleCard
+        title="Shuffle answer order"
         checked={quiz.shuffleOptions}
         onChange={(e) => onChange((p) => ({ ...p, shuffleOptions: e.target.checked }))}
       />
-      <Toggle
-        label={`${t.Learners} must pass to open the next ${t.chapter}`}
+      <ToggleCard
+        title={`${t.Learners} must pass to open the next ${t.chapter}`}
         checked={quiz.blocksNext}
         onChange={(e) => onChange((p) => ({ ...p, blocksNext: e.target.checked }))}
       />

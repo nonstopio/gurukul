@@ -1,4 +1,4 @@
-import { Input, Select, Toggle } from '@gurukul/ui';
+import { Input, Select, ToggleCard } from '@gurukul/ui';
 import { patch } from '../patch';
 import { CodeField } from './CodeField';
 import type { BlockEditorProps } from './types';
@@ -53,13 +53,13 @@ export function CodeEditor({ block, onChange }: BlockEditorProps<'code'>) {
         onChange={(code) => onChange({ ...block, code })}
       />
       <div className="studio-row">
-        <Toggle
-          label="Copy button"
+        <ToggleCard
+          title="Copy button"
           checked={block.copy}
           onChange={(e) => onChange({ ...block, copy: e.target.checked })}
         />
-        <Toggle
-          label="Terminal style"
+        <ToggleCard
+          title="Terminal style"
           checked={block.terminal}
           onChange={(e) => onChange({ ...block, terminal: e.target.checked })}
         />
