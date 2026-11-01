@@ -289,11 +289,11 @@ Plan: `18-redesign.md`, `04-design-system.md`.
 
 ## Course media uploads
 
-Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind it: open questions 14–17 in `13-open-questions.md`.
+Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind it: open questions 14–17 in `13-open-questions.md`, all resolved as recommended on 2026-11-01.
 
 | ID       | Item                                         | Status     | Depends            | Notes |
 | -------- | -------------------------------------------- | ---------- | ------------------ | ----- |
-| `MED-01` | Storage bucket and cross-service rules role  | maintainer | —                  | Done means: the default Cloud Storage for Firebase bucket exists in the location from open question 14 (recommended `US-CENTRAL1`), and the Firebase Rules Firestore Service Agent role is granted. `11-deployment-and-cost.md` setup step 10 |
+| `MED-01` | Storage bucket and cross-service rules role  | maintainer | —                  | Done means: the default Cloud Storage for Firebase bucket exists in `US-CENTRAL1` (open question 14), and the Firebase Rules Firestore Service Agent role is granted. `11-deployment-and-cost.md` setup step 10 |
 | `MED-02` | Upload policy and block fields in the schema | todo       | —                  | Done means: `uploadPolicy`, `checkUpload` (type, first bytes, size, pixels) and `shrinkPrompt` in `packages/schema`; optional `layout`, `zoom`, `border`, `width`, `height`, `upload` on Image and `upload` on File; publish validation; `config/org.uploads` in the schema and in `firestore.rules` (Admin only, bounded) with allowed and denied tests; `02-data-model.md` updated |
 | `MED-03` | Image layouts in the player                  | todo       | `MED-02`           | Done means: Column, Medium and Small at 1280 and 390 px; Open full size in a `Dialog`; Border; `width`/`height` on `<img>`; alt text box when an image fails; "PDF · 420 KB" on an uploaded file; Studio's Image editor sets layout for linked images. Changelog entry |
 | `MED-04` | Storage rules and deploy                     | todo       | `MED-01`, `MED-02` | Done means: `firebase/storage.rules` (default deny; create by the course's Educators or an Admin, accepted types, size within `config/org.uploads` and the hard ceiling, no overwrite; no client update or delete), `firebase.json` storage and emulator (9199), emulator tests with an allowed and a denied test per condition, rules coverage extended to Storage, `deploy.yml` deploys it |

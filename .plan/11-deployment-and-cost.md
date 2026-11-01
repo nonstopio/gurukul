@@ -101,6 +101,6 @@ custom domain are `OPS-24`.
    `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
    (a one-off console command, not a deploy).
 10. Before course media uploads ship (`MED-01`): create the default Cloud Storage for Firebase
-    bucket in the location chosen in open question 14 (recommended `US-CENTRAL1`, the no-cost
+    bucket in `US-CENTRAL1` (open question 14, decided: the no-cost
     tier), and grant the Firebase Rules Firestore Service Agent role when the console asks, so
     `storage.rules` can read `courses/` and `config/org`. See `19-course-media-uploads.md` (Cost).

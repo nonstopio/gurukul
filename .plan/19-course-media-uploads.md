@@ -119,7 +119,7 @@ for people who want to batch-convert a folder.
 
 ### Who can read a file
 
-Recommendation (open question 15): **download URLs**. A download URL carries an unguessable
+Decided (open question 15, 2026-11-01): **download URLs**. A download URL carries an unguessable
 token; it works in a plain `<img>` and `<a>`, the browser and Google's edge cache it, and it costs
 no Firestore read per view. It reaches only people who can read the course document, because it
 lives inside the course object, which the Firestore rules already gate (`canOpenCourse`).
@@ -307,7 +307,7 @@ $0.12 per GB downloaded.
 Estimate at 200 learners: 10 courses × 60 images × 250 KB ≈ 150 MB stored, plus PDFs ≈ 200 MB.
 Downloads: a learner viewing every image of one course ≈ 15 MB, cached afterwards; 200 learners
 × 3 courses ≈ 9 GB per month at most. Free in a US bucket; about $1/month in `asia-south1`, which
-would trip the $1 budget alert. Hence the recommendation (open question 14): a **US-CENTRAL1**
+would trip the $1 budget alert. Hence the decision (open question 14, 2026-11-01): a **US-CENTRAL1**
 bucket. The extra latency from India is a few hundred milliseconds on the first view of an image,
 then the browser cache serves it for a year.
 
