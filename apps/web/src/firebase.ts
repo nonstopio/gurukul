@@ -12,6 +12,8 @@ export interface FirebaseEnv {
   VITE_FIREBASE_PROJECT_ID?: string;
   VITE_FIREBASE_APP_ID?: string;
   VITE_USE_EMULATORS?: string;
+  /** "true" only in the production build: previews, CI and local runs must not report. */
+  VITE_PERFORMANCE_MONITORING?: string;
 }
 
 export interface Firebase {
