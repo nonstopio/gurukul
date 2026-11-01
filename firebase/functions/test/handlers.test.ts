@@ -296,9 +296,12 @@ describe('console callables', () => {
     expect(() => handleListEmailTemplates(signedOutRequest)).toThrow(
       expect.objectContaining({ code: 'AUTH_1001' }),
     );
-    expect(await handleSendTestEmail(asAdmin({ templateId: 'revoked' }), { mailer })).toEqual({
-      to: 'k@nonstopio.com',
-    });
+    expect(
+      await handleSendTestEmail(
+        asAdmin({ templateId: 'revoked', recipients: ['k@nonstopio.com'] }),
+        { mailer },
+      ),
+    ).toEqual({ to: ['k@nonstopio.com'] });
     await expect(handleSendTestEmail(signedOutRequest, { mailer })).rejects.toMatchObject({
       code: 'AUTH_1001',
     });

@@ -90,6 +90,7 @@ export function fakeConsole(
       .fn()
       .mockResolvedValue({ signedIn: new Set(), assigned: new Set(), byCourse: {} }),
     teams: vi.fn().mockResolvedValue(init.teams ?? []),
+    auditCount: vi.fn().mockResolvedValue((init.audit ?? []).length),
     auditPage: vi.fn().mockResolvedValue({ rows: init.audit ?? [], nextCursor: null }),
     orgSettings: vi.fn().mockResolvedValue({ ...DEFAULT_ORG_CONFIG, ...init.settings }),
     saveOrgSettings: vi.fn().mockResolvedValue(undefined),
@@ -133,7 +134,9 @@ export function fakeConsole(
         body: 'Hello,\n\nRevoked.',
       },
     ]),
-    sendTestEmail: vi.fn().mockResolvedValue({ to: 'admin@nonstopio.com' }),
+    sendTestEmail: vi
+      .fn()
+      .mockImplementation(async ({ recipients }: { recipients: string[] }) => ({ to: recipients })),
   };
   return { data, service };
 }

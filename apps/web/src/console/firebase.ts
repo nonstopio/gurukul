@@ -377,6 +377,9 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         tx.set(orgRef, withTeams(org.data(), null, team.name));
       });
     },
+    async auditCount() {
+      return (await getCountFromServer(collection(db, 'audit'))).data().count;
+    },
     async auditPage(after, pageSize) {
       const base = [collection(db, 'audit'), orderBy('at', 'desc')] as const;
       const snap = await getDocs(

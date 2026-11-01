@@ -1,6 +1,7 @@
-import { Button, Card, Page, PageHeader, Select, useToast } from '@gurukul/ui';
+import { Button, Card, Input, Page, PageHeader, Select, useToast } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { userMessageOf } from '../api';
+import { useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
@@ -8,7 +9,7 @@ import { log } from '../log';
 import { useConsole } from './ConsoleProvider';
 import type { EmailTemplateView } from './types';
 
-/** `/admin/emails`: every email Gurukul sends, and a form to send one to yourself as a test. */
+/** `/admin/emails`: every email Gurukul sends, and a form to send one to up to two people as a test. */
 export function EmailsPage() {
   const { service } = useConsole();
   const t = useTerms();
@@ -29,13 +30,23 @@ function Templates({ templates }: { templates: EmailTemplateView[] }) {
   const { service } = useConsole();
   const toast = useToast();
   const [id, setId] = useState((templates[0] as EmailTemplateView).id);
+  const me = useUser();
+  const [first, setFirst] = useState(me.email as string);
+  const [second, setSecond] = useState('');
+  const [problem, setProblem] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
 
   const send = async () => {
+    const recipients = [first, second].map((v) => v.trim()).filter((v) => v !== '');
+    if (recipients.length === 0) return setProblem('Enter at least one email address.');
+    if (!recipients.every((v) => v.toLowerCase().endsWith('@nonstopio.com'))) {
+      return setProblem('Use @nonstopio.com addresses.');
+    }
+    setProblem(undefined);
     setSending(true);
     try {
-      const { to } = await service.sendTestEmail({ templateId: id });
-      toast.show(`Test email sent to ${to}`, { tone: 'success' });
+      const { to } = await service.sendTestEmail({ templateId: id, recipients });
+      toast.show(`Test email sent to ${to.join(' and ')}`, { tone: 'success' });
     } catch (e) {
       log.error('Sending a test email failed', e, { templateId: id });
       toast.show(userMessageOf(e, 'Could not send the test email. Try again.'), {
@@ -49,7 +60,7 @@ function Templates({ templates }: { templates: EmailTemplateView[] }) {
   return (
     <div className="emails">
       <Card title="Send a test email">
-        <p>Sends the chosen template, with sample data, to your own address only.</p>
+        <p>Sends the chosen template, with sample data, to one or two NonStop io addresses.</p>
         <div className="emails-send">
           <Select label="Template" value={id} onChange={(e) => setId(e.target.value)}>
             {templates.map((t) => (
@@ -58,9 +69,24 @@ function Templates({ templates }: { templates: EmailTemplateView[] }) {
               </option>
             ))}
           </Select>
-          <Button loading={sending} onClick={() => void send()}>
-            Send test email
-          </Button>
+          <Input
+            label="First email address"
+            type="email"
+            value={first}
+            error={problem}
+            onChange={(e) => setFirst(e.target.value)}
+          />
+          <Input
+            label="Second email address (optional)"
+            type="email"
+            value={second}
+            onChange={(e) => setSecond(e.target.value)}
+          />
+          <div>
+            <Button loading={sending} onClick={() => void send()}>
+              Send test email
+            </Button>
+          </div>
         </div>
       </Card>
       {templates.map((t) => (

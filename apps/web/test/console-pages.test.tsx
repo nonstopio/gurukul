@@ -189,32 +189,41 @@ describe('Audit log', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('loads older entries on request, and says when that fails', async () => {
+  it('pages through entries 25 at a time, with the time of each, and Previous reuses earlier cursors', async () => {
     const row = (id: string): AuditRow => ({
       id,
       action: 'course.publish',
       by: 'boss@nonstopio.com',
       target: id,
       detail: { version: 2 },
-      at: new Date('2026-03-01T10:00:00Z'),
+      at: new Date('2026-03-01T10:05:00Z'),
     });
     const cursor = { at: new Date('2026-03-01T10:00:00Z'), id: 'one' };
     const c = fakeConsole();
+    c.data.auditCount = vi.fn().mockResolvedValue(30);
     c.data.auditPage = vi
       .fn()
       .mockResolvedValueOnce({ rows: [row('one')], nextCursor: cursor })
-      .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce({ rows: [row('two')], nextCursor: { ...cursor, id: 'two' } })
-      .mockResolvedValueOnce({ rows: [row('three')], nextCursor: null });
+      .mockResolvedValueOnce({ rows: [row('two')], nextCursor: null })
+      .mockResolvedValueOnce({ rows: [row('one')], nextCursor: cursor });
     await openApp('/admin/audit', { ...adminCaller, console: c });
-    fireEvent.click(await screen.findByRole('button', { name: 'Load older entries' }));
-    expect(await screen.findByText(/Could not load more entries/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
+    expect(await screen.findByText('Showing 1–25 of 30')).toBeTruthy();
+    expect(screen.getByText(/1 March 2026, \d\d:\d\d/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('two')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Load older entries' }));
-    expect(await screen.findByText('three')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Load older entries' })).toBeNull();
-    expect(c.data.auditPage).toHaveBeenLastCalledWith({ ...cursor, id: 'two' }, 50);
+    expect(c.data.auditPage).toHaveBeenLastCalledWith(cursor, 25);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(await screen.findByText('one')).toBeTruthy();
+    expect(c.data.auditPage).toHaveBeenLastCalledWith(null, 25);
+  });
+
+  it('shows no pager when everything fits on one page, and a dash for an entry with no time', async () => {
+    const c = fakeConsole({
+      audit: [{ id: 'x', action: 'assign', by: 'Boss', target: null, detail: {}, at: null }],
+    });
+    await openApp('/admin/audit', { ...adminCaller, console: c });
+    expect(await screen.findByText('Boss')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
   });
 
   it('says so when nothing has been recorded', async () => {
@@ -397,6 +406,22 @@ describe('Roles & access', () => {
     });
     expect(await screen.findByText('solo@nonstopio.com')).toBeTruthy();
     expect(screen.getByText('No courses yet')).toBeTruthy();
+  });
+
+  it('lists Educators and Admins 25 to a page', async () => {
+    const people = Array.from({ length: 27 }, (_, i) =>
+      userRow(100 + i, {
+        displayName: `Person ${String(i).padStart(2, '0')}`,
+        email: `p${i}@nonstopio.com`,
+        roles: ['learner', 'educator', 'admin'],
+      }),
+    );
+    await openApp('/admin/roles', { ...adminCaller, console: fakeConsole({ users: people }) });
+    expect(await screen.findAllByText('Showing 1–25 of 27')).toHaveLength(2);
+    expect(screen.queryByText('Person 26')).toBeNull();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Next' })[0] as HTMLElement);
+    expect(await screen.findByText('Showing 26–27 of 27')).toBeTruthy();
+    expect(screen.getAllByText('Person 26').length).toBeGreaterThan(0);
   });
 
   it('reads the person again when they are picked, so an old search cannot undo a grant', async () => {

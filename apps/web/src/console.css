@@ -176,9 +176,8 @@
   margin: 0;
 }
 .emails-send {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  max-width: 28rem;
   gap: var(--space-4);
 }
 .emails-body {

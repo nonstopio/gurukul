@@ -182,10 +182,10 @@ export function handleListEmailTemplates(request: AuthedRequest): TemplateView[]
   return listEmailTemplates(requireCaller(request));
 }
 
-/** `sendTestEmail`: Admin-only; one template, with sample data, to the Admin who asked. */
+/** `sendTestEmail`: Admin-only; one template, with sample data, to the one or two addresses named. */
 export async function handleSendTestEmail(
   request: AuthedRequest,
   deps: { mailer: Mailer },
-): Promise<{ to: string }> {
+): Promise<{ to: string[] }> {
   return sendTestEmail(deps, requireCaller(request), asObject(request.data));
 }

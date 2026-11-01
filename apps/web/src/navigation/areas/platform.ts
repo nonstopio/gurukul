@@ -16,15 +16,11 @@ export const navigation = {
       description: 'Every change, newest first, with the reason it was made',
       keywords: ['what changed', 'release notes', 'releases', 'updates', 'new'],
     },
-    {
-      id: 'privacy',
-      path: '/privacy',
-      label: 'Privacy policy',
-      description: 'What Gurukul measures, what it never sends and why',
-      keywords: ['analytics', 'data', 'tracking', 'consent', 'google analytics'],
-    },
   ],
   unlisted: {
+    '/privacy': {
+      context: 'the privacy policy: linked from sign-in and the accept-policy screen, not the sidebar',
+    },
     '/verify/:id': { context: 'public page for one credential id, shared as a link' },
   },
 } satisfies AreaNavigation;

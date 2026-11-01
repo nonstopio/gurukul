@@ -675,3 +675,14 @@ export function auditDetail(
       return null;
   }
 }
+
+/** "30 October 2026, 14:05 IST": the day and the time of day, in the viewer's own time zone. */
+export function dateTime(date: Date): string {
+  const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const time = date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `${day}, ${time}`;
+}

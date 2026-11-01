@@ -503,6 +503,11 @@ describe('progress, certificates and known emails', () => {
     expect(page.nextCursor).toEqual({ at: new Date(1), id: 'a3' });
   });
 
+  it('counts the audit trail with an aggregation', async () => {
+    store.count = 31;
+    expect(await data.auditCount()).toBe(31);
+  });
+
   it('continues after a cursor, and ends when the last page is short', async () => {
     store.docs.set('users/boss', { email: 'boss@nonstopio.com', displayName: 'Boss' });
     store.queue = [

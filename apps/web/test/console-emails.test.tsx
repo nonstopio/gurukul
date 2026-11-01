@@ -10,6 +10,7 @@ vi.mock('@gurukul/ui/tokens.css?raw', async () => {
   return { default: readFileSync('../../packages/ui/src/tokens.css', 'utf8') };
 });
 
+const EMAIL = 'priya@nonstopio.com';
 const admin = { roles: ['admin'] as Array<'admin'> };
 
 describe('Email templates', () => {
@@ -21,15 +22,54 @@ describe('Email templates', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('sends the selected template and says where it went', async () => {
+  it('sends the selected template to the address filled in for the Admin, and says where it went', async () => {
     const c = fakeConsole();
     await openApp('/admin/emails', { ...admin, console: c });
     fireEvent.change(await screen.findByLabelText('Template'), { target: { value: 'revoked' } });
+    const first = screen.getByLabelText('First email address') as HTMLInputElement;
+    expect(first.value).toBe(EMAIL);
     fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
     await waitFor(() =>
-      expect(c.service.sendTestEmail).toHaveBeenCalledWith({ templateId: 'revoked' }),
+      expect(c.service.sendTestEmail).toHaveBeenCalledWith({
+        templateId: 'revoked',
+        recipients: [EMAIL],
+      }),
     );
-    expect(await screen.findByText('Test email sent to admin@nonstopio.com')).toBeTruthy();
+    expect(await screen.findByText(`Test email sent to ${EMAIL}`)).toBeTruthy();
+  });
+
+  it('sends to two addresses, and refuses none, other domains and a cleared first field', async () => {
+    const c = fakeConsole();
+    vi.mocked(c.service.sendTestEmail).mockResolvedValueOnce({
+      to: ['a@nonstopio.com', 'b@nonstopio.com'],
+    });
+    await openApp('/admin/emails', { ...admin, console: c });
+    const first = await screen.findByLabelText('First email address');
+    const second = screen.getByLabelText('Second email address (optional)');
+    const send = screen.getByRole('button', { name: 'Send test email' });
+
+    fireEvent.change(first, { target: { value: ' ' } });
+    fireEvent.click(send);
+    expect(await screen.findByText('Enter at least one email address.')).toBeTruthy();
+
+    fireEvent.change(second, { target: { value: 'x@example.com' } });
+    fireEvent.click(send);
+    expect(await screen.findByText('Use @nonstopio.com addresses.')).toBeTruthy();
+    expect(c.service.sendTestEmail).not.toHaveBeenCalled();
+
+    fireEvent.change(first, { target: { value: 'a@nonstopio.com' } });
+    fireEvent.change(second, { target: { value: 'b@nonstopio.com' } });
+    fireEvent.click(send);
+    await waitFor(() =>
+      expect(c.service.sendTestEmail).toHaveBeenCalledWith({
+        templateId: 'assigned',
+        recipients: ['a@nonstopio.com', 'b@nonstopio.com'],
+      }),
+    );
+    expect(
+      await screen.findByText('Test email sent to a@nonstopio.com and b@nonstopio.com'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Use @nonstopio.com addresses.')).toBeNull();
   });
 
   it('shows the catalog message when the send is refused, and a plain one otherwise', async () => {

@@ -4,7 +4,8 @@ import type { Caller } from './errors.js';
 import { unconfiguredMailer } from './gmail.js';
 import { buildAssignedEmail, buildReminderEmail, buildRevokedEmail } from './mail.js';
 import type { MailMessage, Mailer } from './mail.js';
-import { badField } from './validation.js';
+import { isAllowedEmail } from './roles.js';
+import { badCount, badField, invalid } from './validation.js';
 
 export interface EmailTemplate {
   id: string;
@@ -57,21 +58,40 @@ export function listEmailTemplates(caller: Caller): TemplateView[] {
   });
 }
 
+/** The most addresses one test send may go to. */
+export const MAX_TEST_RECIPIENTS = 2;
+
+/** The recipients of a test send: one or two distinct NonStop io addresses, lower-cased. */
+function testRecipients(value: unknown): string[] {
+  if (!Array.isArray(value)) throw badField('recipients', value, 'must be a list of addresses');
+  if (value.length < 1 || value.length > MAX_TEST_RECIPIENTS) {
+    throw badCount('recipients', `1-${MAX_TEST_RECIPIENTS}`);
+  }
+  const emails = value.map((v) => (typeof v === 'string' ? v.trim().toLowerCase() : ''));
+  if (!emails.every((e) => isAllowedEmail(e))) {
+    throw invalid('recipients', 'must be @nonstopio.com addresses');
+  }
+  return [...new Set(emails)];
+}
+
 /**
- * `sendTestEmail`: sends one template, with sample data, to the Admin who asked and nobody else.
- * Refuses when no Gmail credentials are set, since a send that goes nowhere would look like success.
+ * `sendTestEmail`: sends one template, with sample data, to one or two NonStop io addresses the
+ * Admin names. Refuses when no Gmail credentials are set, since a send that goes nowhere would
+ * look like success.
  */
 export async function sendTestEmail(
   deps: { mailer: Mailer },
   caller: Caller,
-  data: { templateId?: unknown },
-): Promise<{ to: string }> {
+  data: { templateId?: unknown; recipients?: unknown },
+): Promise<{ to: string[] }> {
   requireAdmin(caller, 'sendTestEmail');
   const template = EMAIL_TEMPLATES.find((t) => t.id === data.templateId);
   if (!template) throw badField('templateId', data.templateId, 'must be a template id');
+  const to = testRecipients(data.recipients);
   if (deps.mailer === unconfiguredMailer) throw new ApiException('GEN_5004', ['sendTestEmail']);
-  const to = caller.email as string;
-  const message = template.build(to);
-  await deps.mailer.send({ ...message, subject: `[Test] ${message.subject}` });
+  for (const address of to) {
+    const message = template.build(address);
+    await deps.mailer.send({ ...message, subject: `[Test] ${message.subject}` });
+  }
   return { to };
 }

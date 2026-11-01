@@ -31,37 +31,66 @@ describe('listEmailTemplates', () => {
 });
 
 describe('sendTestEmail', () => {
-  it('sends the chosen template to the caller only, marked as a test', async () => {
+  const recipients = ['a@nonstopio.com', 'B@nonstopio.com'];
+
+  it('sends the chosen template to each address named, marked as a test', async () => {
     const mailer = { send: vi.fn().mockResolvedValue(undefined) };
-    expect(await sendTestEmail({ mailer }, admin, { templateId: 'reminder' })).toEqual({
-      to: 'k@nonstopio.com',
+    expect(await sendTestEmail({ mailer }, admin, { templateId: 'reminder', recipients })).toEqual({
+      to: ['a@nonstopio.com', 'b@nonstopio.com'],
     });
-    expect(mailer.send).toHaveBeenCalledTimes(1);
+    expect(mailer.send).toHaveBeenCalledTimes(2);
     expect(mailer.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: 'k@nonstopio.com',
+        to: 'b@nonstopio.com',
         subject: '[Test] Reminder: Sample course is waiting for you',
       }),
     );
   });
 
+  it('sends once when both fields hold the same address', async () => {
+    const mailer = { send: vi.fn().mockResolvedValue(undefined) };
+    const same = [' a@nonstopio.com', 'A@nonstopio.com '];
+    await sendTestEmail({ mailer }, admin, { templateId: 'assigned', recipients: same });
+    expect(mailer.send).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses a non-Admin, an unknown template and a missing id', async () => {
     const mailer = { send: vi.fn() };
     await expect(
-      sendTestEmail({ mailer }, learner, { templateId: 'assigned' }),
-    ).rejects.toMatchObject({
-      code: 'AUTH_2001',
+      sendTestEmail({ mailer }, learner, { templateId: 'assigned', recipients }),
+    ).rejects.toMatchObject({ code: 'AUTH_2001' });
+    await expect(
+      sendTestEmail({ mailer }, admin, { templateId: 'nope', recipients }),
+    ).rejects.toMatchObject({ code: 'VAL_1002' });
+    await expect(sendTestEmail({ mailer }, admin, { recipients })).rejects.toMatchObject({
+      code: 'VAL_1001',
     });
-    await expect(sendTestEmail({ mailer }, admin, { templateId: 'nope' })).rejects.toMatchObject({
-      code: 'VAL_1002',
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it('refuses missing, empty, too many, non-text and outside addresses', async () => {
+    const mailer = { send: vi.fn() };
+    const templateId = 'assigned';
+    const go = (r?: unknown) =>
+      sendTestEmail(
+        { mailer },
+        admin,
+        r === undefined ? { templateId } : { templateId, recipients: r },
+      );
+    await expect(go()).rejects.toMatchObject({ code: 'VAL_1001' });
+    await expect(go('a@nonstopio.com')).rejects.toMatchObject({ code: 'VAL_1002' });
+    await expect(go([])).rejects.toMatchObject({ code: 'VAL_1004' });
+    await expect(go([...recipients, 'c@nonstopio.com'])).rejects.toMatchObject({
+      code: 'VAL_1004',
     });
-    await expect(sendTestEmail({ mailer }, admin, {})).rejects.toMatchObject({ code: 'VAL_1001' });
+    await expect(go([7])).rejects.toMatchObject({ code: 'VAL_1002' });
+    await expect(go(['a@example.com'])).rejects.toMatchObject({ code: 'VAL_1002' });
     expect(mailer.send).not.toHaveBeenCalled();
   });
 
   it('fails instead of pretending when no Gmail credentials are set', async () => {
     await expect(
-      sendTestEmail({ mailer: unconfiguredMailer }, admin, { templateId: 'assigned' }),
+      sendTestEmail({ mailer: unconfiguredMailer }, admin, { templateId: 'assigned', recipients }),
     ).rejects.toMatchObject({ code: 'GEN_5004' });
   });
 });

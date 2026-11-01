@@ -156,7 +156,6 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   certificates: AwardIcon,
   profile: UserIcon,
   changelog: SparkIcon,
-  privacy: ShieldIcon,
   'admin-overview': ChartIcon,
   'admin-learners': UsersIcon,
   'admin-assign': SendIcon,
