@@ -8,8 +8,15 @@ name: Preview
 # Secret: FIREBASE_SERVICE_ACCOUNT_PREVIEW, a repository secret holding a service account with
 # Firebase Hosting Admin ONLY. Any branch can run this workflow's own copy, so the key it gets must
 # not be able to change rules or data; the production key lives in the `production` environment.
+#
+# Pull requests that only touch docs are skipped: they change nothing a preview shows, and every
+# channel counts toward the site's limit. preview-cleanup.yml deletes the channel on close.
 on:
   pull_request:
+    paths-ignore:
+      - '.plan/**'
+      - 'docs/**'
+      - '**/*.md'
 
 concurrency:
   group: preview-${{ github.event.pull_request.number }}

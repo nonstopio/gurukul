@@ -12,6 +12,7 @@ import { firebaseConsoleService } from './console/service';
 import { configureAnalytics } from './analytics';
 import { initFirebase } from './firebase';
 import { lazyPort } from './lazy';
+import { log } from './log';
 import { firebaseQuizService } from './quiz/service';
 import { firebaseStudioService } from './studio/service';
 import type { AnalyticsEnv } from './analytics';
@@ -77,6 +78,13 @@ export function mount(
       />
     </StrictMode>,
   );
+  // Opt-in, set by the production deploy only: previews, Lighthouse and local runs would otherwise
+  // report into production's numbers. A blocked or failed download only costs the timings.
+  if (env.VITE_PERFORMANCE_MONITORING === 'true') {
+    void import('./performance')
+      .then((m) => m.startPerformance(firebase.app))
+      .catch(() => log.warn('Performance monitoring did not start'));
+  }
 }
 
 mount(document.getElementById('root'));

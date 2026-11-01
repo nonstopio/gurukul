@@ -50,7 +50,9 @@ builder. Handoff: `design-handoff/03-studio.md`.
 - Title; ordered blocks with drag handle, duplicate, delete.
 - Block palette: Text (markdown with a small toolbar), Video, Code, Callout,
   Image (URL + required alt text), Embed (allow-listed), File (link), Check
-  (ungraded inline question).
+  (ungraded inline question). Planned: Image and File gain an **Upload** tab beside Link (images
+  and PDFs within the upload policy, with a preview, layouts and guidance when a file is too big):
+  `19-course-media-uploads.md`.
 - Lesson settings: estimated time, completion rule, type label. The course object keeps a
   `layout` field (`stacked | split | article`) that the player ignores and Studio no longer
   offers: Stacked and Split rendered identically, and Article only enlarged the text.
@@ -91,5 +93,6 @@ stays in the Cloud Function.
 ## Media library
 
 v1 has no uploads. The "Media library" nav item lists the video and image
-links used across courses, to reuse them. Uploads arrive only if Storage is
-approved (see `11-deployment-and-cost.md`).
+links used across courses, to reuse them. Uploads of images and PDFs are planned in
+`19-course-media-uploads.md` (Storage cost in `11-deployment-and-cost.md`); the library then
+gains an Uploaded filter and a picker to reuse a course's uploads.

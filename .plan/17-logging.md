@@ -32,7 +32,9 @@ form is the `writing-logs` skill and `.claude/rules/logging.md`.
 `firebase-functions/logger` (structured), masks fields by name with `maskFields` from
 `@gurukul/schema`, adds `traceId` when one is in scope, and drops anything below `LOG_LEVEL`
 (default `info`). `apps/web/src/log.ts` has the same shape for the browser: it writes to the
-console only (logs have no remote telemetry; usage analytics is separate: `19-product-analytics.md`), at
+console only (no remote logging; the only remote signals are Firebase Performance Monitoring's timings,
+see `11-deployment-and-cost.md`, and usage analytics, `20-product-analytics.md`; more is not to be added
+without changing this plan), at
 `warn` and above in production builds.
 
 `LOG_LEVEL` is read on every call; an unknown value means `info`. An `Error` is written as

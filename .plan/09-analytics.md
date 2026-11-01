@@ -52,4 +52,5 @@ learner starts; the rules let that course's Educators and Admins read it, so an 
 reads a profile (`users/`), an email or another course. Studio's Analytics tab lists them with
 their progress. The daily roll-up adds anyone missing from the roster (learners who started before it
 was kept) and copies a profile rename to it, so a new name shows there by the next day. No analytics or tracking scripts on the
-site; no third-party cookies.
+site; no third-party cookies. The one exception is Firebase Performance Monitoring (page load and
+request timings, no personal data), see `11-deployment-and-cost.md`.

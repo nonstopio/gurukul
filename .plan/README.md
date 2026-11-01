@@ -4,7 +4,7 @@ The reviewed plan for NonStop Gurukul (NonStop Academy). Code follows this
 plan; a change in scope, data shape, roles or cost changes the plan first, in
 the same PR.
 
-**Status:** M0–M6 are largely built; what is done and what is left, item by item, is in
+**Status:** M0–M6 are largely built; M7 (course media uploads) is planned; what is done and what is left, item by item, is in
 [tracker.md](tracker.md).
 
 ## How to review
@@ -26,13 +26,14 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [09-analytics.md](09-analytics.md) | Analytics: what is counted, where, and at what cost |
 | [10-testing-and-ci.md](10-testing-and-ci.md) | 100% coverage, rules tests, e2e, CI jobs |
 | [11-deployment-and-cost.md](11-deployment-and-cost.md) | Environments, deploys, Blaze budget, quotas |
-| [12-milestones.md](12-milestones.md) | M0–M6 with exit criteria |
+| [12-milestones.md](12-milestones.md) | M0–M7 with exit criteria |
 | [13-open-questions.md](13-open-questions.md) | Decisions needed from the maintainer |
 | [14-first-course-git.md](14-first-course-git.md) | The Git course outline and its Quizzes |
 | [15-changelog-and-search.md](15-changelog-and-search.md) | The changelog, global search and the Claude hooks and skills behind them |
 | [16-api-contract.md](16-api-contract.md) | The one response envelope and error-code catalog every API follows |
 | [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
-| [19-product-analytics.md](19-product-analytics.md) | Google Analytics 4 events, consent at sign-in, what is never sent |
+| [19-course-media-uploads.md](19-course-media-uploads.md) | Image and PDF uploads in Studio: policy, limits, guidance, Storage rules, layouts, cost |
+| [20-product-analytics.md](20-product-analytics.md) | Google Analytics 4 events, consent at sign-in, what is never sent |
 | [tracker.md](tracker.md) | Status: every plan item as done, todo, blocked or maintainer, and the order to pick them up |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 

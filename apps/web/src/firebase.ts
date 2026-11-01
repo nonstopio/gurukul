@@ -14,6 +14,8 @@ export interface FirebaseEnv {
   /** The GA4 web stream id (`G-...`). Analytics sends nothing without it. */
   VITE_FIREBASE_MEASUREMENT_ID?: string;
   VITE_USE_EMULATORS?: string;
+  /** "true" only in the production build: previews, CI and local runs must not report. */
+  VITE_PERFORMANCE_MONITORING?: string;
 }
 
 export interface Firebase {

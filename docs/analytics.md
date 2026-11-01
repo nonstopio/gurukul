@@ -1,7 +1,7 @@
 # Analytics
 
 Gurukul measures its own use with Google Analytics 4 (GA4) through Firebase. This page is for
-contributors. The decision and the privacy position are in `.plan/19-product-analytics.md`; the
+contributors. The decision and the privacy position are in `.plan/20-product-analytics.md`; the
 text people accept is `apps/web/src/privacy/PrivacyPage.tsx`.
 
 ## The rule

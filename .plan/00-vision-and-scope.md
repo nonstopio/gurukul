@@ -75,7 +75,7 @@ changelog's history use the generic names. "Gurukul" stays the product's name in
 | "AVB" (mentioned in the brief, meaning unclear) | Needs definition — see open questions |
 | Arjuna leaderboard | Competition is a product decision, not a default |
 | Sarathi AI mentor | Needs Claude API budget and a policy decision |
-| Video upload / hosting | Needs Cloud Storage; YouTube unlisted / Drive links cover v1 |
+| Video upload / hosting | Video is large and costly to serve; YouTube unlisted / Loom / Drive links cover it. Small images and PDFs are uploadable (`19-course-media-uploads.md`) |
 | Learning paths (course sequences) | Assignments of several courses cover v1 |
 | Discussion / comments on lessons | Moderation burden; Slack exists |
 | Mobile apps | The web app is responsive |

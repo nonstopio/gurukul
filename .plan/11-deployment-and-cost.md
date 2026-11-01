@@ -5,7 +5,7 @@
 | Env | Project | How |
 |---|---|---|
 | Local | `demo-gurukul` (emulators only, no real project) | `npm run emulators` |
-| PR preview | `nonstop-gurukul`, Hosting preview channel (7-day expiry) | `preview.yml` on same-repo PRs (not forks, not Dependabot); uses **production** Firestore |
+| PR preview | `nonstop-gurukul`, Hosting preview channel (7-day expiry) | `preview.yml` on same-repo PRs (not forks, not Dependabot; not PRs that only touch `.plan/`, `docs/` or `*.md`); `preview-cleanup.yml` deletes the channel when the PR closes, because the site has a channel limit; uses **production** Firestore |
 | Production | `nonstop-gurukul` | `deploy.yml`, after CI passes on `main`; pushes a `release-*` tag |
 
 Previews share production data, so a preview can never change rules or
@@ -24,6 +24,7 @@ roles depend on. Blaze keeps the same free quotas and bills only above them.
 | Firestore storage | 1 GiB | < 50 MB |
 | Functions invocations | 2,000,000 / month | < 50,000 / month |
 | Hosting storage / transfer | 10 GB / 360 MB per day | < 20 MB / ~150 MB per day |
+| Cloud Storage (planned course media, US bucket) | 5 GB stored, 100 GB egress / month | ~200 MB stored, < 10 GB / month |
 | Auth (Google) | free | free |
 
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
@@ -42,6 +43,13 @@ bucket (`roles/storage.objectAdmin`). Setup and restore: `docs/operations.md`.
 maintainers; `maxInstances` on every function; no unbounded listeners (see
 `.claude/rules/firebase-cost.md`).
 
+## Performance Monitoring
+
+The web app starts Firebase Performance Monitoring in the production build only (`deploy.yml` sets
+`VITE_PERFORMANCE_MONITORING=true`; previews, Lighthouse, emulators and local runs stay off): page load, network request and Web Vitals timings, in the Firebase console. It collects
+no personal data and is free. Its SDK is its own chunk, fetched after the app mounts, so the initial
+bundle budget is untouched. Nothing else to configure: it uses the web app's existing Firebase config.
+
 ## Region
 
 Firestore location and Functions region: **asia-south1 (Mumbai)**, closest to
@@ -53,7 +61,7 @@ confirm before creating it (open question).
 | Secret | Where | Used by |
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL` | `production` environment secret; environment limited to `main` | `deploy.yml` |
-| `FIREBASE_SERVICE_ACCOUNT_PREVIEW` | Repository secret; service account with Firebase Hosting Admin **only** | `preview.yml` |
+| `FIREBASE_SERVICE_ACCOUNT_PREVIEW` | Repository secret; service account with Firebase Hosting Admin **only** | `preview.yml`, `preview-cleanup.yml` |
 | `GMAIL_CREDENTIALS` (Gmail sender key) | Cloud Secret Manager via `defineSecret`, declared on each function that sends email; set once with `firebase functions:secrets:set` (a placeholder sends nothing, but the secret must exist or the deploy fails) | functions |
 
 The public web config goes in GitHub Actions **variables** (`VITE_FIREBASE_*`)
@@ -92,3 +100,7 @@ custom domain are `OPS-24`.
 9. After the first functions deploy, set the cleanup policy for stale function images:
    `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
    (a one-off console command, not a deploy).
+10. Before course media uploads ship (`MED-01`): create the default Cloud Storage for Firebase
+    bucket in `US-CENTRAL1` (open question 14, decided: the no-cost
+    tier), and grant the Firebase Rules Firestore Service Agent role when the console asks, so
+    `storage.rules` can read `courses/` and `config/org`. See `19-course-media-uploads.md` (Cost).

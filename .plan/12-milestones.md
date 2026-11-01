@@ -78,3 +78,15 @@ account is refused; an Admin sees the console nav; rules tests cover every rule.
 **Status:** e2e, axe, Lighthouse CI on the built sign-in page, weekly backup function and docs are built. The rules coverage gate runs with `npm run test:rules`. Lighthouse also runs on the preview URL. Launch steps (backup bucket, real video URLs, assigning everyone) are the maintainer's.
 
 **Total:** about 10 weeks of focused work.
+
+## M7 · Course media uploads (~1.5 weeks)
+
+- Educators upload images (WebP, PNG, JPEG, up to 500 KB) and PDFs (up to 1 MB) in Studio, with a
+  preview, layouts, and guidance plus a coding-agent prompt when a file is too big.
+- Storage bucket and `storage.rules`; Admin-configurable limits; Media library reuse; later an
+  in-browser shrink and a weekly clean-up of unused files. Plan: `19-course-media-uploads.md`.
+
+**Exit:** an Educator adds a screenshot to a lesson without hosting it elsewhere, and the Firebase
+bill stays $0.
+
+**Status:** planned (tracker section Course media uploads).

@@ -71,6 +71,7 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_APP_VERSION: ${{ steps.release.outputs.id }}
           VITE_SITE_URL: ${{ vars.SITE_URL }}
+          VITE_PERFORMANCE_MONITORING: 'true'
       # The weekly backup bucket is plain configuration, kept as the repository variable BACKUP_BUCKET
       # (the functions' .env files are git-ignored). Unset, the backup function logs and skips.
       # SITE_URL (the public address in emailed links, e.g. https://gurukul.nonstopio.com) is kept the same way.

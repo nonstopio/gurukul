@@ -64,6 +64,14 @@ service cloud.firestore {
     // The ids of the teams the signed-in person is on: `users/{uid}.teamIds`, kept by the
     // `onTeamWritten` function from `teams/`, and never writable by the person (see `users` above).
     // Costs one read, and only when a course is `teams`-visible.
+    // `config/org.uploads`: both limits are whole KB from 50 up to the 1024 hard ceiling.
+    function validUploadLimits(u) {
+      return u is map
+        && u.keys().hasOnly(['imageMaxKB', 'pdfMaxKB'])
+        && u.imageMaxKB is int && u.imageMaxKB >= 50 && u.imageMaxKB <= 1024
+        && u.pdfMaxKB is int && u.pdfMaxKB >= 50 && u.pdfMaxKB <= 1024;
+    }
+
     function myTeamIds() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('teamIds', []);
     }
@@ -276,7 +284,9 @@ service cloud.firestore {
     // Organisation settings (`config/org` only): the allowed domain, the teams list, reminder
     // settings and who signs certificates. An Admin edits all but the domain from the console; the
     // domain is fixed here, as `signedIn()` is. Rules cannot loop over a list, so each team name's length is the app's
-    // check (`orgConfigSchema`); the list's size is checked here. Never deleted.
+    // check (`orgConfigSchema`); the list's size is checked here. `uploads` (optional) holds the
+    // upload limits in KB, whole numbers from 50 to the 1024 hard ceiling (`uploadLimitsSchema`);
+    // only an Admin writes it, and `storage.rules` reads the same field. Never deleted.
     match /config/org {
       allow read: if signedIn();
       // An Educator may change only the teams list (the Teams page writes it with `teams/`).
@@ -285,7 +295,7 @@ service cloud.firestore {
         && request.resource.data.teams is list
         && request.resource.data.teams.size() <= 100;
       allow create, update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders', 'signatory'])
+        && request.resource.data.keys().hasOnly(['domain', 'teams', 'reminders', 'signatory', 'uploads'])
         && request.resource.data.domain == 'nonstopio.com'
         && request.resource.data.teams is list
         && request.resource.data.teams.size() <= 100
@@ -299,7 +309,8 @@ service cloud.firestore {
         && request.resource.data.signatory.name.size() <= 120
         && request.resource.data.signatory.role is string
         && request.resource.data.signatory.role.size() > 0
-        && request.resource.data.signatory.role.size() <= 120;
+        && request.resource.data.signatory.role.size() <= 120
+        && (!('uploads' in request.resource.data) || validUploadLimits(request.resource.data.uploads));
     }
 
     // A team and its members (`teams/{id}`): names are public through `config/org.teams`, the
