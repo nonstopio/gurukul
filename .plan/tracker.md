@@ -24,12 +24,12 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Studio | 17 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 19 | 0 | 0 | 10 |
+| Platform, CI and operations | 20 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 0 | 9 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 154 | 9 | 0 | 13 |
+| **Total** | 155 | 9 | 0 | 13 |
 
 ## Pick order
 
@@ -234,6 +234,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-13` | Dependency and docs hygiene                                                | done       | —        | `package.json` (`tsx`), `e2e/package.json` (`axe-core`), `CONTRIBUTING.md` links `docs/operations.md` for the bootstrap                                     |
 | `OPS-14` | Trigger tests against the emulators | done | — | `firebase/functions/emulator-test/triggers.test.ts`, `vitest.emulator.config.ts`, `npm run test:triggers` (CI `rules` job, pre-push). Calls the exported triggers with `.run(event)`; `firebase-functions-test` does not install with firebase-admin 14. Covers `onProgressWritten` and `onAttemptCreated` only |
 | `OPS-23` | Harden the flaky studio lesson editor test | done | — | `apps/web/test/setup.ts` (5 s `asyncUtilTimeout`), `apps/web/vite.config.ts` (15 s `testTimeout`): lazy app boot under full-suite load outran the 1 s `findBy` default |
+| `OPS-30` | Preview channels are deleted when a pull request closes | done | — | `.github/workflows/preview-cleanup.yml` (deletes the channel on `closed`, same channel id rule as `action-hosting-deploy`, an already-gone channel passes), `.github/workflows/preview.yml` (`paths-ignore` for `.plan/**`, `docs/**`, `**/*.md`). Fixes "429: channel quota reached"; the maintainer deletes the stale channels once |
 | `OPS-15` | Firebase project setup                                                     | maintainer | —        | `11` First-time setup checklist: Blaze and the $1 budget with alerts, Firestore in asia-south1, Google provider, web app variables, both service accounts, branch protection |
 | `OPS-16` | Backup bucket                                                              | maintainer | —        | Bucket with the 28-day lifecycle rule, `BACKUP_BUCKET` variable, IAM roles (`docs/operations.md`)                                                          |
 | `OPS-17` | First Admin and the production seed                                     | maintainer | —        | `npm run grant-admin -- you@nonstopio.com`; `npm run seed -- --production`                                                                              |
