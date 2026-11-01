@@ -1,0 +1,21 @@
+<svg width="1109.33" height="512" viewBox="0 0 104 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<path id="tile" d="M45.6562 0H2.34375C1.04933 0 0 1.04933 0 2.34375V45.6562C0 46.9505 1.04933 48 2.34375 48H45.6562C46.9505 48 48 46.9505 48 45.6562V2.34375C48 1.04933 46.9505 0 45.6562 0Z" fill="#059D66"/>
+</defs>
+<!-- N: two identical pieces, one rotated 180° -->
+<g>
+<use href="#tile"/>
+<g fill="#FFFFFE">
+<path d="M37.7313 10.0338H25.9439V13.9206L29.8999 17.8739V13.9195H33.8371V33.5248H31.0305L18.1136 20.5922V26.1886L29.4196 37.4116H37.7313V10.0338Z"/>
+<path d="M18.1133 29.5788V33.5251H14.2495V13.9197H17.0305L29.8996 26.8523V21.0344L18.6133 10.0341H10.3052V37.4119H22.06V33.5239L18.1133 29.5788Z"/>
+</g>
+</g>
+<!-- G: two equal-area pieces (13 cells each on a 7x7 grid), meeting on a 45° mitre at the bottom left -->
+<g transform="translate(56 0)">
+<use href="#tile"/>
+<g fill="#FFFFFE">
+<path d="M10.3 10H37.7V19.786L33.786 15.871V13.914H14.214V21.743L10.3 17.829V10Z"/>
+<path d="M10.3 21.743L14.214 25.657V33.486H33.786V25.657H25.957V27.614L22.043 31.529V21.743H37.7V37.4H10.3V21.743Z"/>
+</g>
+</g>
+</svg>
