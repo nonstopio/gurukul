@@ -45,6 +45,7 @@ else is a review blocker, and most of it fails `npm run check:design`.
 | A page                                               | `Page` → `PageHeader` → content (see Page anatomy)                                                                                                 | a bare `<div class="page">`, a page-specific max-width                                      |
 | A page title                                         | `PageHeader title=…` (it renders the only `h1`)                                                                                                    | `<h1 className="…">`, `TopBar` as a page header                                             |
 | Navigation chrome                                    | `AppShell` (sidebar) or `FocusedShell` (task); chosen in `routes.tsx`                                                                              | a page drawing its own sidebar or top bar                                                   |
+| Light, System or Dark theme                          | `ThemeSwitcher` (`apps/web/src`): in the `AppShell` bar and, through `TopBarToolsContext`, in every `TopBar`; never a second copy on a page        | a Theme item in a menu, a toggle built per page                                             |
 | Who is signed in, sign out, profile                  | `UserCard` in the shell (its `Menu`) and `/profile`                                                                                                | name text and buttons in a footer                                                           |
 | Moving between Learn, Studio and Admin               | `AreaSwitcher` in the `Sidebar` (only with more than one area)                                                                                     | links to other areas mixed into one long nav                                                |
 | A list or page that enters                           | `.route-enter`, `g-stagger` + `--i` (see references/components.md)                                                                                 | a keyframe with a literal duration, a transform-only reduced motion                         |
@@ -139,7 +140,7 @@ height: 100dvh`; its nav scrolls inside it when it is taller than the window; th
   full-height wrapper (it breaks sticky, find-in-page and scroll restore).
 - Nav items have an 18px icon and a label; the current item has `aria-current="page"`.
 - The `UserCard` shows avatar, name, and email or role; its `Menu` opens on a header with name,
-  email and a role chip, then Profile, the label switch, Theme, What's new and Sign out. Sign out is never more than two clicks from any page.
+  email and a role chip, then Profile, the label switch, What's new and Sign out. The theme switch (Light, System, Dark) sits at the top right of every page, not in the menu. Sign out is never more than two clicks from any page.
 
 ## States
 

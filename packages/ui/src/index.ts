@@ -18,7 +18,7 @@ export { AreaSwitcher } from './AreaSwitcher';
 export type { AreaSwitcherItem, AreaSwitcherProps } from './AreaSwitcher';
 export { NavItem } from './NavItem';
 export type { NavItemProps, NavItemRenderProps } from './NavItem';
-export { TopBar, topBarBackClass } from './TopBar';
+export { TopBar, TopBarToolsContext, topBarBackClass } from './TopBar';
 export type { TopBarProps } from './TopBar';
 export { Field, Input, Select, Textarea } from './Field';
 export type {
@@ -114,6 +114,7 @@ export {
   LockIcon,
   LogOutIcon,
   MenuIcon,
+  MonitorIcon,
   MoonIcon,
   MoreIcon,
   PenIcon,

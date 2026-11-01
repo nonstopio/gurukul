@@ -20,6 +20,7 @@ import { useAsync } from './data/useAsync';
 import { LABEL_OPTIONS, useSaveLabels } from './labels/LabelChoice';
 import type { Terms } from './labels/terms';
 import { useTerms } from './labels/useTerms';
+import { shownName } from './learn/model';
 import { Loaded } from './learn/ui';
 import { THEME_CHOICES, useTheme } from './theme';
 import type { ThemeChoice } from './theme';
@@ -45,7 +46,7 @@ export function ProfilePage() {
   const user = useUser();
   const t = useTerms();
   // Signed-in accounts always have an email (only @nonstopio.com ones get in).
-  const name = user.displayName ?? String(user.email);
+  const name = shownName(user.displayName, String(user.email));
   const rows = roleRows(t);
   const tone = topRole(roles);
 

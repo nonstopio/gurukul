@@ -1,9 +1,16 @@
+import { createContext, useContext } from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
 import './topbar.css';
 
 /** Class for the back link, so a router `Link` can wear it: `<Link className={topBarBackClass}>`. */
 export const topBarBackClass = 'g-topbar__back';
+
+/**
+ * Controls every `TopBar` shows at its far right (the theme switcher): a layout provides them once
+ * instead of each page passing them in.
+ */
+export const TopBarToolsContext = createContext<ReactNode>(null);
 
 export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
   /** The title, drawn in the display face: the page `h1` unless `titleAs` says otherwise. */
@@ -31,12 +38,14 @@ export function TopBar({
   className,
   ...rest
 }: TopBarProps) {
+  const tools = useContext(TopBarToolsContext);
   return (
     <header className={cx('g-topbar', className)} {...rest}>
       {back}
       <Title className="g-topbar__title">{title}</Title>
       {status ? <div className="g-topbar__status">{status}</div> : null}
       {actions ? <div className="g-topbar__actions">{actions}</div> : null}
+      {tools ? <div className="g-topbar__tools">{tools}</div> : null}
     </header>
   );
 }

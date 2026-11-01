@@ -12,6 +12,7 @@ import {
   courseImageUrl,
   dueLabel,
   firstName,
+  shownName,
   hasNewLessons,
   isRetired,
   orderAssigned,
@@ -315,5 +316,17 @@ describe('courseImageUrl', () => {
   it('skips quizzes and is undefined when the course has no picture', () => {
     expect(courseImageUrl(withItems({ type: 'quiz', id: 'q' }, lesson([])))).toBeUndefined();
     expect(courseImageUrl({ chapters: [] })).toBeUndefined();
+  });
+});
+
+describe('shownName', () => {
+  it('prefers the Google name, trimmed', () => {
+    expect(shownName(' Priya Kulkarni ', 'priya@nonstopio.com')).toBe('Priya Kulkarni');
+  });
+
+  it('makes a readable name from the email when there is none', () => {
+    expect(shownName(null, 'ajay.kumar@nonstopio.com')).toBe('Ajay Kumar');
+    expect(shownName('  ', 'priya_k-s@nonstopio.com')).toBe('Priya K S');
+    expect(shownName(undefined, '@nonstopio.com')).toBe('');
   });
 });

@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
 export const THEME_KEY = 'gurukul-theme';
-export const THEME_CHOICES: readonly ThemeChoice[] = ['system', 'light', 'dark'];
+export const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'system', 'dark'];
 
 const listeners = new Set<() => void>();
 
@@ -51,11 +51,6 @@ export function setTheme(choice: ThemeChoice): void {
   }
   applyTheme(choice);
   listeners.forEach((l) => l());
-}
-
-/** The next choice when someone taps one button: System → Light → Dark → System. */
-export function nextTheme(choice: ThemeChoice): ThemeChoice {
-  return THEME_CHOICES[(THEME_CHOICES.indexOf(choice) + 1) % THEME_CHOICES.length] as ThemeChoice;
 }
 
 const subscribe = (l: () => void) => {

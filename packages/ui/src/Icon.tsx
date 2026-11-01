@@ -147,6 +147,13 @@ export const LanguagesIcon = icon(
 );
 export const LogOutIcon = icon('LogOutIcon', <path d="M6 13.5H3.5v-11H6M10 11l3-3-3-3M13 8H6" />);
 export const MenuIcon = icon('MenuIcon', <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />);
+export const MonitorIcon = icon(
+  'MonitorIcon',
+  <>
+    <rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5" />
+    <path d="M5.5 14h5M8 11v3" />
+  </>,
+);
 export const MoonIcon = icon(
   'MoonIcon',
   <path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.5 4.5 0 0 0 7 7z" />,
