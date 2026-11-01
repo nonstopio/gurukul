@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { timestamp } from './timestamp';
+import { uploadLimitsSchema } from './upload';
 
 export const roleSchema = z.enum(['learner', 'educator', 'admin']);
 export type Role = z.infer<typeof roleSchema>;
@@ -44,6 +45,8 @@ export const orgConfigSchema = z.object({
   reminders: z.object({ enabled: z.boolean() }),
   /** Printed on every certificate issued from now on; a certificate keeps the one it was issued with. */
   signatory: z.object({ name: z.string().min(1).max(120), role: z.string().min(1).max(120) }),
+  /** Upload limits an Admin may lower (`uploadPolicy`); missing reads as the defaults. */
+  uploads: uploadLimitsSchema.optional(),
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
 

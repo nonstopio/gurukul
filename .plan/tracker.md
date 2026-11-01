@@ -27,24 +27,23 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations | 20 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
-| Course media uploads | 0 | 9 | 0 | 1 |
+| Course media uploads | 1 | 8 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 155 | 9 | 0 | 13 |
+| **Total** | 156 | 8 | 0 | 13 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
 
-1. `MED-02` Upload policy and block fields in the schema
-2. `MED-03` Image layouts in the player
-3. `MED-04` Storage rules and deploy (waits on the bucket, `MED-01`)
-4. `MED-05` Image upload in Studio
-5. `MED-06` PDF upload in Studio
-6. `MED-07` Upload limits in Org settings
-7. `MED-08` Media library reuse of uploads
-8. `MED-09` Shrink it for me
-9. `MED-10` Weekly clean-up of unused media
+1. `MED-03` Image layouts in the player
+2. `MED-04` Storage rules and deploy (waits on the bucket, `MED-01`)
+3. `MED-05` Image upload in Studio
+4. `MED-06` PDF upload in Studio
+5. `MED-07` Upload limits in Org settings
+6. `MED-08` Media library reuse of uploads
+7. `MED-09` Shrink it for me
+8. `MED-10` Weekly clean-up of unused media
 
 ## Foundations
 
@@ -295,7 +294,7 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | ID       | Item                                         | Status     | Depends            | Notes |
 | -------- | -------------------------------------------- | ---------- | ------------------ | ----- |
 | `MED-01` | Storage bucket and cross-service rules role  | maintainer | —                  | Done means: the default Cloud Storage for Firebase bucket exists in `US-CENTRAL1` (open question 14), and the Firebase Rules Firestore Service Agent role is granted. `11-deployment-and-cost.md` setup step 10 |
-| `MED-02` | Upload policy and block fields in the schema | todo       | —                  | Done means: `uploadPolicy`, `checkUpload` (type, first bytes, size, pixels) and `shrinkPrompt` in `packages/schema`; optional `layout`, `zoom`, `border`, `width`, `height`, `upload` on Image and `upload` on File; publish validation; `config/org.uploads` in the schema and in `firestore.rules` (Admin only, bounded) with allowed and denied tests; `02-data-model.md` updated |
+| `MED-02` | Upload policy and block fields in the schema | done       | —                  | `packages/schema/src/upload.ts` (`uploadPolicy`, `checkUpload`, `shrinkPrompt`, `sniffContentType`, `isDownloadUrlFor`, `uploadLimitsSchema`), optional `layout`/`zoom`/`border`/`width`/`height`/`upload` on Image and `upload` on File in `course.ts`, `uploads` on `orgConfigSchema` in `user.ts`, upload checks in `validateForPublish` (`draft.ts`, optional `{ bucket }`), `config/org.uploads` in `firebase/firestore.rules` with tests in `firebase/rules/test/assignments-config.test.ts`, `packages/schema/test/upload.test.ts`. No `schemaVersion` bump. Callers pass the project bucket to `validateForPublish` from `MED-04`/`MED-05` |
 | `MED-03` | Image layouts in the player                  | todo       | `MED-02`           | Done means: Column, Medium and Small at 1280 and 390 px; Open full size in a `Dialog`; Border; `width`/`height` on `<img>`; alt text box when an image fails; "PDF · 420 KB" on an uploaded file; Studio's Image editor sets layout for linked images. Changelog entry |
 | `MED-04` | Storage rules and deploy                     | todo       | `MED-01`, `MED-02` | Done means: `firebase/storage.rules` (default deny; create by the course's Educators or an Admin, accepted types, size within `config/org.uploads` and the hard ceiling, no overwrite; no client update or delete), `firebase.json` storage and emulator (9199), emulator tests with an allowed and a denied test per condition, rules coverage extended to Storage, `deploy.yml` deploys it |
 | `MED-05` | Image upload in Studio                       | todo       | `MED-03`, `MED-04` | Done means: `FileDrop` in `packages/ui`; Image block Upload and Link tabs; browser check with numbered guidance and Copy prompt; local preview at 1280 and 390 px; layout controls; resumable upload with progress and cancel; Replace; Storage SDK only in the Studio chunk; e2e upload, publish, view; Educator guide section; feature tip; changelog entry |

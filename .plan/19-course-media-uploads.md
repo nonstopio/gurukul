@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: planned, not built. Tracker section **Course media uploads** (`MED-*`).
+Status: in progress (`MED-02`, the schema, is built). Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -175,9 +175,8 @@ Firestore (`scripts/check-rules-coverage.mjs`). Storage emulator joins `firebase
 ## Data model changes
 
 Both changes are **optional fields** on existing blocks, so every existing course still reads and
-validates unchanged. The `schemaVersion` bump to 4 is only needed if the strict reader rejects
-unknown keys in practice; the implementer checks `readCourse` / `migrateCourse` and, if a bump is
-needed, adds a no-op `v3→v4` step with its test (`02-data-model.md` Migrations).
+validates unchanged. **No `schemaVersion` bump** (checked in `MED-02`): zod strips unknown keys, so neither
+`readCourse` nor `migrateCourse` rejects them, and `packages/schema/test/upload.test.ts` pins that.
 
 ```ts
 type ImageBlock = {
@@ -202,8 +201,11 @@ type FileBlock = {
   display name the Educator can edit, at most 120 characters; it is never part of the path.
 - `width` and `height` are also allowed on a linked image (Studio reads them from the loaded
   preview), so linked images stop shifting the page too.
-- Publish validation (`packages/schema/src/draft.ts`) gains: an uploaded image's `url` must be a
-  Firebase Storage download URL for this project's bucket and this course's path; an image needs
+- Publish validation (`packages/schema/src/draft.ts`) gains: an uploaded image's or file's `url` must be a
+  Firebase Storage download URL for exactly its `upload.path`, which must sit under
+  `courses/{thisCourse}/media/` (`isDownloadUrlFor`); `validateForPublish(course, answers, { bucket })`
+  also checks the bucket when the caller passes it (the callers pass the project's bucket from
+  `MED-04`/`MED-05` on, once the bucket exists); an image needs
   alt text (as today); `upload.bytes` within the hard ceiling.
 
 **`config/org.uploads`** (new key on the existing document, Admin only):
@@ -212,8 +214,8 @@ type FileBlock = {
 uploads?: { imageMaxKB: number; pdfMaxKB: number };  // missing reads as the defaults 500 / 1024
 ```
 
-zod clamps each value to 50 ≤ value ≤ hard ceiling (image 1024, PDF 1024). The Firestore rule for
-`config/org` adds `uploads` to the allowed keys, with the same bounds, writable by an Admin only
+zod accepts only whole numbers from 50 to the hard ceiling (image 1024, PDF 1024); `uploadPolicy()` also clamps a stored value into that range, so a bad document cannot open the gate. The Firestore rule for
+`config/org` (built in `MED-02`) adds `uploads` to the allowed keys, with the same bounds, writable by an Admin only
 (Educators keep only `teams`).
 
 ### Configurable limits
