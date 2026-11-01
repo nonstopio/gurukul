@@ -3,7 +3,7 @@ import { StrictMode } from 'react';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAnalytics } from '../src/analytics/core/analytics';
-import { CONSENT_GRANTED } from '../src/analytics/core/types';
+import { CONSENT_DENIED, CONSENT_GRANTED } from '../src/analytics/core/types';
 import type { AnalyticsProvider } from '../src/analytics/core/types';
 import { AnalyticsProvider as Provider } from '../src/analytics/react/AnalyticsProvider';
 import {
@@ -116,6 +116,31 @@ describe('page views', () => {
     expect(sent).toEqual([]);
     act(() => real.setConsent(CONSENT_GRANTED));
     await waitFor(() => expect(sent).toEqual(['/a']));
+  });
+  it('counts the same page again for the next visit after consent was withdrawn', async () => {
+    const sent: string[] = [];
+    const provider: AnalyticsProvider = {
+      init: () => Promise.resolve(),
+      track: () => {},
+      pageView: (p) => void sent.push(String(p.page_path)),
+      identify: () => {},
+      setUserProperties: () => {},
+      setConsent: () => {},
+      setEnabled: () => {},
+      reset: () => {},
+    };
+    const real = createAnalytics({ providers: [provider] });
+    const router = app('/a');
+    render(
+      <Provider analytics={real} router={router}>
+        <RouterProvider router={router} />
+      </Provider>,
+    );
+    act(() => real.setConsent(CONSENT_GRANTED));
+    await waitFor(() => expect(sent).toEqual(['/a']));
+    act(() => real.setConsent(CONSENT_DENIED));
+    act(() => real.setConsent(CONSENT_GRANTED));
+    await waitFor(() => expect(sent).toEqual(['/a', '/a']));
   });
   it('mounts without a router', () => {
     const { analytics } = tracked();

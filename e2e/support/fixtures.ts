@@ -46,7 +46,9 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
   await expect(signIn).toBeVisible();
   // The first sign-in on a browser asks for the privacy policy to be accepted.
   const accept = page.getByRole('switch', { name: 'I accept the privacy policy' });
-  if (await accept.count()) await page.getByText('I accept the privacy policy').click();
+  if ((await accept.count()) && !(await accept.isChecked())) {
+    await page.getByText('I accept the privacy policy').click();
+  }
   await signIn.click();
   const popup = await popupOpened;
   const existing = popup.getByRole('listitem').filter({ hasText: person.email });

@@ -23,7 +23,11 @@ export function RouteTracker({
   // run is scheduled again by the second.
   const sent = useRef<string | null>(null);
   useEffect(() => {
-    if (!granted) return;
+    if (!granted) {
+      // Signing out ends the visit: the next person's first page counts, even on the same path.
+      sent.current = null;
+      return;
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = (state: RouterState) => {
       clearTimeout(timer);

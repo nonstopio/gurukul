@@ -142,7 +142,8 @@ Every event also carries `app_version`, `environment`, `platform` and, once sign
 
 1. Firebase console → Project settings → Integrations → Google Analytics: link or enable GA4, then
    Your apps → the web app: copy the `measurementId` into the production build's
-   `VITE_FIREBASE_MEASUREMENT_ID` (a GitHub variable for the deploy workflow).
+   `VITE_FIREBASE_MEASUREMENT_ID` (a GitHub variable for the deploy workflow). Pull request
+   previews build with `VITE_ANALYTICS_ENABLED=false`, so they never reach the real property.
 2. GA4 → Admin → Data display → Custom definitions: register each custom **event** parameter as an
    event-scoped dimension: `course_id`, `lesson_id`, `quiz_id`, `passed`, `score_percent`,
    `certificate_id`, `assignee_count`, `content_type`, `content_id`, `query_length`,
