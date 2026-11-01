@@ -49,6 +49,7 @@ import { courseSource, editableCourseSource, peopleLookup } from './navigation/r
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { useTips } from './tips/useTips';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -86,6 +87,7 @@ export function areaKeyOf(path: string): AreaKey {
 export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
   const { roles } = useSession();
   const { uid } = useUser();
+  useTips(uid);
   const data = useLearnerData();
   const { data: studioData } = useStudio();
   const admin = roles.includes('admin');

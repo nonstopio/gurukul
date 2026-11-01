@@ -18,7 +18,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations | 7 | 0 | 0 | 0 |
 | Sign-in, roles and shell | 14 | 0 | 0 | 0 |
-| Learner experience | 19 | 0 | 0 | 0 |
+| Learner experience | 20 | 0 | 0 | 0 |
 | Quizzes and certificates | 10 | 0 | 0 | 0 |
 | Admin console and Analytics | 32 | 0 | 0 | 0 |
 | Studio | 17 | 0 | 0 | 0 |
@@ -28,7 +28,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 153 | 0 | 0 | 12 |
+| **Total** | 154 | 0 | 0 | 12 |
 
 ## Pick order
 
@@ -95,6 +95,7 @@ Plan: `05-learner-experience.md`, `design-handoff/01-learner.md` §02–§04, M2
 | `LRN-15` | Block renderer polish | done | — | `packages/schema/src/course.ts` (optional video `title` and `caption`), `packages/ui/src/CodeBlock.tsx` (`copyable`), `apps/web/src/player/blocks.tsx`, `TrackedVideo.tsx`, `styles.css`; file-row icon. Studio inputs for the new fields: `STU-17` |
 | `LRN-16` | Check blocks reveal the right option | done | — | Schema v3: optional `check.correct` (`packages/schema/src/course.ts`, `migrations/steps.ts`), publish check in `draft.ts`, player in `player/blocks.tsx`, Studio radio in `studio/blocks/CheckEditor.tsx`, `studio/lessonEdit.ts`; seed keyed in `firebase/seed/src/git-course.ts`. Live courses at schemaVersion 2 need an Educator to mark answers before the next publish |
 | `LRN-17` | Keyboard shortcuts dialog | done | — | `apps/web/src/ShortcutsDialog.tsx`, `keys.ts` (`isTyping`), mounted in `Shell.tsx` |
+| `LRN-21` | Feature tips: dots on features, one bubble per page, Profile switch | done | — | `apps/web/src/tips/` (`registry.ts` is the list, `useTips.ts` the engine over Driver.js `hints`, `store.ts` remembers per person in localStorage), `packages/ui/src/tips.css`, `ProfilePage.tsx` (`TipsChoice`), `apps/web/test/tips.test.tsx`; `05-learner-experience.md` |
 
 ## Quizzes and certificates
 

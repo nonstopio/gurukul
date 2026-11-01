@@ -1,0 +1,98 @@
+/* The feature-tip bubble and dots (apps/web/src/tips/). Driver.js draws them; this restyles them with
+   role tokens. The vendor stylesheet is left as shipped. */
+.driver-hint {
+  --driver-hint-color: var(--accent);
+  --driver-hint-size: 18px;
+}
+/* The dot sits inside the feature's corner, ringed in the page colour so it reads on any ground. */
+.driver-hint-dot {
+  inset: 22%;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 5px var(--accent-ring),
+    var(--shadow-menu);
+}
+/* The only loop allowed is the global loader's: the dot sits still. */
+.driver-hint-pulse {
+  animation: none;
+  display: none;
+}
+/* A card that floats: the surface colour, an accent hairline (it keeps the edge visible on the dark
+   ground), the menu shadow lifting it off the page. */
+.driver-popover.driver-hint-popover.g-tip {
+  max-width: min(21rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-body);
+  box-shadow: var(--shadow-menu);
+  filter: none;
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+  z-index: var(--z-menu);
+}
+.g-tip .driver-popover-arrow {
+  border-color: var(--surface);
+}
+.g-tip .driver-popover-arrow-side-left {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+}
+.g-tip .driver-popover-arrow-side-right {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+.g-tip .driver-popover-arrow-side-top {
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+.g-tip .driver-popover-arrow-side-bottom {
+  border-top-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+/* The title is the dot's accessible name; the bubble says it in the sentence. */
+.g-tip .driver-popover-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.g-tip .driver-popover-description {
+  font: inherit;
+}
+.g-tip .driver-popover-description b {
+  color: var(--accent);
+}
+.g-tip .driver-popover-close-btn {
+  color: var(--text-muted);
+}
+.g-tip .driver-popover-close-btn:hover,
+.g-tip .driver-popover-close-btn:focus-visible {
+  color: var(--text);
+}
+.g-tip .driver-popover-footer-btn,
+.g-tip .driver-popover-footer-btn:hover,
+.g-tip .driver-popover-footer-btn:focus,
+.g-tip .driver-popover-footer-btn:focus-visible {
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--accent-soft-text);
+  font: 600 var(--text-sm) / 1 var(--font-ui);
+  text-decoration: none;
+}
+.g-tip .driver-popover-footer-btn:hover {
+  background: var(--accent-line);
+}
+.g-tip .driver-popover-close-btn:focus-visible,
+.g-tip .driver-popover-footer-btn:focus-visible,
+.driver-hint:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -20,7 +20,7 @@ export function readTheme(
   }
 }
 
-function safeStorage(): Storage | undefined {
+export function safeStorage(): Storage | undefined {
   try {
     return globalThis.localStorage;
   } catch {

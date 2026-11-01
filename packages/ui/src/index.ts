@@ -170,3 +170,4 @@ export type {
   MediaPreviewProps,
 } from './MediaGallery';
 import './motion.css';
+import './tips.css';
