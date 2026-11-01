@@ -57,6 +57,22 @@ badge on each card. The filters live in the URL, so back and reload keep them. A
 can start any course listed, assigned or not (self-enrolment creates a
 progress doc only, no assignment).
 
+## Feature tips
+
+A small dot sits on each feature of the page that has a tip the person has not dismissed, and the
+first one opens by itself, once, 600 ms after the page draws. A bubble says what the feature does in
+a sentence. **Got it**, or using the feature, dismisses the tip for good; Close, Escape or a click
+elsewhere closes the bubble and keeps the dot. Nothing opens over a dialog or menu.
+
+- The list is one array, `apps/web/src/tips/registry.ts`: id (never reused), routes, selector, title,
+  text. A test checks the shape and that every route exists. Driver.js `hints` (MIT, bundled) does
+  the placing; there is no network request.
+- Memory is per person and browser, in localStorage (`gurukul-tips:<uid>`). Storage that is blocked
+  means no tips, because a tip that cannot be remembered would reopen on every page.
+- Profile → Preferences has a "Feature tips" switch; turning it on again starts every tip over.
+- Not built: tips authored by Educators or Admins, tips stored on the profile (a second browser
+  shows them again), a guided tour.
+
 ## Content rendering
 
 One renderer per block type in `apps/web/src/player/blocks/`. Unknown block

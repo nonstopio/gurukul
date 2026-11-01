@@ -8,6 +8,7 @@ import {
   PageHeader,
   SegmentedControl,
   StatCard,
+  ToggleCard,
 } from '@gurukul/ui';
 import { teamId } from '@gurukul/schema';
 import type { LabelSet, Role } from '@gurukul/schema';
@@ -23,6 +24,7 @@ import { useTerms } from './labels/useTerms';
 import { shownName } from './learn/model';
 import { Loaded } from './learn/ui';
 import { THEME_CHOICES, useTheme } from './theme';
+import { useTipsSwitch } from './tips/store';
 import type { ThemeChoice } from './theme';
 
 /** What each role lets a person do, in their own label set. */
@@ -84,6 +86,7 @@ export function ProfilePage() {
           <TeamList />
           <LabelsChoice />
           <ThemeChoiceControl />
+          <TipsChoice />
         </div>
       </Card>
       <Learning />
@@ -124,6 +127,27 @@ function TeamList() {
         );
       }}
     </Loaded>
+  );
+}
+
+/** Feature tips on or off, for this browser. Turning them on again shows every one from the start. */
+function TipsChoice() {
+  const { uid } = useUser();
+  const { on, available, set } = useTipsSwitch(uid);
+  return (
+    <div className="profile__tips">
+      <ToggleCard
+        title="Feature tips"
+        description={
+          available
+            ? 'Dots that point out what each page can do. Turn on again to see them all.'
+            : 'This browser cannot remember which tips you have seen, so none are shown.'
+        }
+        checked={on}
+        disabled={!available}
+        onChange={(e) => set(e.target.checked)}
+      />
+    </div>
   );
 }
 
