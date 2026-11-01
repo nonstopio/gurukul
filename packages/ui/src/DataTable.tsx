@@ -156,10 +156,19 @@ export function DataTable<T>({
   );
 }
 
+/** How many rows a page holds unless a screen has a reason to differ. See `.claude/rules/pagination.md`. */
+export const DEFAULT_PAGE_SIZE = 25;
+
+/** Rows of page `page` (1-based) of `rows`: the slice a client-side list shows. */
+export function pageOf<T>(rows: readonly T[], page: number, pageSize = DEFAULT_PAGE_SIZE): T[] {
+  return rows.slice((page - 1) * pageSize, page * pageSize);
+}
+
 export interface PaginationProps {
   /** Current page, starting at 1. */
   page: number;
-  pageSize: number;
+  /** Default: `DEFAULT_PAGE_SIZE` (25). */
+  pageSize?: number;
   /** Rows across all pages. */
   total: number;
   onPageChange: (page: number) => void;
@@ -173,7 +182,7 @@ export interface PaginationProps {
 /** "Showing 1–25 of 148" with Previous and Next. Pages are 1-based. */
 export function Pagination({
   page,
-  pageSize,
+  pageSize = DEFAULT_PAGE_SIZE,
   total,
   onPageChange,
   label = 'Pagination',

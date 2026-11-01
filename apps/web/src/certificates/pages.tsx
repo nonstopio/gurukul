@@ -9,6 +9,7 @@ import {
   EmptyState,
   Page,
   PageHeader,
+  Pagination,
   StatCard,
   buttonClass,
   useToast,
@@ -26,6 +27,7 @@ import { linkedInUrl, longDate } from '../quiz/model';
 import { TrackClick, useTrackOnMount } from '../analytics/react/Track';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 import { useAudience } from '../data/useAudience';
 
 /** The address links point at: `VITE_SITE_URL` when set (the custom domain), else where the app is open. */
@@ -216,6 +218,7 @@ export function CertificatesPage() {
   const data = useLearnerData();
   const t = useTerms();
   const uid = useUser().uid;
+  const [page, setPage] = useState(1);
   const result = useAsync(useCallback(() => data.myCertificates(uid), [data, uid]));
   return (
     <Page>
@@ -224,8 +227,9 @@ export function CertificatesPage() {
         lead="Every certificate you have earned, newest first. Each one has a public verify link."
       />
       <Loaded loadable={result}>
-        {(list) =>
-          list.length === 0 ? (
+        {(list) => {
+          const paged = pageFor(list, page);
+          return list.length === 0 ? (
             <EmptyState
               title="No certificates yet"
               headingAs="h2"
@@ -240,7 +244,7 @@ export function CertificatesPage() {
           ) : (
             <Card>
               <ul className="learn-rows">
-                {list.map((c) => (
+                {paged.rows.map((c) => (
                   <li key={c.id}>
                     <Link className="course-row" to={`/certificates/${c.id}`}>
                       <span className="learn-stack">
@@ -254,9 +258,15 @@ export function CertificatesPage() {
                   </li>
                 ))}
               </ul>
+              <Pagination
+                label="Certificates"
+                page={paged.page}
+                total={list.length}
+                onPageChange={setPage}
+              />
             </Card>
-          )
-        }
+          );
+        }}
       </Loaded>
     </Page>
   );

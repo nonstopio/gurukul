@@ -119,6 +119,26 @@ describe('Studio courses page', () => {
     expect(screen.getByRole('link', { name: 'Git' })).toBeTruthy();
   });
 
+  it('pages 25 courses at a time, and starts again at page one on another tab', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      live: makeCourse({
+        id: `c${i}`,
+        title: `Course ${String(i).padStart(2, '0')}`,
+        educatorIds: ['u1'],
+      }),
+      draft: null,
+    }));
+    await openApp('/studio', { roles: ['educator'], studio: fakeStudio({ courses: many }) });
+    expect(await screen.findByRole('link', { name: 'Course 00' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Course 25' })).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('link', { name: 'Course 25' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Course 00' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Published (30)' }));
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+  });
+
   it('shows an empty state with no courses, and a load failure', async () => {
     await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
     expect(await screen.findByRole('heading', { name: 'No courses yet' })).toBeTruthy();

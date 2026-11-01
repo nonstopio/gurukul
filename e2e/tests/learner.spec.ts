@@ -64,7 +64,7 @@ test.describe('Learner', () => {
     await expect(page.getByRole('button', { name: 'Try another account' })).toBeVisible();
   });
 
-  test('needs the privacy policy accepted to sign in, and keeps the policy one click away', async ({
+  test('needs the privacy policy accepted to sign in, and keeps it out of the sidebar', async ({
     page,
   }) => {
     await page.goto('/');
@@ -83,7 +83,7 @@ test.describe('Learner', () => {
     await signInWithGoogle(page, asha);
     await page.getByRole('button', { name: /Plain English/ }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Namaste, Asha' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Privacy policy' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Privacy policy' })).toHaveCount(0);
   });
 
   test('passes the final Quiz, gets a certificate and anyone can verify it', async ({

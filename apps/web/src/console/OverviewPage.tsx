@@ -10,6 +10,7 @@ import {
   FilterBar,
   Page,
   PageHeader,
+  Pagination,
   Select,
   StatCard,
 } from '@gurukul/ui';
@@ -20,6 +21,7 @@ import { useAsync } from '../data/useAsync';
 import { useAudience } from '../data/useAudience';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
+import { pageFor } from '../paging';
 import { useConsole } from './ConsoleProvider';
 import { NeedsAttention } from './NeedsAttention';
 import type { AttentionInput } from './NeedsAttention';
@@ -45,6 +47,7 @@ export function OverviewPage() {
   const [now] = useState(() => new Date());
   const [range, setRange] = useState<DateRange>('all');
   const [team, setTeam] = useState('');
+  const [page, setPage] = useState(1);
   const load = useCallback(async () => {
     const [org, courses, assignments, open, overdue, recent, teams] = await Promise.all([
       data.orgStats(),
@@ -124,6 +127,7 @@ export function OverviewPage() {
           const pending = new Set(open.filter((a) => a.uid === null).map((a) => a.email)).size;
           const series = weeklySeries(org, now);
           const quiet = series.every((s) => s.value === 0);
+          const paged = pageFor(rows, page);
           const done = pct(org.assignmentsCompleted, org.assignmentsTotal);
           const avgScore = pct(org.quizScoreSum, org.quizScoreCount);
           const firstTry = pct(org.quizFirstTryPassed, org.quizFirstTryTotal);
@@ -226,8 +230,16 @@ export function OverviewPage() {
                 ) : (
                   <DataTable
                     caption="Course funnel"
-                    rows={rows}
+                    rows={paged.rows}
                     rowKey={(r) => r.course.id}
+                    footer={
+                      <Pagination
+                        label="Courses"
+                        page={paged.page}
+                        total={rows.length}
+                        onPageChange={setPage}
+                      />
+                    }
                     columns={[
                       {
                         id: 'course',

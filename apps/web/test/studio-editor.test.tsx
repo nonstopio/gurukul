@@ -589,6 +589,26 @@ describe('Course editor: analytics', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it('pages the people who started the course, 25 at a time', async () => {
+    const consoleApi = fakeConsole({
+      learners: Array.from({ length: 30 }, (_, i) => ({
+        uid: `u${i}`,
+        displayName: `Person ${String(i).padStart(2, '0')}`,
+        percent: i,
+        lastActiveAt: null,
+      })),
+    });
+    await open({ consoleApi });
+    await ready();
+    fireEvent.click(screen.getByRole('tab', { name: 'Analytics' }));
+    expect(await screen.findByText('Person 00')).toBeTruthy();
+    expect(screen.queryByText('Person 29')).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Person 29')).toBeTruthy();
+    expect(screen.queryByText('Person 00')).toBeNull();
+  });
+
   it('says so when no one has started', async () => {
     await open({ consoleApi: fakeConsole() });
     await ready();
@@ -656,6 +676,23 @@ describe('Course editor: versions', () => {
     expect(await screen.findByText('Version 2 is live again, as v3.')).toBeTruthy();
     await waitFor(() => expect(studio.data.getDraft).toHaveBeenCalledTimes(2));
     expect(learner.data.getCourse).toHaveBeenCalledTimes(2);
+  });
+
+  it('pages 25 versions at a time, newest first', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      version: 30 - i,
+      publishedAt: null,
+      title: `Release ${30 - i}`,
+    }));
+    await open({ versions: many });
+    await ready();
+    fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
+    expect(await screen.findByText('Release 30')).toBeTruthy();
+    expect(screen.queryByText('Release 5')).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Release 5')).toBeTruthy();
+    expect(screen.queryByText('Release 30')).toBeNull();
   });
 
   it('shows a rollback failure and an empty list', async () => {

@@ -60,8 +60,8 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   each assignment stores `assignedByName`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
   20 hours via `lastRemindedAt`), and
-  `listEmailTemplates` and `sendTestEmail` (every template in `email-templates.ts` with sample data; the test goes to the caller
-  only, `[Test]` subject, `GEN_5004` when the mailer is `unconfiguredMailer`; no audit entry), and
+  `listEmailTemplates` and `sendTestEmail` (every template in `email-templates.ts` with sample data; the test goes to the one or two
+  `@nonstopio.com` `recipients` named, `[Test]` subject, `GEN_5004` when the mailer is `unconfiguredMailer`; no audit entry), and
   `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.educatorIds` and the profile's display name
   into `educatorNames` on every granted course, existing courses only).
 - Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`

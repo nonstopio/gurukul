@@ -9,6 +9,7 @@ import {
   MediaPreview,
   Page,
   PageHeader,
+  Pagination,
   Select,
   buttonClass,
   mediaKindName,
@@ -22,6 +23,7 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 import { useStudio } from './StudioProvider';
 import {
   collectMedia,
@@ -49,6 +51,7 @@ export function MediaPage() {
   const [search, setSearch] = useState('');
   const [type, setType] = useState<MediaKind | 'all'>('all');
   const [open, setOpen] = useState<MediaEntry | null>(null);
+  const [page, setPage] = useState(1);
   const result = useAsync(
     useCallback(
       () => data.listCourses(uid, admin).then((rows) => collectMedia(rows)),
@@ -98,6 +101,7 @@ export function MediaPage() {
           }
           const present = TYPES.filter((k) => entries.some((e) => galleryKind(e) === k));
           const found = filterMedia(entries, search, type);
+          const paged = pageFor(found, page);
           return (
             <>
               <FilterBar
@@ -107,6 +111,7 @@ export function MediaPage() {
                 onClear={() => {
                   setSearch('');
                   setType('all');
+                  setPage(1);
                 }}
               >
                 <Input
@@ -115,13 +120,19 @@ export function MediaPage() {
                   type="search"
                   placeholder="Search by name, link or course"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                 />
                 <Select
                   label="Type"
                   hideLabel
                   value={type}
-                  onChange={(e) => setType(e.target.value as MediaKind | 'all')}
+                  onChange={(e) => {
+                    setType(e.target.value as MediaKind | 'all');
+                    setPage(1);
+                  }}
                 >
                   <option value="all">All types</option>
                   {present.map((k) => (
@@ -136,20 +147,28 @@ export function MediaPage() {
                   Clear the search or pick another type.
                 </EmptyState>
               ) : (
-                <MediaGallery
-                  label="Media"
-                  selectedId={open ? keyOf(open) : null}
-                  items={found.map((e) => ({
-                    id: keyOf(e),
-                    name: mediaName(e),
-                    meta: `${mediaKindName(galleryKind(e))} · ${usedText(e)}`,
-                    kind: galleryKind(e),
-                    url: e.url,
-                  }))}
-                  onSelect={(item) =>
-                    setOpen(found.find((e) => keyOf(e) === item.id) as MediaEntry)
-                  }
-                />
+                <>
+                  <MediaGallery
+                    label="Media"
+                    selectedId={open ? keyOf(open) : null}
+                    items={paged.rows.map((e) => ({
+                      id: keyOf(e),
+                      name: mediaName(e),
+                      meta: `${mediaKindName(galleryKind(e))} · ${usedText(e)}`,
+                      kind: galleryKind(e),
+                      url: e.url,
+                    }))}
+                    onSelect={(item) =>
+                      setOpen(found.find((e) => keyOf(e) === item.id) as MediaEntry)
+                    }
+                  />
+                  <Pagination
+                    label="Media"
+                    page={paged.page}
+                    total={found.length}
+                    onPageChange={setPage}
+                  />
+                </>
               )}
             </>
           );

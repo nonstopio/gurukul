@@ -6,6 +6,7 @@ import {
   Dialog,
   EmptyState,
   Input,
+  Pagination,
   PlusIcon,
   SegmentedControl,
   UserIcon,
@@ -16,14 +17,12 @@ import { useState } from 'react';
 import { toastError } from '../errors';
 import type { Loadable } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
+import { pageFor } from '../paging';
 import { PeopleField } from './PeopleField';
 import { MAX_MEMBERS, checkTeamName } from './model';
 import type { ConsoleData } from './types';
 
 export type AudienceMode = 'teams' | 'people';
-
-/** How many teams or people show before "Show more". */
-export const PAGE = 10;
 
 const MODES = [
   { value: 'teams', label: 'Teams' },
@@ -167,7 +166,7 @@ function TeamsPicker({
 }) {
   const toast = useToast();
   const [query, setQuery] = useState('');
-  const [limit, setLimit] = useState(PAGE);
+  const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [members, setMembers] = useState<string[]>([]);
@@ -216,7 +215,7 @@ function TeamsPicker({
       {(teams) => {
         const text = query.trim().toLowerCase();
         const matches = teams.filter((x) => x.name.toLowerCase().includes(text));
-        const shown = matches.slice(0, limit);
+        const paged = pageFor(matches, page);
         return (
           <>
             <div className="console-pick-head">
@@ -228,7 +227,7 @@ function TeamsPicker({
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  setLimit(PAGE);
+                  setPage(1);
                 }}
               />
               <Button
@@ -269,7 +268,7 @@ function TeamsPicker({
             <p className="console-muted" aria-live="polite" hidden={teams.length === 0 && creating}>
               {text
                 ? `${plural(matches.length, 'team matches', 'teams match')} of ${teams.length}`
-                : `Showing ${shown.length} of ${plural(teams.length, 'team', 'teams')}`}
+                : plural(teams.length, 'team', 'teams')}
               {teamNames.length > 0 ? ` · ${teamNames.length} selected` : ''}
             </p>
             {teams.length === 0 && creating ? null : teams.length === 0 ? (
@@ -282,7 +281,7 @@ function TeamsPicker({
               </EmptyState>
             ) : (
               <ul className="console-choice-grid">
-                {shown.map((x) => (
+                {paged.rows.map((x) => (
                   <ChoiceCard
                     key={x.id}
                     icon={<UsersIcon />}
@@ -294,11 +293,16 @@ function TeamsPicker({
                 ))}
               </ul>
             )}
-            {matches.length > shown.length ? (
-              <Button variant="ghost" onClick={() => setLimit(limit + PAGE)}>
-                {`Show ${Math.min(PAGE, matches.length - shown.length)} more`}
-              </Button>
-            ) : null}
+            {matches.length === 0 ? null : (
+              <Pagination
+                label="Teams"
+                previousLabel="Earlier teams"
+                nextLabel="More teams"
+                page={paged.page}
+                total={matches.length}
+                onPageChange={setPage}
+              />
+            )}
           </>
         );
       }}

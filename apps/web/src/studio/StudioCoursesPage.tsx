@@ -1,4 +1,14 @@
-import { Button, Card, Chip, EmptyState, LockIcon, Page, PageHeader, Tabs } from '@gurukul/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  LockIcon,
+  Page,
+  PageHeader,
+  Pagination,
+  Tabs,
+} from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -7,6 +17,7 @@ import { useAsync } from '../data/useAsync';
 import { countItems } from '../learn/model';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
+import { pageFor } from '../paging';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { StudioCourse } from './types';
@@ -77,9 +88,11 @@ function CourseTabs({
 }) {
   const counts = tabCounts(rows);
   const [tab, setTab] = useState<CourseTab>('all');
+  const [page, setPage] = useState(1);
   const panel = (id: CourseTab, empty: string) => {
     if (id !== tab) return null;
     const shown = rows.filter((r) => inTab(r, id));
+    const paged = pageFor(shown, page);
     return shown.length === 0 ? (
       <EmptyState
         title={empty}
@@ -93,17 +106,20 @@ function CourseTabs({
         Start a blank course, or duplicate one you already have.
       </EmptyState>
     ) : (
-      <ul className="sc-grid">
-        {shown.map((row) => (
-          <CourseCard key={row.live.id} row={row} uid={uid} admin={admin} now={now} />
-        ))}
-        <li className="sc-new">
-          <Button variant="secondary" onClick={onNew}>
-            Start a new course
-          </Button>
-          <p className="sc-card__meta">Blank, or duplicate an existing one</p>
-        </li>
-      </ul>
+      <>
+        <ul className="sc-grid">
+          {paged.rows.map((row) => (
+            <CourseCard key={row.live.id} row={row} uid={uid} admin={admin} now={now} />
+          ))}
+          <li className="sc-new">
+            <Button variant="secondary" onClick={onNew}>
+              Start a new course
+            </Button>
+            <p className="sc-card__meta">Blank, or duplicate an existing one</p>
+          </li>
+        </ul>
+        <Pagination label="Courses" page={paged.page} total={shown.length} onPageChange={setPage} />
+      </>
     );
   };
   const tabs: [TabItem, ...TabItem[]] = [
@@ -120,7 +136,10 @@ function CourseTabs({
       label="Course status"
       tabs={tabs}
       value={tab}
-      onValueChange={(v) => setTab(v as CourseTab)}
+      onValueChange={(v) => {
+        setTab(v as CourseTab);
+        setPage(1);
+      }}
     />
   );
 }

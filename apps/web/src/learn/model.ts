@@ -147,9 +147,6 @@ export const LEVEL_LABELS: Record<Course['level'], string> = {
   advanced: 'Advanced',
 };
 
-/** Past this many assigned courses, Home shows the first ones and a "Show all" button. */
-export const ASSIGNED_PREVIEW = 10;
-
 /** The item a learner resumes at, with the chapter it sits in; null for a course with no items. */
 export function upNext(
   course: Course,

@@ -1,40 +1,48 @@
-import { Button, DataTable, EmptyState, Page, PageHeader, useToast } from '@gurukul/ui';
+import {
+  DataTable,
+  DEFAULT_PAGE_SIZE,
+  EmptyState,
+  Page,
+  PageHeader,
+  Pagination,
+} from '@gurukul/ui';
 import { useCallback, useState } from 'react';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
-import { log } from '../log';
-import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
-import { auditDetail, auditLabel } from './model';
+import { auditDetail, auditLabel, dateTime } from './model';
 import type { AuditCursor, AuditRow } from './types';
 
-const PAGE_SIZE = 50;
-
-/** `/admin/audit`: Admin and Educator actions, newest first, read-only. Entries come from functions. */
+/**
+ * `/admin/audit`: Admin and Educator actions, newest first, read-only, 25 to a page with the day
+ * and time of each. Entries come from functions. Each page is read from Firestore by cursor; the
+ * cursor of every page already visited is kept, so Previous never re-reads a page.
+ */
 export function AuditPage() {
   const { data } = useConsole();
   const t = useTerms();
-  const first = useAsync(useCallback(() => data.auditPage(null, PAGE_SIZE), [data]));
-  const [later, setLater] = useState<{ rows: AuditRow[]; cursor: AuditCursor | null } | null>(null);
-  const toast = useToast();
-  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<Array<AuditCursor | null>>([null]);
+  const result = useAsync(
+    useCallback(async () => {
+      const [total, entries] = await Promise.all([
+        data.auditCount(),
+        data.auditPage(cursors[page - 1] ?? null, DEFAULT_PAGE_SIZE),
+      ]);
+      return { total, ...entries };
+    }, [data, page, cursors]),
+  );
 
-  const loadMore = async (from: AuditCursor) => {
-    setLoading(true);
-    try {
-      const page = await data.auditPage(from, PAGE_SIZE);
-      setLater((prev) => ({
-        rows: [...(prev?.rows ?? []), ...page.rows],
-        cursor: page.nextCursor,
-      }));
-    } catch (e) {
-      log.error('Audit page failed to load', e);
-      toast.show('Could not load more entries. Check your connection and try again.', {
-        tone: 'danger',
+  const goTo = (next: number, nextCursor: AuditCursor | null) => {
+    if (next > page && nextCursor !== null) {
+      setCursors((c) => {
+        const copy = [...c];
+        copy[page] = nextCursor;
+        return copy;
       });
     }
-    setLoading(false);
+    setPage(next);
   };
 
   return (
@@ -44,48 +52,44 @@ export function AuditPage() {
         title="Audit log"
         lead="Every recorded action, newest first. Nothing here can be edited."
       />
-      <Loaded loadable={first}>
-        {(page) => {
-          const rows = [...page.rows, ...(later?.rows ?? [])];
-          const next = later === null ? page.nextCursor : later.cursor;
-          return (
-            <>
-              <DataTable<AuditRow>
-                caption="Audit log"
-                rows={rows}
-                rowKey={(r) => r.id}
-                empty={
-                  <EmptyState title="Nothing recorded yet">
-                    Assignments, role changes, reminders and course publishing appear here.
-                  </EmptyState>
-                }
-                columns={[
-                  {
-                    id: 'when',
-                    header: 'When',
-                    rowHeader: true,
-                    cell: (r) => (r.at ? longDate(r.at) : '—'),
-                  },
-                  { id: 'who', header: 'Who', cell: (r) => r.by },
-                  { id: 'what', header: 'Action', cell: (r) => auditLabel(r.action, t) },
-                  { id: 'target', header: 'Target', cell: (r) => r.target ?? '—' },
-                  {
-                    id: 'detail',
-                    header: 'Detail',
-                    cell: (r) => auditDetail(r.action, r.detail, t) ?? '—',
-                  },
-                ]}
-              />
-              {next !== null && (
-                <div>
-                  <Button variant="secondary" loading={loading} onClick={() => void loadMore(next)}>
-                    Load older entries
-                  </Button>
-                </div>
-              )}
-            </>
-          );
-        }}
+      <Loaded loadable={result}>
+        {({ rows, total, nextCursor }) => (
+          <DataTable<AuditRow>
+            caption="Audit log"
+            rows={rows}
+            rowKey={(r) => r.id}
+            empty={
+              <EmptyState title="Nothing recorded yet">
+                Assignments, role changes, reminders and course publishing appear here.
+              </EmptyState>
+            }
+            columns={[
+              {
+                id: 'when',
+                header: 'When',
+                rowHeader: true,
+                cell: (r) => (r.at ? dateTime(r.at) : '—'),
+              },
+              { id: 'who', header: 'Who', cell: (r) => r.by },
+              { id: 'what', header: 'Action', cell: (r) => auditLabel(r.action, t) },
+              { id: 'target', header: 'Target', cell: (r) => r.target ?? '—' },
+              {
+                id: 'detail',
+                header: 'Detail',
+                cell: (r) => auditDetail(r.action, r.detail, t) ?? '—',
+              },
+            ]}
+            footer={
+              total > DEFAULT_PAGE_SIZE ? (
+                <Pagination
+                  page={page}
+                  total={total}
+                  onPageChange={(next) => goTo(next, nextCursor)}
+                />
+              ) : undefined
+            }
+          />
+        )}
       </Loaded>
     </Page>
   );

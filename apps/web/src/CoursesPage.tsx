@@ -6,10 +6,11 @@ import {
   SearchCard,
   Page,
   PageHeader,
+  Pagination,
   SegmentedControl,
   Select,
 } from '@gurukul/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
@@ -29,6 +30,7 @@ import type { CatalogueQuery, CatalogueSort, CatalogueView } from './learn/catal
 import { LEVEL_LABELS, countItems, courseImageUrl, isRetired } from './learn/model';
 import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
+import { pageFor } from './paging';
 
 /**
  * The courses the person may open, with search, view chips (All, Assigned to me, In progress,
@@ -43,10 +45,15 @@ export function CoursesPage() {
   const t = useTerms();
   const [params, setParams] = useSearchParams();
   const query = useMemo(() => parseQuery(params), [params]);
-  const change = (next: Partial<CatalogueQuery>) =>
+  const [page, setPage] = useState(1);
+  const change = (next: Partial<CatalogueQuery>) => {
+    setPage(1);
     setParams(queryParams({ ...query, ...next }), { replace: true });
-  const clear = () =>
+  };
+  const clear = () => {
+    setPage(1);
     setParams(queryParams({ ...DEFAULT_QUERY, sort: query.sort }), { replace: true });
+  };
 
   const teamKey = teamIds.join(',');
   const load = useCallback(async () => {
@@ -65,6 +72,7 @@ export function CoursesPage() {
   const result = useAsync(load);
   const shown =
     result.state === 'ready' ? applyQuery(result.value.courses, query, result.value) : [];
+  const paged = pageFor(shown, page);
 
   return (
     <Page>
@@ -166,34 +174,42 @@ export function CoursesPage() {
               Try other words, another level, or a different view.
             </EmptyState>
           ) : (
-            <ul className="learn-cards g-stagger">
-              {shown.map((c, i) => {
-                const n = countItems(c);
-                return (
-                  <CourseTile
-                    as="li"
-                    key={c.id}
-                    title={c.title}
-                    heading={<Link to={`/courses/${c.id}`}>{c.title}</Link>}
-                    image={courseImageUrl(c)}
-                    theme={c.cover.theme}
-                    style={{ '--i': i } as CSSProperties}
-                    chips={
-                      <>
-                        <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
-                        <Chip tone={c.visibility === 'public' ? 'neutral' : 'info'}>
-                          {VISIBILITY_LABELS[c.visibility ?? 'public']}
-                        </Chip>
-                        {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
-                        {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}
-                      </>
-                    }
-                    summary={c.summary}
-                    meta={`${n.lessons} lessons · ${n.quizzes} ${t.Quizzes} · ${c.estimatedMinutes} min`}
-                  />
-                );
-              })}
-            </ul>
+            <>
+              <ul className="learn-cards g-stagger">
+                {paged.rows.map((c, i) => {
+                  const n = countItems(c);
+                  return (
+                    <CourseTile
+                      as="li"
+                      key={c.id}
+                      title={c.title}
+                      heading={<Link to={`/courses/${c.id}`}>{c.title}</Link>}
+                      image={courseImageUrl(c)}
+                      theme={c.cover.theme}
+                      style={{ '--i': i } as CSSProperties}
+                      chips={
+                        <>
+                          <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
+                          <Chip tone={c.visibility === 'public' ? 'neutral' : 'info'}>
+                            {VISIBILITY_LABELS[c.visibility ?? 'public']}
+                          </Chip>
+                          {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
+                          {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}
+                        </>
+                      }
+                      summary={c.summary}
+                      meta={`${n.lessons} lessons · ${n.quizzes} ${t.Quizzes} · ${c.estimatedMinutes} min`}
+                    />
+                  );
+                })}
+              </ul>
+              <Pagination
+                label="Courses"
+                page={paged.page}
+                total={shown.length}
+                onPageChange={setPage}
+              />
+            </>
           )
         }
       </Loaded>

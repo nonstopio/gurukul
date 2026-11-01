@@ -2,6 +2,7 @@ import {
   Avatar,
   Button,
   Chip,
+  DEFAULT_PAGE_SIZE,
   DataTable,
   Dialog,
   EmptyState,
@@ -48,7 +49,6 @@ import {
 import type { LearnerRow, LearnerTab, Person } from './model';
 import type { AssignmentFull, UserPage, UserRow } from './types';
 
-export const PAGE_SIZE = 25;
 /** People per read when "Select all" walks the whole list. */
 const SELECT_ALL_READ = 100;
 
@@ -218,9 +218,9 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       let counts = meta.counts;
       let nextCursor: string | null = null;
       if (!filtered && (tab === 'all' || tab === 'signedIn')) {
-        const span = allPage(page, PAGE_SIZE, meta.total);
+        const span = allPage(page, DEFAULT_PAGE_SIZE, meta.total);
         const people = span.people
-          ? await data.usersPage(cursors[page - 1] ?? null, PAGE_SIZE)
+          ? await data.usersPage(cursors[page - 1] ?? null, DEFAULT_PAGE_SIZE)
           : { rows: [], nextCursor: null };
         nextCursor = people.nextCursor;
         onPage = [
@@ -235,7 +235,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         const people = filtered ? filterPeople(users, scope, filters, !team && !role) : meta.people;
         if (filtered) counts = tabCounts(people, scope, now);
         const inTab = onTab(people, tab, scope, now);
-        onPage = inTab.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        onPage = inTab.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
         total = inTab.length;
       }
       const unread = onPage.filter((p) => p.uid !== null && p.user === null);
@@ -398,12 +398,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
             },
           ]}
           footer={
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              onPageChange={(next) => goTo(next, nextCursor)}
-            />
+            <Pagination page={page} total={total} onPageChange={(next) => goTo(next, nextCursor)} />
           }
         />
       )}

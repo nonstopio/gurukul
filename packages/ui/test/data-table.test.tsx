@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { DataTable, Pagination, type DataTableColumn } from '../src';
+import { DEFAULT_PAGE_SIZE, DataTable, Pagination, pageOf, type DataTableColumn } from '../src';
 import { axeViolations } from './axe';
 
 interface Person {
@@ -242,5 +242,17 @@ describe('Pagination wording', () => {
     );
     expect(screen.getByRole('button', { name: 'Earlier' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Later' })).toBeTruthy();
+  });
+});
+
+describe('default page size', () => {
+  it('is 25, used by Pagination and pageOf when no size is given', () => {
+    expect(DEFAULT_PAGE_SIZE).toBe(25);
+    const rows = Array.from({ length: 60 }, (_, i) => i);
+    expect(pageOf(rows, 1)).toHaveLength(25);
+    expect(pageOf(rows, 3)).toEqual(rows.slice(50));
+    expect(pageOf(rows, 2, 10)[0]).toBe(10);
+    render(<Pagination page={1} total={60} onPageChange={() => undefined} />);
+    expect(screen.getByText('Showing 1–25 of 60')).toBeTruthy();
   });
 });

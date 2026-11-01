@@ -202,8 +202,8 @@ describe('Home handoff details', () => {
     expect(screen.getByText('Worked on Git, the NonStop Way')).toBeTruthy();
   });
 
-  it('shows the first ten assignments and a Show all button', async () => {
-    const courses = Array.from({ length: 12 }, (_, i) =>
+  it('pages assignments 25 at a time, and shows no pager for a few', async () => {
+    const courses = Array.from({ length: 30 }, (_, i) =>
       makeCourse({ id: `c${i}`, title: `Course ${String(i).padStart(2, '0')}` }),
     );
     const assignments = courses.map((c, i) =>
@@ -213,11 +213,13 @@ describe('Home handoff details', () => {
     const list = (await screen.findByRole('heading', { name: 'Assigned to you' })).closest(
       'section',
     ) as HTMLElement;
-    expect(within(list).getAllByRole('listitem').length).toBe(10);
-    fireEvent.click(screen.getByRole('button', { name: 'Show all 12' }));
-    expect(within(list).getAllByRole('listitem').length).toBe(12);
-    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
-    expect(within(list).getAllByRole('listitem').length).toBe(10);
+    expect(within(list).getAllByRole('listitem').length).toBe(25);
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(within(list).getAllByRole('listitem').length).toBe(5);
+    expect(screen.getByText('Showing 26–30 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(within(list).getAllByRole('listitem').length).toBe(25);
   });
 });
 
@@ -329,6 +331,27 @@ describe('Catalogue', () => {
     expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
     expect(within(filters).getByRole('status').textContent).toBe('2 of 2 courses');
     expect(within(filters).queryByRole('button', { name: 'Clear all filters' })).toBeNull();
+  });
+
+  it('pages 25 courses at a time, and starts again at page one when a filter changes', async () => {
+    const many = Array.from({ length: 30 }, (_, i) =>
+      makeCourse({ id: `c${i}`, title: `Course ${String(i).padStart(2, '0')}` }),
+    );
+    await open('/courses', fakeData({ courses: many }));
+    expect(await screen.findByRole('link', { name: 'Course 00' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Course 25' })).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('link', { name: 'Course 25' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Course 00' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'course' } });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'zzz' } });
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: 'Clear all filters' }))[0] as HTMLElement,
+    );
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
   });
 
   it('says when no course is published yet', async () => {

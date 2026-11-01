@@ -66,7 +66,7 @@ export { Certificate, courseFontSize, nameFontSize, printCertificateClass } from
 export type { CertificateProps } from './Certificate';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
-export { DataTable, Pagination } from './DataTable';
+export { DEFAULT_PAGE_SIZE, DataTable, Pagination, pageOf } from './DataTable';
 export type { DataTableColumn, DataTableProps, PaginationProps } from './DataTable';
 export { PeoplePicker, splitEmails } from './PeoplePicker';
 export type { EmailClassification, EmailStatus, PeoplePickerProps, Person } from './PeoplePicker';

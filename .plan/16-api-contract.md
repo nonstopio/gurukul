@@ -79,7 +79,7 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `resetCooldown` | Admin | `{ ok: true }` |
 | `remindLearners` | Admin | `{ sent: number, skipped: number }` |
 | `listEmailTemplates` | Admin | `{ id, name, when, subject, body }[]`, every email template filled with sample data |
-| `sendTestEmail` | Admin | `{ to: string }`, the caller's own address (`GEN_5004` when no Gmail credentials are set) |
+| `sendTestEmail` | Admin | `{ to: string[] }`: the one or two `@nonstopio.com` addresses the Admin named, de-duplicated (`GEN_5004` when no Gmail credentials are set) |
 | `createCourse` | Educator, Admin | `{ courseId: string }` (`CRS_1002` when the slug is taken) |
 | `publishCourse` | Course Educator, Admin | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems) |
 | `rollbackCourse` | Course Educator, Admin | `{ version: number }`, the new version (`CRS_2002` for an unknown snapshot) |

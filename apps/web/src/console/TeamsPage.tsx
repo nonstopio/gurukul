@@ -9,6 +9,7 @@ import {
   Input,
   Page,
   PageHeader,
+  Pagination,
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useEffect, useId, useState } from 'react';
@@ -16,6 +17,7 @@ import type { FormEvent } from 'react';
 import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { PeopleField } from './PeopleField';
@@ -37,6 +39,7 @@ export function TeamsPage() {
   const [editing, setEditing] = useState<Team | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Team | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
   const result = useAsync(
     useCallback(async () => {
       return { teams: await data.teamList(), reload };
@@ -67,91 +70,104 @@ export function TeamsPage() {
         actions={<Button onClick={() => setEditing('new')}>Create team</Button>}
       />
       <Loaded loadable={result}>
-        {({ teams }) => (
-          <>
-            <DataTable<Team>
-              caption="Teams"
-              rows={teams}
-              rowKey={(team) => team.id}
-              empty={
-                <EmptyState
-                  title="No teams yet"
-                  action={<Button onClick={() => setEditing('new')}>Create team</Button>}
-                >
-                  A team is a name and the people on it, so a whole group can be assigned a course
-                  at once.
-                </EmptyState>
-              }
-              columns={[
-                { id: 'name', header: 'Team', rowHeader: true, cell: (team) => team.name },
-                {
-                  id: 'members',
-                  header: 'Members',
-                  cell: (team) => members(team.memberEmails.length),
-                },
-                {
-                  id: 'actions',
-                  header: <span className="sr-only">Actions</span>,
-                  align: 'end',
-                  cell: (team) => (
-                    <span className="console-row__chips">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        aria-label={`Edit ${team.name}`}
-                        onClick={() => setEditing(team)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        aria-label={`Delete ${team.name}`}
-                        onClick={() => setDeleting(team)}
-                      >
-                        Delete
-                      </Button>
-                    </span>
-                  ),
-                },
-              ]}
-            />
-            {editing ? (
-              <TeamDialog
-                team={editing === 'new' ? null : editing}
-                teams={teams}
-                onClose={() => setEditing(null)}
-                onSaved={() => {
-                  setEditing(null);
-                  setReload(reload + 1);
-                }}
-              />
-            ) : null}
-            <Dialog
-              open={deleting !== null}
-              onClose={() => setDeleting(null)}
-              title={`Delete ${deleting?.name ?? ''}?`}
-              footer={
-                <>
-                  <Button variant="secondary" onClick={() => setDeleting(null)}>
-                    Keep team
-                  </Button>
-                  <Button
-                    variant="danger"
-                    loading={busy}
-                    onClick={() => void remove(deleting as Team)}
+        {({ teams }) => {
+          const paged = pageFor(teams, page);
+          return (
+            <>
+              <DataTable<Team>
+                caption="Teams"
+                rows={paged.rows}
+                footer={
+                  teams.length === 0 ? undefined : (
+                    <Pagination
+                      label="Teams"
+                      page={paged.page}
+                      total={teams.length}
+                      onPageChange={setPage}
+                    />
+                  )
+                }
+                rowKey={(team) => team.id}
+                empty={
+                  <EmptyState
+                    title="No teams yet"
+                    action={<Button onClick={() => setEditing('new')}>Create team</Button>}
                   >
-                    {`Delete ${deleting?.name ?? ''}`}
-                  </Button>
-                </>
-              }
-            >
-              <p>
-                {`${t.Learners} who picked this team keep it on their profile. Courses already assigned stay assigned.`}
-              </p>
-            </Dialog>
-          </>
-        )}
+                    A team is a name and the people on it, so a whole group can be assigned a course
+                    at once.
+                  </EmptyState>
+                }
+                columns={[
+                  { id: 'name', header: 'Team', rowHeader: true, cell: (team) => team.name },
+                  {
+                    id: 'members',
+                    header: 'Members',
+                    cell: (team) => members(team.memberEmails.length),
+                  },
+                  {
+                    id: 'actions',
+                    header: <span className="sr-only">Actions</span>,
+                    align: 'end',
+                    cell: (team) => (
+                      <span className="console-row__chips">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          aria-label={`Edit ${team.name}`}
+                          onClick={() => setEditing(team)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          aria-label={`Delete ${team.name}`}
+                          onClick={() => setDeleting(team)}
+                        >
+                          Delete
+                        </Button>
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+              {editing ? (
+                <TeamDialog
+                  team={editing === 'new' ? null : editing}
+                  teams={teams}
+                  onClose={() => setEditing(null)}
+                  onSaved={() => {
+                    setEditing(null);
+                    setReload(reload + 1);
+                  }}
+                />
+              ) : null}
+              <Dialog
+                open={deleting !== null}
+                onClose={() => setDeleting(null)}
+                title={`Delete ${deleting?.name ?? ''}?`}
+                footer={
+                  <>
+                    <Button variant="secondary" onClick={() => setDeleting(null)}>
+                      Keep team
+                    </Button>
+                    <Button
+                      variant="danger"
+                      loading={busy}
+                      onClick={() => void remove(deleting as Team)}
+                    >
+                      {`Delete ${deleting?.name ?? ''}`}
+                    </Button>
+                  </>
+                }
+              >
+                <p>
+                  {`${t.Learners} who picked this team keep it on their profile. Courses already assigned stay assigned.`}
+                </p>
+              </Dialog>
+            </>
+          );
+        }}
       </Loaded>
     </Page>
   );

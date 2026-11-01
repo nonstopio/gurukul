@@ -9,8 +9,10 @@ import {
   Input,
   Page,
   PageHeader,
+  Pagination,
   Select,
 } from '@gurukul/ui';
+import { pageFor } from '../paging';
 import { AREAS, CHANGES, KINDS, RELEASES, filterChanges, groupChanges } from './index';
 import type { Change } from './types';
 import './changelog.css';
@@ -76,10 +78,12 @@ export function ChangelogPage({ changes = CHANGES, releases = RELEASES }: Change
   const [query, setQuery] = useState('');
   const [area, setArea] = useState('');
   const [kind, setKind] = useState('');
+  const [page, setPage] = useState(1);
   const clear = () => {
     setQuery('');
     setArea('');
     setKind('');
+    setPage(1);
   };
 
   // Options come from the entries, not the vocabularies: an option that always returns
@@ -90,7 +94,15 @@ export function ChangelogPage({ changes = CHANGES, releases = RELEASES }: Change
     () => filterChanges(changes, { query, area, kind }),
     [changes, query, area, kind],
   );
-  const groups = useMemo(() => groupChanges(filtered, releases), [filtered, releases]);
+  // Pages follow the order the releases are shown in. A release split across pages keeps the
+  // total in its heading, so "3 changes" never means "3 on this page".
+  const everyGroup = useMemo(() => groupChanges(filtered, releases), [filtered, releases]);
+  const totals = new Map(everyGroup.map((g) => [g.key, g.items.length]));
+  const paged = pageFor(
+    everyGroup.flatMap((g) => g.items),
+    page,
+  );
+  const groups = groupChanges(paged.rows, releases);
 
   return (
     <Page width="reading">
@@ -112,9 +124,20 @@ export function ChangelogPage({ changes = CHANGES, releases = RELEASES }: Change
           type="search"
           value={query}
           placeholder="Search titles and reasons"
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1);
+          }}
         />
-        <Select label="Area" hideLabel value={area} onChange={(e) => setArea(e.target.value)}>
+        <Select
+          label="Area"
+          hideLabel
+          value={area}
+          onChange={(e) => {
+            setArea(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">Any area</option>
           {areaOptions.map((a) => (
             <option key={a} value={a}>
@@ -122,7 +145,15 @@ export function ChangelogPage({ changes = CHANGES, releases = RELEASES }: Change
             </option>
           ))}
         </Select>
-        <Select label="Kind" hideLabel value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select
+          label="Kind"
+          hideLabel
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">Any kind</option>
           {kindOptions.map((k) => (
             <option key={k} value={k}>
@@ -150,13 +181,22 @@ export function ChangelogPage({ changes = CHANGES, releases = RELEASES }: Change
           <h2 id={`release-${g.key}`}>
             {g.label}
             {g.unreleased ? ' — merged, not yet in a release' : null}
-            {` · ${g.items.length} change${g.items.length === 1 ? '' : 's'}`}
+            {` · ${totals.get(g.key)} change${totals.get(g.key) === 1 ? '' : 's'}`}
           </h2>
           {g.items.map((c) => (
             <Entry key={`${c.date}-${c.id}-${c.title}`} c={c} />
           ))}
         </section>
       ))}
+
+      {filtered.length === 0 ? null : (
+        <Pagination
+          label="Changes"
+          page={paged.page}
+          total={filtered.length}
+          onPageChange={setPage}
+        />
+      )}
     </Page>
   );
 }

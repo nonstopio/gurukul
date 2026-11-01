@@ -10,14 +10,18 @@ import {
   Input,
   Page,
   PageHeader,
+  Pagination,
   PeoplePicker,
   StatCard,
   ToggleCard,
+  DEFAULT_PAGE_SIZE,
+  pageOf,
   useToast,
 } from '@gurukul/ui';
 import type { Person } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { article } from '../labels/terms';
@@ -79,6 +83,29 @@ const STATUS_NOTE: Record<Course['status'], string> = {
   published: '',
   archived: ' (archived)',
 };
+
+/** One page of `rows` at a time (25), with the pager under it when there is more than one page. */
+function Paged<T>({
+  rows,
+  label,
+  children,
+}: {
+  rows: readonly T[];
+  label: string;
+  children: (onPage: T[]) => ReactNode;
+}) {
+  const [page, setPage] = useState(1);
+  // A role removed on the last page can leave fewer pages than before.
+  const shown = Math.min(page, Math.max(1, Math.ceil(rows.length / DEFAULT_PAGE_SIZE)));
+  return (
+    <>
+      {children(pageOf(rows, shown))}
+      {rows.length > DEFAULT_PAGE_SIZE ? (
+        <Pagination page={shown} total={rows.length} onPageChange={setPage} label={label} />
+      ) : null}
+    </>
+  );
+}
 
 /** `/admin/roles`: who holds what, and the dialog that changes it. Everything goes through setRoles. */
 export function RolesPage() {
@@ -166,56 +193,66 @@ export function RolesPage() {
                   {`Grant the role to someone who builds courses, and they appear here.`}
                 </EmptyState>
               ) : (
-                <ul className="console-rows">
-                  {educators.map((u) => (
-                    <li key={u.uid} className="console-row">
-                      <Avatar name={u.displayName || u.email} tone="educator" size={34} />
-                      <span className="console-row__text">
-                        <strong>{u.displayName || u.email}</strong>
-                        <span className="console-row__chips">
-                          {u.grantedCourseIds.length === 0 ? (
-                            <Chip>No courses yet</Chip>
-                          ) : (
-                            u.grantedCourseIds.map((id) => (
-                              <Chip key={id}>{courses.find((c) => c.id === id)?.title ?? id}</Chip>
-                            ))
-                          )}
-                        </span>
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setEditing(u)}
-                        aria-label={`Edit ${u.displayName || u.email}`}
-                      >
-                        Edit
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                <Paged rows={educators} label={`${t.Educators} pages`}>
+                  {(onPage) => (
+                    <ul className="console-rows">
+                      {onPage.map((u) => (
+                        <li key={u.uid} className="console-row">
+                          <Avatar name={u.displayName || u.email} tone="educator" size={34} />
+                          <span className="console-row__text">
+                            <strong>{u.displayName || u.email}</strong>
+                            <span className="console-row__chips">
+                              {u.grantedCourseIds.length === 0 ? (
+                                <Chip>No courses yet</Chip>
+                              ) : (
+                                u.grantedCourseIds.map((id) => (
+                                  <Chip key={id}>
+                                    {courses.find((c) => c.id === id)?.title ?? id}
+                                  </Chip>
+                                ))
+                              )}
+                            </span>
+                          </span>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setEditing(u)}
+                            aria-label={`Edit ${u.displayName || u.email}`}
+                          >
+                            Edit
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Paged>
               )}
             </Card>
 
             <Card title={t.Admins}>
-              <ul className="console-rows">
-                {admins.map((u) => (
-                  <li key={u.uid} className="console-row">
-                    <Avatar name={u.displayName || u.email} tone="admin" size={34} />
-                    <span className="console-row__text">
-                      <strong>{u.displayName || u.email}</strong>
-                      <span className="console-muted">{u.email}</span>
-                    </span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setEditing(u)}
-                      aria-label={`Edit ${u.displayName || u.email} as ${t.Admin}`}
-                    >
-                      Edit
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <Paged rows={admins} label={`${t.Admins} pages`}>
+                {(onPage) => (
+                  <ul className="console-rows">
+                    {onPage.map((u) => (
+                      <li key={u.uid} className="console-row">
+                        <Avatar name={u.displayName || u.email} tone="admin" size={34} />
+                        <span className="console-row__text">
+                          <strong>{u.displayName || u.email}</strong>
+                          <span className="console-muted">{u.email}</span>
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setEditing(u)}
+                          aria-label={`Edit ${u.displayName || u.email} as ${t.Admin}`}
+                        >
+                          Edit
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Paged>
             </Card>
 
             {editing ? (

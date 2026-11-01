@@ -36,7 +36,7 @@ const peopleLabel = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const NO_TEAMS: Team[] = [];
 const STEPS = ['Course', 'Audience', 'Schedule', 'Review'] as const;
-/** How many courses show on a page of the first step. */
+/** A page of the first step holds 12 courses, not 25: they are cards, and 12 fills 2, 3 and 4 columns evenly. */
 const COURSES_PER_PAGE = 12;
 /** Today's date as `YYYY-MM-DD` in the person's own time zone, the format a date field uses. */
 const today = () => new Date().toLocaleDateString('en-CA');

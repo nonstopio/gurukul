@@ -160,6 +160,8 @@ export interface ConsoleData {
   deleteTeam(team: Team): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
   auditPage(after: AuditCursor | null, pageSize: number): Promise<AuditPage>;
+  /** How many entries the audit trail holds, for the page count. */
+  auditCount(): Promise<number>;
 }
 
 export interface KnownEmails {
@@ -212,5 +214,5 @@ export interface ConsoleService {
   }): Promise<{ sent: number; skipped: number }>;
   revokeCertificate(request: { id: string; revoked?: boolean }): Promise<void>;
   listEmailTemplates(): Promise<EmailTemplateView[]>;
-  sendTestEmail(request: { templateId: string }): Promise<{ to: string }>;
+  sendTestEmail(request: { templateId: string; recipients: string[] }): Promise<{ to: string[] }>;
 }
