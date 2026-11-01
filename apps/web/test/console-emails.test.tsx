@@ -26,8 +26,7 @@ describe('Email templates', () => {
     const c = fakeConsole();
     await openApp('/admin/emails', { ...admin, console: c });
     fireEvent.change(await screen.findByLabelText('Template'), { target: { value: 'revoked' } });
-    const first = screen.getByLabelText('First email address') as HTMLInputElement;
-    expect(first.value).toBe(EMAIL);
+    expect(screen.getByRole('button', { name: `Remove ${EMAIL}` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
     await waitFor(() =>
       expect(c.service.sendTestEmail).toHaveBeenCalledWith({
@@ -38,27 +37,28 @@ describe('Email templates', () => {
     expect(await screen.findByText(`Test email sent to ${EMAIL}`)).toBeTruthy();
   });
 
-  it('sends to two addresses, and refuses none, other domains and a cleared first field', async () => {
+  it('sends to two addresses, and refuses none and other domains', async () => {
     const c = fakeConsole();
-    vi.mocked(c.service.sendTestEmail).mockResolvedValueOnce({
-      to: ['a@nonstopio.com', 'b@nonstopio.com'],
-    });
     await openApp('/admin/emails', { ...admin, console: c });
-    const first = await screen.findByLabelText('First email address');
-    const second = screen.getByLabelText('Second email address (optional)');
-    const send = screen.getByRole('button', { name: 'Send test email' });
+    const send = await screen.findByRole('button', { name: 'Send test email' });
+    const pick = (label: string, email: string) => {
+      const input = screen.getByRole('combobox', { name: label });
+      fireEvent.change(input, { target: { value: email } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+    };
 
-    fireEvent.change(first, { target: { value: ' ' } });
+    fireEvent.click(screen.getByRole('button', { name: `Remove ${EMAIL}` }));
     fireEvent.click(send);
     expect(await screen.findByText('Enter at least one email address.')).toBeTruthy();
 
-    fireEvent.change(second, { target: { value: 'x@example.com' } });
+    pick('Second email address (optional)', 'x@example.com');
     fireEvent.click(send);
     expect(await screen.findByText('Use @nonstopio.com addresses.')).toBeTruthy();
     expect(c.service.sendTestEmail).not.toHaveBeenCalled();
 
-    fireEvent.change(first, { target: { value: 'a@nonstopio.com' } });
-    fireEvent.change(second, { target: { value: 'b@nonstopio.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove x@example.com' }));
+    pick('First email address', 'a@nonstopio.com');
+    pick('Second email address (optional)', 'b@nonstopio.com');
     fireEvent.click(send);
     await waitFor(() =>
       expect(c.service.sendTestEmail).toHaveBeenCalledWith({

@@ -26,7 +26,11 @@ export function firebaseConsoleService(functions: Functions): ConsoleService {
     listEmailTemplates: () =>
       callApi<Record<string, never>, EmailTemplateView[]>(functions, 'listEmailTemplates', {}),
     sendTestEmail: (request) =>
-      callApi<{ templateId: string; recipients: string[] }, { to: string[] }>(functions, 'sendTestEmail', request),
+      callApi<{ templateId: string; recipients: string[] }, { to: string[] }>(
+        functions,
+        'sendTestEmail',
+        request,
+      ),
     async revokeCertificate(request) {
       await callApi(functions, 'revokeCertificate', request);
     },

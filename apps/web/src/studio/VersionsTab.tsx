@@ -1,4 +1,4 @@
-import { Button, Callout, Card, Chip, Dialog, EmptyState, useToast } from '@gurukul/ui';
+import { Button, Callout, Card, Chip, Dialog, EmptyState, Pagination, useToast } from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { toastError } from '../errors';
@@ -6,6 +6,7 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 import { useStudio } from './StudioProvider';
 
 /** Published versions, newest first, with roll back; and for an Admin, archive and restore. */
@@ -28,6 +29,7 @@ export function VersionsTab({
   const [target, setTarget] = useState<number | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
   const result = useAsync(useCallback(() => data.listVersions(course.id), [data, course.id]));
 
   const fail = (what: string, error: unknown, fallback: string) => {
@@ -72,15 +74,16 @@ export function VersionsTab({
         Versions
       </h2>
       <Loaded loadable={result}>
-        {(rows) =>
-          rows.length === 0 ? (
+        {(rows) => {
+          const paged = pageFor(rows, page);
+          return rows.length === 0 ? (
             <EmptyState title="No earlier versions" headingAs="h3">
               Versions appear here each time you publish.
             </EmptyState>
           ) : (
             <Card>
               <ul className="sc-rows">
-                {rows.map((row) => (
+                {paged.rows.map((row) => (
                   <li key={row.version} className="sc-row">
                     <span className="sc-version__no">v{row.version}</span>
                     <span className="sc-version__title">{row.title}</span>
@@ -97,9 +100,15 @@ export function VersionsTab({
                   </li>
                 ))}
               </ul>
+              <Pagination
+                label="Versions"
+                page={paged.page}
+                total={rows.length}
+                onPageChange={setPage}
+              />
             </Card>
-          )
-        }
+          );
+        }}
       </Loaded>
 
       {admin && course.status !== 'draft' ? (

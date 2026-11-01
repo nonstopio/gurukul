@@ -56,9 +56,26 @@ describe('Teams page', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('pages 25 teams at a time', async () => {
+    const many: Team[] = Array.from({ length: 30 }, (_, i) => ({
+      ...platform,
+      id: `t${i}`,
+      name: `Team ${String(i).padStart(2, '0')}`,
+    }));
+    await openApp(PATH, { ...admin, console: fakeConsole({ teamList: many }) });
+    expect(await screen.findByText('Team 00')).toBeTruthy();
+    expect(screen.queryByText('Team 25')).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Team 25')).toBeTruthy();
+    expect(screen.queryByText('Team 00')).toBeNull();
+    expect(screen.getByText('Showing 26–30 of 30')).toBeTruthy();
+  });
+
   it('shows a skeleton, then a first-team empty state', async () => {
     await openApp(PATH, { ...admin, console: fakeConsole() });
     expect(await screen.findByText('No teams yet')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Teams' })).toBeNull();
     const buttons = screen.getAllByRole('button', { name: 'Create team' });
     expect(buttons).toHaveLength(2);
     fireEvent.click(buttons[1] as HTMLElement);

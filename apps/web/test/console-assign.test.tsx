@@ -347,7 +347,7 @@ describe('Assign: audience step, teams', () => {
     await open(c);
     await toAudience();
     expect(screen.getByRole('button', { name: 'Teams' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByText('Showing 2 of 2 teams')).toBeTruthy();
+    expect(screen.getByText('2 teams')).toBeTruthy();
     expect(screen.getByText('2 members')).toBeTruthy();
     expect(screen.getByText('1 member')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('Platform'));
@@ -398,8 +398,8 @@ describe('Assign: audience step, teams', () => {
     expect(await screen.findByText(/2 people will be assigned/)).toBeTruthy();
   });
 
-  it('searches teams and shows ten at a time', async () => {
-    const many = Array.from({ length: 12 }, (_, i) => ({
+  it('searches teams and shows 25 at a time', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({
       id: `t${i}`,
       name: `Team ${String(i).padStart(2, '0')}`,
       memberEmails: [],
@@ -407,18 +407,20 @@ describe('Assign: audience step, teams', () => {
     }));
     await open(setup({ teamList: many }));
     await toAudience();
-    expect(screen.getByText('Showing 10 of 12 teams')).toBeTruthy();
-    expect(screen.queryByLabelText('Team 11')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Show 2 more' }));
-    expect(screen.getByLabelText('Team 11')).toBeTruthy();
+    expect(screen.getByText('30 teams')).toBeTruthy();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    expect(screen.queryByLabelText('Team 29')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More teams' }));
+    expect(screen.getByLabelText('Team 29')).toBeTruthy();
+    expect(screen.getByText('Showing 26–30 of 30')).toBeTruthy();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search teams' }), {
       target: { value: 'team 03' },
     });
-    expect(screen.getByText('1 team matches of 12')).toBeTruthy();
+    expect(screen.getByText('1 team matches of 30')).toBeTruthy();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search teams' }), {
       target: { value: 'team' },
     });
-    expect(screen.getByText('12 teams match of 12')).toBeTruthy();
+    expect(screen.getByText('30 teams match of 30')).toBeTruthy();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search teams' }), {
       target: { value: 'nope' },
     });

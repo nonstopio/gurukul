@@ -315,6 +315,39 @@ describe('Media library', () => {
     expect(screen.getByText('1 of 6')).toBeTruthy();
   });
 
+  it('pages 25 links at a time, and starts again at page one when the search changes', async () => {
+    const files = Array.from({ length: 30 }, (_, i) => ({
+      type: 'file',
+      id: `f${i}`,
+      url: `https://x.test/doc-${String(i).padStart(2, '0')}.zip`,
+      label: `Doc ${String(i).padStart(2, '0')}`,
+    }));
+    const many = [
+      {
+        live: makeCourse({ id: 'git', educatorIds: ['u1'] }),
+        draft: draftDoc(
+          makeCourse({
+            educatorIds: ['u1'],
+            chapters: [{ id: 'p', title: 'P', items: [lesson('l1', { blocks: files })] }],
+          }),
+        ),
+      },
+    ];
+    await openApp('/studio/media', { roles: ['educator'], studio: fakeStudio({ courses: many }) });
+    await screen.findByRole('list', { name: 'Media' });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Doc 29/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('button', { name: /Doc 29/ })).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search media' }), {
+      target: { value: 'doc' },
+    });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'file' } });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+  });
+
   it('opens a detail drawer with where it is used, and closes it', async () => {
     await openApp('/studio/media', {
       roles: ['educator'],

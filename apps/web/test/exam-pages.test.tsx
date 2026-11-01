@@ -774,6 +774,19 @@ describe('Certificates', () => {
     expect(await screen.findByText('No certificates yet')).toBeTruthy();
   });
 
+  it('pages certificates 25 at a time', async () => {
+    const many = Array.from({ length: 30 }, (_, i) =>
+      certificateRow({ id: `NSG-GIT-26-${String(i + 1).padStart(4, '0')}` }),
+    );
+    await openApp('/certificates', { data: fakeData({ certificates: many }) });
+    expect(await screen.findByRole('link', { name: /NSG-GIT-26-0001/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /NSG-GIT-26-0030/ })).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('link', { name: /NSG-GIT-26-0030/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /NSG-GIT-26-0001/ })).toBeNull();
+  });
+
   it('shows one with Download, LinkedIn and copy actions', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     await openApp('/certificates/NSG-GIT-26-0001', { data: fakeData({ certificates: certs }) });

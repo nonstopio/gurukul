@@ -177,8 +177,11 @@
 }
 .emails-send {
   display: grid;
-  max-width: 28rem;
   gap: var(--space-4);
+}
+.emails-problem {
+  margin: 0;
+  color: var(--danger);
 }
 .emails-body {
   margin: 0;

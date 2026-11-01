@@ -1,11 +1,12 @@
 import {
-  Button,
   Card,
   Chip,
   CourseTile,
+  DEFAULT_PAGE_SIZE,
   EmptyState,
   Page,
   PageHeader,
+  Pagination,
   ProgressBar,
   buttonClass,
 } from '@gurukul/ui';
@@ -16,7 +17,6 @@ import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAsync } from './data/useAsync';
 import {
-  ASSIGNED_PREVIEW,
   agoLabel,
   continueCourse,
   dueLabel,
@@ -35,11 +35,12 @@ import { suggestions } from './learn/hero';
 import { HomeContinue, PickNextCourse } from './learn/HomeContinue';
 import { Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
+import { pageFor } from './paging';
 import { useAudience } from './data/useAudience';
 
 /** Learner Home: continue where you left off, what is assigned and due, or the catalogue. */
 export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
-  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(1);
   const user = useUser();
   const data = useLearnerData();
   const uid = user.uid;
@@ -85,7 +86,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
           const dueOf = (a: { dueAt: Date | null } | undefined) =>
             a?.dueAt ? dueLabel(a.dueAt, now()) : null;
           const queued = current ? nextAssigned(assigned, current.course.id) : null;
-          const shown = showAll ? assigned : assigned.slice(0, ASSIGNED_PREVIEW);
+          const shown = pageFor(assigned, page);
           const picks = suggestions(courses, assigned, progress);
           return (
             <>
@@ -111,23 +112,9 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
               {assigned.length > 0 || activity.length > 0 ? (
                 <div className="home-columns">
                   {assigned.length > 0 ? (
-                    <Card
-                      title="Assigned to you"
-                      actions={
-                        assigned.length > ASSIGNED_PREVIEW ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-expanded={showAll}
-                            onClick={() => setShowAll(!showAll)}
-                          >
-                            {showAll ? 'Show fewer' : `Show all ${assigned.length}`}
-                          </Button>
-                        ) : undefined
-                      }
-                    >
+                    <Card title="Assigned to you">
                       <ul className="learn-cards g-stagger">
-                        {shown.map(({ assignment, course, progress: p }, i) => {
+                        {shown.rows.map(({ assignment, course, progress: p }, i) => {
                           const due =
                             assignment.dueAt && assignment.status !== 'completed'
                               ? dueLabel(assignment.dueAt, now())
@@ -170,6 +157,14 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
                           );
                         })}
                       </ul>
+                      {assigned.length > DEFAULT_PAGE_SIZE ? (
+                        <Pagination
+                          label="Assigned courses"
+                          page={shown.page}
+                          total={assigned.length}
+                          onPageChange={setPage}
+                        />
+                      ) : null}
                     </Card>
                   ) : null}
 

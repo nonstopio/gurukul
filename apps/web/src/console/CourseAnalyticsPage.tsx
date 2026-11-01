@@ -9,16 +9,18 @@ import {
   FunnelBar,
   Page,
   PageHeader,
+  Pagination,
   StatCard,
   buttonClass,
   largestDrop,
 } from '@gurukul/ui';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useLearnerData } from '../data/DataProvider';
 import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
+import { pageFor } from '../paging';
 import { useConsole } from './ConsoleProvider';
 import {
   WARN_BELOW_PERCENT,
@@ -44,6 +46,7 @@ export function CourseAnalyticsPage() {
   const { courseId = '' } = useParams();
   const { data } = useConsole();
   const learner = useLearnerData();
+  const [quizPage, setQuizPage] = useState(1);
   const result = useAsync(
     useCallback(async () => {
       const [course, stats] = await Promise.all([
@@ -86,6 +89,7 @@ export function CourseAnalyticsPage() {
           const hardest = hardestQuestions(stats);
           const quizzes = itemsOf(course).flatMap((i) => (i.type === 'quiz' ? [i] : []));
           const rows = quizRows(quizzes, stats);
+          const pagedRows = pageFor(rows, quizPage);
           const quizOf = new Map(
             quizzes.flatMap((p) => p.questions.map((q) => [q.id, p.id] as const)),
           );
@@ -194,8 +198,18 @@ export function CourseAnalyticsPage() {
               <Card title={t.Quizzes}>
                 <DataTable
                   caption={`${t.Quizzes} in this course`}
-                  rows={rows}
+                  rows={pagedRows.rows}
                   rowKey={(r) => r.id}
+                  footer={
+                    rows.length === 0 ? undefined : (
+                      <Pagination
+                        label={t.Quizzes}
+                        page={pagedRows.page}
+                        total={rows.length}
+                        onPageChange={setQuizPage}
+                      />
+                    )
+                  }
                   columns={[
                     { id: 'title', header: t.Quiz, rowHeader: true, cell: (r) => r.title },
                     {

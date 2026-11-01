@@ -8,6 +8,7 @@ import {
   Menu,
   Page,
   PageHeader,
+  Pagination,
   PlusIcon,
   UploadIcon,
   useToast,
@@ -20,6 +21,7 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BankQuestionDialog } from './questions/BankQuestionDialog';
 import { ImportFromQuizDialog } from './questions/ImportFromQuizDialog';
@@ -43,6 +45,7 @@ export function QuestionBankPage() {
   const t = useTerms();
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState<'new' | 'import' | null>(null);
   const [editing, setEditing] = useState<BankQuestion | null>(null);
   const [deleting, setDeleting] = useState<BankQuestion | null>(null);
@@ -146,6 +149,7 @@ export function QuestionBankPage() {
             );
           }
           const found = matchBank(all, search);
+          const paged = pageFor(found, page);
           const mine = (e: BankQuestion) => e.createdBy === uid || admin;
           return (
             <>
@@ -153,7 +157,10 @@ export function QuestionBankPage() {
                 label="Filter questions"
                 count={`${found.length} of ${all.length}`}
                 canClear={search !== ''}
-                onClear={() => setSearch('')}
+                onClear={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
               >
                 <Input
                   label="Search by text or topic"
@@ -161,12 +168,25 @@ export function QuestionBankPage() {
                   type="search"
                   placeholder="Search by text or topic"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                 />
               </FilterBar>
               <DataTable
                 caption="Bank questions"
-                rows={found}
+                rows={paged.rows}
+                footer={
+                  found.length === 0 ? undefined : (
+                    <Pagination
+                      label="Bank questions"
+                      page={paged.page}
+                      total={found.length}
+                      onPageChange={setPage}
+                    />
+                  )
+                }
                 rowKey={(e) => e.id}
                 empty={
                   <EmptyState headingAs="h2" title="Nothing matches">

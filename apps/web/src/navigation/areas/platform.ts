@@ -19,7 +19,8 @@ export const navigation = {
   ],
   unlisted: {
     '/privacy': {
-      context: 'the privacy policy: linked from sign-in and the accept-policy screen, not the sidebar',
+      context:
+        'the privacy policy: linked from sign-in and the accept-policy screen, not the sidebar',
     },
     '/verify/:id': { context: 'public page for one credential id, shared as a link' },
   },

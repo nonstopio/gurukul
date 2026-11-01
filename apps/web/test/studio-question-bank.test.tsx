@@ -168,6 +168,28 @@ describe('question bank table', () => {
   });
 });
 
+describe('paging', () => {
+  it('shows 25 questions a page and starts again at page one when the search changes', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => entry(String(i).padStart(2, '0')));
+    await open(many);
+    const search = await screen.findByLabelText('Search by text or topic');
+    expect(within(await table()).getAllByRole('rowheader')).toHaveLength(25);
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    expect(screen.queryByText('Prompt 29?')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(within(await table()).getAllByRole('rowheader')).toHaveLength(5);
+    expect(screen.getByText('Prompt 29?')).toBeTruthy();
+    fireEvent.change(search, { target: { value: 'prompt' } });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(search, { target: { value: 'zzz' } });
+    expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Bank questions' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+  });
+});
+
 describe('row actions', () => {
   it('lets the creator delete their own question after confirming', async () => {
     const { studio } = await open([entry('1'), entry('2', { createdBy: 'u9' })]);

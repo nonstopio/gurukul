@@ -1,10 +1,20 @@
-import { Callout, Card, DataTable, EmptyState, Skeleton, StatCard, buttonClass } from '@gurukul/ui';
-import { useCallback } from 'react';
+import {
+  Callout,
+  Card,
+  DataTable,
+  EmptyState,
+  Pagination,
+  Skeleton,
+  StatCard,
+  buttonClass,
+} from '@gurukul/ui';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useConsole } from '../console/ConsoleProvider';
 import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
+import { pageFor } from '../paging';
 
 /** How many people were assigned, started, finished and certified; the funnel lives in the console. */
 export function AnalyticsTab({
@@ -18,6 +28,7 @@ export function AnalyticsTab({
 }) {
   const { data } = useConsole();
   const t = useTerms();
+  const [page, setPage] = useState(1);
   const result = useAsync(
     useCallback(
       () =>
@@ -76,8 +87,16 @@ export function AnalyticsTab({
         ) : (
           <DataTable
             caption="People who started this course"
-            rows={learners.value}
+            rows={pageFor(learners.value, page).rows}
             rowKey={(l) => l.uid}
+            footer={
+              <Pagination
+                label={t.Learners}
+                page={pageFor(learners.value, page).page}
+                total={learners.value.length}
+                onPageChange={setPage}
+              />
+            }
             columns={[
               {
                 id: 'name',

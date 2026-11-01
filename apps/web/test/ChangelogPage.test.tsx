@@ -88,6 +88,44 @@ describe('ChangelogPage', () => {
     expect(screen.getByRole('status').textContent).toBe('3 of 3');
   });
 
+  it('pages 25 changes at a time, keeps the release total in the heading, and resets on a filter', () => {
+    const many: Change[] = Array.from({ length: 30 }, (_, i) => ({
+      file: `2026-10-27-1200${String(i).padStart(2, '0')}-x.ts`,
+      release: 'release-9',
+      date: '2026-10-27',
+      id: `GH-${i}`,
+      title: `Change ${String(i).padStart(2, '0')}`,
+      area: 'LEARN',
+      kind: 'fix',
+      why: 'Because',
+    }));
+    render(<ChangelogPage changes={many} releases={['release-9']} />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('release-9 · 30 changes');
+    expect(screen.getByText('Change 00')).toBeTruthy();
+    expect(screen.queryByText('Change 25')).toBeNull();
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Change 25')).toBeTruthy();
+    expect(screen.queryByText('Change 00')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('release-9 · 30 changes');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search changes' }), {
+      target: { value: 'change' },
+    });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Area' }), {
+      target: { value: 'LEARN' },
+    });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'fix' } });
+    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search changes' }), {
+      target: { value: 'zzz' },
+    });
+    expect(screen.queryByRole('navigation', { name: 'Changes' })).toBeNull();
+  });
+
   it('offers only the areas and kinds that entries use', () => {
     render(<ChangelogPage changes={changes} releases={[]} />);
     const areaOptions = within(screen.getByLabelText('Area')).getAllByRole('option');
@@ -109,7 +147,7 @@ describe('ChangelogPage', () => {
     render(<ChangelogPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Changelog' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Filter changes' })).toBeTruthy();
-    expect(screen.getAllByRole('article')).toHaveLength(CHANGES.length);
+    expect(screen.getAllByRole('article')).toHaveLength(Math.min(CHANGES.length, 25));
   });
 });
 
