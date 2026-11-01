@@ -6,6 +6,8 @@
 Browser (React SPA on Firebase Hosting)
   ├─ Firebase Auth (Google, nonstopio.com only)
   ├─ Firestore (direct reads/writes, guarded by firestore.rules)
+  ├─ Cloud Storage (planned: Studio uploads of course images and PDFs, guarded by storage.rules;
+  │                 learners load them by download URL; 19-course-media-uploads.md)
   └─ Callable Cloud Functions (grading, publishing, assignment, roles)
                      │
 Cloud Functions (2nd gen, asia-south1, Node 22; firebase/functions/src/index.ts)
@@ -104,5 +106,6 @@ version in `courses/{id}/versions/{n}`.
 | Firestore direct reads | Everything through functions | Cost and latency; rules suffice for reads |
 | zod schema package | Hand-written types per app | One contract for client and server |
 | Answer keys in a private subdoc | Hashed answers in the course | Four options are trivially brute-forced |
-| YouTube/Drive links for video | Firebase Storage | Storage needs more cost control; links are enough |
+| YouTube/Drive links for video | Firebase Storage | Video is large; links are enough |
+| Storage only for small images and PDFs, uploaded straight from the browser (planned) | Uploads through a callable function | Storage rules check role, course, type and size without a function; files stay under 1 MB (`19-course-media-uploads.md`) |
 | Client-side certificate PDF | Server PDF rendering | No Storage, no heavy function |

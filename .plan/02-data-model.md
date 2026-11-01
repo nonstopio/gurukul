@@ -20,7 +20,7 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
 | `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator may change only `teams` (Teams page) |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued), optional `uploads` (`imageMaxKB`, `pdfMaxKB`: whole KB from 50 to the 1024 hard ceiling, Admin only; missing reads as 500 / 1024; see `19-course-media-uploads.md`); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator may change only `teams` (Teams page) |
 | `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Educator, Admin | Educator, Admin (Teams page, `/studio/teams`): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
@@ -136,9 +136,11 @@ type Block =
   | { type: 'markdown'; id: string; md: string }
   | { type: 'code'; id: string; lang: string; file?: string; code: string; copy: boolean; terminal: boolean; highlight?: string }
   | { type: 'callout'; id: string; tone: 'note' | 'tip' | 'warning'; title?: string; md: string }
-  | { type: 'image'; id: string; url: string; alt: string; caption?: string }
+  | { type: 'image'; id: string; url: string; alt: string; caption?: string;
+      layout?: 'column' | 'medium' | 'small'; zoom?: boolean; border?: boolean; width?: number; height?: number;
+      upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string } } // all new fields optional, no schemaVersion bump: 19-course-media-uploads.md
   | { type: 'embed'; id: string; url: string; title: string }   // allow-listed hosts only
-  | { type: 'file'; id: string; url: string; label: string }
+  | { type: 'file'; id: string; url: string; label: string; upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string } }   // upload = a PDF we host: 19-course-media-uploads.md
   | { type: 'check'; id: string; prompt: string; options: string[]; correct?: number; explanation: string }; // ungraded, answer inline; `correct` indexes `options` (v3, required to publish)
 
 type Quiz = {

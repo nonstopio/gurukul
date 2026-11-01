@@ -24,16 +24,26 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Studio | 17 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 19 | 0 | 0 | 10 |
+| Platform, CI and operations | 20 | 0 | 0 | 10 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
+| Course media uploads | 1 | 8 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 155 | 0 | 0 | 12 |
+| **Total** | 157 | 8 | 0 | 13 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
-Nothing left to pick: every remaining item is a maintainer action.
+Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
+
+1. `MED-03` Image layouts in the player
+2. `MED-04` Storage rules and deploy (waits on the bucket, `MED-01`)
+3. `MED-05` Image upload in Studio
+4. `MED-06` PDF upload in Studio
+5. `MED-07` Upload limits in Org settings
+6. `MED-08` Media library reuse of uploads
+7. `MED-09` Shrink it for me
+8. `MED-10` Weekly clean-up of unused media
 
 ## Foundations
 
@@ -224,6 +234,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-13` | Dependency and docs hygiene                                                | done       | —        | `package.json` (`tsx`), `e2e/package.json` (`axe-core`), `CONTRIBUTING.md` links `docs/operations.md` for the bootstrap                                     |
 | `OPS-14` | Trigger tests against the emulators | done | — | `firebase/functions/emulator-test/triggers.test.ts`, `vitest.emulator.config.ts`, `npm run test:triggers` (CI `rules` job, pre-push). Calls the exported triggers with `.run(event)`; `firebase-functions-test` does not install with firebase-admin 14. Covers `onProgressWritten` and `onAttemptCreated` only |
 | `OPS-23` | Harden the flaky studio lesson editor test | done | — | `apps/web/test/setup.ts` (5 s `asyncUtilTimeout`), `apps/web/vite.config.ts` (15 s `testTimeout`): lazy app boot under full-suite load outran the 1 s `findBy` default |
+| `OPS-30` | Preview channels are deleted when a pull request closes | done | — | `.github/workflows/preview-cleanup.yml` (deletes the channel on `closed`, same channel id rule as `action-hosting-deploy`, an already-gone channel passes), `.github/workflows/preview.yml` (`paths-ignore` for `.plan/**`, `docs/**`, `**/*.md`). Fixes "429: channel quota reached"; the maintainer deletes the stale channels once |
 | `OPS-15` | Firebase project setup                                                     | maintainer | —        | `11` First-time setup checklist: Blaze and the $1 budget with alerts, Firestore in asia-south1, Google provider, web app variables, both service accounts, branch protection |
 | `OPS-16` | Backup bucket                                                              | maintainer | —        | Bucket with the 28-day lifecycle rule, `BACKUP_BUCKET` variable, IAM roles (`docs/operations.md`)                                                          |
 | `OPS-17` | First Admin and the production seed                                     | maintainer | —        | `npm run grant-admin -- you@nonstopio.com`; `npm run seed -- --production`                                                                              |
@@ -276,6 +287,23 @@ Plan: `18-redesign.md`, `04-design-system.md`.
 | `RDS-15` | Studio media gallery and question bank that can create and import | done | `RDS-09` | `packages/ui/src/MediaGallery.tsx`, `apps/web/src/studio/MediaPage.tsx`, `QuestionBankPage.tsx`, `questions/`. Left: media upload (no Storage in v1), asset picker in the lesson editor |
 | `RDS-16` | Sign-in page as a two-column hero | done | `RDS-09` | `apps/web/src/auth/SignInPage.tsx`, `SignInArt.tsx` |
 | `RDS-17` | One people field, Teams or People assign, drawn Checkbox/Radio/Toggle, Studio rows | done | `RDS-12` | `packages/ui/src/PeoplePicker.tsx` (photos, emails, focus lists people), `Checkbox.tsx`, `Radio.tsx`, `ToggleCard.tsx`, `ChoiceCard.tsx`, `IconButton.tsx`, `apps/web/src/console/AudienceStep.tsx`, `PeopleField.tsx`, `studio/StructureTab.tsx`; rules fix for a first completed lesson in `firestore.rules` |
+
+## Course media uploads
+
+Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind it: open questions 14–17 in `13-open-questions.md`, all resolved as recommended on 2026-11-01.
+
+| ID       | Item                                         | Status     | Depends            | Notes |
+| -------- | -------------------------------------------- | ---------- | ------------------ | ----- |
+| `MED-01` | Storage bucket and cross-service rules role  | maintainer | —                  | Done means: the default Cloud Storage for Firebase bucket exists in `US-CENTRAL1` (open question 14), and the Firebase Rules Firestore Service Agent role is granted. `11-deployment-and-cost.md` setup step 10 |
+| `MED-02` | Upload policy and block fields in the schema | done       | —                  | `packages/schema/src/upload.ts` (`uploadPolicy`, `checkUpload`, `shrinkPrompt`, `sniffContentType`, `isDownloadUrlFor`, `uploadLimitsSchema`), optional `layout`/`zoom`/`border`/`width`/`height`/`upload` on Image and `upload` on File in `course.ts`, `uploads` on `orgConfigSchema` in `user.ts`, upload checks in `validateForPublish` (`draft.ts`, optional `{ bucket }`), `config/org.uploads` in `firebase/firestore.rules` with tests in `firebase/rules/test/assignments-config.test.ts`, `packages/schema/test/upload.test.ts`. No `schemaVersion` bump. Callers pass the project bucket to `validateForPublish` from `MED-04`/`MED-05` |
+| `MED-03` | Image layouts in the player                  | todo       | `MED-02`           | Done means: Column, Medium and Small at 1280 and 390 px; Open full size in a `Dialog`; Border; `width`/`height` on `<img>`; alt text box when an image fails; "PDF · 420 KB" on an uploaded file; Studio's Image editor sets layout for linked images. Changelog entry |
+| `MED-04` | Storage rules and deploy                     | todo       | `MED-01`, `MED-02` | Done means: `firebase/storage.rules` (default deny; create by the course's Educators or an Admin, accepted types, size within `config/org.uploads` and the hard ceiling, no overwrite; no client update or delete), `firebase.json` storage and emulator (9199), emulator tests with an allowed and a denied test per condition, rules coverage extended to Storage, `deploy.yml` deploys it |
+| `MED-05` | Image upload in Studio                       | todo       | `MED-03`, `MED-04` | Done means: `FileDrop` in `packages/ui`; Image block Upload and Link tabs; browser check with numbered guidance and Copy prompt; local preview at 1280 and 390 px; layout controls; resumable upload with progress and cancel; Replace; Storage SDK only in the Studio chunk; e2e upload, publish, view; Educator guide section; feature tip; changelog entry |
+| `MED-06` | PDF upload in Studio                         | todo       | `MED-05`           | Done means: File block Upload tab for PDFs up to the limit; over the limit, guidance to GitHub or Google Drive with Switch to Link and the PDF prompt; changelog entry |
+| `MED-07` | Upload limits in Org settings                | todo       | `MED-04`           | Done means: Uploads card in the Admin console Org settings (largest image and PDF in KB, defaults shown, hard ceiling enforced); Studio and the Storage rules both read it; changelog entry |
+| `MED-08` | Media library reuse of uploads               | todo       | `MED-05`           | Done means: `/studio/media` Uploaded filter and size; Image block "Choose from this course's media" reuses an uploaded file without a new upload; changelog entry |
+| `MED-09` | Shrink it for me                             | todo       | `MED-05`           | Done means: a too-large or too-wide image is re-encoded in the browser (canvas, WebP, 1600 px long edge, metadata dropped) and offered for preview before upload; no new dependency; changelog entry |
+| `MED-10` | Weekly clean-up of unused media              | todo       | `MED-04`           | Done means: a weekly scheduled function deletes media in `courses/{id}/media/` that no draft, live course or `versions/` snapshot references and that is older than 30 days; logged per `17-logging.md`; tested against the emulators; `01-architecture.md` functions list updated |
 
 ## Plan upkeep
 

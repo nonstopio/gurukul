@@ -3,6 +3,7 @@ import { COURSE_SCHEMA_VERSION, courseSchema } from './course';
 import type { Block, Course, Item, Question } from './course';
 import { isEmbedAllowed, videoEmbedUrl } from './media';
 import { upgradeCourse } from './migrations';
+import { isDownloadUrlFor } from './upload';
 import { itemsOf } from './progress';
 import { timestamp } from './timestamp';
 
@@ -90,9 +91,29 @@ const NUMBERS_AND_IDS = new Set(['questionsShown', 'minutes', 'cooldownMinutes',
 /** Links a learner opens or loads must be https: no `javascript:`, `data:` or plain `http:`. */
 const isHttps = (url: string) => /^https:\/\//i.test(url);
 
-function blockIssues(itemId: string, b: Block): PublishIssue[] {
+/** What publishing knows about where uploads live: the course, and optionally the project's bucket. */
+export interface PublishContext {
+  courseId: string;
+  /** The project's Storage bucket; when given, an uploaded file's address must be in it. */
+  bucket?: string | undefined;
+}
+
+/** Why an uploaded block's address is wrong, or null when it points at its own file in this course. */
+function uploadProblem(ctx: PublishContext, url: string, upload: { path: string }): string | null {
+  if (!upload.path.startsWith(`courses/${ctx.courseId}/media/`))
+    return 'The uploaded file belongs to another course. Upload it again here.';
+  return isDownloadUrlFor(url, upload.path, ctx.bucket)
+    ? null
+    : 'The address of the uploaded file does not match the file. Upload it again.';
+}
+
+function blockIssues(itemId: string, b: Block, ctx: PublishContext): PublishIssue[] {
   const at = { itemId, blockId: b.id };
   const issue = (code: string, message: string): PublishIssue => ({ code, message, ...at });
+  const uploadIssues = (url: string, upload: { path: string } | undefined, code: string) => {
+    const why = upload ? uploadProblem(ctx, url, upload) : null;
+    return why === null ? [] : [issue(code, why)];
+  };
   switch (b.type) {
     case 'video':
       return videoEmbedUrl(b.provider, b.url) === null
@@ -117,6 +138,7 @@ function blockIssues(itemId: string, b: Block): PublishIssue[] {
         ...(isHttps(b.url)
           ? []
           : [issue('block.image.url', 'The image link must start with https://.')]),
+        ...uploadIssues(b.url, b.upload, 'block.image.upload'),
       ];
     case 'embed':
       return isEmbedAllowed(b.url)
@@ -133,6 +155,7 @@ function blockIssues(itemId: string, b: Block): PublishIssue[] {
         ...(isHttps(b.url)
           ? []
           : [issue('block.file.url', 'The file link must start with https://.')]),
+        ...uploadIssues(b.url, b.upload, 'block.file.upload'),
       ];
     case 'check': {
       const out: PublishIssue[] = [];
@@ -181,7 +204,11 @@ function questionIssues(
  * function runs in the Studio (inline messages) and in `publishCourse` (the gate), so they agree.
  * An empty list means publishable.
  */
-export function validateForPublish(course: Course, answers: AnswerKeys): PublishIssue[] {
+export function validateForPublish(
+  course: Course,
+  answers: AnswerKeys,
+  options: { bucket?: string } = {},
+): PublishIssue[] {
   const out: PublishIssue[] = [];
   const parsed = courseSchema.safeParse(course);
   if (!parsed.success) {
@@ -194,14 +221,14 @@ export function validateForPublish(course: Course, answers: AnswerKeys): Publish
     }
   }
   try {
-    out.push(...contentIssues(course, answers));
+    out.push(...contentIssues(course, answers, { courseId: course.id, bucket: options.bucket }));
   } catch {
     // A course too malformed to walk: the schema issues above already say what is wrong.
   }
   return out;
 }
 
-function contentIssues(course: Course, answers: AnswerKeys): PublishIssue[] {
+function contentIssues(course: Course, answers: AnswerKeys, ctx: PublishContext): PublishIssue[] {
   const out: PublishIssue[] = [];
   if (blank(course.title)) out.push({ code: 'course.title', message: 'The course needs a title.' });
   if (blank(course.summary))
@@ -252,7 +279,7 @@ function contentIssues(course: Course, answers: AnswerKeys): PublishIssue[] {
         out.push({ code: 'lesson.empty', message: 'This lesson is empty.', itemId: item.id });
       for (const b of item.blocks) {
         dupe(b.id, item.id);
-        out.push(...blockIssues(item.id, b));
+        out.push(...blockIssues(item.id, b, ctx));
       }
     } else {
       if (item.questions.length === 0)

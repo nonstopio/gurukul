@@ -44,7 +44,8 @@ Other workflows:
 | Workflow | Does |
 |---|---|
 | `pr-title.yml` | Conventional Commit PR title with an area scope; re-runs when the title is edited. Required check |
-| `preview.yml` | Hosting preview channel for same-repo PRs, with a Hosting-only key |
+| `preview.yml` | Hosting preview channel for same-repo PRs that change more than docs, with a Hosting-only key |
+| `preview-cleanup.yml` | Deletes the PR's preview channel when the PR closes (the site has a channel limit) |
 | `deploy.yml` | Production after CI passes on `main`, then a `release-*` tag |
 | `codeql.yml` | CodeQL on PRs, `main` and weekly |
 | Dependabot | npm and actions, weekly, grouped, `chore(deps)` / `ci(deps)` titles |

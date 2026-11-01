@@ -1,0 +1,68 @@
+name: Preview cleanup
+
+# Deletes a pull request's Firebase Hosting preview channel when the pull request closes
+# (merged or not). preview.yml creates one channel per pull request, each with a 7-day expiry,
+# and a site has a channel limit: without this, enough recent pull requests fill it and every new
+# preview fails with "429: channel quota reached".
+#
+# Skipped for forks and for Dependabot, exactly like preview.yml: they never got a channel.
+#
+# Secret: FIREBASE_SERVICE_ACCOUNT_PREVIEW, the same Hosting Admin ONLY key preview.yml uses.
+# Hosting Admin can delete channels; it cannot change rules or data. It is written to a temp file
+# for GOOGLE_APPLICATION_CREDENTIALS and never printed.
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: preview-cleanup-${{ github.event.pull_request.number }}
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Delete the preview channel
+        env:
+          FIREBASE_SERVICE_ACCOUNT_PREVIEW: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PREVIEW }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # The channel id FirebaseExtended/action-hosting-deploy@v0 builds (src/getChannelId.ts):
+          # "pr" + number + "-" + the first 20 characters of the branch name, then every
+          # character outside [a-zA-Z0-9_.-] becomes "_". The branch name is untrusted input,
+          # so it reaches the script through the environment, never through the shell text.
+          channel_id="$(node -e '
+            const branch = process.env.HEAD_REF.substr(0, 20);
+            const id = `pr${process.env.PR_NUMBER}-${branch}`;
+            process.stdout.write(id.replace(/[^a-zA-Z0-9_\-.]/g, "_"));
+          ')"
+          echo "Channel: $channel_id"
+
+          credentials="$(mktemp)"
+          trap 'rm -f "$credentials"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_PREVIEW" > "$credentials"
+          export GOOGLE_APPLICATION_CREDENTIALS="$credentials"
+
+          # A channel that expired or was never created is already what we want.
+          if output="$(npx --yes firebase-tools hosting:channel:delete "$channel_id" \
+            --site nonstop-gurukul --project nonstop-gurukul --force 2>&1)"; then
+            echo "$output"
+          elif grep -qiE "not found|404" <<<"$output"; then
+            echo "$output"
+            echo "Channel $channel_id is already gone."
+          else
+            echo "$output"
+            exit 1
+          fi

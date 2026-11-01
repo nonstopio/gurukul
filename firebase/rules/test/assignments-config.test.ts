@@ -122,6 +122,39 @@ describe('config/org', () => {
     ];
     for (const data of bad) await assertFails(setDoc(doc(admin(), 'config/org'), data));
   });
+  it('lets an admin set the upload limits, and an educator not touch them', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'config/org'), valid));
+    const limits = (imageMaxKB: number, pdfMaxKB: number) => ({
+      uploads: { imageMaxKB, pdfMaxKB },
+    });
+    await assertSucceeds(updateDoc(doc(admin(), 'config/org'), limits(200, 800)));
+    await assertSucceeds(updateDoc(doc(admin(), 'config/org'), limits(50, 1024)));
+    await assertSucceeds(setDoc(doc(admin(), 'config/org'), { ...valid, ...limits(500, 1024) }));
+    await assertSucceeds(setDoc(doc(admin(), 'config/org'), valid));
+    const edu = as('meera', { educator: true });
+    await assertFails(updateDoc(doc(edu, 'config/org'), limits(200, 800)));
+    await assertFails(updateDoc(doc(edu, 'config/org'), { teams: [], ...limits(200, 800) }));
+    await assertFails(updateDoc(doc(as('priya'), 'config/org'), limits(200, 800)));
+  });
+  it('denies upload limits outside 50 to 1024 KB, of the wrong type or shape', async () => {
+    const bad = [
+      { imageMaxKB: 49, pdfMaxKB: 500 },
+      { imageMaxKB: 500, pdfMaxKB: 49 },
+      { imageMaxKB: 1025, pdfMaxKB: 500 },
+      { imageMaxKB: 500, pdfMaxKB: 1025 },
+      { imageMaxKB: 500.5, pdfMaxKB: 500 },
+      { imageMaxKB: 500, pdfMaxKB: '500' },
+      { imageMaxKB: '500', pdfMaxKB: 500 },
+      { imageMaxKB: 500 },
+      { pdfMaxKB: 500 },
+      { imageMaxKB: 500, pdfMaxKB: 500, extra: 1 },
+      'big',
+      null,
+    ];
+    for (const uploads of bad) {
+      await assertFails(setDoc(doc(admin(), 'config/org'), { ...valid, uploads }));
+    }
+  });
   it('denies deleting it, and any other config document', async () => {
     await assertFails(deleteDoc(doc(admin(), 'config/org')));
     await assertFails(setDoc(doc(admin(), 'config/other'), valid));
