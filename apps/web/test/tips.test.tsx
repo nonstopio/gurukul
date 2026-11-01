@@ -1,3 +1,4 @@
+import { POLICY_VERSION, acceptPolicy } from '../src/privacy/policy';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -327,6 +328,9 @@ describe('useTips', () => {
 });
 
 describe('in the app', () => {
+  // Earlier tests leave storage spies behind: acceptance then lasts in memory, which is enough.
+  beforeEach(() => acceptPolicy());
+
   it('turns tips off and on from the Profile page', async () => {
     vi.useRealTimers();
     await openApp('/profile');
@@ -341,7 +345,9 @@ describe('in the app', () => {
 
   it('says so when this browser cannot remember', async () => {
     vi.useRealTimers();
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    // Everything fails to read except the privacy policy record, so the app opens.
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
+      if (key === 'gurukul.privacy.accepted') return POLICY_VERSION;
       throw new Error('blocked');
     });
     await openApp('/profile');

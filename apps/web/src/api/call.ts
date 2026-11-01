@@ -2,6 +2,7 @@ import { httpsCallable } from 'firebase/functions';
 import type { Functions } from 'firebase/functions';
 import { ERROR_CODES, apiErrorSchema, apiResponseSchema } from '@gurukul/schema';
 import type { ApiError, ErrorCodeKey } from '@gurukul/schema';
+import { analytics } from '../analytics';
 
 /**
  * The only door from the browser to a Cloud Function. Every callable answers with the `ApiResponse`
@@ -85,6 +86,12 @@ function failureOf(e: unknown): ApiClientError {
     : synthetic('GEN_5000', why);
 }
 
+/** Counts a failed call in analytics (the code only, never the message) and hands the error on. */
+function reported(error: ApiClientError): ApiClientError {
+  analytics.track('app_error', { source: 'api', code: error.code });
+  return error;
+}
+
 /** Calls the named function and returns the `data` of its success envelope. Throws `ApiClientError`. */
 export async function callApi<Req, Res>(
   functions: Functions,
@@ -95,11 +102,11 @@ export async function callApi<Req, Res>(
   try {
     body = (await httpsCallable<Req, unknown>(functions, name)(request)).data;
   } catch (e) {
-    throw failureOf(e);
+    throw reported(failureOf(e));
   }
   const parsed = envelope.safeParse(body);
   if (!parsed.success || !parsed.data.success) {
-    throw synthetic('GEN_5000', `The '${name}' response is not a success envelope.`);
+    throw reported(synthetic('GEN_5000', `The '${name}' response is not a success envelope.`));
   }
   return parsed.data.data as Res;
 }

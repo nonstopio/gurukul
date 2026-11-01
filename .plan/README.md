@@ -32,6 +32,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [15-changelog-and-search.md](15-changelog-and-search.md) | The changelog, global search and the Claude hooks and skills behind them |
 | [16-api-contract.md](16-api-contract.md) | The one response envelope and error-code catalog every API follows |
 | [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
+| [19-product-analytics.md](19-product-analytics.md) | Google Analytics 4 events, consent at sign-in, what is never sent |
 | [tracker.md](tracker.md) | Status: every plan item as done, todo, blocked or maintainer, and the order to pick them up |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 

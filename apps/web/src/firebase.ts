@@ -11,6 +11,8 @@ export interface FirebaseEnv {
   VITE_FIREBASE_AUTH_DOMAIN?: string;
   VITE_FIREBASE_PROJECT_ID?: string;
   VITE_FIREBASE_APP_ID?: string;
+  /** The GA4 web stream id (`G-...`). Analytics sends nothing without it. */
+  VITE_FIREBASE_MEASUREMENT_ID?: string;
   VITE_USE_EMULATORS?: string;
 }
 
@@ -28,6 +30,10 @@ export function firebaseConfig(env: FirebaseEnv) {
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
     projectId: emulators ? 'demo-gurukul' : (env.VITE_FIREBASE_PROJECT_ID ?? ''),
     appId: env.VITE_FIREBASE_APP_ID ?? '',
+    // Emulators never get one, so local work cannot reach the real property.
+    ...(!emulators && env.VITE_FIREBASE_MEASUREMENT_ID
+      ? { measurementId: env.VITE_FIREBASE_MEASUREMENT_ID }
+      : {}),
   };
 }
 

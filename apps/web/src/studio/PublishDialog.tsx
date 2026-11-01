@@ -1,4 +1,5 @@
 import { Button, Callout, Dialog, useToast } from '@gurukul/ui';
+import { useAnalytics } from '../analytics/react/context';
 import { diffCourses, itemsOf, validateForPublish } from '@gurukul/schema';
 import type { Course, CourseAccess, PublishIssue } from '@gurukul/schema';
 import { useEffect, useMemo, useState } from 'react';
@@ -27,6 +28,7 @@ export function PublishDialog({
 }) {
   const { service, data } = useStudio();
   const toast = useToast();
+  const analytics = useAnalytics();
   const t = useTerms();
   const courseId = work.course.id;
   const next = (live?.version ?? 0) + 1;
@@ -84,6 +86,7 @@ export function PublishDialog({
       const { version } = await service.publishCourse(
         access ? { courseId, ...access } : { courseId },
       );
+      analytics.track('course_publish', { course_id: courseId });
       toast.show(`Published v${version}. ${t.Learners} see it now.`, { tone: 'success' });
       onPublished(version);
       onClose();

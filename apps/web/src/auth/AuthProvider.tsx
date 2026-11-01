@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import type { ReactNode } from 'react';
 import type { AuthService, AuthUser, SignInOptions } from './service';
 import { hideBootLoader } from '../boot';
+import { useAnalytics } from '../analytics/react/context';
 import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
@@ -72,6 +73,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   const [labels, setLabels] = useState<LabelSet | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wrongAccount, setWrongAccount] = useState(false);
+  const analytics = useAnalytics();
   const stopProfile = useRef<() => void>(() => {});
 
   // The boot loader in index.html stays until the session is known.
@@ -165,9 +167,12 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
           setError(RETRY_MESSAGE);
         }
       },
-      signOut: () => service.signOut(),
+      signOut: () => {
+        analytics.track('logout');
+        return service.signOut();
+      },
     }),
-    [status, user, roles, teamIds, labels, error, wrongAccount, service],
+    [status, user, roles, teamIds, labels, error, wrongAccount, service, analytics],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

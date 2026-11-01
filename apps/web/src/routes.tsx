@@ -7,6 +7,8 @@ import { CoursePage } from './CoursePage';
 import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
+import { PrivacyPage } from './privacy/PrivacyPage';
+import { RouteErrorPage } from './RouteErrorPage';
 import { PageLoading } from './learn/ui';
 import { DesktopOnly } from './studio/DesktopOnly';
 import type { RoutePath } from './route-paths';
@@ -75,6 +77,7 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/certificates': <CertificatesPage />,
   '/certificates/:id': <CertificatePage />,
   '/verify/:id': <VerifyPage />,
+  '/privacy': <PrivacyPage />,
   '/admin': (
     <RequireRole any={['admin']}>
       <OverviewPage />
@@ -171,8 +174,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   ),
 };
 
-/** Pages anyone can open, signed in or not: certificate verification, which employers use. */
-const PUBLIC: readonly RoutePath[] = ['/verify/:id'];
+/**
+ * Pages anyone can open, signed in or not: certificate verification, which employers use, and the
+ * privacy policy people read before they sign in.
+ */
+const PUBLIC: readonly RoutePath[] = ['/verify/:id', '/privacy'];
 
 /**
  * Pages that leave the sidebar for the focused layout: the page's own sticky top bar (back link,
@@ -204,6 +210,7 @@ export function appRoutes(): RouteObject[] {
     ...entries.filter(([path]) => PUBLIC.includes(path)).map(publicRoute),
     {
       element: <RequireSession />,
+      errorElement: <RouteErrorPage />,
       children: [
         {
           element: <Frame />,

@@ -15,6 +15,7 @@ export const ROUTE_PATHS = [
   '/certificates',
   '/certificates/:id',
   '/verify/:id',
+  '/privacy',
   '/profile',
   '/admin',
   '/admin/learners',

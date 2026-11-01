@@ -42,7 +42,12 @@ export interface Person {
  */
 export async function signInWithGoogle(page: Page, person: Person): Promise<void> {
   const popupOpened = page.waitForEvent('popup');
-  await page.getByRole('button', { name: 'Sign in with Google' }).click();
+  const signIn = page.getByRole('button', { name: 'Sign in with Google' });
+  await expect(signIn).toBeVisible();
+  // The first sign-in on a browser asks for the privacy policy to be accepted.
+  const accept = page.getByRole('switch', { name: 'I accept the privacy policy' });
+  if (await accept.count()) await page.getByText('I accept the privacy policy').click();
+  await signIn.click();
   const popup = await popupOpened;
   const existing = popup.getByRole('listitem').filter({ hasText: person.email });
   const add = popup.getByRole('button', { name: 'Add new account' });

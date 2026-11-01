@@ -46,6 +46,7 @@ import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import { TrackClick } from './analytics/react/Track';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import { ThemeSwitcher } from './ThemeSwitcher';
@@ -154,6 +155,7 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   certificates: AwardIcon,
   profile: UserIcon,
   changelog: SparkIcon,
+  privacy: ShieldIcon,
   'admin-overview': ChartIcon,
   'admin-learners': UsersIcon,
   'admin-assign': SendIcon,
@@ -277,7 +279,14 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
                     href={p.path}
                     current={here === p.path}
                     icon={navIcon(p.id)}
-                    render={(props) => <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />}
+                    render={(props) => (
+                      <TrackClick
+                        event="select_content"
+                        params={{ content_type: 'nav', content_id: p.id }}
+                      >
+                        <Link to={p.path} {...(props as Omit<LinkProps, 'to'>)} />
+                      </TrackClick>
+                    )}
                   >
                     {p.label}
                   </NavItem>

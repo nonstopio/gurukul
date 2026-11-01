@@ -1,7 +1,10 @@
-import { Button, CheckIcon, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
+import { Button, CheckIcon, GridIcon, PageHeader, StarIcon, Toggle } from '@gurukul/ui';
+import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
 import { SignInArt, rise } from './SignInArt';
+import { markSignInStarted } from '../analytics/react/AnalyticsSession';
+import { acceptPolicy, usePolicyAccepted } from '../privacy/policy';
 import { Logo } from '../Logo';
 
 /** Google's four-colour "G", as their sign-in branding guidelines ask for on a Google button. */
@@ -43,7 +46,11 @@ export function SignInPage() {
   const { signIn, error, wrongAccount } = useSession();
   const alert = useRef<HTMLParagraphElement>(null);
   const [pending, setPending] = useState(false);
+  const accepted = usePolicyAccepted();
+  const [agreed, setAgreed] = useState(false);
   const start = (options?: { chooseAccount: boolean }) => {
+    if (!accepted) acceptPolicy();
+    markSignInStarted();
     setPending(true);
     void signIn(options).finally(() => setPending(false));
   };
@@ -69,10 +76,28 @@ export function SignInPage() {
           </p>
         ) : null}
         <div className="signin__action rise" style={rise(2)}>
+          {accepted ? (
+            <p className="learn-meta">
+              You accepted the <Link to="/privacy">privacy policy</Link>.
+            </p>
+          ) : (
+            <div className="signin__consent">
+              <p className="learn-meta">
+                Gurukul measures how it is used, to improve the courses. Read the{' '}
+                <Link to="/privacy">privacy policy</Link>; you need to accept it to sign in.
+              </p>
+              <Toggle
+                label="I accept the privacy policy"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+              />
+            </div>
+          )}
           <Button
             variant="primary"
             icon={<GoogleMark />}
             loading={pending}
+            disabled={!accepted && !agreed}
             onClick={() => start(wrongAccount ? { chooseAccount: true } : undefined)}
           >
             {wrongAccount ? 'Try another account' : 'Sign in with Google'}

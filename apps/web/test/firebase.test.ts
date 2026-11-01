@@ -40,6 +40,17 @@ describe('firebaseConfig', () => {
   });
 });
 
+describe('the GA4 measurement id', () => {
+  it('is added when set, and never with the emulators', () => {
+    expect(firebaseConfig({ VITE_FIREBASE_MEASUREMENT_ID: 'G-1' })).toMatchObject({
+      measurementId: 'G-1',
+    });
+    expect(
+      firebaseConfig({ VITE_FIREBASE_MEASUREMENT_ID: 'G-1', VITE_USE_EMULATORS: 'true' }),
+    ).not.toHaveProperty('measurementId');
+  });
+});
+
 describe('initFirebase', () => {
   it('connects to production only', () => {
     const fb = initFirebase({ VITE_FIREBASE_PROJECT_ID: 'p' });
