@@ -11,4 +11,5 @@ export * from './stats';
 export * from './api';
 export * from './logging';
 export * from './media';
+export * from './upload';
 export * from './draft';

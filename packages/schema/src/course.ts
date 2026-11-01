@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { timestamp } from './timestamp';
+import { fileUploadSchema, imageUploadSchema } from './upload';
 
 /** Ids are stable forever (progress points at them): lower-case slugs, letters, digits, hyphens. */
 export const slug = z
@@ -46,9 +47,27 @@ export const blockSchema = z.discriminatedUnion('type', [
     url: z.url(),
     alt: text(300),
     caption: text(300).optional(),
+    /** How it sits in the lesson column; missing reads as `column`. */
+    layout: z.enum(['column', 'medium', 'small']).optional(),
+    /** Click opens it full size; missing reads as false. */
+    zoom: z.boolean().optional(),
+    /** A thin frame; missing reads as true. */
+    border: z.boolean().optional(),
+    /** Intrinsic pixels, so the page does not jump while the image loads. */
+    width: z.number().int().positive().max(20_000).optional(),
+    height: z.number().int().positive().max(20_000).optional(),
+    /** Present means "we host this" (Storage); absent is a linked image. */
+    upload: imageUploadSchema.optional(),
   }),
   z.object({ type: z.literal('embed'), id, url: z.url(), title: text(200) }),
-  z.object({ type: z.literal('file'), id, url: z.url(), label: text(200) }),
+  z.object({
+    type: z.literal('file'),
+    id,
+    url: z.url(),
+    label: text(200),
+    /** Present means "we host this PDF" (Storage); absent is a linked file. */
+    upload: fileUploadSchema.optional(),
+  }),
   z.object({
     type: z.literal('check'),
     id,
