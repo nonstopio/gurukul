@@ -23,6 +23,7 @@ import { durationLabel, nextAssigned } from '../learn/model';
 import type { AssignedCourse } from '../learn/model';
 import { Loaded, LoadedPage } from '../learn/ui';
 import { linkedInUrl, longDate } from '../quiz/model';
+import { TrackClick, useTrackOnMount } from '../analytics/react/Track';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useAudience } from '../data/useAudience';
@@ -81,6 +82,18 @@ function useCopyVerifyLink() {
 }
 
 /** `/certificates/:id` for the owner: the certificate, Download PDF, LinkedIn and copy-link actions. */
+/** Counts one certificate opened. A component of its own because the page renders its body from a callback. */
+function TrackCertificateView({ id }: { id: string }) {
+  useTrackOnMount('certificate_view', { certificate_id: id });
+  return null;
+}
+
+/** Counts one completion page opened for a finished course. */
+function TrackCourseComplete({ courseId }: { courseId: string }) {
+  useTrackOnMount('course_complete', { course_id: courseId });
+  return null;
+}
+
 export function CertificatePage() {
   const { id = '' } = useParams();
   const data = useLearnerData();
@@ -102,6 +115,7 @@ export function CertificatePage() {
             />
           ) : (
             <>
+              <TrackCertificateView id={c.id} />
               <PageHeader
                 breadcrumb={
                   <Breadcrumb
@@ -135,7 +149,9 @@ export function CertificatePage() {
                     >
                       Add to LinkedIn
                     </a>
-                    <Button onClick={() => window.print()}>Download PDF</Button>
+                    <TrackClick event="certificate_download" params={{ certificate_id: c.id }}>
+                      <Button onClick={() => window.print()}>Download PDF</Button>
+                    </TrackClick>
                   </>
                 }
               />
@@ -359,6 +375,7 @@ export function CompletePage() {
         const certificateId = course.rules.certificate ? progress.certificateId : null;
         return (
           <Page>
+            <TrackCourseComplete courseId={courseId} />
             <PageHeader
               eyebrow="Course complete"
               title={`${course.title}, done.`}

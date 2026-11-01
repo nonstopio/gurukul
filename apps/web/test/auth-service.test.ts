@@ -56,7 +56,16 @@ describe('firebaseAuthService', () => {
       emailVerified: true,
       displayName: 'A',
       photoURL: null,
+      metadata: { creationTime: 'T1', lastSignInTime: 'T1' },
       extra: 1,
+    });
+    state.authCb?.({
+      uid: 'u',
+      email: 'a@nonstopio.com',
+      emailVerified: true,
+      displayName: 'A',
+      photoURL: null,
+      metadata: { creationTime: 'T1', lastSignInTime: 'T2' },
     });
     expect(cb).toHaveBeenNthCalledWith(1, null);
     expect(cb).toHaveBeenNthCalledWith(2, {
@@ -65,7 +74,9 @@ describe('firebaseAuthService', () => {
       emailVerified: true,
       displayName: 'A',
       photoURL: null,
+      firstSignIn: true,
     });
+    expect(cb).toHaveBeenNthCalledWith(3, expect.objectContaining({ firstSignIn: false }));
   });
 
   it('signs in with Google, hinting the NonStop domain, and signs out', async () => {

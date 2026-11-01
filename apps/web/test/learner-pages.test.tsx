@@ -1,3 +1,5 @@
+import { analytics } from '../src/analytics';
+import { acceptPolicy } from '../src/privacy/policy';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ToastProvider } from '@gurukul/ui';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -411,6 +413,7 @@ describe('Course overview', () => {
 
   it('renders the description, names the Educators and explains a locked row', async () => {
     localStorage.clear();
+    acceptPolicy();
     const course = makeCourse({
       description: 'Learn **Git** properly.',
       educatorIds: ['a1', 'a2'],
@@ -431,6 +434,7 @@ describe('Course overview', () => {
 
   it('names a single Educator, hides a repeated description and remembers open chapters', async () => {
     localStorage.clear();
+    acceptPolicy();
     const course = makeCourse({
       description: 'Version control for teams.',
       educatorNames: { a1: 'Asha Rao' },
@@ -444,6 +448,7 @@ describe('Course overview', () => {
     const toggle = await screen.findByRole('button', { name: /Chapter 2/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     localStorage.clear();
+    acceptPolicy();
   });
 
   it('links to the certificate once one is issued', async () => {
@@ -543,6 +548,20 @@ describe('Lesson player', () => {
     await open('/courses/git/learn/l1', d);
     await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
     expect(d.data.setLastItem).not.toHaveBeenCalled();
+  });
+
+  it('counts a course start once and each completed lesson', async () => {
+    const track = vi.spyOn(analytics, 'track');
+    const d = fakeData();
+    await open('/courses/git/learn/l1', d);
+    fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith('lesson_complete', { course_id: 'git', lesson_id: 'l1' }),
+    );
+    expect(track.mock.calls.filter(([e]) => e === 'course_start')).toEqual([
+      ['course_start', { course_id: 'git' }],
+    ]);
+    track.mockRestore();
   });
 
   it('marks complete, saves and moves to the next lesson', async () => {

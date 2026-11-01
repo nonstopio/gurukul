@@ -53,6 +53,50 @@ export default tseslint.config(
       ],
     },
   },
+  // WEB: Firebase Analytics is reached only through the analytics facade; only the adapter imports it
+  // (docs/analytics.md). Repeats the firebase/functions path: a later block replaces an earlier one.
+  {
+    files: ['apps/web/src/**/*.{ts,tsx}'],
+    ignores: ['apps/web/src/api/**', 'apps/web/src/analytics/core/firebaseProvider.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'firebase/functions',
+              importNames: ['httpsCallable', 'httpsCallableFromURL'],
+              message:
+                'Call Cloud Functions through callApi in apps/web/src/api/ (.claude/rules/api-responses.md).',
+            },
+            {
+              name: 'firebase/analytics',
+              message:
+                'Track through analytics from apps/web/src/analytics/; only core/firebaseProvider.ts imports firebase/analytics (docs/analytics.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // WEB: api/ may import callables but still not firebase/analytics.
+  {
+    files: ['apps/web/src/api/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'firebase/analytics',
+              message:
+                'Track through analytics from apps/web/src/analytics/; only core/firebaseProvider.ts imports firebase/analytics (docs/analytics.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // WEB: one logger. Only apps/web/src/log.ts may touch the console (.claude/rules/logging.md).
   {
     files: ['apps/web/src/**/*.{ts,tsx}'],

@@ -5,6 +5,7 @@ import type { Course } from '@gurukul/schema';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { useAnalytics } from '../analytics/react/context';
 import { ApiClientError, userMessageOf } from '../api';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
@@ -39,6 +40,7 @@ function Form({
 }) {
   const { service } = useStudio();
   const navigate = useNavigate();
+  const analytics = useAnalytics();
   const [title, setTitle] = useState('');
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const [level, setLevel] = useState<Course['level']>('foundation');
@@ -68,6 +70,7 @@ function Form({
         theme,
         duplicateFrom: source || null,
       });
+      analytics.track('course_create', { course_id: courseId });
       onClose();
       void navigate(`/studio/courses/${courseId}`);
     } catch (error) {

@@ -3,7 +3,7 @@ import type { LogLevel } from '@gurukul/schema';
 
 /**
  * The browser logger: `log.info('Constant event', { courseId })`. It writes only to the console of
- * the person's own browser — there is no remote telemetry. Masking is by field name
+ * the person's own browser — logs have no remote telemetry (usage analytics is `src/analytics/`). Masking is by field name
  * (`@gurukul/schema`), never log a payload. The only file allowed to call `console.*` (ESLint).
  * Standard: `.plan/17-logging.md`, skill `writing-logs`.
  */

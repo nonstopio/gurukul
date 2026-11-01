@@ -1,3 +1,4 @@
+import { analytics } from '../src/analytics';
 import { describe, expect, it, vi } from 'vitest';
 import { ERROR_CODES, apiFail, apiOk, ApiException } from '@gurukul/schema';
 
@@ -28,7 +29,10 @@ describe('callApi', () => {
       code: 'functions/invalid-argument',
       details: failure('VAL_1001', { field: 'courseIds' }),
     });
+    const track = vi.spyOn(analytics, 'track');
     const err = (await callApi(fns, 'x', {}).catch((e) => e)) as ApiClientError;
+    expect(track).toHaveBeenCalledWith('app_error', { source: 'api', code: 'VAL_1001' });
+    track.mockRestore();
     expect(err).toBeInstanceOf(ApiClientError);
     expect(err).toMatchObject({
       code: 'VAL_1001',

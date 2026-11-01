@@ -13,6 +13,7 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { TrackClick } from './analytics/react/Track';
 import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
@@ -208,9 +209,20 @@ function Overview({
               </Link>
             ) : null}
             {resume ? (
-              <Link className={buttonClass('primary')} to={`/courses/${course.id}/learn/${resume}`}>
-                {progress ? `Resume — ${resumeTitle}` : 'Start course'}
-              </Link>
+              <TrackClick
+                event="select_content"
+                params={{
+                  content_type: 'cta',
+                  content_id: progress ? 'course_resume' : 'course_start',
+                }}
+              >
+                <Link
+                  className={buttonClass('primary')}
+                  to={`/courses/${course.id}/learn/${resume}`}
+                >
+                  {progress ? `Resume — ${resumeTitle}` : 'Start course'}
+                </Link>
+              </TrackClick>
             ) : null}
           </>
         }

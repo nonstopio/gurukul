@@ -52,6 +52,8 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          # A preview is a production build; keep it out of the real GA4 property.
+          VITE_ANALYTICS_ENABLED: 'false'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         id: deploy
         with:

@@ -27,6 +27,7 @@ import { useAsync } from '../data/useAsync';
 import { useAudience } from '../data/useAudience';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
+import { useAnalytics } from '../analytics/react/context';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import type { AssignResult, KnownEmails } from './types';
@@ -57,6 +58,7 @@ export function AssignPage() {
   const learner = useLearnerData();
   const audience = useAudience();
   const toast = useToast();
+  const analytics = useAnalytics();
   const prefill = (useLocation().state ?? {}) as Prefill;
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
@@ -209,6 +211,9 @@ export function AssignPage() {
     toast.show(
       `Assigned to ${people} ${people === 1 ? 'person' : 'people'} (${pending} pending ${pending === 1 ? 'invite' : 'invites'})`,
       { tone: 'success' },
+    );
+    courseIds.forEach((id) =>
+      analytics.track('course_assign', { course_id: id, assignee_count: people }),
     );
     setFailed([]);
     setBusy(false);

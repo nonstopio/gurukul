@@ -1,9 +1,15 @@
 import { cleanup, configure } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+import { POLICY_VERSION } from '../src/privacy/policy';
 
 // The app and its editors load lazily, so under a full-suite run the first screen can take longer
 // than Testing Library's 1 s default to appear. A wait only lasts this long when it fails.
 configure({ asyncUtilTimeout: 5000 });
+
+// Everyone in a test has accepted the privacy policy already; `privacy.test.tsx` clears it.
+beforeEach(() => {
+  globalThis.localStorage?.setItem('gurukul.privacy.accepted', POLICY_VERSION);
+});
 
 // Vitest runs without globals, so Testing Library cannot register its own cleanup.
 // Quiz drafts live in localStorage; each test starts without one. One hook, in this order:

@@ -1,3 +1,4 @@
+import { analytics } from '../src/analytics';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
@@ -115,6 +116,7 @@ describe('Quiz screen', () => {
         }),
       ),
     });
+    const track = vi.spyOn(analytics, 'track');
     const { router } = await openApp(PATH, { data: data(), quiz });
     for (const label of [/Alpha/, /Alpha/]) {
       await screen.findByText(/Question \d of 2/);
@@ -125,6 +127,13 @@ describe('Quiz screen', () => {
       fireEvent.click(screen.getByRole('button', { name: /Next question|Finish Quiz/ }));
     }
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/quiz/q1/result'));
+    expect(track).toHaveBeenCalledWith('quiz_submit', {
+      course_id: 'git',
+      quiz_id: 'q1',
+      passed: false,
+      score_percent: 50,
+    });
+    track.mockRestore();
     expect(quiz.gradeAttempt).toHaveBeenCalledWith({
       courseId: 'git',
       quizId: 'q1',

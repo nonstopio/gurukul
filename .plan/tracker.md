@@ -24,12 +24,12 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Studio | 17 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 20 | 0 | 0 | 10 |
+| Platform, CI and operations | 21 | 0 | 0 | 11 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 1 | 8 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 157 | 8 | 0 | 13 |
+| **Total** | 158 | 8 | 0 | 14 |
 
 ## Pick order
 
@@ -249,6 +249,8 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-28` | Hand the Gmail key to the functions | done | — | `GMAIL_CREDENTIALS` was read from the environment but never declared, so no deploy could supply it: `firebase/functions/src/index.ts` (`MAIL` = `defineSecret` on `dailyReminders`, `revokeCertificate`, `assignCourses`, `remindLearners`), `api/callable.ts` (`apiCallable` takes `onCall` options), tests in `test/index.test.ts`, `callable.test.ts`; `docs/operations.md`, `.plan/11-deployment-and-cost.md` |
 | `OPS-29` | Reset production after the vocabulary rename | maintainer | `SHL-04` | Role claims are now `admin`/`educator` and Firestore fields renamed (`educatorIds`, `chapters`, `quizId`…), so test data from before cannot be read: after the deploy, clear Firestore, `npm run grant-admin -- you@nonstopio.com` (the old `kulapati` claim no longer counts) and `npm run seed -- --production` |
 | `OPS-27` | Set the `SITE_URL` repository variable | maintainer | `OPS-24` | After DNS is live, set repository variable `SITE_URL=https://gurukul.nonstopio.com`; production deploy then uses it (optionally flip the `mail.ts` fallback to the domain) |
+| `OPS-31` | Product analytics: typed GA4 events, privacy policy accepted at sign-in | done | — | `apps/web/src/analytics/` (facade, Firebase/Console/Noop adapters, typed `events.ts`, React provider, `RouteTracker`, `TrackClick`, `TrackImpression`), `privacy/` (`/privacy`, policy gate), `docs/analytics.md`, `.plan/20-product-analytics.md`; instrumented learner, Studio, Admin, search, API and route errors |
+| `OPS-32` | Turn on GA4 for production | maintainer | `OPS-31` | Set `VITE_FIREBASE_MEASUREMENT_ID` for the production build, register the custom dimensions and set data retention in GA4 (`docs/analytics.md`, "Console steps") |
 
 ## First course: Git
 
