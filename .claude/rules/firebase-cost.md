@@ -17,6 +17,8 @@ query pattern can burn through them.
 - Use `getCountFromServer()` / aggregation queries for counts.
 - Functions are 2nd gen, `region: asia-south1`, `minInstances: 0`, `maxInstances`
   set low. No scheduled function more often than daily without a reason in the PR.
-- No Cloud Storage: videos are hosted links, certificates render client-side.
-  Adding Storage needs a plan update first.
+- Cloud Storage only for what `.plan/19-course-media-uploads.md` describes: Studio uploads of
+  small images and PDFs, size-capped in `storage.rules`, served by download URL (no Firestore read
+  per view). Videos stay hosted links, certificates render client-side. Any other use of Storage
+  needs a plan update first.
 - Never deploy from a laptop to production; `deploy.yml` on `main` does it.
