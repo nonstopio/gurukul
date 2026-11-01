@@ -104,6 +104,21 @@ export function firstName(displayName: string | null | undefined): string {
 }
 
 /**
+ * The name to show for a signed-in person: their Google name, else the start of the email made
+ * readable ("ajay.kumar@x.com" becomes "Ajay Kumar"), so the email is never shown twice.
+ */
+export function shownName(displayName: string | null | undefined, email: string): string {
+  const named = displayName?.trim();
+  if (named) return named;
+  // `split` always yields a first part.
+  return (email.split('@')[0] as string)
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
  * The picture for a course's tile: the first image in its lessons, in reading order. A course with
  * no picture gets none, and its tile shows the course name on its own colour instead.
  */

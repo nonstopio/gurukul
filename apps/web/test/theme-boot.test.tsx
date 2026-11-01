@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOT_LOADER_ID, BOOT_MIN_MS, hideBootLoader } from '../src/boot';
-import { THEME_KEY, applyTheme, nextTheme, readTheme, setTheme, useTheme } from '../src/theme';
+import { THEME_KEY, applyTheme, readTheme, setTheme, useTheme } from '../src/theme';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -93,12 +93,6 @@ describe('theme', () => {
     });
     setTheme('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-  });
-
-  it('cycles system, light, dark', () => {
-    expect(nextTheme('system')).toBe('light');
-    expect(nextTheme('light')).toBe('dark');
-    expect(nextTheme('dark')).toBe('system');
   });
 });
 

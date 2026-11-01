@@ -72,18 +72,38 @@ describe('the account menu', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Profile' })).toBeTruthy();
   });
 
-  it('steps the theme from its Theme item', async () => {
+  it('switches Light, System and Dark from the top bar, shows the choice and remembers it', async () => {
+    await openApp('/');
+    const group = await screen.findByRole('group', { name: 'Theme' });
+    const pressed = () =>
+      within(group)
+        .getAllByRole('button')
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent);
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Light', 'System', 'Dark']);
+    expect(pressed()).toEqual(['System']);
+    fireEvent.click(within(group).getByRole('button', { name: 'Dark' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(localStorage.getItem('gurukul-theme')).toBe('dark');
+    expect(pressed()).toEqual(['Dark']);
+    fireEvent.click(within(group).getByRole('button', { name: 'Light' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(pressed()).toEqual(['Light']);
+    fireEvent.click(within(group).getByRole('button', { name: 'System' }));
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(localStorage.getItem('gurukul-theme')).toBeNull();
+    expect(pressed()).toEqual(['System']);
+    localStorage.clear();
+  });
+
+  it("keeps the account menu to Profile, names, What's new and Sign out", async () => {
     await openApp('/');
     fireEvent.click(await screen.findByRole('button', { name: /^Account:/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Theme/ }));
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    fireEvent.click(await screen.findByRole('button', { name: /^Account:/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Theme/ }));
-    // Dark: the menu item shows the moon.
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    fireEvent.click(await screen.findByRole('button', { name: /^Account:/ }));
-    expect(screen.getByRole('menuitem', { name: /Theme/ }).textContent).toContain('Dark');
-    localStorage.clear();
-    document.documentElement.removeAttribute('data-theme');
+    expect(screen.queryByRole('menuitem', { name: /Theme/ })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: "What's new" })).toBeTruthy();
   });
 });

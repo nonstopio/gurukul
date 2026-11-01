@@ -132,7 +132,7 @@ describe('signed-in shell', () => {
     expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBe(
       'page',
     );
-    expect(within(nav).getByRole('link', { name: 'Changelog' })).toBeTruthy();
+    expect(within(nav).queryByRole('link', { name: 'Changelog' })).toBeNull();
     expect(within(nav).queryByRole('link', { name: 'Overview' })).toBeNull();
     expect(document.title).toBe('Gurukul · NonStop Academy');
   });
@@ -146,7 +146,7 @@ describe('signed-in shell', () => {
     expect(document.getElementById('app-sidebar')).toBeTruthy();
     fireEvent.click(
       within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
-        name: 'Changelog',
+        name: 'Profile',
       }),
     );
     await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'));
@@ -174,7 +174,9 @@ describe('signed-in shell', () => {
     });
     act(() => f.emitProfile({ roles: ['learner'], displayName: '', team: null }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Namaste' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Account: priya@nonstopio\.com/ })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /^Account: Priya priya@nonstopio\.com/ }),
+    ).toBeTruthy();
   });
 
   it('shows an Admin the console and the studio in the sidebar', async () => {

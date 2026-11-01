@@ -105,6 +105,8 @@ editors: a `<header>` on `--chrome`, wrapping flex row. `title` is the page `h1`
 `--chrome-text-strong`; `titleAs="p"` when the page below carries its own `h1` (one per page). A
 `ProgressBar` in `status` draws 6px on `--chrome-active` with a mint fill and chrome-text caption. `back` is any node; give a link or button `className={topBarBackClass}` for the
 44px chrome look. `status` (progress, "Saved") and `actions` (a `chrome` Button) sit on the right.
+`TopBarToolsContext` holds controls every `TopBar` shows at its far right, after `actions`: the focused
+layout provides the theme switcher there once, so no page passes it in.
 
 ## Field, Input, Select, Textarea — shipped
 
@@ -520,7 +522,8 @@ Profile, the label switch, What's new and Sign out — Sign out is always there.
 content column; the app renders `<main id="content">` inside. ≥ 64rem: grid
 `var(--sidebar-width) minmax(0,1fr)`, the sidebar container sticky at `top: 0`, `height: 100dvh`,
 its nav scrolling inside so the `UserCard` never leaves the screen; the bar (search) sticky with a
-hairline. < 64rem: the sidebar is a drawer (`--z-drawer`, `min(85vw, 18rem)`, slides on
+hairline. The bar is a `<header>` (a landmark), so what `bar` holds (search, the theme switcher) is
+inside one. < 64rem: the sidebar is a drawer (`--z-drawer`, `min(85vw, 18rem)`, slides on
 `--dur-base`) over a `--scrim`, opened by the "Menu" button (`aria-expanded`, `aria-controls`).
 Opening focuses the first link; Escape or the scrim close it and return focus; the content is
 `inert` while open; a new `navKey` (the pathname) closes it; widening past 64rem closes it.

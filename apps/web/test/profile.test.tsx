@@ -34,11 +34,9 @@ describe('Profile', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('falls back to the email when Google gives no name', async () => {
+  it('makes a name from the email when Google gives none', async () => {
     await openApp('/profile', { user: { displayName: null } });
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'priya@nonstopio.com' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Priya' })).toBeTruthy();
   });
 
   it('lists every team you are on, read only', async () => {
@@ -101,16 +99,5 @@ describe('Profile', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
     fireEvent.click(screen.getByRole('menuitem', { name: "What's new" }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/changelog'));
-  });
-
-  it('the account menu cycles the theme', async () => {
-    await openApp('/');
-    fireEvent.click(await screen.findByRole('button', { name: /^Account: / }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Theme/ }));
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    fireEvent.click(screen.getByRole('button', { name: /^Account: / }));
-    expect(screen.getByRole('menuitem', { name: /^Theme/ })).toBeTruthy();
   });
 });

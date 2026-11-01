@@ -1,6 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { NavItem, Sidebar, SidebarGroup, TopBar, topBarBackClass } from '../src';
+import {
+  NavItem,
+  Sidebar,
+  SidebarGroup,
+  TopBar,
+  TopBarToolsContext,
+  topBarBackClass,
+} from '../src';
 import { axeViolations } from './axe';
 
 describe('NavItem', () => {
@@ -106,6 +113,15 @@ describe('TopBar', () => {
     expect(screen.getByRole('banner').className).toBe('g-topbar x');
     expect(container.querySelector('.g-topbar__status')).toBeNull();
     expect(container.querySelector('.g-topbar__actions')).toBeNull();
+  });
+
+  it('shows the tools a layout provides at the far right', () => {
+    render(
+      <TopBarToolsContext.Provider value={<button type="button">Theme tool</button>}>
+        <TopBar title="Git basics" />
+      </TopBarToolsContext.Provider>,
+    );
+    expect(screen.getByRole('button', { name: 'Theme tool' })).toBeTruthy();
   });
 
   it('draws the title as a paragraph when the page has its own heading', () => {

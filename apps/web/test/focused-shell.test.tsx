@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { axeViolations } from './axe';
 import { fakeData, progressRow } from './fake-data';
@@ -29,6 +29,18 @@ describe('focused shell', () => {
     expect(screen.getByText('60% · 3 / 5')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Skip to content' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('puts the theme switcher at the right of the lesson top bar', async () => {
+    await openApp('/courses/git/learn/l3', { data: progress() });
+    await screen.findByRole('heading', { level: 1, name: 'Lesson l3' });
+    const group = screen.getByRole('group', { name: 'Theme' });
+    // It sits inside the lesson's top bar, not beside it.
+    expect(screen.getAllByRole('banner')[0]?.contains(group)).toBe(true);
+    fireEvent.click(within(group).getByRole('button', { name: 'Dark' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
   });
 
   it('keeps one h1 on a locked lesson', async () => {

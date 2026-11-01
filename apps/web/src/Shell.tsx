@@ -11,7 +11,6 @@ import {
   ImageIcon,
   LanguagesIcon,
   LogOutIcon,
-  MoonIcon,
   NavItem,
   PenIcon,
   SendIcon,
@@ -20,10 +19,10 @@ import {
   Sidebar,
   SidebarGroup,
   SparkIcon,
-  SunIcon,
   UserCard,
   UserIcon,
   UsersIcon,
+  TopBarToolsContext,
 } from '@gurukul/ui';
 import type { AvatarTone } from '@gurukul/ui';
 import type { LabelSet, Role } from '@gurukul/schema';
@@ -34,6 +33,7 @@ import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
+import { shownName } from './learn/model';
 import { PageLoading } from './learn/ui';
 import { useSaveLabels } from './labels/LabelChoice';
 import { terms } from './labels/terms';
@@ -48,7 +48,7 @@ import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
-import { nextTheme, useTheme } from './theme';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import type { AreaNavigation, Destination } from './navigation';
 
 /** "Changelog · Gurukul": the page's label from its area's navigation, so the two never drift. */
@@ -145,8 +145,6 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   );
 }
 
-const THEME_LABEL = { system: 'System', light: 'Light', dark: 'Dark' } as const;
-
 /** The sidebar icon for each page, by its navigation id. A page without one shows none. */
 const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   home: HomeIcon,
@@ -191,7 +189,6 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const saveLabels = useSaveLabels();
-  const [theme, setTheme] = useTheme();
   const t = useTerms();
   const destinations = useMemo(
     () => destinationsFor(areas, roles).map((d) => localizePage(d, t)),
@@ -204,8 +201,10 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
     const first = destinations.find((d) => areaKeyOf(d.path) === key);
     return first ? [{ key, first }] : [];
   });
+  // The changelog is reached from the account menu ("What's new"), not the sidebar.
+  const navigable = destinations.filter((d) => d.id !== 'changelog');
   const groups = groupByArea(
-    switcher.length > 1 ? destinations.filter((d) => areaKeyOf(d.path) === area) : destinations,
+    switcher.length > 1 ? navigable.filter((d) => areaKeyOf(d.path) === area) : navigable,
   );
   const areaName = { learn: 'Learn', studio: t.Studio, admin: t.Admin };
   const tone = topRole(roles);
@@ -214,7 +213,12 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   return (
     <AppShell
       navKey={pathname}
-      bar={<SearchTrigger />}
+      bar={
+        <>
+          <SearchTrigger />
+          <ThemeSwitcher />
+        </>
+      }
       sidebar={
         <Sidebar
           label="Main"
@@ -235,7 +239,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           footer={
             <UserCard
               roleLabel={{ admin: t.Admin, educator: t.Educator, learner: t.Learner }[tone]}
-              name={user.displayName ?? String(user.email)}
+              name={shownName(user.displayName, String(user.email))}
               detail={String(user.email)}
               tone={tone}
               photoUrl={user.photoURL}
@@ -245,12 +249,6 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
                   label: nextLabels === 'gurukul' ? 'Use Gurukul names' : 'Use plain English names',
                   icon: <LanguagesIcon />,
                   onSelect: () => void saveLabels(nextLabels),
-                },
-                {
-                  label: 'Theme',
-                  hint: THEME_LABEL[theme],
-                  icon: theme === 'dark' ? <MoonIcon /> : <SunIcon />,
-                  onSelect: () => setTheme(nextTheme(theme)),
                 },
                 {
                   label: "What's new",
@@ -307,11 +305,13 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
  */
 export function FocusedShell() {
   return (
-    <main className="focused" id="content">
-      <OfflineBanner />
-      <Suspense fallback={<PageLoading />}>
-        <Outlet />
-      </Suspense>
-    </main>
+    <TopBarToolsContext.Provider value={<ThemeSwitcher />}>
+      <main className="focused" id="content">
+        <OfflineBanner />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
+      </main>
+    </TopBarToolsContext.Provider>
   );
 }

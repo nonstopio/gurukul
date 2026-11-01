@@ -89,6 +89,28 @@ body {
   font: 500 var(--text-sm) var(--font-mono);
   color: var(--text-subtle);
 }
+/* Narrow screens: Menu, Search and the theme switcher share one row, so Search gives way. */
+@media (width < 40rem) {
+  .search-trigger {
+    min-width: 0;
+  }
+  .search-trigger kbd {
+    display: none;
+  }
+}
+/* Theme switcher: icon-only buttons, pushed to the right end of the top bar. */
+.g-app-shell__bar > .g-segmented {
+  flex: none;
+  margin-left: auto;
+}
+.g-segmented__btn:has(svg) {
+  display: inline-flex;
+  align-items: center;
+}
+/* On the dark focused bar the switcher sits at the far right, after any actions. */
+.g-topbar__tools {
+  margin-left: auto;
+}
 /* The sidebar brand: the Gurukul logo (AppShell does the layout). */
 .app__logo {
   display: block;

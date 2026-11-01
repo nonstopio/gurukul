@@ -92,7 +92,7 @@ export function AppShell({
         {sidebar}
       </div>
       <div className="g-app-shell__content" inert={open}>
-        <div className="g-app-shell__bar">
+        <header className="g-app-shell__bar">
           <button
             ref={menu}
             type="button"
@@ -107,7 +107,7 @@ export function AppShell({
             {menuLabel}
           </button>
           {bar}
-        </div>
+        </header>
         {children}
       </div>
     </div>
