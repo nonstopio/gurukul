@@ -21,7 +21,7 @@ nearest nested `CLAUDE.md` before editing `apps/`, `packages/` or `firebase/`.
 | `firebase/firestore.rules`, `firestore.indexes.json` | Security rules and indexes, deployed by CI                                                                                                                                                                                                                                                                                                   |
 | `firebase/rules/`                                    | Rules tests against the Firestore emulator                                                                                                                                                                                                                                                                                                   |
 | `firebase/functions/`                                | Cloud Functions (2nd gen): invite claiming, grading, certificates, role grants                                                                                                                                                                                                                                                               |
-| `.claude/rules/`                                     | Path-scoped rules: coverage, Firestore rules, course object, design, cost, open source, changelog entries, navigation, Claude config, API responses, logging, end-to-end before push                                                                                                                                                         |
+| `.claude/rules/`                                     | Path-scoped rules: coverage, Firestore rules, course object, design, cost, open source, changelog entries, navigation, Claude config, API responses, logging, analytics, end-to-end before push                                                                                                                                              |
 | `.claude/skills/`                                    | `gurukul-design` (read before any UI change), `writing-changelog-entries`, `updating-claude-md` (CLAUDE.md, rules and skills), `writing-commit-messages`, `writing-logs`, `adding-feature-tips` (one row in `tips/registry.ts`), `pick-up-next` (one tracker item, one PR)                                                                   |
 | `.claude/hooks/`                                     | Node hooks, tested in `hooks/test/`: `claude-md-nudge` (names the CLAUDE.md, rules and skills governing an edited file), `changelog-nudge`, `navigation-nudge`, `api-response-nudge`, `logging-nudge`, `prod-guard` (asks before firebase CLI against production), `secret-write-guard` (asks before writing a secret into this public repo) |
 | `.claude/settings.json`                              | Hook registration, permission denies, and the `ponytail` and `firebase` plugins (enabled for every contributor by the maintainer's choice)                                                                                                                                                                                                   |
@@ -70,6 +70,14 @@ text. Contract: `.plan/16-api-contract.md`; rule: `.claude/rules/api-responses.m
 No interpolated messages, no `console.*`, no personal data or secrets at INFO and above, no answer
 keys at any level; an error is logged once, by the API wrapper. Standard: `.plan/17-logging.md`;
 skill: `writing-logs`; rule: `.claude/rules/logging.md`. ESLint enforces the form.
+
+## Analytics — every new page, flow step and call to action is measured
+
+**A new page, flow step or call to action sends a typed event through the `analytics` facade, with a
+test (`createMockAnalytics()`), the way every line is covered.** Page views are automatic. A new
+event is one entry in `analytics/events.ts` plus its row in `docs/analytics.md`. Only ids, counts and
+short enums: never an email, a name or free text. Never import `firebase/analytics` (ESLint). Nothing
+to measure? Say so in the PR. Rule: `.claude/rules/analytics.md`; guide: `docs/analytics.md`.
 
 ## Keeping the notes true
 

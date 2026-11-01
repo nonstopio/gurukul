@@ -18,5 +18,6 @@
 - [ ] Changed the course object shape → `.plan/02-data-model.md` and the schema version updated together
 - [ ] Someone would notice this change → one entry in `apps/web/src/changelog/entries/` (`npm run changelog:new`)
 - [ ] Added, renamed or removed a page → its area in `apps/web/src/navigation/areas/` updated; `npm run validate:navigation` passes
+- [ ] New page, flow step or call to action → instrumented with a typed event and a test, or "nothing to measure" said under "How it was checked" (`.claude/rules/analytics.md`)
 - [ ] No secrets, service-account files, real learner data or emulator exports in the diff
 - [ ] Conventional Commit title with an area scope — `feat(web): …`, `fix(rules): …`, `chore(deps): …`
