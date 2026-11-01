@@ -24,9 +24,10 @@
 //  It recognises `firebase`, `npx`/`bunx`/`pnpx`/`yarn`/`pnpm`/`pnpm dlx|exec`/`npm exec|x`
 //  `firebase[-tools]` and a path ending in /firebase, behind `sudo`, `env`, `xargs`, `time` and the
 //  like, at the start of any command in a chain (`&&`, `;`, `|`, `$(...)`). It looks inside
-//  `sh|bash|zsh -c "…"`, `sh <<< "…"` and `eval …`, nested to any depth. A command hidden inside
-//  a script file (`sh deploy.sh`), a pipe into a shell (`echo … | sh`), a `$(…)` that builds the
-//  command, another interpreter (`python -c`) or an alias is not seen. `--version`,
+//  `sh|bash|zsh -c "…"`, `sh <<< "…"` and `eval …`, nested to any depth, and asks when `sh -c` or
+//  `env -S` gets an argument it cannot read (`$'…'`) and the line mentions firebase. A command
+//  hidden inside a script file (`sh deploy.sh`), a pipe into a shell (`echo … | sh`), a `$(…)`
+//  that builds the command, another interpreter (`python -c`) or an alias is not seen. `--version`,
 //  `--help`, `help`, `login` and `logout` touch no project and are let through.
 //
 //  If the payload cannot be read, it ASKS rather than falling silent: the matcher routes every
@@ -52,6 +53,9 @@ const WRAPPERS = {
 // A quoted argument that is a whole command line of its own: `sh -c "…"`, `sh <<< "…"`, `eval …`.
 const QUOTED = String.raw`(?:"((?:[^"\\]|\\.)*)"|'([^']*)')`;
 const SHELL = String.raw`\b(?:ba|z|da|k|a)?sh\b`;
+const OPAQUE = new RegExp(
+  String.raw`${SHELL}(?:\s+-[-\w]+)*?\s+-[A-Za-z]*c\s+(?!["'\\])\S|\benv\b(?:\s+\S+)*?\s+(?:-S|--split-string)`,
+);
 const NESTED = [
   new RegExp(String.raw`${SHELL}(?:\s+-[-\w]+)*?\s+-[A-Za-z]*c\s+${QUOTED}`, 'g'),
   new RegExp(String.raw`${SHELL}[^<|;&]*<<<\s*${QUOTED}`, 'g'),
@@ -81,6 +85,11 @@ function simpleCommands(command) {
     .filter((words) => words.length > 0);
 }
 
+function isFirebase(word = '') {
+  const bin = word.split('/').pop().replace(/@.*$/, '');
+  return bin === 'firebase' || bin === 'firebase-tools';
+}
+
 /** If this simple command runs the Firebase CLI, returns its arguments; otherwise null. */
 function firebaseArgs(words) {
   let i = 0;
@@ -99,9 +108,14 @@ function firebaseArgs(words) {
       i += words[i] === '-p' || words[i] === '--package' ? 2 : 1;
     }
   }
-  const bin = (words[i] ?? '').split('/').pop().replace(/@.*$/, '');
-  if (bin !== 'firebase' && bin !== 'firebase-tools') return null;
-  return words.slice(i + 1);
+  if (isFirebase(words[i])) return words.slice(i + 1);
+  // Fail closed: a wrapper or runner whose options are not understood (`sudo --user root`) still
+  // asks when `firebase` follows it anywhere on the line. `command` is only a lookup.
+  const lead = words.findIndex((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w));
+  if (lead < 0 || words[lead] === 'command') return null;
+  if (!Object.hasOwn(WRAPPERS, words[lead]) && !launcherLength(words, lead)) return null;
+  const at = words.findIndex((w, j) => j > lead && isFirebase(w));
+  return at < 0 ? null : words.slice(at + 1);
 }
 
 /** The production-facing call in `command`, or null if every firebase call is local. */
@@ -114,6 +128,9 @@ function productionCall(command) {
       if (call) return call;
     }
   }
+  // `sh -c` or `env -S` given something that is not a plain quoted string (`$'…'`, `$VAR`): it
+  // cannot be read, so ask if the line mentions firebase at all.
+  if (OPAQUE.test(command) && /firebase/.test(command)) return { project: null };
   for (const words of simpleCommands(command)) {
     const args = firebaseArgs(words);
     if (!args) continue;
