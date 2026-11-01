@@ -55,6 +55,9 @@ export const ALLOW = {
   'apps/web/src/auth/SignInPage.tsx': { main: 'outside the shell: before sign-in' },
   'apps/web/src/auth/RequireSession.tsx': { main: 'outside the shell: the session is loading' },
   'apps/web/src/labels/LabelChoice.tsx': { main: 'outside the shell: before the first page' },
+  'apps/web/src/RouteErrorPage.tsx': { main: 'outside the shell: the screen crashed' },
+  'apps/web/src/privacy/PrivacyPage.tsx': { main: 'the public privacy page has no shell' },
+  'apps/web/src/privacy/AcceptPolicyPage.tsx': { main: 'outside the shell: before the first page' },
   'apps/web/src/certificates/pages.tsx': { main: 'the public verify page has no shell' },
   'packages/ui/src/tokens.css': {
     hex: 'defines the values',

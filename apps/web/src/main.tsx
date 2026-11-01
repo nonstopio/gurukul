@@ -9,21 +9,27 @@ import './studio.css';
 import { App } from './App';
 import { firebaseAuthService } from './auth/service';
 import { firebaseConsoleService } from './console/service';
+import { configureAnalytics } from './analytics';
 import { initFirebase } from './firebase';
 import { lazyPort } from './lazy';
 import { log } from './log';
 import { firebaseQuizService } from './quiz/service';
 import { firebaseStudioService } from './studio/service';
+import type { AnalyticsEnv } from './analytics';
 import type { FirebaseEnv } from './firebase';
 import type { Firestores } from './firestore';
 import { appRoutes } from './routes';
 
 /** Mount the app into `#root`. Exported so the boot path is testable. */
-export function mount(element: HTMLElement | null, env = import.meta.env as FirebaseEnv): void {
+export function mount(
+  element: HTMLElement | null,
+  env = import.meta.env as FirebaseEnv & AnalyticsEnv,
+): void {
   if (!element) {
     throw new Error('Gurukul: #root element is missing from index.html');
   }
   const firebase = initFirebase(env);
+  configureAnalytics(env, firebase.app);
   // The Firestore SDK is its own chunk, fetched the first time something reads data: right after
   // sign-in (the profile watch), never for a visitor who has not signed in.
   // A failed download is forgotten, so the next sign-in fetches the chunk again.

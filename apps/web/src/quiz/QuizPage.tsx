@@ -13,6 +13,7 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { useAnalytics } from '../analytics/react/context';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
@@ -148,6 +149,7 @@ function Questions({
   const service = useQuizService();
   const navigate = useNavigate();
   const toast = useToast();
+  const analytics = useAnalytics();
   const t = useTerms();
   const uid = useUser().uid;
   const [key] = useState(() => draftKey(uid, course.id, quiz.id));
@@ -240,6 +242,12 @@ function Questions({
         answers: selected,
       });
       clearDraft(key);
+      analytics.track('quiz_submit', {
+        course_id: course.id,
+        quiz_id: quiz.id,
+        passed: attempt.passed,
+        score_percent: Math.round(attempt.score * 100),
+      });
       void navigate(`/courses/${course.id}/quiz/${quiz.id}/result`, {
         state: { result: attempt, questions, answers: selected },
       });

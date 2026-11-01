@@ -33,6 +33,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [16-api-contract.md](16-api-contract.md) | The one response envelope and error-code catalog every API follows |
 | [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
 | [19-course-media-uploads.md](19-course-media-uploads.md) | Image and PDF uploads in Studio: policy, limits, guidance, Storage rules, layouts, cost |
+| [20-product-analytics.md](20-product-analytics.md) | Google Analytics 4 events, consent at sign-in, what is never sent |
 | [tracker.md](tracker.md) | Status: every plan item as done, todo, blocked or maintainer, and the order to pick them up |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 

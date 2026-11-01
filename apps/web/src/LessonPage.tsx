@@ -19,6 +19,7 @@ import {
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { useAnalytics } from './analytics/react/context';
 import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
@@ -90,6 +91,7 @@ function Player({
   const data = useLearnerData();
   const navigate = useNavigate();
   const toast = useToast();
+  const analytics = useAnalytics();
   const t = useTerms();
   const items = itemsOf(course);
   const index = items.findIndex((i) => i.id === itemId);
@@ -114,12 +116,19 @@ function Player({
   const known = index >= 0;
 
   // Opening a lesson starts the course the first time and moves the resume point.
+  const startSent = useRef<string | null>(null);
   useEffect(() => {
-    if (progress === null) void data.startCourse(uid, course);
-    else if (progress && known && progress.lastItemId !== itemId) {
+    if (progress === null) {
+      void data.startCourse(uid, course);
+      // The effect runs again until the write lands; the course starts once.
+      if (startSent.current !== course.id) {
+        startSent.current = course.id;
+        analytics.track('course_start', { course_id: course.id });
+      }
+    } else if (progress && known && progress.lastItemId !== itemId) {
       void data.setLastItem(uid, course.id, itemId);
     }
-  }, [data, uid, course, progress, itemId, known]);
+  }, [data, uid, course, progress, itemId, known, analytics]);
 
   const prev = items[index - 1];
   const next = items[index + 1];
@@ -229,6 +238,9 @@ function Player({
       // update would be refused (nothing to update), so create it first.
       (progress === null ? data.startCourse(uid, course) : Promise.resolve())
         .then(() => data.completeItem(uid, course.id, lesson.id))
+        .then(() =>
+          analytics.track('lesson_complete', { course_id: course.id, lesson_id: lesson.id }),
+        )
         .catch((e: unknown) => {
           log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
           toast.show(`Could not save your progress on "${lesson.title}". Open it and try again.`, {

@@ -19,6 +19,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { SEARCH_DELAY_MS, searchPrefix } from '../console/model';
+import { useAnalytics } from '../analytics/react/context';
 import { useDebounced } from '../data/useDebounced';
 import { useTerms } from '../labels/useTerms';
 import { allowed, destinationsFor } from './catalog';
@@ -70,6 +71,7 @@ export function GlobalSearchProvider({
   lookups = NO_LOOKUPS,
   mac = isMac(),
 }: GlobalSearchProviderProps) {
+  const analytics = useAnalytics();
   const [open, setOpen] = useState(false);
   // Records are kept with the sources and roles they were loaded for, so a change of roles never
   // shows what the previous roles could see while the new load is in flight.
@@ -150,11 +152,16 @@ export function GlobalSearchProvider({
     [index],
   );
   const select = useCallback(
-    (item: { value: string }) => {
+    (item: { value: string; kind?: string | undefined }) => {
+      analytics.track('search', {
+        query_length: typed.length,
+        result_count: searchDestinations(index, typed).length,
+        result_type: String(item.kind),
+      });
       setOpen(false);
       navigate(item.value);
     },
-    [navigate],
+    [navigate, analytics, index, typed],
   );
   const value = useMemo(
     () => ({ open, openSearch, shortcut: mac ? '⌘K' : 'Ctrl K' }),

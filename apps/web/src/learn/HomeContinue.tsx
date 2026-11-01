@@ -8,6 +8,7 @@ import type { ProgressRow } from '../data/types';
 import { LEVEL_LABELS, courseImageUrl, durationLabel, isRetired, upNext } from './model';
 import type { AssignedCourse } from './model';
 import { minutesLeft } from './hero';
+import { TrackClick } from '../analytics/react/Track';
 
 const SEEN = 'gurukul.ring.';
 
@@ -91,12 +92,17 @@ export function HomeContinue({
             {assignedBy ? <span>{` · Assigned by ${assignedBy}`}</span> : null}
           </p>
           <div className="learn-buttons">
-            <Link
-              className={buttonClass('primary')}
-              to={`/courses/${course.id}/learn/${resumeItemId(course, progress) ?? ''}`}
+            <TrackClick
+              event="select_content"
+              params={{ content_type: 'cta', content_id: 'home_resume' }}
             >
-              Resume lesson
-            </Link>
+              <Link
+                className={buttonClass('primary')}
+                to={`/courses/${course.id}/learn/${resumeItemId(course, progress) ?? ''}`}
+              >
+                Resume lesson
+              </Link>
+            </TrackClick>
           </div>
         </div>
       </div>

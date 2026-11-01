@@ -559,6 +559,10 @@ a.items__row:hover {
 .signin__action .learn-meta {
   margin: 0;
 }
+.signin__consent {
+  display: grid;
+  gap: var(--space-3);
+}
 .signin__benefits {
   display: grid;
   gap: var(--space-3);

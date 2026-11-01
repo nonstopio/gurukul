@@ -16,6 +16,8 @@ export interface AuthUser {
   emailVerified: boolean;
   displayName: string | null;
   photoURL: string | null;
+  /** This sign-in created the account (`sign_up` in analytics). */
+  firstSignIn?: boolean;
 }
 
 /** The profile mirror (`users/{uid}`) the app waits for before showing Home. */
@@ -92,6 +94,7 @@ export function firebaseAuthService(
             emailVerified: u.emailVerified,
             displayName: u.displayName,
             photoURL: u.photoURL,
+            firstSignIn: u.metadata.creationTime === u.metadata.lastSignInTime,
           },
         ),
       ),

@@ -1,6 +1,8 @@
 import { ToastProvider } from '@gurukul/ui';
 import { RouterProvider } from 'react-router';
 import type { DataRouter } from 'react-router';
+import { AnalyticsProvider } from './analytics/react/AnalyticsProvider';
+import { AnalyticsSession } from './analytics/react/AnalyticsSession';
 import { AuthProvider } from './auth/AuthProvider';
 import type { AuthService } from './auth/service';
 import { ConsoleProvider } from './console/ConsoleProvider';
@@ -33,18 +35,21 @@ export interface AppProps {
  */
 export function App({ service, data, quiz, console: consoleApi, studio, router }: AppProps) {
   return (
-    <AuthProvider service={service}>
-      <DataProvider data={data}>
-        <QuizProvider service={quiz}>
-          <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
-            <StudioProvider data={studio.data} service={studio.service}>
-              <ToastProvider>
-                <RouterProvider router={router} />
-              </ToastProvider>
-            </StudioProvider>
-          </ConsoleProvider>
-        </QuizProvider>
-      </DataProvider>
-    </AuthProvider>
+    <AnalyticsProvider router={router}>
+      <AuthProvider service={service}>
+        <AnalyticsSession />
+        <DataProvider data={data}>
+          <QuizProvider service={quiz}>
+            <ConsoleProvider data={consoleApi.data} service={consoleApi.service}>
+              <StudioProvider data={studio.data} service={studio.service}>
+                <ToastProvider>
+                  <RouterProvider router={router} />
+                </ToastProvider>
+              </StudioProvider>
+            </ConsoleProvider>
+          </QuizProvider>
+        </DataProvider>
+      </AuthProvider>
+    </AnalyticsProvider>
   );
 }
