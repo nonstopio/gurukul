@@ -24,6 +24,7 @@ roles depend on. Blaze keeps the same free quotas and bills only above them.
 | Firestore storage | 1 GiB | < 50 MB |
 | Functions invocations | 2,000,000 / month | < 50,000 / month |
 | Hosting storage / transfer | 10 GB / 360 MB per day | < 20 MB / ~150 MB per day |
+| Cloud Storage (planned course media, US bucket) | 5 GB stored, 100 GB egress / month | ~200 MB stored, < 10 GB / month |
 | Auth (Google) | free | free |
 
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
@@ -99,3 +100,7 @@ custom domain are `OPS-24`.
 9. After the first functions deploy, set the cleanup policy for stale function images:
    `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
    (a one-off console command, not a deploy).
+10. Before course media uploads ship (`MED-01`): create the default Cloud Storage for Firebase
+    bucket in the location chosen in open question 14 (recommended `US-CENTRAL1`, the no-cost
+    tier), and grant the Firebase Rules Firestore Service Agent role when the console asks, so
+    `storage.rules` can read `courses/` and `config/org`. See `19-course-media-uploads.md` (Cost).
