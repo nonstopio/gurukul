@@ -5,6 +5,7 @@ vi.mock('../src/console/service', () => ({ firebaseConsoleService: vi.fn(() => (
 vi.mock('../src/quiz/service', () => ({ firebaseQuizService: vi.fn(() => ({})) }));
 vi.mock('../src/studio/service', () => ({ firebaseStudioService: vi.fn(() => ({})) }));
 vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ auth: {} })) }));
+vi.mock('../src/performance', () => ({ startPerformance: vi.fn() }));
 vi.mock('../src/auth/service', () => ({
   firebaseAuthService: vi.fn(() => ({
     onUser: (cb: (u: null) => void) => {

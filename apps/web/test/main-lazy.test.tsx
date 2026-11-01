@@ -11,6 +11,7 @@ interface Captured {
 }
 const props = vi.hoisted(() => ({ current: undefined as unknown }));
 const open = vi.hoisted(() => vi.fn());
+const perf = vi.hoisted(() => vi.fn());
 vi.mock('../src/App', () => ({
   App: (p: Record<string, unknown>) => {
     props.current = p;
@@ -25,6 +26,9 @@ vi.mock('../src/auth/service', () => ({
   firebaseAuthService: vi.fn((_fb, watchProfile) => ({ watchProfile })),
 }));
 vi.mock('../src/firestore', () => ({ openFirestore: open }));
+vi.mock('../src/performance', () => ({ startPerformance: perf }));
+
+const perfOn = { VITE_PERFORMANCE_MONITORING: 'true' };
 
 describe('main loads Firestore on demand', () => {
   it('opens it once, on first use, and routes each port to its store', async () => {
@@ -38,8 +42,13 @@ describe('main loads Firestore on demand', () => {
     open.mockReturnValue(stores);
     document.body.innerHTML = '<div id="root"></div>';
     const { mount } = await import('../src/main');
+    await new Promise((r) => setTimeout(r, 0));
+    perf.mockClear(); // importing main mounts once with the real environment
     await act(async () => mount(document.getElementById('root'), { VITE_USE_EMULATORS: 'true' }));
     expect(open).not.toHaveBeenCalled();
+    // Off unless the production build asks for it.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(perf).not.toHaveBeenCalled();
 
     const p = props.current as Captured;
     expect(await p.data.listCourses()).toEqual(['c']);
@@ -82,5 +91,23 @@ describe('main loads Firestore on demand', () => {
     vi.doMock('../src/firestore', () => ({ openFirestore: () => ({ watchProfile: watch }) }));
     p.service.watchProfile('u', vi.fn(), onError);
     await vi.waitFor(() => expect(watch).toHaveBeenCalled());
+  });
+
+  it('starts Performance Monitoring against production, and survives it failing to load', async () => {
+    vi.resetModules();
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), perfOn));
+    await vi.waitFor(() => expect(perf).toHaveBeenCalledWith('app'));
+
+    perf.mockImplementationOnce(() => {
+      throw new Error('blocked');
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await act(async () => mount(document.getElementById('root'), perfOn));
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('Performance monitoring did not start', expect.anything()),
+    );
+    warn.mockRestore();
   });
 });

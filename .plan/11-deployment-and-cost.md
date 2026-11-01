@@ -42,6 +42,13 @@ bucket (`roles/storage.objectAdmin`). Setup and restore: `docs/operations.md`.
 maintainers; `maxInstances` on every function; no unbounded listeners (see
 `.claude/rules/firebase-cost.md`).
 
+## Performance Monitoring
+
+The web app starts Firebase Performance Monitoring in the production build only (`deploy.yml` sets
+`VITE_PERFORMANCE_MONITORING=true`; previews, Lighthouse, emulators and local runs stay off): page load, network request and Web Vitals timings, in the Firebase console. It collects
+no personal data and is free. Its SDK is its own chunk, fetched after the app mounts, so the initial
+bundle budget is untouched. Nothing else to configure: it uses the web app's existing Firebase config.
+
 ## Region
 
 Firestore location and Functions region: **asia-south1 (Mumbai)**, closest to
