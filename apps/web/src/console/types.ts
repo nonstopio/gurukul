@@ -192,6 +192,15 @@ export interface SetRolesRequest {
   grantedCourseIds?: string[];
 }
 
+/** One email Gurukul sends, filled with sample data. */
+export interface EmailTemplateView {
+  id: string;
+  name: string;
+  when: string;
+  subject: string;
+  body: string;
+}
+
 /** The Admin-only callable functions. */
 export interface ConsoleService {
   assignCourses(request: AssignRequest): Promise<AssignResult>;
@@ -202,4 +211,6 @@ export interface ConsoleService {
     emails?: string[];
   }): Promise<{ sent: number; skipped: number }>;
   revokeCertificate(request: { id: string; revoked?: boolean }): Promise<void>;
+  listEmailTemplates(): Promise<EmailTemplateView[]>;
+  sendTestEmail(request: { templateId: string }): Promise<{ to: string }>;
 }

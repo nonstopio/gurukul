@@ -33,6 +33,12 @@ reminder (at most one a day per person), change role. Select a row to open its d
 progress, **Reset cooldown** for a Quiz a learner is waiting to retake, and **Revoke** or
 **Restore** a certificate (a revoked certificate stays on its verify page, marked revoked).
 
+## Email templates
+
+**Email templates** shows every email Gurukul sends, with sample data. Pick one and press **Send test
+email**: it arrives in your own inbox (never anyone else's) with "[Test]" in the subject. If email is
+not set up yet you are told so; ask the maintainer to add the Gmail credentials.
+
 ## Roles & access
 
 - **Learner**: everyone who signs in.

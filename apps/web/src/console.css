@@ -163,6 +163,31 @@
   font-size: var(--text-sm);
 }
 
+/* Email templates: the test form and each template's text. */
+.emails {
+  display: grid;
+  gap: var(--space-6);
+}
+.emails .g-card {
+  display: grid;
+  gap: var(--space-4);
+}
+.emails p {
+  margin: 0;
+}
+.emails-send {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+.emails-body {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
 /* Org settings: the form columns. */
 .settings {
   display: grid;

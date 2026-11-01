@@ -34,6 +34,7 @@ const CourseAnalyticsPage = lazyPage(
   () => import('./console/CourseAnalyticsPage'),
   'CourseAnalyticsPage',
 );
+const EmailsPage = lazyPage(() => import('./console/EmailsPage'), 'EmailsPage');
 const LearnersPage = lazyPage(() => import('./console/LearnersPage'), 'LearnersPage');
 const OverviewPage = lazyPage(() => import('./console/OverviewPage'), 'OverviewPage');
 const RolesPage = lazyPage(() => import('./console/RolesPage'), 'RolesPage');
@@ -103,6 +104,11 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
   '/admin/design-system': (
     <RequireRole any={['admin']}>
       <DesignSystemPage />
+    </RequireRole>
+  ),
+  '/admin/emails': (
+    <RequireRole any={['admin']}>
+      <EmailsPage />
     </RequireRole>
   ),
   '/admin/settings': (

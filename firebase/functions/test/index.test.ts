@@ -23,6 +23,8 @@ const handleAssignCourses = vi.fn();
 const handleResetCooldown = vi.fn();
 const handleRemindLearners = vi.fn();
 const handleCreateCourse = vi.fn();
+const handleListEmailTemplates = vi.fn();
+const handleSendTestEmail = vi.fn();
 const handlePublishCourse = vi.fn();
 const handleRollbackCourse = vi.fn();
 const handleArchiveCourse = vi.fn();
@@ -103,6 +105,8 @@ vi.mock('../src/handlers.js', async (orig) => ({
   handleResetCooldown,
   handleRemindLearners,
   handleCreateCourse,
+  handleListEmailTemplates,
+  handleSendTestEmail,
   handlePublishCourse,
   handleRollbackCourse,
   handleArchiveCourse,
@@ -284,6 +288,8 @@ describe('index', () => {
       'assignCourses',
       'resetCooldown',
       'remindLearners',
+      'listEmailTemplates',
+      'sendTestEmail',
       'createCourse',
       'publishCourse',
       'rollbackCourse',
@@ -299,6 +305,7 @@ describe('index', () => {
       mod.revokeCertificate,
       mod.assignCourses,
       mod.remindLearners,
+      mod.sendTestEmail,
     ]);
     for (const options of callableOptions.values()) {
       expect(options).toEqual({ secrets: [{ name: 'GMAIL_CREDENTIALS' }] });
@@ -315,11 +322,17 @@ describe('index', () => {
       [mod.assignCourses, handleAssignCourses, []],
       [mod.resetCooldown, handleResetCooldown, []],
       [mod.remindLearners, handleRemindLearners, [Date.now]],
+      [mod.sendTestEmail, handleSendTestEmail, []],
       [mod.createCourse, handleCreateCourse, []],
       [mod.publishCourse, handlePublishCourse, []],
       [mod.rollbackCourse, handleRollbackCourse, []],
       [mod.archiveCourse, handleArchiveCourse, []],
     ] as const;
+    handleListEmailTemplates.mockReturnValueOnce([]);
+    expect(
+      await (mod.listEmailTemplates as unknown as (r: unknown) => unknown)({ data: 1 }),
+    ).toEqual([]);
+    expect(handleListEmailTemplates).toHaveBeenCalledWith({ data: 1 });
     for (const [fn, handler, extra] of wired) {
       const call = fn as unknown as (r: unknown) => Promise<unknown>;
       handler.mockResolvedValueOnce({ ok: 1 });

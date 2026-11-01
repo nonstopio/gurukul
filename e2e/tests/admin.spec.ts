@@ -124,6 +124,24 @@ test.describe('Admin', () => {
     await expect(page.getByRole('button', { name: 'Save team' })).toHaveCount(0);
   });
 
+  test('lists the email templates and says plainly that email is not set up in the emulator', async ({
+    page,
+  }) => {
+    await signedInAsLearner(page, meera);
+    await grantRoles(meera.email, ['admin']);
+    await page.goto('/admin/emails');
+    await expect(page.getByRole('heading', { level: 1, name: 'Email templates' })).toBeVisible();
+    for (const name of ['Course assigned', 'Course reminder', 'Certificate revoked']) {
+      await expect(page.getByRole('region', { name })).toBeVisible();
+    }
+    await expectNoSeriousViolations(page);
+
+    await page.getByLabel('Template').selectOption({ label: 'Certificate revoked' });
+    await page.getByRole('button', { name: 'Send test email' }).click();
+    // No Gmail credentials in the emulator: a refusal, never a false "sent".
+    await expect(page.getByText(/Email is not set up on this deployment/)).toBeVisible();
+  });
+
   test('a Learner cannot open the Admin console', async ({ page }) => {
     await signedInAsLearner(page, { email: 'ravi.nair@nonstopio.com', name: 'Ravi Nair' });
     await page.goto('/admin');
