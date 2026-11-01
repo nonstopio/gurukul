@@ -23,6 +23,7 @@ export const ROUTE_PATHS = [
   '/admin/roles',
   '/admin/audit',
   '/admin/design-system',
+  '/admin/emails',
   '/admin/settings',
   '/admin/courses/:courseId',
   '/studio',

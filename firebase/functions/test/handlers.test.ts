@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   handleAssignCourses,
+  handleListEmailTemplates,
   handleRemindLearners,
+  handleSendTestEmail,
   handleResetCooldown,
   handleCheckAnswer,
   handleGradeAttempt,
@@ -285,6 +287,23 @@ describe('console callables', () => {
     admin.resetCooldown.mockResolvedValueOnce(false);
     await expect(handleResetCooldown(asAdmin(learnerReq.data), admin)).rejects.toMatchObject({
       code: 'PRK_2001',
+    });
+  });
+
+  it('the email template callables sign in and need an Admin', async () => {
+    const mailer = { send: vi.fn().mockResolvedValue(undefined) };
+    expect(handleListEmailTemplates(asAdmin({}))).toHaveLength(3);
+    expect(() => handleListEmailTemplates(signedOutRequest)).toThrow(
+      expect.objectContaining({ code: 'AUTH_1001' }),
+    );
+    expect(await handleSendTestEmail(asAdmin({ templateId: 'revoked' }), { mailer })).toEqual({
+      to: 'k@nonstopio.com',
+    });
+    await expect(handleSendTestEmail(signedOutRequest, { mailer })).rejects.toMatchObject({
+      code: 'AUTH_1001',
+    });
+    await expect(handleSendTestEmail(learnerReq, { mailer })).rejects.toMatchObject({
+      code: 'AUTH_2001',
     });
   });
 

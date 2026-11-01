@@ -18,12 +18,14 @@ import {
   handleAssignCourses,
   handleCheckAnswer,
   handleCreateCourse,
+  handleListEmailTemplates,
   handleGradeAttempt,
   handlePublishCourse,
   handleRemindLearners,
   handleResetCooldown,
   handleRevokeCertificate,
   handleRollbackCourse,
+  handleSendTestEmail,
   handleSetRoles,
 } from './handlers.js';
 import { runLogged } from './logging/trigger.js';
@@ -222,6 +224,15 @@ export const remindLearners = apiCallable((request) => {
     Date.now,
   );
 }, MAIL);
+
+/** Admin-only: every email Gurukul sends, filled with sample data. */
+export const listEmailTemplates = apiCallable((request) => handleListEmailTemplates(request));
+
+/** Admin-only: send one email template, with sample data, to the Admin who asked. */
+export const sendTestEmail = apiCallable(
+  (request) => handleSendTestEmail(request, { mailer: createMailer(process.env) }),
+  MAIL,
+);
 
 /** Studio: an Educator or Admin starts a course, blank or copied from another draft. */
 export const createCourse = apiCallable((request) =>

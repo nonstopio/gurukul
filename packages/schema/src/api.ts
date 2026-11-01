@@ -289,6 +289,15 @@ export const ERROR_CODES = {
     userMessage: 'Gurukul is busy right now. Please try again in a moment.',
     developerMessage: 'A dependency was unavailable: %s.',
   },
+  GEN_5004: {
+    title: 'Email not set up',
+    category: 'GENERIC',
+    retryable: false,
+    status: 503,
+    userMessage:
+      'Email is not set up on this deployment yet. Ask the maintainer to add the Gmail credentials.',
+    developerMessage: 'No usable GMAIL_CREDENTIALS, so %s cannot send.',
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type ErrorCodeKey = keyof typeof ERROR_CODES;

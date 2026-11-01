@@ -85,6 +85,15 @@ transaction under the rules (no callable, no audit entry, as Org settings). A na
 `config/org.teams` with no document shows as a team with no members. Assign courses picks one or more teams
 and assigns their members. Data: [02 · Data model](02-data-model.md#teams).
 
+## Email templates
+
+`/admin/emails` lists every email Gurukul sends (course assigned, reminder, certificate revoked),
+filled with sample data, and sends the chosen one to the signed-in Admin only, subject prefixed
+`[Test]`, so email can be proven end to end without assigning a real course. Callables
+`listEmailTemplates` and `sendTestEmail` (Admin-only; no audit entry, since nothing changes and the
+recipient is always the caller). Without Gmail credentials the send fails with `GEN_5004` instead of
+looking like success. A new `build*Email` in `mail.ts` is added to `EMAIL_TEMPLATES` too.
+
 ## Org settings
 
 `/admin/settings` edits `config/org` directly (the rules check the shape; no callable, so

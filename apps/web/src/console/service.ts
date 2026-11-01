@@ -1,6 +1,12 @@
 import type { Functions } from 'firebase/functions';
 import { callApi } from '../api';
-import type { AssignRequest, AssignResult, ConsoleService, SetRolesRequest } from './types';
+import type {
+  AssignRequest,
+  EmailTemplateView,
+  AssignResult,
+  ConsoleService,
+  SetRolesRequest,
+} from './types';
 
 export function firebaseConsoleService(functions: Functions): ConsoleService {
   return {
@@ -17,6 +23,10 @@ export function firebaseConsoleService(functions: Functions): ConsoleService {
         'remindLearners',
         request,
       ),
+    listEmailTemplates: () =>
+      callApi<Record<string, never>, EmailTemplateView[]>(functions, 'listEmailTemplates', {}),
+    sendTestEmail: (request) =>
+      callApi<{ templateId: string }, { to: string }>(functions, 'sendTestEmail', request),
     async revokeCertificate(request) {
       await callApi(functions, 'revokeCertificate', request);
     },

@@ -28,6 +28,7 @@ describe('console access', () => {
       '/admin/assign',
       '/admin/roles',
       '/admin/audit',
+      '/admin/emails',
       '/admin/settings',
       '/admin/courses/git',
     ]) {

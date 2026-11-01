@@ -43,6 +43,13 @@ export const navigation = {
       keywords: ['history', 'trail', 'log', 'activity', 'changes'],
     },
     {
+      id: 'admin-emails',
+      path: '/admin/emails',
+      label: 'Email templates',
+      description: 'Every email Gurukul sends, and a button to send yourself a test',
+      keywords: ['email', 'mail', 'template', 'test', 'notification', 'gmail', 'preview'],
+    },
+    {
       id: 'admin-design-system',
       path: '/admin/design-system',
       label: 'Design system',

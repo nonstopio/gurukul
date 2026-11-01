@@ -117,6 +117,23 @@ export function fakeConsole(
     resetCooldown: vi.fn().mockResolvedValue(undefined),
     remindLearners: vi.fn().mockResolvedValue({ sent: 1, skipped: 0 }),
     revokeCertificate: vi.fn().mockResolvedValue(undefined),
+    listEmailTemplates: vi.fn().mockResolvedValue([
+      {
+        id: 'assigned',
+        name: 'Course assigned',
+        when: 'An Admin assigns a course.',
+        subject: 'New course on NonStop Academy: Sample course',
+        body: 'Hello,\n\nYou have been assigned a course.',
+      },
+      {
+        id: 'revoked',
+        name: 'Certificate revoked',
+        when: 'An Admin revokes a certificate.',
+        subject: 'Your certificate was revoked',
+        body: 'Hello,\n\nRevoked.',
+      },
+    ]),
+    sendTestEmail: vi.fn().mockResolvedValue({ to: 'admin@nonstopio.com' }),
   };
   return { data, service };
 }

@@ -20,6 +20,11 @@ describe('firebaseConsoleService', () => {
     expect(await service.remindLearners({ courseId: 'git' })).toEqual({ from: 'remindLearners' });
     expect(await service.resetCooldown({ uid: 'u', courseId: 'g', quizId: 'p' })).toBeUndefined();
     expect(await service.revokeCertificate({ id: 'X' })).toBeUndefined();
+    expect(await service.listEmailTemplates()).toEqual({ from: 'listEmailTemplates' });
+    expect(await service.sendTestEmail({ templateId: 'assigned' })).toEqual({
+      from: 'sendTestEmail',
+    });
+    expect(fns.sendTestEmail).toHaveBeenCalledWith({ templateId: 'assigned' });
     expect(fns.resetCooldown).toHaveBeenCalledWith({ uid: 'u', courseId: 'g', quizId: 'p' });
     expect(fns.revokeCertificate).toHaveBeenCalledWith({ id: 'X' });
   });

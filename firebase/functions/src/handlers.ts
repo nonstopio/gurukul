@@ -4,6 +4,8 @@ import type { CertificateAdmin } from './certificates.js';
 import { assignCourses } from './assign.js';
 import type { AssignResult, AssignStore } from './assign.js';
 import { resetCooldown } from './cooldown.js';
+import { listEmailTemplates, sendTestEmail } from './email-templates.js';
+import type { TemplateView } from './email-templates.js';
 import { archiveCourse, createCourse, publishCourse, rollbackCourse } from './courses.js';
 import type { CourseStore } from './courses.js';
 import type { CooldownAdmin } from './cooldown.js';
@@ -173,4 +175,17 @@ export async function handleArchiveCourse(
   store: CourseStore,
 ): Promise<{ status: 'published' | 'archived' }> {
   return archiveCourse(store, requireVerified(request), asObject(request.data));
+}
+
+/** `listEmailTemplates`: Admin-only; every email Gurukul sends, filled with sample data. */
+export function handleListEmailTemplates(request: AuthedRequest): TemplateView[] {
+  return listEmailTemplates(requireCaller(request));
+}
+
+/** `sendTestEmail`: Admin-only; one template, with sample data, to the Admin who asked. */
+export async function handleSendTestEmail(
+  request: AuthedRequest,
+  deps: { mailer: Mailer },
+): Promise<{ to: string }> {
+  return sendTestEmail(deps, requireCaller(request), asObject(request.data));
 }
