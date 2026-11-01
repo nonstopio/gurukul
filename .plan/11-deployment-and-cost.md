@@ -5,7 +5,7 @@
 | Env | Project | How |
 |---|---|---|
 | Local | `demo-gurukul` (emulators only, no real project) | `npm run emulators` |
-| PR preview | `nonstop-gurukul`, Hosting preview channel (7-day expiry) | `preview.yml` on same-repo PRs (not forks, not Dependabot); uses **production** Firestore |
+| PR preview | `nonstop-gurukul`, Hosting preview channel (7-day expiry) | `preview.yml` on same-repo PRs (not forks, not Dependabot; not PRs that only touch `.plan/`, `docs/` or `*.md`); `preview-cleanup.yml` deletes the channel when the PR closes, because the site has a channel limit; uses **production** Firestore |
 | Production | `nonstop-gurukul` | `deploy.yml`, after CI passes on `main`; pushes a `release-*` tag |
 
 Previews share production data, so a preview can never change rules or
@@ -61,7 +61,7 @@ confirm before creating it (open question).
 | Secret | Where | Used by |
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL` | `production` environment secret; environment limited to `main` | `deploy.yml` |
-| `FIREBASE_SERVICE_ACCOUNT_PREVIEW` | Repository secret; service account with Firebase Hosting Admin **only** | `preview.yml` |
+| `FIREBASE_SERVICE_ACCOUNT_PREVIEW` | Repository secret; service account with Firebase Hosting Admin **only** | `preview.yml`, `preview-cleanup.yml` |
 | `GMAIL_CREDENTIALS` (Gmail sender key) | Cloud Secret Manager via `defineSecret`, declared on each function that sends email; set once with `firebase functions:secrets:set` (a placeholder sends nothing, but the secret must exist or the deploy fails) | functions |
 
 The public web config goes in GitHub Actions **variables** (`VITE_FIREBASE_*`)
