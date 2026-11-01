@@ -89,7 +89,9 @@ Every event also carries `app_version`, `environment`, `platform` and, once sign
 - Consent starts denied; the three advertising signals of Consent Mode v2 stay denied always.
 - The sign-in page asks people to accept the privacy policy; without it they cannot sign in.
   Acceptance is stored per browser with `POLICY_VERSION` (`privacy/policy.ts`), so bumping the
-  version asks everyone again, once, on the "Before you continue" page.
+  version asks everyone again, once, on the "Before you continue" page. Acceptance is kept on
+  sign-out on purpose: the next person to sign in on the same browser is not asked again. Clear
+  it on sign-out if shared machines ever matter.
 - `AnalyticsSession` grants consent while an accepting person is signed in and denies it on
   sign-out, where it also calls `analytics.reset()` (user id and properties cleared). A visitor
   who is not signed in sends nothing and loads nothing from Google.
