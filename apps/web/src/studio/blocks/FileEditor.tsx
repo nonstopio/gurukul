@@ -1,21 +1,92 @@
-import { Input } from '@gurukul/ui';
+import { formatBytes, PDF_CONTENT_TYPE } from '@gurukul/schema';
+import { Input, Tabs } from '@gurukul/ui';
+import { useState } from 'react';
+import { BlockView } from '../../player/blocks';
+import { PLACEHOLDER_FILE } from '../lessonEdit';
+import { patch } from '../patch';
+import { PdfUploadPanel } from './PdfUploadPanel';
+import { PreviewWidth } from './PreviewWidth';
 import type { BlockEditorProps } from './types';
+import { usePdfUpload } from './usePdfUpload';
 
-/** A link to a file learners can open: its address and the words on the link. */
+/**
+ * A file learners can open: an uploaded PDF or a link. The Upload tab (the default for a new block
+ * and for an uploaded file) checks the PDF in the browser and uploads it to Cloud Storage; the Link
+ * tab is the address field, for GitHub or Google Drive files and anything bigger than the limit. An
+ * existing linked file opens on Link. The Label defaults to the file name and stays editable. The
+ * preview is the learner's own File block ("Label · PDF · 420 KB").
+ */
 export function FileEditor({ block, onChange }: BlockEditorProps<'file'>) {
+  const [tab, setTab] = useState(
+    block.url && block.url !== PLACEHOLDER_FILE && !block.upload ? 'link' : 'upload',
+  );
+  const source = usePdfUpload(block, onChange);
+  const picked = 'picked' in source.stage ? source.stage.picked : undefined;
+  // Before the upload the preview is the picked file itself, so the link already opens it.
+  const shown = picked
+    ? {
+        ...block,
+        url: picked.previewUrl,
+        upload: {
+          path: '',
+          bytes: picked.file.size,
+          contentType: PDF_CONTENT_TYPE,
+          name: picked.file.name,
+        },
+      }
+    : block;
+  const real = picked !== undefined || (block.url !== '' && block.url !== PLACEHOLDER_FILE);
+
   return (
     <div className="studio-fields">
-      <Input
-        label="File address"
-        type="url"
-        value={block.url}
-        onChange={(e) => onChange({ ...block, url: e.target.value })}
+      <Tabs
+        label="File source"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          {
+            id: 'upload',
+            label: 'Upload',
+            panel: (
+              <PdfUploadPanel
+                block={block}
+                source={source}
+                onSwitchToLink={() => setTab('link')}
+                onRemove={() => onChange(patch(block, { url: '', upload: undefined }))}
+              />
+            ),
+          },
+          {
+            id: 'link',
+            label: 'Link',
+            panel: (
+              <Input
+                label="File address"
+                type="url"
+                hint={
+                  block.upload
+                    ? `This PDF is uploaded to Gurukul (${formatBytes(block.upload.bytes)}). An address here links another file instead.`
+                    : 'A file on GitHub or Google Drive (shared with nonstopio.com), or any address.'
+                }
+                value={block.url}
+                // The upload belongs to the old file: a typed address makes this a plain link.
+                onChange={(e) => onChange(patch(block, { url: e.target.value, upload: undefined }))}
+              />
+            ),
+          },
+        ]}
       />
       <Input
-        label="Link text"
+        label="Label"
+        hint="The words on the link. An uploaded PDF starts with its file name."
         value={block.label}
         onChange={(e) => onChange({ ...block, label: e.target.value })}
       />
+      {real ? (
+        <PreviewWidth>
+          <BlockView block={{ ...shown, label: shown.label || 'Untitled file' }} />
+        </PreviewWidth>
+      ) : null}
     </div>
   );
 }

@@ -354,11 +354,12 @@ describe('embed block editor', () => {
 });
 
 describe('file block editor', () => {
-  it('edits the address and the link text', () => {
+  it('edits the address and the label', () => {
     const { last } = setup(newBlock('file'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
     type('File address', 'https://example.com/guide.pdf');
     expect(last()).toMatchObject({ url: 'https://example.com/guide.pdf' });
-    type('Link text', 'The guide');
+    type('Label', 'The guide');
     expect(last()).toMatchObject({ label: 'The guide' });
   });
 

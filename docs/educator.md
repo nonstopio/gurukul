@@ -87,6 +87,43 @@ An uploaded file can be opened by anyone who is given its address, and it stays 
 
 **Crop or blur first**, then upload. A screenshot of a whole screen usually shows more than you meant to.
 
+## Uploading PDFs
+
+A File block has the same two tabs. **Upload** puts a PDF in Gurukul; **Link** is the address of a file that
+lives elsewhere. A new block opens on Upload; a file you linked earlier opens on Link, and an uploaded one
+on Upload. Choose the PDF, drop it on the box, or focus the box and paste. Gurukul checks it in your
+browser first (it must really be a PDF, not a renamed file), then **Upload PDF** sends it. You can cancel
+a running upload, and if it fails nothing is saved: try again. **Replace PDF** uploads a new file and
+**Remove PDF** clears the block; neither deletes the old file, because a published version may still link it.
+Typing an address on **Link** over an uploaded file turns the block into a plain link.
+
+The **Label** is the words on the link. A new upload starts with the file name without `.pdf`; change it
+to anything. Learners see it as "Label · PDF · 420 KB", and the preview under the block shows exactly that.
+
+| What | Limit                                                        |
+| ---- | ------------------------------------------------------------ |
+| Type | PDF only                                                     |
+| Size | up to 1 MB (an Admin can set it anywhere from 50 KB to 1 MB) |
+
+A text PDF (a cheat sheet, a handout, slides exported with compressed pictures) is well under 1 MB. A
+bigger one is usually a scan or full of large pictures. **Put larger files on GitHub or Google Drive**
+(shared with nonstopio.com) and paste the address on the **Link** tab. When a PDF is refused for its
+size, **Switch to Link** takes you there.
+
+### Shrink a PDF by hand
+
+1. **Ask a coding agent.** **Copy a prompt for your coding agent** puts a ready-made prompt, with your file's
+   name and the live limit, on the clipboard. It asks for text that stays selectable and no document
+   properties, and for a recommendation to link instead if the file will not fit.
+2. **Re-export it smaller.** In the program that made it (Word, Keynote, Google Slides, Pages), export again
+   with the image quality set to "reduced" or "web", or resize the pictures to about 150 dpi first.
+3. **macOS Preview.** **File → Export…**, **Quartz Filter → Reduce File Size**. Check the text can still be
+   selected afterwards, then check the size is under the limit and pick the file again.
+4. **Ghostscript**, if you have it: `gs -sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -dNOPAUSE -dBATCH -sOutputFile=small.pdf big.pdf`.
+
+The same content rules apply as for images: see [What never goes into an upload](#what-never-goes-into-an-upload).
+Check document properties (author, comments) and hidden text, not only the pages you can see.
+
 ## Publishing
 
 **Publish** checks the whole course and lists anything to fix: an empty lesson, a video link that is

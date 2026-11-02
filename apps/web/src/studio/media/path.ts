@@ -1,10 +1,14 @@
-import type { ImageContentType } from '@gurukul/schema';
+import type { ImageContentType, PDF_CONTENT_TYPE } from '@gurukul/schema';
+
+/** Every type an upload can be stored as. */
+type MediaContentType = ImageContentType | typeof PDF_CONTENT_TYPE;
 
 /** The file extension each accepted image type is stored under; the Storage rules check it matches. */
-const EXTENSIONS: Readonly<Record<ImageContentType, string>> = {
+const EXTENSIONS: Readonly<Record<MediaContentType, string>> = {
   'image/webp': 'webp',
   'image/png': 'png',
   'image/jpeg': 'jpg',
+  'application/pdf': 'pdf',
 };
 
 /** A random file id made in the browser: 22 URL-safe characters (128 bits), never derived from the file name. */
@@ -20,7 +24,7 @@ export function newMediaId(
 }
 
 /** Where an uploaded image lives: `courses/{courseId}/media/{mediaId}.{ext}`. */
-export function mediaPath(courseId: string, mediaId: string, type: ImageContentType): string {
+export function mediaPath(courseId: string, mediaId: string, type: MediaContentType): string {
   return `courses/${courseId}/media/${mediaId}.${EXTENSIONS[type]}`;
 }
 
@@ -44,5 +48,14 @@ export function imageMetadata(request: {
       width: String(request.width),
       height: String(request.height),
     },
+  };
+}
+
+/** What Storage records about an uploaded PDF. No file name: it can carry personal data. */
+export function pdfMetadata(request: { uid: string; courseId: string }) {
+  return {
+    contentType: 'application/pdf' as const,
+    cacheControl: MEDIA_CACHE_CONTROL,
+    customMetadata: { uploadedBy: request.uid, courseId: request.courseId },
   };
 }

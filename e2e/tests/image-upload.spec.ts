@@ -2,13 +2,14 @@ import type { Page } from '@playwright/test';
 import { expectNoSeriousViolations } from '../support/a11y';
 import { grantRoles } from '../support/emulators';
 import { expect, signedInAsLearner, test } from '../support/fixtures';
+import { makePdf } from '../support/pdf';
 import { makePng } from '../support/png';
 
 const kavya = { email: 'kavya.menon@nonstopio.com', name: 'Kavya Menon' };
 const saved = (page: Page) => page.getByRole('status').filter({ hasText: /saved|saving|unsaved/i });
 
 /** A new course with one chapter and an empty lesson, opened in the lesson editor. */
-async function openNewLesson(page: Page, title: string, slug: string) {
+async function openNewLesson(page: Page, title: string, slug: string, block = 'Image') {
   await signedInAsLearner(page, kavya);
   await grantRoles(kavya.email, ['educator']);
   await page.goto('/studio');
@@ -25,7 +26,7 @@ async function openNewLesson(page: Page, title: string, slug: string) {
   await expect(saved(page)).toHaveText(/· saved/);
   await page.getByRole('link', { name: 'Untitled lesson' }).click();
   await page.getByLabel('Lesson title').fill('A branch diagram');
-  await page.getByRole('button', { name: 'Image', exact: true }).click();
+  await page.getByRole('button', { name: block, exact: true }).click();
   // A feature tip may open beside the new tabs; it is not what this test is about.
   await page.keyboard.press('Escape');
 }
@@ -123,6 +124,84 @@ test.describe('Educator uploads an image', () => {
     expect(prompt).toContain('under 500 KB');
     // Nothing reached the draft: the block still has no upload.
     await expect(saved(page)).not.toHaveText(/unsaved changes/);
+    await expect(page.getByText(/^Uploaded:/)).toHaveCount(0);
+  });
+});
+
+test.describe('Educator uploads a PDF', () => {
+  test('into a draft lesson, publishes, and a learner opens it from Storage', async ({ page }) => {
+    await openNewLesson(page, 'Handouts in Lessons', 'handouts-in-lessons', 'File');
+    await expect(page.getByRole('tab', { name: 'Upload' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByText('PDF only · up to 1.0 MB')).toBeVisible();
+    await expect(page.getByText('No personal data')).toBeVisible();
+    await expectNoSeriousViolations(page);
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'branching-cheat-sheet.pdf',
+      mimeType: 'application/pdf',
+      buffer: makePdf({ padding: 20 * 1024 }),
+    });
+    await expect(page.getByText(/^branching-cheat-sheet\.pdf · \d+ KB$/)).toBeVisible();
+    await expectNoSeriousViolations(page);
+    await page.getByRole('button', { name: 'Upload PDF' }).click();
+    await expect(page.getByText('PDF uploaded')).toBeVisible();
+    await expect(page.getByText(/^Uploaded: branching-cheat-sheet\.pdf · \d+ KB$/)).toBeVisible();
+    // The label started as the file name without its extension, and the preview is the player's own.
+    await expect(page.getByLabel('Label', { exact: true })).toHaveValue('branching-cheat-sheet');
+    await expect(page.locator('.studio-previewwidth__frame .file-link')).toHaveText(
+      /^branching-cheat-sheet · PDF · \d+ KB$/,
+    );
+    await page.getByLabel('Label', { exact: true }).fill('Branching cheat sheet');
+    await expect(saved(page)).toHaveText(/unsaved changes/);
+    await expect(saved(page)).toHaveText(/· saved/);
+
+    await page.goto('/studio/courses/handouts-in-lessons');
+    await page.getByRole('button', { name: 'Publish v1' }).click();
+    const publish = page.getByRole('dialog', { name: 'Publish v1' });
+    await publish.getByRole('button', { name: 'Publish v1' }).click();
+    await expect(page.getByText('Published v1. Learners see it now.')).toBeVisible();
+
+    await page.goto('/courses/handouts-in-lessons');
+    await page.getByRole('link', { name: 'Start course' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'A branch diagram' })).toBeVisible();
+    const link = page.getByRole('link', { name: /^Branching cheat sheet · PDF · \d+ KB$/ });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute(
+      'href',
+      /127\.0\.0\.1:9199\/v0\/b\/.*courses%2Fhandouts-in-lessons%2Fmedia%2F.*\.pdf/,
+    );
+    const href = (await link.getAttribute('href')) as string;
+    const response = await page.request.get(href);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('application/pdf');
+    expect((await response.body()).subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  test('is refused a PDF over 1 MB with the numbers, and Switch to Link takes over', async ({
+    page,
+  }) => {
+    await openNewLesson(page, 'Big Handouts', 'big-handouts', 'File');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'scan.pdf',
+      mimeType: 'application/pdf',
+      buffer: makePdf({ padding: 1100 * 1024 }),
+    });
+    const zone = page.getByRole('button', { name: /Choose a PDF/ });
+    const why = page.locator(`#${(await zone.getAttribute('aria-describedby'))?.split(' ')[1]}`);
+    await expect(why).toContainText('This PDF cannot be uploaded as it is.');
+    await expect(why.getByRole('listitem').first()).toContainText(/This PDF is 1\.\d MB\./);
+    await expect(why.getByRole('listitem').first()).toContainText('GitHub or Google Drive');
+    await expect(why.getByRole('button', { name: /Copy a prompt/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Upload PDF' })).toHaveCount(0);
+    await expectNoSeriousViolations(page);
+
+    await why.getByRole('button', { name: 'Switch to Link' }).click();
+    await expect(page.getByRole('tab', { name: 'Link' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByLabel('File address').fill('https://drive.google.com/file/d/abc/view');
+    // Nothing was uploaded: only the typed link is in the draft.
     await expect(page.getByText(/^Uploaded:/)).toHaveCount(0);
   });
 });

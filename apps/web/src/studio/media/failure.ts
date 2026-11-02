@@ -23,3 +23,7 @@ export function uploadFailureMessage(error: unknown, online: boolean = navigator
 /** The page in the Educator guide that explains shrinking an image by hand. */
 export const SHRINK_GUIDE_URL =
   'https://github.com/nonstopio/gurukul/blob/main/docs/educator.md#shrink-an-image-by-hand';
+
+/** The page in the Educator guide that explains compressing a PDF by hand. */
+export const SHRINK_PDF_GUIDE_URL =
+  'https://github.com/nonstopio/gurukul/blob/main/docs/educator.md#shrink-a-pdf-by-hand';
