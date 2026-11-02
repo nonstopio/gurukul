@@ -66,6 +66,7 @@ import {
   TypeTile,
   UserCard,
   UsersIcon,
+  ImageFigure,
   VideoBlock,
   largestDrop,
   topBarBackClass,
@@ -1182,6 +1183,22 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <CodeBlock code="npm test" variant="terminal" />
         <CodeBlock code="Tests 12 passed" variant="output" copyable={false} />
       </div>
+    ),
+  },
+  ImageFigure: {
+    rule: 'A lesson image as a column, medium or small figure, framed or not, optionally opening full size, with its alt text when it fails to load.',
+    Example: () => (
+      <Frame>
+        <ImageFigure
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='240'%3E%3C/svg%3E"
+          alt="An empty example image"
+          layout="medium"
+          zoom
+          width={640}
+          height={240}
+          caption="Zoom opens it at its natural size."
+        />
+      </Frame>
     ),
   },
   VideoBlock: {

@@ -334,6 +334,17 @@ frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>
 always-visible 44px link "Open the video in a new tab" (`href`, `target="_blank"`, `rel="noopener noreferrer"`)
 for when the embed is blocked.
 
+## ImageFigure — shipped
+
+`<ImageFigure src alt layout="column|medium|small" border? zoom? width? height? caption? onSize? />`. A lesson image.
+`column` fills the lesson column, `medium` is two thirds of it (full width below 640px), `small` is at most 320px
+(240px below 640px), both centred. The `<img>` carries `width`/`height` when known plus `loading="lazy"` and
+`decoding="async"`, and has a 1px `--border` frame in `--radius-lg` unless `border={false}`. With `zoom` the image is a
+button ("Open full size: <alt>") that opens a `Dialog size="lg"` titled by the alt text, holding the image at its
+natural size in a scrollable, keyboard-focusable region with the caption under it; Escape closes it and focus returns
+to the button. An image that fails to load becomes a quiet `--surface-sunken` box with a dashed border holding the alt
+text (no broken-image icon, no zoom button). `onSize` reports the natural pixels after a load, for an editor.
+
 ## QuizOption — shipped
 
 `<QuizOption letter="A" checked onChange={(checked) => …} multiple? state="idle|correct|incorrect|locked" name value>Answer</QuizOption>`.

@@ -52,6 +52,8 @@ export { StateCard } from './StateCard';
 export type { StateCardProps, StateCardVariant } from './StateCard';
 export { CodeBlock, parseHighlight } from './CodeBlock';
 export type { CodeBlockProps } from './CodeBlock';
+export { ImageFigure } from './ImageFigure';
+export type { ImageFigureProps, ImageLayout } from './ImageFigure';
 export { VideoBlock } from './VideoBlock';
 export type { VideoBlockProps } from './VideoBlock';
 export { QuizOption } from './QuizOption';

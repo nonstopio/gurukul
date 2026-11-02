@@ -65,6 +65,88 @@ describe('BlockView', () => {
     expect(document.querySelector('.file-link svg')).toBeTruthy();
   });
 
+  describe('image layouts', () => {
+    const image = (over: object = {}) => ({
+      type: 'image',
+      id: 'i',
+      url: 'https://x.test/a.png',
+      alt: 'A graph',
+      ...over,
+    });
+    const figure = () => document.querySelector('figure') as HTMLElement;
+
+    it('renders an existing image as a framed full-column image that does not open', async () => {
+      const { container } = show(image());
+      expect(figure().className).toContain('g-figure--column');
+      expect(figure().className).not.toContain('g-figure--bare');
+      expect(screen.queryByRole('button')).toBeNull();
+      const img = screen.getByRole('img', { name: 'A graph' });
+      expect(img.getAttribute('loading')).toBe('lazy');
+      expect(img.getAttribute('decoding')).toBe('async');
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it.each(['column', 'medium', 'small'])('renders the %s layout', async (layout) => {
+      const { container } = show(image({ layout, caption: 'Figure 1' }));
+      expect(figure().className).toContain(`g-figure--${layout}`);
+      expect(screen.getByText('Figure 1')).toBeTruthy();
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('removes the frame when border is false', () => {
+      show(image({ border: false }));
+      expect(figure().className).toContain('g-figure--bare');
+    });
+
+    it('puts width and height on the image when known', () => {
+      show(image({ width: 1600, height: 900 }));
+      const img = screen.getByRole('img', { name: 'A graph' });
+      expect(img.getAttribute('width')).toBe('1600');
+      expect(img.getAttribute('height')).toBe('900');
+    });
+
+    it('opens full size in a dialog with the caption and closes on Escape', async () => {
+      show(image({ zoom: true, caption: 'Figure 1' }));
+      const open = screen.getByRole('button', { name: 'Open full size: A graph' });
+      open.focus();
+      fireEvent.click(open);
+      const dialog = screen.getByRole('dialog', { name: 'A graph' });
+      expect(dialog.textContent).toContain('Figure 1');
+      expect(await axeViolations(dialog)).toEqual([]);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(open);
+    });
+
+    it('shows the alt text in a quiet box when the image does not load', () => {
+      show(image({ zoom: true }));
+      fireEvent.error(screen.getByRole('img', { name: 'A graph' }));
+      expect(screen.queryByRole('img')).toBeNull();
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.getByText('A graph')).toBeTruthy();
+    });
+  });
+
+  describe('file label', () => {
+    it('reads "Label · PDF · size" for an uploaded PDF and opens it in a new tab', () => {
+      show({
+        type: 'file',
+        id: 'f',
+        url: 'https://x.test/a.pdf',
+        label: 'Cheat sheet',
+        upload: {
+          path: 'courses/c1/media/m1.pdf',
+          bytes: 430_080,
+          contentType: 'application/pdf',
+          name: 'cheat.pdf',
+        },
+      });
+      const link = screen.getByRole('link', { name: 'Cheat sheet · PDF · 420 KB' });
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    });
+  });
+
   it('shows nothing for a video that is not recorded yet', () => {
     show({
       type: 'video',

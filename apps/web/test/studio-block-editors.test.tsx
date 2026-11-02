@@ -235,6 +235,92 @@ describe('image block editor', () => {
     const { container } = setup(newBlock('image'));
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  const linked = (over: object = {}): Block =>
+    ({ ...newBlock('image'), url: 'https://example.com/a.png', alt: 'A graph', ...over }) as Block;
+  const preview = () => screen.getByRole('img', { name: 'A graph' }) as HTMLImageElement;
+  const loaded = (width: number, height: number) => {
+    Object.defineProperty(preview(), 'naturalWidth', { value: width, configurable: true });
+    Object.defineProperty(preview(), 'naturalHeight', { value: height, configurable: true });
+    fireEvent.load(preview());
+  };
+
+  it('reads a missing layout, zoom and border as column, off and on', () => {
+    setup(linked());
+    expect(screen.getByRole('button', { name: 'Column' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(
+      (screen.getByRole('switch', { name: 'Open full size' }) as HTMLInputElement).checked,
+    ).toBe(false);
+    expect((screen.getByRole('switch', { name: 'Border' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('sets the layout, Open full size and Border on a linked image', () => {
+    const { last } = setup(linked());
+    fireEvent.click(screen.getByRole('button', { name: 'Small' }));
+    expect(last()).toMatchObject({ layout: 'small' });
+    expect(screen.getByRole('button', { name: 'Small' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+    expect(last()).toMatchObject({ layout: 'medium' });
+    fireEvent.click(screen.getByRole('switch', { name: 'Open full size' }));
+    expect(last()).toMatchObject({ zoom: true });
+    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    expect(last()).toMatchObject({ border: false });
+    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    expect(last()).toMatchObject({ border: true });
+  });
+
+  it('previews at the chosen layout and shows nothing without an address', () => {
+    const { container, unmount } = setup(linked({ layout: 'small', border: false }));
+    expect(container.querySelector('.g-figure--small.g-figure--bare')).toBeTruthy();
+    unmount();
+    setup(linked({ url: '' }));
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('names the preview when there is no alt text yet', () => {
+    setup(linked({ alt: '' }));
+    expect(screen.getByRole('img', { name: 'Image preview' })).toBeTruthy();
+  });
+
+  it('records the width and height of a linked image from the loaded preview', () => {
+    const { last, seen } = setup(linked());
+    loaded(1600, 900);
+    expect(last()).toMatchObject({ width: 1600, height: 900 });
+    expect(preview().getAttribute('width')).toBe('1600');
+    // Loading again with the same size writes nothing more.
+    seen.mockClear();
+    loaded(1600, 900);
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('forgets the old size when the address changes', () => {
+    const { last } = setup(linked({ width: 10, height: 20 }));
+    type('Image address', 'https://example.com/b.png');
+    expect(last()).toMatchObject({ url: 'https://example.com/b.png' });
+    expect('width' in last()).toBe(false);
+    expect('height' in last()).toBe(false);
+  });
+
+  it('leaves the size of an uploaded image alone', () => {
+    const upload = {
+      path: 'courses/c1/media/m1.png',
+      bytes: 1000,
+      contentType: 'image/png',
+      name: 'a.png',
+    };
+    const { last, seen } = setup(linked({ upload, width: 800, height: 600 }));
+    loaded(1600, 900);
+    expect(seen).not.toHaveBeenCalled();
+    type('Image address', 'https://example.com/b.png');
+    expect(last()).toMatchObject({ width: 800, height: 600 });
+  });
+
+  it('has no accessibility violations with the controls and preview', async () => {
+    const { container } = setup(linked());
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });
 
 describe('embed block editor', () => {
