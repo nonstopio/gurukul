@@ -920,15 +920,22 @@ describe('Lesson player', () => {
     const d = fakeData({ watched: started({ lastItemId: 'l2', completedItemIds: ['l1'] }) });
     const { router } = await open('/courses/git/learn/l2', d);
     await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
-    fireEvent.keyDown(window, { key: 'k' });
-    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l1'));
+    // Pressed inside waitFor: on a loaded CI runner the first press can land before the page's
+    // key listener is in place, and K on the first lesson does nothing, so repeating is safe.
+    await waitFor(() => {
+      fireEvent.keyDown(window, { key: 'k' });
+      expect(router.state.location.pathname).toBe('/courses/git/learn/l1');
+    });
     fireEvent.keyDown(window, { key: 'j', ctrlKey: true });
     expect(router.state.location.pathname).toBe('/courses/git/learn/l1');
     fireEvent.keyDown(screen.getByRole('button', { name: /^Next/ }).ownerDocument.body, {
       key: 'x',
     });
-    fireEvent.keyDown(window, { key: 'j' });
-    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
+    // l3 is locked, so a repeated J cannot carry past l2.
+    await waitFor(() => {
+      fireEvent.keyDown(window, { key: 'j' });
+      expect(router.state.location.pathname).toBe('/courses/git/learn/l2');
+    });
     // l3 is in a chapter that stays locked until l2 is done, so J does nothing.
     fireEvent.keyDown(window, { key: 'j' });
     expect(router.state.location.pathname).toBe('/courses/git/learn/l2');

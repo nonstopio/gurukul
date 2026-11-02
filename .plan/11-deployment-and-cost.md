@@ -95,7 +95,8 @@ custom domain are `OPS-24`.
    sign-in is tested on production, not on previews.
 5. Create the production deploy service account (Hosting Admin, Rules Admin,
    Datastore Index Admin; from M2 also Cloud Functions Admin, Secret Manager Admin, Service Account
-   User, Artifact Registry Writer). Create a GitHub environment `production`
+   User, Artifact Registry Writer; from course media uploads also Cloud Storage for Firebase
+   Admin, which the Storage rules deploy needs to read the default bucket). Create a GitHub environment `production`
    limited to the `main` branch and store the key there as
    `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL`.
 6. Create a second service account with Firebase Hosting Admin only, and store
