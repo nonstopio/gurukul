@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: in progress (built: `MED-02`, `MED-03`, `MED-04`, `MED-07`, `MED-11`). Tracker section **Course media uploads** (`MED-*`).
+Status: in progress (built: `MED-02`, `MED-03`, `MED-04`, `MED-05`, `MED-07`, `MED-10`, `MED-11`). Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -314,6 +314,25 @@ jumps nor flashes empty, on a slow connection too.
   is unchanged.
 
 Built in `MED-12` (Studio makes the hash, the player shows it).
+
+## Where the bucket is checked (found in `MED-05`)
+
+The project's bucket is checked **in Studio only** (`VITE_FIREBASE_STORAGE_BUCKET`, falling back to
+`<projectId>.firebasestorage.app`). `publishCourse` checks that an uploaded address is a
+`firebasestorage.googleapis.com` download URL for its own file under this course, but not the
+bucket: the only name a function can read, `FIREBASE_CONFIG.storageBucket`, is the project's legacy
+default (`<project>.appspot.com`), which need not be the bucket Studio uploads to, and a wrong guess
+would refuse every upload. Before functions pass a bucket, a maintainer logs that value once from a
+deployed function. The gap is small (it takes a person who can edit the course and calls the
+callable directly, to point an image at another Firebase bucket's file) and is open until then.
+The local Storage emulator hands out plain `http://127.0.0.1:9199/...` download URLs, so the schema's
+`isDownloadUrlFor` and `validateForPublish` take an optional `emulatorHost` that only emulator runs
+pass (Studio when `VITE_USE_EMULATORS` is on, the Functions emulator through
+`FUNCTIONS_EMULATOR`); production passes none.
+
+`deploy.yml` and `preview.yml` do not set `VITE_FIREBASE_STORAGE_BUCKET`; the fallback matches the
+planned bucket. `upload.name` (the display name) is `file.name` cut to 120 characters; an edit field
+is not built.
 
 ## Media library
 
