@@ -32,12 +32,12 @@
     "@gurukul/schema": "^0.0.0",
     "@gurukul/ui": "*",
     "driver.js": "1.10.2",
-    "firebase": "^12.19.0",
+    "firebase": "^13.1.0",
     "pdfjs-dist": "6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
-    "react-router": "^8.5.0"
+    "react-router": "^8.5.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
