@@ -20,7 +20,7 @@ describe('Org settings', () => {
     expect(await screen.findByLabelText('Signatory name')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Org settings' })).toBeTruthy();
     expect(screen.queryByRole('tab')).toBeNull();
-    for (const name of ['Daily reminders', 'Certificate signatory']) {
+    for (const name of ['Daily reminders', 'Certificate signatory', 'Uploads']) {
       expect(screen.getByRole('region', { name })).toBeTruthy();
     }
     expect(screen.queryByRole('region', { name: 'Teams' })).toBeNull();
@@ -120,6 +120,94 @@ describe('Org settings', () => {
     expect(await screen.findByText('Could not save the settings. Try again.')).toBeTruthy();
     expect(saveButton().disabled).toBe(false);
     expect(screen.getByText('You have unsaved changes.')).toBeTruthy();
+  });
+});
+
+describe('Org settings: Uploads', () => {
+  const image = () => screen.getByLabelText('Largest image (KB)') as HTMLInputElement;
+  const pdf = () => screen.getByLabelText('Largest PDF (KB)') as HTMLInputElement;
+
+  it('shows the defaults, the bounds and that lowering affects new uploads only', async () => {
+    const { container } = await openApp('/admin/settings', { ...admin });
+    await screen.findByLabelText('Largest image (KB)');
+    expect(image().value).toBe('500');
+    expect(pdf().value).toBe('1024');
+    for (const field of [image(), pdf()]) {
+      expect(field.min).toBe('50');
+      expect(field.max).toBe('1024');
+      expect(field.getAttribute('aria-describedby')).toBeTruthy();
+    }
+    expect(screen.getByText(/affects new uploads only/)).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows the saved limits', async () => {
+    await openApp('/admin/settings', {
+      ...admin,
+      console: fakeConsole({ settings: { uploads: { imageMaxKB: 300, pdfMaxKB: 800 } } }),
+    });
+    await screen.findByLabelText('Largest image (KB)');
+    expect([image().value, pdf().value]).toEqual(['300', '800']);
+  });
+
+  it('saves a lowered limit and keeps the other', async () => {
+    const c = fakeConsole();
+    await openApp('/admin/settings', { ...admin, console: c });
+    await screen.findByLabelText('Largest image (KB)');
+    fireEvent.change(image(), { target: { value: '300' } });
+    expect(screen.getByText('You have unsaved changes.')).toBeTruthy();
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(c.data.saveOrgSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ uploads: { imageMaxKB: 300, pdfMaxKB: 1024 } }),
+      ),
+    );
+    expect(await screen.findByText('Settings saved')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    fireEvent.change(pdf(), { target: { value: '600' } });
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(c.data.saveOrgSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ uploads: { imageMaxKB: 300, pdfMaxKB: 600 } }),
+      ),
+    );
+  });
+
+  it('leaves uploads out of a save that did not touch them', async () => {
+    const c = fakeConsole({ settings: { uploads: { imageMaxKB: 300, pdfMaxKB: 800 } } });
+    await openApp('/admin/settings', { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('switch', { name: 'Send daily reminders' }));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(c.data.saveOrgSettings).toHaveBeenCalled());
+    expect(vi.mocked(c.data.saveOrgSettings).mock.calls[0]?.[0]).not.toHaveProperty('uploads');
+  });
+
+  it.each([
+    ['', 'Enter a whole number of KB.'],
+    ['abc', 'Enter a whole number of KB.'],
+    ['100.5', 'Enter a whole number of KB.'],
+    ['49', 'Enter at least 50 KB.'],
+    ['1025', 'Enter at most 1024 KB, the hard ceiling.'],
+  ])('refuses %j with a clear message', async (typed, message) => {
+    const { container } = await openApp('/admin/settings', { ...admin });
+    await screen.findByLabelText('Largest image (KB)');
+    fireEvent.change(image(), { target: { value: typed } });
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(image().getAttribute('aria-invalid')).toBe('true');
+    expect(saveButton().disabled).toBe(true);
+    expect(await axeViolations(container)).toEqual([]);
+    fireEvent.change(image(), { target: { value: '400' } });
+    expect(screen.queryByText(message)).toBeNull();
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it('checks the PDF limit too', async () => {
+    await openApp('/admin/settings', { ...admin });
+    await screen.findByLabelText('Largest PDF (KB)');
+    fireEvent.change(pdf(), { target: { value: '5000' } });
+    expect(pdf().getAttribute('aria-invalid')).toBe('true');
+    expect(saveButton().disabled).toBe(true);
   });
 });
 

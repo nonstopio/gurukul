@@ -1,4 +1,4 @@
-import { accessOf, progressId, readCourse } from '@gurukul/schema';
+import { accessOf, progressId, readCourse, uploadLimitsSchema } from '@gurukul/schema';
 import type { Course, CourseListing } from '@gurukul/schema';
 import {
   arrayUnion,
@@ -253,6 +253,11 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
     async orgTeams() {
       const snap = await getDoc(doc(db, 'config', 'org'));
       return snap.exists() ? ((snap.data().teams as string[] | undefined) ?? []) : [];
+    },
+    async uploadLimits() {
+      const snap = await getDoc(doc(db, 'config', 'org'));
+      const parsed = uploadLimitsSchema.safeParse(snap.data()?.uploads);
+      return parsed.success ? parsed.data : undefined;
     },
     async setLabels(uid, labels) {
       await updateDoc(doc(db, 'users', uid), { labels });

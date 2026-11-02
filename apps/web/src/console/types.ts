@@ -143,7 +143,7 @@ export interface ConsoleData {
   orgSettings(): Promise<OrgConfig>;
   /**
    * Saves `config/org` except its team names, which only the Teams page changes; the rules let
-   * only an Admin, and only this shape.
+   * only an Admin, and only this shape. `uploads` is written only when `settings` carries it.
    */
   saveOrgSettings(settings: OrgConfig): Promise<void>;
   /**

@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Course } from '@gurukul/schema';
+import type { Course, UploadLimits } from '@gurukul/schema';
 import type {
   AssignmentRow,
   AttemptRow,
@@ -128,6 +128,7 @@ export function fakeData(
     deferProgress?: boolean;
     /** `config/org.teams`; none by default, so Home asks nobody for a team. */
     teams?: string[];
+    uploadLimits?: UploadLimits;
   } = {},
 ) {
   const courses = init.courses ?? [makeCourse()];
@@ -151,6 +152,7 @@ export function fakeData(
     completeItem: vi.fn().mockResolvedValue(undefined),
     setLastItem: vi.fn().mockResolvedValue(undefined),
     orgTeams: vi.fn().mockResolvedValue(init.teams ?? []),
+    uploadLimits: vi.fn().mockResolvedValue(init.uploadLimits),
     setLabels: vi.fn().mockResolvedValue(undefined),
   };
   return { data, emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)) };
