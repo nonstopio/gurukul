@@ -15,7 +15,9 @@ name: Deploy
 # Secret: FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL, stored in the `production` ENVIRONMENT (not
 # the repository), with that environment limited to the `main` branch. A service account with
 # Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin, Cloud Storage for
-# Firebase Admin (the Storage rules deploy reads the default bucket) and, for Functions,
+# Firebase Admin on the project plus Storage Legacy Bucket Reader on the default bucket
+# (gs://nonstop-gurukul.firebasestorage.app; without it the CLI reports "Firebase Storage has not
+# been set up" though the bucket exists) and, for Functions,
 # Cloud Functions Admin, Cloud Build Editor, Artifact Registry Writer and Service Account User.
 on:
   workflow_run:
