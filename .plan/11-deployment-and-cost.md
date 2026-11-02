@@ -96,7 +96,9 @@ custom domain are `OPS-24`.
 5. Create the production deploy service account (Hosting Admin, Rules Admin,
    Datastore Index Admin; from M2 also Cloud Functions Admin, Secret Manager Admin, Service Account
    User, Artifact Registry Writer; from course media uploads also Cloud Storage for Firebase
-   Admin, which the Storage rules deploy needs to read the default bucket). Create a GitHub environment `production`
+   Admin on the project and `roles/storage.legacyBucketReader` on the default bucket: the Storage
+   rules deploy reads the bucket, and without bucket access the CLI reports "Firebase Storage has
+   not been set up" even though it exists). Create a GitHub environment `production`
    limited to the `main` branch and store the key there as
    `FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL`.
 6. Create a second service account with Firebase Hosting Admin only, and store
