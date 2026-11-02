@@ -334,6 +334,28 @@ frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>
 always-visible 44px link "Open the video in a new tab" (`href`, `target="_blank"`, `rel="noopener noreferrer"`)
 for when the embed is blocked.
 
+## FileDrop — shipped
+
+```tsx
+<FileDrop
+  label="Choose an image"
+  policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"   // from uploadPolicy, never typed
+  accept="image/webp,image/png,image/jpeg"
+  state="idle|checking|error|uploading"
+  fileName progress={0..100} error={<ReactNode>}
+  onFile={(file) => …} onCancel={() => …}
+/>
+```
+
+Picks one file three ways: the zone is a real `<button>` (opens the native picker; Enter and Space work), a file dropped on
+it, or a file pasted while it has focus (pasted text passes through). The policy line is always visible under the zone,
+before anyone picks, and is part of the button's `aria-describedby`; the caller builds it from the live upload policy.
+`dragging` is the control's own state (dashed border turns `--accent` on `--accent-soft`, label "Drop to check it").
+`checking` and `uploading` replace the zone with a status line in a `role="status"` region (progress is spoken in tens, not
+every percent), and `uploading` adds a `ProgressBar` ("Upload progress") and a Cancel upload button when `onCancel` is given.
+`error` leaves the zone usable and shows `error` (the caller's words and buttons) in a `role="alert"` box tied to the zone
+with `aria-describedby`. The control only reports the file; the caller checks it and uploads it. Several files: the first.
+
 ## ImageFigure — shipped
 
 `<ImageFigure src alt layout="column|medium|small" border? zoom? width? height? caption? onSize? />`. A lesson image.

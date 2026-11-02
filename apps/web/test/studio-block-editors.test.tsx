@@ -6,6 +6,7 @@ import { BlockEditor } from '../src/studio/blocks/BlockEditor';
 import { BlockPalette } from '../src/studio/blocks/BlockPalette';
 import { newBlock } from '../src/studio/lessonEdit';
 import { axeViolations } from './axe';
+import { BlockProviders } from './block-harness';
 
 /** Renders one block editor the way the page does: controlled, with the latest block kept in `seen`. */
 function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }) {
@@ -22,7 +23,11 @@ function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }
 }
 function setup(block: Block) {
   const seen = vi.fn();
-  const view = render(<Harness initial={block} seen={seen} />);
+  const view = render(
+    <BlockProviders>
+      <Harness initial={block} seen={seen} />
+    </BlockProviders>,
+  );
   return { ...view, seen, last: () => seen.mock.lastCall?.[0] as Block };
 }
 const type = (label: string | RegExp, value: string) =>
@@ -95,8 +100,11 @@ describe('video block editor', () => {
     ({ ...newBlock('video'), url: 'https://www.youtube.com/watch?v=abc123', ...over }) as Block;
 
   it('names the host when the link can be embedded', () => {
-    setup(video());
-    expect(within(screen.getByRole('status')).getByText('YouTube')).toBeTruthy();
+    const { container } = setup(video());
+    // The toast regions around the editor are statuses too; this one is the block's own.
+    expect(
+      within(container.querySelector('[role="status"]') as HTMLElement).getByText('YouTube'),
+    ).toBeTruthy();
     expect(screen.queryByText(/not recognised/)).toBeNull();
   });
 
@@ -219,6 +227,7 @@ describe('callout block editor', () => {
 describe('image block editor', () => {
   it('asks for alt text, visibly, and edits all three fields', () => {
     const { last } = setup(newBlock('image'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
     expect(screen.getByText(/for people who cannot see it/)).toBeTruthy();
     expect((screen.getByLabelText('Alt text (required)') as HTMLInputElement).required).toBe(true);
     type('Image address', 'https://example.com/a.png');
@@ -303,7 +312,7 @@ describe('image block editor', () => {
     expect('height' in last()).toBe(false);
   });
 
-  it('leaves the size of an uploaded image alone', () => {
+  it('leaves the size of an uploaded image alone, and an address typed over it makes it a link', () => {
     const upload = {
       path: 'courses/c1/media/m1.png',
       bytes: 1000,
@@ -313,8 +322,11 @@ describe('image block editor', () => {
     const { last, seen } = setup(linked({ upload, width: 800, height: 600 }));
     loaded(1600, 900);
     expect(seen).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    expect(screen.getByText(/uploaded to Gurukul/)).toBeTruthy();
     type('Image address', 'https://example.com/b.png');
-    expect(last()).toMatchObject({ width: 800, height: 600 });
+    expect(last()).toMatchObject({ url: 'https://example.com/b.png' });
+    for (const key of ['upload', 'width', 'height']) expect(key in last()).toBe(false);
   });
 
   it('has no accessibility violations with the controls and preview', async () => {
@@ -402,5 +414,15 @@ describe('block palette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Callout' }));
     expect(onAdd).toHaveBeenCalledWith('callout');
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('block scope', () => {
+  it('is required: an editor outside it is a bug, not a state', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<BlockEditor block={newBlock('image')} onChange={() => {}} />)).toThrow(
+      'useBlockScope must be used inside <BlockScope>',
+    );
+    quiet.mockRestore();
   });
 });

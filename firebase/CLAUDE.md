@@ -70,7 +70,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   source draft with its answers; the creator's Google name goes into `educatorNames`; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
   Educator or Admin; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
   `educatorIds` and `educatorNames` always win; both run `upgradeCourse` on the stored course first; publish is gated by
-  `validateForPublish` and fails `CRS_1003` with `details.issues`; rollback republishes a snapshot as a new
+  `validateForPublish` and fails `CRS_1003` with `details.issues` (an uploaded image's address must be the Storage download URL of its own file under this course; `publishChecks` adds the Storage emulator's host inside the Functions emulator only, and no bucket, see its comment); rollback republishes a snapshot as a new
   version and resets the draft), `archiveCourse` (Admin-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for educator/admin claims; clients never create or delete drafts.

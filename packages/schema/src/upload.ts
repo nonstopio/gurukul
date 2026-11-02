@@ -329,15 +329,25 @@ export type FileUpload = z.infer<typeof fileUploadSchema>;
 
 /**
  * True when `url` is a Firebase Storage download URL for exactly `path` (and `bucket`, when given).
- * Publishing checks this so an uploaded block cannot point at someone else's file.
+ * Publishing checks this so an uploaded block cannot point at someone else's file. `emulatorHost`
+ * (`127.0.0.1:9199`) also accepts the plain-http address the local Storage emulator hands out; only
+ * the emulator runs pass it, never production.
  */
-export function isDownloadUrlFor(url: string, path: string, bucket?: string): boolean {
+export function isDownloadUrlFor(
+  url: string,
+  path: string,
+  bucket?: string,
+  emulatorHost?: string,
+): boolean {
   try {
     const u = new URL(url);
     const m = /^\/v0\/b\/([^/]+)\/o\/([^/]+)$/.exec(u.pathname);
+    const origin =
+      u.protocol === 'https:'
+        ? u.hostname === 'firebasestorage.googleapis.com'
+        : emulatorHost !== undefined && u.protocol === 'http:' && u.host === emulatorHost;
     return (
-      u.protocol === 'https:' &&
-      u.hostname === 'firebasestorage.googleapis.com' &&
+      origin &&
       m !== null &&
       (bucket === undefined || m[1] === bucket) &&
       decodeURIComponent(String(m[2])) === path

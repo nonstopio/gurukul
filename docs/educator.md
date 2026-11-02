@@ -26,6 +26,59 @@ lesson never loses anyone's work.
 - Your work **autosaves** a second after you stop typing ("Saved just now"). If someone else saved
   the same draft meanwhile you will be told, and asked to reload.
 
+## Uploading images
+
+An Image block has two tabs. **Upload** puts the picture in Gurukul, so there is nothing else to host and
+the link cannot break. **Link** is the address of an image that lives elsewhere, as before. A new block
+opens on Upload; an image you linked earlier opens on Link.
+
+To upload, choose the file, drop it on the box, or focus the box and paste a copied image. Gurukul checks it
+in your browser first and shows a preview at the size learners will see (1280 px or 390 px wide) before
+anything is sent. Pick **Upload image** when it looks right. You can cancel a running upload, and if it
+fails nothing is saved: try again. **Replace image** uploads a new file; **Remove image** clears the block.
+Neither deletes the old file, because a published version may still show it.
+
+### The numbers, and why
+
+| What                 | Limit                                                          |
+| -------------------- | -------------------------------------------------------------- |
+| Types                | WebP, PNG or JPEG (not GIF, SVG, AVIF, HEIC, TIFF or BMP)      |
+| Size                 | up to 500 KB (an Admin can set it anywhere from 50 KB to 1 MB) |
+| Long side            | at most 2000 px; **1600 px wide is ideal**                     |
+| Narrower than 800 px | allowed, with a warning: use the Small or Medium layout        |
+
+A lesson column is about 780 px wide, so 1600 px is sharp even on a high-density screen, and anything
+bigger only makes the page slower. The size limit keeps the pages quick on a phone and keeps the whole
+platform inside its free storage. GIF and SVG are left out because an animation is several megabytes and an
+SVG can carry script; a screen recording belongs on YouTube or Loom as a Video block.
+
+### Shrink an image by hand
+
+When a file is refused, the message shows its size and pixels and what to change. You have three ways
+to fix it, and the same numbers apply to each:
+
+1. **Ask a coding agent.** **Copy a prompt for your coding agent** puts a ready-made prompt, with your file's
+   name and the live limits, on the clipboard. Paste it into Claude Code, Cursor, Copilot or any agent that
+   can run commands on your machine.
+2. **A browser tool such as Squoosh** (squoosh.app). It runs in your browser and does not upload the file.
+   Open the image, choose **WebP**, set the quality to about 80, resize so the width is 1600, and save.
+3. **macOS Preview.** Open the image, **Tools → Adjust Size…**, set the width to 1600 pixels (keep
+   **Scale proportionally**), then **File → Export…** and choose JPEG or PNG, and move the quality slider
+   until the size is under the limit.
+
+Check the result is under the size limit, then pick it again. Photos carry their location and camera details:
+Squoosh and the agent prompt remove them, so use one of those for a photo.
+
+### What never goes into an upload
+
+An uploaded file can be opened by anyone who is given its address, and it stays in storage. So:
+
+- No personal data: names, email addresses, or the faces of people who have not agreed to be shown.
+- No client names and no internal NonStop process.
+- No secrets: tokens, keys, passwords, `.env` files or a terminal showing them.
+
+**Crop or blur first**, then upload. A screenshot of a whole screen usually shows more than you meant to.
+
 ## Publishing
 
 **Publish** checks the whole course and lists anything to fix: an empty lesson, a video link that is

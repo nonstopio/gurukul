@@ -66,6 +66,7 @@ import {
   TypeTile,
   UserCard,
   UsersIcon,
+  FileDrop,
   ImageFigure,
   VideoBlock,
   largestDrop,
@@ -1197,6 +1198,35 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           width={640}
           height={240}
           caption="Zoom opens it at its natural size."
+        />
+      </Frame>
+    ),
+  },
+  FileDrop: {
+    rule: 'Pick a file by button, drop or paste, with the rules stated first; checking, an error and a cancellable upload each say what is happening.',
+    Example: () => (
+      <Frame>
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          accept="image/webp,image/png,image/jpeg"
+          onFile={noop}
+        />
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          state="error"
+          error="This image is 1.8 MB. Images can be up to 500 KB."
+          onFile={noop}
+        />
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          state="uploading"
+          fileName="diagram.png"
+          progress={40}
+          onCancel={noop}
+          onFile={noop}
         />
       </Frame>
     ),

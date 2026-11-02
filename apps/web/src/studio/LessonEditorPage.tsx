@@ -3,6 +3,8 @@ import type { Block, BlockType, Lesson } from '@gurukul/schema';
 import { Card, DragList, EmptyState, Input, Select, buttonClass } from '@gurukul/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { useUser } from '../auth/AuthProvider';
+import { BlockScope } from './blocks/BlockScope';
 import { BlockPreviewFrame } from './blocks/BlockPreviewFrame';
 import { BlockPalette } from './blocks/BlockPalette';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -28,6 +30,7 @@ import { itemEditorPath, nameOf } from './studioModel';
 import type { Terms } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import type { Working } from './types';
+import { useStudio } from './StudioProvider';
 import { useDraft } from './useDraft';
 import type { DraftApi } from './useDraft';
 
@@ -60,9 +63,14 @@ function LessonEditor({
   lessonId: string;
 }) {
   const terms = useTerms();
+  const { uid } = useUser();
+  const { checks } = useStudio();
   const [selected, setSelected] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
+  const issues = useMemo(
+    () => validateForPublish(work.course, work.answers, checks),
+    [work, checks],
+  );
 
   const focusAfterRender = useRef<string | null>(null);
 
@@ -208,16 +216,18 @@ function LessonEditor({
               onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
               renderItem={(block, { handle }) => (
                 <div data-block-id={block.id}>
-                  <BlockPreviewFrame
-                    block={block}
-                    onChange={(next) => edit((l) => replaceBlock(l, next))}
-                    label={BLOCK_LABELS[block.type]}
-                    handle={handle}
-                    selected={selected === block.id}
-                    error={messages(block.id)}
-                    onDuplicate={() => duplicate(block.id)}
-                    onDelete={() => remove(block)}
-                  />
+                  <BlockScope courseId={courseId} uid={uid}>
+                    <BlockPreviewFrame
+                      block={block}
+                      onChange={(next) => edit((l) => replaceBlock(l, next))}
+                      label={BLOCK_LABELS[block.type]}
+                      handle={handle}
+                      selected={selected === block.id}
+                      error={messages(block.id)}
+                      onDuplicate={() => duplicate(block.id)}
+                      onDelete={() => remove(block)}
+                    />
+                  </BlockScope>
                 </div>
               )}
             />

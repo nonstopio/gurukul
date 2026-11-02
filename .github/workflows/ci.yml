@@ -139,7 +139,7 @@ jobs:
         run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.json
 
   # The three journeys (learner, Admin, Educator) in a real browser, against the built app and the
-  # Auth, Firestore and Functions emulators (e2e/). Needs Java for the Firestore emulator and
+  # Auth, Firestore, Functions and Storage emulators (e2e/). Needs Java for the Firestore emulator and
   # Chromium for Playwright. The Playwright config builds the functions and the app and starts the
   # emulators itself.
   e2e:

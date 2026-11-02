@@ -26,7 +26,7 @@ export function PublishDialog({
   onClose: () => void;
   onPublished: (version: number) => void;
 }) {
-  const { service, data } = useStudio();
+  const { service, data, checks } = useStudio();
   const toast = useToast();
   const analytics = useAnalytics();
   const t = useTerms();
@@ -35,7 +35,10 @@ export function PublishDialog({
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<PublishIssue[] | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  const local = useMemo(() => validateForPublish(work.course, work.answers), [work]);
+  const local = useMemo(
+    () => validateForPublish(work.course, work.answers, checks),
+    [work, checks],
+  );
   const summary = useMemo(() => changeSummary(live, work.course), [live, work.course]);
   const removedIds = useMemo(() => diffCourses(live, work.course).removed, [live, work.course]);
   const [completions, setCompletions] = useState<Record<string, number>>({});

@@ -1,7 +1,12 @@
-import { ImageFigure, Input, SegmentedControl, ToggleCard } from '@gurukul/ui';
+import { ImageFigure, Input, SegmentedControl, Tabs, ToggleCard } from '@gurukul/ui';
 import type { ImageLayout } from '@gurukul/ui';
+import { useState } from 'react';
+import { PLACEHOLDER_IMAGE } from '../lessonEdit';
 import { patch } from '../patch';
+import { ImageUploadPanel } from './ImageUploadPanel';
+import { PreviewWidth } from './PreviewWidth';
 import type { BlockEditorProps } from './types';
+import { useImageUpload } from './useImageUpload';
 
 const LAYOUTS = [
   { value: 'column', label: 'Column' },
@@ -10,25 +15,78 @@ const LAYOUTS = [
 ] as const satisfies ReadonlyArray<{ value: ImageLayout; label: string }>;
 
 /**
- * An image by address. Alt text is required: it is what people who cannot see the image hear.
- * Layout, Open full size and Border work for linked images too; a linked image's width and height
- * are read from the loaded preview so the lesson does not jump while it loads.
+ * An image, uploaded or linked. Alt text is required: it is what people who cannot see the image
+ * hear. The Upload tab (the default for a new block and for an uploaded image) checks the file in
+ * the browser, previews it, and uploads it to Cloud Storage; the Link tab is the address field. An
+ * existing linked image opens on Link. Layout, Open full size and Border work for both; a linked
+ * image's width and height are read from the loaded preview so the lesson does not jump.
  */
 export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
+  const [tab, setTab] = useState(
+    block.url && block.url !== PLACEHOLDER_IMAGE && !block.upload ? 'link' : 'upload',
+  );
+  const source = useImageUpload(block, onChange);
+  const picked = 'picked' in source.stage ? source.stage.picked : undefined;
+  // A new block's stand-in address is not an image: nothing to preview until there is a real one.
+  const src = picked?.previewUrl ?? (block.url === PLACEHOLDER_IMAGE ? '' : block.url);
+  const size = picked ?? block;
+
   return (
     <div className="studio-fields">
-      <Input
-        label="Image address"
-        type="url"
-        value={block.url}
-        onChange={(e) =>
-          // The size belongs to the old address; the preview reads the new one once it loads.
-          onChange(
-            block.upload
-              ? { ...block, url: e.target.value }
-              : patch(block, { url: e.target.value, width: undefined, height: undefined }),
-          )
-        }
+      <Tabs
+        label="Image source"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          {
+            id: 'upload',
+            label: 'Upload',
+            panel: (
+              <ImageUploadPanel
+                block={block}
+                source={source}
+                onRemove={() =>
+                  onChange(
+                    patch(block, {
+                      url: '',
+                      upload: undefined,
+                      width: undefined,
+                      height: undefined,
+                    }),
+                  )
+                }
+              />
+            ),
+          },
+          {
+            id: 'link',
+            label: 'Link',
+            panel: (
+              <Input
+                label="Image address"
+                type="url"
+                hint={
+                  block.upload
+                    ? 'This image is uploaded to Gurukul. An address here links another image instead.'
+                    : undefined
+                }
+                value={block.url}
+                onChange={(e) =>
+                  // The size and the upload belong to the old image; the preview reads the new
+                  // address once it loads.
+                  onChange(
+                    patch(block, {
+                      url: e.target.value,
+                      upload: undefined,
+                      width: undefined,
+                      height: undefined,
+                    }),
+                  )
+                }
+              />
+            ),
+          },
+        ]}
       />
       <Input
         label="Alt text (required)"
@@ -63,24 +121,27 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
         checked={block.border ?? true}
         onChange={(e) => onChange({ ...block, border: e.target.checked })}
       />
-      {block.url ? (
-        <ImageFigure
-          src={block.url}
-          alt={block.alt || 'Image preview'}
-          layout={block.layout}
-          border={block.border}
-          width={block.width}
-          height={block.height}
-          onSize={
-            block.upload
-              ? undefined
-              : ({ width, height }) => {
-                  if (width !== block.width || height !== block.height) {
-                    onChange({ ...block, width, height });
+      {src ? (
+        <PreviewWidth>
+          <ImageFigure
+            src={src}
+            alt={block.alt || 'Image preview'}
+            layout={block.layout}
+            border={block.border}
+            width={size.width}
+            height={size.height}
+            caption={block.caption}
+            onSize={
+              block.upload || picked
+                ? undefined
+                : ({ width, height }) => {
+                    if (width !== block.width || height !== block.height) {
+                      onChange({ ...block, width, height });
+                    }
                   }
-                }
-          }
-        />
+            }
+          />
+        </PreviewWidth>
       ) : null}
     </div>
   );

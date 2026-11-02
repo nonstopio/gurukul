@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   archiveCourse,
   createCourse,
+  publishChecks,
   publishCourse,
   restrictAnswers,
   rollbackCourse,
@@ -19,7 +20,7 @@ import type {
   VersionData,
 } from '../src/courses.js';
 import type * as Schema from '@gurukul/schema';
-import { answerKey, course } from './fixtures.js';
+import { answerKey, course, quiz } from './fixtures.js';
 
 // Calls through; a test swaps in one upgrade to see publish and rollback use what it returns.
 const upgrade = vi.hoisted(() => ({ fn: vi.fn<(raw: unknown) => unknown>() }));
@@ -336,6 +337,64 @@ describe('publishCourse', () => {
     expect(f.audits).toEqual([]);
   });
 
+  describe('the address of an uploaded image', () => {
+    const path = 'courses/git-basics/media/m1.png';
+    const lesson = (url: string) => ({
+      type: 'lesson',
+      id: 'l1',
+      title: 'L',
+      minutes: 1,
+      layout: 'stacked',
+      completeWhen: 'manual',
+      blocks: [
+        {
+          type: 'image',
+          id: 'i1',
+          url,
+          alt: 'A shot',
+          upload: { path, bytes: 9, contentType: 'image/png', name: 'a.png' },
+        },
+      ],
+    });
+    const download = (host: string, bucket: string, scheme = 'https') =>
+      `${scheme}://${host}/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=t`;
+    const draftWith = (url: string) =>
+      draftOf({
+        course: validCourse({
+          chapters: [{ id: 'p1', title: 'P', items: [lesson(url), quiz()] }],
+        }),
+      });
+    const prod = 'firebasestorage.googleapis.com';
+    const codes = async (url: string, checks: Parameters<typeof publishCourse>[3]) => {
+      const e = (await publishCourse(
+        fake({ draft: draftWith(url) }).store,
+        asha,
+        { courseId: 'c' },
+        checks,
+      ).catch((x: unknown) => x)) as ApiException | { version: number };
+      return 'code' in e ? (e.details['issues'] as { code: string }[]).map((i) => i.code) : [];
+    };
+
+    it('must be that file in the project bucket when the bucket is known', async () => {
+      const own = download(prod, 'proj.firebasestorage.app');
+      expect(await codes(own, { bucket: 'proj.firebasestorage.app' })).toEqual([]);
+      expect(await codes(own, { bucket: 'other.firebasestorage.app' })).toEqual([
+        'block.image.upload',
+      ]);
+      expect(await codes(own, {})).toEqual([]);
+    });
+
+    it('may be the Storage emulator only when the run says so', async () => {
+      const local = download('127.0.0.1:9199', 'demo.appspot.com', 'http');
+      expect(await codes(local, {})).toContain('block.image.url');
+      expect(await codes(local, { emulatorHost: '127.0.0.1:9199' })).toEqual([]);
+    });
+
+    it('is checked with what the environment knows by default', async () => {
+      expect(await codes(download(prod, 'proj.firebasestorage.app'), undefined)).toEqual([]);
+    });
+  });
+
   it('refuses non-editors, a missing course and a missing draft', async () => {
     await expect(publishCourse(fake().store, rohan, { courseId: 'c' })).rejects.toMatchObject({
       code: 'AUTH_2001',
@@ -489,6 +548,29 @@ describe('archiveCourse', () => {
       code,
       details: { field: 'archived' },
     });
+  });
+});
+
+describe('publishChecks', () => {
+  it('passes nothing in production, whatever the environment says about Storage', () => {
+    expect(publishChecks({})).toEqual({});
+    expect(
+      publishChecks({
+        FIREBASE_CONFIG: '{"projectId":"p","storageBucket":"p.appspot.com"}',
+        FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199',
+      }),
+    ).toEqual({});
+  });
+  it('names the Storage emulator inside the Functions emulator, localhost as 127.0.0.1', () => {
+    const env = { FUNCTIONS_EMULATOR: 'true', FIREBASE_STORAGE_EMULATOR_HOST: 'localhost:9199' };
+    expect(publishChecks(env)).toEqual({ emulatorHost: '127.0.0.1:9199' });
+    expect(publishChecks({ ...env, FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199' })).toEqual({
+      emulatorHost: '127.0.0.1:9199',
+    });
+    expect(publishChecks({ FUNCTIONS_EMULATOR: 'true' })).toEqual({});
+  });
+  it('reads process.env by default', () => {
+    expect(publishChecks()).toBeTypeOf('object');
   });
 });
 
