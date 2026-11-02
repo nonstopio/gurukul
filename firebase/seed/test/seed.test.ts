@@ -11,14 +11,18 @@ import {
 
 const now = { toMillis: () => 1_700_000_000_000, toDate: () => new Date(1_700_000_000_000) };
 
-const fakeDb = () => {
+const fakeDb = (existing: Record<string, unknown> = {}) => {
   const writes: { path: string; data: unknown }[] = [];
+  const docs = new Map(Object.entries(existing));
   const db: SeedDb = {
+    get: async (path) => docs.get(path),
     set: async (path, data) => {
+      docs.set(path, data);
       writes.push({ path, data });
     },
     createIfMissing: async (path, data) => {
-      if (writes.some((w) => w.path === path)) return false;
+      if (docs.has(path)) return false;
+      docs.set(path, data);
       writes.push({ path, data });
       return true;
     },
@@ -28,40 +32,117 @@ const fakeDb = () => {
 
 const clone = <T>(v: T): T => structuredClone(v);
 
+const COURSE = 'courses/git-the-nonstop-way';
+const DRAFT = `${COURSE}/drafts/current`;
+const written = (writes: { path: string; data: unknown }[], path: string) =>
+  writes.find((w) => w.path === path)?.data as Record<string, unknown> | undefined;
+
+/** A course already live in Firestore, as an Admin and the role grants left it. */
+const liveCourse = {
+  ...gitCourse,
+  version: 3,
+  status: 'published',
+  educatorIds: ['uid-ravi'],
+  educatorNames: { 'uid-ravi': 'Ravi Example' },
+  visibility: 'teams',
+  visibleTeamIds: ['mobile'],
+};
+
 describe('seedCourse', () => {
-  it('writes the course and its answer key, stamped with now', async () => {
+  it('writes the course, its answer key, version 1 and a draft, stamped with now', async () => {
     const { db, writes } = fakeDb();
     const result = await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
     expect(result).toEqual({
-      coursePath: 'courses/git-the-nonstop-way',
-      answersPath: 'courses/git-the-nonstop-way/private/answers',
-      draftPath: 'courses/git-the-nonstop-way/drafts/current',
-      draftCreated: true,
+      coursePath: COURSE,
+      answersPath: `${COURSE}/private/answers`,
+      draftPath: DRAFT,
+      version: 1,
+      draft: 'created',
     });
     expect(writes.map((w) => w.path)).toEqual([
       result.coursePath,
       result.answersPath,
+      `${COURSE}/versions/1`,
       result.draftPath,
     ]);
-    expect(writes[2]?.data).toEqual({
+    const course = written(writes, COURSE);
+    expect(course).toMatchObject({ visibility: 'public', visibleTeamIds: [], version: 1 });
+    expect((course as unknown as Course).publishedAt).toBe(now);
+    expect(written(writes, result.answersPath)).toEqual(gitAnswers);
+    expect(JSON.stringify(course)).not.toContain('"quiz-i-q1":["a"]');
+    expect(written(writes, `${COURSE}/versions/1`)).toEqual({
+      version: 1,
+      publishedAt: now,
+      publishedBy: 'seed',
+      course,
+      answers: gitAnswers,
+    });
+    expect(written(writes, DRAFT)).toEqual({
       rev: 1,
       updatedAt: now,
       updatedBy: 'seed',
-      course: { ...(writes[0]?.data as object), visibility: undefined, visibleTeamIds: undefined },
+      course: { ...course, visibility: undefined, visibleTeamIds: undefined },
       answers: gitAnswers,
     });
-    expect(writes[0]?.data).toMatchObject({ visibility: 'public', visibleTeamIds: [] });
-    expect((writes[0]?.data as Course).publishedAt).toBe(now);
-    expect(writes[1]?.data).toEqual(gitAnswers);
-    expect(JSON.stringify(writes[0]?.data)).not.toContain('"quiz-i-q1":["a"]');
   });
 
-  it('keeps a draft that is already there, so re-seeding never discards Studio edits', async () => {
-    const { db, writes } = fakeDb();
-    writes.push({ path: 'courses/git-the-nonstop-way/drafts/current', data: 'edited' });
+  it('publishes a re-seed as the next version, keeping access and Educators', async () => {
+    const { db, writes } = fakeDb({
+      [COURSE]: liveCourse,
+      [DRAFT]: { rev: 4, updatedBy: 'seed', course: liveCourse, answers: gitAnswers },
+    });
     const result = await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
-    expect(result.draftCreated).toBe(false);
-    expect(writes[0]?.data).toBe('edited');
+    expect(result).toMatchObject({ version: 4, draft: 'updated' });
+    const course = written(writes, COURSE);
+    expect(course).toMatchObject({
+      version: 4,
+      status: 'published',
+      educatorIds: ['uid-ravi'],
+      educatorNames: { 'uid-ravi': 'Ravi Example' },
+      visibility: 'teams',
+      visibleTeamIds: ['mobile'],
+    });
+    // The content is the seed's: the new worktrees lesson reaches the live course.
+    expect(JSON.stringify(course)).toContain('"id":"worktrees"');
+    expect(written(writes, `${COURSE}/versions/4`)).toMatchObject({ version: 4, course });
+    expect(written(writes, DRAFT)).toMatchObject({
+      rev: 5,
+      updatedBy: 'seed',
+      course: { version: 4, educatorIds: ['uid-ravi'] },
+    });
+  });
+
+  it('keeps a retired course retired', async () => {
+    const { db, writes } = fakeDb({ [COURSE]: { ...liveCourse, status: 'archived' } });
+    await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
+    expect(written(writes, COURSE)).toMatchObject({ status: 'archived', version: 4 });
+  });
+
+  it('keeps a draft an Educator has edited, so re-seeding never discards Studio work', async () => {
+    const { db, writes } = fakeDb({
+      [COURSE]: liveCourse,
+      [DRAFT]: { rev: 7, updatedBy: 'uid-ravi', course: liveCourse, answers: gitAnswers },
+    });
+    const result = await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
+    expect(result.draft).toBe('kept');
+    expect(writes.map((w) => w.path)).not.toContain(DRAFT);
+  });
+
+  it('reads a live course with no version, Educators or access as version 0, none and public', async () => {
+    const bare = { ...gitCourse } as Partial<typeof gitCourse>;
+    delete bare.version;
+    delete bare.educatorIds;
+    delete bare.educatorNames;
+    const { db, writes } = fakeDb({ [COURSE]: bare, [DRAFT]: { updatedBy: 'seed' } });
+    const result = await seedCourse(db, { course: gitCourse, answers: gitAnswers, now });
+    expect(result.version).toBe(1);
+    expect(written(writes, COURSE)).toMatchObject({
+      educatorIds: [],
+      educatorNames: {},
+      visibility: 'public',
+      visibleTeamIds: [],
+    });
+    expect(written(writes, DRAFT)).toMatchObject({ rev: 1 });
   });
 
   it('rejects an invalid course and writes nothing', async () => {

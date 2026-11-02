@@ -17,6 +17,7 @@ const db = getFirestore(initializeApp({ projectId }));
 // gRPC status 6 is ALREADY_EXISTS: the document is there, so it is kept.
 const ALREADY_EXISTS = 6;
 const seedDb = {
+  get: async (path) => (await db.doc(path).get()).data(),
   set: async (path, data) => void (await db.doc(path).set(data)),
   createIfMissing: async (path, data) => {
     try {
@@ -34,8 +35,13 @@ const paths = await seedCourse(seedDb, {
   now: Timestamp.now(),
 });
 const org = await seedOrgConfig(seedDb);
-console.warn(`Seeded ${paths.coursePath} and ${paths.answersPath} in ${projectId}.`);
+const DRAFT = {
+  created: 'created from the course',
+  updated: 'updated to the course',
+  kept: 'edited in Studio, kept: it does not have this version',
+};
 console.warn(
-  `${paths.draftPath}: ${paths.draftCreated ? 'created from the course' : 'already there, kept'}.`,
+  `Seeded ${paths.coursePath} (version ${paths.version}) and ${paths.answersPath} in ${projectId}.`,
 );
+console.warn(`${paths.draftPath}: ${DRAFT[paths.draft]}.`);
 console.warn(`${org.path}: ${org.created ? 'created with the defaults' : 'already there, kept'}.`);
