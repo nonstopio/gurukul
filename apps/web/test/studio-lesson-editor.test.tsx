@@ -208,8 +208,9 @@ describe('lesson editor: blocks', () => {
     expect(fireEvent.keyDown(document.body, { key: '/', ctrlKey: true })).toBe(true);
     // Another key is ignored.
     expect(fireEvent.keyDown(document.body, { key: 'a' })).toBe(true);
-    // Outside a field it jumps to the palette.
-    expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false);
+    // Outside a field it jumps to the palette. The handler attaches in a passive effect that can
+    // run after the title renders, so wait for it.
+    await waitFor(() => expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false));
     expect(document.activeElement).toBe(tile);
     // An empty field counts as not typing yet.
     fireEvent.change(title, { target: { value: '' } });
