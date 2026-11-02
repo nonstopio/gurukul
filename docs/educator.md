@@ -38,6 +38,14 @@ anything is sent. Pick **Upload image** when it looks right. You can cancel a ru
 fails nothing is saved: try again. **Replace image** uploads a new file; **Remove image** clears the block.
 Neither deletes the old file, because a published version may still show it.
 
+**Shrink it for me.** If an image is refused only because it is too big in size or too wide in pixels
+(a phone photo, a full-screen screenshot), the message offers **Shrink it for me**. It redraws the picture
+in your browser as a WebP at most 1600 px wide, as sharp as the lesson needs, and shows it in the preview with
+the saving, for example "1.8 MB to 180 KB". Nothing is sent until you pick **Upload image**; **Discard and
+choose another** drops it. Transparency stays, and location and camera details are removed. It is never offered
+for PDFs, SVGs or files that are not really WebP, PNG or JPEG. If the browser cannot do it, the message says
+so and the prompt for your coding agent is still there.
+
 ### The numbers, and why
 
 | What                 | Limit                                                          |

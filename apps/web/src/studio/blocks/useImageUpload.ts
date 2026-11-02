@@ -1,4 +1,4 @@
-import { shrinkPrompt } from '@gurukul/schema';
+import { formatBytes, shrinkPrompt } from '@gurukul/schema';
 import type {
   Block,
   ImageContentType,
@@ -15,6 +15,7 @@ import { copyText } from '../media/clipboard';
 import { uploadFailureMessage } from '../media/failure';
 import { inspectImage } from '../media/inspect';
 import { imageMetadata, mediaPath, newMediaId } from '../media/path';
+import { isShrinkable, shrinkImage } from '../media/shrink';
 import { useStudio } from '../StudioProvider';
 import { useBlockScope } from './BlockScope';
 
@@ -28,16 +29,30 @@ export interface PickedImage {
   width: number;
   height: number;
   warnings: string[];
+  /** Set when this file is the browser's re-encode of a bigger one: what that one was. */
+  shrunkFrom?: { bytes: number; width: number; height: number };
 }
 
 export type UploadStage =
   | { step: 'idle' }
   | { step: 'checking'; name: string }
   /** Refused: nothing uploaded, nothing kept. `target` is what the agent prompt names. */
-  | { step: 'refused'; problems: UploadProblem[]; target: ShrinkTarget }
+  | {
+      step: 'refused';
+      problems: UploadProblem[];
+      target: ShrinkTarget;
+      /** The picked file and its pixels, only when it is a real image just too big or too wide. */
+      shrinkable?: { file: File; width: number; height: number };
+      /** Why Shrink it for me did not work, in words. */
+      shrinkFailure?: string;
+    }
+  | { step: 'shrinking'; name: string }
   /** Passed. After a failed or cancelled try it is `ready` again, with `failure` in words for a failure. */
   | { step: 'ready'; picked: PickedImage; failure?: string }
   | { step: 'uploading'; picked: PickedImage; progress: number };
+
+/** The refused stage, which carries what Shrink it for me needs. */
+export type RefusedStage = Extract<UploadStage, { step: 'refused' }>;
 
 export interface ImageUpload {
   stage: UploadStage;
@@ -47,6 +62,13 @@ export interface ImageUpload {
   /** Uploads the picked file; on success the block gets its address, size and `upload`. */
   upload: (picked: PickedImage) => Promise<void>;
   cancel: () => void;
+  /** Re-encodes a refused, shrinkable image as WebP in the browser; the result waits for Upload. */
+  shrink: (
+    shrinkable: NonNullable<RefusedStage['shrinkable']>,
+    refused: RefusedStage,
+  ) => Promise<void>;
+  /** Drops the shrunk file; nothing was uploaded. */
+  discard: () => void;
   copyPrompt: (target: ShrinkTarget) => Promise<void>;
   /** The picked file's preview address while one waits or uploads. */
   previewUrl: string | undefined;
@@ -122,7 +144,14 @@ export function useImageUpload(
         ],
       });
     } else if (!check.ok || width === undefined || height === undefined) {
-      setStage({ step: 'refused', target: sized, problems: check.problems });
+      setStage({
+        step: 'refused',
+        target: sized,
+        problems: check.problems,
+        ...(isShrinkable(check) && width !== undefined && height !== undefined
+          ? { shrinkable: { file, width, height } }
+          : {}),
+      });
     } else {
       setStage({
         step: 'ready',
@@ -135,6 +164,38 @@ export function useImageUpload(
         },
       });
     }
+  };
+
+  const shrink = async (
+    { file, width, height }: NonNullable<RefusedStage['shrinkable']>,
+    { target, problems }: RefusedStage,
+  ) => {
+    setStage({ step: 'shrinking', name: file.name });
+    const result = await shrinkImage(file, { width, height }, policy);
+    if (gone.current) return;
+    if (result.ok) {
+      setStage({
+        step: 'ready',
+        picked: {
+          file: result.file,
+          previewUrl: URL.createObjectURL(result.file),
+          width: result.width,
+          height: result.height,
+          warnings: result.check.warnings,
+          shrunkFrom: { bytes: file.size, width, height },
+        },
+      });
+      return;
+    }
+    setStage({
+      step: 'refused',
+      target,
+      problems,
+      shrinkFailure:
+        result.reason === 'unsupported'
+          ? 'This browser could not shrink the image. Copy the prompt for your coding agent, or shrink it by hand.'
+          : `This image will not get under ${formatBytes(policy.image.maxBytes)} even when made smaller. Copy the prompt for your coding agent, or crop it first.`,
+    });
   };
 
   const upload = async (picked: PickedImage) => {
@@ -210,6 +271,8 @@ export function useImageUpload(
     pick,
     upload,
     cancel: () => running.current?.abort(),
+    shrink,
+    discard: () => setStage({ step: 'idle' }),
     copyPrompt,
     previewUrl,
   };

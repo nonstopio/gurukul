@@ -27,6 +27,7 @@ export function ImageUploadPanel({
   const rules = `WebP, PNG or JPEG · up to ${formatBytes(image.maxBytes)} · ${image.recommendedLongEdge} px wide is ideal`;
 
   const failure = stage.step === 'ready' ? stage.failure : undefined;
+  const shrinkable = stage.step === 'refused' ? stage.shrinkable : undefined;
   const refusal =
     stage.step === 'refused' ? (
       <>
@@ -38,7 +39,11 @@ export function ImageUploadPanel({
             <li key={problem.code}>{problem.message}</li>
           ))}
         </ol>
+        {stage.shrinkFailure ? <p>{stage.shrinkFailure}</p> : null}
         <div className="studio-upload__actions">
+          {shrinkable ? (
+            <Button onClick={() => void source.shrink(shrinkable, stage)}>Shrink it for me</Button>
+          ) : null}
           <Button
             variant="secondary"
             icon={<CopyIcon />}
@@ -55,6 +60,12 @@ export function ImageUploadPanel({
             How to shrink it by hand
           </a>
         </div>
+        {shrinkable ? (
+          <p className="studio-upload__facts">
+            Shrinking draws the picture again as WebP in your browser, so nothing is sent anywhere.
+            Location and camera details are removed.
+          </p>
+        ) : null}
       </>
     ) : failure ? (
       <p>{failure}</p>
@@ -63,10 +74,12 @@ export function ImageUploadPanel({
   const dropState =
     stage.step === 'checking' || stage.step === 'uploading'
       ? stage.step
-      : refusal
-        ? 'error'
-        : 'idle';
-  const named = stage.step === 'checking' ? stage.name : undefined;
+      : stage.step === 'shrinking'
+        ? 'checking'
+        : refusal
+          ? 'error'
+          : 'idle';
+  const named = stage.step === 'checking' || stage.step === 'shrinking' ? stage.name : undefined;
 
   return (
     <div className="studio-fields">
@@ -103,11 +116,21 @@ export function ImageUploadPanel({
           <p className="studio-upload__facts">
             {`${stage.picked.file.name} · ${formatBytes(stage.picked.file.size)} · ${px(stage.picked.width, stage.picked.height)}`}
           </p>
+          {stage.picked.shrunkFrom ? (
+            <p className="studio-upload__facts">
+              {`Shrunk from ${formatBytes(stage.picked.shrunkFrom.bytes)} to ${formatBytes(stage.picked.file.size)} (${px(stage.picked.shrunkFrom.width, stage.picked.shrunkFrom.height)} to ${px(stage.picked.width, stage.picked.height)}). Location and camera details are removed.`}
+            </p>
+          ) : null}
           {stage.step === 'ready' ? (
             <div className="studio-upload__actions">
               <Button icon={<UploadIcon />} onClick={() => void source.upload(stage.picked)}>
                 {failure ? 'Try again' : 'Upload image'}
               </Button>
+              {stage.picked.shrunkFrom ? (
+                <Button variant="ghost" onClick={source.discard}>
+                  Discard and choose another
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </>
