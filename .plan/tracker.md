@@ -27,18 +27,16 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations | 21 | 0 | 0 | 11 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
-| Course media uploads | 8 | 3 | 0 | 1 |
+| Course media uploads | 10 | 1 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 165 | 3 | 0 | 14 |
+| **Total** | 167 | 1 | 0 | 14 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
 
-1. `MED-06` PDF upload in Studio
-2. `MED-12` BlurHash placeholders for images and PDFs
-3. `MED-08` Media library reuse of uploads
+1. `MED-12` BlurHash placeholders for images and PDFs
 
 ## Foundations
 
@@ -296,9 +294,9 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | `MED-03` | Image layouts in the player | done | `MED-02` | `packages/ui/src/ImageFigure.tsx` (layouts, zoom in a `Dialog`, border, width/height, load-failure alt box), `apps/web/src/player/blocks.tsx` (image and uploaded File label "Label · PDF · 420 KB"), `apps/web/src/studio/blocks/ImageEditor.tsx` (layout, Open full size, Border, preview; linked images get width/height from the loaded preview), tests in `packages/ui/test/image-figure.test.tsx`, `apps/web/test/blocks.test.tsx`, `studio-block-editors.test.tsx` |
 | `MED-04` | Storage rules and deploy | done | `MED-01`, `MED-02` | `firebase/storage.rules`, `firebase.json` (storage + emulator 9199), `firebase/rules/test/storage.test.ts` with `test/storage/cases.ts` (65 cases), `scripts/check-rules-coverage.mjs --mutants` (the Storage emulator exposes no coverage, so every condition is forced true and false and a test must catch each: 52 mutants, 2 equivalent, listed in `test/storage/mutants.ts`), `npm run test:rules` runs both, `.github/workflows/deploy.yml` deploys storage. The first deploy needs the bucket and the cross-service role (`MED-01`) |
 | `MED-05` | Image upload in Studio | done | `MED-03`, `MED-04` | `packages/ui/src/FileDrop.tsx`, `apps/web/src/studio/blocks/ImageEditor.tsx` (Upload and Link tabs) with `media/inspect.ts` (first bytes, pixels) and the upload hook, `apps/web/src/studio/storage.ts` (the only Storage SDK importer, behind the `MediaStorage` port and `lazyPort`; its own 10 KB chunk), publish checks with the bucket in the Studio (`useStudio().checks`, `VITE_FIREBASE_STORAGE_BUCKET`), `e2e/tests/image-upload.spec.ts`, `docs/educator.md` ("Uploading images"), tip `image-upload`. Left for later: the functions do not check the bucket (see plan 19), `upload.name` has no edit field |
-| `MED-06` | PDF upload in Studio                         | todo       | `MED-05`           | Done means: File block Upload tab for PDFs up to the limit; over the limit, guidance to GitHub or Google Drive with Switch to Link and the PDF prompt; changelog entry |
+| `MED-06` | PDF upload in Studio | done | `MED-05` | `apps/web/src/studio/blocks/FileEditor.tsx` (Upload and Link tabs), `usePdfUpload.ts`, `PdfUploadPanel.tsx`, `e2e/support/pdf.ts` and the PDF specs in `e2e/tests/image-upload.spec.ts`, `docs/educator.md` ("Uploading PDFs"). A PDF over the limit gets the numbered guidance, the prompt, and "Switch to Link" with the GitHub or Google Drive pointer. The PDF hook repeats about 40 lines of the image hook (refs, cancel, prompt toast); share them if either grows |
 | `MED-07` | Upload limits in Org settings | done | `MED-04` | `apps/web/src/console/SettingsPage.tsx` (Uploads card), `console/firebase.ts` (`uploads` merge-written only when the form changed it), `apps/web/src/data/useUploadPolicy.ts` and `LearnerData.uploadLimits()` (what Studio reads; defaults while loading or on error), navigation entry `admin-settings` |
-| `MED-08` | Media library reuse of uploads               | todo       | `MED-05`           | Done means: `/studio/media` Uploaded filter and size; Image block "Choose from this course's media" reuses an uploaded file without a new upload; changelog entry |
+| `MED-08` | Media library reuse of uploads | done | `MED-05` | `apps/web/src/studio/media/courseMedia.ts` (`uploadedImages`), `apps/web/src/studio/blocks/CourseImagePicker.tsx` (Choose from this course's media, in a `Dialog` over `MediaGallery`), `apps/web/src/studio/MediaPage.tsx` and `studioModel.ts` (Uploaded filter, size in the tile's meta line; the gallery has no table so there is no size column), `navigation/areas/studio.ts`. The picker lists images only, not PDFs |
 | `MED-09` | Shrink it for me | done | `MED-05` | `apps/web/src/studio/media/shrink.ts` (`shrinkImage`, injectable canvas), `useImageUpload.ts` and `ImageUploadPanel.tsx` (Shrink it for me, Discard, saving line), `apps/web/test/studio-shrink.test.ts`. Offered only when every refusal reason is size or pixels on a real image; WebP at 1600 px, qualities 0.85 to 0.6 then smaller steps down to 819 px; checked in real Chromium (a 2.0 MB 3000 px PNG became about 94 KB, transparency kept). While it works the drop zone still reads "Checking" |
 | `MED-10` | Weekly clean-up of unused media | done | `MED-04` | `firebase/functions/src/media.ts` (`weeklyMediaCleanup`, Sunday 05:00 UTC; safeguards: a course whose copy does not parse is skipped, 200 deletions per run, half of a course's files), adapters in `stores.ts`, `firebase/functions/emulator-test/media.test.ts`, `docs/operations.md` (needs `roles/storage.objectAdmin`) |
 | `MED-11` | BlurHash encoder, decoder and `upload.blurHash` in the schema | done | `MED-02` | `packages/schema/src/blurhash.ts` (`encodeBlurHash`, `decodeBlurHash`, `isValidBlurHash`, `blurHashAverageColor`; a port of the MIT algorithm, decoder identical to the reference package), optional `blurHash` on both `upload` shapes in `upload.ts`, `packages/schema/test/blurhash.test.ts` with `blurhash-vectors.json` (reference output). The encoder follows the specification's absolute-value maximum, so for pictures whose strongest detail is negative its string differs from the reference JS package while decoding the same way |
