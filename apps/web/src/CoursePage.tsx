@@ -111,7 +111,6 @@ function Overview({
   const state = progress ?? NO_PROGRESS;
   const states = itemStates(course, state);
   const resume = resumeItemId(course, state);
-  const resumeTitle = itemsOf(course).find((i) => i.id === resume)?.title;
   const counts = countItems(course);
   const percent = percentFor(course, progress);
   const currentChapter = course.chapters.find((p) =>
@@ -220,7 +219,7 @@ function Overview({
                   className={buttonClass('primary')}
                   to={`/courses/${course.id}/learn/${resume}`}
                 >
-                  {progress ? `Resume — ${resumeTitle}` : 'Start course'}
+                  {progress ? 'Resume' : 'Start course'}
                 </Link>
               </TrackClick>
             ) : null}

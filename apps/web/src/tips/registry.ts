@@ -65,4 +65,12 @@ export const TIPS: readonly Tip[] = [
     title: 'Feature tips',
     text: 'Turn tips off here. Turn them on again to see every one from the start.',
   },
+  {
+    id: 'image-upload',
+    where: ['/studio/courses/:courseId/lessons/:lessonId'],
+    el: '.g-tabs__list[aria-label="Image source"] [role="tab"]:first-child',
+    side: 'bottom',
+    title: 'Upload an image',
+    text: 'Drop, paste or choose an image here. Gurukul checks it and shows a preview before it uploads, so you need no other host.',
+  },
 ];

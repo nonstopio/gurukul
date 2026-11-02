@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidBlurHash } from './blurhash';
 
 /**
  * The upload policy for lesson media (`.plan/19-course-media-uploads.md`): which files Studio may
@@ -305,6 +306,11 @@ const uploadBase = {
     .max(UPLOAD_HARD_CEILING_KB * KB),
   /** What the Educator sees; never part of the path (a file name can carry personal data). */
   name: z.string().max(120),
+  /**
+   * A BlurHash of the image (or of a PDF's first page), made in the browser at upload: the player
+   * shows it, softly, while the file loads. Optional, so older uploads read unchanged.
+   */
+  blurHash: z.string().max(120).refine(isValidBlurHash, 'not a valid BlurHash').optional(),
 };
 
 /** `upload` on an Image block: "we host this". */
@@ -323,15 +329,25 @@ export type FileUpload = z.infer<typeof fileUploadSchema>;
 
 /**
  * True when `url` is a Firebase Storage download URL for exactly `path` (and `bucket`, when given).
- * Publishing checks this so an uploaded block cannot point at someone else's file.
+ * Publishing checks this so an uploaded block cannot point at someone else's file. `emulatorHost`
+ * (`127.0.0.1:9199`) also accepts the plain-http address the local Storage emulator hands out; only
+ * the emulator runs pass it, never production.
  */
-export function isDownloadUrlFor(url: string, path: string, bucket?: string): boolean {
+export function isDownloadUrlFor(
+  url: string,
+  path: string,
+  bucket?: string,
+  emulatorHost?: string,
+): boolean {
   try {
     const u = new URL(url);
     const m = /^\/v0\/b\/([^/]+)\/o\/([^/]+)$/.exec(u.pathname);
+    const origin =
+      u.protocol === 'https:'
+        ? u.hostname === 'firebasestorage.googleapis.com'
+        : emulatorHost !== undefined && u.protocol === 'http:' && u.host === emulatorHost;
     return (
-      u.protocol === 'https:' &&
-      u.hostname === 'firebasestorage.googleapis.com' &&
+      origin &&
       m !== null &&
       (bucket === undefined || m[1] === bucket) &&
       decodeURIComponent(String(m[2])) === path

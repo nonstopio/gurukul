@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { BlockEditor } from '../src/studio/blocks/BlockEditor';
 import { BlockPalette } from '../src/studio/blocks/BlockPalette';
 import { newBlock } from '../src/studio/lessonEdit';
+import type { CourseImage } from '../src/studio/media/courseMedia';
 import { axeViolations } from './axe';
+import { BlockProviders } from './block-harness';
 
 /** Renders one block editor the way the page does: controlled, with the latest block kept in `seen`. */
 function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }) {
@@ -20,9 +22,13 @@ function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }
     />
   );
 }
-function setup(block: Block) {
+function setup(block: Block, uploadedImages?: readonly CourseImage[]) {
   const seen = vi.fn();
-  const view = render(<Harness initial={block} seen={seen} />);
+  const view = render(
+    <BlockProviders uploadedImages={uploadedImages}>
+      <Harness initial={block} seen={seen} />
+    </BlockProviders>,
+  );
   return { ...view, seen, last: () => seen.mock.lastCall?.[0] as Block };
 }
 const type = (label: string | RegExp, value: string) =>
@@ -95,8 +101,11 @@ describe('video block editor', () => {
     ({ ...newBlock('video'), url: 'https://www.youtube.com/watch?v=abc123', ...over }) as Block;
 
   it('names the host when the link can be embedded', () => {
-    setup(video());
-    expect(within(screen.getByRole('status')).getByText('YouTube')).toBeTruthy();
+    const { container } = setup(video());
+    // The toast regions around the editor are statuses too; this one is the block's own.
+    expect(
+      within(container.querySelector('[role="status"]') as HTMLElement).getByText('YouTube'),
+    ).toBeTruthy();
     expect(screen.queryByText(/not recognised/)).toBeNull();
   });
 
@@ -219,6 +228,7 @@ describe('callout block editor', () => {
 describe('image block editor', () => {
   it('asks for alt text, visibly, and edits all three fields', () => {
     const { last } = setup(newBlock('image'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
     expect(screen.getByText(/for people who cannot see it/)).toBeTruthy();
     expect((screen.getByLabelText('Alt text (required)') as HTMLInputElement).required).toBe(true);
     type('Image address', 'https://example.com/a.png');
@@ -234,6 +244,202 @@ describe('image block editor', () => {
   it('has no accessibility violations', async () => {
     const { container } = setup(newBlock('image'));
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  const linked = (over: object = {}): Block =>
+    ({ ...newBlock('image'), url: 'https://example.com/a.png', alt: 'A graph', ...over }) as Block;
+  const preview = () => screen.getByRole('img', { name: 'A graph' }) as HTMLImageElement;
+  const loaded = (width: number, height: number) => {
+    Object.defineProperty(preview(), 'naturalWidth', { value: width, configurable: true });
+    Object.defineProperty(preview(), 'naturalHeight', { value: height, configurable: true });
+    fireEvent.load(preview());
+  };
+
+  it('reads a missing layout, zoom and border as column, off and on', () => {
+    setup(linked());
+    expect(screen.getByRole('button', { name: 'Column' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(
+      (screen.getByRole('switch', { name: 'Open full size' }) as HTMLInputElement).checked,
+    ).toBe(false);
+    expect((screen.getByRole('switch', { name: 'Border' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('sets the layout, Open full size and Border on a linked image', () => {
+    const { last } = setup(linked());
+    fireEvent.click(screen.getByRole('button', { name: 'Small' }));
+    expect(last()).toMatchObject({ layout: 'small' });
+    expect(screen.getByRole('button', { name: 'Small' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+    expect(last()).toMatchObject({ layout: 'medium' });
+    fireEvent.click(screen.getByRole('switch', { name: 'Open full size' }));
+    expect(last()).toMatchObject({ zoom: true });
+    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    expect(last()).toMatchObject({ border: false });
+    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    expect(last()).toMatchObject({ border: true });
+  });
+
+  it('previews at the chosen layout and shows nothing without an address', () => {
+    const { container, unmount } = setup(linked({ layout: 'small', border: false }));
+    expect(container.querySelector('.g-figure--small.g-figure--bare')).toBeTruthy();
+    unmount();
+    setup(linked({ url: '' }));
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('names the preview when there is no alt text yet', () => {
+    setup(linked({ alt: '' }));
+    expect(screen.getByRole('img', { name: 'Image preview' })).toBeTruthy();
+  });
+
+  it('records the width and height of a linked image from the loaded preview', () => {
+    const { last, seen } = setup(linked());
+    loaded(1600, 900);
+    expect(last()).toMatchObject({ width: 1600, height: 900 });
+    expect(preview().getAttribute('width')).toBe('1600');
+    // Loading again with the same size writes nothing more.
+    seen.mockClear();
+    loaded(1600, 900);
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('forgets the old size when the address changes', () => {
+    const { last } = setup(linked({ width: 10, height: 20 }));
+    type('Image address', 'https://example.com/b.png');
+    expect(last()).toMatchObject({ url: 'https://example.com/b.png' });
+    expect('width' in last()).toBe(false);
+    expect('height' in last()).toBe(false);
+  });
+
+  it('leaves the size of an uploaded image alone, and an address typed over it makes it a link', () => {
+    const upload = {
+      path: 'courses/c1/media/m1.png',
+      bytes: 1000,
+      contentType: 'image/png',
+      name: 'a.png',
+    };
+    const { last, seen } = setup(linked({ upload, width: 800, height: 600 }));
+    loaded(1600, 900);
+    expect(seen).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    expect(screen.getByText(/uploaded to Gurukul/)).toBeTruthy();
+    type('Image address', 'https://example.com/b.png');
+    expect(last()).toMatchObject({ url: 'https://example.com/b.png' });
+    for (const key of ['upload', 'width', 'height']) expect(key in last()).toBe(false);
+  });
+
+  it('has no accessibility violations with the controls and preview', async () => {
+    const { container } = setup(linked());
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe("Choose from this course's media", () => {
+  const hosted = (n: number, over: Partial<CourseImage> = {}): CourseImage => ({
+    url: `https://firebasestorage.googleapis.com/v0/b/b/o/m${n}?alt=media`,
+    upload: {
+      path: `courses/git/media/m${n}.png`,
+      bytes: n * 100 * 1024,
+      contentType: 'image/png',
+      name: `shot-${n}.png`,
+    },
+    width: 1600,
+    height: 900,
+    ...over,
+  });
+  const choose = () => {
+    const opener = screen.getByRole('button', { name: "Choose from this course's media" });
+    opener.focus();
+    fireEvent.click(opener);
+  };
+  const fresh = () => ({ ...newBlock('image'), alt: 'Kept alt' }) as Block;
+
+  it('lists the hosted images with name, size and pixels, and sets the block to the one chosen', () => {
+    const { last } = setup(fresh(), [
+      hosted(1),
+      hosted(2, { width: undefined, height: undefined }),
+    ]);
+    choose();
+    const dialog = screen.getByRole('dialog', { name: "Choose from this course's media" });
+    expect(
+      within(dialog).getByRole('button', { name: /shot-1\.png.*100 KB · 1600 × 900 px/ }),
+    ).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: /shot-2\.png.*200 KB$/ })).toBeTruthy();
+    expect(dialog.querySelectorAll('img')).toHaveLength(2);
+    fireEvent.click(within(dialog).getByRole('button', { name: /shot-1\.png/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(last()).toMatchObject({
+      url: hosted(1).url,
+      upload: hosted(1).upload,
+      width: 1600,
+      height: 900,
+      alt: 'Kept alt',
+    });
+    // Focus returns to the button that opened the dialog.
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: "Choose from this course's media" }),
+    );
+  });
+
+  it('drops the old size when the chosen file has none, and leaves the Upload tab showing it', () => {
+    const { last } = setup({ ...fresh(), width: 10, height: 20 } as Block, [
+      hosted(2, { width: undefined, height: undefined }),
+    ]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    choose();
+    fireEvent.click(screen.getByRole('button', { name: /shot-2\.png/ }));
+    expect('width' in last()).toBe(false);
+    expect(screen.getByRole('tab', { name: 'Upload' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText(/Uploaded: shot-2\.png · 200 KB/)).toBeTruthy();
+  });
+
+  it('marks the image the block already uses', () => {
+    const one = hosted(1);
+    setup({ ...fresh(), url: one.url, upload: one.upload } as Block, [one, hosted(2)]);
+    choose();
+    expect(screen.getByRole('button', { name: /shot-1\.png/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('button', { name: /shot-2\.png/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
+
+  it('cancels with the Cancel button or Escape and changes nothing', () => {
+    const { seen } = setup(fresh(), [hosted(1)]);
+    choose();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    choose();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('puts focus on the first image and chooses with the keyboard', () => {
+    const { last } = setup(fresh(), [hosted(1), hosted(2)]);
+    choose();
+    const first = screen.getByRole('button', { name: /shot-1\.png/ });
+    expect(document.activeElement).toBe(first);
+    fireEvent.click(first);
+    expect(last()).toMatchObject({ upload: { name: 'shot-1.png' } });
+  });
+
+  it('says so when the course has no uploaded images yet', async () => {
+    setup(fresh());
+    choose();
+    expect(screen.getByRole('heading', { name: 'No uploaded images yet' })).toBeTruthy();
+    expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('has no accessibility violations with images listed', async () => {
+    setup(fresh(), [hosted(1)]);
+    choose();
+    expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
   });
 });
 
@@ -256,11 +462,12 @@ describe('embed block editor', () => {
 });
 
 describe('file block editor', () => {
-  it('edits the address and the link text', () => {
+  it('edits the address and the label', () => {
     const { last } = setup(newBlock('file'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
     type('File address', 'https://example.com/guide.pdf');
     expect(last()).toMatchObject({ url: 'https://example.com/guide.pdf' });
-    type('Link text', 'The guide');
+    type('Label', 'The guide');
     expect(last()).toMatchObject({ label: 'The guide' });
   });
 
@@ -316,5 +523,15 @@ describe('block palette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Callout' }));
     expect(onAdd).toHaveBeenCalledWith('callout');
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('block scope', () => {
+  it('is required: an editor outside it is a bug, not a state', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<BlockEditor block={newBlock('image')} onChange={() => {}} />)).toThrow(
+      'useBlockScope must be used inside <BlockScope>',
+    );
+    quiet.mockRestore();
   });
 });

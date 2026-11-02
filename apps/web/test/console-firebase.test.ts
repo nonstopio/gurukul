@@ -126,6 +126,34 @@ describe('stats and config', () => {
   });
 });
 
+describe('org settings: uploads', () => {
+  const base = {
+    domain: 'nonstopio.com',
+    teams: [],
+    reminders: { enabled: false },
+    signatory: { name: 'Ravi Sample', role: 'Dean' },
+  };
+
+  it('writes uploads only when given, so a stale form cannot drop or invent them', async () => {
+    store.docs.set('config/org', { ...base, uploads: { imageMaxKB: 300, pdfMaxKB: 800 } });
+    await data.saveOrgSettings(base);
+    expect(store.docs.get('config/org')).toMatchObject({
+      uploads: { imageMaxKB: 300, pdfMaxKB: 800 },
+    });
+    await data.saveOrgSettings({ ...base, uploads: { imageMaxKB: 200, pdfMaxKB: 900 } });
+    expect(store.docs.get('config/org')).toMatchObject({
+      uploads: { imageMaxKB: 200, pdfMaxKB: 900 },
+    });
+    expect((await data.orgSettings()).uploads).toEqual({ imageMaxKB: 200, pdfMaxKB: 900 });
+  });
+
+  it('refuses limits outside the schema', async () => {
+    await expect(
+      data.saveOrgSettings({ ...base, uploads: { imageMaxKB: 5000, pdfMaxKB: 900 } }),
+    ).rejects.toThrow();
+  });
+});
+
 describe('teams', () => {
   const body = { name: 'Platform', memberEmails: ['a@nonstopio.com'], createdAt: 5 };
 

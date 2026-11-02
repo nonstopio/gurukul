@@ -16,8 +16,10 @@ import { log } from './log';
 import { firebaseQuizService } from './quiz/service';
 import { firebaseStudioService } from './studio/service';
 import type { AnalyticsEnv } from './analytics';
+import { STORAGE_EMULATOR_HOST } from './studio/emulator';
 import type { FirebaseEnv } from './firebase';
 import type { Firestores } from './firestore';
+import type { MediaStorage } from './studio/types';
 import { appRoutes } from './routes';
 
 /** Mount the app into `#root`. Exported so the boot path is testable. */
@@ -60,6 +62,18 @@ export function mount(
     };
   });
   const data = lazyPort(() => firestores().then((s) => s.learner), ['watchProgress']);
+  // The Cloud Storage SDK is its own chunk too, fetched by the first upload, never by a learner.
+  // It is started once (connecting an emulator twice throws); a failed download is forgotten.
+  const emulators = env.VITE_USE_EMULATORS === 'true';
+  let media: Promise<MediaStorage> | undefined;
+  const mediaStorage = () =>
+    (media ??= import('./studio/storage').then(
+      (m) => m.firebaseMediaStorage(firebase.app, emulators),
+      (e: unknown) => {
+        media = undefined;
+        throw e;
+      },
+    ));
   createRoot(element).render(
     <StrictMode>
       <App
@@ -69,6 +83,11 @@ export function mount(
         studio={{
           data: lazyPort(() => firestores().then((s) => s.studio)),
           service: firebaseStudioService(firebase.functions),
+          storage: lazyPort(mediaStorage),
+          checks: {
+            bucket: firebase.storageBucket,
+            emulatorHost: emulators ? STORAGE_EMULATOR_HOST : undefined,
+          },
         }}
         console={{
           data: lazyPort(() => firestores().then((s) => s.console)),

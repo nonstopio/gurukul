@@ -281,7 +281,10 @@ toast.dismiss(id);
 
 Tones `info` (default), `success`, `warning`, `danger`. Options: `title` (bold first line; the
 message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `action`
-(`{ label, onSelect }`, closes the toast after it runs), `duration`. Default time by tone: success
+(`{ label, onSelect }`, a small secondary `Button` under the text that closes the toast after it
+runs), `duration`. **A toast that names a lesson, Quiz, course or other place carries an action
+that opens it** (`Open lesson`, `Open Quiz`): the label says the action, never the place's name,
+which is already in the message. Default time by tone: success
 4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an
 icon plus a screen-reader word, never colour alone. A thin timer bar runs down and the timeout
 pauses on hover and focus, resuming with what was left. Three at a time: the oldest is dropped.
@@ -333,6 +336,44 @@ to a caller that talks to the provider's player API (the lesson player's watch t
 frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>` (13px `--text-muted`) and an
 always-visible 44px link "Open the video in a new tab" (`href`, `target="_blank"`, `rel="noopener noreferrer"`)
 for when the embed is blocked.
+
+## FileDrop — shipped
+
+```tsx
+<FileDrop
+  label="Choose an image"
+  policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"   // from uploadPolicy, never typed
+  accept="image/webp,image/png,image/jpeg"
+  state="idle|checking|error|uploading"
+  fileName progress={0..100} error={<ReactNode>}
+  onFile={(file) => …} onCancel={() => …}
+/>
+```
+
+Picks one file three ways: the zone is a real `<button>` (opens the native picker; Enter and Space work), a file dropped on
+it, or a file pasted while it has focus (pasted text passes through). The policy line is always visible under the zone,
+before anyone picks, and is part of the button's `aria-describedby`; the caller builds it from the live upload policy.
+`dragging` is the control's own state (dashed border turns `--accent` on `--accent-soft`, label "Drop to check it").
+`checking` and `uploading` replace the zone with a status line in a `role="status"` region (progress is spoken in tens, not
+every percent), and `uploading` adds a `ProgressBar` ("Upload progress") and a Cancel upload button when `onCancel` is given.
+`error` leaves the zone usable and shows `error` (the caller's words and buttons) in a `role="alert"` box tied to the zone
+with `aria-describedby`. The control only reports the file; the caller checks it and uploads it. Several files: the first.
+
+## ImageFigure — shipped
+
+`<ImageFigure src alt layout="column|medium|small" border? zoom? width? height? caption? onSize? />`. A lesson image.
+`column` fills the lesson column, `medium` is two thirds of it (full width below 640px), `small` is at most 320px
+(240px below 640px), both centred. The `<img>` carries `width`/`height` when known plus `loading="lazy"` and
+`decoding="async"`, and has a 1px `--border` frame in `--radius-lg` unless `border={false}`. With `zoom` the image is a
+button ("Open full size: <alt>") that opens a `Dialog size="lg"` titled by the alt text, holding the image at its
+natural size in a scrollable, keyboard-focusable region with the caption under it; Escape closes it and focus returns
+to the button. An image that fails to load becomes a quiet `--surface-sunken` box with a dashed border holding the alt
+text (no broken-image icon, no zoom button). `onSize` reports the natural pixels after a load, for an editor.
+`blurHash` (a valid hash, with `width` and `height`) paints the decoded 32 x 32 placeholder (`blurHashStyle`) over a
+frame at the image's aspect ratio, `aria-hidden`, no alt text; when the image loads it fades out over `--dur-slow`
+and is removed (at once under reduced motion). An invalid or missing hash, or missing sizes, renders nothing extra;
+linked images never get one. `blurHashStyle(hash)` is also exported for a decorative thumbnail (the player's File block
+uses it at a fixed `--space-6` by `--space-8`).
 
 ## QuizOption — shipped
 

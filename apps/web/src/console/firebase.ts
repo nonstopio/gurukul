@@ -342,8 +342,14 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
     async saveOrgSettings(settings) {
       // Merged and without `teams`: the Teams page owns that list, so a stale settings form can
       // never put back a team someone has since removed.
-      const { domain, reminders, signatory } = orgConfigSchema.parse(settings);
-      await setDoc(doc(db, 'config', 'org'), { domain, reminders, signatory }, { merge: true });
+      // `uploads` is written only when the form changed it, so a stale form can neither drop the
+      // saved limits nor invent some.
+      const { domain, reminders, signatory, uploads } = orgConfigSchema.parse(settings);
+      await setDoc(
+        doc(db, 'config', 'org'),
+        { domain, reminders, signatory, ...(uploads ? { uploads } : {}) },
+        { merge: true },
+      );
     },
     async teamList() {
       const [snap, org] = await Promise.all([

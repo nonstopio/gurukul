@@ -1,5 +1,13 @@
-import { countUnpublished, diffCourses, itemsOf } from '@gurukul/schema';
-import type { Block, Course, CourseDiff, Item, PublishIssue } from '@gurukul/schema';
+import { countUnpublished, diffCourses, formatBytes, itemsOf } from '@gurukul/schema';
+import type {
+  Block,
+  Course,
+  CourseDiff,
+  FileUpload,
+  ImageUpload,
+  Item,
+  PublishIssue,
+} from '@gurukul/schema';
 import type { MediaKind as TileKind, TypeTileKind } from '@gurukul/ui';
 import type { Terms } from '../labels/terms';
 import type { StudioCourse } from './types';
@@ -137,19 +145,33 @@ export interface MediaEntry {
   url: string;
   /** Alt text, title or label where the block has one; else the address. */
   label: string;
+  /** Present when Gurukul hosts the file (an Image or File block's `upload`). */
+  upload?: ImageUpload | FileUpload | undefined;
   usedIn: MediaUse[];
 }
 
-const mediaOf = (b: Block): { kind: MediaKind; url: string; label: string } | null => {
+const mediaOf = (
+  b: Block,
+): { kind: MediaKind; url: string; label: string; upload?: ImageUpload | FileUpload } | null => {
   switch (b.type) {
     case 'video':
       return { kind: 'video', url: b.url, label: b.url };
     case 'image':
-      return { kind: 'image', url: b.url, label: nameOf(b.alt, b.url) };
+      return {
+        kind: 'image',
+        url: b.url,
+        label: nameOf(b.alt, b.url),
+        ...(b.upload && { upload: b.upload }),
+      };
     case 'embed':
       return { kind: 'embed', url: b.url, label: nameOf(b.title, b.url) };
     case 'file':
-      return { kind: 'file', url: b.url, label: nameOf(b.label, b.url) };
+      return {
+        kind: 'file',
+        url: b.url,
+        label: nameOf(b.label, b.url),
+        ...(b.upload && { upload: b.upload }),
+      };
     default:
       return null;
   }
@@ -170,6 +192,7 @@ export function collectMedia(rows: readonly StudioCourse[]): MediaEntry[] {
         if (!media) continue;
         const key = `${media.kind} ${media.url}`;
         const entry = found.get(key) ?? { ...media, usedIn: [] };
+        if (media.upload && !entry.upload) entry.upload = media.upload;
         if (!entry.usedIn.some((u) => u.courseId === course.id && u.itemId === item.id)) {
           entry.usedIn.push({
             courseId: course.id,
@@ -188,8 +211,9 @@ export function collectMedia(rows: readonly StudioCourse[]): MediaEntry[] {
 }
 
 /** The gallery kind of an entry: a linked file is a PDF or audio when its address ends that way. */
-export function galleryKind(entry: Pick<MediaEntry, 'kind' | 'url'>): TileKind {
+export function galleryKind(entry: Pick<MediaEntry, 'kind' | 'url' | 'upload'>): TileKind {
   if (entry.kind !== 'file') return entry.kind;
+  if (entry.upload?.contentType === 'application/pdf') return 'pdf';
   const path = entry.url.split(/[?#]/, 1)[0] as string;
   if (/\.pdf$/i.test(path)) return 'pdf';
   return /\.(mp3|wav|m4a|ogg|aac)$/i.test(path) ? 'audio' : 'file';
@@ -209,16 +233,23 @@ export function usedText(entry: MediaEntry): string {
   return `in ${n} ${n === 1 ? 'course' : 'courses'}`;
 }
 
-/** Entries of one gallery kind (or all) whose name, address or a course title contains `search`. */
+/** The "Uploaded" choice of the type filter: files Gurukul hosts, of any kind. */
+export const UPLOADED = 'uploaded';
+
+/** `Uploaded · 420 KB · ` for a hosted file, else nothing: the start of a tile's second line. */
+export const uploadedText = (entry: MediaEntry): string =>
+  entry.upload ? `Uploaded · ${formatBytes(entry.upload.bytes)} · ` : '';
+
+/** Entries of one gallery kind (or all, or only the uploaded) whose name, address or a course title contains `search`. */
 export function filterMedia(
   entries: readonly MediaEntry[],
   search: string,
-  kind: TileKind | 'all',
+  kind: TileKind | 'all' | typeof UPLOADED,
 ): MediaEntry[] {
   const needle = search.trim().toLowerCase();
   return entries.filter(
     (e) =>
-      (kind === 'all' || galleryKind(e) === kind) &&
+      (kind === 'all' || (kind === UPLOADED ? e.upload !== undefined : galleryKind(e) === kind)) &&
       [mediaName(e), e.url, ...e.usedIn.map((u) => u.courseTitle)].some((text) =>
         text.toLowerCase().includes(needle),
       ),

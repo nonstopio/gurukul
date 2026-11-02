@@ -1,6 +1,6 @@
 name: Deploy
 
-# Production: Hosting, Firestore rules and indexes, Cloud Functions, then a `release-*` tag.
+# Production: Hosting, Firestore rules and indexes, Storage rules, Cloud Functions, then a `release-*` tag.
 #
 # Runs only AFTER the CI workflow has passed on a push to `main` (workflow_run), never alongside
 # it, so code that failed or skipped its tests cannot ship — not even through an admin bypass or a
@@ -86,10 +86,10 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NONSTOP_GURUKUL }}
-      - name: Deploy Hosting, Firestore rules and indexes, and Functions
+      - name: Deploy Hosting, Firestore rules and indexes, Storage rules, and Functions
         # --force lets the first deploy set the container-image cleanup policy (otherwise it fails with
         # "could not set up cleanup policy") and removes functions deleted from the source.
-        run: npx firebase deploy --only hosting,firestore,functions --project nonstop-gurukul --non-interactive --force
+        run: npx firebase deploy --only hosting,firestore,storage,functions --project nonstop-gurukul --non-interactive --force
       - name: Tag the release (only after a successful deploy)
         env:
           RELEASE_ID: ${{ steps.release.outputs.id }}

@@ -174,3 +174,13 @@ export async function seedProgress(
     'Seeding progress',
   );
 }
+
+/**
+ * The BlurHash stored in a course document's upload (the first one in it), read straight from the
+ * emulator: the Studio works it out in the browser, so only the stored course shows it was kept.
+ */
+export async function storedBlurHash(coursePath: string): Promise<string | undefined> {
+  const res = await call(`${DOCS}/${coursePath}`, { headers: OWNER }, 'Reading a course');
+  const found = /"blurHash":\s*\{\s*"stringValue":\s*"([^"]+)"/.exec(await res.text());
+  return found?.[1];
+}

@@ -6,7 +6,7 @@ import './result-row.css';
 
 export interface ResultRowRevisit {
   href?: string;
-  /** Link text, e.g. "Revisit lesson: Resolving merge conflicts". */
+  /** Link text: "Revisit lesson", with the lesson's name in visually hidden text so each row's link is distinct. */
   label: ReactNode;
   /** Draws the anchor yourself so a router owns navigation, as `NavItem` does. */
   render?: (props: NavItemRenderProps) => ReactNode;

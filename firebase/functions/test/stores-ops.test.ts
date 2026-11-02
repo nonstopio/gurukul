@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import {
+  bucketStoragePort,
   firebaseRoleAdmin,
   firestoreBackupPort,
+  firestoreMediaStore,
   firestoreAssignStore,
   firestoreAttemptStatsStore,
   firestoreCooldownAdmin,
@@ -800,5 +802,74 @@ describe('firestoreBackupPort', () => {
       outputUriPrefix: 'gs://b/backups/2026-11-01',
       collectionIds: [],
     });
+  });
+});
+
+describe('bucketStoragePort', () => {
+  it('lists a course media folder with creation times, and an unknown time as undefined', async () => {
+    const getFiles = vi.fn().mockResolvedValue([
+      [
+        { name: 'courses/c/media/a.png', metadata: { timeCreated: '2026-01-02T03:04:05.000Z' } },
+        { name: 'courses/c/media/b.png', metadata: {} },
+        { name: 'courses/c/media/c.png', metadata: { timeCreated: 'not a date' } },
+      ],
+    ]);
+    const port = bucketStoragePort({ getFiles, file: vi.fn() });
+    expect(await port.listMedia('c')).toEqual([
+      { path: 'courses/c/media/a.png', createdAt: new Date('2026-01-02T03:04:05.000Z') },
+      { path: 'courses/c/media/b.png', createdAt: undefined },
+      { path: 'courses/c/media/c.png', createdAt: undefined },
+    ]);
+    expect(getFiles).toHaveBeenCalledWith({ prefix: 'courses/c/media/' });
+  });
+
+  it('deletes one object by path', async () => {
+    const del = vi.fn().mockResolvedValue(undefined);
+    const file = vi.fn().mockReturnValue({ delete: del });
+    await bucketStoragePort({ getFiles: vi.fn(), file }).deleteFile('courses/c/media/a.png');
+    expect(file).toHaveBeenCalledWith('courses/c/media/a.png');
+    expect(del).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('firestoreMediaStore', () => {
+  it('lists the ids of the courses that exist', async () => {
+    const select = vi
+      .fn()
+      .mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [{ id: 'a' }, { id: 'b' }] }) });
+    const db = { collection: vi.fn().mockReturnValue({ select }) } as never;
+    expect(await firestoreMediaStore(db).listCourseIds()).toEqual(['a', 'b']);
+    expect(select).toHaveBeenCalledWith();
+  });
+
+  const dbWith = (live: unknown, draft: unknown, versions: unknown[]) => {
+    const ref = {
+      get: vi.fn().mockResolvedValue(live),
+      collection: vi.fn((name: string) =>
+        name === 'drafts'
+          ? { doc: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue(draft) }) }
+          : { get: vi.fn().mockResolvedValue({ docs: versions }) },
+      ),
+    };
+    return { db: { doc: vi.fn().mockReturnValue(ref) } as never, ref };
+  };
+
+  it('returns the live document, the draft course and each version course', async () => {
+    const { db } = dbWith(
+      { exists: true, data: () => ({ title: 'live' }) },
+      { exists: true, get: (k: string) => (k === 'course' ? { title: 'draft' } : undefined) },
+      [{ get: () => ({ title: 'v1' }) }, { get: () => ({ title: 'v2' }) }],
+    );
+    expect(await firestoreMediaStore(db).readCourseObjects('c')).toEqual([
+      { title: 'live' },
+      { title: 'draft' },
+      { title: 'v1' },
+      { title: 'v2' },
+    ]);
+  });
+
+  it('leaves out a live document or draft that is not there', async () => {
+    const { db } = dbWith({ exists: false }, { exists: false }, []);
+    expect(await firestoreMediaStore(db).readCourseObjects('c')).toEqual([]);
   });
 });

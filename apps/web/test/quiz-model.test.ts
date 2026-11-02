@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Quiz } from '@gurukul/schema';
 import {
   answerLetters,
+  blockerBefore,
   cooldownRemaining,
   drawOrder,
   isDraft,
@@ -9,12 +10,12 @@ import {
   sameAnswer,
   formatCountdown,
   formatWait,
-  chapterNumber,
   reviewOfAttempt,
   itemAfter,
   itemPath,
   linkedInUrl,
   longDate,
+  openItemLabel,
   pickQuestions,
   shuffle,
 } from '../src/quiz/model';
@@ -118,6 +119,18 @@ describe('items and links', () => {
     expect(itemPath('git', { id: 'q1', type: 'quiz' })).toBe('/courses/git/quiz/q1');
   });
 
+  it('finds the first unfinished item before another, skipping done ones', () => {
+    const states = { l1: 'done', l2: 'current', l3: 'todo', q1: 'todo', l4: 'locked' };
+    expect(blockerBefore(course, states, 'l4')?.id).toBe('l2');
+    expect(blockerBefore(course, { ...states, l2: 'done', l3: 'done' }, 'l4')?.id).toBe('q1');
+    expect(blockerBefore(course, states, 'l1')).toBeUndefined();
+  });
+
+  it("labels the button that opens an item by its type, in the person's word for a Quiz", () => {
+    expect(openItemLabel({ type: 'lesson' }, 'Quiz')).toBe('Open lesson');
+    expect(openItemLabel({ type: 'quiz' }, 'Pariksha')).toBe('Open Pariksha');
+  });
+
   it('builds the LinkedIn certification link', () => {
     const url = new URL(
       linkedInUrl({
@@ -192,14 +205,6 @@ describe('formatCountdown', () => {
     expect(formatCountdown(9_000)).toBe('0:09');
     expect(formatCountdown(3_723_000)).toBe('1:02:03');
     expect(formatCountdown(-5)).toBe('0:00');
-  });
-});
-
-describe('chapterNumber', () => {
-  it('numbers chapters from one, and gives 0 for an item no chapter holds', () => {
-    expect(chapterNumber(makeCourse(), 'l1')).toBe(1);
-    expect(chapterNumber(makeCourse(), 'q1')).toBe(2);
-    expect(chapterNumber(makeCourse(), 'nope')).toBe(0);
   });
 });
 

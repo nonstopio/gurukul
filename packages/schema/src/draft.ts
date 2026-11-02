@@ -91,18 +91,24 @@ const NUMBERS_AND_IDS = new Set(['questionsShown', 'minutes', 'cooldownMinutes',
 /** Links a learner opens or loads must be https: no `javascript:`, `data:` or plain `http:`. */
 const isHttps = (url: string) => /^https:\/\//i.test(url);
 
+/** The Storage emulator's own plain-http address, allowed only when the caller says it is the emulator. */
+const emulated = (ctx: PublishContext, url: string) =>
+  ctx.emulatorHost !== undefined && url.startsWith(`http://${ctx.emulatorHost}/`);
+
 /** What publishing knows about where uploads live: the course, and optionally the project's bucket. */
 export interface PublishContext {
   courseId: string;
   /** The project's Storage bucket; when given, an uploaded file's address must be in it. */
   bucket?: string | undefined;
+  /** The local Storage emulator's `host:port`, so its plain-http addresses pass; only emulator runs set it. */
+  emulatorHost?: string | undefined;
 }
 
 /** Why an uploaded block's address is wrong, or null when it points at its own file in this course. */
 function uploadProblem(ctx: PublishContext, url: string, upload: { path: string }): string | null {
   if (!upload.path.startsWith(`courses/${ctx.courseId}/media/`))
     return 'The uploaded file belongs to another course. Upload it again here.';
-  return isDownloadUrlFor(url, upload.path, ctx.bucket)
+  return isDownloadUrlFor(url, upload.path, ctx.bucket, ctx.emulatorHost)
     ? null
     : 'The address of the uploaded file does not match the file. Upload it again.';
 }
@@ -135,7 +141,7 @@ function blockIssues(itemId: string, b: Block, ctx: PublishContext): PublishIssu
         ...(blank(b.alt)
           ? [issue('block.image.alt', 'An image needs alt text for people who cannot see it.')]
           : []),
-        ...(isHttps(b.url)
+        ...(isHttps(b.url) || emulated(ctx, b.url)
           ? []
           : [issue('block.image.url', 'The image link must start with https://.')]),
         ...uploadIssues(b.url, b.upload, 'block.image.upload'),
@@ -152,7 +158,7 @@ function blockIssues(itemId: string, b: Block, ctx: PublishContext): PublishIssu
     case 'file':
       return [
         ...(blank(b.label) ? [issue('block.file.label', 'A file link needs a label.')] : []),
-        ...(isHttps(b.url)
+        ...(isHttps(b.url) || emulated(ctx, b.url)
           ? []
           : [issue('block.file.url', 'The file link must start with https://.')]),
         ...uploadIssues(b.url, b.upload, 'block.file.upload'),
@@ -207,7 +213,7 @@ function questionIssues(
 export function validateForPublish(
   course: Course,
   answers: AnswerKeys,
-  options: { bucket?: string } = {},
+  options: { bucket?: string | undefined; emulatorHost?: string | undefined } = {},
 ): PublishIssue[] {
   const out: PublishIssue[] = [];
   const parsed = courseSchema.safeParse(course);
@@ -221,7 +227,13 @@ export function validateForPublish(
     }
   }
   try {
-    out.push(...contentIssues(course, answers, { courseId: course.id, bucket: options.bucket }));
+    out.push(
+      ...contentIssues(course, answers, {
+        courseId: course.id,
+        bucket: options.bucket,
+        emulatorHost: options.emulatorHost,
+      }),
+    );
   } catch {
     // A course too malformed to walk: the schema issues above already say what is wrong.
   }

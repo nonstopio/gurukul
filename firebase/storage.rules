@@ -1,0 +1,72 @@
+rules_version = '2';
+
+// Gurukul Cloud Storage rules (.plan/19-course-media-uploads.md).
+//
+// Default deny. Only `courses/{courseId}/media/{mediaId}.{ext}` opens: Studio uploads lesson images
+// and PDFs there. Every condition has an allowed and a denied test in firebase/rules/test/storage.test.ts.
+// The limits mirror `uploadPolicy` in packages/schema/src/upload.ts; a Firestore read inside these rules
+// costs quota, so a create reads the course and `config/org` once each and a read of a file reads none.
+service firebase.storage {
+  match /b/{bucket}/o {
+    // The same check as Firestore's `signedIn()` in firestore.rules: a verified NonStop io account
+    // signed in with Google, domain compared lower-cased.
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@nonstopio[.]com$');
+    }
+
+    // Needs the `admin` or `educator` claim. An Admin may upload to any course; an Educator only to a
+    // course that lists them in `educatorIds` (the claim alone is not enough, and a listed uid without
+    // the claim is not an Educator). One Firestore read per upload.
+    function mayEditCourse(courseId) {
+      return request.auth.token.admin == true
+        || (request.auth.token.educator == true
+            && request.auth.uid in firestore.get(/databases/(default)/documents/courses/$(courseId)).data.educatorIds);
+    }
+
+    // The declared type is one of the four accepted ones and the file name ends in the matching
+    // extension, so a PNG cannot be stored as `.pdf`. SVG, GIF and the rest are not on the list.
+    function typeMatchesName(fileName) {
+      let type = request.resource.contentType;
+      return (type == 'image/webp' && fileName.matches('.+[.]webp'))
+        || (type == 'image/png' && fileName.matches('.+[.]png'))
+        || (type == 'image/jpeg' && fileName.matches('.+[.](jpg|jpeg)'))
+        || (type == 'application/pdf' && fileName.matches('.+[.]pdf'));
+    }
+
+    // The Admin's limits (`config/org.uploads`, in KB); a missing document or field reads as the default.
+    function orgUploads() {
+      let org = /databases/(default)/documents/config/org;
+      return firestore.exists(org) ? firestore.get(org).data.get('uploads', {}) : {};
+    }
+
+    // At most the configured limit for the kind (default 500 KB for an image, 1024 KB for a PDF), and never
+    // above the 1 MB hard ceiling, whatever is stored.
+    function withinLimit() {
+      let limitKB = request.resource.contentType == 'application/pdf'
+        ? orgUploads().get('pdfMaxKB', 1024)
+        : orgUploads().get('imageMaxKB', 500);
+      return request.resource.size <= 1048576 && request.resource.size <= limitKB * 1024;
+    }
+
+    // Reading through the SDK needs a signed-in NonStop account. The download URLs stored in blocks
+    // carry their own token and bypass these rules by design (.plan/19, "Who can read a file").
+    // A file is created once and never overwritten, updated or deleted by a client; clean-up is a
+    // function's job.
+    match /courses/{courseId}/media/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && resource == null
+        && typeMatchesName(fileName)
+        && mayEditCourse(courseId)
+        && withinLimit();
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -32,10 +32,15 @@ const handleAttemptCreated = vi.fn().mockResolvedValue('counted');
 const runDailyRollup = vi.fn().mockResolvedValue({});
 const runDailyReminders = vi.fn().mockResolvedValue({});
 const runWeeklyBackup = vi.fn().mockResolvedValue('exported');
+const runMediaCleanup = vi
+  .fn()
+  .mockResolvedValue({ deleted: 0, courses: 2, skipped: 0, blocked: false });
+const getBucket = vi.fn().mockReturnValue({ name: 'bucket' });
 const FirestoreAdminClient = vi.fn();
 
 vi.mock('@google-cloud/firestore', () => ({ default: { v1: { FirestoreAdminClient } } }));
 vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }));
+vi.mock('firebase-admin/storage', () => ({ getStorage: () => ({ bucket: getBucket }) }));
 vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn() }));
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: vi.fn(), FieldValue: {} }));
 vi.mock('firebase-functions/v2', () => ({
@@ -95,6 +100,7 @@ vi.mock('../src/teams.js', () => ({ handleTeamWrite }));
 vi.mock('../src/analytics.js', () => ({ handleAttemptCreated, runDailyRollup }));
 vi.mock('../src/remind.js', () => ({ runDailyReminders }));
 vi.mock('../src/backup.js', () => ({ runWeeklyBackup }));
+vi.mock('../src/media.js', () => ({ runMediaCleanup }));
 vi.mock('../src/handlers.js', async (orig) => ({
   ...(await orig<typeof Handlers>()),
   handleSetRoles,
@@ -210,6 +216,38 @@ describe('index', () => {
     );
     expect(FirestoreAdminClient).toHaveBeenCalledTimes(1);
     vi.unstubAllEnvs();
+  });
+
+  it('schedules the media clean-up weekly, on Sunday, away from the backup and the daily jobs', async () => {
+    await import('../src/index.js');
+    const cleanup = captured.schedules['every sunday 05:00'];
+    expect(cleanup?.options).toMatchObject({
+      timeZone: 'Etc/UTC',
+      region: 'asia-south1',
+      maxInstances: 1,
+    });
+    expect(cleanup?.options).not.toHaveProperty('minInstances');
+    await cleanup?.fn();
+    expect(runMediaCleanup).toHaveBeenCalledWith(
+      { store: expect.anything(), storage: expect.anything() },
+      expect.any(Date),
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(
+      'Weekly media clean-up finished',
+      expect.anything(),
+    );
+    runMediaCleanup.mockResolvedValueOnce({ deleted: 3, courses: 2, skipped: 1, blocked: false });
+    await cleanup?.fn();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Weekly media clean-up finished',
+      expect.objectContaining({ count: 3, courses: 2, skipped: 1, durationMs: expect.any(Number) }),
+    );
+    runMediaCleanup.mockResolvedValueOnce({ deleted: 0, courses: 2, skipped: 0, blocked: true });
+    await cleanup?.fn();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Weekly media clean-up finished',
+      expect.objectContaining({ blocked: true }),
+    );
   });
 
   it('logs one summary per trigger run: info when something changed, debug when not', async () => {

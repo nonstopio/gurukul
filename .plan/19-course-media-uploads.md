@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: in progress (`MED-02`, the schema, is built). Tracker section **Course media uploads** (`MED-*`).
+Status: built (`MED-02` to `MED-12`), waiting only on the maintainer's `MED-01` follow-ups: the Firebase Rules Firestore Service Agent role, and `roles/storage.objectAdmin` for the clean-up function. Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -186,13 +186,13 @@ type ImageBlock = {
   zoom?: boolean;                           // click opens full size; missing reads as false
   border?: boolean;                         // a thin frame for screenshots on white; missing reads as true
   width?: number; height?: number;          // intrinsic pixels, so the page does not jump while it loads
-  upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string };
+  upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string; blurHash?: string };
 };
 
 type FileBlock = {
   type: 'file'; id: string; url: string; label: string;
   // new, optional:
-  upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string };
+  upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string; blurHash?: string };
 };
 ```
 
@@ -200,7 +200,7 @@ type FileBlock = {
   Media library tags it **Uploaded**, and the clean-up job knows it is ours. `upload.name` is a
   display name the Educator can edit, at most 120 characters; it is never part of the path.
 - `width` and `height` are also allowed on a linked image (Studio reads them from the loaded
-  preview), so linked images stop shifting the page too.
+  preview and clears them when the address changes), so linked images stop shifting the page too.
 - Publish validation (`packages/schema/src/draft.ts`) gains: an uploaded image's or file's `url` must be a
   Firebase Storage download URL for exactly its `upload.path`, which must sit under
   `courses/{thisCourse}/media/` (`isDownloadUrlFor`); `validateForPublish(course, answers, { bucket })`
@@ -261,6 +261,11 @@ download it (they load files by URL). The initial bundle budget is unchanged.
 (`aria-live`), errors are tied to the control (`aria-describedby`); the agent prompt's copy button
 confirms with a toast.
 
+**How Studio reads the limits** (built in `MED-07`): `LearnerData.uploadLimits()` reads
+`config/org.uploads` once and `useUploadPolicy()` returns `uploadPolicy(limits)`; while the read is
+loading or if it fails it returns the defaults, so the check never blocks on a network call and never
+throws. Storage still enforces the real limit.
+
 ## Player: layouts
 
 `apps/web/src/player/blocks.tsx`, image case:
@@ -274,13 +279,60 @@ confirms with a toast.
 - `<img>` gets `width`/`height` when known (no layout shift; Lighthouse CI already measures CLS),
   `loading="lazy"`, `decoding="async"`.
 - **Open full size** (`zoom`): the image is a button that opens it in the existing `Dialog` at its
-  natural size, scrollable, closes on Escape; the caption shows under it.
+  natural size, scrollable, closes on Escape and returns focus to the button; the dialog is titled by
+  the alt text and the caption shows under the image.
 - **Border** draws the existing `--border` frame (today every figure has it; `border: false`
   removes it for photos and transparent PNGs).
 - File block with `upload`: the link reads "Label · PDF · 420 KB" and opens in a new tab.
 - An image that fails to load shows its alt text in a quiet box instead of the broken-image icon.
 
 Layouts work for **linked** images too, so the player item can ship before uploads exist.
+
+## Placeholders: BlurHash
+
+Added 2026-11-02 at the maintainer's request. A **BlurHash** is a 20 to 30 character string that
+decodes to a soft, blurred version of a picture. Studio makes one when a file is uploaded and stores
+it as `upload.blurHash` (optional, so older uploads read unchanged). The player decodes it into a
+tiny picture (32 × 32, scaled up by the browser) and shows it where the image will be until the real
+file has loaded, then fades to it. With `width` and `height` already on the block, the page neither
+jumps nor flashes empty, on a slow connection too.
+
+- **Images**: after the checks pass, the picked file is drawn on a canvas at about 32 px on its long
+  side and encoded with 4 × 3 components. No dependency: the encoder and decoder are
+  `encodeBlurHash` / `decodeBlurHash` in `@gurukul/schema` (a port of the MIT BlurHash algorithm,
+  tested against the reference package; built in `MED-11`).
+- **PDFs**: the first page is rendered to a canvas and hashed the same way, so a File block with an
+  upload shows a small blurred first-page thumbnail beside its label. Rendering a PDF needs
+  **pdf.js** (Apache-2.0, compatible; verify the licence file before adding it). It loads only inside
+  Studio's lazy chunk and only when a PDF is picked, never for learners, and the initial bundle
+  budget is unchanged. If rendering fails (an encrypted or odd PDF), the upload still succeeds with no
+  hash: the placeholder is a nicety, never a gate.
+- **Linked images** get no BlurHash: the browser cannot read the pixels of another origin's image.
+- A hash is about 30 bytes, so the course document stays small. Reduced motion: no fade, the image
+  simply replaces the placeholder.
+- A placeholder is decoration: it is `aria-hidden` and carries no alt text; the real image's alt text
+  is unchanged.
+
+Built in `MED-12` (Studio makes the hash, the player shows it). An uploaded File block's blurred first-page thumbnail replaces the generic file icon (the icon stays when there is no hash), and `@gurukul/ui` depends on `@gurukul/schema` so `ImageFigure` can decode a hash. pdf.js is `pdfjs-dist` 6.4.299 (Apache-2.0); its worker is a separate 1.26 MB asset fetched only when a PDF is picked.
+
+## Where the bucket is checked (found in `MED-05`)
+
+The project's bucket is checked **in Studio only** (`VITE_FIREBASE_STORAGE_BUCKET`, falling back to
+`<projectId>.firebasestorage.app`). `publishCourse` checks that an uploaded address is a
+`firebasestorage.googleapis.com` download URL for its own file under this course, but not the
+bucket: the only name a function can read, `FIREBASE_CONFIG.storageBucket`, is the project's legacy
+default (`<project>.appspot.com`), which need not be the bucket Studio uploads to, and a wrong guess
+would refuse every upload. Before functions pass a bucket, a maintainer logs that value once from a
+deployed function. The gap is small (it takes a person who can edit the course and calls the
+callable directly, to point an image at another Firebase bucket's file) and is open until then.
+The local Storage emulator hands out plain `http://127.0.0.1:9199/...` download URLs, so the schema's
+`isDownloadUrlFor` and `validateForPublish` take an optional `emulatorHost` that only emulator runs
+pass (Studio when `VITE_USE_EMULATORS` is on, the Functions emulator through
+`FUNCTIONS_EMULATOR`); production passes none.
+
+`deploy.yml` and `preview.yml` do not set `VITE_FIREBASE_STORAGE_BUCKET`; the fallback matches the
+planned bucket. `upload.name` (the display name) is `file.name` cut to 120 characters; an edit field
+is not built.
 
 ## Media library
 
@@ -295,7 +347,7 @@ Files are immutable and small, so v1 deletes nothing automatically: deleting a f
 published version or a rollback target still uses would break that version. `MED-10` adds a
 weekly scheduled function that, per course, collects every `upload.path` in the draft, the live
 course and every `versions/` snapshot, and deletes media files referenced by none of them and older
-than 30 days. Until then the cost of orphans is negligible (see below).
+than 30 days. Built in `MED-10` (`firebase/functions/src/media.ts`, Sunday 05:00 UTC), with safeguards beyond the plan: a course is skipped whole when any stored copy of it does not parse; a file with no known creation time stays; one run deletes nothing if it would delete more than 200 files; and a course with five or more files that would lose more than half of them is skipped, all with a warning. The functions' service account needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`). Until then the cost of orphans is negligible (see below).
 
 ## Cost
 
@@ -330,7 +382,7 @@ v1 does not re-encode uploads on the server.
 
 ## Testing
 
-- `@gurukul/schema`: `uploadPolicy`, `checkUpload` (type, magic bytes, size, pixels), `shrinkPrompt`
+- `@gurukul/schema`: `encodeBlurHash` / `decodeBlurHash` against the reference package's hashes; `uploadPolicy`, `checkUpload` (type, magic bytes, size, pixels), `shrinkPrompt`
   and the new block fields, 100% coverage.
 - Storage rules: emulator tests, allowed and denied per condition, coverage of every expression.
 - Studio: block editor tests with a fake Storage client (pick, refuse with guidance, copy prompt,
@@ -354,6 +406,8 @@ v1 does not re-encode uploads on the server.
 | `MED-08` | Studio: Media library Uploaded filter and "Choose from this course's media"                       |
 | `MED-09` | Studio: Shrink it for me (in-browser WebP re-encode)                                              |
 | `MED-10` | Functions: weekly clean-up of unreferenced media                                                  |
+| `MED-11` | Schema: BlurHash encoder, decoder and `upload.blurHash` (pure, no dependency)                     |
+| `MED-12` | Studio and player: BlurHash placeholders for uploaded images and PDF first pages                  |
 
 Each user-facing slice carries its changelog entry; `MED-05` adds the uploads section to the
 Educator guide in `docs/` and a feature tip on the Upload tab (`adding-feature-tips`).

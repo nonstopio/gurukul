@@ -218,6 +218,7 @@
   --width-default: 70rem; /* 1120: most pages */
   --width-wide: 80rem; /* 1280: tables, editors */
   --width-form: 40rem; /* 640: a form's column */
+  --width-phone: 24.375rem; /* 390: a phone, for the Studio's preview frame */
   --sidebar-width: 15.5rem; /* 248 */
 
   /* ---- Layers: the only z-index values ---- */

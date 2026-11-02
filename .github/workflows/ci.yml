@@ -71,8 +71,8 @@ jobs:
             firebase/seed/coverage/
           retention-days: 7
 
-  # Security rules are the real access gate, so they are tested against the
-  # Firestore emulator on every change. The emulator needs Java.
+  # Security rules are the real access gate, so both rule files (firestore.rules and storage.rules)
+  # are tested against the Firestore and Storage emulators on every change. The emulators need Java.
   rules:
     name: Firestore rules (emulator)
     runs-on: ubuntu-latest
@@ -139,7 +139,7 @@ jobs:
         run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.json
 
   # The three journeys (learner, Admin, Educator) in a real browser, against the built app and the
-  # Auth, Firestore and Functions emulators (e2e/). Needs Java for the Firestore emulator and
+  # Auth, Firestore, Functions and Storage emulators (e2e/). Needs Java for the Firestore emulator and
   # Chromium for Playwright. The Playwright config builds the functions and the app and starts the
   # emulators itself.
   e2e:

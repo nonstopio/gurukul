@@ -136,7 +136,9 @@ describe('Design system: components', () => {
     }
     expect(screen.getByText('MoreIcon')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
-  });
+    // axe walks every component's example, so this grows with each one added: it took 6 to 7 s on an
+    // idle machine and timed out at the 15 s default when other test runs shared the CPU.
+  }, 60_000);
 
   it('lets the search card example be typed in, filtered and cleared', async () => {
     const user = userEvent.setup();
@@ -164,6 +166,8 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     await user.click(screen.getByRole('button', { name: 'Toast: success' }));
     expect(await screen.findByText('A success toast')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Toast: info' }));
+    await user.click(await screen.findByRole('button', { name: 'Open lesson' }));
     await user.click(screen.getByRole('button', { name: 'Open dialog' }));
     const dialog = await screen.findByRole('dialog', { name: 'Example dialog' });
     await user.click(within(dialog).getByRole('button', { name: 'Done' }));

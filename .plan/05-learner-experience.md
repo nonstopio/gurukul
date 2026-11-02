@@ -20,13 +20,18 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    placeholder video is not shown); the outline rail shows where you are.
    "Mark complete" saves and moves to the next item once the lesson's rule is
    met and every check question has had its answer shown. Pressed earlier, or
-   when the next item is still locked, it stays put and a toast names what to do.
+   when the next item is still locked, it stays put and a toast names what to do,
+   with an "Open lesson" / "Open Quiz" button to the item in the way. A locked
+   item opened from a link names that item and opens it the same way. Buttons
+   say the action only ("Mark complete", "Next", "Previous", "Resume"), never
+   the next item's name; the forward button sits on the right.
 5. **Quiz** after a chapter: one question per screen, answer feedback as
    configured, each answer saved in the browser as it is checked or left
    (with the draw and any verdict shown), so a reload carries on. The server
    records the attempt only at Finish; another device starts afresh.
-6. **Result**: score, pass/fail, review with explanations and "Revisit lesson:
-   {title}" links; next chapter unlocks on pass ("Continue to Chapter n"), and a
+6. **Result**: score, pass/fail, review with explanations and "Revisit lesson"
+   links (the lesson's name in visually hidden text); next chapter unlocks on
+   pass ("Continue"), and a
    cooldown counts down live to Retake. Opened again (reload, bookmark, another
    device) it reads the latest recorded attempt; that review names the
    learner's answers but not the right options, which only `gradeAttempt`

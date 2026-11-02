@@ -1,8 +1,16 @@
-import { Callout, CodeBlock, FileIcon, QuizOption, VideoBlock } from '@gurukul/ui';
+import {
+  Callout,
+  CodeBlock,
+  FileIcon,
+  ImageFigure,
+  QuizOption,
+  VideoBlock,
+  blurHashStyle,
+} from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useId, useState } from 'react';
 import Markdown from 'react-markdown';
-import { isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
+import { formatBytes, isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { TrackedVideo } from './TrackedVideo';
 
 /** One line of Markdown (code, bold, italics) with no paragraph around it: a prompt or an option. */
@@ -158,11 +166,19 @@ export function BlockView({
         </Callout>
       );
     case 'image':
+      // Missing fields read as a full-column, framed image that does not open: courses written before layouts render unchanged.
       return (
-        <figure className="figure">
-          <img src={block.url} alt={block.alt} loading="lazy" />
-          {block.caption ? <figcaption>{block.caption}</figcaption> : null}
-        </figure>
+        <ImageFigure
+          src={block.url}
+          alt={block.alt}
+          layout={block.layout}
+          border={block.border}
+          zoom={block.zoom}
+          width={block.width}
+          height={block.height}
+          blurHash={block.upload?.blurHash}
+          caption={block.caption}
+        />
       );
     case 'embed':
       return isEmbedAllowed(block.url) ? (
@@ -180,13 +196,20 @@ export function BlockView({
           </a>
         </p>
       );
-    case 'file':
+    case 'file': {
+      // An uploaded PDF made a blurred first page at upload: a small decorative thumbnail, in place of the generic icon.
+      const thumb = blurHashStyle(block.upload?.blurHash);
       return (
         <a className="file-link" href={block.url} target="_blank" rel="noopener noreferrer">
-          <FileIcon />
-          {block.label}
+          {thumb ? (
+            <span className="file-link__thumb" aria-hidden="true" style={thumb} />
+          ) : (
+            <FileIcon />
+          )}
+          {block.upload ? `${block.label} · PDF · ${formatBytes(block.upload.bytes)}` : block.label}
         </a>
       );
+    }
     case 'check':
       return <CheckBlock block={block} onAnswered={onAnswered} />;
     default:

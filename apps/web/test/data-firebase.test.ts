@@ -337,6 +337,16 @@ describe('firebaseLearnerData', () => {
     ]);
   });
 
+  it('reads the saved upload limits, and nothing when absent or not valid', async () => {
+    expect(await data.uploadLimits()).toBeUndefined();
+    store.docs.set('config/org', { domain: 'nonstopio.com' });
+    expect(await data.uploadLimits()).toBeUndefined();
+    store.docs.set('config/org', { uploads: { imageMaxKB: 10, pdfMaxKB: 800 } });
+    expect(await data.uploadLimits()).toBeUndefined();
+    store.docs.set('config/org', { uploads: { imageMaxKB: 300, pdfMaxKB: 800 } });
+    expect(await data.uploadLimits()).toEqual({ imageMaxKB: 300, pdfMaxKB: 800 });
+  });
+
   it('reads the org teams, empty when none are saved', async () => {
     expect(await data.orgTeams()).toEqual([]);
     store.docs.set('config/org', { domain: 'nonstopio.com' });

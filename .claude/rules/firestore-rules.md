@@ -1,11 +1,12 @@
 ---
 paths:
   - 'firebase/firestore.rules'
+  - 'firebase/storage.rules'
   - 'firebase/rules/**'
   - 'firebase/functions/**'
 ---
 
-# Firestore security rules
+# Firestore and Storage security rules
 
 The browser talks to Firestore directly, so `firebase/firestore.rules` is the
 real access gate. Hiding a button is never the only protection.
@@ -25,3 +26,21 @@ real access gate. Hiding a button is never the only protection.
   Grading happens in Cloud Functions with the Admin SDK.
 - Keep reads cheap on the free quota: rules that call `get()` cost a read each.
   Prefer claims over `get()` lookups.
+
+## Storage rules (`firebase/storage.rules`)
+
+Cloud Storage holds Educator-uploaded lesson media (`.plan/19-course-media-uploads.md`) and has its own
+gate, the same discipline as above.
+
+- Default deny; only `courses/{courseId}/media/{fileName}` opens. Reads need `signedIn()` (a copy of the
+  Firestore function: keep the two identical). A file is created once and never updated, overwritten or
+  deleted by a client.
+- A create reads the course and `config/org` once each (`firestore.get`), so it costs two Firestore reads per
+  upload. Reads cost none. Limits, types and the 1 MB ceiling mirror `uploadPolicy` in `packages/schema/src/upload.ts`;
+  change one, change the other.
+- Tests are `firebase/rules/test/storage.test.ts`, driven by the case table in `test/storage/cases.ts`: add a case
+  (allowed and denied) for every new condition. The Storage emulator reports no rule coverage, so
+  `test/storage-coverage.test.ts` forces each condition in the file to the wrong answer in turn and
+  `scripts/check-rules-coverage.mjs --mutants` fails `npm run test:rules` when no case notices. A condition that
+  provably changes nothing is listed with its reason in `test/storage/mutants.ts`; do not add to that list to
+  get past a failure, add a case.

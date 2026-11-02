@@ -3,6 +3,7 @@
 | Path                     | Owns                                                                              |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | `firestore.rules`        | The access gate for every collection                                              |
+| `storage.rules`          | The access gate for Cloud Storage: lesson media only, create-only (`.plan/19`)    |
 | `firestore.indexes.json` | Composite indexes, deployed with rules                                            |
 | `rules/`                 | Rules tests (`@firebase/rules-unit-testing`) run inside `firebase emulators:exec` |
 | `functions/`             | Cloud Functions, 2nd gen, Node 22, ESM, region `asia-south1`                      |
@@ -23,7 +24,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   mock `firebase-functions/logger` for every file (`test/setup.ts`). ESLint bans the raw logger,
   `console` and the https imports outside these two folders (`scripts/test/lint-rules.test.mjs`).
 
-- `functions/emulator-test/` runs the real trigger exports against the Firestore emulator
+- `functions/emulator-test/` runs the real trigger exports against the Firestore and Storage emulators
   (`npm run test:triggers`, Java 21): each is called with `.run(event)`, which firebase-functions gives
   every v2 function, and the assertions read Firestore. `firebase-functions-test` is not used: it does not
   support firebase-admin 14. The unit suite's coverage gate does not count these files.
@@ -69,7 +70,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   source draft with its answers; the creator's Google name goes into `educatorNames`; `CRS_1002` on a taken slug), `publishCourse` and `rollbackCourse` (course
   Educator or Admin; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
   `educatorIds` and `educatorNames` always win; both run `upgradeCourse` on the stored course first; publish is gated by
-  `validateForPublish` and fails `CRS_1003` with `details.issues`; rollback republishes a snapshot as a new
+  `validateForPublish` and fails `CRS_1003` with `details.issues` (an uploaded image's address must be the Storage download URL of its own file under this course; `publishChecks` adds the Storage emulator's host inside the Functions emulator only, and no bucket, see its comment); rollback republishes a snapshot as a new
   version and resets the draft), `archiveCourse` (Admin-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for educator/admin claims; clients never create or delete drafts.
@@ -95,6 +96,15 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   Firestore Admin client) and warns, without throwing, when `BACKUP_BUCKET` is unset. It never deletes:
   four-week retention is a lifecycle rule on the bucket (`docs/operations.md`). It needs
   `roles/datastore.importExportAdmin` and write access to the bucket.
+  `weeklyMediaCleanup` (Sunday 05:00 UTC, `media.ts`, `maxInstances: 1`) is the only thing that deletes
+  lesson media (`.plan/19`): per course whose draft, live document and every `versions/{n}` snapshot
+  all parse (`upgradeCourse` then `courseSchema`; one that does not skips the course and warns), it
+  deletes files in `courses/{id}/media/` that no copy names and that are 30+ days old by object creation time.
+  Decisions are pure in `media.ts` behind `StoragePort` (`bucketStoragePort`) and `MediaStore`
+  (`firestoreMediaStore`); it plans first, and deletes nothing when the run would delete over 200 files,
+  or a course with 5+ files would lose over half of them (a warn with counts). Summary fields are counts.
+  It needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`). The Storage emulator
+  stamps objects with the current time, so its test moves the clock (`Date` only) 31 days on.
 
 ```bash
 npm run test:rules                      # from the repo root, needs Java 21

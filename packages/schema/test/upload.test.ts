@@ -313,6 +313,16 @@ describe('isDownloadUrlFor', () => {
     expect(isDownloadUrlFor('https://firebasestorage.googleapis.com/other', path)).toBe(false);
     expect(isDownloadUrlFor('not a url', path)).toBe(false);
   });
+  it('accepts the Storage emulator address only when told which emulator it is', () => {
+    const local = `http://127.0.0.1:9199/v0/b/demo.appspot.com/o/${encodeURIComponent(path)}?alt=media&token=t`;
+    expect(isDownloadUrlFor(local, path)).toBe(false);
+    expect(isDownloadUrlFor(local, path, 'demo.appspot.com', '127.0.0.1:9199')).toBe(true);
+    expect(isDownloadUrlFor(local, path, 'other.appspot.com', '127.0.0.1:9199')).toBe(false);
+    expect(isDownloadUrlFor(local, path, undefined, '127.0.0.1:9000')).toBe(false);
+    expect(isDownloadUrlFor(local.replace('http', 'ftp'), path, undefined, '127.0.0.1:9199')).toBe(
+      false,
+    );
+  });
 });
 
 describe('the new block fields', () => {
@@ -437,6 +447,19 @@ describe('the new block fields', () => {
     ]);
     expect(codes([image()], 'other.firebasestorage.app')).toEqual(['block.image.upload']);
     expect(codes([file({ url: dl('courses/git/media/zzz.pdf') })])).toEqual(['block.file.upload']);
+  });
+  it('lets the emulator address through only for a run that names the emulator', () => {
+    const local = `http://127.0.0.1:9199/v0/b/demo.appspot.com/o/${encodeURIComponent(imageUpload.path)}?alt=media&token=t`;
+    const blocks = [
+      image({ url: local }),
+      file({ url: local.replace('.png', '.pdf'), upload: undefined }),
+    ];
+    const run = (options: object) =>
+      validateForPublish(withBlocks(blocks), { q1: { k1: ['a'] } }, options)
+        .map((i) => i.code)
+        .filter((c) => c.startsWith('block.'));
+    expect(run({})).toEqual(['block.image.url', 'block.image.upload', 'block.file.url']);
+    expect(run({ bucket: 'demo.appspot.com', emulatorHost: '127.0.0.1:9199' })).toEqual([]);
   });
   it('words the cross-course problem so an Educator can act on it', () => {
     const other = { ...imageUpload, path: 'courses/other/media/abc123.png' };

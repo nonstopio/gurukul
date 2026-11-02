@@ -138,9 +138,9 @@ type Block =
   | { type: 'callout'; id: string; tone: 'note' | 'tip' | 'warning'; title?: string; md: string }
   | { type: 'image'; id: string; url: string; alt: string; caption?: string;
       layout?: 'column' | 'medium' | 'small'; zoom?: boolean; border?: boolean; width?: number; height?: number;
-      upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string } } // all new fields optional, no schemaVersion bump: 19-course-media-uploads.md
+      upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string; blurHash?: string } } // all new fields optional, no schemaVersion bump: 19-course-media-uploads.md
   | { type: 'embed'; id: string; url: string; title: string }   // allow-listed hosts only
-  | { type: 'file'; id: string; url: string; label: string; upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string } }   // upload = a PDF we host: 19-course-media-uploads.md
+  | { type: 'file'; id: string; url: string; label: string; upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string; blurHash?: string } }   // upload = a PDF we host: 19-course-media-uploads.md
   | { type: 'check'; id: string; prompt: string; options: string[]; correct?: number; explanation: string }; // ungraded, answer inline; `correct` indexes `options` (v3, required to publish)
 
 type Quiz = {

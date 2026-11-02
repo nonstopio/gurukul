@@ -1,4 +1,7 @@
-import { Button, Callout, Page, PageSkeleton, Skeleton } from '@gurukul/ui';
+import { Button, Callout, Page, PageSkeleton, Skeleton, buttonClass } from '@gurukul/ui';
+import type { Course, ItemState } from '@gurukul/schema';
+import { Link } from 'react-router';
+import { blockerBefore, itemPath, openItemLabel } from '../quiz/model';
 import type { PageWidth } from '@gurukul/ui';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
@@ -77,5 +80,44 @@ export function RetiredNote() {
         {t.Quizzes} are closed, so it can no longer be finished.
       </p>
     </Callout>
+  );
+}
+
+/**
+ * A locked lesson or Quiz: names the item in the way and opens it, so nobody has to hunt for it in
+ * the outline. A locked item always has an unfinished one before it: an unpassed gating Quiz, or
+ * an unfinished item in the chapter before.
+ */
+export function LockedNote({
+  course,
+  states,
+  itemId,
+}: {
+  course: Course;
+  states: Record<string, ItemState>;
+  itemId: string;
+}) {
+  const t = useTerms();
+  const blocker = blockerBefore(course, states, itemId) as NonNullable<
+    ReturnType<typeof blockerBefore>
+  >;
+  return (
+    <>
+      <Callout tone="note" title="Locked for now">
+        <p>
+          {blocker.type === 'quiz'
+            ? `Pass the ${t.Quiz} "${blocker.title}" first.`
+            : `Finish "${blocker.title}" first.`}
+        </p>
+      </Callout>
+      <div className="learn-buttons">
+        <Link className={buttonClass('primary')} to={itemPath(course.id, blocker)}>
+          {openItemLabel(blocker, t.Quiz)}
+        </Link>
+        <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+          Back to the outline
+        </Link>
+      </div>
+    </>
   );
 }

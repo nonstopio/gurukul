@@ -15,6 +15,9 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
+  "dependencies": {
+    "@gurukul/schema": "^0.0.0"
+  },
   "peerDependencies": {
     "react": ">=19"
   },

@@ -27,3 +27,22 @@ export function nonstop(
     })
     .firestore();
 }
+
+export const STORAGE_RULES = readFileSync(
+  resolve(import.meta.dirname, '../../storage.rules'),
+  'utf8',
+);
+
+/**
+ * A fresh emulator environment with `storage.rules` (or other Storage rules, for a mutant) and
+ * `firestore.rules`: Storage rules read the course and `config/org` from Firestore.
+ */
+export function startStorageEnv(storageRules = STORAGE_RULES): Promise<RulesTestEnvironment> {
+  return initializeTestEnvironment({
+    projectId: 'demo-gurukul',
+    firestore: {
+      rules: readFileSync(resolve(import.meta.dirname, '../../firestore.rules'), 'utf8'),
+    },
+    storage: { rules: storageRules },
+  });
+}

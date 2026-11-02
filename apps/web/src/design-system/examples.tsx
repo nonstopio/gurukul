@@ -66,6 +66,8 @@ import {
   TypeTile,
   UserCard,
   UsersIcon,
+  FileDrop,
+  ImageFigure,
   VideoBlock,
   largestDrop,
   topBarBackClass,
@@ -206,7 +208,13 @@ function ToastExample() {
                     code: 'NET-OFFLINE',
                     action: { label: 'Retry', onSelect: () => toast.show('Trying again…') },
                   }
-                : { tone, title: `A ${tone} toast` },
+                : tone === 'info'
+                  ? {
+                      tone,
+                      title: 'Finish "What Git solves" to open the next lesson.',
+                      action: { label: 'Open lesson', onSelect: () => {} },
+                    }
+                  : { tone, title: `A ${tone} toast` },
             )
           }
         >
@@ -1184,6 +1192,52 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </div>
     ),
   },
+  ImageFigure: {
+    rule: 'A lesson image as a column, medium or small figure, framed or not, optionally opening full size, with a blurred placeholder at its shape until it loads (given a BlurHash) and its alt text when it fails to load.',
+    Example: () => (
+      <Frame>
+        <ImageFigure
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='240'%3E%3C/svg%3E"
+          alt="An empty example image"
+          layout="medium"
+          zoom
+          width={640}
+          height={240}
+          caption="Zoom opens it at its natural size."
+          blurHash="LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+        />
+      </Frame>
+    ),
+  },
+  FileDrop: {
+    rule: 'Pick a file by button, drop or paste, with the rules stated first; checking, an error and a cancellable upload each say what is happening.',
+    Example: () => (
+      <Frame>
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          accept="image/webp,image/png,image/jpeg"
+          onFile={noop}
+        />
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          state="error"
+          error="This image is 1.8 MB. Images can be up to 500 KB."
+          onFile={noop}
+        />
+        <FileDrop
+          label="Choose an image"
+          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+          state="uploading"
+          fileName="diagram.png"
+          progress={40}
+          onCancel={noop}
+          onFile={noop}
+        />
+      </Frame>
+    ),
+  },
   VideoBlock: {
     rule: 'A lesson video with a link out and a caption.',
     Example: () => (
@@ -1216,7 +1270,14 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           question="Which command records them?"
           yourAnswer="git push"
           correctAnswer="git commit"
-          revisit={{ href: '#', label: 'Revisit lesson: Commits' }}
+          revisit={{
+            href: '#',
+            label: (
+              <>
+                Revisit lesson<span className="sr-only">: Commits</span>
+              </>
+            ),
+          }}
         >
           A commit records staged changes locally.
         </ResultRow>

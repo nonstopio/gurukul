@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 interface Captured {
   data: { listCourses(): Promise<unknown> };
-  studio: { data: { listCourses(): Promise<unknown> } };
+  studio: {
+    data: { listCourses(): Promise<unknown> };
+    storage: { upload(request: unknown): Promise<string> };
+    checks: { bucket?: string; emulatorHost?: string };
+  };
   console: { data: { overview(): Promise<unknown> } };
   service: {
     watchProfile(uid: string, cb: () => void, onError: (e: unknown) => void): () => void;
@@ -21,7 +25,11 @@ vi.mock('../src/App', () => ({
 vi.mock('../src/console/service', () => ({ firebaseConsoleService: vi.fn(() => ({})) }));
 vi.mock('../src/quiz/service', () => ({ firebaseQuizService: vi.fn(() => ({})) }));
 vi.mock('../src/studio/service', () => ({ firebaseStudioService: vi.fn(() => ({})) }));
-vi.mock('../src/firebase', () => ({ initFirebase: vi.fn(() => ({ app: 'app', auth: {} })) }));
+vi.mock('../src/firebase', () => ({
+  initFirebase: vi.fn(() => ({ app: 'app', auth: {}, storageBucket: 'b.firebasestorage.app' })),
+}));
+const mediaStorage = vi.hoisted(() => vi.fn());
+vi.mock('../src/studio/storage', () => ({ firebaseMediaStorage: mediaStorage }));
 vi.mock('../src/auth/service', () => ({
   firebaseAuthService: vi.fn((_fb, watchProfile) => ({ watchProfile })),
 }));
@@ -91,6 +99,45 @@ describe('main loads Firestore on demand', () => {
     vi.doMock('../src/firestore', () => ({ openFirestore: () => ({ watchProfile: watch }) }));
     p.service.watchProfile('u', vi.fn(), onError);
     await vi.waitFor(() => expect(watch).toHaveBeenCalled());
+  });
+
+  it('loads Cloud Storage on the first upload, once, and says where uploads live', async () => {
+    vi.resetModules();
+    const impl = { upload: vi.fn().mockResolvedValue('https://example.com/f') };
+    mediaStorage.mockReset().mockReturnValue(impl);
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), { VITE_USE_EMULATORS: 'true' }));
+    const p = props.current as Captured;
+    expect(p.studio.checks).toEqual({
+      bucket: 'b.firebasestorage.app',
+      emulatorHost: '127.0.0.1:9199',
+    });
+    expect(mediaStorage).not.toHaveBeenCalled();
+    expect(await p.studio.storage.upload({ path: 'a' })).toBe('https://example.com/f');
+    await p.studio.storage.upload({ path: 'b' });
+    expect(mediaStorage).toHaveBeenCalledTimes(1);
+    expect(mediaStorage).toHaveBeenCalledWith('app', true);
+    expect(impl.upload).toHaveBeenCalledTimes(2);
+
+    await act(async () => mount(document.getElementById('root'), {}));
+    expect((props.current as Captured).studio.checks.emulatorHost).toBeUndefined();
+  });
+
+  it('fetches the Storage chunk again after a failed download', async () => {
+    vi.resetModules();
+    vi.doMock('../src/studio/storage', () => {
+      throw new Error('Failed to fetch dynamically imported module');
+    });
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    const p = props.current as Captured;
+    await expect(p.studio.storage.upload({})).rejects.toThrow();
+    vi.doMock('../src/studio/storage', () => ({
+      firebaseMediaStorage: () => ({ upload: async () => 'ok' }),
+    }));
+    expect(await p.studio.storage.upload({})).toBe('ok');
   });
 
   it('starts Performance Monitoring against production, and survives it failing to load', async () => {

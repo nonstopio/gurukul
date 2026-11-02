@@ -5,3 +5,11 @@ export class DraftConflictError extends Error {
     this.name = 'DraftConflictError';
   }
 }
+
+/** The Educator pressed Cancel: an upload that stopped on purpose, not a failure. */
+export class UploadCancelledError extends Error {
+  constructor() {
+    super('The upload was cancelled.');
+    this.name = 'UploadCancelledError';
+  }
+}

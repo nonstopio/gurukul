@@ -20,7 +20,7 @@ import { useAsync } from '../data/useAsync';
 import { LoadedPage } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
-import { formatCountdown, itemAfter, itemPath, chapterNumber, reviewOfAttempt } from './model';
+import { formatCountdown, itemAfter, itemPath, reviewOfAttempt } from './model';
 import type { AttemptReview } from './model';
 import type { AttemptResult } from './service';
 
@@ -93,7 +93,6 @@ export function ResultPage() {
         const score = review?.score ?? saved?.best ?? 0;
         const passed = review?.passed ?? saved?.passed ?? false;
         const nextItem = itemAfter(course, quiz.id);
-        const nextChapter = nextItem ? chapterNumber(course, nextItem.id) : 0;
         const opensAt =
           state?.result.nextAttemptAt ??
           (saved?.lastAttemptAt?.getTime() ?? 0) + quiz.cooldownMinutes * 60_000;
@@ -141,11 +140,7 @@ export function ResultPage() {
                               : `/courses/${course.id}/complete`
                           }
                         >
-                          {!nextItem
-                            ? 'Finish course'
-                            : nextChapter === chapterNumber(course, quiz.id)
-                              ? 'Continue'
-                              : `Continue to ${t.Chapter} ${nextChapter}`}
+                          {nextItem ? 'Continue' : 'Finish course'}
                         </Link>
                       ) : (
                         <Link
@@ -182,7 +177,12 @@ export function ResultPage() {
                           {...(lesson && !correct
                             ? {
                                 revisit: {
-                                  label: `Revisit lesson: ${lesson}`,
+                                  // Short on screen; the name keeps each row's link distinct when read aloud.
+                                  label: (
+                                    <>
+                                      Revisit lesson<span className="sr-only">: {lesson}</span>
+                                    </>
+                                  ),
                                   render: (p) => (
                                     <Link
                                       to={`/courses/${course.id}/learn/${q.reviewItemId}`}

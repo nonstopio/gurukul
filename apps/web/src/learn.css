@@ -337,6 +337,10 @@ a.items__row:hover {
   padding-top: var(--space-5);
   border-top: 1px solid var(--border);
 }
+/* The forward action sits on the right, with or without Previous beside it. */
+.article__footer > :last-child {
+  margin-inline-start: auto;
+}
 @media (width < 64rem) {
   .player {
     grid-template-columns: minmax(0, 1fr);
@@ -358,25 +362,6 @@ a.items__row:hover {
   background: var(--surface-sunken);
   font: var(--text-sm) var(--font-mono);
 }
-.figure {
-  display: grid;
-  margin: 0;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-.figure img {
-  display: block;
-  max-width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-/* A caption reads as a caption: smaller, quieter, set apart from the paragraphs around it. */
-.figure figcaption {
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--border-strong);
-  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
-  color: var(--text-muted);
-}
 .embed {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -392,6 +377,14 @@ a.items__row:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+}
+/* The blurred first page of an uploaded PDF: decoration, a small fixed portrait box. */
+.file-link__thumb {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 .check {
   display: grid;

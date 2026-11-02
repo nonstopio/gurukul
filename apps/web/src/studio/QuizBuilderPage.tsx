@@ -69,7 +69,7 @@ function Builder({
   courseId: string;
   quizId: string;
 }) {
-  const { data } = useStudio();
+  const { data, checks } = useStudio();
   const { uid } = useUser();
   const toast = useToast();
   const t = useTerms();
@@ -81,7 +81,10 @@ function Builder({
   const [selectedId, setSelectedId] = useState<string | null>(asked);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const issues = useMemo(() => validateForPublish(work.course, work.answers), [work]);
+  const issues = useMemo(
+    () => validateForPublish(work.course, work.answers, checks),
+    [work, checks],
+  );
 
   const quiz = findQuiz(work.course, quizId);
   const crumbs = [
