@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
+import { Button } from './Button';
 import { AlertIcon, CheckIcon, InfoIcon, XIcon } from './Icon';
 import './toast.css';
 
@@ -26,7 +27,7 @@ export interface ToastOptions {
   title?: string | undefined;
   /** A stable error code such as `NET-OFFLINE`, shown in the mono face. */
   code?: string | undefined;
-  /** One next step, such as Retry or Undo. */
+  /** One next step, such as Retry, Undo or Open lesson. A toast that names a place links to it here. */
   action?: ToastAction | undefined;
   /** Milliseconds before it closes itself; `0` keeps it until dismissed. Default: by tone. */
   duration?: number;
@@ -199,8 +200,9 @@ function ToastItem({
         {toast.title ? <p className="g-toast__message">{toast.message}</p> : null}
         {toast.code ? <code className="g-toast__code">{toast.code}</code> : null}
         {action ? (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             className="g-toast__action"
             onClick={() => {
               action.onSelect();
@@ -208,7 +210,7 @@ function ToastItem({
             }}
           >
             {action.label}
-          </button>
+          </Button>
         ) : null}
       </div>
       <button type="button" className="g-toast__close" onClick={() => onDismiss(id)}>

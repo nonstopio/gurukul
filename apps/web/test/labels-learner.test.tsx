@@ -50,11 +50,7 @@ describe('learner screens in Gurukul names', () => {
       labels,
       data: fakeData({ watched: started({ completedItemIds: ['l1', 'l2'] }) }),
     });
-    expect(
-      await screen.findByText(
-        'Finish the earlier items, and pass any Pariksha before this one, to open it.',
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByText('Finish "Lesson l3" first.')).toBeTruthy();
   });
 
   it('Quiz, result and leave dialog', async () => {

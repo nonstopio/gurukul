@@ -255,6 +255,10 @@ describe('Quiz screen', () => {
       data: data(courseWith(), progressRow({ lastItemId: 'l1' })),
     });
     expect(await screen.findByText('Locked for now')).toBeTruthy();
+    expect(screen.getByText('Finish "Lesson l1" first.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open lesson' }).getAttribute('href')).toBe(
+      '/courses/git/learn/l1',
+    );
     unmount();
     const recent = new Date(Date.now() - 2 * 60_000);
     await openApp(PATH, {
@@ -468,12 +472,12 @@ describe('Result screen', () => {
     ).toBe('/courses/git/complete');
   });
 
-  it('continues to the next chapter by number when the Quiz ends its chapter', async () => {
+  it('says Continue, not the next chapter, when the Quiz ends its chapter', async () => {
     const c = courseWith();
     const moved = c.chapters[1]?.items.pop();
     c.chapters.push({ id: 'p3', title: 'Remotes', items: moved ? [moved] : [] });
     await openApp({ pathname: RESULT, state: passedState }, { data: data(c) });
-    const link = await screen.findByRole('link', { name: 'Continue to Chapter 3' });
+    const link = await screen.findByRole('link', { name: 'Continue' });
     expect(link.getAttribute('href')).toBe('/courses/git/learn/l4');
   });
 
@@ -681,9 +685,7 @@ describe('Course complete', () => {
     expect(linkedIn.getAttribute('href')).toContain('NSG-GIT-26-0001');
     expect(await screen.findByRole('link', { name: /Open the certificate for/ })).toBeTruthy();
     expect(await screen.findByText('Up next in your queue')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Start Kubernetes basics' }).getAttribute('href')).toBe(
-      '/courses/k8s',
-    );
+    expect(screen.getByRole('link', { name: 'Start' }).getAttribute('href')).toBe('/courses/k8s');
   });
 
   it('offers to continue a started course', async () => {
@@ -705,7 +707,7 @@ describe('Course complete', () => {
         progress: [progressRow({ courseId: 'k8s' })],
       }),
     });
-    expect(await screen.findByRole('link', { name: 'Continue Kubernetes basics' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Continue' })).toBeTruthy();
   });
 
   it('says nothing else is assigned, and skips a thumbnail whose certificate is missing', async () => {

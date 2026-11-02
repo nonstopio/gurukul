@@ -326,7 +326,7 @@ function UpNextCard({ courseId }: { courseId: string }) {
             <p className="learn-display">{next.course.title}</p>
             <div className="learn-buttons">
               <Link className={buttonClass('secondary')} to={`/courses/${next.course.id}`}>
-                {next.progress ? 'Continue' : 'Start'} {next.course.title}
+                {next.progress ? 'Continue' : 'Start'}
               </Link>
             </div>
           </>

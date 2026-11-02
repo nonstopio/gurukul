@@ -281,7 +281,10 @@ toast.dismiss(id);
 
 Tones `info` (default), `success`, `warning`, `danger`. Options: `title` (bold first line; the
 message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `action`
-(`{ label, onSelect }`, closes the toast after it runs), `duration`. Default time by tone: success
+(`{ label, onSelect }`, a small secondary `Button` under the text that closes the toast after it
+runs), `duration`. **A toast that names a lesson, Quiz, course or other place carries an action
+that opens it** (`Open lesson`, `Open Quiz`): the label says the action, never the place's name,
+which is already in the message. Default time by tone: success
 4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an
 icon plus a screen-reader word, never colour alone. A thin timer bar runs down and the timeout
 pauses on hover and focus, resuming with what was left. Three at a time: the oldest is dropped.
