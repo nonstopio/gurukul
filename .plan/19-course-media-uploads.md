@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: in progress (`MED-02`, the schema, is built). Tracker section **Course media uploads** (`MED-*`).
+Status: in progress (built: `MED-02`, `MED-03`, `MED-04`, `MED-07`, `MED-11`). Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -200,7 +200,7 @@ type FileBlock = {
   Media library tags it **Uploaded**, and the clean-up job knows it is ours. `upload.name` is a
   display name the Educator can edit, at most 120 characters; it is never part of the path.
 - `width` and `height` are also allowed on a linked image (Studio reads them from the loaded
-  preview), so linked images stop shifting the page too.
+  preview and clears them when the address changes), so linked images stop shifting the page too.
 - Publish validation (`packages/schema/src/draft.ts`) gains: an uploaded image's or file's `url` must be a
   Firebase Storage download URL for exactly its `upload.path`, which must sit under
   `courses/{thisCourse}/media/` (`isDownloadUrlFor`); `validateForPublish(course, answers, { bucket })`
@@ -261,6 +261,11 @@ download it (they load files by URL). The initial bundle budget is unchanged.
 (`aria-live`), errors are tied to the control (`aria-describedby`); the agent prompt's copy button
 confirms with a toast.
 
+**How Studio reads the limits** (built in `MED-07`): `LearnerData.uploadLimits()` reads
+`config/org.uploads` once and `useUploadPolicy()` returns `uploadPolicy(limits)`; while the read is
+loading or if it fails it returns the defaults, so the check never blocks on a network call and never
+throws. Storage still enforces the real limit.
+
 ## Player: layouts
 
 `apps/web/src/player/blocks.tsx`, image case:
@@ -274,7 +279,8 @@ confirms with a toast.
 - `<img>` gets `width`/`height` when known (no layout shift; Lighthouse CI already measures CLS),
   `loading="lazy"`, `decoding="async"`.
 - **Open full size** (`zoom`): the image is a button that opens it in the existing `Dialog` at its
-  natural size, scrollable, closes on Escape; the caption shows under it.
+  natural size, scrollable, closes on Escape and returns focus to the button; the dialog is titled by
+  the alt text and the caption shows under the image.
 - **Border** draws the existing `--border` frame (today every figure has it; `border: false`
   removes it for photos and transparent PNGs).
 - File block with `upload`: the link reads "Label · PDF · 420 KB" and opens in a new tab.
