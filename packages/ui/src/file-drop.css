@@ -1,0 +1,79 @@
+.g-filedrop {
+  display: grid;
+  gap: var(--space-3);
+}
+.g-filedrop__zone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  padding: var(--space-6) var(--space-5);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-body);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.g-filedrop__zone > * {
+  pointer-events: none;
+}
+.g-filedrop__zone:hover,
+.g-filedrop__zone--dragging {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+.g-filedrop__zone--dragging {
+  background: var(--accent-soft);
+}
+.g-filedrop__zone:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-filedrop__zone:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.g-filedrop__icon {
+  color: var(--text-muted);
+}
+.g-filedrop__label {
+  color: var(--text);
+  font: 600 var(--text-md) / var(--leading-snug) var(--font-ui);
+}
+.g-filedrop__hint,
+.g-filedrop__policy {
+  margin: 0;
+  color: var(--text-muted);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+}
+.g-filedrop__busy {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.g-filedrop__busy .g-progress {
+  width: 100%;
+}
+.g-filedrop__status {
+  margin: 0;
+  color: var(--text);
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  overflow-wrap: anywhere;
+}
+.g-filedrop__error {
+  padding: var(--space-4);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-lg);
+  color: var(--text-body);
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+}

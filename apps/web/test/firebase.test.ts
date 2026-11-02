@@ -25,18 +25,51 @@ describe('firebaseConfig', () => {
         VITE_FIREBASE_AUTH_DOMAIN: 'd',
         VITE_FIREBASE_PROJECT_ID: 'p',
         VITE_FIREBASE_APP_ID: 'a',
+        VITE_FIREBASE_STORAGE_BUCKET: 'b.firebasestorage.app',
       }),
-    ).toEqual({ apiKey: 'k', authDomain: 'd', projectId: 'p', appId: 'a' });
+    ).toEqual({
+      apiKey: 'k',
+      authDomain: 'd',
+      projectId: 'p',
+      appId: 'a',
+      storageBucket: 'b.firebasestorage.app',
+    });
+  });
+
+  it('names the bucket after the project when none is given, and after nothing without a project', () => {
+    expect(firebaseConfig({ VITE_FIREBASE_PROJECT_ID: 'p' }).storageBucket).toBe(
+      'p.firebasestorage.app',
+    );
+    expect(
+      firebaseConfig({ VITE_FIREBASE_PROJECT_ID: 'p', VITE_FIREBASE_STORAGE_BUCKET: '' })
+        .storageBucket,
+    ).toBe('p.firebasestorage.app');
+    expect(firebaseConfig({}).storageBucket).toBe('');
   });
 
   it('is empty rather than throwing when nothing is set', () => {
-    expect(firebaseConfig({})).toEqual({ apiKey: '', authDomain: '', projectId: '', appId: '' });
+    expect(firebaseConfig({})).toEqual({
+      apiKey: '',
+      authDomain: '',
+      projectId: '',
+      appId: '',
+      storageBucket: '',
+    });
   });
 
   it('uses the demo project with the emulators, whatever the project id says', () => {
     expect(
       firebaseConfig({ VITE_USE_EMULATORS: 'true', VITE_FIREBASE_PROJECT_ID: 'nonstop-gurukul' }),
-    ).toMatchObject({ projectId: 'demo-gurukul', apiKey: 'demo-key' });
+    ).toMatchObject({
+      projectId: 'demo-gurukul',
+      apiKey: 'demo-key',
+      storageBucket: 'demo-gurukul.firebasestorage.app',
+    });
+    // The emulator's own bucket is the demo project's, whatever the environment names.
+    expect(
+      firebaseConfig({ VITE_USE_EMULATORS: 'true', VITE_FIREBASE_STORAGE_BUCKET: 'real.app' })
+        .storageBucket,
+    ).toBe('demo-gurukul.firebasestorage.app');
   });
 });
 
@@ -55,6 +88,7 @@ describe('initFirebase', () => {
   it('connects to production only', () => {
     const fb = initFirebase({ VITE_FIREBASE_PROJECT_ID: 'p' });
     expect(fb.auth).toEqual({ kind: 'auth' });
+    expect(fb.storageBucket).toBe('p.firebasestorage.app');
     expect(calls).toEqual([]);
   });
 

@@ -16,9 +16,7 @@ vi.mock('../src/log', () => ({
 
 const setup = (studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) })) => {
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <StudioProvider data={studio.data} service={studio.service}>
-      {children}
-    </StudioProvider>
+    <StudioProvider {...studio}>{children}</StudioProvider>
   );
   return { studio, ...renderHook(() => useDraft('git'), { wrapper }) };
 };

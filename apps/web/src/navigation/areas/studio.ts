@@ -32,8 +32,8 @@ export const navigation = {
       id: 'studio-media',
       path: '/studio/media',
       label: 'Media library',
-      description: 'Videos and images used across courses',
-      keywords: ['video', 'image', 'links'],
+      description: 'Videos, images and uploaded files used across courses',
+      keywords: ['video', 'image', 'links', 'uploaded', 'upload', 'pdf', 'file size'],
     },
   ],
   unlisted: {

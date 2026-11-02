@@ -208,11 +208,35 @@ function requestedAccess(data: Record<string, unknown>): CourseAccess | undefine
   );
 }
 
+/** What publishing knows about where uploads live (`validateForPublish` options). */
+export interface PublishChecks {
+  bucket?: string;
+  emulatorHost?: string;
+}
+
+/**
+ * Inside the Functions emulator only: the Storage emulator's address, because its download URLs are
+ * plain http. A production run passes nothing, so every address must be a `https://firebasestorage.googleapis.com`
+ * download URL for its own file under this course. The bucket is deliberately not checked here: the
+ * only name a function can read (`FIREBASE_CONFIG.storageBucket`) is the project's legacy default
+ * (`demo-gurukul.appspot.com` in the emulator), which need not be the bucket Studio uploads to.
+ * Studio checks the bucket in the browser.
+ */
+export function publishChecks(
+  env: Record<string, string | undefined> = process.env,
+): PublishChecks {
+  const emulator = env['FIREBASE_STORAGE_EMULATOR_HOST'];
+  return env['FUNCTIONS_EMULATOR'] === 'true' && emulator
+    ? { emulatorHost: emulator.replace(/^localhost(?=:)/, '127.0.0.1') }
+    : {};
+}
+
 /** `publishCourse`: validates the draft and makes it the live version. */
 export async function publishCourse(
   store: CourseStore,
   caller: Caller,
   data: Record<string, unknown>,
+  checks: PublishChecks = publishChecks(),
 ): Promise<{ version: number }> {
   const courseId = idField('courseId', data['courseId']);
   const requested = requestedAccess(data);
@@ -224,7 +248,7 @@ export async function publishCourse(
     if (draft === undefined) throw new ApiException('CRS_2001', [courseId]);
     // A draft saved at an older schemaVersion is brought up to date before it is judged or published.
     const upgraded = upgradeCourse(draft.course) as Course;
-    const issues: PublishIssue[] = validateForPublish(upgraded, draft.answers);
+    const issues: PublishIssue[] = validateForPublish(upgraded, draft.answers, checks);
     if (issues.length > 0) {
       log.warn('Publish refused', { courseId, count: issues.length });
       throw new ApiException('CRS_1003', [courseId], { issues });

@@ -5,6 +5,7 @@ import { createMailer } from './gmail.js';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { defineSecret } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
@@ -13,6 +14,7 @@ import { region } from 'firebase-functions/v1';
 import { apiCallable } from './api/callable.js';
 import { handleAttemptCreated, runDailyRollup } from './analytics.js';
 import { runWeeklyBackup } from './backup.js';
+import { runMediaCleanup } from './media.js';
 import {
   handleArchiveCourse,
   handleAssignCourses,
@@ -34,6 +36,7 @@ import { handleProgressWrite } from './progress.js';
 import { handleUserCreated } from './profile.js';
 import { handleTeamWrite } from './teams.js';
 import {
+  bucketStoragePort,
   firebaseRoleAdmin,
   firestoreBackupPort,
   firestoreAssignStore,
@@ -42,6 +45,7 @@ import {
   firestoreCooldownAdmin,
   firestoreCourseStore,
   firestoreGradingStore,
+  firestoreMediaStore,
   firestoreProgressStore,
   firestoreReminderStore,
   firestoreRollupStore,
@@ -171,6 +175,33 @@ export const weeklyBackup = onSchedule(
       (outcome) => ({
         level: outcome === 'exported' ? 'info' : 'debug',
         fields: { status: outcome },
+      }),
+    );
+  },
+);
+
+/**
+ * 05:00 UTC every Sunday (after the 02:00 backup, clear of the 03:00 and 04:00 daily jobs): deletes
+ * lesson media that no draft, live course or version names and that is over 30 days old.
+ * Needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`).
+ */
+export const weeklyMediaCleanup = onSchedule(
+  { schedule: 'every sunday 05:00', timeZone: 'Etc/UTC', region: 'asia-south1', maxInstances: 1 },
+  async () => {
+    await runLogged(
+      { done: 'Weekly media clean-up finished', failed: 'Weekly media clean-up failed' },
+      {},
+      () =>
+        runMediaCleanup(
+          {
+            store: firestoreMediaStore(getFirestore()),
+            storage: bucketStoragePort(getStorage().bucket()),
+          },
+          new Date(),
+        ),
+      ({ deleted, courses, skipped, blocked }) => ({
+        level: deleted > 0 || blocked ? 'info' : 'debug',
+        fields: { count: deleted, courses, skipped, blocked },
       }),
     );
   },

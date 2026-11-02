@@ -13,6 +13,11 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   check: 'Check',
 };
 
+/** The address a new Image block starts with: a stand-in the Upload tab replaces, never a real image. */
+export const PLACEHOLDER_IMAGE = 'https://example.com/image.png';
+/** A new File block's stand-in address: not a real file, so the block opens on Upload. */
+export const PLACEHOLDER_FILE = 'https://example.com/file.pdf';
+
 /** The block types an Educator can add, in palette order, with the name shown on the tile. */
 export const PALETTE: ReadonlyArray<{ type: BlockType; label: string }> = (
   ['markdown', 'video', 'code', 'callout', 'image', 'embed', 'file', 'check'] as const
@@ -38,11 +43,11 @@ export function newBlock(type: BlockType, random: () => number = Math.random): B
     case 'callout':
       return { type, id, tone: 'note', md: '' };
     case 'image':
-      return { type, id, url: 'https://example.com/image.png', alt: '' };
+      return { type, id, url: PLACEHOLDER_IMAGE, alt: '' };
     case 'embed':
       return { type, id, url: 'https://codesandbox.io/', title: '' };
     case 'file':
-      return { type, id, url: 'https://example.com/file.pdf', label: '' };
+      return { type, id, url: PLACEHOLDER_FILE, label: '' };
     case 'check':
       return { type, id, prompt: '', options: ['', ''], explanation: '' };
   }

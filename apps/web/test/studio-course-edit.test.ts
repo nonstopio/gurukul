@@ -346,4 +346,35 @@ describe('studioModel', () => {
       'Two',
     ]);
   });
+
+  it('keeps the upload of a file that one lesson links and another uploaded', () => {
+    const url = 'https://firebasestorage.googleapis.com/v0/b/b/o/m1?alt=media';
+    const upload = {
+      path: 'courses/git/media/m1.png',
+      bytes: 1000,
+      contentType: 'image/png' as const,
+      name: 'm1.png',
+    };
+    const found = collectMedia([
+      {
+        live: makeCourse(),
+        draft: draftDoc(
+          makeCourse({
+            chapters: [
+              {
+                id: 'p',
+                title: 'P',
+                items: [
+                  lesson('a', { blocks: [{ type: 'image', id: 'i', url, alt: 'One' }] }),
+                  lesson('b', { blocks: [{ type: 'image', id: 'j', url, alt: 'One', upload }] }),
+                ],
+              },
+            ],
+          }),
+        ),
+      },
+    ]);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.upload).toEqual(upload);
+  });
 });

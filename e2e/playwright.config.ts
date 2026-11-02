@@ -50,7 +50,7 @@ export default defineConfig({
     {
       // Functions are built first: the Functions emulator loads firebase/functions/lib/index.js
       // (E2E_SKIP_FUNCTIONS_BUILD=1 keeps the last build).
-      command: `${process.env.E2E_SKIP_FUNCTIONS_BUILD ? '' : 'npm run build -w @gurukul/functions && '}npx firebase emulators:start --only auth,firestore,functions --project demo-gurukul`,
+      command: `${process.env.E2E_SKIP_FUNCTIONS_BUILD ? '' : 'npm run build -w @gurukul/functions && '}npx firebase emulators:start --only auth,firestore,functions,storage --project demo-gurukul`,
       cwd: '..',
       wait: { stdout: /All emulators ready/ },
       env: NO_PROXY,

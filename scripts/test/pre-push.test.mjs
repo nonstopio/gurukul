@@ -122,6 +122,11 @@ describe('pre-push.sh', () => {
     );
   });
 
+  it('runs only the rules tests for a Storage rules change: no spec uses Storage yet', () => {
+    const { res, calls } = push({ 'firebase/storage.rules': 'x' });
+    assert.equal(res.status, 0, res.stderr);
+    assert.deepEqual(calls.slice(2), ['run -s test:rules']);
+  });
   it('refuses, rather than skips, an emulator push when Java is missing', () => {
     const { res, calls } = push({ 'e2e/tests/learner.spec.ts': 'x' }, { java: false });
     assert.equal(res.status, 1);

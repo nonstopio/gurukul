@@ -136,7 +136,9 @@ describe('Design system: components', () => {
     }
     expect(screen.getByText('MoreIcon')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
-  });
+    // axe walks every component's example, so this grows with each one added: it took 6 to 7 s on an
+    // idle machine and timed out at the 15 s default when other test runs shared the CPU.
+  }, 60_000);
 
   it('lets the search card example be typed in, filtered and cleared', async () => {
     const user = userEvent.setup();

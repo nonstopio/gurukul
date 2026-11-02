@@ -3,6 +3,8 @@ import type { Course } from '@gurukul/schema';
 import type {
   BankQuestion,
   DraftDoc,
+  MediaStorage,
+  PublishChecks,
   StudioCourse,
   StudioData,
   StudioService,
@@ -49,5 +51,16 @@ export function fakeStudio(
     rollbackCourse: vi.fn().mockResolvedValue({ version: 3 }),
     archiveCourse: vi.fn().mockResolvedValue({ status: 'archived' }),
   };
-  return { data, service };
+  // Cloud Storage: resolves with a download URL for the path, reporting no progress unless a test does.
+  const storage: MediaStorage = {
+    upload: vi.fn(
+      async ({ path }: { path: string }) =>
+        `https://firebasestorage.googleapis.com/v0/b/${FAKE_BUCKET}/o/${encodeURIComponent(path)}?alt=media&token=t`,
+    ),
+  };
+  const checks: PublishChecks = { bucket: FAKE_BUCKET };
+  return { data, service, storage, checks };
 }
+
+/** The bucket the fake Storage and the inline publish checks agree on. */
+export const FAKE_BUCKET = 'demo-gurukul.firebasestorage.app';

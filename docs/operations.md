@@ -65,6 +65,23 @@ gcloud firestore import gs://nonstop-gurukul-backups/backups/2026-11-01 --projec
 Exports hold real learner records: never download one into this repository. Cost and the
 decision: `.plan/11-deployment-and-cost.md`, `.plan/13-open-questions.md` question 12.
 
+## Clean-up of unused media
+
+`weeklyMediaCleanup` runs every Sunday at 05:00 UTC. For each course it reads the draft, the live
+course and every version snapshot, and deletes the files in `courses/{courseId}/media/` of the default
+bucket that none of them names and that were created more than 30 days ago. A course with a document
+that does not parse is skipped and logged (`Media clean-up skipped a course`). If a run would delete
+more than 200 files, or more than half of the files of a course with five or more, it deletes nothing
+for that run (or course) and logs a warning with counts (`Media clean-up held back ...`): look at the
+course before the next run. The summary line `Weekly media clean-up finished` carries `count` (files
+deleted) and `durationMs`.
+
+One maintainer action, once: the functions' runtime service account (by default
+`<project-number>-compute@developer.gserviceaccount.com`) needs `roles/storage.objectAdmin` on the
+default bucket, for example
+`gsutil iam ch serviceAccount:<account>:objectAdmin gs://nonstop-gurukul.firebasestorage.app`.
+Without it the run fails and logs `Weekly media clean-up failed`; nothing is deleted.
+
 ## Running the end-to-end tests
 
 `e2e/` holds Playwright tests of the three journeys (a learner, an Admin, an Educator in Studio

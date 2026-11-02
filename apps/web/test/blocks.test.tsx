@@ -1,8 +1,24 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodeBlurHash } from '@gurukul/schema';
 import type { Block } from '@gurukul/schema';
 import { BlockView, Prose } from '../src/player/blocks';
 import { axeViolations } from './axe';
+
+/** A valid hash that decodes to orange. */
+const HASH = encodeBlurHash(
+  Uint8ClampedArray.from({ length: 64 }, (_, i) => [230, 120, 20, 255][i % 4] as number),
+  4,
+  4,
+);
+/** jsdom has no canvas: a stub that draws nothing and hands back a fixed address. */
+function stubCanvas() {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => ({
+    createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+    putImageData: () => {},
+  })) as never);
+  vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+}
 
 const show = (block: unknown, props: Partial<Parameters<typeof BlockView>[0]> = {}) =>
   render(<BlockView block={block as Block} {...props} />);
@@ -63,6 +79,159 @@ describe('BlockView', () => {
   it('puts a file icon in the file link', () => {
     show({ type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'Cheat sheet' });
     expect(document.querySelector('.file-link svg')).toBeTruthy();
+  });
+
+  describe('blur placeholders', () => {
+    beforeEach(stubCanvas);
+    afterEach(() => vi.restoreAllMocks());
+    const upload = (over: object = {}) => ({
+      path: 'courses/c1/media/m1.png',
+      bytes: 1000,
+      contentType: 'image/png',
+      name: 'a.png',
+      ...over,
+    });
+    const image = (over: object = {}) => ({
+      type: 'image',
+      id: 'i',
+      url: 'https://x.test/a.png',
+      alt: 'A graph',
+      width: 1000,
+      height: 600,
+      ...over,
+    });
+    const file = (over: object = {}) => ({
+      type: 'file',
+      id: 'f',
+      url: 'https://x.test/a.pdf',
+      label: 'Cheat sheet',
+      upload: upload({ contentType: 'application/pdf', bytes: 430_080, ...over }),
+    });
+
+    it('shows a valid hash behind an uploaded image until it loads', () => {
+      const { container } = show(image({ upload: upload({ blurHash: HASH }) }));
+      expect(container.querySelector('.g-figure__blur[aria-hidden="true"]')).toBeTruthy();
+      fireEvent.load(screen.getByRole('img', { name: 'A graph' }));
+      expect(container.querySelector('.g-figure__blur--out')).toBeTruthy();
+    });
+
+    it('shows nothing extra for an invalid hash, no hash, or a linked image', () => {
+      for (const block of [
+        image({ upload: upload({ blurHash: 'not valid' }) }),
+        image({ upload: upload() }),
+        image(),
+      ]) {
+        const { container, unmount } = show(block);
+        expect(container.querySelector('.g-figure__blur')).toBeNull();
+        unmount();
+      }
+    });
+
+    it('gives an uploaded File block a decorative first-page thumbnail and keeps its text', async () => {
+      const { container } = show(file({ blurHash: HASH }));
+      const thumb = container.querySelector('.file-link__thumb') as HTMLElement;
+      expect(thumb.getAttribute('aria-hidden')).toBe('true');
+      expect(thumb.textContent).toBe('');
+      expect(thumb.style.backgroundImage).toContain('data:image/png');
+      expect(container.querySelector('.file-link svg')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Cheat sheet · PDF · 420 KB' })).toBeTruthy();
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('keeps the file icon without a hash, with a malformed one, and for a plain link', () => {
+      for (const block of [
+        file(),
+        file({ blurHash: 'nope' }),
+        { type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'Cheat sheet' },
+      ]) {
+        const { container, unmount } = show(block);
+        expect(container.querySelector('.file-link__thumb')).toBeNull();
+        expect(container.querySelector('.file-link svg')).toBeTruthy();
+        unmount();
+      }
+    });
+  });
+
+  describe('image layouts', () => {
+    const image = (over: object = {}) => ({
+      type: 'image',
+      id: 'i',
+      url: 'https://x.test/a.png',
+      alt: 'A graph',
+      ...over,
+    });
+    const figure = () => document.querySelector('figure') as HTMLElement;
+
+    it('renders an existing image as a framed full-column image that does not open', async () => {
+      const { container } = show(image());
+      expect(figure().className).toContain('g-figure--column');
+      expect(figure().className).not.toContain('g-figure--bare');
+      expect(screen.queryByRole('button')).toBeNull();
+      const img = screen.getByRole('img', { name: 'A graph' });
+      expect(img.getAttribute('loading')).toBe('lazy');
+      expect(img.getAttribute('decoding')).toBe('async');
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it.each(['column', 'medium', 'small'])('renders the %s layout', async (layout) => {
+      const { container } = show(image({ layout, caption: 'Figure 1' }));
+      expect(figure().className).toContain(`g-figure--${layout}`);
+      expect(screen.getByText('Figure 1')).toBeTruthy();
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('removes the frame when border is false', () => {
+      show(image({ border: false }));
+      expect(figure().className).toContain('g-figure--bare');
+    });
+
+    it('puts width and height on the image when known', () => {
+      show(image({ width: 1600, height: 900 }));
+      const img = screen.getByRole('img', { name: 'A graph' });
+      expect(img.getAttribute('width')).toBe('1600');
+      expect(img.getAttribute('height')).toBe('900');
+    });
+
+    it('opens full size in a dialog with the caption and closes on Escape', async () => {
+      show(image({ zoom: true, caption: 'Figure 1' }));
+      const open = screen.getByRole('button', { name: 'Open full size: A graph' });
+      open.focus();
+      fireEvent.click(open);
+      const dialog = screen.getByRole('dialog', { name: 'A graph' });
+      expect(dialog.textContent).toContain('Figure 1');
+      expect(await axeViolations(dialog)).toEqual([]);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(open);
+    });
+
+    it('shows the alt text in a quiet box when the image does not load', () => {
+      show(image({ zoom: true }));
+      fireEvent.error(screen.getByRole('img', { name: 'A graph' }));
+      expect(screen.queryByRole('img')).toBeNull();
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.getByText('A graph')).toBeTruthy();
+    });
+  });
+
+  describe('file label', () => {
+    it('reads "Label · PDF · size" for an uploaded PDF and opens it in a new tab', () => {
+      show({
+        type: 'file',
+        id: 'f',
+        url: 'https://x.test/a.pdf',
+        label: 'Cheat sheet',
+        upload: {
+          path: 'courses/c1/media/m1.pdf',
+          bytes: 430_080,
+          contentType: 'application/pdf',
+          name: 'cheat.pdf',
+        },
+      });
+      const link = screen.getByRole('link', { name: 'Cheat sheet · PDF · 420 KB' });
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    });
   });
 
   it('shows nothing for a video that is not recorded yet', () => {

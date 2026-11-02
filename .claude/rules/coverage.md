@@ -28,5 +28,6 @@ them all.
 - Code outside a workspace's `src/` (the shell scripts in `scripts/`, `apps/web/scripts/*.ts`,
   the Claude hooks) is not measured by V8 either. It is covered by behaviour tests in
   `scripts/test/` and `.claude/hooks/test/` (`npm run test:tooling`): a change there adds a test there.
-- `firebase/firestore.rules` is not measured by V8. Its equivalent rule is in
-  `.claude/rules/firestore-rules.md`: every `allow` has an allowed and a denied test.
+- `firebase/firestore.rules` and `firebase/storage.rules` are not measured by V8. Their equivalent rule is in
+  `.claude/rules/firestore-rules.md`: every `allow` has an allowed and a denied test, and `npm run test:rules`
+  fails when an expression (Firestore) or a condition (Storage) is not decided by a test.

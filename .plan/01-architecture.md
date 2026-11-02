@@ -18,7 +18,8 @@ Cloud Functions (2nd gen, asia-south1, Node 22; firebase/functions/src/index.ts)
   ├─ Firestore triggers: onProgressWritten (percent, completion, certificate,
   │             stats, assignment status), onAttemptCreated (Analytics counters)
   └─ Scheduled: dailyRollup (03:00 UTC), dailyReminders (04:00 UTC),
-                weeklyBackup (Sunday 02:00 UTC)
+                weeklyBackup (Sunday 02:00 UTC),
+                weeklyMediaCleanup (Sunday 05:00 UTC)
 ```
 
 The browser reads course documents and its own progress directly — fast and

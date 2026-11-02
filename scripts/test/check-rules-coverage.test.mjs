@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { merge, readReports, uncovered } from '../check-rules-coverage.mjs';
+import { merge, readReports, survivors, uncovered } from '../check-rules-coverage.mjs';
 import { REPO, tempDir } from './helpers.mjs';
 
 // `a || b`: a at offsets 9-9, b at 14-14, the whole expression 9-14 (ends inclusive).
@@ -102,5 +102,68 @@ describe('check-rules-coverage', () => {
     const empty = run([]);
     assert.equal(empty.status, 1);
     assert.ok(empty.stderr.includes('no rules coverage reports'), empty.stderr);
+  });
+
+  describe('storage rules mutants', () => {
+    const STORAGE = 'allow read: if a && b;';
+    const mutant = (over) => ({
+      text: 'b',
+      replacement: 'true',
+      line: 1,
+      column: 21,
+      start: 20,
+      end: 21,
+      killed: true,
+      ...over,
+    });
+    const results = (mutants, rules = STORAGE) => ({ rules, mutants });
+
+    function runMutants(run, rules = STORAGE) {
+      const dir = tempDir('rules-mutants');
+      writeFileSync(path.join(dir, 'storage.json'), JSON.stringify(run));
+      writeFileSync(path.join(dir, 'storage.rules'), rules);
+      return spawnSync(
+        process.execPath,
+        [
+          path.join(REPO, 'scripts/check-rules-coverage.mjs'),
+          '--mutants',
+          path.join(dir, 'storage.json'),
+          path.join(dir, 'storage.rules'),
+        ],
+        { encoding: 'utf8' },
+      );
+    }
+
+    it('lists the conditions no test depends on, and skips killed and equivalent mutants', () => {
+      const run = results([
+        mutant(),
+        mutant({ killed: false, text: 'a', column: 17, replacement: 'false' }),
+        mutant({ killed: false, equivalent: 'it changes nothing' }),
+      ]);
+      assert.deepEqual(survivors(run, STORAGE), [
+        { line: 1, column: 17, text: 'a', replacement: 'false' },
+      ]);
+    });
+
+    it('refuses results taken against other rules, or with no mutants', () => {
+      assert.throws(() => survivors(results([mutant()], 'other'), STORAGE), /different rules/);
+      assert.throws(() => survivors(undefined, STORAGE), /different rules/);
+      assert.throws(() => survivors(results([]), STORAGE), /no mutants/);
+      assert.throws(() => survivors({ rules: STORAGE }, STORAGE), /no mutants/);
+    });
+
+    it('exits 0 when every condition is decided, 1 with the place and text when one is not', () => {
+      const ok = runMutants(results([mutant(), mutant({ killed: false, equivalent: 'same' })]));
+      assert.equal(ok.status, 0, ok.stderr);
+      assert.match(ok.stderr, /every condition is decided by a test \(2 mutants, 1 equivalent\)/);
+
+      const bad = runMutants(results([mutant({ killed: false })]));
+      assert.equal(bad.status, 1);
+      assert.ok(
+        bad.stderr.includes('storage.rules:1:21  no test depends on: b (as true nothing failed)'),
+        bad.stderr,
+      );
+      assert.ok(bad.stderr.includes('1 storage rules conditions no test depends on'), bad.stderr);
+    });
   });
 });

@@ -84,3 +84,36 @@ export interface StudioService {
     archived: boolean;
   }): Promise<{ status: 'archived' | 'published' }>;
 }
+
+/** One file going to Cloud Storage: where, what it is, and how to tell the caller about it. */
+export interface MediaUploadRequest {
+  /** `courses/{courseId}/media/{mediaId}.{ext}`; made once in the browser, never reused. */
+  path: string;
+  file: Blob;
+  metadata: {
+    contentType: string;
+    cacheControl: string;
+    customMetadata: Record<string, string>;
+  };
+  /** Percent uploaded, 0 to 100, as the bytes go. */
+  onProgress: (percent: number) => void;
+  /** Aborting stops the upload; the promise then rejects with `UploadCancelledError`. */
+  signal: AbortSignal;
+}
+
+/**
+ * The Cloud Storage SDK behind a port, so it loads in its own chunk and tests fake it. Resolves
+ * with the file's download URL. A failure rejects with the SDK's error, which carries a `code`
+ * such as `storage/unauthorized`.
+ */
+export interface MediaStorage {
+  upload(request: MediaUploadRequest): Promise<string>;
+}
+
+/** What publishing needs to know about where uploads live; see `validateForPublish`. */
+export interface PublishChecks {
+  /** The project's Storage bucket. */
+  bucket?: string | undefined;
+  /** The Storage emulator's `host:port`, only when running against the emulators. */
+  emulatorHost?: string | undefined;
+}

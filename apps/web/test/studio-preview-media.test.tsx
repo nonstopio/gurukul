@@ -289,7 +289,7 @@ describe('Media library', () => {
     expect(screen.getByRole('button', { name: /Hello.*Audio/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Data.*File/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /example\.com\/demo.*Embed/ })).toBeTruthy();
-    expect(screen.getByText(/does not store uploads/)).toBeTruthy();
+    expect(screen.getByText(/Upload an image or add a link in a lesson/)).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -390,6 +390,119 @@ describe('Media library', () => {
     fireEvent.click(screen.getByRole('button', { name: /Copy link for Diagram/ }));
     expect(await screen.findByText(/Could not copy the link/)).toBeTruthy();
     expect(log.warn).toHaveBeenCalledWith('Copying a link failed');
+  });
+
+  const upload = (n: number, bytes: number) => ({
+    path: `courses/git/media/m${n}.png`,
+    bytes,
+    contentType: 'image/png' as const,
+    name: `shot-${n}.png`,
+  });
+  const uploadedRows = () => [
+    {
+      live: makeCourse({ id: 'git', educatorIds: ['u1'] }),
+      draft: draftDoc(
+        makeCourse({
+          educatorIds: ['u1'],
+          chapters: [
+            {
+              id: 'p',
+              title: 'P',
+              items: [
+                lesson('l1', {
+                  title: 'Intro',
+                  blocks: [
+                    {
+                      type: 'image',
+                      id: 'i1',
+                      url: 'https://firebasestorage.googleapis.com/v0/b/b/o/m1?alt=media',
+                      alt: 'Shot one',
+                      upload: upload(1, 420 * 1024),
+                    },
+                    { type: 'image', id: 'i2', url: 'https://x.test/a.png', alt: 'Linked' },
+                    {
+                      type: 'file',
+                      id: 'f1',
+                      url: 'https://firebasestorage.googleapis.com/v0/b/b/o/g?alt=media',
+                      label: 'Guide',
+                      upload: {
+                        path: 'courses/git/media/g1.pdf',
+                        bytes: 1536 * 1024,
+                        contentType: 'application/pdf' as const,
+                        name: 'guide.pdf',
+                      },
+                    },
+                  ],
+                }),
+                lesson('l2', {
+                  title: 'Again',
+                  blocks: [
+                    {
+                      type: 'image',
+                      id: 'i3',
+                      url: 'https://firebasestorage.googleapis.com/v0/b/b/o/m1?alt=media',
+                      alt: 'Shot one',
+                      upload: upload(1, 420 * 1024),
+                    },
+                  ],
+                }),
+              ],
+            },
+          ],
+        }),
+      ),
+    },
+  ];
+
+  it('tags uploaded files with Uploaded and their size, and leaves links as they were', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: uploadedRows() }),
+    });
+    expect(
+      await screen.findByRole('button', {
+        name: /Shot one.*Image · Uploaded · 420 KB · in 1 course/,
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /Guide.*PDF · Uploaded · 1\.5 MB · in 1 course/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Linked.*Image · in 1 course/ })).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('filters to Uploaded, and the drawer states the size', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: uploadedRows() }),
+    });
+    await screen.findByRole('list', { name: 'Media' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'uploaded' },
+    });
+    expect(screen.getAllByRole('button', { name: /Uploaded/ })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /Linked/ })).toBeNull();
+    expect(screen.getByText('2 of 3')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Shot one/ }));
+    expect(screen.getByRole('dialog', { name: 'Shot one' }).textContent).toContain(
+      'Image · Uploaded · 420 KB · used in 1 course',
+    );
+  });
+
+  it('offers no Uploaded type when nothing is uploaded', async () => {
+    await openApp('/studio/media', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: rows() }),
+    });
+    await screen.findByRole('list', { name: 'Media' });
+    expect(screen.queryByRole('option', { name: 'Uploaded' })).toBeNull();
+  });
+
+  it('shows a loading state while the library loads', async () => {
+    const studio = fakeStudio();
+    studio.data.listCourses = vi.fn().mockReturnValue(new Promise(() => {}));
+    await openApp('/studio/media', { roles: ['educator'], studio });
+    expect((await screen.findAllByText('Loading')).length).toBeGreaterThan(0);
   });
 
   it('shows an empty state and a failure', async () => {

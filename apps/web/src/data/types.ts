@@ -1,4 +1,4 @@
-import type { Audience, Course, CourseListing, LabelSet } from '@gurukul/schema';
+import type { Audience, Course, CourseListing, LabelSet, UploadLimits } from '@gurukul/schema';
 
 /** One of my assignments, with dates already as `Date` so screens never touch Firestore types. */
 export interface AssignmentRow {
@@ -91,6 +91,8 @@ export interface LearnerData {
   setLastItem(uid: string, courseId: string, itemId: string): Promise<void>;
   /** The names of the teams an Admin made on the Teams page (`config/org.teams`); empty before any. */
   orgTeams(): Promise<string[]>;
+  /** `config/org.uploads`, the limits an Admin lowered; `undefined` when none are saved or the stored value is not valid. */
+  uploadLimits(): Promise<UploadLimits | undefined>;
   /** Which names the app shows this person (`users/{uid}.labels`). */
   setLabels(uid: string, labels: LabelSet): Promise<void>;
 }

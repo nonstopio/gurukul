@@ -1,0 +1,93 @@
+.g-figure {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 auto var(--space-4);
+  width: 100%;
+}
+.g-figure--medium {
+  max-width: 66.667%;
+}
+.g-figure--small {
+  max-width: 320px;
+}
+@media (width < 40rem) {
+  .g-figure--medium {
+    max-width: 100%;
+  }
+  .g-figure--small {
+    max-width: 240px;
+  }
+}
+.g-figure__img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.g-figure--bare .g-figure__img {
+  border-color: transparent;
+}
+.g-figure__zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  cursor: zoom-in;
+}
+.g-figure__zoom:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-figure__missing {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
+/* A caption reads as a caption: smaller, quieter, set apart from the paragraphs around it. */
+.g-figure__caption {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-strong);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
+.g-figure__full {
+  max-height: 70dvh;
+  margin-bottom: var(--space-3);
+  overflow: auto;
+  border-radius: var(--radius-md);
+}
+.g-figure__full:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-figure__full img {
+  display: block;
+  max-width: none;
+}
+/* A BlurHash placeholder: the same box as the image, so nothing jumps; it fades once the image loads. */
+.g-figure__media {
+  position: relative;
+  display: block;
+  max-width: 100%;
+}
+.g-figure__media .g-figure__img {
+  width: 100%;
+}
+.g-figure__blur {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  opacity: 1;
+  transition: opacity var(--dur-slow) var(--ease);
+  pointer-events: none;
+}
+.g-figure__blur--out {
+  opacity: 0;
+}
