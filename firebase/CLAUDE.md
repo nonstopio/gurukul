@@ -3,6 +3,7 @@
 | Path                     | Owns                                                                              |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | `firestore.rules`        | The access gate for every collection                                              |
+| `storage.rules`          | The access gate for Cloud Storage: lesson media only, create-only (`.plan/19`)    |
 | `firestore.indexes.json` | Composite indexes, deployed with rules                                            |
 | `rules/`                 | Rules tests (`@firebase/rules-unit-testing`) run inside `firebase emulators:exec` |
 | `functions/`             | Cloud Functions, 2nd gen, Node 22, ESM, region `asia-south1`                      |

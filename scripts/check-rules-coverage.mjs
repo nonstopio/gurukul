@@ -1,5 +1,10 @@
 // Fails when a Firestore rules expression was never evaluated by the rules tests.
 //   node scripts/check-rules-coverage.mjs [reportDir] [rulesFile]
+//   node scripts/check-rules-coverage.mjs --mutants <results.json> <rulesFile>
+// The second form is for storage.rules. The Storage emulator reports no coverage (its rules runtime
+// answers only permit or deny), so firebase/rules/test/storage-coverage.test.ts forces each condition
+// in the file to the wrong answer in turn and saves what the tests did about it; a condition that
+// survives is one no test depends on, which is the same gap an unevaluated expression is.
 // Each rules test file saves the emulator's coverage report (firebase/rules/test/coverage-setup.ts),
 // because the emulator resets coverage whenever a file loads the rules. An expression counts as
 // covered when any report shows it evaluated; .plan/10-testing-and-ci.md asks for every one.
@@ -54,13 +59,46 @@ export function uncovered(reports, rules) {
   }));
 }
 
+/**
+ * The conditions of a mutation run that no test depends on, with their place and the answer they were
+ * forced to. Mutants marked equivalent change nothing the rules can do and are not counted.
+ * Fails when the results were taken against other rules.
+ */
+export function survivors(run, rules) {
+  if (run?.rules !== rules) throw new Error('mutation results were taken against different rules');
+  if (!run.mutants?.length) throw new Error('mutation results hold no mutants');
+  return run.mutants
+    .filter((m) => !m.killed && !m.equivalent)
+    .map((m) => ({ line: m.line, column: m.column, text: m.text, replacement: m.replacement }));
+}
+
 export function readReports(dir) {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
     .map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function checkMutants(resultsFile, rulesFile) {
+  const run = JSON.parse(readFileSync(resultsFile, 'utf8'));
+  const missed = survivors(run, readFileSync(rulesFile, 'utf8'));
+  const name = path.relative(process.cwd(), rulesFile);
+  for (const m of missed)
+    console.error(
+      `${name}:${m.line}:${m.column}  no test depends on: ${m.text} (as ${m.replacement} nothing failed)`,
+    );
+  if (missed.length > 0) {
+    console.error(
+      `x ${missed.length} storage rules conditions no test depends on; add a test that fails without each`,
+    );
+    process.exit(1);
+  }
+  const equivalent = run.mutants.filter((m) => m.equivalent).length;
+  console.warn(
+    `storage rules coverage: every condition is decided by a test (${run.mutants.length} mutants, ${equivalent} equivalent)`,
+  );
+}
+
+function checkReports() {
   const dir = path.resolve(process.argv[2] ?? 'firebase/rules/coverage');
   const rulesFile = path.resolve(process.argv[3] ?? 'firebase/firestore.rules');
   const reports = readReports(dir);
@@ -79,4 +117,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   console.warn(`rules coverage: every expression evaluated (${reports.length} reports)`);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  if (process.argv[2] === '--mutants') {
+    checkMutants(path.resolve(process.argv[3]), path.resolve(process.argv[4]));
+  } else {
+    checkReports();
+  }
 }
