@@ -27,9 +27,9 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations | 21 | 0 | 0 | 11 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
-| Course media uploads | 1 | 8 | 0 | 1 |
+| Course media uploads | 2 | 9 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 158 | 8 | 0 | 14 |
+| **Total** | 159 | 9 | 0 | 14 |
 
 ## Pick order
 
@@ -40,10 +40,11 @@ Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the mai
 2. `MED-04` Storage rules and deploy (waits on the bucket, `MED-01`)
 3. `MED-05` Image upload in Studio
 4. `MED-06` PDF upload in Studio
-5. `MED-07` Upload limits in Org settings
-6. `MED-08` Media library reuse of uploads
-7. `MED-09` Shrink it for me
-8. `MED-10` Weekly clean-up of unused media
+5. `MED-12` BlurHash placeholders for images and PDFs
+6. `MED-07` Upload limits in Org settings
+7. `MED-08` Media library reuse of uploads
+8. `MED-09` Shrink it for me
+9. `MED-10` Weekly clean-up of unused media
 
 ## Foundations
 
@@ -306,6 +307,8 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | `MED-08` | Media library reuse of uploads               | todo       | `MED-05`           | Done means: `/studio/media` Uploaded filter and size; Image block "Choose from this course's media" reuses an uploaded file without a new upload; changelog entry |
 | `MED-09` | Shrink it for me                             | todo       | `MED-05`           | Done means: a too-large or too-wide image is re-encoded in the browser (canvas, WebP, 1600 px long edge, metadata dropped) and offered for preview before upload; no new dependency; changelog entry |
 | `MED-10` | Weekly clean-up of unused media              | todo       | `MED-04`           | Done means: a weekly scheduled function deletes media in `courses/{id}/media/` that no draft, live course or `versions/` snapshot references and that is older than 30 days; logged per `17-logging.md`; tested against the emulators; `01-architecture.md` functions list updated |
+| `MED-11` | BlurHash encoder, decoder and `upload.blurHash` in the schema | done       | `MED-02`           | `packages/schema/src/blurhash.ts` (`encodeBlurHash`, `decodeBlurHash`, `isValidBlurHash`, `blurHashAverageColor`; a port of the MIT algorithm, decoder identical to the reference package), optional `blurHash` on both `upload` shapes in `upload.ts`, `packages/schema/test/blurhash.test.ts` with `blurhash-vectors.json` (reference output). The encoder follows the specification's absolute-value maximum, so for pictures whose strongest detail is negative its string differs from the reference JS package while decoding the same way |
+| `MED-12` | BlurHash placeholders for images and PDFs     | todo       | `MED-03`, `MED-05`, `MED-06`, `MED-11` | Done means: Studio makes a BlurHash at upload (image: canvas at about 32 px, 4 x 3; PDF: first page rendered with pdf.js loaded lazily only when a PDF is picked, Apache-2.0 checked) and stores it in `upload.blurHash`, an unrenderable PDF still uploads with no hash; the player shows the decoded placeholder behind an uploaded image until it loads (no layout shift, fade, none under reduced motion, `aria-hidden`) and a blurred first-page thumbnail on an uploaded File block; linked images get none; bundle budget unchanged; changelog entry |
 
 ## Plan upkeep
 

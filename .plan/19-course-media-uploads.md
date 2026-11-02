@@ -186,13 +186,13 @@ type ImageBlock = {
   zoom?: boolean;                           // click opens full size; missing reads as false
   border?: boolean;                         // a thin frame for screenshots on white; missing reads as true
   width?: number; height?: number;          // intrinsic pixels, so the page does not jump while it loads
-  upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string };
+  upload?: { path: string; bytes: number; contentType: 'image/webp' | 'image/png' | 'image/jpeg'; name: string; blurHash?: string };
 };
 
 type FileBlock = {
   type: 'file'; id: string; url: string; label: string;
   // new, optional:
-  upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string };
+  upload?: { path: string; bytes: number; contentType: 'application/pdf'; name: string; blurHash?: string };
 };
 ```
 
@@ -282,6 +282,33 @@ confirms with a toast.
 
 Layouts work for **linked** images too, so the player item can ship before uploads exist.
 
+## Placeholders: BlurHash
+
+Added 2026-11-02 at the maintainer's request. A **BlurHash** is a 20 to 30 character string that
+decodes to a soft, blurred version of a picture. Studio makes one when a file is uploaded and stores
+it as `upload.blurHash` (optional, so older uploads read unchanged). The player decodes it into a
+tiny picture (32 × 32, scaled up by the browser) and shows it where the image will be until the real
+file has loaded, then fades to it. With `width` and `height` already on the block, the page neither
+jumps nor flashes empty, on a slow connection too.
+
+- **Images**: after the checks pass, the picked file is drawn on a canvas at about 32 px on its long
+  side and encoded with 4 × 3 components. No dependency: the encoder and decoder are
+  `encodeBlurHash` / `decodeBlurHash` in `@gurukul/schema` (a port of the MIT BlurHash algorithm,
+  tested against the reference package; built in `MED-11`).
+- **PDFs**: the first page is rendered to a canvas and hashed the same way, so a File block with an
+  upload shows a small blurred first-page thumbnail beside its label. Rendering a PDF needs
+  **pdf.js** (Apache-2.0, compatible; verify the licence file before adding it). It loads only inside
+  Studio's lazy chunk and only when a PDF is picked, never for learners, and the initial bundle
+  budget is unchanged. If rendering fails (an encrypted or odd PDF), the upload still succeeds with no
+  hash: the placeholder is a nicety, never a gate.
+- **Linked images** get no BlurHash: the browser cannot read the pixels of another origin's image.
+- A hash is about 30 bytes, so the course document stays small. Reduced motion: no fade, the image
+  simply replaces the placeholder.
+- A placeholder is decoration: it is `aria-hidden` and carries no alt text; the real image's alt text
+  is unchanged.
+
+Built in `MED-12` (Studio makes the hash, the player shows it).
+
 ## Media library
 
 `/studio/media` already lists every image, video, embed and file link in the courses a person can
@@ -330,7 +357,7 @@ v1 does not re-encode uploads on the server.
 
 ## Testing
 
-- `@gurukul/schema`: `uploadPolicy`, `checkUpload` (type, magic bytes, size, pixels), `shrinkPrompt`
+- `@gurukul/schema`: `encodeBlurHash` / `decodeBlurHash` against the reference package's hashes; `uploadPolicy`, `checkUpload` (type, magic bytes, size, pixels), `shrinkPrompt`
   and the new block fields, 100% coverage.
 - Storage rules: emulator tests, allowed and denied per condition, coverage of every expression.
 - Studio: block editor tests with a fake Storage client (pick, refuse with guidance, copy prompt,
@@ -354,6 +381,8 @@ v1 does not re-encode uploads on the server.
 | `MED-08` | Studio: Media library Uploaded filter and "Choose from this course's media"                       |
 | `MED-09` | Studio: Shrink it for me (in-browser WebP re-encode)                                              |
 | `MED-10` | Functions: weekly clean-up of unreferenced media                                                  |
+| `MED-11` | Schema: BlurHash encoder, decoder and `upload.blurHash` (pure, no dependency)                     |
+| `MED-12` | Studio and player: BlurHash placeholders for uploaded images and PDF first pages                  |
 
 Each user-facing slice carries its changelog entry; `MED-05` adds the uploads section to the
 Educator guide in `docs/` and a feature tip on the Upload tab (`adding-feature-tips`).

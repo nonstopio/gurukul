@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidBlurHash } from './blurhash';
 
 /**
  * The upload policy for lesson media (`.plan/19-course-media-uploads.md`): which files Studio may
@@ -305,6 +306,11 @@ const uploadBase = {
     .max(UPLOAD_HARD_CEILING_KB * KB),
   /** What the Educator sees; never part of the path (a file name can carry personal data). */
   name: z.string().max(120),
+  /**
+   * A BlurHash of the image (or of a PDF's first page), made in the browser at upload: the player
+   * shows it, softly, while the file loads. Optional, so older uploads read unchanged.
+   */
+  blurHash: z.string().max(120).refine(isValidBlurHash, 'not a valid BlurHash').optional(),
 };
 
 /** `upload` on an Image block: "we host this". */
