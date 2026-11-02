@@ -163,7 +163,8 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-${{ hashFiles('package-lock.json') }}
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # From the e2e workspace, so it works wherever npm places Playwright (root or e2e/node_modules).
+      - run: npm exec -w e2e -- playwright install --with-deps chromium
       - run: npm run e2e
       - uses: actions/upload-artifact@v7
         if: failure()
