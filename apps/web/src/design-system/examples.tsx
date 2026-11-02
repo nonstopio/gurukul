@@ -427,7 +427,7 @@ function TileChoiceExample() {
       title="Git, the NonStop Way"
       theme="forest"
       chips={<Chip tone="neutral">Foundation</Chip>}
-      meta="22 lessons · 190 min"
+      meta="23 lessons · 200 min"
       selected={picked}
       onSelectedChange={setPicked}
     />
@@ -1051,7 +1051,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           heading={<a href="#git">Git, the NonStop Way</a>}
           chips={<Chip tone="neutral">Foundation</Chip>}
           summary="Save your work, branch and undo mistakes without panic."
-          meta="22 lessons · 190 min"
+          meta="23 lessons · 200 min"
         />
         <CourseTile
           title="Accessible forms"

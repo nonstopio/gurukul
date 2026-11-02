@@ -1,6 +1,6 @@
 # 14 · First course: Git, the NonStop Way
 
-Course id `git-the-nonstop-way`, level Foundation, ~3 h 10 min, sequential,
+Course id `git-the-nonstop-way`, level Foundation, ~3 h 20 min, sequential,
 pass mark 70%, certificate on. Educator: to be named. Video content to be
 recorded; this outline is the authoring brief.
 
@@ -11,9 +11,9 @@ recorded; this outline is the authoring brief.
 | 3 · Branching | What a branch really is · Create and switch branches · Merging · Resolving merge conflicts | **Quiz II** (6) |
 | 4 · Remotes and collaboration | Remotes, clone and fetch · Push and pull · Pull requests at NonStop · Code review etiquette | — |
 | 5 · Undoing things safely | `restore` and `reset` · `revert` · `stash` · `reflog`: the safety net | — |
-| 6 · The NonStop team workflow | Rebase vs merge · Branch naming and conventions · Release tags | **Final Quiz** (8) |
+| 6 · The NonStop team workflow | Rebase vs merge · Branch naming and conventions · Two tasks at once: worktrees · Release tags | **Final Quiz** (8) |
 
-22 lessons, 3 Quizzes.
+23 lessons, 3 Quizzes.
 
 ## How it teaches
 
@@ -23,8 +23,8 @@ The course follows one person through her first weeks: **Meera**, a new joiner, 
 a programming language to follow along.
 
 - **One idea per lesson, one picture for it.** Each idea has an everyday metaphor (save points in a
-  game, packing a box before shipping, a bookmark in an album, a correction printed in a
-  newspaper) and, where it helps, a diagram.
+  game, packing a box before shipping, a bookmark in an album, a second desk for a second job, a
+  correction printed in a newspaper) and, where it helps, a diagram.
 - **Do, then explain.** "Try it" steps show the command and what Git prints back, then "What just
   happened" says it in plain English. Git's error messages are translated, not just quoted.
 - **One way first.** The modern command (`switch`, `restore`) is taught; the older `checkout` is

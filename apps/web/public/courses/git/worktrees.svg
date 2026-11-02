@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 320" fill="#101828" role="img" aria-labelledby="t">
+  <title id="t">One repository with two worktrees. The folder chai-corner has the branch feature/lunch-specials open; the folder chai-corner-review has fix/filter-coffee-price open. Both folders share the same history, branches and stash, kept in one .git.</title>
+  <defs>
+    <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#344054"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .h { font-size: 18px; font-weight: 600; }
+    .tag { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 14px; font-weight: 600; fill: #3d3212; }
+    .mono { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; }
+    .s { font-size: 14px; fill: #475467; }
+  </style>
+  <rect width="680" height="320" rx="16" fill="#ffffff"/>
+
+  <rect x="20" y="24" width="300" height="140" rx="12" fill="#f6f7f5" stroke="#d0d5dd"/>
+  <text class="mono" x="40" y="58">chai-corner/</text>
+  <text class="s" x="40" y="82">Desk 1: half-done lunch specials</text>
+  <rect x="40" y="104" width="210" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="54" y="126">feature/lunch-specials</text>
+
+  <rect x="360" y="24" width="300" height="140" rx="12" fill="#f6f7f5" stroke="#d0d5dd"/>
+  <text class="mono" x="380" y="58">chai-corner-review/</text>
+  <text class="s" x="380" y="82">Desk 2: Arjun's fix, for review</text>
+  <rect x="380" y="104" width="230" height="34" rx="6" fill="#f5eedc" stroke="#e3d5b4"/>
+  <text class="tag" x="394" y="126">fix/filter-coffee-price</text>
+
+  <line x1="170" y1="168" x2="290" y2="222" stroke="#344054" stroke-width="3" marker-end="url(#d)"/>
+  <line x1="510" y1="168" x2="390" y2="222" stroke="#344054" stroke-width="3" marker-end="url(#d)"/>
+
+  <rect x="190" y="226" width="300" height="70" rx="12" fill="#e9f7f0" stroke="#9ed9bf"/>
+  <text class="h" x="210" y="256">One .git, shared</text>
+  <text class="s" x="210" y="280">The same history, branches and stash</text>
+</svg>
