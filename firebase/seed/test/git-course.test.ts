@@ -26,9 +26,9 @@ describe('git course', () => {
     });
   });
 
-  it('has 6 chapters, 22 lessons and 3 Quizzes of 6, 6 and 8 questions', () => {
+  it('has 6 chapters, 23 lessons and 3 Quizzes of 6, 6 and 8 questions', () => {
     expect(gitCourse.chapters).toHaveLength(6);
-    expect(lessons).toHaveLength(22);
+    expect(lessons).toHaveLength(23);
     expect(quizzes.map((p) => p.questions.length)).toEqual([6, 6, 8]);
   });
 
@@ -46,9 +46,30 @@ describe('git course', () => {
     expect(gitCourse.estimatedMinutes).toBe(lessons.reduce((s, l) => s + l.minutes, 0));
   });
 
-  it('matches the outline: 3 h 10 of lessons, a 10 minute cooldown on Quiz I and II', () => {
-    expect(gitCourse.estimatedMinutes).toBe(190);
+  it('matches the outline: 3 h 20 of lessons, a 10 minute cooldown on Quiz I and II', () => {
+    expect(gitCourse.estimatedMinutes).toBe(200);
     expect(quizzes.slice(0, 2).map((p) => p.cooldownMinutes)).toEqual([10, 10]);
+  });
+
+  it('teaches worktrees in chapter 6, after branch naming and before release tags', () => {
+    expect(gitCourse.chapters[5]?.items.map((i) => i.id)).toEqual([
+      'rebase-vs-merge',
+      'branch-naming-conventions',
+      'worktrees',
+      'release-tags',
+      'quiz-final',
+    ]);
+    const finalQuiz = quizzes.at(-1) as Quiz;
+    expect(finalQuiz.questions.map((q) => q.reviewItemId)).toContain('worktrees');
+  });
+
+  it('ends every lesson with something to answer, never a copy of a Quiz question', () => {
+    const prompts = new Set(quizzes.flatMap((p) => p.questions.map((q) => q.prompt)));
+    for (const l of lessons) {
+      const checks = l.blocks.filter((b) => b.type === 'check');
+      expect(checks.length, l.id).toBeGreaterThan(0);
+      for (const c of checks) expect(prompts.has(c.prompt), c.prompt).toBe(false);
+    }
   });
 
   it('uses unique ids for chapters, items, blocks and questions', () => {

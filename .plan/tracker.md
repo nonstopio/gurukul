@@ -25,11 +25,11 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 21 | 0 | 0 | 11 |
-| First course: Git | 5 | 0 | 0 | 2 |
+| First course: Git | 6 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 1 | 8 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 158 | 8 | 0 | 14 |
+| **Total** | 159 | 8 | 0 | 14 |
 
 ## Pick order
 
@@ -258,13 +258,14 @@ Plan: `14-first-course-git.md`.
 
 | ID       | Item                                                                     | Status     | Depends | Notes                                                                                                                                         |
 | -------- | ------------------------------------------------------------------------ | ---------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GIT-01` | Seed: 6 chapters, 22 lessons, 3 Quizzes (6/6/8), written lesson content  | done       | —       | `firebase/seed/src/git-course.ts`                                                                                                             |
+| `GIT-01` | Seed: 6 chapters, 23 lessons, 3 Quizzes (6/6/8), written lesson content  | done       | —       | `firebase/seed/src/git-course.ts`                                                                                                             |
 | `GIT-02` | Record the videos                                                        | maintainer | —       | Real URLs and `durationSec` replace `TODO_RECORD_VIDEO`                                                                                       |
 | `GIT-03` | Placeholder videos stop embedding a dead player                          | done | —       | `isPlaceholderVideo` in `packages/schema/src/media.ts`; `TrackedVideo.tsx` and `blocks.tsx` show "Video coming soon" |
 | `GIT-04` | NonStop conventions and the `conflict-lab` repository                    | maintainer | —       | Branch naming, PR template, review expectations, release tagging replace the "Replace with NonStop's convention" callouts                     |
 | `GIT-05` | Signatory and Educator for Git | done | — | Signatory is `config/org.signatory` (name, role), edited in Org settings (`apps/web/src/console/SettingsPage.tsx`); the progress trigger stamps it on each certificate at issue (`firebase/functions/src/progress.ts`, `stores.ts`); removed from the course object and the Studio Certificate tab; rules in `firebase/firestore.rules`; seed default is the fictional Asha Example (`packages/schema/src/user.ts`). The Git Educator is assigned at the production seed (`OPS-17`) |
-| `GIT-06` | Seed matches the course outline                                          | done       | —       | `firebase/seed/src/git-course.ts`: Quiz I and II cooldown 10; lesson minutes total 190 (3 h 10)                                               |
-| `GIT-07` | One story, plain English and diagrams for every big idea | done | — | Meera's tea-counter menu (`chai-corner`) runs through every lesson; 10 SVG diagrams in `apps/web/public/courses/git/`, linked from `SITE_URL` (`gitCourseAt`); every hands-on step checked against real Git output; `14-first-course-git.md` ("How it teaches") |
+| `GIT-06` | Seed matches the course outline                                          | done       | —       | `firebase/seed/src/git-course.ts`: Quiz I and II cooldown 10; lesson minutes total 200 (3 h 20)                                               |
+| `GIT-07` | One story, plain English and diagrams for every big idea | done | — | Meera's tea-counter menu (`chai-corner`) runs through every lesson; 11 SVG diagrams in `apps/web/public/courses/git/`, linked from `SITE_URL` (`gitCourseAt`); every hands-on step checked against real Git output; `14-first-course-git.md` ("How it teaches") |
+| `GIT-08` | Worktrees lesson; checks and Quiz questions test understanding, not recall | done | — | `worktrees` lesson in chapter 6 (`worktrees.svg`); lesson checks no longer repeat Quiz questions word for word; Final Quiz asks about worktrees in place of a second reflog question; re-running the seed publishes the next version and keeps visibility, Educators, an archived status and an Educator-edited draft (`firebase/seed/src/seed.ts`, `docs/operations.md`) |
 
 ## Redesign
 

@@ -138,8 +138,6 @@ const questionsOf = (specs: QuestionSpec[]) =>
 const keysOf = (specs: QuestionSpec[]): Record<string, string[]> =>
   Object.fromEntries(specs.map((s) => [s.id, s.correct.map((i) => OPTION_IDS[i] as string)]));
 
-const TRUE_FALSE = ['True', 'False'];
-
 const quiz = (
   id: string,
   title: string,
@@ -178,9 +176,9 @@ const chapter1: Chapter = {
         'Left: how files usually pile up. Right: one file, with every saved version kept in order.',
       ),
       md(
-        'Four copies, and nobody remembers which one is current. Who changed the price of masala chai? Why? Was it on purpose?',
+        'Four copies. Masala chai is ₹15 in two of them and ₹20 in the others. Meera asks Ravi which one is right. He scrolls, frowns, and admits he has no idea who changed it, or whether they meant to.',
         '',
-        'This is the problem Git solves.',
+        '"This," he says, "is why we use Git."',
       ),
       video(420),
       md(
@@ -194,11 +192,7 @@ const chapter1: Chapter = {
         '',
         'You keep **one** copy of each file. Git keeps all the old versions for you, out of sight, in order.',
         '',
-        '## What you get',
-        '',
-        '- **Go back in time.** Made a mess? Return to any earlier save.',
-        '- **Know what happened.** See who changed a line, when, and why.',
-        '- **Work together.** Ten people can change the same project at once, and Git helps put their work together.',
+        'With Git, the mystery of the chai price takes one command: Meera can see who changed the line, on which day, and the note they left saying why. If the change was a mistake, she can go back to the save before it. And when Arjun and Ravi edit the menu in the same week, Git helps put their work together instead of leaving her a fifth copy.',
       ),
       note(
         'Git and GitHub are not the same thing',
@@ -357,13 +351,18 @@ const chapter1: Chapter = {
 const quiz1Specs: QuestionSpec[] = [
   {
     id: 'quiz-i-q1',
-    kind: 'trueFalse',
+    kind: 'single',
     prompt:
-      '`git init` creates a hidden `.git` folder that keeps the whole history of the project.',
-    options: TRUE_FALSE,
+      'Tidying her laptop, Meera deletes the hidden `.git` folder inside `chai-corner` by mistake. Nothing is on GitHub yet. What has she lost?',
+    options: [
+      'Every commit and its history; `menu.md` itself is still in the folder as it is now',
+      'Everything: the history and `menu.md`',
+      'Only her last commit',
+      'Nothing: Git keeps a backup copy elsewhere',
+    ],
     correct: [0],
     explanation:
-      'True. The `.git` folder is the repository. Delete it and the history is gone, though your files stay.',
+      'The `.git` folder is the repository: every save point lives there. Her files stay as they are right now, but all the earlier versions, and who changed what, are gone. That is one reason teams keep a copy on GitHub.',
     review: 'your-first-repository',
   },
   {
@@ -537,9 +536,14 @@ const chapter2: Chapter = {
         'If NonStop teams use a message format such as Conventional Commits (`type(scope): description`) or ticket references, describe it here with an example.',
       ),
       check(
-        'Which first line is best?',
-        ['updates', 'Fixed stuff', 'Fix price of masala chai', 'FIX!!! menu'],
-        'Short, starts with a verb, and says exactly what changed.',
+        'Meera has fixed the price of masala chai and nothing else. Which first line should her commit have?',
+        [
+          'Update menu.md',
+          'Fixed the price',
+          'Fix price of masala chai',
+          'Fix price of masala chai and tidy the menu',
+        ],
+        '"Update menu.md" is true of almost every commit, so it tells a reader nothing. "Fixed the price" does not say which price. The last one claims a tidy-up that is not in the commit. "Fix price of masala chai" finishes "If applied, this commit will..." and says exactly what changed.',
         2,
       ),
     ]),
@@ -831,9 +835,13 @@ const chapter3: Chapter = {
         'If you have changes that are not committed, and they clash with the other branch, Git refuses to switch rather than lose them. Commit first, or put them aside with `git stash` (chapter 5).',
       ),
       check(
-        'Meera is on `main` and wants to start fresh work on a new branch called `fix-typo`. What does she run?',
-        ['git branch fix-typo', 'git switch -c fix-typo', 'git merge fix-typo'],
-        '`git switch -c` makes the branch and moves her onto it. `git branch fix-typo` makes it but leaves her on main.',
+        'Meera is on `main`. She runs `git branch fix-typo`, fixes the typo, and commits. Which branch gets the commit?',
+        [
+          '`fix-typo`, because she just made it',
+          '`main`, because `git branch` made the label but did not move her onto it',
+          'Neither: Git refuses until she picks one',
+        ],
+        '`git branch fix-typo` only sticks a new label on the current commit. HEAD is still on `main`, so the commit lands there. `git switch -c fix-typo` would have made the branch and moved her onto it in one step.',
         1,
       ),
     ]),
@@ -873,13 +881,13 @@ const chapter3: Chapter = {
         'Before merging into `main`, merge `main` into your branch (`git switch cold-drinks`, then `git merge main`). If anything clashes, you sort it out on your own branch, and `main` stays clean.',
       ),
       check(
-        'When can Git fast-forward a merge?',
+        'A month later, Meera runs `git merge desserts` on `main`. This time Git does not say "Fast-forward"; it says "Merge made by the \'ort\' strategy". What does that tell her?',
         [
-          'When main has no new commits since the branch was made',
-          'Only when you add `--no-ff`',
-          'Only when the two branches changed different files',
+          'Someone committed to `main` while she worked, so Git made a merge commit to join the two lines',
+          'Something went wrong and the merge needs to be undone',
+          'Git copied her commits onto `main` with new ids',
         ],
-        'A fast-forward is only possible when the history is one straight line. Otherwise Git makes a merge commit.',
+        'Nothing went wrong. `main` had moved on, so there was no straight line to slide along. Git tied the two lines together with a new commit that has two parents. ("ort" is just the name of the method Git uses.)',
       ),
     ]),
     lesson('resolving-merge-conflicts', 'Resolving merge conflicts', 14, 'hands', [
@@ -955,13 +963,13 @@ const chapter3: Chapter = {
         'The `conflict-lab` practice repository is still to be published. Add its URL here, and add any team rule for who resolves conflicts.',
       ),
       check(
-        'Meera has chosen the right line and deleted the markers. What is next?',
+        'Halfway through the conflict, Meera realises she cannot decide the price without Arjun, and he is at lunch. She wants her `main` back exactly as it was before the merge. What does she run?',
         [
+          '`git merge --abort`',
           '`git add menu.md`, then `git commit`',
-          'Run `git merge cold-drinks` again',
-          '`git push --force`',
+          '`git branch -d cold-drinks`',
         ],
-        '`git add` marks the conflict as sorted; `git commit` finishes the merge.',
+        '`git merge --abort` puts everything back to how it was before `git merge` started. Committing would finish the merge with whatever is in the file, markers and all. Deleting the branch does not undo a merge in progress, and Git will not delete a branch it has not merged anyway.',
       ),
     ]),
     quiz('quiz-ii', 'Quiz II: Branching', quiz2Specs, 'each', 10),
@@ -1125,13 +1133,13 @@ const chapter4: Chapter = {
         'Meera\'s PR: **"Add snacks section"**. Why: "Ravi asked for snacks with the evening tea." How checked: "Read the menu on both branches; only the new section differs." Ravi reads it in five minutes.',
       ),
       check(
-        'Which of these belongs in a good pull request description?',
+        'While adding snacks, Meera also notices a typo in the tea section and fixes it on the same branch. Ravi will review the PR. What should she do with the typo?',
         [
-          'What changed and why',
-          'Nothing: the code speaks for itself',
-          'An apology for how big it is',
+          'Put it in its own commit, and say in the description that the PR also fixes a typo',
+          'Leave it in the snacks commit and say nothing: it is tiny',
+          'Push the typo fix straight to `main` so the PR stays clean',
         ],
-        'Say what changed, why, and how you checked it. And keep it small enough that no apology is needed.',
+        'A small, related-in-passing fix can ride along if it is its own commit and the reviewer is told. Hiding it makes Ravi find it by surprise. Pushing straight to `main` skips review altogether. Anything bigger than a typo gets its own branch and PR.',
       ),
     ]),
     lesson('code-review-etiquette', 'Code review etiquette', 7, 'read', [
@@ -1167,13 +1175,13 @@ const chapter4: Chapter = {
         'Does it work? Is it tested? Is it easy to read? Is anything unsafe, like a password? Leave spacing and formatting to automatic tools.',
       ),
       check(
-        'A reviewer writes "This is wrong." What would make the comment more useful?',
+        'Ravi notices the menu says "Samosa" in one place and "Samosas" in another. It is not wrong, just untidy. How should he comment?',
         [
-          'Saying what is wrong and suggesting a fix, or asking a question',
-          'Writing it in capital letters',
-          'Adding more exclamation marks',
+          '"nit: maybe use one spelling throughout?"',
+          '"Fix the spelling." and block the PR until it is done',
+          'Say nothing: it is too small to mention',
         ],
-        'Specific, kind comments get fixed faster, and nobody dreads opening them.',
+        "`nit:` tells Meera it is a small preference she can take or leave, so the PR is not held up. Blocking turns a matter of taste into a gate. Saying nothing is fine too, but a light note helps her learn the team's style.",
       ),
     ]),
   ],
@@ -1189,7 +1197,7 @@ const chapter5: Chapter = {
   items: [
     lesson('restore-and-reset', 'restore and reset', 13, 'hands', [
       md(
-        'Everyone makes mistakes with Git. The good news: almost everything can be undone, as long as you pick the right tool. This chapter gives you one for each situation. Keep this picture handy:',
+        "Meera's second week is the week she breaks things. Everyone has that week. Ravi tells her about his own: he once pushed a menu with every price set to zero. Then he tells her the part that matters. Almost anything in Git can be undone, if you pick the right tool. This chapter gives you one for each kind of mess. Keep this picture handy:",
       ),
       img(
         'undo-guide',
@@ -1303,27 +1311,27 @@ const chapter5: Chapter = {
       ),
       note(
         'The drawer is on your laptop only',
-        'Stashes are never pushed to GitHub. Use them for minutes or hours, not weeks. For anything longer, commit on a branch.',
+        'Stashes are never pushed to GitHub. Use them for minutes or hours, not weeks. For anything longer, commit on a branch. And if the interruption will take the whole afternoon, a second working folder (a worktree, chapter 6) is easier than a drawer.',
       ),
       tip(
         'New files too',
         'By default, stash only takes files Git already tracks. Add `-u` to include new files as well: `git stash push -u`.',
       ),
       check(
-        'Meera has unfinished, uncommitted work and must switch branches to fix something urgent. What is a good way?',
+        'Meera changed `menu.md` and also started a brand-new file, `breakfast.md`. She runs `git stash`, and `breakfast.md` is still sitting in her folder. Why?',
         [
-          '`git stash`, switch and fix, switch back, `git stash pop`',
-          'Delete her unfinished files',
-          'Push the unfinished work to main',
+          'Plain `git stash` only takes files Git already tracks; `git stash push -u` takes new files too',
+          'The stash is full',
+          '`breakfast.md` is in `.gitignore`',
         ],
-        'Stash keeps the work safe without committing it, and gives it back when she returns.',
+        'Git has never been told about `breakfast.md`, so plain `git stash` leaves it on the desk. `-u` (for "untracked") sweeps new files into the drawer as well.',
       ),
     ]),
     lesson('reflog-safety-net', 'reflog: the safety net', 7, 'hands', [
       md(
         'Late on a long day, Meera finishes two breakfast commits and runs `git reset --hard HEAD~2`. She meant `HEAD~1`. Two commits vanish from `git log`.',
         '',
-        "Don't panic: Git still has them.",
+        'Her stomach drops. Then she remembers what Ravi said in her first week: Git almost never throws a commit away. It just stops showing it to you.',
         '',
         '## Git keeps a diary',
         '',
@@ -1351,9 +1359,13 @@ const chapter5: Chapter = {
         'The reflog only remembers **commits**, only on your own laptop, and lost ones for about a month. Changes you never committed cannot be recovered. One more reason to commit early and often.',
       ),
       check(
-        'Meera ran `git reset --hard` and lost two commits. Where does she look first?',
-        ['git reflog', 'git remote -v', 'git config --list'],
-        'The reflog lists everywhere HEAD has been, including the commits she just moved away from.',
+        'In the reflog above, the top line (`HEAD@{0}`) and the bottom line (`HEAD@{3}`) show the same id, `8a9b0c1`. Why?',
+        [
+          'The reset took her back to the commit she was on when she first switched to `breakfast`',
+          'Git made a copy of the old commit',
+          'Her two breakfast commits were deleted for good',
+        ],
+        'Two steps back from her second breakfast commit is where the branch started. The reflog shows the trip: she left `8a9b0c1`, made two commits, and the reset landed her on `8a9b0c1` again. The two commits are still there, at `HEAD@{1}` and `HEAD@{2}`.',
       ),
     ]),
   ],
@@ -1412,27 +1424,33 @@ const finalSpecs: QuestionSpec[] = [
     id: 'quiz-final-q4',
     kind: 'single',
     prompt:
-      'A wrong price is already pushed to the shared `main`. What is the safest way to undo it?',
+      'Arjun pushed `b7c8d9e`, which set nimbu soda to ₹2, and Ravi has already pulled it. Arjun runs `git revert b7c8d9e` and pushes. What does the shared history look like now?',
     options: [
-      '`git revert <commit>`, then push',
-      '`git reset --hard`, then force push',
-      'Delete `main` and make it again',
-      'Ask everyone to clone again',
+      '`b7c8d9e` is still there, followed by a new commit that undoes it',
+      '`b7c8d9e` has disappeared, as if it never happened',
+      '`b7c8d9e` is still there, and nothing new was added: the price is fixed in place',
+      'The history is rewritten, so Ravi has to clone again',
     ],
     correct: [0],
     explanation:
-      'Revert prints a correction: a new commit. Shared history is not rewritten, so nobody else is affected.',
+      'Revert prints a correction: a new commit that does the opposite of the bad one. The mistake stays in the history, which is why it is safe on shared branches: Ravi just pulls the correction like any other commit.',
     review: 'revert',
   },
   {
     id: 'quiz-final-q5',
-    kind: 'trueFalse',
-    prompt: '`git reflog` can bring back changes you never committed.',
-    options: TRUE_FALSE,
-    correct: [1],
+    kind: 'single',
+    prompt:
+      "Arjun is halfway through `fix/samosa-price` when Ravi asks him to run Meera's `feature/lunch-specials` for the rest of the afternoon, keeping his own work open too. Which fits best?",
+    options: [
+      '`git worktree add ../chai-corner-lunch feature/lunch-specials`, and work there',
+      '`git switch feature/lunch-specials` and carry his half-done changes along',
+      '`git stash` now and `git stash pop` tomorrow',
+      '`git reset --hard`, then switch',
+    ],
+    correct: [0],
     explanation:
-      'False. The reflog remembers commits. Changes that were never committed have no entry in it, which is why it pays to commit often.',
-    review: 'restore-and-reset',
+      "A worktree gives him a second folder with Meera's branch open, while his own work stays untouched in the first. Switching would carry his changes onto her branch, or be refused. A stash is for minutes, not a whole afternoon, and he could not look at his work meanwhile. Reset throws his work away.",
+    review: 'worktrees',
   },
   {
     id: 'quiz-final-q6',
@@ -1569,6 +1587,109 @@ const chapter6: Chapter = {
         'A type, then a short description in lower case with hyphens. Branch names cannot contain spaces.',
       ),
     ]),
+    lesson('worktrees', 'Two tasks at once: worktrees', 10, 'hands', [
+      md(
+        'Tuesday, 2 o\'clock. Meera is halfway through `feature/lunch-specials`. Three files are open in her editor, and nothing is ready to commit. Then Ravi messages: "Arjun\'s filter coffee fix is waiting for review. Can you try it on your laptop this afternoon?"',
+        '',
+        "She knows one answer already: stash, switch, review, switch back, pop. That works for a five-minute fix. But this review could take the whole afternoon. She may want to look at her own work while she reads Arjun's, and every switch rewrites the files under her editor.",
+        '',
+        'What she really wants is a second desk.',
+        '',
+        '## A second desk for the same project',
+        '',
+        'A **worktree** is another folder on your laptop, with a different branch open, that shares the same repository. Your usual project folder is already one worktree. `git worktree add` gives you more.',
+        '',
+        'Think of two desks in the same office, sharing one filing cabinet. On each desk lies a different piece of work, open and spread out. Nothing has to be cleared away to sit at the other one. And the filing cabinet (the `.git` with all the commits and branches) is the same for both.',
+      ),
+      img(
+        'worktrees',
+        'Two folders side by side. chai-corner has the branch feature/lunch-specials open, with half-done lunch specials. chai-corner-review has the branch fix/filter-coffee-price open, for review. Arrows from both lead to one box: One .git, shared, holding the same history, branches and stash.',
+        'Two folders, two branches open at the same time, one shared history.',
+      ),
+      md(
+        '## Try it',
+        '',
+        "First, set up Meera's half-done desk: a lunch branch with changes you do not commit.",
+      ),
+      sh(
+        'git switch main',
+        'git switch -c feature/lunch-specials',
+        'echo "## Lunch" >> menu.md',
+        'echo "Veg thali: ₹60" > lunch.md',
+      ),
+      md(
+        "Now make a branch to stand in for Arjun's, and open it in a second folder next to `chai-corner`. (In real work his branch would already be on GitHub: run `git fetch` first, and `git worktree add` finds it there.)",
+      ),
+      sh(
+        'git branch fix/filter-coffee-price main',
+        'git worktree add ../chai-corner-review fix/filter-coffee-price',
+      ),
+      out(
+        "Preparing worktree (checking out 'fix/filter-coffee-price')",
+        'HEAD is now at 8a9b0c1 Add filter coffee',
+      ),
+      md(
+        '`../chai-corner-review` means "a new folder called chai-corner-review, next to this one". Look at both desks:',
+      ),
+      sh('git worktree list'),
+      out(
+        '/Users/meera/chai-corner          b2c3d4e [feature/lunch-specials]',
+        '/Users/meera/chai-corner-review   8a9b0c1 [fix/filter-coffee-price]',
+      ),
+      md(
+        'Open the new folder in a second editor window, or `cd` into it, and work there as you would anywhere else:',
+      ),
+      sh('cd ../chai-corner-review', 'cat menu.md', 'cd ../chai-corner', 'git status --short'),
+      out(' M menu.md', '?? lunch.md'),
+      md(
+        "Back in `chai-corner`, Meera's half-done lunch work is exactly as she left it. Nothing was stashed, nothing was switched.",
+        '',
+        '## What is shared, and what is not',
+        '',
+        '- **Shared:** every commit, every branch and the stash. If Meera commits in `chai-corner-review`, `git log fix/filter-coffee-price` in `chai-corner` shows it at once. No push needed; it is the same filing cabinet.',
+        "- **Not shared:** the files on each desk and each desk's staging area. What you edit or `git add` in one folder does not appear in the other.",
+        '- **Not copied:** anything Git ignores. The `.env` file from chapter 2 lives only in the first folder. If the new desk needs it, copy it across yourself.',
+        '',
+        '## One branch, one desk',
+        '',
+        'Git will not open the same branch in two worktrees at once, because two desks editing one branch would trip over each other. Try it: go to the review desk and ask for the lunch branch.',
+      ),
+      sh('cd ../chai-corner-review', 'git switch feature/lunch-specials'),
+      out(
+        "fatal: 'feature/lunch-specials' is already used by worktree at '/Users/meera/chai-corner'",
+      ),
+      md(
+        'In plain English: "That branch is already open on your other desk. Work on it there." Go back to it, and set up a third desk for a fresh task: `-b` makes a new branch as the desk is set up.',
+      ),
+      sh('cd ../chai-corner', 'git worktree add -b fix/samosa-price ../chai-corner-samosa main'),
+      md(
+        '## Clearing a desk',
+        '',
+        'When the review is done, remove the worktree. The branch and its commits stay; only the folder goes. Git refuses if the folder has changes you have not committed, so nothing is lost by accident.',
+      ),
+      sh('git worktree remove ../chai-corner-review', 'git worktree remove ../chai-corner-samosa'),
+      tip(
+        'Stash or worktree?',
+        'An interruption of a few minutes: `git stash`. Anything that takes the afternoon, or two things you want open side by side (a review and your own work, a long test run and a quick fix): a worktree.',
+      ),
+      note(
+        'Why you will hear about worktrees more and more',
+        'Worktrees let several jobs run in one project without stepping on each other. That is why many teams, and AI coding assistants, give each task its own worktree: one can run the tests on one branch while another fix is written next door.',
+      ),
+      warn(
+        'Deleted the folder by hand?',
+        'Git still thinks the desk is there, and keeps the branch marked as in use. Run `git worktree prune` to clear its record.',
+      ),
+      check(
+        'Meera commits a fix in `chai-corner-review` on `fix/filter-coffee-price`. Back in `chai-corner`, what does she need to do before `git log fix/filter-coffee-price` shows that commit?',
+        [
+          'Nothing: both folders share one repository, so the commit is already there',
+          'Push from `chai-corner-review`, then pull in `chai-corner`',
+          'Run `git stash pop`',
+        ],
+        'Worktrees share one `.git`. A commit made at one desk goes into the shared filing cabinet straight away. Push and pull are for copies on other machines, like GitHub.',
+      ),
+    ]),
     lesson('release-tags', 'Release tags', 7, 'hands', [
       replace(
         'Add how NonStop teams number releases and keep their changelog. This lesson uses semantic versioning as a default.',
@@ -1584,15 +1705,18 @@ const chapter6: Chapter = {
       ),
       sh('git tag -a v1.0.0 -m "First menu for the new counter"', 'git push origin v1.0.0'),
       md(
-        '`switch --detach` lets you look around an old version without moving any branch: Git calls this "detached HEAD", meaning you are not on a branch. Look, but do not commit there; `git switch main` takes you back.',
-        '',
         '`-a` makes an **annotated** tag, which records who tagged it, when, and why. Note the second line: a plain `git push` does **not** send tags, so push the tag by name.',
+        '',
+        'Three months later, a customer insists samosas used to be cheaper. Ravi can check in seconds:',
       ),
       sh(
         'git tag                      # list tags',
         'git show v1.0.0              # see the tag and its commit',
         'git switch --detach v1.0.0   # look at the menu exactly as it was released',
         'git switch main              # and come back',
+      ),
+      md(
+        '`switch --detach` lets you look around an old version without moving any branch. Git calls this "detached HEAD", meaning you are not on a branch. Look, but do not commit there; `git switch main` takes you back.',
       ),
       md(
         '## What the numbers mean',
@@ -1605,7 +1729,7 @@ const chapter6: Chapter = {
         '',
         '## That is the course',
         '',
-        'Remember the folder with four copies of the menu? Meera now has one menu, a clear history, and a way back from almost any mistake. You have learned the same things she has.',
+        'Remember the folder with four copies of the menu? Meera now has one menu, a history that answers "who changed this, and why?", a way back from almost any mistake, and a second desk when two jobs land at once. You have learned the same things she has.',
         '',
         'One Quiz to go.',
       ),
@@ -1636,7 +1760,7 @@ export const gitCourse: Course = {
   description: lines(
     'Git is how every NonStop team keeps its work safe and works together. This course follows Meera, a new joiner, as she looks after a small project: the menu for the office tea counter. You will do everything she does, on your own laptop, one small step at a time.',
     '',
-    'No programming needed. Each idea comes with an everyday picture: save points, a group photo, a bookmark, a correction in the newspaper. Short checks in every lesson help it stick, and three Quizzes along the way lead to your certificate.',
+    'No programming needed. Each idea comes with an everyday picture: save points in a game, a box you pack before sending, a bookmark in an album, a second desk for a second job, a correction in the newspaper. Short checks in every lesson help it stick, and three Quizzes along the way lead to your certificate.',
   ),
   level: 'foundation',
   cover: { theme: 'forest', glyph: 'Git' },
@@ -1646,7 +1770,7 @@ export const gitCourse: Course = {
     'Work on a branch, merge it, and sort out a merge conflict calmly',
     'Share work on GitHub with push, pull and pull requests, and review kindly',
     'Undo almost any mistake with restore, reset, revert, stash and reflog',
-    'Follow a team workflow: rebase or merge, branch names and release tags',
+    'Follow a team workflow: rebase or merge, branch names, worktrees for parallel tasks, and release tags',
   ],
   educatorIds: [],
   educatorNames: {},
