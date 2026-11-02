@@ -328,7 +328,7 @@ Files are immutable and small, so v1 deletes nothing automatically: deleting a f
 published version or a rollback target still uses would break that version. `MED-10` adds a
 weekly scheduled function that, per course, collects every `upload.path` in the draft, the live
 course and every `versions/` snapshot, and deletes media files referenced by none of them and older
-than 30 days. Until then the cost of orphans is negligible (see below).
+than 30 days. Built in `MED-10` (`firebase/functions/src/media.ts`, Sunday 05:00 UTC), with safeguards beyond the plan: a course is skipped whole when any stored copy of it does not parse; a file with no known creation time stays; one run deletes nothing if it would delete more than 200 files; and a course with five or more files that would lose more than half of them is skipped, all with a warning. The functions' service account needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`). Until then the cost of orphans is negligible (see below).
 
 ## Cost
 
