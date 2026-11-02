@@ -32,7 +32,7 @@ jobs:
     steps:
       # No checkout, so there is no .nvmrc to read: the version is written here. Keep it in step
       # with .nvmrc.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Delete the preview channel
@@ -56,6 +56,11 @@ jobs:
           trap 'rm -f "$credentials"' EXIT
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_PREVIEW" > "$credentials"
           export GOOGLE_APPLICATION_CREDENTIALS="$credentials"
+
+          # firebase-tools refuses to run outside a directory with a firebase.json, even with
+          # --site and --project. There is no checkout, so give it a minimal one.
+          cd "$(mktemp -d)"
+          echo '{"hosting":{"site":"nonstop-gurukul","public":"."}}' > firebase.json
 
           # A channel that expired or was never created is already what we want.
           if output="$(npx --yes firebase-tools hosting:channel:delete "$channel_id" \

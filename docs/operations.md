@@ -95,7 +95,7 @@ course list. They drive the real built app against the Firebase emulators (Auth,
 Functions; project `demo-gurukul`), never production. Needs Node 22 and Java 21.
 
 ```bash
-npx playwright install --with-deps chromium   # once; the browser is not part of npm ci
+npm exec -w e2e -- playwright install --with-deps chromium   # once; the browser is not part of npm ci
 npm run e2e
 ```
 
