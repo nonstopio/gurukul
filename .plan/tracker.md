@@ -27,9 +27,9 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Platform, CI and operations | 21 | 0 | 0 | 11 |
 | First course: Git | 5 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
-| Course media uploads | 7 | 4 | 0 | 1 |
+| Course media uploads | 8 | 3 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 164 | 4 | 0 | 14 |
+| **Total** | 165 | 3 | 0 | 14 |
 
 ## Pick order
 
@@ -39,7 +39,6 @@ Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the mai
 1. `MED-06` PDF upload in Studio
 2. `MED-12` BlurHash placeholders for images and PDFs
 3. `MED-08` Media library reuse of uploads
-4. `MED-09` Shrink it for me
 
 ## Foundations
 
@@ -300,7 +299,7 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | `MED-06` | PDF upload in Studio                         | todo       | `MED-05`           | Done means: File block Upload tab for PDFs up to the limit; over the limit, guidance to GitHub or Google Drive with Switch to Link and the PDF prompt; changelog entry |
 | `MED-07` | Upload limits in Org settings | done | `MED-04` | `apps/web/src/console/SettingsPage.tsx` (Uploads card), `console/firebase.ts` (`uploads` merge-written only when the form changed it), `apps/web/src/data/useUploadPolicy.ts` and `LearnerData.uploadLimits()` (what Studio reads; defaults while loading or on error), navigation entry `admin-settings` |
 | `MED-08` | Media library reuse of uploads               | todo       | `MED-05`           | Done means: `/studio/media` Uploaded filter and size; Image block "Choose from this course's media" reuses an uploaded file without a new upload; changelog entry |
-| `MED-09` | Shrink it for me                             | todo       | `MED-05`           | Done means: a too-large or too-wide image is re-encoded in the browser (canvas, WebP, 1600 px long edge, metadata dropped) and offered for preview before upload; no new dependency; changelog entry |
+| `MED-09` | Shrink it for me | done | `MED-05` | `apps/web/src/studio/media/shrink.ts` (`shrinkImage`, injectable canvas), `useImageUpload.ts` and `ImageUploadPanel.tsx` (Shrink it for me, Discard, saving line), `apps/web/test/studio-shrink.test.ts`. Offered only when every refusal reason is size or pixels on a real image; WebP at 1600 px, qualities 0.85 to 0.6 then smaller steps down to 819 px; checked in real Chromium (a 2.0 MB 3000 px PNG became about 94 KB, transparency kept). While it works the drop zone still reads "Checking" |
 | `MED-10` | Weekly clean-up of unused media | done | `MED-04` | `firebase/functions/src/media.ts` (`weeklyMediaCleanup`, Sunday 05:00 UTC; safeguards: a course whose copy does not parse is skipped, 200 deletions per run, half of a course's files), adapters in `stores.ts`, `firebase/functions/emulator-test/media.test.ts`, `docs/operations.md` (needs `roles/storage.objectAdmin`) |
 | `MED-11` | BlurHash encoder, decoder and `upload.blurHash` in the schema | done | `MED-02` | `packages/schema/src/blurhash.ts` (`encodeBlurHash`, `decodeBlurHash`, `isValidBlurHash`, `blurHashAverageColor`; a port of the MIT algorithm, decoder identical to the reference package), optional `blurHash` on both `upload` shapes in `upload.ts`, `packages/schema/test/blurhash.test.ts` with `blurhash-vectors.json` (reference output). The encoder follows the specification's absolute-value maximum, so for pictures whose strongest detail is negative its string differs from the reference JS package while decoding the same way |
 | `MED-12` | BlurHash placeholders for images and PDFs     | todo       | `MED-03`, `MED-05`, `MED-06`, `MED-11` | Done means: Studio makes a BlurHash at upload (image: canvas at about 32 px, 4 x 3; PDF: first page rendered with pdf.js loaded lazily only when a PDF is picked, Apache-2.0 checked) and stores it in `upload.blurHash`, an unrenderable PDF still uploads with no hash; the player shows the decoded placeholder behind an uploaded image until it loads (no layout shift, fade, none under reduced motion, `aria-hidden`) and a blurred first-page thumbnail on an uploaded File block; linked images get none; bundle budget unchanged; changelog entry |
