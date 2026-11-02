@@ -39,6 +39,11 @@ most, well under $0.10/month (the Firestore export itself reads each document on
 the functions' service account needs `roles/datastore.importExportAdmin` and write access to the
 bucket (`roles/storage.objectAdmin`). Setup and restore: `docs/operations.md`.
 
+**Media clean-up.** `weeklyMediaCleanup` (Sunday 05:00 UTC, one run a week) deletes lesson media that
+no draft, live course or version names and that is over 30 days old (`.plan/19`). IAM: the functions'
+service account needs `roles/storage.objectAdmin` on the default bucket, a one-time maintainer action
+(`docs/operations.md`, "Clean-up of unused media").
+
 **Guards:** a $1 monthly budget with alerts at 50%, 90% and 100% to the
 maintainers; `maxInstances` on every function; no unbounded listeners (see
 `.claude/rules/firebase-cost.md`).
@@ -104,3 +109,5 @@ custom domain are `OPS-24`.
     bucket in `US-CENTRAL1` (open question 14, decided: the no-cost
     tier), and grant the Firebase Rules Firestore Service Agent role when the console asks, so
     `storage.rules` can read `courses/` and `config/org`. See `19-course-media-uploads.md` (Cost).
+11. Before `weeklyMediaCleanup` (`MED-10`) first runs: grant the functions' runtime service account
+    `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`, "Clean-up of unused media").

@@ -24,7 +24,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   mock `firebase-functions/logger` for every file (`test/setup.ts`). ESLint bans the raw logger,
   `console` and the https imports outside these two folders (`scripts/test/lint-rules.test.mjs`).
 
-- `functions/emulator-test/` runs the real trigger exports against the Firestore emulator
+- `functions/emulator-test/` runs the real trigger exports against the Firestore and Storage emulators
   (`npm run test:triggers`, Java 21): each is called with `.run(event)`, which firebase-functions gives
   every v2 function, and the assertions read Firestore. `firebase-functions-test` is not used: it does not
   support firebase-admin 14. The unit suite's coverage gate does not count these files.
@@ -96,6 +96,15 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   Firestore Admin client) and warns, without throwing, when `BACKUP_BUCKET` is unset. It never deletes:
   four-week retention is a lifecycle rule on the bucket (`docs/operations.md`). It needs
   `roles/datastore.importExportAdmin` and write access to the bucket.
+  `weeklyMediaCleanup` (Sunday 05:00 UTC, `media.ts`, `maxInstances: 1`) is the only thing that deletes
+  lesson media (`.plan/19`): per course whose draft, live document and every `versions/{n}` snapshot
+  all parse (`upgradeCourse` then `courseSchema`; one that does not skips the course and warns), it
+  deletes files in `courses/{id}/media/` that no copy names and that are 30+ days old by object creation time.
+  Decisions are pure in `media.ts` behind `StoragePort` (`bucketStoragePort`) and `MediaStore`
+  (`firestoreMediaStore`); it plans first, and deletes nothing when the run would delete over 200 files,
+  or a course with 5+ files would lose over half of them (a warn with counts). Summary fields are counts.
+  It needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`). The Storage emulator
+  stamps objects with the current time, so its test moves the clock (`Date` only) 31 days on.
 
 ```bash
 npm run test:rules                      # from the repo root, needs Java 21

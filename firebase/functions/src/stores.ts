@@ -18,6 +18,7 @@ import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
 import type { AuditEntry } from './errors.js';
 import type { GradingStore } from './grading.js';
+import type { MediaFile, MediaStore, StoragePort } from './media.js';
 import type { UserStore } from './profile.js';
 import { log } from './logging/log.js';
 import type { ProgressStore } from './progress.js';
@@ -661,6 +662,55 @@ export function firestoreBackupPort(admin: FirestoreAdmin): BackupPort {
         outputUriPrefix: uriPrefix,
         collectionIds: [],
       });
+    },
+  };
+}
+
+/** The slice of a Cloud Storage bucket (`firebase-admin/storage`) the media clean-up uses. */
+export interface MediaBucket {
+  getFiles(options: {
+    prefix: string;
+  }): Promise<[Array<{ name: string; metadata: { timeCreated?: string } }>, ...unknown[]]>;
+  file(path: string): { delete(): Promise<unknown> };
+}
+
+/** `StoragePort` over a bucket: lists a course's media folder and deletes one object by path. */
+export function bucketStoragePort(bucket: MediaBucket): StoragePort {
+  return {
+    async listMedia(courseId) {
+      const [files] = await bucket.getFiles({ prefix: `courses/${courseId}/media/` });
+      return files.map((f): MediaFile => {
+        const created = new Date(f.metadata.timeCreated ?? Number.NaN);
+        return { path: f.name, createdAt: Number.isNaN(created.getTime()) ? undefined : created };
+      });
+    },
+    async deleteFile(path) {
+      await bucket.file(path).delete();
+    },
+  };
+}
+
+/**
+ * `MediaStore` over the Admin SDK: the courses that exist, and every stored copy of one course (live
+ * document, draft, every version snapshot). Reads each document once, weekly.
+ */
+export function firestoreMediaStore(db: Firestore): MediaStore {
+  return {
+    async listCourseIds() {
+      return (await db.collection('courses').select().get()).docs.map((d) => d.id);
+    },
+    async readCourseObjects(courseId) {
+      const ref = db.doc(`courses/${courseId}`);
+      const [live, draft, versions] = await Promise.all([
+        ref.get(),
+        ref.collection('drafts').doc('current').get(),
+        ref.collection('versions').get(),
+      ]);
+      return [
+        ...(live.exists ? [live.data()] : []),
+        ...(draft.exists ? [draft.get('course')] : []),
+        ...versions.docs.map((d) => d.get('course')),
+      ];
     },
   };
 }
