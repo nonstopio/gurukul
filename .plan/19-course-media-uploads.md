@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: in progress (built: `MED-02`, `MED-03`, `MED-04`, `MED-05`, `MED-07`, `MED-10`, `MED-11`). Tracker section **Course media uploads** (`MED-*`).
+Status: built (`MED-02` to `MED-12`), waiting only on the maintainer's `MED-01` follow-ups: the Firebase Rules Firestore Service Agent role, and `roles/storage.objectAdmin` for the clean-up function. Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -313,7 +313,7 @@ jumps nor flashes empty, on a slow connection too.
 - A placeholder is decoration: it is `aria-hidden` and carries no alt text; the real image's alt text
   is unchanged.
 
-Built in `MED-12` (Studio makes the hash, the player shows it).
+Built in `MED-12` (Studio makes the hash, the player shows it). An uploaded File block's blurred first-page thumbnail replaces the generic file icon (the icon stays when there is no hash), and `@gurukul/ui` depends on `@gurukul/schema` so `ImageFigure` can decode a hash. pdf.js is `pdfjs-dist` 6.4.299 (Apache-2.0); its worker is a separate 1.26 MB asset fetched only when a PDF is picked.
 
 ## Where the bucket is checked (found in `MED-05`)
 
