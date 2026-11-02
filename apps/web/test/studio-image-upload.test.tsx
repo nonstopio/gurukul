@@ -1,8 +1,9 @@
 import type { Block } from '@gurukul/schema';
-import { UPLOAD_PATH } from '@gurukul/schema';
+import { UPLOAD_PATH, encodeBlurHash } from '@gurukul/schema';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { imageBlurHash, pdfBlurHash } from '../src/studio/media/blurHash';
 import { UploadCancelledError } from '../src/studio/errors';
 import { BlockEditor } from '../src/studio/blocks/BlockEditor';
 import { newBlock } from '../src/studio/lessonEdit';
@@ -14,6 +15,14 @@ import { FAKE_BUCKET, fakeStudio } from './fake-studio';
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const KB = 1024;
+
+// The hashing has its own tests (studio-blurhash): here only what the hook does with its answer.
+vi.mock('../src/studio/media/blurHash', () => ({
+  imageBlurHash: vi.fn(),
+  pdfBlurHash: vi.fn(),
+}));
+/** A well-formed hash; the hook stores whatever the module returns. */
+const HASH = encodeBlurHash(new Uint8ClampedArray(16 * 4).fill(200), 4, 4);
 
 /** A file whose first bytes say PNG, padded to `size` bytes. */
 function pngFile(name = 'shot.png', size = 40 * KB, type = 'image/png') {
@@ -563,5 +572,32 @@ describe('uploading', () => {
     fireEvent.click(upload());
     await waitFor(() => expect(last()).toMatchObject({ upload: expect.anything() }));
     expect((last() as { upload: { name: string } }).upload.name).toHaveLength(120);
+  });
+});
+
+describe('the blur hash', () => {
+  beforeEach(() => {
+    vi.mocked(imageBlurHash).mockResolvedValue(undefined);
+    vi.mocked(pdfBlurHash).mockResolvedValue(undefined);
+  });
+
+  it('is stored in upload.blurHash when it was made', async () => {
+    // The preview then paints it; jsdom has no canvas, so it keeps the average colour.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.mocked(imageBlurHash).mockResolvedValue(HASH);
+    const { container, last } = setup(newBlock('image'));
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(last()).toMatchObject({ upload: { blurHash: HASH } }));
+    expect(imageBlurHash).toHaveBeenCalledWith(expect.any(File));
+    expect(await screen.findByText('Image uploaded')).toBeTruthy();
+  });
+
+  it('is left out when it could not be made, and the upload still succeeds', async () => {
+    const { container, last } = setup(newBlock('image'));
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    expect(await screen.findByText('Image uploaded')).toBeTruthy();
+    expect((last() as { upload: object }).upload).not.toHaveProperty('blurHash');
   });
 });

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expectNoSeriousViolations } from '../support/a11y';
-import { grantRoles } from '../support/emulators';
+import { grantRoles, storedBlurHash } from '../support/emulators';
 import { expect, signedInAsLearner, test } from '../support/fixtures';
 import { makePdf } from '../support/pdf';
 import { makePng } from '../support/png';
@@ -87,6 +87,10 @@ test.describe('Educator uploads an image', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'A branch diagram' })).toBeVisible();
     const seen = page.getByRole('img', { name: 'Two branches that meet again at a merge' });
     await expect(seen).toBeVisible();
+    // Studio kept a BlurHash (4 x 3 components: 28 characters) of the real picture, and the page
+    // shows it only until the image has loaded; it is gone, and nothing has jumped, by then.
+    expect(await storedBlurHash('courses/pictures-in-lessons')).toMatch(/^.{28}$/);
+    await expect(page.locator('.g-figure__blur')).toHaveCount(0);
     await expect(seen).toHaveAttribute('width', '1000');
     await expect.poll(() => seen.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1000);
   });
@@ -169,6 +173,9 @@ test.describe('Educator uploads a PDF', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'A branch diagram' })).toBeVisible();
     const link = page.getByRole('link', { name: /^Branching cheat sheet · PDF · \d+ KB$/ });
     await expect(link).toBeVisible();
+    // The first page was drawn in the browser with pdf.js and hashed: the link carries its thumbnail.
+    expect(await storedBlurHash('courses/handouts-in-lessons')).toMatch(/^.{28}$/);
+    await expect(link.locator('.file-link__thumb')).toBeVisible();
     await expect(link).toHaveAttribute(
       'href',
       /127\.0\.0\.1:9199\/v0\/b\/.*courses%2Fhandouts-in-lessons%2Fmedia%2F.*\.pdf/,

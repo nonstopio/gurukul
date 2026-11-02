@@ -366,6 +366,11 @@ button ("Open full size: <alt>") that opens a `Dialog size="lg"` titled by the a
 natural size in a scrollable, keyboard-focusable region with the caption under it; Escape closes it and focus returns
 to the button. An image that fails to load becomes a quiet `--surface-sunken` box with a dashed border holding the alt
 text (no broken-image icon, no zoom button). `onSize` reports the natural pixels after a load, for an editor.
+`blurHash` (a valid hash, with `width` and `height`) paints the decoded 32 x 32 placeholder (`blurHashStyle`) over a
+frame at the image's aspect ratio, `aria-hidden`, no alt text; when the image loads it fades out over `--dur-slow`
+and is removed (at once under reduced motion). An invalid or missing hash, or missing sizes, renders nothing extra;
+linked images never get one. `blurHashStyle(hash)` is also exported for a decorative thumbnail (the player's File block
+uses it at a fixed `--space-6` by `--space-8`).
 
 ## QuizOption — shipped
 

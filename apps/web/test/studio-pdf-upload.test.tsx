@@ -1,8 +1,9 @@
 import type { Block } from '@gurukul/schema';
-import { UPLOAD_PATH } from '@gurukul/schema';
+import { UPLOAD_PATH, encodeBlurHash } from '@gurukul/schema';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { imageBlurHash, pdfBlurHash } from '../src/studio/media/blurHash';
 import { BlockEditor } from '../src/studio/blocks/BlockEditor';
 import { labelFromName } from '../src/studio/blocks/usePdfUpload';
 import { UploadCancelledError } from '../src/studio/errors';
@@ -14,6 +15,14 @@ import { fakeData } from './fake-data';
 import { FAKE_BUCKET, fakeStudio } from './fake-studio';
 
 const KB = 1024;
+
+// The hashing has its own tests (studio-blurhash): here only what the hook does with its answer.
+vi.mock('../src/studio/media/blurHash', () => ({
+  imageBlurHash: vi.fn(),
+  pdfBlurHash: vi.fn(),
+}));
+/** A well-formed hash; the hook stores whatever the module returns. */
+const HASH = encodeBlurHash(new Uint8ClampedArray(16 * 4).fill(200), 4, 4);
 
 /** A file whose first bytes say PDF, padded to `size` bytes. */
 function pdfFile(name = 'handout.pdf', size = 40 * KB, type = 'application/pdf') {
@@ -483,5 +492,32 @@ describe('labelFromName', () => {
     expect(labelFromName('a.b.pdf')).toBe('a.b');
     expect(labelFromName('.pdf')).toBe('.pdf');
     expect(labelFromName('noext')).toBe('noext');
+  });
+});
+
+describe('the blur hash', () => {
+  beforeEach(() => {
+    vi.mocked(imageBlurHash).mockResolvedValue(undefined);
+    vi.mocked(pdfBlurHash).mockResolvedValue(undefined);
+  });
+
+  it('is stored in upload.blurHash when it was made', async () => {
+    // The preview then paints it; jsdom has no canvas, so it keeps the average colour.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.mocked(pdfBlurHash).mockResolvedValue(HASH);
+    const { container, last } = setup(newBlock('file'));
+    await pick(container, pdfFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(last()).toMatchObject({ upload: { blurHash: HASH } }));
+    expect(pdfBlurHash).toHaveBeenCalledWith(expect.any(File));
+    expect(await screen.findByText('PDF uploaded')).toBeTruthy();
+  });
+
+  it('is left out when it could not be made, and the upload still succeeds', async () => {
+    const { container, last } = setup(newBlock('file'));
+    await pick(container, pdfFile());
+    fireEvent.click(upload());
+    expect(await screen.findByText('PDF uploaded')).toBeTruthy();
+    expect((last() as { upload: object }).upload).not.toHaveProperty('blurHash');
   });
 });

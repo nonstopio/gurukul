@@ -54,6 +54,7 @@ export { CodeBlock, parseHighlight } from './CodeBlock';
 export type { CodeBlockProps } from './CodeBlock';
 export { FileDrop } from './FileDrop';
 export type { FileDropProps, FileDropState } from './FileDrop';
+export { blurHashStyle } from './blurHashStyle';
 export { ImageFigure } from './ImageFigure';
 export type { ImageFigureProps, ImageLayout } from './ImageFigure';
 export { VideoBlock } from './VideoBlock';

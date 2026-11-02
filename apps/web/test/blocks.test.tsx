@@ -1,8 +1,24 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodeBlurHash } from '@gurukul/schema';
 import type { Block } from '@gurukul/schema';
 import { BlockView, Prose } from '../src/player/blocks';
 import { axeViolations } from './axe';
+
+/** A valid hash that decodes to orange. */
+const HASH = encodeBlurHash(
+  Uint8ClampedArray.from({ length: 64 }, (_, i) => [230, 120, 20, 255][i % 4] as number),
+  4,
+  4,
+);
+/** jsdom has no canvas: a stub that draws nothing and hands back a fixed address. */
+function stubCanvas() {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => ({
+    createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+    putImageData: () => {},
+  })) as never);
+  vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+}
 
 const show = (block: unknown, props: Partial<Parameters<typeof BlockView>[0]> = {}) =>
   render(<BlockView block={block as Block} {...props} />);
@@ -63,6 +79,77 @@ describe('BlockView', () => {
   it('puts a file icon in the file link', () => {
     show({ type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'Cheat sheet' });
     expect(document.querySelector('.file-link svg')).toBeTruthy();
+  });
+
+  describe('blur placeholders', () => {
+    beforeEach(stubCanvas);
+    afterEach(() => vi.restoreAllMocks());
+    const upload = (over: object = {}) => ({
+      path: 'courses/c1/media/m1.png',
+      bytes: 1000,
+      contentType: 'image/png',
+      name: 'a.png',
+      ...over,
+    });
+    const image = (over: object = {}) => ({
+      type: 'image',
+      id: 'i',
+      url: 'https://x.test/a.png',
+      alt: 'A graph',
+      width: 1000,
+      height: 600,
+      ...over,
+    });
+    const file = (over: object = {}) => ({
+      type: 'file',
+      id: 'f',
+      url: 'https://x.test/a.pdf',
+      label: 'Cheat sheet',
+      upload: upload({ contentType: 'application/pdf', bytes: 430_080, ...over }),
+    });
+
+    it('shows a valid hash behind an uploaded image until it loads', () => {
+      const { container } = show(image({ upload: upload({ blurHash: HASH }) }));
+      expect(container.querySelector('.g-figure__blur[aria-hidden="true"]')).toBeTruthy();
+      fireEvent.load(screen.getByRole('img', { name: 'A graph' }));
+      expect(container.querySelector('.g-figure__blur--out')).toBeTruthy();
+    });
+
+    it('shows nothing extra for an invalid hash, no hash, or a linked image', () => {
+      for (const block of [
+        image({ upload: upload({ blurHash: 'not valid' }) }),
+        image({ upload: upload() }),
+        image(),
+      ]) {
+        const { container, unmount } = show(block);
+        expect(container.querySelector('.g-figure__blur')).toBeNull();
+        unmount();
+      }
+    });
+
+    it('gives an uploaded File block a decorative first-page thumbnail and keeps its text', async () => {
+      const { container } = show(file({ blurHash: HASH }));
+      const thumb = container.querySelector('.file-link__thumb') as HTMLElement;
+      expect(thumb.getAttribute('aria-hidden')).toBe('true');
+      expect(thumb.textContent).toBe('');
+      expect(thumb.style.backgroundImage).toContain('data:image/png');
+      expect(container.querySelector('.file-link svg')).toBeNull();
+      expect(screen.getByRole('link', { name: 'Cheat sheet · PDF · 420 KB' })).toBeTruthy();
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('keeps the file icon without a hash, with a malformed one, and for a plain link', () => {
+      for (const block of [
+        file(),
+        file({ blurHash: 'nope' }),
+        { type: 'file', id: 'f', url: 'https://x.test/a.pdf', label: 'Cheat sheet' },
+      ]) {
+        const { container, unmount } = show(block);
+        expect(container.querySelector('.file-link__thumb')).toBeNull();
+        expect(container.querySelector('.file-link svg')).toBeTruthy();
+        unmount();
+      }
+    });
   });
 
   describe('image layouts', () => {

@@ -6,6 +6,7 @@ import { useUploadPolicy } from '../../data/useUploadPolicy';
 import { log } from '../../log';
 import { UploadCancelledError } from '../errors';
 import { copyText } from '../media/clipboard';
+import { pdfBlurHash } from '../media/blurHash';
 import { uploadFailureMessage } from '../media/failure';
 import { inspectImage } from '../media/inspect';
 import { mediaPath, newMediaId, pdfMetadata } from '../media/path';
@@ -134,6 +135,8 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
     running.current = controller;
     setStage({ step: 'uploading', picked, progress: 0 });
     const path = mediaPath(courseId, newMediaId(), PDF_CONTENT_TYPE);
+    // Made while the file uploads; it never fails, so a placeholder cannot hold an upload back.
+    const hashing = pdfBlurHash(picked.file);
     try {
       const url = await storage.upload({
         path,
@@ -143,6 +146,7 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
           setStage((now) => (now.step === 'uploading' ? { ...now, progress } : now)),
         signal: controller.signal,
       });
+      const blurHash = await hashing;
       const now = latest.current;
       onChange({
         ...now,
@@ -153,6 +157,7 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
           bytes: picked.file.size,
           contentType: PDF_CONTENT_TYPE,
           name: picked.file.name.slice(0, 120),
+          ...(blurHash ? { blurHash } : {}),
         },
       });
       setStage({ step: 'idle' });

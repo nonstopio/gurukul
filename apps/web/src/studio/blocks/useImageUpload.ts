@@ -12,6 +12,7 @@ import { useUploadPolicy } from '../../data/useUploadPolicy';
 import { log } from '../../log';
 import { UploadCancelledError } from '../errors';
 import { copyText } from '../media/clipboard';
+import { imageBlurHash } from '../media/blurHash';
 import { uploadFailureMessage } from '../media/failure';
 import { inspectImage } from '../media/inspect';
 import { imageMetadata, mediaPath, newMediaId } from '../media/path';
@@ -206,6 +207,8 @@ export function useImageUpload(
     setStage({ step: 'uploading', picked, progress: 0 });
     const contentType = picked.file.type as ImageContentType;
     const path = mediaPath(courseId, newMediaId(), contentType);
+    // Made while the file uploads; it never fails, so a placeholder cannot hold an upload back.
+    const hashing = imageBlurHash(picked.file);
     try {
       const url = await storage.upload({
         path,
@@ -221,6 +224,7 @@ export function useImageUpload(
           setStage((now) => (now.step === 'uploading' ? { ...now, progress } : now)),
         signal: controller.signal,
       });
+      const blurHash = await hashing;
       onChange({
         ...latest.current,
         url,
@@ -231,6 +235,7 @@ export function useImageUpload(
           bytes: picked.file.size,
           contentType,
           name: picked.file.name.slice(0, 120),
+          ...(blurHash ? { blurHash } : {}),
         },
       });
       setStage({ step: 'idle' });

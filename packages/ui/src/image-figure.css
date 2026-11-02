@@ -71,3 +71,23 @@
   display: block;
   max-width: none;
 }
+/* A BlurHash placeholder: the same box as the image, so nothing jumps; it fades once the image loads. */
+.g-figure__media {
+  position: relative;
+  display: block;
+  max-width: 100%;
+}
+.g-figure__media .g-figure__img {
+  width: 100%;
+}
+.g-figure__blur {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  opacity: 1;
+  transition: opacity var(--dur-slow) var(--ease);
+  pointer-events: none;
+}
+.g-figure__blur--out {
+  opacity: 0;
+}

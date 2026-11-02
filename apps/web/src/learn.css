@@ -374,6 +374,14 @@ a.items__row:hover {
   border-radius: var(--radius-md);
   background: var(--surface);
 }
+/* The blurred first page of an uploaded PDF: decoration, a small fixed portrait box. */
+.file-link__thumb {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
 .check {
   display: grid;
   gap: var(--space-3);

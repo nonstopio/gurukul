@@ -140,6 +140,7 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
             border={block.border}
             width={size.width}
             height={size.height}
+            blurHash={picked ? undefined : block.upload?.blurHash}
             caption={block.caption}
             onSize={
               block.upload || picked

@@ -1,4 +1,12 @@
-import { Callout, CodeBlock, FileIcon, ImageFigure, QuizOption, VideoBlock } from '@gurukul/ui';
+import {
+  Callout,
+  CodeBlock,
+  FileIcon,
+  ImageFigure,
+  QuizOption,
+  VideoBlock,
+  blurHashStyle,
+} from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useId, useState } from 'react';
 import Markdown from 'react-markdown';
@@ -168,6 +176,7 @@ export function BlockView({
           zoom={block.zoom}
           width={block.width}
           height={block.height}
+          blurHash={block.upload?.blurHash}
           caption={block.caption}
         />
       );
@@ -187,13 +196,20 @@ export function BlockView({
           </a>
         </p>
       );
-    case 'file':
+    case 'file': {
+      // An uploaded PDF made a blurred first page at upload: a small decorative thumbnail, in place of the generic icon.
+      const thumb = blurHashStyle(block.upload?.blurHash);
       return (
         <a className="file-link" href={block.url} target="_blank" rel="noopener noreferrer">
-          <FileIcon />
+          {thumb ? (
+            <span className="file-link__thumb" aria-hidden="true" style={thumb} />
+          ) : (
+            <FileIcon />
+          )}
           {block.upload ? `${block.label} · PDF · ${formatBytes(block.upload.bytes)}` : block.label}
         </a>
       );
+    }
     case 'check':
       return <CheckBlock block={block} onAnswered={onAnswered} />;
     default:

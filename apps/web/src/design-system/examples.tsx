@@ -1187,7 +1187,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     ),
   },
   ImageFigure: {
-    rule: 'A lesson image as a column, medium or small figure, framed or not, optionally opening full size, with its alt text when it fails to load.',
+    rule: 'A lesson image as a column, medium or small figure, framed or not, optionally opening full size, with a blurred placeholder at its shape until it loads (given a BlurHash) and its alt text when it fails to load.',
     Example: () => (
       <Frame>
         <ImageFigure
@@ -1198,6 +1198,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           width={640}
           height={240}
           caption="Zoom opens it at its natural size."
+          blurHash="LEHV6nWB2yk8pyo0adR*.7kCMdnj"
         />
       </Frame>
     ),

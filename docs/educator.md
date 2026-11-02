@@ -46,6 +46,10 @@ choose another** drops it. Transparency stays, and location and camera details a
 for PDFs, SVGs or files that are not really WebP, PNG or JPEG. If the browser cannot do it, the message says
 so and the prompt for your coding agent is still there.
 
+**A blurred preview, made for you.** When an image uploads, Gurukul also keeps a tiny blurred version of it
+(about 30 characters). Learners see it, at the picture's own shape, while the real image loads, so the
+lesson does not jump. You do nothing; it is not made for linked images.
+
 ### Reusing an image
 
 To show a picture you already uploaded in this course in another lesson, pick **Choose from this course's
@@ -104,6 +108,10 @@ browser first (it must really be a PDF, not a renamed file), then **Upload PDF**
 a running upload, and if it fails nothing is saved: try again. **Replace PDF** uploads a new file and
 **Remove PDF** clears the block; neither deletes the old file, because a published version may still link it.
 Typing an address on **Link** over an uploaded file turns the block into a plain link.
+
+**A blurred preview, made for you.** Gurukul draws the first page of the PDF in your browser and keeps a tiny
+blurred copy (about 30 characters). Learners see it as a small thumbnail beside the link. You do nothing; if
+a PDF cannot be drawn (a password-protected one, say) it still uploads, just without the thumbnail.
 
 The **Label** is the words on the link. A new upload starts with the file name without `.pdf`; change it
 to anything. Learners see it as "Label · PDF · 420 KB", and the preview under the block shows exactly that.
