@@ -19,7 +19,7 @@ import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { isRetired } from '../learn/model';
-import { LoadedPage, RetiredNote } from '../learn/ui';
+import { LoadedPage, LockedNote, RetiredNote } from '../learn/ui';
 import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
 import {
   answerLetters,
@@ -111,18 +111,25 @@ function Exam({
       </>
     );
   }
-  if (states[quiz.id] === 'locked' || wait > 0) {
+  if (states[quiz.id] === 'locked') {
     return (
       <>
         <TopBar title={course.title} titleAs="p" back={back} />
         <Page width="reading">
           <PageHeader title={quiz.title} />
-          <Callout tone="note" title={wait > 0 ? 'Retake not open yet' : 'Locked for now'}>
-            <p>
-              {wait > 0
-                ? `You can retake this in ${formatWait(wait)}.`
-                : 'Finish the earlier lessons first.'}
-            </p>
+          <LockedNote course={course} states={states} itemId={quiz.id} />
+        </Page>
+      </>
+    );
+  }
+  if (wait > 0) {
+    return (
+      <>
+        <TopBar title={course.title} titleAs="p" back={back} />
+        <Page width="reading">
+          <PageHeader title={quiz.title} />
+          <Callout tone="note" title="Retake not open yet">
+            <p>{`You can retake this in ${formatWait(wait)}.`}</p>
           </Callout>
           <div className="learn-buttons">
             <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>

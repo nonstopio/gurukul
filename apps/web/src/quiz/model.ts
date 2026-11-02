@@ -158,11 +158,6 @@ export function reviewOfAttempt(quiz: Quiz, attempt: AttemptRow): AttemptReview 
   };
 }
 
-/** The 1-based number of the chapter holding `itemId`; 0 when no chapter does. */
-export function chapterNumber(course: Pick<Course, 'chapters'>, itemId: string): number {
-  return course.chapters.findIndex((p) => p.items.some((i) => i.id === itemId)) + 1;
-}
-
 /** The item after `itemId` in reading order, if any. */
 export function itemAfter(course: Pick<Course, 'chapters'>, itemId: string): Item | undefined {
   const items = itemsOf(course);
@@ -175,6 +170,25 @@ export function itemPath(courseId: string, item: Pick<Item, 'id' | 'type'>): str
     ? `/courses/${courseId}/quiz/${item.id}`
     : `/courses/${courseId}/learn/${item.id}`;
 }
+
+/** The first item before `itemId` not yet done: what stands between the learner and it. */
+export function blockerBefore(
+  course: Pick<Course, 'chapters'>,
+  states: Record<string, string>,
+  itemId: string,
+): Item | undefined {
+  const items = itemsOf(course);
+  return items
+    .slice(
+      0,
+      items.findIndex((i) => i.id === itemId),
+    )
+    .find((i) => states[i.id] !== 'done');
+}
+
+/** The button that opens an item: "Open lesson", or "Open Quiz" in the person's own word. */
+export const openItemLabel = (item: Pick<Item, 'type'>, quizWord: string): string =>
+  item.type === 'quiz' ? `Open ${quizWord}` : 'Open lesson';
 
 /** LinkedIn's "add certification" link with the organisation, credential id and verify URL. */
 export function linkedInUrl(c: {

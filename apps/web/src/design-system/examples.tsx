@@ -208,7 +208,13 @@ function ToastExample() {
                     code: 'NET-OFFLINE',
                     action: { label: 'Retry', onSelect: () => toast.show('Trying again…') },
                   }
-                : { tone, title: `A ${tone} toast` },
+                : tone === 'info'
+                  ? {
+                      tone,
+                      title: 'Finish "What Git solves" to open the next lesson.',
+                      action: { label: 'Open lesson', onSelect: () => {} },
+                    }
+                  : { tone, title: `A ${tone} toast` },
             )
           }
         >
@@ -1264,7 +1270,14 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           question="Which command records them?"
           yourAnswer="git push"
           correctAnswer="git commit"
-          revisit={{ href: '#', label: 'Revisit lesson: Commits' }}
+          revisit={{
+            href: '#',
+            label: (
+              <>
+                Revisit lesson<span className="sr-only">: Commits</span>
+              </>
+            ),
+          }}
         >
           A commit records staged changes locally.
         </ResultRow>

@@ -59,7 +59,7 @@ assignments paginate "Show all"; first name missing → "Namaste".
 
 | Region | Spec |
 |---|---|
-| Hero band | `--cover-forest` full width, padding 32/40; breadcrumb; chips; `<h1>` Fraunces `clamp(36px,4.4vw,54px)`; description 17px `--chrome-text`; meta row (parvas, lessons, Parikshas, time, certificate); actions: chrome Button "Resume — {item}" (the "Preview certificate" button is dropped: nothing that looks like a certificate exists before one is earned) |
+| Hero band | `--cover-forest` full width, padding 32/40; breadcrumb; chips; `<h1>` Fraunces `clamp(36px,4.4vw,54px)`; description 17px `--chrome-text`; meta row (parvas, lessons, Parikshas, time, certificate); actions: chrome Button "Resume" (the "Preview certificate" button is dropped: nothing that looks like a certificate exists before one is earned) |
 | Outline | One Card per parva. Header row: 26px state icon (done ✓ solid accent / current numbered ring / locked lock), micro label "PARVA n", title 16px/600, right meta. Current parva expanded: item rows 52px (`<a>`), state icon, title, "Up next" chip, type · minutes right |
 | Sidebar | Progress card (96px ring, `dl` of lessons/Parikshas/due, pass rule sentence), "What you will learn" list, Acharya card |
 
@@ -82,7 +82,7 @@ parva is open by default; others collapsed. Remember per course in localStorage.
 | Article | `flex 999 1 560px`, padding 40/72; max-width 780 centred; gap 28 |
 | Title block | Micro label "PARVA 3 · LESSON 4 OF 4" accent; `<h1>` Fraunces 40px; chips (type, duration) |
 | Blocks | Rendered in order by type (see block specs below) |
-| Footer | Top border; secondary "◂ {previous}"; primary "Mark complete · {next}" |
+| Footer | Top border; secondary "◂ Previous"; primary "Mark complete" (or "Next", "Finish course"), always on the right. No item names in buttons |
 
 **Layouts:** `stacked` (as drawn); `split` (≥1100px: first video block sticky
 left 55%, remaining blocks scroll right; below 1100 falls back to stacked);
@@ -139,7 +139,7 @@ this device as you go".
 
 | Element | Spec |
 |---|---|
-| Score card | 148px ring (score/total in Fraunces), chip pass/fail, `<h1>` "Pariksha II cleared." / "Not this time." , explanation sentence, actions: primary "Continue to Parva 4" (pass) or "Revisit lessons" (fail), secondary "Retake" (with cooldown countdown) |
+| Score card | 148px ring (score/total in Fraunces), chip pass/fail, `<h1>` "Pariksha II cleared." / "Not this time." , explanation sentence, actions: primary "Continue" (pass) or "Revisit lessons" (fail), secondary "Retake" (with cooldown countdown) |
 | Review | Card with a row per question: ✓/✗ icon, question, your answer (struck through when wrong), correct answer and explanation (if `revealAnswers` allows), "Revisit lesson: {title}" link |
 
 Fail state uses the warning palette for the chip, never red for the whole card.

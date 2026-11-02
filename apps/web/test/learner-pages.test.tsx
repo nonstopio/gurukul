@@ -425,7 +425,7 @@ describe('Course overview', () => {
         watched: progressRow({ completedItemIds: ['l1'], lastItemId: 'l2' }),
       }),
     );
-    expect(await screen.findByRole('link', { name: 'Resume — Lesson l2' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Resume' })).toBeTruthy();
     expect(screen.queryByText('What you will learn')).toBeNull();
     expect(screen.getByText('This course is retired')).toBeTruthy();
     expect(screen.queryByText('New lessons added')).toBeNull();
@@ -643,16 +643,19 @@ describe('Lesson player', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
   });
 
-  it('names the lesson in a toast when the server refuses the write', async () => {
+  it('names the lesson in a toast when the server refuses the write, and opens it', async () => {
     const d = fakeData({ watched: started() });
     d.data.completeItem = vi.fn().mockRejectedValue(new Error('permission-denied'));
-    await open('/courses/git/learn/l1', d);
+    const { router } = await open('/courses/git/learn/l1', d);
     fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
     expect(
       await screen.findByText(
         'Could not save your progress on "Lesson l1". Open it and try again.',
       ),
     ).toBeTruthy();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Open lesson' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l1'));
   });
 
   describe('check questions', () => {
@@ -706,6 +709,8 @@ describe('Lesson player', () => {
       expect(await screen.findByText('Finish "Lesson l1" to open the next lesson.')).toBeTruthy();
       expect(d.data.completeItem).toHaveBeenCalledWith('u1', 'git', 'l2');
       expect(router.state.location.pathname).toBe('/courses/git/learn/l2');
+      fireEvent.click(screen.getByRole('button', { name: 'Open lesson' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l1'));
     });
 
     it('names the Quiz to pass when one stands in the way', async () => {
@@ -719,7 +724,7 @@ describe('Lesson player', () => {
           },
         ],
       });
-      await open(
+      const { router } = await open(
         '/courses/git/learn/b',
         fakeData({
           courses: [course],
@@ -730,6 +735,8 @@ describe('Lesson player', () => {
       expect(
         await screen.findByText('Pass the Quiz "Quiz I" to open the next lesson.'),
       ).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Open Quiz' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/quiz/q1'));
     });
   });
 
@@ -868,7 +875,20 @@ describe('Lesson player', () => {
     const d = fakeData({ watched: started({ completedItemIds: ['l1', 'l2'] }) });
     const { unmount } = await open('/courses/git/learn/l4', d);
     expect(await screen.findByText('Locked for now')).toBeTruthy();
+    expect(screen.getByText('Finish "Lesson l3" first.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open lesson' }).getAttribute('href')).toBe(
+      '/courses/git/learn/l3',
+    );
     unmount();
+    const gated = await open(
+      '/courses/git/learn/l4',
+      fakeData({ watched: started({ completedItemIds: ['l1', 'l2', 'l3'] }) }),
+    );
+    expect(await screen.findByText('Pass the Quiz "Quiz I" first.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open Quiz' }).getAttribute('href')).toBe(
+      '/courses/git/quiz/q1',
+    );
+    gated.unmount();
     const { router } = await open(
       '/courses/git/learn/q1',
       fakeData({ watched: started({ completedItemIds: ['l1', 'l2', 'l3'] }) }),
@@ -937,7 +957,7 @@ describe('Lesson player', () => {
     await open('/courses/git/learn/l1', fakeData({ watched: started() }));
     expect(await screen.findByText('Chapter 1 · Lesson 1 of 2')).toBeTruthy();
     expect(screen.getByText('5 min')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mark complete · Lesson l2' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mark complete' })).toBeTruthy();
   });
 
   it('shows a type chip when the lesson has a kind label', async () => {

@@ -2,7 +2,6 @@ import { itemStates, itemsOf, resumeItemId } from '@gurukul/schema';
 import type { Course, ItemState, Lesson, Chapter } from '@gurukul/schema';
 import {
   Button,
-  Callout,
   CheckIcon,
   ChevronLeftIcon,
   Chip,
@@ -25,8 +24,8 @@ import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
 import { isRetired, percentFor } from './learn/model';
-import { itemPath } from './quiz/model';
-import { LoadedPage, RetiredNote } from './learn/ui';
+import { blockerBefore, itemPath, openItemLabel } from './quiz/model';
+import { LoadedPage, LockedNote, RetiredNote } from './learn/ui';
 import { BlockView } from './player/blocks';
 import { needsWatching, videosOf } from './player/watch';
 import { log } from './log';
@@ -178,14 +177,7 @@ function Player({
         <TopBar title={course.title} titleAs="p" back={back} />
         <Page width="reading">
           <PageHeader title={item.title} />
-          <Callout tone="note" title="Locked for now">
-            <p>{`Finish the earlier items, and pass any ${t.Quiz} before this one, to open it.`}</p>
-          </Callout>
-          <div className="learn-buttons">
-            <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
-              Back to the outline
-            </Link>
-          </div>
+          <LockedNote course={course} states={states} itemId={itemId} />
         </Page>
       </>
     );
@@ -230,9 +222,7 @@ function Player({
       completedItemIds: [...state.completedItemIds, lesson.id],
     });
     const blocker =
-      next && after[next.id] === 'locked'
-        ? items.slice(0, index + 1).find((i) => i.id !== lesson.id && after[i.id] !== 'done')
-        : undefined;
+      next && after[next.id] === 'locked' ? blockerBefore(course, after, next.id) : undefined;
     if (!done) {
       // The progress document is created on first open; if that write has not landed yet, an
       // update would be refused (nothing to update), so create it first.
@@ -245,6 +235,10 @@ function Player({
           log.error('Saving progress failed', e, { uid, courseId: course.id, itemId: lesson.id });
           toast.show(`Could not save your progress on "${lesson.title}". Open it and try again.`, {
             tone: 'danger',
+            action: {
+              label: openItemLabel(lesson, t.Quiz),
+              onSelect: () => goTo(itemPath(course.id, lesson)),
+            },
           });
         });
     }
@@ -253,6 +247,12 @@ function Player({
         blocker.type === 'quiz'
           ? `Pass the ${t.Quiz} "${blocker.title}" to open the next lesson.`
           : `Finish "${blocker.title}" to open the next lesson.`,
+        {
+          action: {
+            label: openItemLabel(blocker, t.Quiz),
+            onSelect: () => goTo(itemPath(course.id, blocker)),
+          },
+        },
       );
       return;
     }
@@ -311,7 +311,7 @@ function Player({
               {prev ? (
                 <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
                   <ChevronLeftIcon />
-                  Previous<span className="sr-only">:</span> {prev.title}
+                  Previous
                 </Link>
               ) : null}
               <Button
@@ -325,7 +325,6 @@ function Player({
                   : next
                     ? 'Mark complete'
                     : 'Finish course'}
-                {next ? ` · ${next.title}` : ''}
               </Button>
             </footer>
           </div>
