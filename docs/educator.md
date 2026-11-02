@@ -46,6 +46,14 @@ choose another** drops it. Transparency stays, and location and camera details a
 for PDFs, SVGs or files that are not really WebP, PNG or JPEG. If the browser cannot do it, the message says
 so and the prompt for your coding agent is still there.
 
+### Reusing an image
+
+To show a picture you already uploaded in this course in another lesson, pick **Choose from this course's
+media** in the Image block. You see the course's uploaded images with their size and pixels; choose one and
+the block uses that same file, with nothing uploaded again. Write the alt text for this lesson. Only this
+course's own uploads are listed. To reuse an image from another course, copy its address from the **Media
+library** (`/studio/media`, where uploaded files are tagged **Uploaded**) and paste it in **Link**.
+
 ### The numbers, and why
 
 | What                 | Limit                                                          |

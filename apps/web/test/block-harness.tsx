@@ -1,6 +1,7 @@
 import { ToastProvider } from '@gurukul/ui';
 import type { ReactNode } from 'react';
 import { DataProvider } from '../src/data/DataProvider';
+import type { CourseImage } from '../src/studio/media/courseMedia';
 import { BlockScope } from '../src/studio/blocks/BlockScope';
 import { StudioProvider } from '../src/studio/StudioProvider';
 import { fakeData } from './fake-data';
@@ -16,18 +17,20 @@ export function BlockProviders({
   data = fakeData(),
   courseId = 'git',
   uid = 'u1',
+  uploadedImages,
 }: {
   children: ReactNode;
   studio?: ReturnType<typeof fakeStudio>;
   data?: ReturnType<typeof fakeData>;
   courseId?: string;
   uid?: string;
+  uploadedImages?: readonly CourseImage[] | undefined;
 }) {
   return (
     <ToastProvider>
       <DataProvider data={data.data}>
         <StudioProvider {...studio}>
-          <BlockScope courseId={courseId} uid={uid}>
+          <BlockScope courseId={courseId} uid={uid} uploadedImages={uploadedImages}>
             {children}
           </BlockScope>
         </StudioProvider>

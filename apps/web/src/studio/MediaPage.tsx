@@ -26,11 +26,13 @@ import { log } from '../log';
 import { pageFor } from '../paging';
 import { useStudio } from './StudioProvider';
 import {
+  UPLOADED,
   collectMedia,
   courseCount,
   filterMedia,
   galleryKind,
   mediaName,
+  uploadedText,
   usedText,
 } from './studioModel';
 import type { MediaEntry } from './studioModel';
@@ -40,7 +42,7 @@ const keyOf = (e: MediaEntry) => `${e.kind} ${e.url}`;
 
 /**
  * `/studio/media`: a gallery of every link used in the courses the person can see, with a real
- * preview for images, search, a type filter and a detail drawer to copy the link. No uploads in v1.
+ * preview for images, search, a type filter (with Uploaded for files Gurukul hosts, and their size) and a detail drawer to copy the link.
  */
 export function MediaPage() {
   const { data } = useStudio();
@@ -49,7 +51,7 @@ export function MediaPage() {
   const toast = useToast();
   const t = useTerms();
   const [search, setSearch] = useState('');
-  const [type, setType] = useState<MediaKind | 'all'>('all');
+  const [type, setType] = useState<MediaKind | 'all' | typeof UPLOADED>('all');
   const [open, setOpen] = useState<MediaEntry | null>(null);
   const [page, setPage] = useState(1);
   const result = useAsync(
@@ -76,10 +78,10 @@ export function MediaPage() {
         title="Media library"
         lead="Every video, image, PDF and embed your courses link to, so you can reuse it."
       />
-      <Callout tone="note" title="Links only, for now">
+      <Callout tone="note" title="Add media in a lesson">
         <p>
-          Gurukul does not store uploads yet, so there is nothing to drop here. Add a link in a
-          lesson and it appears in this library.
+          Upload an image or add a link in a lesson and it appears here. Files you uploaded are
+          tagged Uploaded; pick the Uploaded type to see only those.
         </p>
       </Callout>
       <Loaded loadable={result}>
@@ -130,11 +132,14 @@ export function MediaPage() {
                   hideLabel
                   value={type}
                   onChange={(e) => {
-                    setType(e.target.value as MediaKind | 'all');
+                    setType(e.target.value as MediaKind | 'all' | typeof UPLOADED);
                     setPage(1);
                   }}
                 >
                   <option value="all">All types</option>
+                  {entries.some((e) => e.upload) ? (
+                    <option value={UPLOADED}>Uploaded</option>
+                  ) : null}
                   {present.map((k) => (
                     <option key={k} value={k}>
                       {mediaKindName(k)}
@@ -154,7 +159,7 @@ export function MediaPage() {
                     items={paged.rows.map((e) => ({
                       id: keyOf(e),
                       name: mediaName(e),
-                      meta: `${mediaKindName(galleryKind(e))} · ${usedText(e)}`,
+                      meta: `${mediaKindName(galleryKind(e))} · ${uploadedText(e)}${usedText(e)}`,
                       kind: galleryKind(e),
                       url: e.url,
                     }))}
@@ -205,7 +210,7 @@ function Detail({
       <div className="sc-media__detail">
         <MediaPreview kind={kind} url={entry.url} size="large" />
         <p className="sc-help">
-          {mediaKindName(kind)} · used in {n} {n === 1 ? 'course' : 'courses'}
+          {mediaKindName(kind)} · {uploadedText(entry)}used in {n} {n === 1 ? 'course' : 'courses'}
         </p>
         <p className="sc-media__url">{entry.url}</p>
         <ul className="sc-media__uses" aria-label="Where it is used">

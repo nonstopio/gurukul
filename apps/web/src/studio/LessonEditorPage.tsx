@@ -25,6 +25,7 @@ import {
   replaceBlock,
 } from './lessonEdit';
 import { newId } from './ids';
+import { uploadedImages } from './media/courseMedia';
 import { patch } from './patch';
 import { itemEditorPath, nameOf } from './studioModel';
 import type { Terms } from '../labels/terms';
@@ -71,6 +72,8 @@ function LessonEditor({
     () => validateForPublish(work.course, work.answers, checks),
     [work, checks],
   );
+
+  const hosted = useMemo(() => uploadedImages(work.course, courseId), [work.course, courseId]);
 
   const focusAfterRender = useRef<string | null>(null);
 
@@ -216,7 +219,7 @@ function LessonEditor({
               onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
               renderItem={(block, { handle }) => (
                 <div data-block-id={block.id}>
-                  <BlockScope courseId={courseId} uid={uid}>
+                  <BlockScope courseId={courseId} uid={uid} uploadedImages={hosted}>
                     <BlockPreviewFrame
                       block={block}
                       onChange={(next) => edit((l) => replaceBlock(l, next))}

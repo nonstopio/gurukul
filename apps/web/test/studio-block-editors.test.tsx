@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BlockEditor } from '../src/studio/blocks/BlockEditor';
 import { BlockPalette } from '../src/studio/blocks/BlockPalette';
 import { newBlock } from '../src/studio/lessonEdit';
+import type { CourseImage } from '../src/studio/media/courseMedia';
 import { axeViolations } from './axe';
 import { BlockProviders } from './block-harness';
 
@@ -21,10 +22,10 @@ function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }
     />
   );
 }
-function setup(block: Block) {
+function setup(block: Block, uploadedImages?: readonly CourseImage[]) {
   const seen = vi.fn();
   const view = render(
-    <BlockProviders>
+    <BlockProviders uploadedImages={uploadedImages}>
       <Harness initial={block} seen={seen} />
     </BlockProviders>,
   );
@@ -332,6 +333,113 @@ describe('image block editor', () => {
   it('has no accessibility violations with the controls and preview', async () => {
     const { container } = setup(linked());
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe("Choose from this course's media", () => {
+  const hosted = (n: number, over: Partial<CourseImage> = {}): CourseImage => ({
+    url: `https://firebasestorage.googleapis.com/v0/b/b/o/m${n}?alt=media`,
+    upload: {
+      path: `courses/git/media/m${n}.png`,
+      bytes: n * 100 * 1024,
+      contentType: 'image/png',
+      name: `shot-${n}.png`,
+    },
+    width: 1600,
+    height: 900,
+    ...over,
+  });
+  const choose = () => {
+    const opener = screen.getByRole('button', { name: "Choose from this course's media" });
+    opener.focus();
+    fireEvent.click(opener);
+  };
+  const fresh = () => ({ ...newBlock('image'), alt: 'Kept alt' }) as Block;
+
+  it('lists the hosted images with name, size and pixels, and sets the block to the one chosen', () => {
+    const { last } = setup(fresh(), [
+      hosted(1),
+      hosted(2, { width: undefined, height: undefined }),
+    ]);
+    choose();
+    const dialog = screen.getByRole('dialog', { name: "Choose from this course's media" });
+    expect(
+      within(dialog).getByRole('button', { name: /shot-1\.png.*100 KB · 1600 × 900 px/ }),
+    ).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: /shot-2\.png.*200 KB$/ })).toBeTruthy();
+    expect(dialog.querySelectorAll('img')).toHaveLength(2);
+    fireEvent.click(within(dialog).getByRole('button', { name: /shot-1\.png/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(last()).toMatchObject({
+      url: hosted(1).url,
+      upload: hosted(1).upload,
+      width: 1600,
+      height: 900,
+      alt: 'Kept alt',
+    });
+    // Focus returns to the button that opened the dialog.
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: "Choose from this course's media" }),
+    );
+  });
+
+  it('drops the old size when the chosen file has none, and leaves the Upload tab showing it', () => {
+    const { last } = setup({ ...fresh(), width: 10, height: 20 } as Block, [
+      hosted(2, { width: undefined, height: undefined }),
+    ]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    choose();
+    fireEvent.click(screen.getByRole('button', { name: /shot-2\.png/ }));
+    expect('width' in last()).toBe(false);
+    expect(screen.getByRole('tab', { name: 'Upload' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText(/Uploaded: shot-2\.png · 200 KB/)).toBeTruthy();
+  });
+
+  it('marks the image the block already uses', () => {
+    const one = hosted(1);
+    setup({ ...fresh(), url: one.url, upload: one.upload } as Block, [one, hosted(2)]);
+    choose();
+    expect(screen.getByRole('button', { name: /shot-1\.png/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('button', { name: /shot-2\.png/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
+
+  it('cancels with the Cancel button or Escape and changes nothing', () => {
+    const { seen } = setup(fresh(), [hosted(1)]);
+    choose();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    choose();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('puts focus on the first image and chooses with the keyboard', () => {
+    const { last } = setup(fresh(), [hosted(1), hosted(2)]);
+    choose();
+    const first = screen.getByRole('button', { name: /shot-1\.png/ });
+    expect(document.activeElement).toBe(first);
+    fireEvent.click(first);
+    expect(last()).toMatchObject({ upload: { name: 'shot-1.png' } });
+  });
+
+  it('says so when the course has no uploaded images yet', async () => {
+    setup(fresh());
+    choose();
+    expect(screen.getByRole('heading', { name: 'No uploaded images yet' })).toBeTruthy();
+    expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('has no accessibility violations with images listed', async () => {
+    setup(fresh(), [hosted(1)]);
+    choose();
+    expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
   });
 });
 

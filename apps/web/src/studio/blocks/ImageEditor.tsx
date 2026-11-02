@@ -3,6 +3,7 @@ import type { ImageLayout } from '@gurukul/ui';
 import { useState } from 'react';
 import { PLACEHOLDER_IMAGE } from '../lessonEdit';
 import { patch } from '../patch';
+import { CourseImagePicker } from './CourseImagePicker';
 import { ImageUploadPanel } from './ImageUploadPanel';
 import { PreviewWidth } from './PreviewWidth';
 import type { BlockEditorProps } from './types';
@@ -88,6 +89,15 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
           },
         ]}
       />
+      {picked ? null : (
+        <CourseImagePicker
+          current={block.upload?.path}
+          onChoose={({ url, upload, width, height }) => {
+            setTab('upload');
+            onChange(patch(block, { url, upload, width, height }));
+          }}
+        />
+      )}
       <Input
         label="Alt text (required)"
         hint="Describe what the image shows, for people who cannot see it. Say what it means, not 'image of'."
