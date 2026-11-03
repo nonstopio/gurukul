@@ -14,7 +14,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
-import { countItems } from '../learn/model';
+import { countItems, courseImageUrl } from '../learn/model';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { pageFor } from '../paging';
@@ -144,6 +144,21 @@ function CourseTabs({
   );
 }
 
+/**
+ * The card's picture: the first image in the course's lessons, as on the learner's tiles, else the
+ * cover letter. A picture that fails to load falls back to the letter.
+ */
+function CardCover({ image, glyph }: { image: string | undefined; glyph: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return image && failed !== image ? (
+    <img className="sc-card__image" src={image} alt="" onError={() => setFailed(image)} />
+  ) : (
+    <span className="sc-card__glyph" aria-hidden="true">
+      {glyph}
+    </span>
+  );
+}
+
 function CourseCard({
   row,
   uid,
@@ -167,9 +182,7 @@ function CourseCard({
     <li>
       <Card as="article" className="sc-card">
         <div className={`sc-card__cover sc-card__cover--${live.cover.theme}`}>
-          <span className="sc-card__glyph" aria-hidden="true">
-            {live.cover.glyph}
-          </span>
+          <CardCover image={courseImageUrl(shown)} glyph={live.cover.glyph} />
           <Chip tone={status.tone} className="sc-card__status">
             {live.status === 'published' ? `${status.label} · v${live.version}` : status.label}
           </Chip>

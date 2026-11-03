@@ -110,6 +110,39 @@ describe('Studio courses page', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it("shows the first lesson image as a card's picture, and the letter when it fails to load", async () => {
+    const pictured = makeCourse({
+      id: 'pic',
+      title: 'Pictured',
+      educatorIds: ['u1'],
+      chapters: [
+        {
+          id: 'p1',
+          title: 'Basics',
+          items: [
+            lesson('l1'),
+            lesson('l2', {
+              blocks: [
+                { type: 'image', id: 'i1', url: 'https://example.com/cover.png', alt: 'A desk' },
+              ],
+            }),
+          ],
+        },
+      ],
+    });
+    const studio = fakeStudio({ courses: [{ live: pictured, draft: null }] });
+    await openApp('/studio', { roles: ['educator'], studio });
+    await screen.findByRole('link', { name: 'Pictured' });
+    const image = document.querySelector(
+      'img[src="https://example.com/cover.png"]',
+    ) as HTMLImageElement;
+    expect(image).toBeTruthy();
+    expect(screen.queryByText(pictured.cover.glyph)).toBeNull();
+    fireEvent.error(image);
+    expect(document.querySelector('img[src="https://example.com/cover.png"]')).toBeNull();
+    expect(screen.getByText(pictured.cover.glyph)).toBeTruthy();
+  });
+
   it('filters by tab and explains an empty tab', async () => {
     const studio = fakeStudio({ courses: [rows()[0] as never] });
     await openApp('/studio', { roles: ['educator'], studio });
