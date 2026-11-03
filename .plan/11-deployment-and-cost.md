@@ -80,6 +80,20 @@ verify links) and written to the functions' `.env` (emailed course links). Unset
 address the app is open on and emails use `https://nonstop-gurukul.web.app`. DNS and the Hosting
 custom domain are `OPS-24`.
 
+## Search engines and link previews
+
+Gurukul is for NonStop io people, so it is not built to rank. Search engines only need to find the
+front door, and links shared in Slack or mail should preview with a name, a line and the logo.
+
+- `apps/web/public/robots.txt` lets crawlers fetch `/`, `/privacy`, `/verify/…` (those pages say
+  `noindex`) and the files they need to render; every signed-in path is disallowed, since a crawler
+  sees only the sign-in screen there. No sitemap: two public pages need none.
+- `index.html` carries Open Graph and Twitter card tags. The preview image needs an absolute
+  address, so the build adds it from `VITE_SITE_URL` (`apps/web/src/seo/shareImage.ts`); with no
+  address set, previews show the title and description only.
+- Not done, because a single-page app on Hosting cannot without server rendering: per-page titles
+  in previews, per-page canonical links, and a real 404 status for unknown paths.
+
 ## First-time setup checklist (maintainer)
 
 1. Upgrade `nonstop-gurukul` to Blaze; create the $1 budget and alerts.
