@@ -110,7 +110,7 @@ describe('Studio courses page', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
-  it("shows the first lesson image as a card's picture, and the letter when it fails to load", async () => {
+  it("shows the first lesson image as a card's picture, and the name when it fails to load", async () => {
     const pictured = makeCourse({
       id: 'pic',
       title: 'Pictured',
@@ -137,10 +137,36 @@ describe('Studio courses page', () => {
       'img[src="https://example.com/cover.png"]',
     ) as HTMLImageElement;
     expect(image).toBeTruthy();
-    expect(screen.queryByText(pictured.cover.glyph)).toBeNull();
+    // With its picture, the cover does not repeat the name: only the heading's link has it.
+    expect(screen.getAllByText('Pictured')).toHaveLength(1);
     fireEvent.error(image);
     expect(document.querySelector('img[src="https://example.com/cover.png"]')).toBeNull();
-    expect(screen.getByText(pictured.cover.glyph)).toBeTruthy();
+    expect(screen.getAllByText('Pictured')).toHaveLength(2);
+  });
+
+  it("shows the draft's first image on the card, not the published one", async () => {
+    const withImage = (url: string) =>
+      makeCourse({
+        id: 'pic',
+        title: 'Pictured',
+        educatorIds: ['u1'],
+        chapters: [
+          {
+            id: 'p1',
+            title: 'Basics',
+            items: [lesson('l1', { blocks: [{ type: 'image', id: 'i1', url, alt: 'A desk' }] })],
+          },
+        ],
+      });
+    const live = withImage('https://example.com/live.png');
+    const draft = draftDoc(withImage('https://example.com/draft.png'), { updatedAt: hoursAgo(1) });
+    await openApp('/studio', {
+      roles: ['educator'],
+      studio: fakeStudio({ courses: [{ live, draft }] }),
+    });
+    await screen.findByRole('link', { name: 'Pictured' });
+    expect(document.querySelector('img[src="https://example.com/draft.png"]')).toBeTruthy();
+    expect(document.querySelector('img[src="https://example.com/live.png"]')).toBeNull();
   });
 
   it('filters by tab and explains an empty tab', async () => {

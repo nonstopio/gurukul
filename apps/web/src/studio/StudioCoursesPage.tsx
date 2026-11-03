@@ -1,7 +1,7 @@
 import {
   Button,
-  Card,
   Chip,
+  CourseTile,
   EmptyState,
   LockIcon,
   Page,
@@ -115,7 +115,7 @@ function CourseTabs({
             <Button variant="secondary" onClick={onNew}>
               Start a new course
             </Button>
-            <p className="sc-card__meta">Blank, or duplicate an existing one</p>
+            <p className="sc-new__hint">Blank, or duplicate an existing one</p>
           </li>
         </ul>
         <Pagination label="Courses" page={paged.page} total={shown.length} onPageChange={setPage} />
@@ -144,21 +144,6 @@ function CourseTabs({
   );
 }
 
-/**
- * The card's picture: the first image in the course's lessons, as on the learner's tiles, else the
- * cover letter. A picture that fails to load falls back to the letter.
- */
-function CardCover({ image, glyph }: { image: string | undefined; glyph: string }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  return image && failed !== image ? (
-    <img className="sc-card__image" src={image} alt="" onError={() => setFailed(image)} />
-  ) : (
-    <span className="sc-card__glyph" aria-hidden="true">
-      {glyph}
-    </span>
-  );
-}
-
 function CourseCard({
   row,
   uid,
@@ -178,56 +163,50 @@ function CourseCard({
   const shownCounts = countItems(shown);
   const t = useTerms();
   const educators = educatorSummary(live, t);
+  const facts = editing
+    ? [
+        row.learners === undefined
+          ? null
+          : `${row.learners} ${row.learners === 1 ? t.learner : t.learners}`,
+        draft?.updatedAt ? `Edited ${relativeTime(draft.updatedAt, now)}` : null,
+      ].filter((f): f is string => f !== null)
+    : [];
   return (
-    <li>
-      <Card as="article" className="sc-card">
-        <div className={`sc-card__cover sc-card__cover--${live.cover.theme}`}>
-          <CardCover image={courseImageUrl(shown)} glyph={live.cover.glyph} />
-          <Chip tone={status.tone} className="sc-card__status">
+    <CourseTile
+      as="li"
+      title={shown.title}
+      heading={editing ? <Link to={`/studio/courses/${live.id}`}>{shown.title}</Link> : shown.title}
+      image={courseImageUrl(shown)}
+      theme={live.cover.theme}
+      chips={
+        <>
+          <Chip tone={status.tone}>
             {live.status === 'published' ? `${status.label} · v${live.version}` : status.label}
           </Chip>
-        </div>
-        <div className="sc-card__body">
-          <h2 className="sc-card__title">
-            {editing ? (
-              <Link className="sc-card__link" to={`/studio/courses/${live.id}`}>
-                {shown.title}
-              </Link>
-            ) : (
-              shown.title
-            )}
-          </h2>
-          <p className="sc-card__meta">
-            {`${shown.chapters.length} ${t.chapters} · ${shownCounts.lessons} lessons · ${shownCounts.quizzes} ${t.Quizzes}`}
-          </p>
-          <div className="sc-card__foot">
-            {editing ? (
-              <>
-                {edits ? (
-                  <Chip tone="warning">
-                    {`${edits} unpublished ${edits === 1 ? 'edit' : 'edits'}`}
-                  </Chip>
-                ) : null}
-                {row.learners === undefined ? null : (
-                  <span className="sc-card__edited">
-                    {`${row.learners} ${row.learners === 1 ? t.learner : t.learners}`}
-                  </span>
-                )}
-                {draft?.updatedAt ? (
-                  <span className="sc-card__edited">
-                    Edited {relativeTime(draft.updatedAt, now)}
-                  </span>
-                ) : null}
-              </>
-            ) : (
-              <span className="sc-card__edited">
-                <LockIcon size={14} />{' '}
-                {educators ? `View only — ${educators.label}: ${educators.names}` : 'View only'}
-              </span>
-            )}
-          </div>
-        </div>
-      </Card>
-    </li>
+          {editing && edits ? (
+            <Chip tone="warning">{`${edits} unpublished ${edits === 1 ? 'edit' : 'edits'}`}</Chip>
+          ) : null}
+        </>
+      }
+      summary={`${shown.chapters.length} ${t.chapters} · ${shownCounts.lessons} lessons · ${shownCounts.quizzes} ${t.Quizzes}`}
+      meta={
+        editing ? (
+          facts.length > 0 ? (
+            <span className="sc-facts">
+              {facts.map((f) => (
+                <span key={f}>{f}</span>
+              ))}
+            </span>
+          ) : null
+        ) : (
+          <span className="sc-facts">
+            <span>
+              <LockIcon size={14} />{' '}
+              {educators ? `View only — ${educators.label}: ${educators.names}` : 'View only'}
+            </span>
+          </span>
+        )
+      }
+    />
   );
 }

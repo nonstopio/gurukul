@@ -93,6 +93,15 @@ test.describe('Educator uploads an image', () => {
     await expect(page.locator('.g-figure__blur')).toHaveCount(0);
     await expect(seen).toHaveAttribute('width', '1000');
     await expect.poll(() => seen.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1000);
+
+    // With no cover image of its own, the course's card in Studio shows that first picture.
+    await page.goto('/studio');
+    const card = page.getByRole('listitem').filter({ hasText: 'Pictures in Lessons' });
+    const cover = card.locator('img');
+    await expect(cover).toHaveAttribute('src', /courses%2Fpictures-in-lessons%2Fmedia%2F/);
+    await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1000);
+    await expect(card.getByText('Published · v1')).toBeVisible();
+    await expectNoSeriousViolations(page);
   });
 
   test('is refused a file over the limit, with numbers and the prompt, and nothing is uploaded', async ({
