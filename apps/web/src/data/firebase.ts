@@ -106,7 +106,13 @@ function listed(courseId: string, raw: unknown): CourseListing | null {
   return course && { ...course, ...accessOf(raw) };
 }
 
+// ponytail: a course read is reused for 5 minutes in this tab, so a new publish reaches a learner
+// within 5 minutes; Studio passes `fresh`. Listen to the document if that ever matters.
+export const COURSE_TTL_MS = 5 * 60 * 1000;
+
 export function firebaseLearnerData(db: Firestore): LearnerData {
+  // The course is the biggest document and every learner page asks for it: one read per hop, not one per page.
+  const courses = new Map<string, { at: number; promise: Promise<Course | null> }>();
   return {
     async listCourses(audience) {
       const live = where('status', 'in', ['published', 'archived']);
@@ -152,9 +158,16 @@ export function firebaseLearnerData(db: Firestore): LearnerData {
       const millis = (c: CourseListing) => c.publishedAt?.toMillis() ?? 0;
       return courses.sort((a, b) => millis(b) - millis(a));
     },
-    async getCourse(courseId) {
-      const snap = await getDoc(doc(db, 'courses', courseId));
-      return snap.exists() ? readable(snap.id, snap.data()) : null;
+    getCourse(courseId, { fresh = false } = {}) {
+      const hit = courses.get(courseId);
+      if (!fresh && hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise;
+      const promise = getDoc(doc(db, 'courses', courseId)).then((snap) =>
+        snap.exists() ? readable(snap.id, snap.data()) : null,
+      );
+      courses.set(courseId, { at: Date.now(), promise });
+      // A failed read is not kept, so the next page (or Retry) asks again.
+      promise.catch(() => courses.delete(courseId));
+      return promise;
     },
     async myAssignments(uid) {
       const snap = await getDocs(

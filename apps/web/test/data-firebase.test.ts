@@ -45,13 +45,14 @@ vi.mock('firebase/firestore', () => ({
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
-import { firebaseLearnerData } from '../src/data/firebase';
+import { COURSE_TTL_MS, firebaseLearnerData } from '../src/data/firebase';
 
-const data = firebaseLearnerData({} as never);
+let data = firebaseLearnerData({} as never);
 const ts = (ms: number) => ({ toDate: () => new Date(ms), toMillis: () => ms });
 const course = () => ({ ...makeCourse(), publishedAt: ts(1) });
 
 beforeEach(() => {
+  data = firebaseLearnerData({} as never);
   store.docs.clear();
   store.queryDocs = [];
   store.calls = [];
@@ -112,6 +113,34 @@ describe('firebaseLearnerData', () => {
     store.docs.set('courses/git', course());
     expect((await data.getCourse('git'))?.title).toBe('Git, the NonStop Way');
     expect(await data.getCourse('nope')).toBeNull();
+  });
+
+  it('reuses a course read for five minutes, then reads it again', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    store.docs.set('courses/git', course());
+    const first = await data.getCourse('git');
+    store.docs.set('courses/git', { ...course(), title: 'Republished' });
+    expect(await data.getCourse('git')).toBe(first);
+    now.mockReturnValue(1_000 + COURSE_TTL_MS);
+    expect((await data.getCourse('git'))?.title).toBe('Republished');
+    now.mockRestore();
+  });
+
+  it('reads the server copy when asked for a fresh one, and keeps it for the next page', async () => {
+    store.docs.set('courses/git', course());
+    await data.getCourse('git');
+    store.docs.set('courses/git', { ...course(), title: 'Republished' });
+    expect((await data.getCourse('git', { fresh: true }))?.title).toBe('Republished');
+    expect((await data.getCourse('git', {}))?.title).toBe('Republished');
+  });
+
+  it('does not keep a failed read, so the next one asks again', async () => {
+    const getDoc = vi.spyOn(await import('firebase/firestore'), 'getDoc');
+    getDoc.mockRejectedValueOnce(new Error('offline'));
+    await expect(data.getCourse('git')).rejects.toThrow('offline');
+    store.docs.set('courses/git', course());
+    expect((await data.getCourse('git'))?.title).toBe('Git, the NonStop Way');
+    getDoc.mockRestore();
   });
 
   it('skips a course it cannot read, so the rest of the catalogue still loads', async () => {
