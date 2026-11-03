@@ -18,6 +18,7 @@ import {
   orderAssigned,
   nextAssigned,
   durationLabel,
+  videoMeta,
   percentFor,
 } from '../src/learn/model';
 
@@ -115,6 +116,16 @@ describe('nextAssigned and durationLabel', () => {
     expect(durationLabel(45)).toBe('45 min');
     expect(durationLabel(120)).toBe('2 h');
     expect(durationLabel(80)).toBe('1 h 20 min');
+  });
+});
+
+describe('videoMeta', () => {
+  it('says the length, rounded, and whether there are captions, or nothing', () => {
+    expect(videoMeta({ durationSec: 420, captions: true })).toBe('≈ 7 min · Captions available');
+    expect(videoMeta({ durationSec: 4500, captions: false })).toBe('≈ 1 h 15 min');
+    expect(videoMeta({ durationSec: 20, captions: false })).toBe('≈ 1 min');
+    expect(videoMeta({ captions: true })).toBe('Captions available');
+    expect(videoMeta({ durationSec: undefined, captions: false })).toBeUndefined();
   });
 });
 

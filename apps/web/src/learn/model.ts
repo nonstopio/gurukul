@@ -67,6 +67,23 @@ export function durationLabel(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
+/**
+ * The line above a video: "≈ 7 min · Captions available", either part alone, or undefined when the
+ * Educator gave neither. Under a minute rounds up to one.
+ */
+export function videoMeta(video: {
+  durationSec?: number | undefined;
+  captions: boolean;
+}): string | undefined {
+  const parts = [
+    ...(video.durationSec
+      ? [`≈ ${durationLabel(Math.max(1, Math.round(video.durationSec / 60)))}`]
+      : []),
+    ...(video.captions ? ['Captions available'] : []),
+  ];
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
 /** The course to "continue": the most recently active one that is started but not finished. */
 export function continueCourse(
   courses: readonly Course[],

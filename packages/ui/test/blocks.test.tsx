@@ -142,9 +142,11 @@ describe('VideoBlock', () => {
         title="Intro to git"
         href="https://example.com/watch/1"
         caption="Twelve minutes"
+        meta="≈ 12 min · Captions available"
         className="x"
       />,
     );
+    expect(screen.getByText('≈ 12 min · Captions available').tagName).toBe('P');
     const frame = screen.getByTitle('Intro to git');
     expect(frame.getAttribute('src')).toBe('https://example.com/embed/1');
     expect(frame.getAttribute('loading')).toBe('lazy');

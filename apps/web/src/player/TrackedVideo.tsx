@@ -2,6 +2,7 @@ import type { Block } from '@gurukul/schema';
 import { isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { Toggle, VideoBlock } from '@gurukul/ui';
 import { useEffect, useRef, useState } from 'react';
+import { videoMeta } from '../learn/model';
 import { log } from '../log';
 import { trackLoom, trackYouTube } from './videoTrack';
 import type { Tracker } from './videoTrack';
@@ -103,6 +104,7 @@ export function TrackedVideo({
           href={block.url}
           frameRef={frame}
           caption={caption}
+          meta={videoMeta(block)}
         />
       ) : (
         <p>

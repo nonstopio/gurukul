@@ -330,7 +330,8 @@ horizontally and never wraps.
 
 ## VideoBlock — shipped
 
-`<VideoBlock src title href caption? linkLabel? frameRef? />`. Presentational: the caller picks the provider and builds
+`<VideoBlock src title href caption? meta? linkLabel? frameRef? />`. `meta` is a 13px muted line above the frame
+(the player passes the length and captions: "≈ 7 min · Captions available"). Presentational: the caller picks the provider and builds
 the embed `src` (for example `youtube-nocookie`); the component only frames it. `frameRef` hands the `<iframe>`
 to a caller that talks to the provider's player API (the lesson player's watch tracking). A `<figure>` with a 16:9
 frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>` (13px `--text-muted`) and an

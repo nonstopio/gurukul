@@ -67,9 +67,11 @@ describe('BlockView', () => {
       captions: true,
       title: 'Branching tour',
       caption: 'Watch the first five minutes',
+      durationSec: 420,
     });
     expect(screen.getByTitle('Branching tour')).toBeTruthy();
     expect(screen.getByText('Watch the first five minutes')).toBeTruthy();
+    expect(screen.getByText('≈ 7 min · Captions available')).toBeTruthy();
     v.unmount();
     show({ type: 'code', id: 'c', lang: 'sh', code: 'ls', copy: false, terminal: false });
     expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
