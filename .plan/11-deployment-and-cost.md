@@ -28,9 +28,12 @@ roles depend on. Blaze keeps the same free quotas and bills only above them.
 | Auth (Google) | free | free |
 
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
-tiers cover this volume, but stale container images should be cleaned up
-(`firebase functions:artifacts:setpolicy` after first deploy). Not automated: it is step 9 of
-the first-time setup checklist below, and is not yet done.
+tiers cover this volume only if stale container images are deleted. The `gcf-artifacts`
+repository keeps only the newest image of each function package (`firebase/artifact-cleanup-policy.json`):
+Artifact Registry deletes the rest about once a day, and anything under an hour old is never
+deleted mid-deploy. There is no rollback to an older image; a fix is redeployed instead. Deploys
+leave the policy alone, because the Firebase CLI only sets one on a repository that has none.
+It is step 9 of the first-time setup checklist below.
 
 **Backups.** `weeklyBackup` exports Firestore every Sunday 02:00 UTC to the Cloud Storage bucket
 named in `BACKUP_BUCKET`, under `backups/YYYY-MM-DD`; a bucket lifecycle rule deletes objects after
@@ -124,9 +127,10 @@ front door, and links shared in Slack or mail should preview with a name, a line
    its key as the repository secret `FIREBASE_SERVICE_ACCOUNT_PREVIEW`.
 7. Protect `main`: require the `ci` and `pr-title` checks (see `10-testing-and-ci.md`).
 8. Run the Admin bootstrap script for the first admin.
-9. After the first functions deploy, set the cleanup policy for stale function images:
-   `firebase functions:artifacts:setpolicy --location asia-south1 --project nonstop-gurukul`
-   (a one-off console command, not a deploy).
+9. After the first functions deploy, set the cleanup policy for stale function images
+   (a one-off command, not a deploy; do not use `firebase functions:artifacts:setpolicy`, which
+   replaces it with a keep-one-day rule):
+   `gcloud artifacts repositories set-cleanup-policies gcf-artifacts --location asia-south1 --project nonstop-gurukul --policy firebase/artifact-cleanup-policy.json --no-dry-run`
 10. Before course media uploads ship (`MED-01`): create the default Cloud Storage for Firebase
     bucket in `US-CENTRAL1` (open question 14, decided: the no-cost
     tier), and grant the Firebase Rules Firestore Service Agent role when the console asks, so

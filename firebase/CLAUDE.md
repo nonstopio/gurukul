@@ -1,12 +1,13 @@
 # Working on `firebase/`
 
-| Path                     | Owns                                                                              |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| `firestore.rules`        | The access gate for every collection                                              |
-| `storage.rules`          | The access gate for Cloud Storage: lesson media only, create-only (`.plan/19`)    |
-| `firestore.indexes.json` | Composite indexes, deployed with rules                                            |
-| `rules/`                 | Rules tests (`@firebase/rules-unit-testing`) run inside `firebase emulators:exec` |
-| `functions/`             | Cloud Functions, 2nd gen, Node 22, ESM, region `asia-south1`                      |
+| Path                           | Owns                                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `firestore.rules`              | The access gate for every collection                                                            |
+| `storage.rules`                | The access gate for Cloud Storage: lesson media only, create-only (`.plan/19`)                  |
+| `firestore.indexes.json`       | Composite indexes, deployed with rules                                                          |
+| `rules/`                       | Rules tests (`@firebase/rules-unit-testing`) run inside `firebase emulators:exec`               |
+| `functions/`                   | Cloud Functions, 2nd gen, Node 22, ESM, region `asia-south1`                                    |
+| `artifact-cleanup-policy.json` | Keeps only the newest function image (`.plan/11`, setup step 9); applied by hand, not by deploy |
 
 Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; for anything under
 `functions/src/` also `.claude/rules/api-responses.md` and `.claude/rules/logging.md`.
