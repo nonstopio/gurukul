@@ -65,7 +65,9 @@ export function CourseEditorPage() {
   const { uid } = useUser();
   const admin = useSession().roles.includes('admin');
   const t = useTerms();
-  const result = useAsync(useCallback(() => learner.getCourse(courseId), [learner, courseId]));
+  const result = useAsync(
+    useCallback(() => learner.getCourse(courseId, { fresh: true }), [learner, courseId]),
+  );
   const body = (
     <Loaded loadable={result}>{(live) => <Gate live={live} uid={uid} admin={admin} />}</Loaded>
   );
@@ -125,7 +127,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
   const [publishing, setPublishing] = useState(false);
 
   const refreshLive = async (fallback: Partial<Course>) => {
-    const fresh = await learner.getCourse(courseId).catch(() => {
+    const fresh = await learner.getCourse(courseId, { fresh: true }).catch(() => {
       log.warn('Reloading the live course failed', { courseId });
       return null;
     });

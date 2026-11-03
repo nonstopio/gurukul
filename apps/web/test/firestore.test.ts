@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   update: (() => Promise.resolve()) as () => Promise<void>,
   snapCb: undefined as undefined | ((s: unknown) => void),
   snapErr: undefined as unknown,
+  user: null as null | { uid: string },
 }));
 vi.mock('firebase/firestore', () => ({
   initializeFirestore: vi.fn((_app, settings) => ({ kind: 'db', settings })),
@@ -23,12 +24,14 @@ vi.mock('firebase/firestore', () => ({
     return () => {};
   }),
 }));
+vi.mock('firebase/auth', () => ({ getAuth: vi.fn(() => ({ currentUser: state.user })) }));
 vi.mock('../src/data/firebase', () => ({ firebaseLearnerData: vi.fn(() => 'learner') }));
 vi.mock('../src/studio/firebase', () => ({ firebaseStudioData: vi.fn(() => 'studio') }));
 vi.mock('../src/console/firebase', () => ({ firebaseConsoleData: vi.fn(() => 'console') }));
 vi.mock('../src/log', () => ({ log: { warn: vi.fn() } }));
 
 import { initializeFirestore } from 'firebase/firestore';
+import { firebaseLearnerData } from '../src/data/firebase';
 import { openFirestore } from '../src/firestore';
 import { log } from '../src/log';
 
@@ -56,6 +59,15 @@ describe('openFirestore', () => {
   it('builds the learner, studio and console data over one database', () => {
     const s = openFirestore({} as never, false);
     expect([s.learner, s.studio, s.console]).toEqual(['learner', 'studio', 'console']);
+  });
+
+  it('caches courses per signed-in person, and for nobody when signed out', () => {
+    openFirestore({} as never, false);
+    const who = vi.mocked(firebaseLearnerData).mock.calls.at(-1)?.[1] as () => string | undefined;
+    state.user = null;
+    expect(who()).toBeUndefined();
+    state.user = { uid: 'ana' };
+    expect(who()).toBe('ana');
   });
 
   it('watches the profile, reporting a missing document as null', () => {

@@ -52,6 +52,18 @@ export interface ProgressStore {
  * assignment status in step (see `analytics.ts` for what a write counts). It writes only when something derived changed, so its own write
  * re-triggers it exactly once and then stops.
  */
+/** Every field the trigger derives anything from: all of the document but the resume point. */
+function derivedInputs(p: Progress): string {
+  return JSON.stringify([
+    p.completedItemIds,
+    p.quiz,
+    p.courseVersion,
+    p.percent,
+    p.completedAt !== null,
+    p.certificateId,
+  ]);
+}
+
 export async function handleProgressWrite(
   store: ProgressStore,
   progressId: string,
@@ -65,6 +77,11 @@ export async function handleProgressWrite(
   const before = beforeRaw === undefined ? undefined : progressSchema.safeParse(beforeRaw);
   const was: Progress | undefined = before?.success ? before.data : undefined;
   const now = after.data;
+  // Opening a lesson moves only the resume point, and that changes nothing derived here: skip the
+  // course read. A finished course still missing its certificate is the exception, since the
+  // learner's next write of any kind is what retries a failed grant (see below).
+  const awaitingCertificate = now.percent === 100 && now.certificateId === null;
+  if (was && !awaitingCertificate && derivedInputs(was) === derivedInputs(now)) return 'ignored';
 
   const raw = await store.course(now.courseId);
   if (raw === undefined) return 'ignored';

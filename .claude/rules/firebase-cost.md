@@ -22,3 +22,21 @@ query pattern can burn through them.
   per view). Videos stay hosted links, certificates render client-side. Any other use of Storage
   needs a plan update first.
 - Never deploy from a laptop to production; `deploy.yml` on `main` does it.
+
+## Writes from the browser: once per action, never in a loop
+
+On 2026-11-03 a loop cost about 5,000 writes an hour from 3–5 people, with 100% coverage and green
+e2e: a lesson page rewrote the resume point whenever the progress document disagreed with it (two
+tabs answered each other every second). The review that found it found a second: a refused course
+start was retried every time the rolled-back snapshot came in. Unit tests fake Firestore, so
+neither showed up.
+
+- A Firestore write inside an effect or a snapshot callback runs once per user action or page
+  opened, behind a ref (`startSent`, `placed` in `LessonPage.tsx`). Never write because the data you
+  watch differs from what you would write: another tab or device answers, and the two loop.
+- A write the rules refuse is logged, not retried by the effect that sent it. A refused local write
+  rolls back and fires the listener again; an effect keyed on that data must not resend.
+- A trigger returns before reading anything when the fields it derives from did not change
+  (`handleProgressWrite`). Every client write wakes it.
+- `e2e/tests/write-budget.spec.ts` counts writes while a page sits idle and across two tabs. A new
+  page that writes progress or profile data adds a case there.

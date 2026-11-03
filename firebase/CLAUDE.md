@@ -42,7 +42,8 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   A dependency that uses `require` (like `google-auth-library`) must be `--external` in that build script and listed in
   `functions/package.json`: bundled into the ESM output it fails with "Dynamic require ... is not supported", the
   Functions emulator loads no function at all, and every e2e sign-in hangs. `npm run e2e` is what catches it.
-- `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status, and
+- `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status (a write that only moved the
+  resume point returns before reading anything, unless a finished course still lacks its certificate), and
   issues the certificate (`certificates/{NSG-COURSE-YY-NNNN}`, sequence from `counters/certificates`)
   in one transaction at 100% when `rules.certificate` is on, stamping `config/org.signatory` on it; it never issues
   twice. Finishing the Educator course (`EDUCATOR_COURSE_ID`) with an assignment for it first grants the

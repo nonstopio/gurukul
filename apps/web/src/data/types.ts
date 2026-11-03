@@ -68,7 +68,11 @@ export interface LearnerData {
    * `audience` is who is asking: the rules answer only a listing made for the person's own teams.
    */
   listCourses(audience?: Audience): Promise<CourseListing[]>;
-  getCourse(courseId: string): Promise<Course | null>;
+  /**
+   * One course, or null. Reused for a few minutes per tab; `fresh` reads the server copy (Studio,
+   * which must see what it just published).
+   */
+  getCourse(courseId: string, options?: { fresh?: boolean }): Promise<Course | null>;
   myAssignments(uid: string): Promise<AssignmentRow[]>;
   myProgress(uid: string): Promise<ProgressRow[]>;
   /** Live updates of one progress document: `null` until the learner starts the course. */

@@ -567,6 +567,24 @@ describe('Lesson player', () => {
     expect(screen.getByText('Body of l1')).toBeTruthy();
   });
 
+  it('starts a published course once, even when a refused start rolls progress back', async () => {
+    const d = fakeData();
+    await open('/courses/git/learn/l1', d);
+    await waitFor(() => expect(d.data.startCourse).toHaveBeenCalledTimes(1));
+    act(() => d.emitProgress(started()));
+    act(() => d.emitProgress(null));
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
+    expect(d.data.startCourse).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['draft', 'archived'] as const)('never starts a %s course', async (status) => {
+    const d = fakeData({ courses: [makeCourse({ status })] });
+    await open('/courses/git/learn/l1', d);
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
+    act(() => d.emitProgress(null));
+    expect(d.data.startCourse).not.toHaveBeenCalled();
+  });
+
   it('moves the resume point when a different lesson opens', async () => {
     const d = fakeData({ watched: started() });
     await open('/courses/git/learn/l2', d);
