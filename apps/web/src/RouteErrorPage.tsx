@@ -3,6 +3,7 @@ import { useRouteError } from 'react-router';
 import { useTrackOnMount } from './analytics/react/Track';
 import { log } from './log';
 import { ReportIssueLink } from './ReportIssueLink';
+import { engineMessage } from './report';
 
 /**
  * What a screen shows when rendering it crashes, in place of the router's default error page. The
@@ -24,7 +25,7 @@ export function RouteErrorPage() {
               <ReportIssueLink
                 problem={{
                   title: 'A page crashed',
-                  message: error instanceof Error ? error.message : undefined,
+                  message: engineMessage(error),
                   code,
                 }}
               />

@@ -69,7 +69,6 @@ export function AnalyticsTab({
           <ReportIssueLink
             problem={{
               title: 'Course numbers did not load',
-              message: result.error.message,
               code: codesOf(result.error),
             }}
           />
@@ -91,7 +90,6 @@ export function AnalyticsTab({
             <ReportIssueLink
               problem={{
                 title: 'Course learners did not load',
-                message: learners.error.message,
                 code: codesOf(learners.error),
               }}
             />

@@ -40,9 +40,7 @@ export function Loaded<T>({
               Retry
             </Button>
           )}
-          <ReportIssueLink
-            problem={{ title: 'This did not load', message: error.message, code: codesOf(error) }}
-          />
+          <ReportIssueLink problem={{ title: 'This did not load', code: codesOf(error) }} />
         </div>
       </Callout>
     );

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { ERROR_CODES } from '@gurukul/schema';
 import { ApiClientError } from '../src/api';
-import { codesOf, issueUrl, reportToast, scrub } from '../src/report';
+import { codesOf, engineMessage, issueUrl, reportToast, scrub } from '../src/report';
 
 function params(url: string) {
   return new URL(url).searchParams;
@@ -36,6 +36,13 @@ describe('issueUrl', () => {
     expect(what).toContain('> Line one\n> for <email>');
     expect(what).toContain('Code: `SRV-INTERNAL`');
     expect(what).toContain('Time: ');
+    expect(what).toContain('Build: dev');
+  });
+
+  it('scrubs the title in both places it appears', () => {
+    const p = params(issueUrl({ title: 'Could not add asha@nonstopio.com' }));
+    expect(p.get('title')).toBe('Could not add <email>');
+    expect(p.get('what')).not.toContain('asha@');
   });
 
   it('keeps a trace id whole, digits and all', () => {
@@ -97,5 +104,18 @@ describe('codesOf', () => {
     expect(codesOf(api)).toBe('GEN_5003 · trace tr1');
     expect(codesOf(new RangeError('x'))).toBe('RangeError');
     expect(codesOf('a string')).toBeUndefined();
+  });
+});
+
+describe('engineMessage', () => {
+  it('passes a JavaScript engine error message, and nothing else', () => {
+    expect(engineMessage(new TypeError("Cannot read properties of undefined (reading 'x')"))).toBe(
+      "Cannot read properties of undefined (reading 'x')",
+    );
+    expect(engineMessage(new ReferenceError('a is not defined'))).toBe('a is not defined');
+    expect(engineMessage(new RangeError('Invalid time value'))).toBe('Invalid time value');
+    expect(engineMessage(new SyntaxError('"asha" is not valid JSON'))).toBeUndefined();
+    expect(engineMessage(new Error('users/abc denied'))).toBeUndefined();
+    expect(engineMessage('a string')).toBeUndefined();
   });
 });

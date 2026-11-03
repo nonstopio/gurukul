@@ -62,9 +62,11 @@ motion except the loader's turn, which becomes an opacity pulse. Toasts stay 4s 
 Every error toast, every failed load (`Loaded`, the Studio draft and analytics notices) and the crash
 page carry **Report issue**: a link that opens a new bug on the
 public GitHub repo with the `bug.yml` form already filled (what failed, the sentence shown, the UI
-code, the API code and trace id, the page, area, browser and time). The person reads it and
+code, the API code and trace id, the page, area, browser, time and build). The person reads it and
 submits; nothing is sent without them. The issue is public, so the report holds only what the app
-wrote, and free text is scrubbed of emails, long ids and long numbers (`apps/web/src/report.ts`).
+wrote: raw error text only from JavaScript engine errors (which quote code, not data), never from
+Firestore or the API, whose trace id finds the details in the logs; and every sentence is scrubbed
+of emails, long ids and long numbers as a second net (`apps/web/src/report.ts`).
 It replaces "write to gurukul@nonstopio.com" on error screens; the sign-in help link stays email,
 since someone who cannot sign in may have no GitHub account either.
 

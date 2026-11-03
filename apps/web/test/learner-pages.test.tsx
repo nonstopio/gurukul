@@ -527,12 +527,12 @@ describe('Course overview', () => {
     await act(async () => fail(new Error('unavailable: deadline exceeded')));
     expect(await screen.findByText('This did not load')).toBeTruthy();
     expect(screen.queryByText(/deadline/)).toBeNull();
-    // The raw error is not shown, but it goes into the bug report the link opens.
+    // The raw error is neither shown nor put in the public bug report: its name is.
     const report = new URL(
       screen.getByRole('link', { name: 'Report issue' }).getAttribute('href') as string,
     );
     expect(report.searchParams.get('title')).toBe('This did not load');
-    expect(report.searchParams.get('what')).toContain('deadline exceeded');
+    expect(report.searchParams.get('what')).not.toContain('deadline');
     expect(report.searchParams.get('what')).toContain('Code: `Error`');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(

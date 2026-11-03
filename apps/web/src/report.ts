@@ -5,7 +5,8 @@ import { ApiClientError } from './api';
  * A failure on screen → a prefilled bug report on the public Gurukul repo, filling the fields of
  * `.github/ISSUE_TEMPLATE/bug.yml` by their ids. The person reads it and presses Submit on GitHub.
  * Issues are public, so the report holds what the app wrote (titles, catalog sentences, codes)
- * plus the page, browser and time; free text goes through `scrub` first.
+ * plus the page, browser and time. Raw error text goes in only by allowlist (`engineMessage`), and
+ * every sentence goes through `scrub` as a second net.
  */
 const NEW_ISSUE = 'https://github.com/nonstopio/gurukul/issues/new';
 /** GitHub answers 414 past ~8k characters of URL. */
@@ -14,7 +15,7 @@ const MAX_TEXT = 1500;
 export interface Problem {
   /** What failed, in words: a toast title or "A page crashed". */
   title: string;
-  /** The sentence shown, or an error message. Scrubbed here, so callers cannot forget to. */
+  /** A sentence the app wrote (a toast's), or `engineMessage(e)`. Scrubbed here as well. */
   message?: string | undefined;
   /** Codes worth quoting: `SRV-INTERNAL`, `PRK_4001`, a trace id. Written by the app, never by a person. */
   code?: string | undefined;
@@ -40,22 +41,34 @@ function areaOf(path: string): string {
 /** The link that opens a new bug report for `problem` on the page being viewed now. */
 export function issueUrl(problem: Problem): string {
   const path = scrub(window.location.pathname);
+  const title = scrub(problem.title);
   const what = [
-    `**${problem.title}** on \`${path}\`. Reported from the app.`,
+    `**${title}** on \`${path}\`. Reported from the app.`,
     problem.message ? `\n> ${scrub(problem.message).replace(/\n/g, '\n> ')}` : '',
     // Codes are the app's own (catalog codes, trace ids, error names): kept whole, so a trace id
     // full of digits still finds its log lines.
     problem.code ? `\nCode: \`${problem.code}\`` : '',
-    `\nTime: ${new Date().toISOString()}`,
+    `\nTime: ${new Date().toISOString()} · Build: ${String(import.meta.env.VITE_BUILD_ID)}`,
     '\n### What I was doing\n\n<!-- This issue is public: no names, emails or answers. -->',
   ].join('\n');
   return `${NEW_ISSUE}?${new URLSearchParams({
     template: 'bug.yml',
-    title: scrub(problem.title).slice(0, 120),
+    title: title.slice(0, 120),
     what,
     area: areaOf(path),
     env: navigator.userAgent.slice(0, 200),
   })}`;
+}
+
+/**
+ * The message of a JavaScript engine error (`Cannot read properties of undefined (reading 'x')`),
+ * which quotes code, not data. Any other error's text can echo values (a Firestore path, a parsed
+ * input), so it stays out of a public issue: its name and codes are reported instead.
+ */
+export function engineMessage(error: unknown): string | undefined {
+  const engine =
+    error instanceof TypeError || error instanceof ReferenceError || error instanceof RangeError;
+  return engine ? error.message : undefined;
 }
 
 /** What finds a thrown error in the logs: the API code and trace id, else the error's name. */
