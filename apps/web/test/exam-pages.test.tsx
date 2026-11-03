@@ -710,6 +710,69 @@ describe('Course complete', () => {
     expect(await screen.findByRole('link', { name: 'Continue' })).toBeTruthy();
   });
 
+  it('welcomes a new Educator after the Educator course, once the role arrives', async () => {
+    const course = courseWith();
+    const edu = { ...course, id: 'educator-onboarding', title: 'Becoming a Gurukul Educator' };
+    // The role arrives just before the certificate, so "making you" shows only while there is none.
+    const finished = done({ courseId: 'educator-onboarding', certificateId: null });
+    const assigned = {
+      id: 'a-edu',
+      courseId: 'educator-onboarding',
+      mandatory: true,
+      dueAt: null,
+      status: 'completed',
+      assignedByName: null,
+    } as const;
+    const withAssignment = () =>
+      fakeData({ courses: [edu], watched: finished, assignments: [assigned] });
+    const { unmount } = await openApp('/courses/educator-onboarding/complete', {
+      data: withAssignment(),
+    });
+    expect(await screen.findByText('Making you an Educator…')).toBeTruthy();
+    unmount();
+
+    // Certificate issued and still no role (removed later, or finished before the assignment).
+    const late = await openApp('/courses/educator-onboarding/complete', {
+      data: fakeData({
+        courses: [edu],
+        watched: done({ courseId: 'educator-onboarding' }),
+        assignments: [assigned],
+      }),
+    });
+    await screen.findByRole('heading', { level: 1 });
+    await effectsRun();
+    expect(screen.queryByText(/Making you/)).toBeNull();
+    late.unmount();
+
+    await openApp('/courses/educator-onboarding/complete', {
+      data: withAssignment(),
+      roles: ['educator'],
+    });
+    expect(await screen.findByText('You are now an Educator.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open Studio' }).getAttribute('href')).toBe('/studio');
+  });
+
+  it('promises nothing to someone who finished it without an assignment', async () => {
+    const edu = {
+      ...courseWith(),
+      id: 'educator-onboarding',
+      title: 'Becoming a Gurukul Educator',
+    };
+    const d = data(edu, done({ courseId: 'educator-onboarding' }));
+    await openApp('/courses/educator-onboarding/complete', { data: d });
+    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(d.data.myAssignments).toHaveBeenCalled());
+    await effectsRun();
+    expect(screen.queryByText(/Making you/)).toBeNull();
+    expect(screen.queryByText(/You are now/)).toBeNull();
+  });
+
+  it('says nothing about Educators on any other course', async () => {
+    await openApp('/courses/git/complete', { data: data(courseWith(), done()) });
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/Educator/)).toBeNull();
+  });
+
   it('says nothing else is assigned, and skips a thumbnail whose certificate is missing', async () => {
     await openApp('/courses/git/complete', { data: data(courseWith(), done()) });
     expect(await screen.findByText('Nothing else is assigned to you.')).toBeTruthy();
@@ -769,24 +832,37 @@ describe('Certificates', () => {
 
   it('lists mine, and says when there are none', async () => {
     const { unmount } = await openApp('/certificates', { data: fakeData({ certificates: certs }) });
-    expect(await screen.findByRole('link', { name: /NSG-GIT-26-0001/ })).toBeTruthy();
-    expect(screen.getByText(/Revoked/)).toBeTruthy();
+    expect(await screen.findByText(/NSG-GIT-26-0001 ·/)).toBeTruthy();
+    expect(
+      screen.getAllByRole('link', { name: 'Git, the NonStop Way' })[0]?.getAttribute('href'),
+    ).toBe('/certificates/NSG-GIT-26-0001');
+    expect(screen.getByText('Revoked')).toBeTruthy();
     unmount();
     await openApp('/certificates', { data: fakeData() });
     expect(await screen.findByText('No certificates yet')).toBeTruthy();
   });
 
-  it('pages certificates 25 at a time', async () => {
-    const many = Array.from({ length: 30 }, (_, i) =>
+  it('pages the gallery 12 at a time, each tile one link to its certificate', async () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
       certificateRow({ id: `NSG-GIT-26-${String(i + 1).padStart(4, '0')}` }),
     );
     await openApp('/certificates', { data: fakeData({ certificates: many }) });
-    expect(await screen.findByRole('link', { name: /NSG-GIT-26-0001/ })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /NSG-GIT-26-0030/ })).toBeNull();
-    expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
+    const list = await screen.findByRole('list');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(12);
+    expect(within(list).getAllByRole('link')).toHaveLength(12);
+    expect(screen.getByText(/NSG-GIT-26-0001 ·/)).toBeTruthy();
+    expect(screen.queryByText(/NSG-GIT-26-0013 ·/)).toBeNull();
+    expect(screen.getByText('Showing 1–12 of 14')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByRole('link', { name: /NSG-GIT-26-0030/ })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /NSG-GIT-26-0001/ })).toBeNull();
+    expect(screen.getByText(/NSG-GIT-26-0013 ·/)).toBeTruthy();
+  });
+
+  it('has no axe violations in the gallery', async () => {
+    const { container } = await openApp('/certificates', {
+      data: fakeData({ certificates: certs }),
+    });
+    await screen.findByText(/NSG-GIT-26-0001 ·/);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('shows one with Download, LinkedIn and copy actions', async () => {

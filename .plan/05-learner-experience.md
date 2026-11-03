@@ -45,7 +45,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
   deleted in a newer version, resume opens the first incomplete item.
 - Item states: done, current, available, locked (sequential courses: a chapter
   is locked until the previous chapter's Quiz is passed, or all its lessons
-  done if it has none).
+  done if it has none; and a Quiz with `blocksNext`, Studio's "Learners must pass to open the rest
+  of this chapter", locks the items after it in its own chapter only).
 - Opening a lesson sets `lastItemId`; it is **not** completed until the rule
   in `completeWhen` is met.
 - Progress percent is computed by a function and also locally (same pure
@@ -93,6 +94,7 @@ Google Drive, CodeSandbox, StackBlitz).
 | No assignments yet | Home shows the catalogue with a friendly empty state |
 | Course archived after assignment | Shown as "Retired" on Home, the course page and in the player; progress and certificate kept, lessons stay readable. Its Quizzes are closed: the Quiz screen says so instead of drawing questions, and `checkAnswer`/`gradeAttempt` refuse it with `CRS_1004`, so it can no longer be finished |
 | Course gets new lessons after completion | Certificate kept; course shows "New lessons added" on its Home row and page (`completedAt` set and the percent against the current course below 100) |
+| Video length and captions | A line above the video shows what the Educator entered: "≈ 7 min · Captions available", either part alone, or nothing |
 | Video blocked by network | Fallback link to open the video in a new tab |
 | Video must be watched (`video90`, or `rules.requireVideoWatch` and the lesson has a video) | YouTube (IFrame API) and Loom (player.js) count the seconds actually played; "Mark complete" enables at 90%, seeking ahead does not count. Drive has no player API, and a player that has not answered 15 s after loading is treated the same: the learner confirms with "I have watched the video". Watch progress is not saved; reopening the lesson starts again |
 | Two tabs open | Progress is a set union, so both tabs' completions survive |

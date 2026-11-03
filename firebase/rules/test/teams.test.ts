@@ -21,27 +21,60 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await env.clearFirestore();
-  await env.withSecurityRulesDisabled((ctx) =>
-    setDoc(doc(ctx.firestore(), 'teams/platform'), valid),
-  );
+  // `platform` predates creators (Admin-only to edit); `mine` is Meera's, `ravis` is Ravi's.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'teams/platform'), valid);
+    await setDoc(doc(ctx.firestore(), 'teams/mine'), { ...valid, createdBy: 'meera' });
+    await setDoc(doc(ctx.firestore(), 'teams/ravis'), { ...valid, createdBy: 'ravi' });
+  });
 });
 afterAll(async () => {
   await env.cleanup();
 });
 
 describe('teams/{id}', () => {
-  it('lets an admin read, create, update and delete a team', async () => {
+  it('lets an admin read, create as its creator, edit any team and delete one', async () => {
     await assertSucceeds(getDoc(doc(admin(), 'teams/platform')));
-    await assertSucceeds(setDoc(doc(admin(), 'teams/qa'), { ...valid, name: 'QA' }));
+    await assertSucceeds(
+      setDoc(doc(admin(), 'teams/qa'), { ...valid, name: 'QA', createdBy: 'ajay' }),
+    );
     await assertSucceeds(updateDoc(doc(admin(), 'teams/platform'), { memberEmails: [] }));
+    await assertSucceeds(updateDoc(doc(admin(), 'teams/ravis'), { memberEmails: [] }));
     await assertSucceeds(deleteDoc(doc(admin(), 'teams/platform')));
   });
-  it('lets an educator read, create, update and delete a team', async () => {
+  it('makes every new team name its creator, and nobody changes the creator', async () => {
+    await assertFails(setDoc(doc(admin(), 'teams/qa'), { ...valid, name: 'QA' }));
+    await assertFails(
+      setDoc(doc(admin(), 'teams/qa'), { ...valid, name: 'QA', createdBy: 'meera' }),
+    );
+    await assertFails(updateDoc(doc(admin(), 'teams/ravis'), { createdBy: 'ajay' }));
+    await assertFails(updateDoc(doc(admin(), 'teams/platform'), { createdBy: 'ajay' }));
+    const meera = as('meera', { educator: true });
+    await assertFails(updateDoc(doc(meera, 'teams/mine'), { createdBy: 'ravi' }));
+  });
+  it('lets an educator read any team, create one and edit their own, but not delete', async () => {
     const db = as('meera', { educator: true });
     await assertSucceeds(getDoc(doc(db, 'teams/platform')));
-    await assertSucceeds(setDoc(doc(db, 'teams/qa'), { ...valid, name: 'QA' }));
-    await assertSucceeds(updateDoc(doc(db, 'teams/platform'), { memberEmails: [] }));
-    await assertSucceeds(deleteDoc(doc(db, 'teams/platform')));
+    await assertSucceeds(setDoc(doc(db, 'teams/qa'), { ...valid, name: 'QA', createdBy: 'meera' }));
+    await assertSucceeds(updateDoc(doc(db, 'teams/mine'), { memberEmails: [] }));
+    await assertFails(deleteDoc(doc(db, 'teams/mine')));
+  });
+  it('lets only an admin make the Educator course team again', async () => {
+    const team = { ...valid, name: 'Educator candidates' };
+    await assertFails(
+      setDoc(doc(as('meera', { educator: true }), 'teams/educator-candidates'), {
+        ...team,
+        createdBy: 'meera',
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(admin(), 'teams/educator-candidates'), { ...team, createdBy: 'ajay' }),
+    );
+  });
+  it("denies an educator another educator's team and one made before creators", async () => {
+    const db = as('meera', { educator: true });
+    await assertFails(updateDoc(doc(db, 'teams/ravis'), { memberEmails: [] }));
+    await assertFails(updateDoc(doc(db, 'teams/platform'), { memberEmails: [] }));
   });
   it('denies a learner, another domain and a signed-out visitor every operation', async () => {
     const others = [
@@ -68,12 +101,16 @@ describe('teams/{id}', () => {
       { ...valid, memberEmails: Array.from({ length: 501 }, (_, i) => `p${i}@example.com`) },
       { ...valid, createdAt: 'now' },
     ];
-    for (const data of bad) await assertFails(setDoc(doc(admin(), 'teams/qa'), data));
+    for (const data of bad) {
+      await assertFails(setDoc(doc(admin(), 'teams/qa'), { createdBy: 'ajay', ...data }));
+    }
+    await assertFails(setDoc(doc(admin(), 'teams/qa'), { ...valid, createdBy: 1 }));
   });
   it('allows exactly 500 members', async () => {
     await assertSucceeds(
       setDoc(doc(admin(), 'teams/big'), {
         ...valid,
+        createdBy: 'ajay',
         memberEmails: Array.from({ length: 500 }, (_, i) => `p${i}@example.com`),
       }),
     );

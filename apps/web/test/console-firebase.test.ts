@@ -172,8 +172,8 @@ describe('teams', () => {
   });
 
   it('creates a team and its name together, on the defaults when there is no config', async () => {
-    await data.saveTeam({ id: 'platform', ...body }, null);
-    expect(store.docs.get('teams/platform')).toEqual(body);
+    await data.saveTeam({ id: 'platform', ...body, createdBy: 'u1' }, null);
+    expect(store.docs.get('teams/platform')).toEqual({ ...body, createdBy: 'u1' });
     expect(store.docs.get('config/org')).toEqual({ ...DEFAULT_ORG_CONFIG, teams: ['Platform'] });
     await expect(data.saveTeam({ id: 'platform', ...body }, null)).rejects.toThrow('already');
   });

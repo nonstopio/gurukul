@@ -45,7 +45,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
 - `onProgressWritten` computes `percent`/`completedAt`, stats counters and assignment status, and
   issues the certificate (`certificates/{NSG-COURSE-YY-NNNN}`, sequence from `counters/certificates`)
   in one transaction at 100% when `rules.certificate` is on, stamping `config/org.signatory` on it; it never issues
-  twice. A learner's first start also writes `courses/{id}/learners/{uid}` (display name; Admin or that course's
+  twice. Finishing the Educator course (`EDUCATOR_COURSE_ID`) with an assignment for it first grants the
+  `educator` claim (`grantEducatorByCourse`: mirror, `roles.course` audit, no token revocation); `assignCourses`
+  adds whoever it assigns that course to the `Educator candidates` team, the only team that opens it. A learner's first start also writes `courses/{id}/learners/{uid}` (display name; Admin or that course's
   Educator read, no client writes) for the Studio Analytics learners table.
 - Quiz callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,

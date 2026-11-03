@@ -464,6 +464,7 @@ describe('Assign: audience step, teams', () => {
         name: 'Mobile',
         memberEmails: ['a@nonstopio.com'],
         createdAt: expect.any(Number),
+        createdBy: 'u1',
       },
       null,
     );

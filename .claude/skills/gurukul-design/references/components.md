@@ -330,7 +330,8 @@ horizontally and never wraps.
 
 ## VideoBlock — shipped
 
-`<VideoBlock src title href caption? linkLabel? frameRef? />`. Presentational: the caller picks the provider and builds
+`<VideoBlock src title href caption? meta? linkLabel? frameRef? />`. `meta` is a 13px muted line above the frame
+(the player passes the length and captions: "≈ 7 min · Captions available"). Presentational: the caller picks the provider and builds
 the embed `src` (for example `youtube-nocookie`); the component only frames it. `frameRef` hands the `<iframe>`
 to a caller that talks to the provider's player API (the lesson player's watch tracking). A `<figure>` with a 16:9
 frame, `--radius-xl`, `<iframe title loading="lazy">`, an optional `<figcaption>` (13px `--text-muted`) and an
@@ -642,7 +643,9 @@ glyph) in it instead of a player; no open-in-new-tab link. Never bare text where
 
 ## CourseTile — shipped
 
-`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? theme chips? summary? extra? meta? />`.
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? />`.
+`cover` replaces the picture with a drawing at its own height: the certificates gallery shows each
+certificate, scaled down, as its cover (the record is still one link, the heading's).
 A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover
 colour, `forest` white ink, the others the fixed paper ink), then chips, the title, the summary, an
 `extra` block (a progress bar) and a meta line. The picture comes from `courseImageUrl(course)` (the

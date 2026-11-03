@@ -62,6 +62,8 @@ const store = (c: unknown = course, issued: string | null = 'NSG-GIT-26-0001'): 
   signatory: vi.fn().mockResolvedValue({ name: 'A', role: 'K' }),
   recordLearner: vi.fn().mockResolvedValue(undefined),
   issueCertificate: vi.fn().mockResolvedValue(issued),
+  isAssigned: vi.fn().mockResolvedValue(true),
+  grantEducator: vi.fn().mockResolvedValue(true),
 });
 
 describe('handleProgressWrite', () => {
@@ -211,6 +213,47 @@ describe('handleProgressWrite', () => {
       const off = store({ ...course, rules: { ...course.rules, certificate: false } });
       await run(off, 'u_git', done, done);
       for (const s of [half, had, off]) expect(s.issueCertificate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the Educator course', () => {
+    const done = progress({
+      courseId: 'educator-onboarding',
+      completedItemIds: ['l1', 'l2'],
+      percent: 100,
+      completedAt: ts(5),
+    });
+
+    it('makes the learner an Educator before issuing the certificate', async () => {
+      const s = store(course, null);
+      expect(await run(s, 'u_edu', done, done)).toBe('updated');
+      expect(s.grantEducator).toHaveBeenCalledWith('u');
+      expect(s.issueCertificate).toHaveBeenCalledOnce();
+    });
+
+    it('grants nothing to someone no Admin assigned it to, but still issues the certificate', async () => {
+      const s = store(course, null);
+      vi.mocked(s.isAssigned).mockResolvedValue(false);
+      await run(s, 'u_edu', done, done);
+      expect(s.isAssigned).toHaveBeenCalledWith('u', 'educator-onboarding');
+      expect(s.grantEducator).not.toHaveBeenCalled();
+      expect(s.issueCertificate).toHaveBeenCalledOnce();
+    });
+
+    it('changes nothing for someone who already is an Educator', async () => {
+      const s = store(course, null);
+      vi.mocked(s.grantEducator).mockResolvedValue(false);
+      expect(await run(s, 'u_edu', done, done)).toBe('unchanged');
+    });
+
+    it('grants nothing below 100%, once the certificate exists, or for another course', async () => {
+      const half = store();
+      await run(half, 'u_edu', done, { ...done, completedItemIds: ['l1'], percent: 50 });
+      const had = store();
+      await run(had, 'u_edu', done, { ...done, certificateId: 'NSG-EDUCATOR-26-0001' });
+      const git = store();
+      await run(git, 'u_git', done, { ...done, courseId: 'git' });
+      for (const s of [half, had, git]) expect(s.grantEducator).not.toHaveBeenCalled();
     });
   });
 });

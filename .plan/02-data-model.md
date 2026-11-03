@@ -21,7 +21,7 @@ contract; the schema package is the executable one. They change together.
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
 | `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
 | `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued), optional `uploads` (`imageMaxKB`, `pdfMaxKB`: whole KB from 50 to the 1024 hard ceiling, Admin only; missing reads as 500 / 1024; see `19-course-media-uploads.md`); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator may change only `teams` (Teams page) |
-| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt }` (see [Teams](#teams)); only these keys | Educator, Admin | Educator, Admin (Teams page, `/studio/teams`): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); may be deleted |
+| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt, createdBy? }` (see [Teams](#teams)); only these keys | Educator, Admin | Educator, Admin (Teams page, `/studio/teams`): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); a create sets `createdBy` to the writer's uid and nobody changes it; an Educator edits only teams they created, an Admin any (a team without `createdBy`, older ones and the seeded Educator course's team, is Admin-only); deleted by an Admin only, since a course can be limited to a team |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
 
@@ -67,7 +67,8 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
   without one and fills `teamIds` for every team member. Every later publish writes it.
 - Cost: one extra query for a person with teams, one profile `get` per `teams` course read.
   Limitation: assigning a team-only course to someone outside the team is not blocked; they see it
-  on Home but the course page refuses it.
+  on Home but the course page refuses it. The one exception is the Educator course: assigning it adds
+  the person to its `Educator candidates` team (`03-auth-and-roles.md`).
 
 ## Teams
 

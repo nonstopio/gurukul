@@ -138,6 +138,18 @@ export type Chapter = z.infer<typeof chapterSchema>;
 
 export const COURSE_SCHEMA_VERSION = 3;
 
+/**
+ * The seeded "Becoming a Gurukul Educator" course. Finishing it makes the learner an Educator; a fixed id,
+ * so no Educator can build a course that hands the role out (`.plan/03-auth-and-roles.md`).
+ */
+export const EDUCATOR_COURSE_ID = 'educator-onboarding';
+
+/**
+ * The team that may open the Educator course. Assigning the course (Admin only) adds the person to
+ * it; the role is granted only to someone an Admin assigned, so a team edit alone promotes nobody.
+ */
+export const EDUCATOR_TEAM_NAME = 'Educator candidates';
+
 export const courseSchema = z.object({
   schemaVersion: z.literal(COURSE_SCHEMA_VERSION),
   id: slug,

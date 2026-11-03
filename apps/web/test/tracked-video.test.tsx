@@ -51,6 +51,11 @@ describe('trackedSrc', () => {
 });
 
 describe('TrackedVideo', () => {
+  it('says above the player how long the video is and that it has captions', () => {
+    show(video({ durationSec: 600 }));
+    expect(screen.getByText('≈ 10 min · Captions available')).toBeTruthy();
+  });
+
   it('shows nothing for an unrecorded video and does not hold the lesson back', () => {
     const { onWatched } = show(video({ url: 'https://www.youtube.com/watch?v=TODO_RECORD_VIDEO' }));
     expect(screen.queryByText('Video coming soon.')).toBeNull();

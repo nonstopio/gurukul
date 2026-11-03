@@ -909,7 +909,7 @@ describe('Course editor: publishing', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
     });
     const dialog = await screen.findByRole('dialog', { name: /^Publish v/ });
-    expect(await within(dialog).findByText(/An Admin adds teams in Admin/)).toBeTruthy();
+    expect(await within(dialog).findByText(/Teams are made in Studio, under Teams/)).toBeTruthy();
     expect(learner.data.orgTeams).toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     vi.mocked(studio.data.getAccess).mockRejectedValue(new Error('x'));

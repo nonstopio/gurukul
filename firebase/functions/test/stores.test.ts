@@ -82,13 +82,39 @@ describe('firebaseRoleAdmin', () => {
 });
 
 describe('firestoreProgressStore', () => {
+  it('says whether the learner has an assignment for the course', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ empty: false })
+      .mockResolvedValueOnce({ empty: true });
+    const query = { where: vi.fn(), limit: vi.fn(), get };
+    query.where.mockReturnValue(query);
+    query.limit.mockReturnValue(query);
+    const db = { collection: vi.fn().mockReturnValue(query) } as never;
+    const store = firestoreProgressStore(db, {} as never);
+    expect(await store.isAssigned('u', 'edu')).toBe(true);
+    expect(await store.isAssigned('u', 'edu')).toBe(false);
+    expect(query.where).toHaveBeenCalledWith('courseId', '==', 'edu');
+  });
+
+  it('grants Educator through Auth, mirroring the role on the profile', async () => {
+    const auth = {
+      getUser: vi.fn().mockResolvedValue({ customClaims: undefined }),
+      setCustomUserClaims: vi.fn().mockResolvedValue(undefined),
+    };
+    const f = fakeDb();
+    expect(await firestoreProgressStore(f.db, auth as never).grantEducator('u')).toBe(true);
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', { educator: true, admin: false });
+    expect(f.set).toHaveBeenCalledWith({ roles: ['learner', 'educator'] }, { merge: true });
+  });
+
   it('reads a course, returning undefined when it is missing', async () => {
     const get = vi
       .fn()
       .mockResolvedValueOnce({ exists: true, data: () => ({ id: 'git' }) })
       .mockResolvedValueOnce({ exists: false });
     const db = { doc: vi.fn().mockReturnValue({ get }) } as never;
-    const store = firestoreProgressStore(db);
+    const store = firestoreProgressStore(db, {} as never);
     expect(await store.course('git')).toEqual({ id: 'git' });
     expect(await store.course('nope')).toBeUndefined();
   });
@@ -96,7 +122,7 @@ describe('firestoreProgressStore', () => {
   it('writes derived fields, stamping completedAt only on completion', async () => {
     const update = vi.fn().mockResolvedValue(undefined);
     const db = { doc: vi.fn().mockReturnValue({ update }) } as never;
-    const store = firestoreProgressStore(db);
+    const store = firestoreProgressStore(db, {} as never);
     await store.writeDerived('u_git', { percent: 50, completed: false });
     await store.writeDerived('u_git', { percent: 100, completed: true });
     expect(update).toHaveBeenNthCalledWith(1, { percent: 50 });
@@ -110,7 +136,7 @@ describe('firestoreProgressStore', () => {
       .mockResolvedValueOnce({ get: () => 'Priya Rao' })
       .mockResolvedValueOnce({ get: () => undefined });
     const doc = vi.fn((p: string) => (p.startsWith('users/') ? { get } : { set }));
-    const store = firestoreProgressStore({ doc } as never);
+    const store = firestoreProgressStore({ doc } as never, {} as never);
     await store.recordLearner('priya', 'git');
     await store.recordLearner('ghost', 'git');
     expect(doc).toHaveBeenCalledWith('courses/git/learners/priya');
@@ -128,7 +154,7 @@ describe('firestoreProgressStore', () => {
       doc: vi.fn((p: string) => p),
       runTransaction: vi.fn((fn: (t: unknown) => unknown) => fn(tx)),
     } as never;
-    await firestoreProgressStore(db).bumpStats('git', {
+    await firestoreProgressStore(db, {} as never).bumpStats('git', {
       started: 1,
       completed: 1,
       certified: 1,
@@ -170,7 +196,7 @@ describe('firestoreProgressStore', () => {
       doc: vi.fn((p: string) => p),
       runTransaction: vi.fn((fn: (t: unknown) => unknown) => fn(tx)),
     } as never;
-    await firestoreProgressStore(db).bumpStats('git', {
+    await firestoreProgressStore(db, {} as never).bumpStats('git', {
       started: 1,
       completed: 0,
       certified: 0,
@@ -191,18 +217,20 @@ describe('firestoreProgressStore', () => {
   it('moves the learner’s assignments to the status and counts only those that changed', async () => {
     const doc = (ref: string, status: string) => ({ ref, get: () => status });
     const f = fakeDb([doc('r1', 'assigned'), doc('r2', 'started')] as never);
-    expect(await firestoreProgressStore(f.db).setAssignmentStatus('u', 'git', 'started')).toBe(1);
+    expect(
+      await firestoreProgressStore(f.db, {} as never).setAssignmentStatus('u', 'git', 'started'),
+    ).toBe(1);
     expect(f.update).toHaveBeenCalledOnce();
     expect(f.update).toHaveBeenCalledWith('r1', { status: 'started' });
     const same = fakeDb([doc('r2', 'started')] as never);
-    expect(await firestoreProgressStore(same.db).setAssignmentStatus('u', 'git', 'started')).toBe(
-      0,
-    );
+    expect(
+      await firestoreProgressStore(same.db, {} as never).setAssignmentStatus('u', 'git', 'started'),
+    ).toBe(0);
     expect(same.commit).not.toHaveBeenCalled();
     const none = fakeDb();
-    expect(await firestoreProgressStore(none.db).setAssignmentStatus('u', 'git', 'started')).toBe(
-      0,
-    );
+    expect(
+      await firestoreProgressStore(none.db, {} as never).setAssignmentStatus('u', 'git', 'started'),
+    ).toBe(0);
     expect(none.commit).not.toHaveBeenCalled();
   });
 });
@@ -213,12 +241,12 @@ describe('firestoreProgressStore.signatory', () => {
 
   it('reads the signatory from config/org', async () => {
     const saved = { name: 'Rhea Sample', role: 'Dean' };
-    expect(await firestoreProgressStore(dbWith(saved)).signatory()).toEqual(saved);
+    expect(await firestoreProgressStore(dbWith(saved), {} as never).signatory()).toEqual(saved);
   });
 
   it('falls back to the default when none is saved or it is malformed', async () => {
     for (const bad of [undefined, { name: '', role: 'x' }]) {
-      expect(await firestoreProgressStore(dbWith(bad)).signatory()).toEqual(
+      expect(await firestoreProgressStore(dbWith(bad), {} as never).signatory()).toEqual(
         DEFAULT_ORG_CONFIG.signatory,
       );
     }
@@ -262,9 +290,9 @@ describe('firestoreProgressStore.issueCertificate', () => {
   it('takes the next sequence, writes the certificate and links it, all in the transaction', async () => {
     vi.useFakeTimers({ now: new Date('2026-05-01T00:00:00Z') });
     const { db, tx } = txDb({ user: { displayName: 'Priya' }, counter: { '2026': 4 } });
-    expect(await firestoreProgressStore(db).issueCertificate('u_git-basics', grant)).toBe(
-      'NSG-GIT-26-0005',
-    );
+    expect(
+      await firestoreProgressStore(db, {} as never).issueCertificate('u_git-basics', grant),
+    ).toBe('NSG-GIT-26-0005');
     expect(tx.set).toHaveBeenCalledWith('counters/certificates', { '2026': 5 }, { merge: true });
     expect(tx.set).toHaveBeenCalledWith(
       'certificates/NSG-GIT-26-0005',
@@ -284,7 +312,9 @@ describe('firestoreProgressStore.issueCertificate', () => {
   it('does nothing when a certificate already exists or the progress is gone', async () => {
     for (const progress of [{ certificateId: 'NSG-GIT-26-0001' }, null]) {
       const { db, tx } = txDb({ progress });
-      expect(await firestoreProgressStore(db).issueCertificate('u_git-basics', grant)).toBeNull();
+      expect(
+        await firestoreProgressStore(db, {} as never).issueCertificate('u_git-basics', grant),
+      ).toBeNull();
       expect(tx.set).not.toHaveBeenCalled();
       expect(tx.update).not.toHaveBeenCalled();
     }

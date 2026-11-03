@@ -14,6 +14,7 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useId, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
@@ -28,12 +29,18 @@ const members = (n: number) =>
 
 /**
  * `/studio/teams`: the teams with their members. A team is created and edited in one dialog (a name
- * and member emails) and deleted after a confirmation. Writes go straight to Firestore under the
- * rules, like Org settings.
+ * and member emails). Only an Admin deletes one, after typing its name: a course can be limited to
+ * a team, and deleting it shuts everyone on it out. Writes go straight to Firestore under the rules,
+ * like Org settings.
  */
 export function TeamsPage() {
   const { data } = useConsole();
   const t = useTerms();
+  const isAdmin = useSession().roles.includes('admin');
+  const uid = useUser().uid;
+  // An Educator edits only the teams they made; the rules hold the same line.
+  const mayEdit = (team: Team) => isAdmin || team.createdBy === uid;
+  const [typed, setTyped] = useState('');
   const toast = useToast();
   const [reload, setReload] = useState(0);
   const [editing, setEditing] = useState<Team | 'new' | null>(null);
@@ -110,22 +117,29 @@ export function TeamsPage() {
                     align: 'end',
                     cell: (team) => (
                       <span className="console-row__chips">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          aria-label={`Edit ${team.name}`}
-                          onClick={() => setEditing(team)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          aria-label={`Delete ${team.name}`}
-                          onClick={() => setDeleting(team)}
-                        >
-                          Delete
-                        </Button>
+                        {mayEdit(team) ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            aria-label={`Edit ${team.name}`}
+                            onClick={() => setEditing(team)}
+                          >
+                            Edit
+                          </Button>
+                        ) : null}
+                        {isAdmin ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            aria-label={`Delete ${team.name}`}
+                            onClick={() => {
+                              setTyped('');
+                              setDeleting(team);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        ) : null}
                       </span>
                     ),
                   },
@@ -154,6 +168,7 @@ export function TeamsPage() {
                     <Button
                       variant="danger"
                       loading={busy}
+                      disabled={typed.trim() !== deleting?.name}
                       onClick={() => void remove(deleting as Team)}
                     >
                       {`Delete ${deleting?.name ?? ''}`}
@@ -162,8 +177,15 @@ export function TeamsPage() {
                 }
               >
                 <p>
-                  {`${t.Learners} who picked this team keep it on their profile. Courses already assigned stay assigned.`}
+                  Everyone on it loses the courses that only this team can open. Courses already
+                  assigned stay assigned. This cannot be undone.
                 </p>
+                <Input
+                  label={`Type ${deleting?.name ?? ''} to delete it`}
+                  value={typed}
+                  autoComplete="off"
+                  onChange={(e) => setTyped(e.target.value)}
+                />
               </Dialog>
             </>
           );
@@ -185,6 +207,7 @@ function TeamDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const uid = useUser().uid;
   const { data } = useConsole();
   const toast = useToast();
   const formId = useId();
@@ -233,6 +256,13 @@ function TeamDialog({
       name: named.name,
       memberEmails: emails,
       createdAt: team && team.createdAt > 0 ? team.createdAt : Date.now(),
+      // The creator never changes; a team made before creators were recorded keeps none. A name with
+      // no document yet (`createdAt` 0) is created now, and a create must name its creator.
+      ...(team && team.createdAt > 0
+        ? team.createdBy
+          ? { createdBy: team.createdBy }
+          : {}
+        : { createdBy: uid }),
     };
     setSaving(true);
     try {

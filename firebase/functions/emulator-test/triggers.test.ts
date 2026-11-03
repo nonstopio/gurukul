@@ -1,3 +1,4 @@
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { course } from '../test/fixtures.js';
@@ -38,6 +39,7 @@ async function clear(): Promise<void> {
     'certificates',
     'counters',
     'users',
+    'audit',
   ])
     await db().recursiveDelete(db().collection(c));
 }
@@ -104,6 +106,63 @@ describe('onProgressWritten', () => {
 
   it('ignores a deleted document', async () => {
     await expect(progressWritten(progress(), undefined)).resolves.toBeUndefined();
+  });
+});
+
+describe('onProgressWritten, the Educator course', () => {
+  const EDU = 'educator-onboarding';
+  const finish = async (uid: string) => {
+    const id = `${uid}_${EDU}`;
+    const after = progress({ uid, courseId: EDU, quiz: { pk: passed } });
+    await db().doc(`progress/${id}`).set(after);
+    await index.onProgressWritten.run({
+      params: { progressId: id },
+      data: { before: snap(undefined), after: snap(after) },
+    } as never);
+    return (await db().doc(`progress/${id}`).get()).data() ?? {};
+  };
+  const newUser = async (uid: string) => {
+    await getAuth()
+      .deleteUser(uid)
+      .catch(() => undefined);
+    await getAuth().createUser({ uid, email: `${uid}@example.com`, emailVerified: true });
+    await db()
+      .doc(`users/${uid}`)
+      .set({ displayName: uid, roles: ['learner'] });
+  };
+
+  beforeEach(async () => {
+    await db()
+      .doc(`courses/${EDU}`)
+      .set({ ...liveCourse(), id: EDU });
+  });
+
+  it('makes a learner an Admin assigned it to an Educator, and issues the certificate', async () => {
+    await newUser('assigned');
+    await db().doc('assignments/a1').set({ uid: 'assigned', courseId: EDU, status: 'assigned' });
+
+    const stored = await finish('assigned');
+
+    expect(stored.certificateId).toMatch(/^NSG-EDUCATOR-\d{2}-0001$/);
+    expect((await getAuth().getUser('assigned')).customClaims).toEqual({
+      educator: true,
+      admin: false,
+    });
+    expect((await db().doc('users/assigned').get()).get('roles')).toEqual(['learner', 'educator']);
+    const audit = await db().collection('audit').where('target', '==', 'assigned').get();
+    expect(audit.docs.map((d) => d.get('action'))).toEqual(['roles.course']);
+  });
+
+  it('gives someone nobody assigned it the certificate but not the role', async () => {
+    await newUser('unassigned');
+
+    const stored = await finish('unassigned');
+
+    expect(stored.certificateId).toMatch(/^NSG-EDUCATOR-/);
+    expect((await getAuth().getUser('unassigned')).customClaims ?? {}).not.toHaveProperty(
+      'educator',
+    );
+    expect((await db().doc('users/unassigned').get()).get('roles')).toEqual(['learner']);
   });
 });
 

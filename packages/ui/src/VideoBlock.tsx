@@ -12,6 +12,8 @@ export interface VideoBlockProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   href: string;
   /** A line under the video. */
   caption?: ReactNode;
+  /** A short line above the video saying what it is like to watch: its length, captions. */
+  meta?: ReactNode;
   /** Fallback link text. Default: "Open the video in a new tab". */
   linkLabel?: string;
   /** The player frame, for a caller that talks to the provider's player API. */
@@ -29,6 +31,7 @@ export function VideoBlock({
   title,
   href,
   caption,
+  meta,
   linkLabel = 'Open the video in a new tab',
   frameRef,
   placeholder,
@@ -37,6 +40,7 @@ export function VideoBlock({
 }: VideoBlockProps) {
   return (
     <figure className={cx('g-video', className)} {...rest}>
+      {meta ? <p className="g-video__meta">{meta}</p> : null}
       <div className="g-video__frame">
         {placeholder ? (
           <p className="g-video__soon">

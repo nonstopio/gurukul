@@ -79,7 +79,7 @@ describe('Studio in Gurukul names', () => {
     await gurukul('/studio/courses/git/quiz/q1', fakeStudio({ draft }));
     expect(await screen.findByRole('region', { name: 'Pariksha settings' })).toBeTruthy();
     expect(
-      screen.getByRole('switch', { name: 'Shishyas must pass to open the next Parva' }),
+      screen.getByRole('switch', { name: 'Shishyas must pass to open the rest of this Parva' }),
     ).toBeTruthy();
 
     await gurukul('/studio/courses/git/preview/l1', fakeStudio({ draft }));

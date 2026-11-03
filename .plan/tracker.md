@@ -17,7 +17,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Section                       | Done | Todo | Blocked | Maintainer |
 | ----------------------------- | ---- | ---- | ------- | ---------- |
 | Foundations | 7 | 0 | 0 | 0 |
-| Sign-in, roles and shell | 14 | 0 | 0 | 0 |
+| Sign-in, roles and shell | 15 | 0 | 0 | 1 |
 | Learner experience | 20 | 0 | 0 | 0 |
 | Quizzes and certificates | 10 | 0 | 0 | 0 |
 | Admin console and Analytics | 33 | 0 | 0 | 0 |
@@ -29,7 +29,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 11 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 169 | 0 | 0 | 14 |
+| **Total** | 170 | 0 | 0 | 15 |
 
 ## Pick order
 
@@ -67,6 +67,8 @@ Plan: `03-auth-and-roles.md`, `design-handoff/00-shared-patterns.md`, `design-ha
 | `AUTH-08` | Sign-in screen to the handoff | done | — | `apps/web/src/auth/SignInPage.tsx`, `styles.css` (`.signin*`): two-pane hero, benefits, invite Callout, footnote. Left: `AUTH-09` |
 | `AUTH-09` | Sign-in states | done | — | Google mark, busy state (disabled, `aria-busy`, "Signing in…") and a quote line: `apps/web/src/auth/SignInPage.tsx`, `styles.css` (`.signin__quote`), `apps/web/test/App.test.tsx`. The inline `role=alert` message stays as the error state. Left: `AUTH-10` |
 | `AUTH-10` | Sign-in: contact link and quote | done | — | Maintainer chose `gurukul@nonstopio.com` for the help link and kept the quote ("Knowledge gives humility"): `apps/web/src/auth/SignInPage.tsx` (mailto footnote), `styles.css` (`.signin__footnote a`), `apps/web/test/App.test.tsx`. No error Toast with retry: the inline alert covers it |
+| `AUTH-11` | Finishing the Educator course makes you an Educator | done | — | "Becoming a Gurukul Educator" (`educator-onboarding`, `firebase/seed/src/educator-course.ts`): 7 chapters, 26 lessons, about 80 minutes covering every part of Studio with good and weak examples, a Quiz midway and a Final Quiz; not public, opened by the `Educator candidates` team that assigning it joins (`firebase/functions/src/assign.ts`, seed). `onProgressWritten` grants the claim, only with an Admin assignment, before the certificate (`grantEducatorByCourse` in `firebase/functions/src/set-roles.ts`, `progress.ts`); the completion screen welcomes the new Educator (`apps/web/src/certificates/pages.tsx`); `03-auth-and-roles.md` |
+| `AUTH-12` | Seed the Educator course in production | maintainer | `AUTH-11` | `npm run seed -- --production` after merge (`docs/operations.md`); it also publishes the next version of the Git course |
 | `SHL-01`  | Skip link, focus on route change, retry on load errors                   | done   | —       | "Skip to content" and focus/announce on navigation in `apps/web/src/Shell.tsx` + `src/routeFocus.ts`; Retry from `useAsync` (`src/data/useAsync.ts`) on the load-error callout (`src/learn/ui.tsx`); `test/route-focus.test.tsx` |
 | `SHL-02`  | Focused shell for lesson, Quiz and result                            | done   | —       | `FocusedShell` (top bar only) and `Frame` (search, skip link, route focus above both layouts) in `apps/web/src/Shell.tsx`, `FOCUSED` in `src/routes.tsx`; one `h1` each (`TopBar titleAs="p"`, `packages/ui/src/TopBar.tsx`); `ProgressBar caption` "60% · 3 / 5"; `test/focused-shell.test.tsx` |
 | `SHL-03` | Handoff breakpoints and the menu button | done | — | `apps/web/src/Shell.tsx` (Menu button), `styles.css` (stacks below 808px, menu button below 560px). Not yet checked by eye at 390px and 700px |

@@ -392,8 +392,13 @@ describe('Quiz builder: settings', () => {
     change('Questions shown', '3');
     change('Cooldown between attempts (minutes)', '30');
     fireEvent.click(screen.getByRole('switch', { name: 'Shuffle answer order' }));
+    expect(
+      screen.getByText(
+        'To keep later chapters locked too, turn on "Learners go in order" in the course\'s Learning rules.',
+      ),
+    ).toBeTruthy();
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Learners must pass to open the next chapter' }),
+      screen.getByRole('switch', { name: 'Learners must pass to open the rest of this chapter' }),
     );
     change('Reveal answers', 'never');
     await saveNow();

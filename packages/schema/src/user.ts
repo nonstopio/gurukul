@@ -59,6 +59,11 @@ export const teamSchema = z.object({
   memberEmails: z.array(z.email().max(254)).max(500),
   /** Milliseconds since the epoch. */
   createdAt: z.number(),
+  /**
+   * Uid of the Educator or Admin who made it: an Educator edits only their own teams. Missing on
+   * teams made before it was recorded and on the seeded Educator course's team: Admins only.
+   */
+  createdBy: z.string().min(1).optional(),
 });
 export type TeamDoc = z.infer<typeof teamSchema>;
 export type Team = TeamDoc & { id: string };

@@ -129,6 +129,7 @@ describe('Create team', () => {
       id: 'mobile',
       name: 'Mobile',
       memberEmails: ['a@nonstopio.com', 'new@nonstopio.com'],
+      createdBy: 'u1',
     });
     expect(saved.createdAt).toBeGreaterThan(5);
     expect(previous).toBeNull();
@@ -247,11 +248,63 @@ describe('Edit and delete', () => {
     expect(previous).toBe('QA');
   });
 
-  it('deletes only after a confirmation', async () => {
+  it('lets an Educator edit only the teams they made, and delete none', async () => {
+    const mine: Team = { ...bare, createdBy: 'u1' };
+    const theirs: Team = { ...platform, createdBy: 'someone-else' };
+    await openApp(PATH, {
+      roles: ['educator'],
+      console: fakeConsole({ teamList: [theirs, mine] }),
+    });
+    expect(await screen.findByRole('button', { name: 'Edit QA' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Platform' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull();
+  });
+
+  it('lets an Admin edit any team, keeping its creator, or none for an older team', async () => {
+    const theirs: Team = { ...platform, createdBy: 'someone-else' };
+    const older: Team = { ...bare, createdAt: 7 };
+    const c = fakeConsole({ teamList: [theirs, older] });
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Platform' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(c.data.saveTeam).mock.calls[0]?.[0]).toMatchObject({
+      createdBy: 'someone-else',
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit QA' }));
+    fireEvent.change(nameField(), { target: { value: 'Quality' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(c.data.saveTeam).mock.calls[1]?.[0]).not.toHaveProperty('createdBy');
+  });
+
+  it('makes an Admin the creator of a team that had only a name', async () => {
+    const c = fakeConsole({ teamList: [bare] });
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit QA' }));
+    fireEvent.change(nameField(), { target: { value: 'Quality' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
+    expect(vi.mocked(c.data.saveTeam).mock.calls[0]?.[0]).toMatchObject({ createdBy: 'u1' });
+  });
+
+  it('deletes only once the team name is typed exactly, and starts empty each time', async () => {
     const c = fakeConsole({ teamList: [platform] });
     await openApp(PATH, { ...admin, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Platform' }));
-    expect(within(dialog()).getByText(/keep it on their profile/)).toBeTruthy();
+    const confirm = () => within(dialog()).getByRole('button', { name: 'Delete Platform' });
+    const typed = () => within(dialog()).getByLabelText('Type Platform to delete it');
+    expect(
+      within(dialog()).getByText(/loses the courses that only this team can open/),
+    ).toBeTruthy();
+    expect((confirm() as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(typed(), { target: { value: 'platform' } });
+    expect((confirm() as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(typed(), { target: { value: ' Platform ' } });
+    expect((confirm() as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Keep team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Platform' }));
+    expect((typed() as HTMLInputElement).value).toBe('');
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Keep team' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(c.data.deleteTeam).not.toHaveBeenCalled();
@@ -260,7 +313,8 @@ describe('Edit and delete', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Platform' }));
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete Platform' }));
+    fireEvent.change(typed(), { target: { value: 'Platform' } });
+    fireEvent.click(confirm());
     await waitFor(() => expect(c.data.deleteTeam).toHaveBeenCalledWith(platform));
     expect(await screen.findByText('Deleted Platform')).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -272,6 +326,9 @@ describe('Edit and delete', () => {
     vi.mocked(c.data.deleteTeam).mockRejectedValueOnce(new Error('offline'));
     await openApp(PATH, { ...admin, console: c });
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Platform' }));
+    fireEvent.change(within(dialog()).getByLabelText('Type Platform to delete it'), {
+      target: { value: 'Platform' },
+    });
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete Platform' }));
     expect(await screen.findByText('Could not delete the team. Try again.')).toBeTruthy();
     expect(screen.getByRole('dialog')).toBeTruthy();

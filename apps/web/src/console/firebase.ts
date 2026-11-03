@@ -370,8 +370,11 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
       await runTransaction(db, async (tx) => {
         const [org, existing] = await Promise.all([tx.get(orgRef), tx.get(teamRef)]);
         if (previousName === null && existing.exists()) throw new Error('Team already exists');
-        const { name, memberEmails, createdAt } = team;
-        tx.set(teamRef, teamSchema.parse({ name, memberEmails, createdAt }));
+        const { name, memberEmails, createdAt, createdBy } = team;
+        tx.set(
+          teamRef,
+          teamSchema.parse({ name, memberEmails, createdAt, ...(createdBy ? { createdBy } : {}) }),
+        );
         tx.set(orgRef, withTeams(org.data(), team.name, previousName));
       });
     },
