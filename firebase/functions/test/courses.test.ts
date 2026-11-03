@@ -182,6 +182,16 @@ describe('createCourse', () => {
     expect(f.audits).toEqual([]);
   });
 
+  it("says the Educator course's address is taken, before reading anything", async () => {
+    const f = fake();
+    const e = (await createCourse(f.store, asha, {
+      ...request,
+      slug: 'educator-onboarding',
+    }).catch((x: unknown) => x)) as ApiException;
+    expect(e.code).toBe('CRS_1002');
+    expect(f.audits).toEqual([]);
+  });
+
   it('copies the source draft, answers included, under the new identity', async () => {
     const f = fake({
       draft: draftOf({ course: validCourse({ status: 'published', version: 5, summary: 'kept' }) }),

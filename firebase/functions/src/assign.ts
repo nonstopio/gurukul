@@ -1,5 +1,13 @@
 import { createHmac } from 'node:crypto';
-import { ApiException, assignmentId, canOpen, classifyEmails, summarize } from '@gurukul/schema';
+import {
+  ApiException,
+  EDUCATOR_COURSE_ID,
+  EDUCATOR_TEAM_NAME,
+  assignmentId,
+  canOpen,
+  classifyEmails,
+  summarize,
+} from '@gurukul/schema';
 import type {
   AssignSummary,
   Audience,
@@ -49,6 +57,8 @@ export interface AssignStore {
   /** Adds to `stats/course_{id}.assigned` and `stats/org.assignmentsTotal`. */
   bumpAssigned(perCourse: Record<string, number>): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
+  /** Adds the emails to the team named `name` (`teams/{teamId(name)}`), creating it when missing. */
+  addTeamMembers(name: string, emails: string[]): Promise<void>;
 }
 
 export interface AssignResult {
@@ -159,6 +169,7 @@ export async function assignCourses(
     ? await store.audiences([...users.values()])
     : new Map<string, Audience>();
   const refused: { email: string; courseId: string }[] = [];
+  const candidates: string[] = [];
   const docs: NewAssignment[] = [];
   const newByEmail = new Map<string, { id: string; title: string }[]>();
   for (const courseId of req.courseIds) {
@@ -166,9 +177,12 @@ export async function assignCourses(
     const mayOpen = (email: string): boolean => {
       const uid = users.get(email);
       const who = uid === undefined ? undefined : audiences.get(uid);
+      // Assigning the Educator course is what lets someone open it: they join its team below.
+      if (courseId === EDUCATOR_COURSE_ID) return true;
       return rule === undefined || who === undefined || canOpen(rule, who);
     };
     const allowed = valid.filter(mayOpen);
+    if (courseId === EDUCATOR_COURSE_ID) candidates.push(...allowed);
     refused.push(...valid.filter((e) => !mayOpen(e)).map((email) => ({ email, courseId })));
     const ids = new Map(allowed.map((email) => [assignmentId(courseId, emailKey(email)), email]));
     const existing = await store.existingAssignmentIds([...ids.keys()]);
@@ -208,6 +222,9 @@ export async function assignCourses(
       .map((d) => ({ email: d.email, courseId: d.courseId })),
     ...refused,
   ];
+  // Everyone it is (re)assigned to, not only new assignments: assigning again puts back someone
+  // taken off the team, or left off it by a failed earlier call. Adding is idempotent.
+  if (candidates.length > 0) await store.addTeamMembers(EDUCATOR_TEAM_NAME, candidates);
   if (created.length > 0) {
     const written: Record<string, number> = {};
     for (const d of created) written[d.courseId] = (written[d.courseId] ?? 0) + 1;

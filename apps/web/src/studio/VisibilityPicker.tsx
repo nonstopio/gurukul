@@ -46,7 +46,7 @@ export function VisibilityPicker({
       </Select>
       {value.visibility === 'teams' ? (
         teams.length === 0 ? (
-          <p className="sc-help">An Admin adds teams in Admin, under Teams. Then pick them here.</p>
+          <p className="sc-help">Teams are made in Studio, under Teams. Then pick them here.</p>
         ) : (
           <fieldset className="sc-teams">
             <legend className="sc-help">

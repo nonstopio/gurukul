@@ -18,6 +18,11 @@
   height: 100%;
   border: 0;
 }
+.g-video__meta {
+  margin: 0;
+  font: 500 0.8125rem / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
 .g-video__caption {
   font: 400 0.8125rem / var(--leading-snug) var(--font-ui);
   color: var(--text-muted);

@@ -10,12 +10,16 @@ For the maintainer. The deployment itself is described in `.plan/11-deployment-a
 3. Sign in once with your `@nonstopio.com` account so your account exists.
 4. Run, once, on your machine with an admin credential:
    `npm run grant-admin -- you@nonstopio.com`, then sign out and in again.
-5. Load the first course into the emulator with `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed`,
+5. Load the two seeded courses (Git, public, and "Becoming a Gurukul Educator", whose completion makes someone
+   an Educator: it opens only for the `Educator candidates` team, which the seed adds to the Teams list;
+   assign it from the console to let someone take it) into the emulator with `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed`,
    or into production with `npm run seed -- --production` (needs `GCLOUD_PROJECT`). It also creates
-   `config/org` with the defaults (no teams, reminders off) when it is missing, and never touches
-   it once it exists; set teams and reminders in the console's Org settings.
-6. To ship a change to the Git course (`firebase/seed/src/git-course.ts`) after it is merged, run the
-   same seed again. It publishes the next version, as Studio's Publish does (a `versions/{n}`
+   `config/org` with the defaults (reminders off) when it is missing; on an existing one it only adds
+   the `Educator candidates` team name if missing, and keeps everything else. It creates that team's
+   document with no creator, so only Admins edit it. Set teams and reminders in the console.
+6. To ship a change to either seeded course (`firebase/seed/src/git-course.ts`,
+   `educator-course.ts`) after it is merged, run the same seed again. It publishes the next version of
+   each, as Studio's Publish does (a `versions/{n}`
    snapshot), and keeps the course's visibility, its Educators and an archived status. The Studio
    draft is updated only if nobody has edited it since the last seed; the seed prints `kept` when an
    Educator has, and their draft then lacks the change until they fold it in and publish.

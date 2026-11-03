@@ -6,6 +6,7 @@ import {
   accessOf,
   orgConfigSchema,
   progressId as progressDocId,
+  teamId,
 } from '@gurukul/schema';
 import type { Audience } from '@gurukul/schema';
 import { addChapterCompletions } from './analytics.js';
@@ -24,6 +25,7 @@ import { log } from './logging/log.js';
 import type { ProgressStore } from './progress.js';
 import type { ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
+import { grantEducatorByCourse } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
 import type { TeamStore } from './teams.js';
 
@@ -154,9 +156,10 @@ export function firebaseRoleAdmin(auth: Auth, db: Firestore): RoleAdmin {
   };
 }
 
-/** `ProgressStore` over the Admin SDK. */
-export function firestoreProgressStore(db: Firestore): ProgressStore {
+/** `ProgressStore` over the Admin SDK (Auth only to grant the Educator course's role). */
+export function firestoreProgressStore(db: Firestore, auth: Auth): ProgressStore {
   return {
+    grantEducator: (uid) => grantEducatorByCourse(firebaseRoleAdmin(auth, db), uid),
     async course(courseId) {
       const snap = await db.doc(`courses/${courseId}`).get();
       return snap.exists ? snap.data() : undefined;
@@ -196,6 +199,15 @@ export function firestoreProgressStore(db: Firestore): ProgressStore {
           { merge: true },
         );
       });
+    },
+    async isAssigned(uid, courseId) {
+      const snap = await db
+        .collection('assignments')
+        .where('uid', '==', uid)
+        .where('courseId', '==', courseId)
+        .limit(1)
+        .get();
+      return !snap.empty;
     },
     async setAssignmentStatus(uid, courseId, status) {
       const snap = await db
@@ -350,6 +362,19 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
         for (const d of snap.docs) found.set(d.get('email'), d.id);
       }
       return found;
+    },
+    async addTeamMembers(name, emails) {
+      const ref = db.doc(`teams/${teamId(name)}`);
+      // ponytail: no 500-member cap check (teamSchema's limit); the org is about 200 people.
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const have: string[] = snap.get('memberEmails') ?? [];
+        const memberEmails = [...new Set([...have, ...emails])];
+        // An existing team keeps its name (an Admin may have renamed it) and creator: only the
+        // members change. A missing one is made, with no creator, so only Admins edit it.
+        if (snap.exists) tx.update(ref, { memberEmails });
+        else tx.set(ref, { name, memberEmails, createdAt: Date.now() });
+      });
     },
     async existingAssignmentIds(ids) {
       const existing = new Set<string>();

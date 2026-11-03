@@ -65,6 +65,22 @@ export async function applyRoleChange(
 }
 
 /**
+ * Makes someone an Educator because they finished the Educator course. False when they already
+ * are. Tokens are not revoked: that would sign the learner out on their completion screen, and an
+ * added role needs no revocation (the app refreshes its token when the `roles` mirror changes).
+ */
+export async function grantEducatorByCourse(admin: RoleAdmin, uid: string): Promise<boolean> {
+  const current = await admin.getClaims(uid);
+  if (current?.educator === true) return false;
+  const claims = { educator: true, admin: current?.admin === true };
+  const plan: RolePlan = { claims, roles: rolesFromClaims(claims) };
+  await admin.setClaims(uid, plan.claims);
+  await admin.mirrorRoles(uid, plan);
+  await admin.audit({ action: 'roles.course', by: 'system', target: uid, detail: plan.claims });
+  return true;
+}
+
+/**
  * The one-off bootstrap behind `npm run grant-admin -- you@nonstopio.com`: makes the first
  * Admin. Run once with an admin credential on the maintainer's machine, never in CI.
  */

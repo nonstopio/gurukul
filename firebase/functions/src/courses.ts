@@ -1,5 +1,6 @@
 import {
   ApiException,
+  EDUCATOR_COURSE_ID,
   accessOf,
   blankCourse,
   courseAccessSchema,
@@ -134,6 +135,9 @@ export async function createCourse(
   if (!hasRole(caller)) throw new ApiException('AUTH_2001', ['createCourse']);
   const title = field('title', data['title'], courseSchema.shape.title);
   const id = field('slug', data['slug'], slug);
+  // The Educator course's address is the seed's: a course made there first would be the one the
+  // seed then keeps, with its maker as Educator. Reported as taken, which from here it is.
+  if (id === EDUCATOR_COURSE_ID) throw new ApiException('CRS_1002', [id]);
   const level = field('level', data['level'], courseSchema.shape.level);
   const theme = field('theme', data['theme'], courseSchema.shape.cover.shape.theme);
   const from = data['duplicateFrom'];

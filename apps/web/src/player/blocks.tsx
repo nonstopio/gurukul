@@ -11,6 +11,7 @@ import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useId, useState } from 'react';
 import Markdown from 'react-markdown';
 import { formatBytes, isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
+import { videoMeta } from '../learn/model';
 import { TrackedVideo } from './TrackedVideo';
 
 /** One line of Markdown (code, bold, italics) with no paragraph around it: a prompt or an option. */
@@ -135,6 +136,7 @@ export function BlockView({
           title={block.title ?? 'Lesson video'}
           href={block.url}
           caption={block.caption}
+          meta={videoMeta(block)}
         />
       ) : (
         <p>

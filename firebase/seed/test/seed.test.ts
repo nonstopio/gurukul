@@ -1,4 +1,4 @@
-import type { Course } from '@gurukul/schema';
+import type { Course, CourseAccess } from '@gurukul/schema';
 import { describe, expect, it } from 'vitest';
 import { gitAnswers, gitCourse } from '../src/git-course';
 import {
@@ -215,5 +215,37 @@ describe('seedOrgConfig', () => {
     ]);
     expect(await seedOrgConfig(db)).toEqual({ path: 'config/org', created: false });
     expect(writes).toHaveLength(1);
+  });
+
+  it('starts with the teams given, and adds a missing one to existing settings', async () => {
+    const fresh = fakeDb();
+    await seedOrgConfig(fresh.db, ['Educator candidates']);
+    expect(written(fresh.writes, 'config/org')).toMatchObject({ teams: ['Educator candidates'] });
+
+    const kept = fakeDb({ 'config/org': { domain: 'nonstopio.com', teams: ['Mobile'] } });
+    await seedOrgConfig(kept.db, ['Educator candidates']);
+    expect(written(kept.writes, 'config/org')).toEqual({
+      domain: 'nonstopio.com',
+      teams: ['Mobile', 'Educator candidates'],
+    });
+
+    const same = fakeDb({ 'config/org': { teams: ['educator CANDIDATES'] } });
+    await seedOrgConfig(same.db, ['Educator candidates']);
+    const none = fakeDb({ 'config/org': { domain: 'nonstopio.com' } });
+    await seedOrgConfig(none.db);
+    expect([...same.writes, ...none.writes]).toEqual([]);
+  });
+});
+
+describe('seedCourse access', () => {
+  it('uses the access given on a first seed and keeps the live one after', async () => {
+    const access: CourseAccess = { visibility: 'teams', visibleTeamIds: ['educator-candidates'] };
+    const first = fakeDb();
+    await seedCourse(first.db, { course: gitCourse, answers: gitAnswers, now, access });
+    expect(written(first.writes, COURSE)).toMatchObject(access);
+
+    const again = fakeDb({ [COURSE]: liveCourse });
+    await seedCourse(again.db, { course: gitCourse, answers: gitAnswers, now, access });
+    expect(written(again.writes, COURSE)).toMatchObject({ visibleTeamIds: ['mobile'] });
   });
 });

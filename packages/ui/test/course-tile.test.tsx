@@ -21,6 +21,17 @@ describe('CourseTile', () => {
     expect(container.querySelector('.g-course-tile__name')).toBeNull();
   });
 
+  it('shows a drawing in place of the picture and the name, hidden from screen readers', () => {
+    const { container } = render(
+      tile({ image: 'https://example.com/cover.png', cover: <svg data-testid="drawing" /> }),
+    );
+    const cover = container.querySelector('.g-course-tile__cover--custom');
+    expect(cover?.getAttribute('aria-hidden')).toBe('true');
+    expect(cover?.querySelector('[data-testid="drawing"]')).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.g-course-tile__name')).toBeNull();
+  });
+
   it('shows the course name on its own colour when there is no picture', () => {
     const { container } = render(tile({ theme: 'sand' }));
     expect(container.querySelector('img')).toBeNull();

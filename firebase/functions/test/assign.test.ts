@@ -22,6 +22,7 @@ function setup(over: Partial<AssignStore> = {}) {
     createAssignments: vi.fn().mockResolvedValue([]),
     bumpAssigned: vi.fn().mockResolvedValue(undefined),
     audit: vi.fn().mockResolvedValue(undefined),
+    addTeamMembers: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
   const mailer = { send: vi.fn().mockResolvedValue(undefined) };
@@ -203,6 +204,55 @@ describe('assignCourses', () => {
       assignCourses(deps, { uid: 'x', email: 'x@gmail.com', claims: { admin: true } }, request()),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
     expect(store.courses).not.toHaveBeenCalled();
+  });
+});
+
+describe('the Educator course', () => {
+  it('is assigned to anyone, who then joins its team; nobody joins for other courses', async () => {
+    const { store, deps } = setup({
+      courses: vi.fn().mockResolvedValue({
+        'educator-onboarding': {
+          ...published('Becoming a Gurukul Educator'),
+          access: { visibility: 'teams', visibleTeamIds: ['educator-candidates'] },
+        },
+        git: published('Git'),
+      }),
+      audiences: vi.fn().mockResolvedValue(new Map([['priya', { teamIds: [], staff: false }]])),
+    });
+    const out = await assignCourses(
+      deps,
+      admin,
+      request({ courseIds: ['educator-onboarding', 'git'] }),
+    );
+    expect(out.failed).toEqual([]);
+    expect(store.addTeamMembers).toHaveBeenCalledWith('Educator candidates', [
+      'priya@nonstopio.com',
+      'new@nonstopio.com',
+    ]);
+
+    const other = setup();
+    await assignCourses(other.deps, admin, request());
+    expect(other.store.addTeamMembers).not.toHaveBeenCalled();
+  });
+
+  it('puts someone already assigned back on the team when assigned again', async () => {
+    const { store, deps } = setup({
+      courses: vi.fn().mockResolvedValue({
+        'educator-onboarding': published('Becoming a Gurukul Educator'),
+      }),
+      existingAssignmentIds: vi
+        .fn()
+        .mockResolvedValue(new Set([id('educator-onboarding', 'priya@nonstopio.com')])),
+    });
+    const out = await assignCourses(
+      deps,
+      admin,
+      request({ courseIds: ['educator-onboarding'], emails: ['priya@nonstopio.com'] }),
+    );
+    expect(out.assigned).toBe(0);
+    expect(store.addTeamMembers).toHaveBeenCalledWith('Educator candidates', [
+      'priya@nonstopio.com',
+    ]);
   });
 });
 

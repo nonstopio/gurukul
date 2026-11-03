@@ -14,6 +14,7 @@ import {
   useToast,
 } from '@gurukul/ui';
 import { useState } from 'react';
+import { useUser } from '../auth/AuthProvider';
 import { toastError } from '../errors';
 import type { Loadable } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
@@ -172,6 +173,7 @@ function TeamsPicker({
   const [members, setMembers] = useState<string[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const uid = useUser().uid;
 
   const toggle = (team: string, on: boolean) =>
     onTeamNames(on ? [...teamNames, team] : teamNames.filter((n) => n !== team));
@@ -194,6 +196,7 @@ function TeamsPicker({
       name: named.name,
       memberEmails: members,
       createdAt: stamp(),
+      createdBy: uid,
     };
     try {
       await data.saveTeam(team, null);

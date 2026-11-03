@@ -73,8 +73,10 @@ test.describe('Admin', () => {
     await grantRoles(meera.email, ['admin']);
     await page.goto('/studio/teams');
     await expect(page.getByRole('heading', { level: 1, name: 'Teams' })).toBeVisible();
-    // The seed's default: no teams.
-    await expect(page.getByText('No teams yet')).toBeVisible();
+    // The seed's one team: the Educator course's, nobody on it yet.
+    await expect(
+      page.getByRole('table', { name: 'Teams' }).getByRole('row', { name: /Educator candidates/ }),
+    ).toBeVisible();
 
     await page.getByRole('main').getByRole('button', { name: 'Create team' }).first().click();
     const dialog = page.getByRole('dialog', { name: 'Create team' });

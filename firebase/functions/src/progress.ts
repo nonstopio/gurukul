@@ -1,4 +1,9 @@
-import { migrateCourse, progressPercent, progressSchema } from '@gurukul/schema';
+import {
+  EDUCATOR_COURSE_ID,
+  migrateCourse,
+  progressPercent,
+  progressSchema,
+} from '@gurukul/schema';
 import type { Progress } from '@gurukul/schema';
 import { emptyDelta, isEmptyDelta, planProgressStats } from './analytics.js';
 import type { ProgressStatsDelta } from './analytics.js';
@@ -35,6 +40,10 @@ export interface ProgressStore {
    * `certificates/{id}` and sets `progress.certificateId`. Returns the new id, or null if one existed.
    */
   issueCertificate(progressId: string, grant: CertificateGrant): Promise<string | null>;
+  /** Whether an Admin assigned this course to the learner (any status). */
+  isAssigned(uid: string, courseId: string): Promise<boolean>;
+  /** Makes the learner an Educator (`grantEducatorByCourse`); false when they already were. */
+  grantEducator(uid: string): Promise<boolean>;
 }
 
 /**
@@ -88,6 +97,18 @@ export async function handleProgressWrite(
     course.status === 'published' &&
     now.certificateId === null
   ) {
+    // Before the certificate: if the grant fails, the trigger fails before `certificateId` is set,
+    // so the learner's next progress write tries both again (the trigger does not retry itself).
+    // The grant is idempotent. Only an Admin's assignment counts:
+    // Educators may edit the course's team, and that alone must not make anyone an Educator.
+    if (now.courseId === EDUCATOR_COURSE_ID) {
+      if (!(await store.isAssigned(now.uid, now.courseId))) {
+        log.warn('Educator not granted', { uid: now.uid, reason: 'not assigned' });
+      } else if (await store.grantEducator(now.uid)) {
+        log.info('Educator granted by course', { uid: now.uid, courseId: now.courseId });
+        updated = true;
+      }
+    }
     const signatory = await store.signatory();
     const issued = await store.issueCertificate(progressId, {
       uid: now.uid,

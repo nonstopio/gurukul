@@ -13,6 +13,11 @@ export interface CourseTileProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   heading?: ReactNode;
   /** The picture on the cover. Without one, or when it fails to load, the cover shows the name. */
   image?: string | undefined;
+  /**
+   * A drawing to show on the cover in place of the picture or the name, at its own height (a
+   * certificate, scaled down). It is decoration: the heading names the tile.
+   */
+  cover?: ReactNode;
   /** The cover colour behind the name; the course's own colour. */
   theme: CourseTileTheme;
   /** Chips above the heading: level, visibility, status. */
@@ -43,6 +48,7 @@ export function CourseTile({
   title,
   heading,
   image,
+  cover,
   theme,
   chips,
   summary,
@@ -78,8 +84,17 @@ export function CourseTile({
           </span>
         </label>
       ) : null}
-      <div className={`g-course-tile__cover g-course-tile__cover--${theme}`} aria-hidden="true">
-        {showImage ? (
+      <div
+        className={cx(
+          'g-course-tile__cover',
+          `g-course-tile__cover--${theme}`,
+          cover !== undefined && 'g-course-tile__cover--custom',
+        )}
+        aria-hidden="true"
+      >
+        {cover !== undefined ? (
+          cover
+        ) : showImage ? (
           <img src={image} alt="" loading="lazy" onError={() => setFailed(image)} />
         ) : (
           <span className="g-course-tile__name">{title}</span>
