@@ -119,12 +119,13 @@ function Player({
   const placed = useRef<string | null>(null);
   useEffect(() => {
     if (progress === null) {
-      data.startCourse(uid, course).catch((e: unknown) => {
-        log.error('Starting the course failed', e, { uid, courseId: course.id });
-      });
-      // The effect runs again until the write lands; the course starts once.
-      if (startSent.current !== course.id) {
+      // Once per course, and only a published one: the rules refuse to start a draft or a retired
+      // course, the refused write rolls progress back to null, and retrying here looped forever.
+      if (course.status === 'published' && startSent.current !== course.id) {
         startSent.current = course.id;
+        data.startCourse(uid, course).catch((e: unknown) => {
+          log.error('Starting the course failed', e, { uid, courseId: course.id });
+        });
         analytics.track('course_start', { course_id: course.id });
       }
     } else if (progress && known && placed.current !== itemId) {

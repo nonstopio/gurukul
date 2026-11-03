@@ -1,5 +1,6 @@
 import { nameKey } from '@gurukul/schema';
 import type { FirebaseApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import {
   connectFirestoreEmulator,
   doc,
@@ -27,7 +28,7 @@ export function openFirestore(app: FirebaseApp, emulators: boolean) {
   });
   if (emulators) connectFirestoreEmulator(db, '127.0.0.1', 8080);
   return {
-    learner: firebaseLearnerData(db),
+    learner: firebaseLearnerData(db, () => getAuth(app).currentUser?.uid),
     studio: firebaseStudioData(db),
     console: firebaseConsoleData(db),
     watchProfile: (

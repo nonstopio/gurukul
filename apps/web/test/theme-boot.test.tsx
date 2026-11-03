@@ -1,7 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOT_LOADER_ID, BOOT_MIN_MS, hideBootLoader } from '../src/boot';
+import {
+  BOOT_LOADER_ID,
+  BOOT_MIN_MS,
+  STALE_RELOAD_KEY,
+  hideBootLoader,
+  reloadOnStaleBuild,
+} from '../src/boot';
 import { THEME_KEY, applyTheme, readTheme, setTheme, useTheme } from '../src/theme';
 
 afterEach(() => {
@@ -134,5 +140,60 @@ describe('boot loader', () => {
     vi.runAllTimers();
     expect(document.getElementById(BOOT_LOADER_ID)).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe('reloadOnStaleBuild', () => {
+  // A stand-in window: jsdom's location.reload cannot be spied on.
+  const fakeWindow = (storage: Pick<Storage, 'getItem' | 'setItem'>) => {
+    const target = new EventTarget();
+    const reload = vi.fn();
+    const win = Object.assign(target, { sessionStorage: storage, location: { reload } });
+    reloadOnStaleBuild(win as unknown as Window);
+    return { fire: () => target.dispatchEvent(new Event('vite:preloadError')), reload };
+  };
+
+  afterEach(() => sessionStorage.clear());
+
+  it('reloads a tab whose page file is gone after a deploy, and notes when', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(100_000);
+    const { fire, reload } = fakeWindow(sessionStorage);
+    fire();
+    expect(reload).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem(STALE_RELOAD_KEY)).toBe('100000');
+  });
+
+  it('does not reload again within 30 seconds, so a truly missing file shows the error', () => {
+    sessionStorage.setItem(STALE_RELOAD_KEY, '100000');
+    vi.spyOn(Date, 'now').mockReturnValue(129_999);
+    const { fire, reload } = fakeWindow(sessionStorage);
+    fire();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('reloads again once 30 seconds have passed (the next deploy)', () => {
+    sessionStorage.setItem(STALE_RELOAD_KEY, '100000');
+    vi.spyOn(Date, 'now').mockReturnValue(130_000);
+    const { fire, reload } = fakeWindow(sessionStorage);
+    fire();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('never reloads when storage is blocked, since nothing could stop a loop', () => {
+    const blocked = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: vi.fn(),
+    };
+    const { fire, reload } = fakeWindow(blocked);
+    fire();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('listens on the real window by default', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    reloadOnStaleBuild();
+    expect(add).toHaveBeenCalledWith('vite:preloadError', expect.any(Function));
   });
 });
