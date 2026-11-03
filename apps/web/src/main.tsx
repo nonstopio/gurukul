@@ -7,6 +7,7 @@ import './learn.css';
 import './console.css';
 import './studio.css';
 import { App } from './App';
+import { reloadOnStaleBuild } from './boot';
 import { firebaseAuthService } from './auth/service';
 import { firebaseConsoleService } from './console/service';
 import { configureAnalytics } from './analytics';
@@ -74,6 +75,7 @@ export function mount(
         throw e;
       },
     ));
+  reloadOnStaleBuild();
   createRoot(element).render(
     <StrictMode>
       <App
