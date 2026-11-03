@@ -1256,6 +1256,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           title="Example lesson video"
           href="https://example.com/video"
           caption="Staging changes, in three minutes."
+          meta="≈ 3 min · Captions available"
         />
       </Frame>
     ),

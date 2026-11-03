@@ -472,7 +472,7 @@ const blocksSpecs: QuestionSpec[] = [
     ],
     correct: [0, 1],
     explanation:
-      'Either the lesson rule or the course rule makes learners watch 90% of the video. Captions and length are stored, but they change nothing for learners.',
+      'Either the lesson rule or the course rule makes learners watch 90% of the video. Captions and length only show learners a line above the video; they lock nothing.',
     review: 'video-blocks',
   },
   {
@@ -697,7 +697,7 @@ const chapter4: Chapter = {
         '',
         'Gurukul does not host videos; a **Video** block points at one. Pick the **Video host** (**YouTube**, **Google Drive** or **Loom**) and paste the **Video link**, starting with `https://`. YouTube accepts `youtu.be/…`, `youtube.com/watch?v=…` and `youtube.com/embed/…` links; Loom takes a share link; Drive takes a file link. Studio shows the video when it recognises the link. If it does not, learners get a plain link to open in a new tab, and the course will not publish until the link is fixed.',
         '',
-        'Add a **Title** and a **Caption** if they help. The **Captions are available** switch and **Length in seconds** are stored, but learners do not see them.',
+        'Add a **Title** and a **Caption** if they help. Fill in **Length in seconds** and, when the video has them, turn on **Captions are available**: learners see a line above the video such as "≈ 4 min · Captions available", so they know what they are starting. Neither one makes them watch it.',
         '',
         '## Making learners watch',
         '',
