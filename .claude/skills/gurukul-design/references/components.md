@@ -292,13 +292,17 @@ Enter on `--ease` / `--dur-base`, exit on `--ease-in` / `--dur-fast`; under redu
 durations are 0. The provider keeps two live regions mounted from the start: `role="status"` for
 info, success and warning, `role="alert"` for danger. Toasts stack bottom-right (full width on a
 phone), `--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel`
-(default "Dismiss"). `useToast` outside a provider throws.
+(default "Dismiss"). `useToast` outside a provider throws. With `reportIssue` (a function from the
+toast's `title`, `message`, `code` and the unshown `detail` to a URL), every danger toast also shows a
+quiet **Report issue** link beside its action, opening in a new tab; `reportLabel` renames it. The
+app passes `reportToast` from `apps/web/src/report.ts`, which opens a prefilled GitHub bug.
 
 A failed action goes through `toastError(toast, error, fallback, retry?)` in
 `apps/web/src/errors.ts`: `describeError` maps an `ApiClientError` to a type (network, permission,
 validation, not-found, conflict, rate-limit, server), the catalog's sentence, a retry rule and a UI
 code; a rate limit warns, everything else is a danger toast, and Retry shows only when the error is
-retryable and the caller passes `retry`. A toast is never the only place an error that blocks work
+retryable and the caller passes `retry`. It puts the API code and trace id in `detail`, so a
+report names the failure in the logs. A toast is never the only place an error that blocks work
 appears: a form error stays on the form.
 
 ## StateCard — shipped

@@ -47,7 +47,14 @@ export type { GlobalLoaderProps, GlobalLoaderVariant } from './GlobalLoader';
 export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 export { ToastProvider, useToast, TOAST_DURATIONS } from './Toast';
-export type { ToastAction, ToastApi, ToastOptions, ToastProviderProps, ToastTone } from './Toast';
+export type {
+  ReportedToast,
+  ToastAction,
+  ToastApi,
+  ToastOptions,
+  ToastProviderProps,
+  ToastTone,
+} from './Toast';
 export { StateCard } from './StateCard';
 export type { StateCardProps, StateCardVariant } from './StateCard';
 export { CodeBlock, parseHighlight } from './CodeBlock';

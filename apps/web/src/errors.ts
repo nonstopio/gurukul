@@ -1,5 +1,6 @@
 import type { ToastApi } from '@gurukul/ui';
 import { ApiClientError } from './api';
+import { codesOf } from './report';
 
 /**
  * One lookup from a failed API call to what the screen shows: its type, a sentence, whether Retry
@@ -72,5 +73,7 @@ export function toastError(toast: ToastApi, error: unknown, fallback: string, re
     title: d.title,
     code: d.uiCode,
     action: retry && d.retryable ? { label: 'Retry', onSelect: retry } : undefined,
+    // The API code and trace id let a maintainer find the failure in the logs from a bug report.
+    detail: codesOf(error),
   });
 }

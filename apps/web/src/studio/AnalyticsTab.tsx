@@ -12,6 +12,8 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useConsole } from '../console/ConsoleProvider';
 import { useAsync } from '../data/useAsync';
+import { ReportIssueLink } from '../ReportIssueLink';
+import { codesOf } from '../report';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { pageFor } from '../paging';
@@ -64,6 +66,12 @@ export function AnalyticsTab({
       ) : result.state === 'error' ? (
         <Callout tone="warning" title="The numbers are not available" role="alert">
           <p>You may not have access to them, or the connection dropped. Try again later.</p>
+          <ReportIssueLink
+            problem={{
+              title: 'Course numbers did not load',
+              code: codesOf(result.error),
+            }}
+          />
         </Callout>
       ) : (
         <div className="sc-stats">
@@ -79,6 +87,12 @@ export function AnalyticsTab({
         ) : learners.state === 'error' ? (
           <Callout tone="warning" title={`The ${t.learners} are not available`} role="alert">
             <p>You may not have access to them, or the connection dropped. Try again later.</p>
+            <ReportIssueLink
+              problem={{
+                title: 'Course learners did not load',
+                code: codesOf(learners.error),
+              }}
+            />
           </Callout>
         ) : learners.value.length === 0 ? (
           <EmptyState title="No one has started this course yet" headingAs="h4">

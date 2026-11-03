@@ -10,6 +10,7 @@ import type { ConsoleData, ConsoleService } from './console/types';
 import { DataProvider } from './data/DataProvider';
 import type { LearnerData } from './data/types';
 import { QuizProvider } from './quiz/QuizProvider';
+import { reportToast } from './report';
 import { StudioProvider } from './studio/StudioProvider';
 import type { MediaStorage, PublishChecks, StudioData, StudioService } from './studio/types';
 import type { QuizService } from './quiz/service';
@@ -52,7 +53,7 @@ export function App({ service, data, quiz, console: consoleApi, studio, router }
                 storage={studio.storage}
                 checks={studio.checks}
               >
-                <ToastProvider>
+                <ToastProvider reportIssue={reportToast}>
                   <RouterProvider router={router} />
                 </ToastProvider>
               </StudioProvider>

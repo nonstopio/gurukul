@@ -34,7 +34,10 @@ const EXPECTED: Partial<Record<ErrorCodeKey, [ErrorType, string]>> = {
   GEN_5003: ['network', 'NET-TIMEOUT'],
 };
 
-type ShowCall = [string, { tone: string; code: string; action?: { onSelect: () => void } }];
+type ShowCall = [
+  string,
+  { tone: string; code: string; action?: { onSelect: () => void }; detail?: string },
+];
 
 describe('describeError', () => {
   it.each(Object.keys(ERROR_CODES) as ErrorCodeKey[])('describes %s', (code) => {
@@ -66,7 +69,11 @@ describe('toastError', () => {
     toastError(t, failure('GEN_5003'), 'x', retry);
     const [message, options] = t.show.mock.calls[0] as unknown as ShowCall;
     expect(message).toBe(ERROR_CODES.GEN_5003.userMessage);
-    expect(options).toMatchObject({ tone: 'danger', code: 'NET-TIMEOUT' });
+    expect(options).toMatchObject({
+      tone: 'danger',
+      code: 'NET-TIMEOUT',
+      detail: 'GEN_5003 · trace t',
+    });
     options.action?.onSelect();
     expect(retry).toHaveBeenCalled();
   });
@@ -78,6 +85,12 @@ describe('toastError', () => {
     for (const call of t.show.mock.calls) {
       expect((call as unknown as ShowCall)[1].action).toBeUndefined();
     }
+  });
+
+  it('reports an error that did not come from the API by its name', () => {
+    const t = toast();
+    toastError(t, new TypeError('boom'), 'x');
+    expect((t.show.mock.calls[0] as unknown as ShowCall)[1].detail).toBe('TypeError');
   });
 
   it('warns for a rate limit', () => {

@@ -27,6 +27,9 @@ it('shows a plain message, counts the crash by error name and offers Reload', ()
   expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeTruthy();
   expect(analytics.track).toHaveBeenCalledWith('app_error', { source: 'route', code: 'TypeError' });
   expect(JSON.stringify(analytics.track.mock.calls)).not.toContain('secret');
+  const report = screen.getByRole('link', { name: 'Report issue' }).getAttribute('href') as string;
+  expect(report).toContain('github.com/nonstopio/gurukul/issues/new');
+  expect(new URL(report).searchParams.get('what')).toContain('secret detail');
   fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
   expect(reload).toHaveBeenCalled();
 });
