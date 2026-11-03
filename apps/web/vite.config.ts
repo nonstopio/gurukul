@@ -1,18 +1,14 @@
 import react from '@vitejs/plugin-react';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { shareImageTags } from './src/seo/shareImage';
+import { withShareImage } from './src/seo/shareImage.ts';
 
 /** Adds the link-preview image tags to index.html, from the public address (VITE_SITE_URL). */
 function shareImage(mode: string): Plugin {
   const siteUrl = loadEnv(mode, process.cwd(), 'VITE_').VITE_SITE_URL;
   return {
     name: 'gurukul-share-image',
-    transformIndexHtml: (html) =>
-      html.replace(
-        '<meta name="twitter:card"',
-        `${shareImageTags(siteUrl)}\n    <meta name="twitter:card"`,
-      ),
+    transformIndexHtml: (html) => withShareImage(html, siteUrl),
   };
 }
 

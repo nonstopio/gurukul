@@ -114,7 +114,7 @@ jobs:
       # The JavaScript a first visit downloads stays under 320 KB gzip (.plan/10-testing-and-ci.md).
       - run: npm run check:bundle
 
-  # Accessibility, performance and best practice of the sign-in page, on the built app.
+  # Accessibility, SEO, performance and best practice of the sign-in page, on the built app.
   lighthouse:
     name: Lighthouse
     runs-on: ubuntu-latest

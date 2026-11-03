@@ -90,7 +90,12 @@ front door, and links shared in Slack or mail should preview with a name, a line
   sees only the sign-in screen there. No sitemap: two public pages need none.
 - `index.html` carries Open Graph and Twitter card tags. The preview image needs an absolute
   address, so the build adds it from `VITE_SITE_URL` (`apps/web/src/seo/shareImage.ts`); with no
-  address set, previews show the title and description only.
+  address set, previews show the title and description only, and an address that is not http(s)
+  stops the build. There is no `og:url`: every path serves the same `index.html`, so it would
+  point every shared link at the home page.
+- `apps/web/test/robots.test.ts` reads `robots.txt` the way Google does and checks it against
+  every route: crawlable exactly when the page opens signed out (`PUBLIC` in `routes.tsx`, and `/`).
+  Lighthouse CI fails the sign-in page below 0.9 for SEO.
 - Not done, because a single-page app on Hosting cannot without server rendering: per-page titles
   in previews, per-page canonical links, and a real 404 status for unknown paths.
 

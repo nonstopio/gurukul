@@ -9,7 +9,8 @@
     />
     <title>NonStop Gurukul</title>
     <!-- Link previews (Slack, WhatsApp, LinkedIn). The image tags are added at build time from
-         VITE_SITE_URL by vite.config.ts, since Open Graph needs an absolute address. -->
+         VITE_SITE_URL (src/seo/shareImage.ts), since Open Graph needs an absolute address. No og:url:
+         every path serves this file, so it would point every shared link at the home page. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="NonStop Gurukul" />
     <meta property="og:title" content="NonStop Gurukul" />
