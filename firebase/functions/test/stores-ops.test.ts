@@ -124,6 +124,34 @@ describe('firebaseRoleAdmin course grants', () => {
 });
 
 describe('firestoreAssignStore', () => {
+  it('adds members to a team, keeping its name and creator, or creates it', async () => {
+    const set = vi.fn();
+    const update = vi.fn();
+    const snaps = [
+      { exists: true, get: (k: string) => ({ memberEmails: ['a@x.io'] })[k] },
+      { exists: false, get: () => undefined },
+    ];
+    const db = {
+      doc: vi.fn((p: string) => p),
+      runTransaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) =>
+        fn({ get: vi.fn().mockResolvedValue(snaps.shift()), set, update }),
+      ),
+    } as never;
+    vi.spyOn(Date, 'now').mockReturnValue(9);
+    const store = firestoreAssignStore(db);
+    await store.addTeamMembers('Educator candidates', ['a@x.io', 'b@x.io']);
+    await store.addTeamMembers('Educator candidates', ['c@x.io']);
+    expect(update).toHaveBeenCalledWith('teams/educator-candidates', {
+      memberEmails: ['a@x.io', 'b@x.io'],
+    });
+    expect(set).toHaveBeenCalledWith('teams/educator-candidates', {
+      name: 'Educator candidates',
+      memberEmails: ['c@x.io'],
+      createdAt: 9,
+    });
+    vi.restoreAllMocks();
+  });
+
   it('reads each person’s teams and whether they are staff', async () => {
     const data: Record<string, Record<string, unknown>> = {
       a: { roles: ['educator'], teamIds: ['qa'] },

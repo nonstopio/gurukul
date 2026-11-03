@@ -231,6 +231,7 @@ describe('console callables', () => {
       createAssignments: vi.fn().mockResolvedValue([]),
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
+      addTeamMembers: vi.fn().mockResolvedValue(undefined),
     };
     const deps = { store: assignStore, mailer };
     const ok = await handleAssignCourses(

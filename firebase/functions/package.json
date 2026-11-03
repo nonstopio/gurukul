@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "test:emulator": "firebase emulators:exec --only firestore,storage --project demo-gurukul \"vitest run -c vitest.emulator.config.ts\""
+    "test:emulator": "firebase emulators:exec --only auth,firestore,storage --project demo-gurukul \"vitest run -c vitest.emulator.config.ts\""
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",

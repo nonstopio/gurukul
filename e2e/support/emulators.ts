@@ -16,6 +16,9 @@ const DOCS = `${FIRESTORE_URL}/v1/projects/${PROJECT_ID}/databases/(default)/doc
 const SEEDED_PATHS = [
   'courses/git-the-nonstop-way',
   'courses/git-the-nonstop-way/private/answers',
+  'courses/educator-onboarding',
+  'courses/educator-onboarding/private/answers',
+  'teams/educator-candidates',
   'config/org',
 ];
 
@@ -36,7 +39,7 @@ async function call(url: string, init: RequestInit, what: string): Promise<Respo
 }
 
 /**
- * Seeds the Git course with the repo's own seed script, then keeps a copy of what it wrote (read
+ * Seeds both courses with the repo's own seed script, then keeps a copy of what it wrote (read
  * back through the REST API) so a reset can restore it in milliseconds instead of running the
  * script again. Called once, from global setup.
  */
@@ -173,6 +176,26 @@ export async function seedProgress(
     { method: 'PATCH', headers: OWNER, body: JSON.stringify({ fields }) },
     'Seeding progress',
   );
+}
+
+/** Every lesson and Quiz id of a seeded course, read from the emulator. */
+export async function itemIds(courseId: string): Promise<{ lessons: string[]; quizzes: string[] }> {
+  type Value = {
+    stringValue?: string;
+    mapValue?: { fields: Record<string, Value> };
+    arrayValue?: { values?: Value[] };
+  };
+  const res = await call(`${DOCS}/courses/${courseId}`, { headers: OWNER }, 'Reading a course');
+  const { fields } = (await res.json()) as { fields: Record<string, Value> };
+  const items = (fields.chapters?.arrayValue?.values ?? []).flatMap(
+    (chapter) => chapter.mapValue?.fields.items?.arrayValue?.values ?? [],
+  );
+  const ids = (type: string) =>
+    items
+      .map((item) => item.mapValue?.fields ?? {})
+      .filter((f) => f.type?.stringValue === type)
+      .map((f) => f.id?.stringValue ?? '');
+  return { lessons: ids('lesson'), quizzes: ids('quiz') };
 }
 
 /**

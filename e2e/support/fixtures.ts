@@ -51,6 +51,8 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
   }
   await signIn.click();
   const popup = await popupOpened;
+  // Its buttons do nothing until its script has run; a fresh browser context loads it slowly.
+  await popup.waitForLoadState('load');
   const existing = popup.getByRole('listitem').filter({ hasText: person.email });
   const add = popup.getByRole('button', { name: 'Add new account' });
   await expect(add.or(existing)).toBeVisible();

@@ -25,13 +25,29 @@
 | Role | How you get it | Stored as |
 |---|---|---|
 | Learner | Signing in | implicit |
-| Educator | An Admin grants it, with a list of course ids | claim `educator: true` + `users/{uid}.grantedCourseIds` |
+| Educator | Finishing the Educator course, "Becoming a Gurukul Educator" (`educator-onboarding`); an Admin may also grant it, with a list of course ids | claim `educator: true` + `users/{uid}.grantedCourseIds` |
 | Admin | Another Admin grants it (bootstrap below) | claim `admin: true` |
 
 - Claims are set only by the `setRoles` callable, which checks the caller is a
   Admin, writes the claims, mirrors `roles` on `users/{uid}` and revokes the
   user's refresh tokens so the new claims apply within an hour (the app forces
   a token refresh when it sees the mirror change).
+- **The Educator course is the normal route, and an Admin decides who takes it.** The course is
+  not public: it opens only for the `Educator candidates` team (seeded, listed in `config/org.teams`),
+  and assigning it (Admin only, `assignCourses`) adds the person to that team, so the Admin's
+  assignment is what lets someone open it. When a learner finishes it (every lesson done and the Final
+  Quiz passed) **and has an assignment for it**, `onProgressWritten` sets `educator: true` (keeping
+  `admin`), mirrors `roles`, writes a `roles.course` audit entry, and then issues the certificate.
+  Without an assignment it issues the certificate and grants nothing: Educators may edit teams, and
+  adding someone to the team must not make them an Educator. It does not revoke tokens (that would
+  sign the learner out on the completion screen); the app refreshes its token when the mirror
+  changes, and the completion screen congratulates them and links to Studio. The course is a fixed
+  id in `@gurukul/schema` (`EDUCATOR_COURSE_ID`, `EDUCATOR_TEAM_NAME`), not a course setting, so no
+  Educator can build a course that hands the role out. An Admin can still grant or remove Educator
+  by hand; revoking the course's certificate leaves the role alone. A course-made Educator has no
+  granted courses: they create their own in Studio. **The role is staff access**, not only Studio:
+  an Educator also reads every profile, every team's members (and edits teams) and the Question
+  bank (`02-data-model.md`), so an Admin assigns the course only to people trusted with that.
 - Per-course edit rights (which courses an Educator may edit) are stored in
   `courses/{id}.educatorIds`, checked by rules on the draft document. Claims
   stay small; course lists do not go in the token.

@@ -1,6 +1,7 @@
 import {
   DEFAULT_ORG_CONFIG,
   PUBLIC_ACCESS,
+  type CourseAccess,
   accessOf,
   courseSchema,
   type Course,
@@ -23,6 +24,8 @@ export interface SeedInput {
   course: Course;
   answers: AnswerKeys;
   now: TimestampLike;
+  /** Who may open the course on its first seed; public when left out. A re-seed keeps the live one. */
+  access?: CourseAccess;
 }
 
 export interface SeedResult {
@@ -122,9 +125,12 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
           educatorIds: live.educatorIds ?? [],
           educatorNames: live.educatorNames ?? {},
         };
-  // A first seed is public, as every course starts: the catalogue lists only courses that say who
-  // may open them. A re-seed keeps what an Admin chose.
-  const published = { ...course, ...(live === undefined ? PUBLIC_ACCESS : accessOf(live)) };
+  // A first seed is public unless the input says otherwise: the catalogue lists only courses that say
+  // who may open them. A re-seed keeps what an Admin chose.
+  const published = {
+    ...course,
+    ...(live === undefined ? (input.access ?? PUBLIC_ACCESS) : accessOf(live)),
+  };
   await db.set(coursePath, published);
   await db.set(answersPath, input.answers);
   await db.set(`${coursePath}/versions/${course.version}`, {
@@ -151,10 +157,20 @@ export async function seedCourse(db: SeedDb, input: SeedInput): Promise<SeedResu
 }
 
 /**
- * Writes the default `config/org` (no teams, reminders off, a fictional signatory) when there is none. Never overwrites:
- * once an Admin has saved teams or switched reminders on, re-seeding keeps their settings.
+ * Writes the default `config/org` (reminders off, a fictional signatory, the `teams` given) when there
+ * is none. Never overwrites an Admin's settings: on an existing one it only adds a missing team name,
+ * so a team a seeded course is limited to shows on the Teams page.
  */
-export async function seedOrgConfig(db: SeedDb): Promise<{ path: string; created: boolean }> {
+export async function seedOrgConfig(
+  db: SeedDb,
+  teams: string[] = [],
+): Promise<{ path: string; created: boolean }> {
   const path = 'config/org';
-  return { path, created: await db.createIfMissing(path, DEFAULT_ORG_CONFIG) };
+  if (await db.createIfMissing(path, { ...DEFAULT_ORG_CONFIG, teams }))
+    return { path, created: true };
+  const org = (await db.get(path)) as { teams?: string[] };
+  const have = org.teams ?? [];
+  const missing = teams.filter((t) => !have.some((h) => h.toLowerCase() === t.toLowerCase()));
+  if (missing.length > 0) await db.set(path, { ...org, teams: [...have, ...missing] });
+  return { path, created: false };
 }

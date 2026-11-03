@@ -449,7 +449,10 @@ a.items__row:hover {
   border-radius: var(--radius-xl);
   background: var(--surface);
 }
+/* A legend sits on the fieldset's top border; floated, it is an ordinary row inside the card. */
 .exam__prompt {
+  float: left;
+  width: 100%;
   padding: 0;
   font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
 }

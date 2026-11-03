@@ -2,7 +2,7 @@
   "name": "@gurukul/seed",
   "version": "0.0.0",
   "private": true,
-  "description": "Gurukul seed data: the first course (Git, the NonStop Way) and the tool that writes it, with its answer key, to Firestore.",
+  "description": "Gurukul seed data: the courses (Git, the NonStop Way; Becoming a Gurukul Educator) and the tool that writes it, with its answer key, to Firestore.",
   "type": "module",
   "license": "MIT",
   "scripts": {

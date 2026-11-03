@@ -89,7 +89,7 @@ export const onProgressWritten = onDocumentWritten('progress/{progressId}', asyn
     { progressId: event.params.progressId },
     () =>
       handleProgressWrite(
-        firestoreProgressStore(getFirestore()),
+        firestoreProgressStore(getFirestore(), getAuth()),
         event.params.progressId,
         event.data?.before.data(),
         event.data?.after.data(),

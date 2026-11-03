@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleSetRoles } from '../src/handlers.js';
-import { applyRoleChange, grantAdmin } from '../src/set-roles.js';
+import { applyRoleChange, grantAdmin, grantEducatorByCourse } from '../src/set-roles.js';
 import type { RoleAdmin } from '../src/set-roles.js';
 
 const admin = (
@@ -64,6 +64,38 @@ describe('applyRoleChange', () => {
         educator: true,
       }),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
+    expect(a.setClaims).not.toHaveBeenCalled();
+    expect(a.audit).not.toHaveBeenCalled();
+  });
+});
+
+describe('grantEducatorByCourse', () => {
+  it('adds Educator, keeps Admin, audits, and does not sign the learner out', async () => {
+    const a = admin({ admin: true } as never);
+    expect(await grantEducatorByCourse(a, 'u1')).toBe(true);
+    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, admin: true });
+    expect(a.mirrorRoles).toHaveBeenCalledWith('u1', {
+      claims: { educator: true, admin: true },
+      roles: ['learner', 'educator', 'admin'],
+    });
+    expect(a.revokeTokens).not.toHaveBeenCalled();
+    expect(a.audit).toHaveBeenCalledWith({
+      action: 'roles.course',
+      by: 'system',
+      target: 'u1',
+      detail: { educator: true, admin: true },
+    });
+  });
+
+  it('makes a Learner an Educator only', async () => {
+    const a = admin();
+    expect(await grantEducatorByCourse(a, 'u1')).toBe(true);
+    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, admin: false });
+  });
+
+  it('does nothing for an existing Educator', async () => {
+    const a = admin({ educator: true });
+    expect(await grantEducatorByCourse(a, 'u1')).toBe(false);
     expect(a.setClaims).not.toHaveBeenCalled();
     expect(a.audit).not.toHaveBeenCalled();
   });

@@ -1059,6 +1059,15 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           heading={<a href="#forms">Accessible forms</a>}
           summary="No picture: the name sits on the course colour."
         />
+        <CourseTile
+          title="Git, the NonStop Way"
+          theme="stone"
+          heading={<a href="#certificate">Git, the NonStop Way</a>}
+          cover={
+            <Certificate {...CERTIFICATE} learnerName="Asha Rao" credentialId="GK-EXAMPLE-0002" />
+          }
+          meta="A cover can be a drawing: the certificates gallery shows each certificate."
+        />
         <TileChoiceExample />
       </div>
     ),

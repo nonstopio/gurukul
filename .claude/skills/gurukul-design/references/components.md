@@ -642,7 +642,9 @@ glyph) in it instead of a player; no open-in-new-tab link. Never bare text where
 
 ## CourseTile — shipped
 
-`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? theme chips? summary? extra? meta? />`.
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? />`.
+`cover` replaces the picture with a drawing at its own height: the certificates gallery shows each
+certificate, scaled down, as its cover (the record is still one link, the heading's).
 A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover
 colour, `forest` white ink, the others the fixed paper ink), then chips, the title, the summary, an
 `extra` block (a progress bar) and a meta line. The picture comes from `courseImageUrl(course)` (the

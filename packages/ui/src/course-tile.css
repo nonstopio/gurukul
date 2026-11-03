@@ -23,6 +23,12 @@
   /* Every cover colour is a light or a dark ground that does not change with the theme, so the name on it uses a fixed ink. */
   color: var(--paper-ink);
 }
+/* `place-items: center` would shrink the drawing to its intrinsic width, which a scaled certificate does not have. */
+.g-course-tile__cover--custom {
+  display: block;
+  place-items: normal;
+  aspect-ratio: auto;
+}
 .g-course-tile__cover--forest {
   background: var(--cover-forest);
   color: var(--on-forest);

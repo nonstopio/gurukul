@@ -1,4 +1,4 @@
-import { estimateMinutes, itemsOf } from '@gurukul/schema';
+import { EDUCATOR_COURSE_ID, estimateMinutes, itemsOf } from '@gurukul/schema';
 import {
   Breadcrumb,
   Button,
@@ -6,6 +6,7 @@ import {
   Card,
   Certificate,
   Chip,
+  CourseTile,
   EmptyState,
   Page,
   PageHeader,
@@ -16,7 +17,7 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { useUser } from '../auth/AuthProvider';
+import { useSession, useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { CertificateRow, ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
@@ -25,6 +26,7 @@ import type { AssignedCourse } from '../learn/model';
 import { Loaded, LoadedPage } from '../learn/ui';
 import { linkedInUrl, longDate } from '../quiz/model';
 import { TrackClick, useTrackOnMount } from '../analytics/react/Track';
+import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { pageFor } from '../paging';
@@ -213,7 +215,10 @@ export function VerifyPage() {
   );
 }
 
-/** `/certificates`: mine, newest first. */
+/** A grid of certificates fits 12 (four rows of three at 1280px); each one is a full drawing. */
+const CERTIFICATES_PER_PAGE = 12;
+
+/** `/certificates`: mine, newest first, as a gallery. */
 export function CertificatesPage() {
   const data = useLearnerData();
   const t = useTerms();
@@ -228,7 +233,7 @@ export function CertificatesPage() {
       />
       <Loaded loadable={result}>
         {(list) => {
-          const paged = pageFor(list, page);
+          const paged = pageFor(list, page, CERTIFICATES_PER_PAGE);
           return list.length === 0 ? (
             <EmptyState
               title="No certificates yet"
@@ -242,29 +247,33 @@ export function CertificatesPage() {
               {`Finish a course and pass its ${t.Quizzes} to earn one.`}
             </EmptyState>
           ) : (
-            <Card>
-              <ul className="learn-rows">
+            <>
+              <ul className="learn-cards">
                 {paged.rows.map((c) => (
-                  <li key={c.id}>
-                    <Link className="course-row" to={`/certificates/${c.id}`}>
-                      <span className="learn-stack">
-                        <span className="course-row__title">{c.courseTitle}</span>
-                        <span className="learn-meta">
-                          {c.id} · {longDate(c.issuedAt)}
-                        </span>
-                      </span>
-                      {c.revoked ? <Chip tone="danger">Revoked</Chip> : null}
-                    </Link>
-                  </li>
+                  <CourseTile
+                    key={c.id}
+                    as="li"
+                    title={c.courseTitle}
+                    theme="stone"
+                    heading={<Link to={`/certificates/${c.id}`}>{c.courseTitle}</Link>}
+                    cover={
+                      <div inert>
+                        <CertificateSheet c={c} />
+                      </div>
+                    }
+                    chips={c.revoked ? <Chip tone="danger">Revoked</Chip> : undefined}
+                    meta={`${c.id} · ${longDate(c.issuedAt)}`}
+                  />
                 ))}
               </ul>
               <Pagination
                 label="Certificates"
                 page={paged.page}
+                pageSize={CERTIFICATES_PER_PAGE}
                 total={list.length}
                 onPageChange={setPage}
               />
-            </Card>
+            </>
           );
         }}
       </Loaded>
@@ -345,6 +354,48 @@ function UpNextCard({ courseId }: { courseId: string }) {
   );
 }
 
+/**
+ * Finishing the Educator course grants the role in the progress trigger; the session picks the
+ * new claim up when the profile's `roles` mirror changes, so this waits for it.
+ */
+function EducatorWelcome({ certificateId }: { certificateId: string | null }) {
+  const { roles } = useSession();
+  const t = useTerms();
+  const data = useLearnerData();
+  const uid = useUser().uid;
+  const educator = roles.includes('educator');
+  // Only someone an Admin assigned the course to is made an Educator; anyone else gets the
+  // certificate alone, so promising them the role would leave this message up for good.
+  const assigned = useAsync(
+    useCallback(
+      async () =>
+        educator || (await data.myAssignments(uid)).some((a) => a.courseId === EDUCATOR_COURSE_ID),
+      [data, uid, educator],
+    ),
+  );
+  if (assigned.state !== 'ready' || !assigned.value) return null;
+  // The role is granted just before the certificate: once it is issued, no grant is coming.
+  if (!educator && certificateId !== null) return null;
+  if (!educator) {
+    return (
+      <Callout title={`Making you ${article(t.Educator)}…`} role="status">
+        This takes a few seconds.
+      </Callout>
+    );
+  }
+  return (
+    <Callout tone="tip" title={`You are now ${article(t.Educator)}.`} role="status">
+      <p>
+        Congratulations. You can build your own courses in {t.Studio}, and your certificate shows
+        you earned it.
+      </p>
+      <Link className={buttonClass('secondary')} to="/studio">
+        Open {t.Studio}
+      </Link>
+    </Callout>
+  );
+}
+
 /** `/courses/:courseId/complete`: the Completion screen, reached after the last item. */
 export function CompletePage() {
   const { courseId = '' } = useParams();
@@ -415,6 +466,9 @@ export function CompletePage() {
                 ) : undefined
               }
             />
+            {courseId === EDUCATOR_COURSE_ID ? (
+              <EducatorWelcome certificateId={progress.certificateId} />
+            ) : null}
             {course.rules.certificate && !certificateId ? (
               <p role="status" className="learn-muted">
                 Preparing your certificate…

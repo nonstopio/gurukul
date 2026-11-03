@@ -80,7 +80,8 @@ an org setting; `config/org.reminders` only switches the daily run on or off.
 members as email chips (paste many, separated by commas, spaces or new lines; each chip is checked and
 an invalid one says why; an address that has not signed in yet is marked Invited). A team needs
 at least one member (a team is never empty). A row opens the same dialog to edit the name
-and members; Delete asks first. Writes go straight to `teams/{id}` and `config/org.teams` in one
+and members; an Educator sees Edit only on teams they created, an Admin on every team. Delete is for Admins only and asks them to type the team's name first (a course can be
+limited to a team, such as the Educator course's, so deleting one shuts its members out). Writes go straight to `teams/{id}` and `config/org.teams` in one
 transaction under the rules (no callable, no audit entry, as Org settings). A name in
 `config/org.teams` with no document shows as a team with no members. Assign courses picks one or more teams
 and assigns their members. Data: [02 · Data model](02-data-model.md#teams).
