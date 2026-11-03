@@ -138,8 +138,30 @@ describe('handleProgressWrite', () => {
       completedAt: ts(5),
       certificateId: 'NSG-GIT-26-0001',
     });
-    expect(await run(s, 'u_git', stamped, stamped)).toBe('unchanged');
+    expect(await run(s, 'u_git', stamped, stamped)).toBe('ignored');
     expect(s.bumpStats).not.toHaveBeenCalled();
+  });
+
+  it('skips the course read when a lesson open only moved the resume point', async () => {
+    const s = store();
+    const before = progress({ completedItemIds: ['l1'], percent: 50, lastItemId: 'l1' });
+    const after = { ...before, lastItemId: 'l2', lastActiveAt: ts(9) };
+    expect(await run(s, 'u_git', before, after)).toBe('ignored');
+    expect(s.course).not.toHaveBeenCalled();
+  });
+
+  it('still reads the course when the resume move comes with a new course version', async () => {
+    const s = store();
+    const before = progress({ completedItemIds: ['l1'], percent: 50 });
+    await run(s, 'u_git', before, { ...before, courseVersion: 2, lastItemId: 'l2' });
+    expect(s.course).toHaveBeenCalledWith('git');
+  });
+
+  it('retries a missing certificate on a resume move, since any write is the retry', async () => {
+    const s = store();
+    const done = progress({ completedItemIds: ['l1', 'l2'], percent: 100, completedAt: ts(5) });
+    expect(await run(s, 'u_git', done, { ...done, lastItemId: 'l1' })).toBe('updated');
+    expect(s.issueCertificate).toHaveBeenCalled();
   });
 
   it('counts the chapter that just became fully done, once', async () => {
@@ -163,7 +185,11 @@ describe('handleProgressWrite', () => {
   });
 
   it('ignores progress for a course that no longer exists', async () => {
-    expect(await run(store(null), 'u_git', progress(), progress())).toBe('ignored');
+    const s = store(null);
+    expect(await run(s, 'u_git', progress(), progress({ completedItemIds: ['l1'] }))).toBe(
+      'ignored',
+    );
+    expect(s.course).toHaveBeenCalledWith('git');
   });
 
   describe('certificates', () => {
