@@ -207,3 +207,49 @@ export async function storedBlurHash(coursePath: string): Promise<string | undef
   const found = /"blurHash":\s*\{\s*"stringValue":\s*"([^"]+)"/.exec(await res.text());
   return found?.[1];
 }
+
+/** A document's fields (`undefined` while it does not exist), read past the rules. */
+export async function readDoc(path: string): Promise<Record<string, unknown> | undefined> {
+  const res = await fetch(`${DOCS}/${path}`, { headers: OWNER });
+  if (res.status === 404) return undefined;
+  if (!res.ok) throw new Error(`Reading ${path} failed: ${res.status} ${await res.text()}`);
+  return ((await res.json()) as { fields: Record<string, unknown> }).fields;
+}
+
+/**
+ * How many times a document changed over `ms`: its `updateTime`, read every 100 ms. Two writes
+ * closer together than that count once, so it undercounts a burst but never misses a loop, which
+ * is what it is for: a page left open must not keep writing.
+ */
+export async function countChanges(path: string, ms: number): Promise<number> {
+  const updated = async () => {
+    const res = await call(`${DOCS}/${path}`, { headers: OWNER }, `Reading ${path}`);
+    return ((await res.json()) as { updateTime: string }).updateTime;
+  };
+  let last = await updated();
+  let changes = 0;
+  for (const end = Date.now() + ms; Date.now() < end;) {
+    await new Promise((done) => setTimeout(done, 100));
+    const now = await updated();
+    if (now !== last) changes += 1;
+    last = now;
+  }
+  return changes;
+}
+
+/** Changes one top-level string field of a seeded course, e.g. its `status`, past the rules. */
+export async function setCourseField(
+  courseId: string,
+  field: string,
+  value: string,
+): Promise<void> {
+  await call(
+    `${DOCS}/courses/${courseId}?updateMask.fieldPaths=${field}`,
+    {
+      method: 'PATCH',
+      headers: OWNER,
+      body: JSON.stringify({ fields: { [field]: { stringValue: value } } }),
+    },
+    `Setting ${field} on ${courseId}`,
+  );
+}
