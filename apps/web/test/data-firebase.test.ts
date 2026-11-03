@@ -126,6 +126,16 @@ describe('firebaseLearnerData', () => {
     now.mockRestore();
   });
 
+  it('never serves one person a course another person on the tab read', async () => {
+    let uid = 'ana';
+    const perPerson = firebaseLearnerData({} as never, () => uid);
+    store.docs.set('courses/git', course());
+    const first = await perPerson.getCourse('git');
+    expect(await perPerson.getCourse('git')).toBe(first);
+    uid = 'ben';
+    expect(await perPerson.getCourse('git')).not.toBe(first);
+  });
+
   it('reads the server copy when asked for a fresh one, and keeps it for the next page', async () => {
     store.docs.set('courses/git', course());
     await data.getCourse('git');
