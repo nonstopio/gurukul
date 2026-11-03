@@ -45,7 +45,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
   deleted in a newer version, resume opens the first incomplete item.
 - Item states: done, current, available, locked (sequential courses: a chapter
   is locked until the previous chapter's Quiz is passed, or all its lessons
-  done if it has none).
+  done if it has none; and a Quiz with `blocksNext`, Studio's "Learners must pass to open the rest
+  of this chapter", locks the items after it in its own chapter only).
 - Opening a lesson sets `lastItemId`; it is **not** completed until the rule
   in `completeWhen` is met.
 - Progress percent is computed by a function and also locally (same pure

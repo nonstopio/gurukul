@@ -886,7 +886,7 @@ const chapter5: Chapter = {
         '',
         '## The lock switch',
         '',
-        '**Learners must pass to open the next chapter** sounds bigger than it is. What it does: while the Quiz is not passed, the items **after it in the same chapter** stay locked. If the Quiz is the last item in its chapter, it locks nothing by itself.',
+        '**Learners must pass to open the rest of this chapter** does what it says: while the Quiz is not passed, the items **after it in the same chapter** stay locked. If the Quiz is the last item in its chapter, it locks nothing by itself.',
         '',
         'What holds the next chapter shut is the course rule **Learners go in order**: a chapter with a Quiz counts as passed only once its Quizzes are passed. So to gate the next chapter on a Quiz, put the Quiz in the chapter and keep **Learners go in order** on.',
       ),
@@ -1055,7 +1055,7 @@ const finalSpecs: QuestionSpec[] = [
     id: 'q3',
     kind: 'trueFalse',
     prompt:
-      'A course has "Learners go in order" off. A Quiz in the middle of chapter 2 has "Learners must pass to open the next chapter" on. Rohan can still open chapter 3 before passing that Quiz.',
+      'A course has "Learners go in order" off. A Quiz in the middle of chapter 2 has "Learners must pass to open the rest of this chapter" on. Rohan can still open chapter 3 before passing that Quiz.',
     options: ['True', 'False'],
     correct: [0],
     explanation:
