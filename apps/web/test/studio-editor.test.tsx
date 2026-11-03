@@ -54,6 +54,10 @@ const titles = () =>
     .map((l) => l.textContent)
     .filter((t) => /^(Lesson|Quiz) /.test(t ?? ''));
 const ready = () => screen.findByRole('tab', { name: 'Structure' });
+const reportTitle = () =>
+  new URL(
+    screen.getByRole('link', { name: 'Report issue' }).getAttribute('href') as string,
+  ).searchParams.get('title');
 
 describe('Course editor: who and what loads', () => {
   it('says when the course does not exist, or did not load', async () => {
@@ -107,7 +111,9 @@ describe('Course editor: who and what loads', () => {
       studio,
       data: fakeData({ courses: [live] }),
     });
-    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    const tryAgain = await screen.findByRole('button', { name: 'Try again' });
+    expect(reportTitle()).toBe('The draft did not load');
+    fireEvent.click(tryAgain);
     expect(studio.data.getDraft).toHaveBeenCalledTimes(2);
   });
 });
@@ -628,6 +634,7 @@ describe('Course editor: analytics', () => {
     expect(screen.getByText('Loading the learners…')).toBeTruthy();
     await act(async () => reject(new Error('denied')));
     expect(await screen.findByText('The learners are not available')).toBeTruthy();
+    expect(reportTitle()).toBe('Course learners did not load');
     expect(log.warn).toHaveBeenCalledWith('Loading course learners failed', { courseId: 'git' });
   });
 
@@ -642,6 +649,7 @@ describe('Course editor: analytics', () => {
     expect(screen.getByText('Not published yet')).toBeTruthy();
     await act(async () => reject(new Error('denied')));
     expect(await screen.findByText('The numbers are not available')).toBeTruthy();
+    expect(reportTitle()).toBe('Course numbers did not load');
     expect(screen.queryByRole('link', { name: 'Open the full funnel' })).toBeNull();
     expect(log.warn).toHaveBeenCalledWith('Loading course stats failed', { courseId: 'git' });
   });

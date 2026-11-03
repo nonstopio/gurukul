@@ -34,6 +34,7 @@ import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import { useSaveLabel } from './saveLabel';
 import { useDraft } from './useDraft';
 import { VersionsTab } from './VersionsTab';
+import { ReportIssueLink } from '../ReportIssueLink';
 
 type TabId = 'structure' | 'landing' | 'certificate' | 'analytics' | 'versions';
 
@@ -150,9 +151,12 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
         ) : (
           <Callout tone="warning" title="The draft did not load" role="alert">
             <p>Check your connection, then try again.</p>
-            <Button variant="secondary" onClick={draft.reload}>
-              Try again
-            </Button>
+            <div className="load-actions">
+              <Button variant="secondary" onClick={draft.reload}>
+                Try again
+              </Button>
+              <ReportIssueLink problem={{ title: 'The draft did not load' }} />
+            </div>
           </Callout>
         )}
         <BackToStudio />

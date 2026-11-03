@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ToastProvider, useToast, type ToastApi } from '../src';
+import { ToastProvider, useToast, type ToastApi, type ToastProviderProps } from '../src';
 import { axeViolations } from './axe';
 
 const holder: { current?: ToastApi } = {};
@@ -17,7 +17,7 @@ const api = {
   dismiss: (id: number) => holder.current?.dismiss(id),
 };
 
-function setup(props: { duration?: number; dismissLabel?: string } = {}) {
+function setup(props: Omit<ToastProviderProps, 'children'> = {}) {
   return render(
     <ToastProvider {...props}>
       <Grab />
@@ -268,9 +268,51 @@ describe('Toast', () => {
     spy.mockRestore();
   });
 
+  it('links an error toast, and only an error toast, to its report', () => {
+    const reportIssue = vi.fn(() => 'https://example.com/report');
+    setup({ reportIssue });
+    act(() => {
+      api.show('Saved', { tone: 'success' });
+      api.show('Failed', {
+        tone: 'danger',
+        title: 'Broke',
+        code: 'SRV-INTERNAL',
+        detail: 'GEN_5001',
+      });
+    });
+    const link = screen.getByRole('link', { name: 'Report issue' });
+    expect(link.getAttribute('href')).toBe('https://example.com/report');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(reportIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Broke',
+        message: 'Failed',
+        code: 'SRV-INTERNAL',
+        detail: 'GEN_5001',
+      }),
+    );
+  });
+
+  it('names the report link as asked and shows no link without reportIssue', () => {
+    setup({ reportIssue: () => '#', reportLabel: 'Tell us' });
+    act(() => {
+      api.show('Failed', { tone: 'danger' });
+    });
+    expect(screen.getByRole('link', { name: 'Tell us' })).toBeTruthy();
+  });
+
+  it('shows no report link when the provider has no reportIssue', () => {
+    setup();
+    act(() => {
+      api.show('Failed', { tone: 'danger' });
+    });
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it('has no axe violations with toasts showing', async () => {
     vi.useRealTimers();
-    const { container } = setup();
+    const { container } = setup({ reportIssue: () => 'https://example.com/report' });
     act(() => {
       api.show('Saved', { tone: 'success' });
       api.show('Failed', {

@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { Button } from './Button';
+import { Button, buttonClass } from './Button';
 import { AlertIcon, CheckIcon, InfoIcon, XIcon } from './Icon';
 import './toast.css';
 
@@ -29,6 +29,8 @@ export interface ToastOptions {
   code?: string | undefined;
   /** One next step, such as Retry, Undo or Open lesson. A toast that names a place links to it here. */
   action?: ToastAction | undefined;
+  /** Not shown: extra context for the provider's `reportIssue` link, such as an error code and trace id. */
+  detail?: string | undefined;
   /** Milliseconds before it closes itself; `0` keeps it until dismissed. Default: by tone. */
   duration?: number;
 }
@@ -70,8 +72,17 @@ interface ToastEntry {
   title: string | undefined;
   code: string | undefined;
   action: ToastAction | undefined;
+  detail: string | undefined;
   duration: number;
   leaving: boolean;
+}
+
+/** What an error toast hands to `reportIssue`. */
+export interface ReportedToast {
+  title: string | undefined;
+  message: string;
+  code: string | undefined;
+  detail: string | undefined;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -82,6 +93,10 @@ export interface ToastProviderProps {
   duration?: number;
   /** Accessible name of the dismiss button. Default: "Dismiss". */
   dismissLabel?: string;
+  /** When given, every error toast links here, in a new tab, so people can report it in one click. */
+  reportIssue?: ((toast: ReportedToast) => string) | undefined;
+  /** Text of that link. Default: "Report issue". */
+  reportLabel?: string;
 }
 
 /** Holds the toast queue and the two live regions. Mount it once, near the app root. */
@@ -89,6 +104,8 @@ export function ToastProvider({
   children,
   duration,
   dismissLabel = 'Dismiss',
+  reportIssue,
+  reportLabel = 'Report issue',
 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const nextId = useRef(1);
@@ -109,6 +126,7 @@ export function ToastProvider({
         title: options.title,
         code: options.code,
         action: options.action,
+        detail: options.detail,
         duration: options.duration ?? duration ?? TOAST_DURATIONS[tone],
         leaving: false,
       };
@@ -127,7 +145,17 @@ export function ToastProvider({
       {toasts
         .filter((t) => (t.tone === 'danger') === (role === 'alert'))
         .map((t) => (
-          <ToastItem key={t.id} toast={t} dismissLabel={dismissLabel} onDismiss={dismiss} />
+          <ToastItem
+            key={t.id}
+            toast={t}
+            dismissLabel={dismissLabel}
+            onDismiss={dismiss}
+            report={
+              reportIssue && t.tone === 'danger'
+                ? { href: reportIssue(t), label: reportLabel }
+                : undefined
+            }
+          />
         ))}
     </div>
   );
@@ -147,10 +175,12 @@ function ToastItem({
   toast,
   dismissLabel,
   onDismiss,
+  report,
 }: {
   toast: ToastEntry;
   dismissLabel: string;
   onDismiss: (id: number) => void;
+  report: { href: string; label: string } | undefined;
 }) {
   const { id, duration, leaving, tone, action } = toast;
   const [paused, setPaused] = useState(false);
@@ -199,18 +229,31 @@ function ToastItem({
         </p>
         {toast.title ? <p className="g-toast__message">{toast.message}</p> : null}
         {toast.code ? <code className="g-toast__code">{toast.code}</code> : null}
-        {action ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="g-toast__action"
-            onClick={() => {
-              action.onSelect();
-              onDismiss(id);
-            }}
-          >
-            {action.label}
-          </Button>
+        {action || report ? (
+          <div className="g-toast__actions">
+            {action ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  action.onSelect();
+                  onDismiss(id);
+                }}
+              >
+                {action.label}
+              </Button>
+            ) : null}
+            {report ? (
+              <a
+                className={buttonClass('quiet', undefined, 'sm')}
+                href={report.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {report.label}
+              </a>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <button type="button" className="g-toast__close" onClick={() => onDismiss(id)}>

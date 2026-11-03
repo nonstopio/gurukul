@@ -5,6 +5,8 @@ import { blockerBefore, itemPath, openItemLabel } from '../quiz/model';
 import type { PageWidth } from '@gurukul/ui';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
+import { ReportIssueLink } from '../ReportIssueLink';
+import { codesOf } from '../report';
 
 /** The shared loading, error and ready handling every data screen uses. */
 export function Loaded<T>({
@@ -28,15 +30,20 @@ export function Loaded<T>({
   }
   if (loadable.state === 'error') {
     // Plain words and Retry; raw error text is not for people (CLAUDE.md, API responses).
-    const { retry } = loadable;
+    const { retry, error } = loadable;
     return (
       <Callout tone="warning" title="This did not load" role="alert">
         <p>Check your connection and {retry ? 'try again' : 'reload the page'}.</p>
-        {retry && (
-          <Button variant="secondary" className="load-retry" onClick={retry}>
-            Retry
-          </Button>
-        )}
+        <div className="load-actions">
+          {retry && (
+            <Button variant="secondary" onClick={retry}>
+              Retry
+            </Button>
+          )}
+          <ReportIssueLink
+            problem={{ title: 'This did not load', message: error.message, code: codesOf(error) }}
+          />
+        </div>
       </Callout>
     );
   }

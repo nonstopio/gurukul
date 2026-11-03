@@ -2,6 +2,7 @@ import { Button, Page, PageHeader } from '@gurukul/ui';
 import { useRouteError } from 'react-router';
 import { useTrackOnMount } from './analytics/react/Track';
 import { log } from './log';
+import { ReportIssueLink } from './ReportIssueLink';
 
 /**
  * What a screen shows when rendering it crashes, in place of the router's default error page. The
@@ -17,8 +18,19 @@ export function RouteErrorPage() {
       <Page width="reading">
         <PageHeader
           title="Something went wrong"
-          lead="This page could not be shown. Reloading usually fixes it; if it keeps happening, write to gurukul@nonstopio.com."
-          actions={<Button onClick={() => window.location.reload()}>Reload</Button>}
+          lead="This page could not be shown. Reloading usually fixes it; if it keeps happening, report it and we will look into it."
+          actions={
+            <>
+              <ReportIssueLink
+                problem={{
+                  title: 'A page crashed',
+                  message: error instanceof Error ? error.message : undefined,
+                  code,
+                }}
+              />
+              <Button onClick={() => window.location.reload()}>Reload</Button>
+            </>
+          }
         />
       </Page>
     </main>

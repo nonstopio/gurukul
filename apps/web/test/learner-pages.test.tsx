@@ -527,6 +527,13 @@ describe('Course overview', () => {
     await act(async () => fail(new Error('unavailable: deadline exceeded')));
     expect(await screen.findByText('This did not load')).toBeTruthy();
     expect(screen.queryByText(/deadline/)).toBeNull();
+    // The raw error is not shown, but it goes into the bug report the link opens.
+    const report = new URL(
+      screen.getByRole('link', { name: 'Report issue' }).getAttribute('href') as string,
+    );
+    expect(report.searchParams.get('title')).toBe('This did not load');
+    expect(report.searchParams.get('what')).toContain('deadline exceeded');
+    expect(report.searchParams.get('what')).toContain('Code: `Error`');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way' }),
