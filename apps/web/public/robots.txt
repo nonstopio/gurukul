@@ -1,0 +1,13 @@
+# Gurukul is for NonStop io people: almost every page needs a @nonstopio.com sign-in, so a crawler
+# fetching it sees only the sign-in screen again. Crawlers may fetch the front door, the privacy
+# policy, the certificate check (its pages say noindex, which a crawler reads only if it may fetch
+# them) and the files those pages need to render. Everything else stays out of search results.
+User-agent: *
+Allow: /$
+Allow: /privacy$
+Allow: /verify/
+Allow: /assets/
+Allow: /*.svg$
+Allow: /*.png$
+Allow: /*.ico$
+Disallow: /

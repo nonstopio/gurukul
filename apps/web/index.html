@@ -8,6 +8,18 @@
       content="NonStop Gurukul — courses, Quizzes and certificates for NonStop io."
     />
     <title>NonStop Gurukul</title>
+    <!-- Link previews (Slack, WhatsApp, LinkedIn). The image tags are added at build time from
+         VITE_SITE_URL (src/seo/shareImage.ts), since Open Graph needs an absolute address. No og:url:
+         every path serves this file, so it would point every shared link at the home page. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NonStop Gurukul" />
+    <meta property="og:title" content="NonStop Gurukul" />
+    <meta
+      property="og:description"
+      content="NonStop Gurukul — courses, Quizzes and certificates for NonStop io."
+    />
+    <meta property="og:locale" content="en_IN" />
+    <meta name="twitter:card" content="summary" />
     <meta name="color-scheme" content="light dark" />
     <script>
       // Apply the saved theme before first paint so the page never flashes the wrong one.

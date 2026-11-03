@@ -3,7 +3,11 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node"],
+    // vite.config.ts imports src/seo/shareImage.ts with its extension, as Vite's native config
+    // loader requires. Safe: this workspace never emits with tsc, it only typechecks.
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["src", "test", "scripts", "vite.config.ts"]
 }

@@ -1,8 +1,19 @@
 import react from '@vitejs/plugin-react';
+import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { withShareImage } from './src/seo/shareImage.ts';
 
-export default defineConfig({
-  plugins: [react()],
+/** Adds the link-preview image tags to index.html, from the public address (VITE_SITE_URL). */
+function shareImage(mode: string): Plugin {
+  const siteUrl = loadEnv(mode, process.cwd(), 'VITE_').VITE_SITE_URL;
+  return {
+    name: 'gurukul-share-image',
+    transformIndexHtml: (html) => withShareImage(html, siteUrl),
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), shareImage(mode)],
   test: {
     environment: 'jsdom',
     include: ['test/**/*.test.{ts,tsx}'],
@@ -22,4 +33,4 @@ export default defineConfig({
       thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
-});
+}));

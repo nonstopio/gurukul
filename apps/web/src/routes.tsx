@@ -184,7 +184,7 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
  * Pages anyone can open, signed in or not: certificate verification, which employers use, and the
  * privacy policy people read before they sign in.
  */
-const PUBLIC: readonly RoutePath[] = ['/verify/:id', '/privacy'];
+export const PUBLIC: readonly RoutePath[] = ['/verify/:id', '/privacy'];
 
 /**
  * Pages that leave the sidebar for the focused layout: the page's own sticky top bar (back link,

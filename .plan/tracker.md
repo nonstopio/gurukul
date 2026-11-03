@@ -24,12 +24,12 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Studio | 17 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 21 | 0 | 0 | 11 |
+| Platform, CI and operations | 22 | 0 | 0 | 11 |
 | First course: Git | 6 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 11 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 170 | 0 | 0 | 15 |
+| **Total** | 171 | 0 | 0 | 15 |
 
 ## Pick order
 
@@ -245,6 +245,7 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-27` | Set the `SITE_URL` repository variable | maintainer | `OPS-24` | After DNS is live, set repository variable `SITE_URL=https://gurukul.nonstopio.com`; production deploy then uses it (optionally flip the `mail.ts` fallback to the domain) |
 | `OPS-31` | Product analytics: typed GA4 events, privacy policy accepted at sign-in | done | — | `apps/web/src/analytics/` (facade, Firebase/Console/Noop adapters, typed `events.ts`, React provider, `RouteTracker`, `TrackClick`, `TrackImpression`), `privacy/` (`/privacy`, policy gate), `docs/analytics.md`, `.plan/20-product-analytics.md`; instrumented learner, Studio, Admin, search, API and route errors |
 | `OPS-32` | Turn on GA4 for production | maintainer | `OPS-31` | Set `VITE_FIREBASE_MEASUREMENT_ID` for the production build, register the custom dimensions and set data retention in GA4 (`docs/analytics.md`, "Console steps") |
+| `OPS-33` | Search engines and link previews | done | — | `apps/web/public/robots.txt` (front door, privacy and verify only), Open Graph and Twitter tags in `apps/web/index.html`, preview image from `VITE_SITE_URL` (`apps/web/src/seo/shareImage.ts`, `vite.config.ts`); tests in `apps/web/test/robots.test.ts`, `share-image.test.ts`; Lighthouse SEO gate in `lighthouserc.json`; `11-deployment-and-cost.md` |
 
 ## First course: Git
 
