@@ -1,0 +1,12 @@
+[
+  {
+    "name": "firebase-functions-cleanup",
+    "action": { "type": "Delete" },
+    "condition": { "tagState": "any", "olderThan": "1h" }
+  },
+  {
+    "name": "keep-latest",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "keepCount": 1 }
+  }
+]
