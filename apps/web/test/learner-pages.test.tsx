@@ -258,6 +258,20 @@ describe('Catalogue', () => {
     expect(screen.getByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
   });
 
+  it('marks a course the learner finished as Completed', async () => {
+    await open(
+      '/courses',
+      fakeData({
+        courses,
+        progress: [progressRow({ completedAt: new Date() }), progressRow({ courseId: 'sql' })],
+      }),
+    );
+    const tile = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement;
+    await screen.findByRole('link', { name: 'SQL basics' });
+    expect(within(tile('Git, the NonStop Way')).getByText('Completed')).toBeTruthy();
+    expect(within(tile('SQL basics')).queryByText('Completed')).toBeNull();
+  });
+
   it('searches, sorts and holds the filters in the URL', async () => {
     const { router } = await open('/courses', fakeData({ courses }));
     await screen.findByRole('link', { name: 'SQL basics' });
@@ -485,6 +499,28 @@ describe('Course overview', () => {
     expect(
       (await screen.findByRole('link', { name: 'View your certificate' })).getAttribute('href'),
     ).toBe('/certificates/NSG-GIT-26-0001');
+  });
+
+  it('offers Review course from the first lesson once every item is done', async () => {
+    await open(
+      '/courses/git',
+      fakeData({
+        watched: progressRow({
+          completedItemIds: ['l1', 'l2', 'l3', 'l4'],
+          quiz: { q1: { best: 1, passed: true, attempts: 1, lastAttemptAt: new Date() } },
+          lastItemId: 'l4',
+          completedAt: new Date(),
+          certificateId: 'NSG-GIT-26-0001',
+        }),
+      }),
+    );
+    const review = await screen.findByRole('link', { name: 'Review course' });
+    expect(review.getAttribute('href')).toBe('/courses/git/learn/l1');
+    expect(review.className).toContain('secondary');
+    expect(screen.getByRole('link', { name: 'View your certificate' }).className).toContain(
+      'primary',
+    );
+    expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
   });
 
   it('says lessons were added to a course the learner finished', async () => {

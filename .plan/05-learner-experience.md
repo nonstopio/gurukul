@@ -43,6 +43,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 
 - The resume point is `lastItemId`. "Resume" opens it; if that item was
   deleted in a newer version, resume opens the first incomplete item.
+- A course with every item done shows "Review course" (from the first lesson) in place of
+  "Resume", with "View your certificate" as the main action.
 - Item states: done, current, available, locked (sequential courses: a chapter
   is locked until the previous chapter's Quiz is passed, or all its lessons
   done if it has none; and a Quiz with `blocksNext`, Studio's "Learners must pass to open the rest
@@ -60,7 +62,7 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 The published courses a person may open (public, or for a team they are on; see
 `02-data-model.md`, Course visibility): search, filter chips (Assigned to me, In
 progress, Completed, All; level), sort, a visible result count and a visibility
-badge on each card. The filters live in the URL, so back and reload keep them. A learner
+badge on each card, plus a Completed badge on a course the person has finished. The filters live in the URL, so back and reload keep them. A learner
 can start any course listed, assigned or not (self-enrolment creates a
 progress doc only, no assignment).
 
