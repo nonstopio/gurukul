@@ -257,7 +257,7 @@ const chapter2: Chapter = {
       md(
         '## Course details',
         '',
-        'Beside the **Structure** tab sits a **Course details** card: **Title**, **Summary**, **Level**, **Pass mark (%)** and **Cover theme**. The address is shown but cannot change. There is an **Upload cover image** button, but uploading covers is not switched on yet, so the cover is the theme and its letter.',
+        'Beside the **Structure** tab sits a **Course details** card: **Title**, **Summary**, **Level**, **Pass mark (%)** and **Cover theme**. The address is shown but cannot change. There is an **Upload cover image** button, but uploading covers is not switched on yet. Until it is, the course card shows the first image in its lessons, or the theme and its letter when it has none.',
         '',
         'The **Summary** is one sentence shown on the course card. A course cannot be published without one.',
         '',

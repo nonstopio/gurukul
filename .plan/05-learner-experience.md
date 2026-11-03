@@ -47,8 +47,9 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
   is locked until the previous chapter's Quiz is passed, or all its lessons
   done if it has none; and a Quiz with `blocksNext`, Studio's "Learners must pass to open the rest
   of this chapter", locks the items after it in its own chapter only).
-- Opening a lesson sets `lastItemId`; it is **not** completed until the rule
-  in `completeWhen` is met.
+- Opening a lesson sets `lastItemId`, once per opening: the page never writes it back when
+  another tab or device moves it, or two open copies would rewrite it every second. The lesson
+  is **not** completed until the rule in `completeWhen` is met.
 - Progress percent is computed by a function and also locally (same pure
   helper from `@gurukul/schema`) so the UI updates instantly.
 - Offline: Firestore's local cache keeps the last opened course readable;

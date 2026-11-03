@@ -8,6 +8,7 @@ import { axeViolations } from './axe';
 import { attemptRow, certificateRow, fakeData, makeCourse, progressRow } from './fake-data';
 import { attemptResult, fakeQuiz } from './fake-quiz';
 import { openApp } from './harness';
+import { apiFailure } from './studio-fixtures';
 
 const question = (id: string, over: object = {}) => ({
   id,
@@ -208,7 +209,10 @@ describe('Quiz screen', () => {
 
   it('keeps the selection and says so when a check or the submit fails', async () => {
     const quiz = fakeQuiz({
-      checkAnswer: vi.fn().mockRejectedValue(new Error('offline')),
+      checkAnswer: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockRejectedValueOnce(apiFailure('PRK_3001')),
       gradeAttempt: vi
         .fn()
         .mockRejectedValueOnce(new CooldownError(null))
@@ -219,6 +223,12 @@ describe('Quiz screen', () => {
     fireEvent.click(screen.getByLabelText(/Alpha/));
     fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
     expect(await screen.findByText('Could not check your answer. Try again.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Check answer' }));
+    expect(
+      await screen.findByText(
+        'This Quiz cannot be graded right now. Please tell an administrator.',
+      ),
+    ).toBeTruthy();
     expect((screen.getByLabelText(/Alpha/) as HTMLInputElement).checked).toBe(true);
   });
 
@@ -227,7 +237,8 @@ describe('Quiz screen', () => {
       gradeAttempt: vi
         .fn()
         .mockRejectedValueOnce(new CooldownError(null))
-        .mockRejectedValueOnce(new Error('x')),
+        .mockRejectedValueOnce(new Error('x'))
+        .mockRejectedValueOnce(apiFailure('PRK_1003')),
     });
     const course = courseWith({ revealAnswers: 'never' }, [question('k1')]);
     await openApp(PATH, { data: data(course), quiz });
@@ -237,6 +248,11 @@ describe('Quiz screen', () => {
     expect(await screen.findByText(/retake is not open yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
     expect(await screen.findByText('Could not submit your answers. Try again.')).toBeTruthy();
+    // A refusal from the server says why, not just "try again".
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Quiz' }));
+    expect(
+      await screen.findByText('Finish the earlier parts of this course to open this Quiz.'),
+    ).toBeTruthy();
   });
 
   it('closes the Quiz of a retired course instead of drawing questions', async () => {

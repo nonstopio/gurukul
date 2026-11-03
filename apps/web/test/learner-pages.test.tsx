@@ -17,6 +17,7 @@ import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
 import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
+import { log } from '../src/log';
 import { fakeQuiz } from './fake-quiz';
 
 async function open(
@@ -571,6 +572,54 @@ describe('Lesson player', () => {
     await open('/courses/git/learn/l1', d);
     await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
     expect(d.data.setLastItem).not.toHaveBeenCalled();
+  });
+
+  it('moves the resume point once, and not back when another device moves it', async () => {
+    const d = fakeData({ watched: started() });
+    await open('/courses/git/learn/l2', d);
+    await waitFor(() => expect(d.data.setLastItem).toHaveBeenCalledTimes(1));
+    // The same learner on another tab or device opens l1: this page must not write l2 back.
+    act(() => d.emitProgress(started({ lastItemId: 'l1' })));
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
+    expect(d.data.setLastItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the resume point again when the learner goes to another lesson', async () => {
+    const d = fakeData({ watched: started() });
+    await open('/courses/git/learn/l2', d);
+    await waitFor(() => expect(d.data.setLastItem).toHaveBeenCalledWith('u1', 'git', 'l2'));
+    act(() => d.emitProgress(started({ lastItemId: 'l2' })));
+    fireEvent.click(screen.getByRole('link', { name: 'Previous' }));
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l1/ });
+    await waitFor(() => expect(d.data.setLastItem).toHaveBeenLastCalledWith('u1', 'git', 'l1'));
+    expect(d.data.setLastItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs a refused course start or resume point, and keeps the lesson open', async () => {
+    const error = vi.spyOn(log, 'error').mockImplementation(() => undefined);
+    const fresh = fakeData();
+    (fresh.data.startCourse as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('denied'));
+    await open('/courses/git/learn/l1', fresh);
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith('Starting the course failed', expect.any(Error), {
+        uid: 'u1',
+        courseId: 'git',
+      }),
+    );
+    const moved = fakeData({ watched: started() });
+    (moved.data.setLastItem as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('denied'));
+    await open('/courses/git/learn/l2', moved);
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith('Moving the resume point failed', expect.any(Error), {
+        uid: 'u1',
+        courseId: 'git',
+        itemId: 'l2',
+      }),
+    );
+    expect(screen.getAllByRole('heading', { level: 1, name: /^Lesson l2/ }).length).toBeGreaterThan(
+      0,
+    );
+    error.mockRestore();
   });
 
   it('counts a course start once and each completed lesson', async () => {

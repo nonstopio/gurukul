@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useAnalytics } from '../analytics/react/context';
+import { userMessageOf } from '../api';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
@@ -234,7 +235,7 @@ function Questions({
       setFeedback({ ...feedback, [question.id]: verdict });
     } catch (e) {
       log.error('Checking an answer failed', e, { ...base, questionId: question.id });
-      toast.show('Could not check your answer. Try again.', { tone: 'danger' });
+      toast.show(userMessageOf(e, 'Could not check your answer. Try again.'), { tone: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -263,7 +264,7 @@ function Questions({
       toast.show(
         e instanceof CooldownError
           ? 'A retake is not open yet. Check back soon.'
-          : 'Could not submit your answers. Try again.',
+          : userMessageOf(e, 'Could not submit your answers. Try again.'),
         { tone: 'danger' },
       );
       setBusy(false);

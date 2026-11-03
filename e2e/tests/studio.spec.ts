@@ -45,9 +45,16 @@ test.describe('Educator in Studio', () => {
       .getByRole('navigation', { name: 'Breadcrumb' })
       .getByRole('link', { name: 'Studio' })
       .click();
-    const card = page.getByRole('article').filter({ hasText: 'Testing for Everyone' });
+    const card = page.getByRole('listitem').filter({ hasText: 'Testing for Everyone' });
     await expect(card).toContainText('1 chapters · 1 lessons · 0 Quizzes');
     await expect(card).toContainText('Draft');
+    // Reached from the keyboard, the whole tile shows the focus ring (its overflow once clipped it).
+    await card.getByRole('link', { name: 'Testing for Everyone' }).focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect
+      .poll(() => card.evaluate((el) => getComputedStyle(el).boxShadow))
+      .toContain('0px 0px 0px 4px');
   });
 
   test('publishes a course and it appears in the catalogue', async ({ page }) => {

@@ -104,7 +104,9 @@
 .g-course-tile__title a:focus-visible {
   outline: none;
 }
-.g-course-tile__title a:focus-visible::after {
+/* The ring goes on the tile, not the stretched link: the tile's `overflow: hidden` clips anything
+   drawn outside it, so a ring on the link's ::after never showed. */
+.g-course-tile:has(.g-course-tile__title a:focus-visible) {
   box-shadow: var(--focus-ring);
 }
 .g-course-tile:hover .g-course-tile__title a {

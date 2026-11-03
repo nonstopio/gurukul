@@ -84,88 +84,15 @@
   padding: 0;
   list-style: none;
 }
-.sc-grid > li {
+.sc-facts {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
 }
-.sc-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: 0;
-  overflow: hidden;
-}
-.sc-card__cover {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 7.5rem;
-  color: var(--text);
-}
-.sc-card__cover--forest {
-  background: var(--cover-forest);
-  color: var(--on-forest);
-}
-.sc-card__cover--sand {
-  background: var(--cover-sand);
-}
-.sc-card__cover--sky {
-  background: var(--cover-sky);
-}
-.sc-card__cover--stone {
-  background: var(--cover-stone);
-}
-.sc-card__glyph {
-  font: 500 var(--text-2xl) / 1 var(--font-display);
-}
-.sc-card__status {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-}
-.sc-card__body {
-  display: grid;
-  flex: 1;
-  grid-template-rows: auto auto 1fr;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-5) var(--space-5);
-}
-.sc-card__title {
-  margin: 0;
-  font: 500 var(--text-xl) / var(--leading-snug) var(--font-display);
-}
-.sc-card__link {
-  color: var(--text);
-  text-decoration: none;
-}
-/* The whole card is the link's target; the focus ring goes round the card. */
-.sc-card__link::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-.sc-card__link:focus-visible {
-  outline: none;
-}
-.sc-card__link:focus-visible::after {
-  border-radius: var(--radius-xl);
-  box-shadow: var(--focus-ring);
-}
-.sc-card__meta,
-.sc-card__edited {
+.sc-new__hint {
   margin: 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
-}
-.sc-card__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-2);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
 }
 .sc-new {
   display: grid;

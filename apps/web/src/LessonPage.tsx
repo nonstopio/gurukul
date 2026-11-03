@@ -116,16 +116,28 @@ function Player({
 
   // Opening a lesson starts the course the first time and moves the resume point.
   const startSent = useRef<string | null>(null);
+  const placed = useRef<string | null>(null);
   useEffect(() => {
     if (progress === null) {
-      void data.startCourse(uid, course);
+      data.startCourse(uid, course).catch((e: unknown) => {
+        log.error('Starting the course failed', e, { uid, courseId: course.id });
+      });
       // The effect runs again until the write lands; the course starts once.
       if (startSent.current !== course.id) {
         startSent.current = course.id;
         analytics.track('course_start', { course_id: course.id });
       }
-    } else if (progress && known && progress.lastItemId !== itemId) {
-      void data.setLastItem(uid, course.id, itemId);
+    } else if (progress && known && placed.current !== itemId) {
+      // Once per lesson opened, never in answer to a later change: the course open in another tab
+      // or device on a different lesson would otherwise rewrite it back every second, forever.
+      placed.current = itemId;
+      // A refused move is logged, not toasted: it loses only the resume point, which the next
+      // lesson opened sets again, and the learner can do nothing about it.
+      if (progress.lastItemId !== itemId) {
+        data.setLastItem(uid, course.id, itemId).catch((e: unknown) => {
+          log.error('Moving the resume point failed', e, { uid, courseId: course.id, itemId });
+        });
+      }
     }
   }, [data, uid, course, progress, itemId, known, analytics]);
 

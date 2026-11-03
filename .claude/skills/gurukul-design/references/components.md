@@ -651,8 +651,10 @@ colour, `forest` white ink, the others the fixed paper ink), then chips, the tit
 `extra` block (a progress bar) and a meta line. The picture comes from `courseImageUrl(course)` (the
 first image in its lessons); a missing or broken picture falls back to the name, so there is never an
 empty box. **The whole tile is the link**: the title's link stretches over it, so keyboard and screen
-readers still meet one link, and hover lifts the tile and underlines the title. Lists use
-`.learn-cards` with `g-stagger`. Never a text-only row for a course.
+readers still meet one link, and hover lifts the tile and underlines the title. Keyboard focus rings the
+tile itself (`:has(... a:focus-visible)`): the tile clips with `overflow: hidden`, so a ring on the
+link's `::after` would never show. Lists use `.learn-cards` with `g-stagger`; Studio's course list uses
+it too, with status and edit chips and a learners line. Never a text-only row for a course.
 
 **Picking courses** (assign, grant): give the tile `selected` and `onSelectedChange` (apps/web wraps it as
 `CourseChoice`). A real checkbox named after the course sits in a badge on the cover and its label covers the
