@@ -573,6 +573,16 @@ describe('Lesson player', () => {
     expect(d.data.setLastItem).not.toHaveBeenCalled();
   });
 
+  it('moves the resume point once, and not back when another device moves it', async () => {
+    const d = fakeData({ watched: started() });
+    await open('/courses/git/learn/l2', d);
+    await waitFor(() => expect(d.data.setLastItem).toHaveBeenCalledTimes(1));
+    // The same learner on another tab or device opens l1: this page must not write l2 back.
+    act(() => d.emitProgress(started({ lastItemId: 'l1' })));
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
+    expect(d.data.setLastItem).toHaveBeenCalledTimes(1);
+  });
+
   it('counts a course start once and each completed lesson', async () => {
     const track = vi.spyOn(analytics, 'track');
     const d = fakeData();
