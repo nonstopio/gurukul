@@ -3,21 +3,19 @@ import './global-loader.css';
 export type GlobalLoaderVariant = 'section' | 'overlay' | 'inline';
 
 export interface GlobalLoaderProps {
-  /** What is happening, in words: "Assigning to 12 people". Announced politely. */
+  /** What is happening, in words: "Assigning to 12 people". Announced politely, never shown: the G is what people see. */
   label: string;
   /**
    * `section` fills the region that is loading; `overlay` covers the screen under a scrim while an
    * operation blocks it; `inline` is the small mark next to a verb in progress. Default: `section`.
    */
   variant?: GlobalLoaderVariant;
-  /** A second line, e.g. "Taking longer than usual…". */
-  hint?: string | undefined;
 }
 
 /**
  * The Gurukul G assembling on its green tile: the top stroke drops in, the bottom stroke rises to
  * meet it, they hold, then fade for the next cycle. The same drawing lives inline in
- * `apps/web/index.html` (the boot loader, with the wordmark) so it paints before any script loads.
+ * `apps/web/index.html` (the boot loader) so it paints before any script loads.
  */
 function LoaderMark() {
   return (
@@ -36,13 +34,11 @@ function LoaderMark() {
 }
 
 /** The one loader for a region or operation whose layout is unknown. Prefer a Skeleton otherwise. */
-export function GlobalLoader({ label, variant = 'section', hint }: GlobalLoaderProps) {
+export function GlobalLoader({ label, variant = 'section' }: GlobalLoaderProps) {
   const body = (
     <div className={`g-loader g-loader--${variant}`} role="status">
       <LoaderMark />
-      {variant === 'inline' ? null : <span className="g-loader__label">{label}</span>}
-      {variant === 'inline' ? <span className="g-loader__sr">{label}</span> : null}
-      {hint ? <span className="g-loader__hint">{hint}</span> : null}
+      <span className="g-loader__sr">{label}</span>
     </div>
   );
   return variant === 'overlay' ? <div className="g-loader-scrim">{body}</div> : body;

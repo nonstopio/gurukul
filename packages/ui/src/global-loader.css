@@ -1,10 +1,6 @@
 .g-loader {
   display: grid;
-  justify-items: center;
-  gap: var(--space-3);
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
+  place-items: center;
 }
 .g-loader--section {
   min-height: 12rem;
@@ -12,7 +8,7 @@
   padding: var(--space-8);
 }
 .g-loader--overlay {
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-6);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -32,8 +28,8 @@
 }
 
 .g-loader__mark {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4rem;
+  height: 4rem;
   overflow: visible;
 }
 .g-loader--inline .g-loader__mark {
@@ -53,14 +49,6 @@
 }
 .g-loader__stroke--bottom {
   animation-name: g-loader-bottom;
-}
-.g-loader__label {
-  color: var(--text);
-  font-weight: 600;
-}
-.g-loader__hint {
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
 }
 .g-loader__sr {
   position: absolute;
