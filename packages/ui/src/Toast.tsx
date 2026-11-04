@@ -245,7 +245,7 @@ function ToastItem({
             ) : null}
             {report ? (
               <a
-                className={buttonClass('quiet', undefined, 'sm')}
+                className={buttonClass('secondary', undefined, 'sm')}
                 href={report.href}
                 target="_blank"
                 rel="noreferrer"
