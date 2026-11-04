@@ -95,16 +95,6 @@
   padding: 0;
   border: 0;
 }
-.console-dropzone {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-xl);
-}
-.console-dropzone--over {
-  border-color: var(--accent);
-}
 
 /* The Assign summary and the drawer's sections. */
 .console-flow {

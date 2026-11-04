@@ -317,20 +317,12 @@ describe('Assign: audience step, people', () => {
     expect(await screen.findByText('No one matches “zzz”')).toBeTruthy();
   });
 
-  it('reads a CSV, ignores an empty file choice, and shows the drop zone over a drag', async () => {
+  it('reads a CSV picked through the file drop', async () => {
     await open();
     await toAudience();
     people();
-    const zone = screen.getByText('Drop a CSV file here, or choose one.').parentElement as Element;
-    const input = screen.getByLabelText(/CSV file/);
+    const input = screen.getByLabelText(/Choose a CSV file: file picker/);
     fireEvent.change(input, { target: { files: [] } });
-    fireEvent.dragEnter(input);
-    expect(zone.className).toContain('console-dropzone--over');
-    fireEvent.dragLeave(input);
-    expect(zone.className).not.toContain('console-dropzone--over');
-    fireEvent.dragEnter(input);
-    fireEvent.drop(input);
-    expect(zone.className).not.toContain('console-dropzone--over');
     const csv = new File(['d@nonstopio.com\n'], 'p.csv', { type: 'text/csv' });
     Object.defineProperty(csv, 'text', { value: async () => 'd@nonstopio.com\n' });
     fireEvent.change(input, { target: { files: [csv] } });

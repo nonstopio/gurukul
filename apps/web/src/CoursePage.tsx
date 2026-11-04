@@ -110,7 +110,10 @@ function Overview({
 }) {
   const state = progress ?? NO_PROGRESS;
   const states = itemStates(course, state);
-  const resume = resumeItemId(course, state);
+  const items = itemsOf(course);
+  // Every item done (not percent === 100, which rounds 199 of 200 up): Review from the start.
+  const finished = items.length > 0 && items.every((i) => states[i.id] === 'done');
+  const resume = finished ? items[0]?.id : resumeItemId(course, state);
   const counts = countItems(course);
   const percent = percentFor(course, progress);
   const currentChapter = course.chapters.find((p) =>
@@ -201,7 +204,7 @@ function Overview({
           <>
             {progress?.certificateId ? (
               <Link
-                className={buttonClass('secondary')}
+                className={buttonClass(finished ? 'primary' : 'secondary')}
                 to={`/certificates/${progress.certificateId}`}
               >
                 View your certificate
@@ -212,14 +215,20 @@ function Overview({
                 event="select_content"
                 params={{
                   content_type: 'cta',
-                  content_id: progress ? 'course_resume' : 'course_start',
+                  content_id: finished
+                    ? 'course_review'
+                    : progress
+                      ? 'course_resume'
+                      : 'course_start',
                 }}
               >
                 <Link
-                  className={buttonClass('primary')}
+                  className={buttonClass(
+                    finished && progress?.certificateId ? 'secondary' : 'primary',
+                  )}
                   to={`/courses/${course.id}/learn/${resume}`}
                 >
-                  {progress ? 'Resume' : 'Start course'}
+                  {finished ? 'Review course' : progress ? 'Resume' : 'Start course'}
                 </Link>
               </TrackClick>
             ) : null}

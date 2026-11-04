@@ -156,7 +156,7 @@ export function CoursesPage() {
         onClear={clear}
       />
       <Loaded loadable={result}>
-        {({ courses, assignedIds }) =>
+        {({ courses, assignedIds, progress }) =>
           courses.length === 0 ? (
             <EmptyState title="No courses to show yet" headingAs="h2">
               Courses appear here as soon as an {t.Educator} publishes one you can open.
@@ -195,6 +195,9 @@ export function CoursesPage() {
                           </Chip>
                           {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
                           {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}
+                          {progress.some((p) => p.courseId === c.id && p.completedAt != null) ? (
+                            <Chip tone="solid">Completed</Chip>
+                          ) : null}
                         </>
                       }
                       summary={c.summary}

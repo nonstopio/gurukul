@@ -5,6 +5,7 @@ import {
   ChoiceCard,
   Dialog,
   EmptyState,
+  FileDrop,
   Input,
   Pagination,
   PlusIcon,
@@ -324,9 +325,8 @@ function PeopleMode({
   onEmails: (emails: string[]) => void;
   classify: (email: string) => ClassifiedEmail;
 }) {
-  const [dragging, setDragging] = useState(false);
-  const readCsv = async (file: File | undefined) => {
-    if (file) onEmails([...new Set([...emails, ...parseCsvEmails(await file.text())])]);
+  const readCsv = async (file: File) => {
+    onEmails([...new Set([...emails, ...parseCsvEmails(await file.text())])]);
   };
   return (
     <>
@@ -342,18 +342,12 @@ function PeopleMode({
         Pick people from the list, or paste emails to invite people who have not signed in yet:
         commas, spaces or new lines all work.
       </p>
-      <div className={dragging ? 'console-dropzone console-dropzone--over' : 'console-dropzone'}>
-        <p>Drop a CSV file here, or choose one.</p>
-        <Input
-          label="CSV file (emails in the first column)"
-          type="file"
-          accept=".csv,text/csv"
-          onDragEnter={() => setDragging(true)}
-          onDragLeave={() => setDragging(false)}
-          onDrop={() => setDragging(false)}
-          onChange={(e) => void readCsv(e.target.files?.[0])}
-        />
-      </div>
+      <FileDrop
+        label="Choose a CSV file"
+        policy="CSV · emails in the first column"
+        accept=".csv,text/csv"
+        onFile={(file) => void readCsv(file)}
+      />
     </>
   );
 }
