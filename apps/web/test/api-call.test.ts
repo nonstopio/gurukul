@@ -106,3 +106,25 @@ describe('userMessageOf', () => {
     expect(userMessageOf(new Error('x'), 'fallback')).toBe('fallback');
   });
 });
+
+describe('stopApi', () => {
+  it('refuses every later call with GEN_5005, without reaching the function', async () => {
+    vi.resetModules();
+    const api = await import('../src/api');
+    call.fn.mockReset();
+    call.fn.mockResolvedValue({ data: apiOk({ n: 1 }) });
+    expect(await api.callApi(fns, 'before', {})).toEqual({ n: 1 });
+    api.stopApi();
+    const err = (await api.callApi(fns, 'gradeQuiz', {}).catch((e) => e)) as ApiClientError;
+    expect(err).toBeInstanceOf(api.ApiClientError);
+    expect(err).toMatchObject({
+      code: 'GEN_5005',
+      status: 426,
+      retryable: false,
+      unexpected: true,
+    });
+    expect(err.message).toContain("'gradeQuiz' was not called");
+    expect(call.fn).toHaveBeenCalledOnce();
+    call.fn.mockReset();
+  });
+});

@@ -58,6 +58,30 @@ The web app starts Firebase Performance Monitoring in the production build only 
 no personal data and is free. Its SDK is its own chunk, fetched after the app mounts, so the initial
 bundle budget is untouched. Nothing else to configure: it uses the web app's existing Firebase config.
 
+## Open tabs and new releases
+
+A tab left open keeps running the build it loaded. Each build writes `/version.json` as
+`{ "id": "<release or commit>", "required": <n> }`; `required` is `REQUIRED_UPDATE` in
+`apps/web/src/version.ts` (a file without it counts as 0). An open tab reads the file when it
+becomes visible and every ten minutes, hidden or not (not offline), on every page. Background tabs
+check too: the tabs that looped on 2026-11-04 were in the background, and the browser already slows
+their timers:
+
+- **Soft update** (another id, same `required`): a toast offers Update or Later. Nothing reloads
+  unasked. Later keeps it away until a still newer build is live.
+- **Hard update** (the live `required` is above the tab's): a dialog that cannot be dismissed asks
+  the person to update. Before it shows, the tab stops Firestore (`terminate`; unacknowledged writes
+  stay queued in the persistent cache and the reloaded page sends them) and `callApi` refuses every
+  call with `GEN_5005`, so the old code can do no more harm.
+
+**To force every open tab onto a release**, bump `REQUIRED_UPDATE` in the pull request that must
+reach them all: a fix for a bug that harms data (on 2026-11-04 two tabs open since before a
+write-loop fix kept looping for a day and jammed a learner's progress), or a change the old code
+would break against. Every other release is a soft update.
+
+A page file a deploy removed (`vite:preloadError`) still reloads once by itself: that page cannot
+render at all without it.
+
 ## Region
 
 Firestore location and Functions region: **asia-south1 (Mumbai)**, closest to

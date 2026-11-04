@@ -97,6 +97,9 @@ problems (5xx, 429). Each entry has a title, category, status, a friendly `userM
 `developerMessage` template (`%s` placeholders). Tests assert every entry is complete and that no
 user message carries a placeholder.
 
+`GEN_5005` (426, update required) is raised only in the browser: after a required update
+(`11-deployment-and-cost.md`) `callApi` refuses every call with it, without reaching the function.
+
 **Adding a code:** reuse one that fits; else pick the next free number in its prefix, fill every
 field, add a test that raises it, and add the handler mapping if it is a new exception type.
 

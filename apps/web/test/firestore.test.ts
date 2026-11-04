@@ -24,13 +24,13 @@ vi.mock('firebase/firestore', () => ({
     state.calls.push('wait');
     return state.pending();
   }),
-  terminate: vi.fn(() => {
-    state.calls.push('terminate');
-    return Promise.resolve();
-  }),
   clearIndexedDbPersistence: vi.fn(() => {
     state.calls.push('clear');
     return state.clear();
+  }),
+  terminate: vi.fn((db) => {
+    state.calls.push(`terminate:${(db as { kind: string }).kind}`);
+    return Promise.resolve();
   }),
   onSnapshot: vi.fn((_r, cb, onError) => {
     state.snapCb = cb;
@@ -75,6 +75,11 @@ describe('openFirestore', () => {
   it('builds the learner, studio and console data over one database', () => {
     const s = openFirestore({} as never, false);
     expect([s.learner, s.studio, s.console]).toEqual(['learner', 'studio', 'console']);
+  });
+
+  it('stops by terminating its database', async () => {
+    await openFirestore({} as never, false).stop();
+    expect(state.calls).toEqual(['terminate:db']);
   });
 
   it('caches courses per signed-in person, and for nobody when signed out', () => {
@@ -143,7 +148,7 @@ describe('openFirestore', () => {
 
     it('waits for queued writes, signs out, then shuts down and deletes the local cache', async () => {
       await openFirestore({} as never, false).leave(signOut);
-      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate:db', 'clear']);
     });
 
     it('leaves no timer behind once the queue drains quickly', async () => {
@@ -159,7 +164,7 @@ describe('openFirestore', () => {
         return Promise.reject(new Error('network'));
       };
       await expect(openFirestore({} as never, false).leave(failing)).rejects.toThrow('network');
-      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate:db', 'clear']);
     });
 
     it('gives up waiting on a queue that never drains, and still signs out', async () => {
@@ -169,7 +174,7 @@ describe('openFirestore', () => {
       await vi.advanceTimersByTimeAsync(SIGN_OUT_SETTLE_MS);
       await left;
       vi.useRealTimers();
-      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate:db', 'clear']);
     });
 
     it('signs out even when waiting for the queue fails', async () => {

@@ -160,6 +160,43 @@ describe('Dialog', () => {
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
   });
 
+  it('without onClose it is blocking: no close button, Escape and the backdrop do nothing', () => {
+    const update = vi.fn();
+    render(
+      <Dialog
+        open
+        title="Gurukul has been updated"
+        footer={<button onClick={update}>Update</button>}
+      >
+        Update now to keep going.
+      </Dialog>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Gurukul has been updated' });
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Close / })).toBeNull();
+    const button = screen.getByRole('button', { name: 'Update' });
+    // Focus starts on the one action and Tab cannot leave it.
+    expect(document.activeElement).toBe(button);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(document.querySelector('.g-dialog-backdrop') as Element);
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    fireEvent.keyDown(button, { key: 'Tab' });
+    expect(document.activeElement).toBe(button);
+    fireEvent.keyDown(button, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('a blocking dialog has no axe violations', async () => {
+    render(
+      <Dialog open title="Gurukul has been updated" footer={<button>Update</button>}>
+        Update now to keep going.
+      </Dialog>,
+    );
+    expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
+  });
+
   it('has no axe violations', async () => {
     render(<Harness />);
     open();

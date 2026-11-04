@@ -298,6 +298,16 @@ export const ERROR_CODES = {
       'Email is not set up on this deployment yet. Ask the maintainer to add the Gmail credentials.',
     developerMessage: 'No usable GMAIL_CREDENTIALS, so %s cannot send.',
   },
+  // Raised in the browser only (apps/web/src/api/), never by a function: a tab under a required
+  // update makes no further calls, and the reloaded page makes them instead.
+  GEN_5005: {
+    title: 'Update required',
+    category: 'GENERIC',
+    retryable: false,
+    status: 426,
+    userMessage: 'Gurukul has been updated. Update now to keep going.',
+    developerMessage: "'%s' was not called: this tab runs a build older than the required update.",
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type ErrorCodeKey = keyof typeof ERROR_CODES;
