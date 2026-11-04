@@ -37,6 +37,7 @@ const GROUPS: ReadonlyArray<readonly [string, SampleKind, RegExp]> = [
   ['State', 'colour', /^--(success|warning|danger|info)/],
   ['Ceremony', 'colour', /^--(paper|gold|cert-|wax)/],
   ['Code', 'colour', /^--code/],
+  ['Illustration', 'colour', /^--art-/],
   ['Type families', 'font', /^--font-/],
   ['Type sizes', 'size', /^--text-(xs|sm|md|lg|\d?xl)$/],
   ['Leading', 'leading', /^--leading-/],

@@ -154,6 +154,39 @@
   --wax-deep: #053d27;
   --wax-shadow: #021a10;
 
+  /* ---- Roles: classroom art (the sign-in illustration only; a daytime scene in both themes) ---- */
+  --art-ink: #1d211e; /* outlines */
+  --art-sky-top: #a9d9ee;
+  --art-sky-bottom: #f5f1cf;
+  --art-sun: #f7a823;
+  --art-sun-light: #fbc85a;
+  --art-white: #ffffff; /* clouds, eyes, paper */
+  --art-mountain: #a9d3a4;
+  --art-snow: #e9f3e3;
+  --art-hill: #76ba62;
+  --art-grass: #5caa47;
+  --art-grass-dark: #4f9c3d;
+  --art-river: #cfe6c4;
+  --art-leaf: #4a9d3a;
+  --art-highlight: rgb(255 255 255 / 0.28);
+  --art-shade: rgb(0 0 0 / 0.14);
+  --art-strand: rgb(255 255 255 / 0.55); /* shine on hair */
+  --art-wood: #b07744;
+  --art-wood-dark: #82552f;
+  --art-board: #2f6a45;
+  --art-chalk: #f4f6ef;
+  --art-chalk-mark: #f2a02b;
+  --art-tee: #f26a36;
+  --art-tee-dark: #d4522a;
+  --art-trousers: #22372f;
+  --art-skin: #bb7b51;
+  --art-skin-light: #efc39e;
+  --art-skin-deep: #8d5b3b;
+  --art-hair: #1f1713;
+  --art-top: #2f7d4b;
+  --art-shirt: #f3f3ef;
+  --art-shirt-shade: #d5d8d1;
+
   /* ---- Roles: code ---- */
   --code-bg: #0a1714;
   --code-header: #10241f;
