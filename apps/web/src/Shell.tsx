@@ -48,6 +48,7 @@ import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import { localize, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { TrackClick } from './analytics/react/Track';
+import { ShellFooter } from './ShellFooter';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
 import { ThemeSwitcher } from './ThemeSwitcher';
@@ -185,8 +186,8 @@ export function topRole(roles: readonly Role[]): AvatarTone {
 /**
  * The sidebar layout: the sidebar (generated from the same navigation metadata as search, filtered
  * to the session's roles) with the person's card and account menu pinned at its foot, the search
- * bar, and the routed page inside the one `<main>`. `AppShell` keeps the sidebar on screen and
- * turns it into a drawer on narrow screens.
+ * bar, the routed page inside the one `<main>`, and the `ShellFooter` under it. `AppShell` keeps the
+ * sidebar on screen and turns it into a drawer on narrow screens.
  */
 export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) {
   const { roles, signOut, labels } = useSession();
@@ -218,6 +219,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   return (
     <AppShell
       navKey={pathname}
+      footer={<ShellFooter />}
       bar={
         <>
           <SearchTrigger />

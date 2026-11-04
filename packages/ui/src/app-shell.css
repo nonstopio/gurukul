@@ -5,7 +5,20 @@
   background: var(--bg);
 }
 .g-app-shell__content {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 100dvh;
+}
+/* The foot of the content column: at the window's bottom on a short page, after the page on a long
+   one. Small muted text on a surface strip; what goes inside lays itself out. */
+.g-app-shell__footer {
+  margin-top: auto;
+  padding: 0 clamp(var(--space-4), 4vw, var(--space-12));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: 500 var(--text-xs) / var(--leading-tight) var(--font-ui);
 }
 .g-app-shell__bar {
   position: sticky;
@@ -73,11 +86,14 @@
 
 /* Printing (a certificate): the page only, without the chrome. */
 @media print {
-  .g-app-shell {
+  .g-app-shell,
+  .g-app-shell__content {
     display: block;
+    min-height: 0;
   }
   .g-app-shell__sidebar,
   .g-app-shell__bar,
+  .g-app-shell__footer,
   .g-app-shell__scrim {
     display: none;
   }

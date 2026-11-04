@@ -8,7 +8,9 @@ import { ApiClientError } from './api';
  * plus the page, browser and time. Raw error text goes in only by allowlist (`engineMessage`), and
  * every sentence goes through `scrub` as a second net.
  */
-const NEW_ISSUE = 'https://github.com/nonstopio/gurukul/issues/new';
+/** The public Gurukul repository. */
+export const REPO_URL = 'https://github.com/nonstopio/gurukul';
+const NEW_ISSUE = `${REPO_URL}/issues/new`;
 /** GitHub answers 414 past ~8k characters of URL. */
 const MAX_TEXT = 1500;
 

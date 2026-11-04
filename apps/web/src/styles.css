@@ -98,6 +98,69 @@ body {
     display: none;
   }
 }
+/* The foot of the sidebar layout (ShellFooter): links left, the open-source line centred, the
+   contributors right. Each link is a full-height target. Narrow screens drop the line and keep
+   four avatars; the row wraps rather than scrolling sideways. */
+.shell-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-4);
+}
+.shell-footer__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  color: inherit;
+  text-decoration: none;
+}
+.shell-footer__link:hover {
+  color: var(--text);
+}
+.shell-footer__link:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+.shell-footer__callout {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+}
+.shell-footer__callout .shell-footer__link {
+  display: block;
+  overflow: hidden;
+  line-height: var(--control-height);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  animation: shell-footer-in var(--dur-slow) var(--ease);
+}
+@keyframes shell-footer-in {
+  from {
+    opacity: 0;
+  }
+}
+.shell-footer__built {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.shell-footer__built ul {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (width < 40rem) {
+  .shell-footer__callout,
+  .shell-footer__built li:nth-child(n + 5) {
+    display: none;
+  }
+}
 /* Theme switcher: icon-only buttons, pushed to the right end of the top bar. */
 .g-app-shell__bar > .g-segmented {
   flex: none;
