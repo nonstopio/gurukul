@@ -14,6 +14,7 @@ import { reportToast } from './report';
 import { StudioProvider } from './studio/StudioProvider';
 import type { MediaStorage, PublishChecks, StudioData, StudioService } from './studio/types';
 import type { QuizService } from './quiz/service';
+import { UpdatePrompt } from './UpdatePrompt';
 
 export interface AppProps {
   /** Firebase Auth + the profile watch; tests pass a fake. */
@@ -55,6 +56,7 @@ export function App({ service, data, quiz, console: consoleApi, studio, router }
               >
                 <ToastProvider reportIssue={reportToast}>
                   <RouterProvider router={router} />
+                  <UpdatePrompt />
                 </ToastProvider>
               </StudioProvider>
             </ConsoleProvider>

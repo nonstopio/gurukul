@@ -92,12 +92,23 @@ function reported(error: ApiClientError): ApiClientError {
   return error;
 }
 
+let stopped = false;
+
+/**
+ * After a required update (`main.tsx`), no call leaves this tab again: every later `callApi` throws
+ * `GEN_5005` without reaching the function. The reloaded page makes the call instead.
+ */
+export function stopApi(): void {
+  stopped = true;
+}
+
 /** Calls the named function and returns the `data` of its success envelope. Throws `ApiClientError`. */
 export async function callApi<Req, Res>(
   functions: Functions,
   name: string,
   request: Req,
 ): Promise<Res> {
+  if (stopped) throw reported(synthetic('GEN_5005', `'${name}' was not called: update required.`));
   let body: unknown;
   try {
     body = (await httpsCallable<Req, unknown>(functions, name)(request)).data;

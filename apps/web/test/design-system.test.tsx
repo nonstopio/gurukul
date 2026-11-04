@@ -176,6 +176,15 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('button', { name: 'Open dialog' }));
     await screen.findByRole('dialog', { name: 'Example dialog' });
     await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Toast: two choices' }));
+    await user.click(await screen.findByRole('button', { name: 'Update' }));
+    await user.click(screen.getByRole('button', { name: 'Toast: two choices' }));
+    await user.click(await screen.findByRole('button', { name: 'Later' }));
+    await user.click(screen.getByRole('button', { name: 'Open blocking dialog' }));
+    const blocking = await screen.findByRole('dialog', { name: 'Example blocking dialog' });
+    await user.keyboard('{Escape}');
+    await user.click(within(blocking).getByRole('button', { name: 'Continue' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Open command palette' }));
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Open command palette' }));

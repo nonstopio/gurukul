@@ -221,12 +221,26 @@ function ToastExample() {
           Toast: {tone}
         </Button>
       ))}
+      <Button
+        variant="secondary"
+        onClick={() =>
+          toast.show('Update when it suits you.', {
+            title: 'A new version is ready',
+            duration: 0,
+            action: { label: 'Update', onSelect: () => {} },
+            secondaryAction: { label: 'Later', onSelect: () => {} },
+          })
+        }
+      >
+        Toast: two choices
+      </Button>
     </>
   );
 }
 
 function DialogExample() {
   const [dialog, setDialog] = useState<'md' | 'drawer' | null>(null);
+  const [blocking, setBlocking] = useState(false);
   return (
     <>
       <Button variant="secondary" onClick={() => setDialog('md')}>
@@ -235,6 +249,16 @@ function DialogExample() {
       <Button variant="secondary" onClick={() => setDialog('drawer')}>
         Open drawer
       </Button>
+      <Button variant="secondary" onClick={() => setBlocking(true)}>
+        Open blocking dialog
+      </Button>
+      <Dialog
+        open={blocking}
+        title="Example blocking dialog"
+        footer={<Button onClick={() => setBlocking(false)}>Continue</Button>}
+      >
+        <p>No close button and no Escape: only its action moves on. For a required update.</p>
+      </Dialog>
       <Dialog
         open={dialog !== null}
         size={dialog ?? 'md'}

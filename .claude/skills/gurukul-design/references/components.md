@@ -228,6 +228,9 @@ returns to the opener on close. A 44px close button sits in the header. `md` is 
 560px, `lg` 56rem for a grid of cards, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
 `--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
 The caller owns `open`. One dialog at a time.
+Without `onClose` the dialog is **blocking**: no close button, Escape and the backdrop do nothing, and focus
+starts on the first control (the footer's action) and stays inside. Only for a state the person cannot
+work around, such as a required update; anything they may decline gets a close.
 
 ## BarChart — shipped
 
@@ -282,7 +285,7 @@ toast.dismiss(id);
 Tones `info` (default), `success`, `warning`, `danger`. Options: `title` (bold first line; the
 message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `action`
 (`{ label, onSelect }`, a small secondary `Button` under the text that closes the toast after it
-runs), `duration`. **A toast that names a lesson, Quiz, course or other place carries an action
+runs), `secondaryAction` (a quiet `Button` beside it, such as Later; closes the toast too), `duration`. **A toast that names a lesson, Quiz, course or other place carries an action
 that opens it** (`Open lesson`, `Open Quiz`): the label says the action, never the place's name,
 which is already in the message. Default time by tone: success
 4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an

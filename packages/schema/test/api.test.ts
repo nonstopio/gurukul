@@ -42,6 +42,17 @@ describe('the error catalog', () => {
   });
 });
 
+describe('the update code', () => {
+  it('raises GEN_5005 as a 426 that is not worth retrying, naming the function', () => {
+    const res = apiFail([new ApiException('GEN_5005', ['gradeQuiz'])], 't');
+    expect(res.status).toBe(426);
+    expect(res.errors[0]?.retryable).toBe(false);
+    expect(res.errors[0]?.developerMessage).toBe(
+      "'gradeQuiz' was not called: this tab runs a build older than the required update.",
+    );
+  });
+});
+
 describe('the Quiz lock code', () => {
   it('raises PRK_1003 as a 403 naming the Quiz', () => {
     const res = apiFail([new ApiException('PRK_1003', ['pk'])], 't');

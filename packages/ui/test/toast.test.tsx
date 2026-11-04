@@ -193,6 +193,33 @@ describe('Toast', () => {
     expect(screen.queryByText('Check your connection.')).toBeNull();
   });
 
+  it('offers a quieter second choice beside the action, and either one closes it', () => {
+    setup();
+    const update = vi.fn();
+    const later = vi.fn();
+    const show = () =>
+      act(() => {
+        api.show('A new version is available.', {
+          duration: 0,
+          action: { label: 'Update', onSelect: update },
+          secondaryAction: { label: 'Later', onSelect: later },
+        });
+      });
+    show();
+    expect(screen.getByRole('button', { name: 'Update' }).className).toContain('secondary');
+    expect(screen.getByRole('button', { name: 'Later' }).className).toContain('quiet');
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+    expect(later).toHaveBeenCalledOnce();
+    settle();
+    expect(screen.queryByText('A new version is available.')).toBeNull();
+    // Alone, without a main action, it still shows.
+    act(() => {
+      api.show('Only later', { secondaryAction: { label: 'Later', onSelect: later } });
+    });
+    expect(screen.getByRole('button', { name: 'Later' })).toBeTruthy();
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('shows a timer bar for timed toasts only', () => {
     setup();
     act(() => {

@@ -1,5 +1,6 @@
 // A modal dialog in a portal. Focus moves in on open, Tab wraps inside, Escape and the backdrop
-// close it, the page behind cannot scroll, and focus returns to whatever opened it.
+// close it, the page behind cannot scroll, and focus returns to whatever opened it. Without
+// `onClose` it is blocking: no close button, Escape and the backdrop do nothing.
 
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
@@ -9,7 +10,8 @@ import './dialog.css';
 
 export interface DialogProps {
   open: boolean;
-  onClose: () => void;
+  /** Left out, the dialog cannot be dismissed: only an action in it (the footer) can move on. */
+  onClose?: (() => void) | undefined;
   /** The dialog's heading and accessible name. */
   title: string;
   /** `md` is a centred panel, `lg` a wider one for a grid of cards; `drawer` slides in from the right, 480px wide. Default: `md`. */
@@ -40,7 +42,6 @@ function DialogPanel({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
   // The latest onClose, so the key listener is installed once and never goes stale.
   const closeFn = useRef(onClose);
   useEffect(() => {
@@ -51,13 +52,17 @@ function DialogPanel({
     const opener = document.activeElement as HTMLElement;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const first = (bodyRef.current as HTMLElement).querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? (closeRef.current as HTMLElement)).focus();
+    // The first field in the body, else the first control at all (the close button, or the
+    // footer's action in a blocking dialog).
+    const first =
+      (bodyRef.current as HTMLElement).querySelector<HTMLElement>(FOCUSABLE) ??
+      ((panelRef.current as HTMLElement).querySelector<HTMLElement>(FOCUSABLE) as HTMLElement);
+    first.focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        closeFn.current();
+        closeFn.current?.();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -87,13 +92,17 @@ function DialogPanel({
 
   return (
     <div className={`g-dialog-layer g-dialog-layer--${size}`}>
-      <button
-        type="button"
-        className="g-dialog-backdrop"
-        aria-label={`Close ${title.toLowerCase()}`}
-        tabIndex={-1}
-        onClick={onClose}
-      />
+      {onClose ? (
+        <button
+          type="button"
+          className="g-dialog-backdrop"
+          aria-label={`Close ${title.toLowerCase()}`}
+          tabIndex={-1}
+          onClick={onClose}
+        />
+      ) : (
+        <div className="g-dialog-backdrop" />
+      )}
       <div
         ref={panelRef}
         className={`g-dialog g-dialog--${size}`}
@@ -105,15 +114,16 @@ function DialogPanel({
           <h2 className="g-dialog__title" id={titleId}>
             {title}
           </h2>
-          <button
-            ref={closeRef}
-            type="button"
-            className="g-dialog__close"
-            aria-label={closeLabel}
-            onClick={onClose}
-          >
-            <XIcon />
-          </button>
+          {onClose ? (
+            <button
+              type="button"
+              className="g-dialog__close"
+              aria-label={closeLabel}
+              onClick={onClose}
+            >
+              <XIcon />
+            </button>
+          ) : null}
         </div>
         <div className="g-dialog__body" ref={bodyRef}>
           {children}

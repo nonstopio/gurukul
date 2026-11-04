@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { withShareImage } from './src/seo/shareImage.ts';
+import { REQUIRED_UPDATE } from './src/version.ts';
 
 /** Adds the link-preview image tags to index.html, from the public address (VITE_SITE_URL). */
 function shareImage(mode: string): Plugin {
@@ -14,8 +15,9 @@ function shareImage(mode: string): Plugin {
 }
 
 /**
- * One id per build, written to dist/version.json and embedded as VITE_BUILD_ID, so an open tab can
- * tell a newer deploy is live (boot.ts). The release name on a production deploy, else the commit,
+ * One id per build, written to dist/version.json (beside the required-update number from
+ * src/version.ts) and embedded as VITE_BUILD_ID, so an open tab can tell a newer deploy is live and
+ * whether it must take it (boot.ts). The release name on a production deploy, else the commit,
  * else the time; 'dev' on the dev server and in tests, which turns the check off.
  */
 function buildId(command: string): string {
@@ -35,7 +37,11 @@ function versionFile(id: string): Plugin {
     name: 'gurukul-version-file',
     apply: 'build',
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id }) });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ id, required: REQUIRED_UPDATE }),
+      });
     },
   };
 }

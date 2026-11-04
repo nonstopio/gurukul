@@ -37,6 +37,17 @@ vi.mock('../src/auth/service', () => ({
 }));
 vi.mock('../src/firestore', () => ({ openFirestore: open }));
 vi.mock('../src/performance', () => ({ startPerformance: perf }));
+const checkForNewBuild = vi.hoisted(() => vi.fn());
+vi.mock('../src/boot', () => ({ checkForNewBuild, reloadOnStaleBuild: vi.fn() }));
+const stopApi = vi.hoisted(() => vi.fn());
+vi.mock('../src/api', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  stopApi,
+}));
+const setUpdate = vi.hoisted(() => vi.fn());
+vi.mock('../src/update', () => ({ setUpdate }));
+type OnUpdate = (u: { kind: 'soft' | 'hard'; id: string }) => void;
+const onUpdate = () => checkForNewBuild.mock.calls.at(-1)?.[2] as OnUpdate;
 
 const perfOn = { VITE_PERFORMANCE_MONITORING: 'true' };
 
@@ -79,6 +90,74 @@ describe('main loads Firestore on demand', () => {
     p.service.watchProfile('u', vi.fn(), onError)();
     await new Promise((r) => setTimeout(r, 0));
     expect(stores.watchProfile).not.toHaveBeenCalled();
+  });
+
+  it('a required update stops the API and Firestore, then shows; nothing opens Firestore again', async () => {
+    vi.resetModules();
+    let stopped: () => void = () => {};
+    const stop = vi.fn(() => new Promise<void>((r) => (stopped = r)));
+    open.mockReset().mockReturnValue({
+      learner: { listCourses: vi.fn().mockResolvedValue(['c']) },
+      watchProfile: vi.fn(),
+      stop,
+    });
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), { VITE_BUILD_ID: 'a' }));
+    expect(checkForNewBuild).toHaveBeenLastCalledWith('a', 0, expect.any(Function));
+    const p = props.current as Captured;
+    expect(await p.data.listCourses()).toEqual(['c']);
+
+    // A soft update is shown at once and stops nothing.
+    onUpdate()({ kind: 'soft', id: 'b' });
+    expect(setUpdate).toHaveBeenLastCalledWith({ kind: 'soft', id: 'b' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(stop).not.toHaveBeenCalled();
+    expect(stopApi).not.toHaveBeenCalled();
+
+    // A hard one stops the API at once, and shows only once Firestore has stopped: the shutdown
+    // is the last thing the tab sends.
+    setUpdate.mockClear();
+    onUpdate()({ kind: 'hard', id: 'c' });
+    expect(stopApi).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
+    expect(setUpdate).not.toHaveBeenCalled();
+    stopped();
+    await vi.waitFor(() => expect(setUpdate).toHaveBeenCalledWith({ kind: 'hard', id: 'c' }));
+    await expect(p.data.listCourses()).rejects.toThrow('stopped for a required update');
+    const onError = vi.fn();
+    p.service.watchProfile('u', vi.fn(), onError);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(open).toHaveBeenCalledOnce();
+    stopApi.mockClear();
+  });
+
+  it('a required update shows even when Firestore never opened, or failed to download', async () => {
+    vi.resetModules();
+    open.mockReset();
+    setUpdate.mockClear();
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), { VITE_BUILD_ID: 'a' }));
+    onUpdate()({ kind: 'hard', id: 'c' });
+    expect(stopApi).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(setUpdate).toHaveBeenCalledWith({ kind: 'hard', id: 'c' }));
+    expect(open).not.toHaveBeenCalled();
+
+    vi.resetModules();
+    setUpdate.mockClear();
+    vi.doMock('../src/firestore', () => {
+      throw new Error('Failed to fetch dynamically imported module');
+    });
+    const again = await import('../src/main');
+    await act(async () => again.mount(document.getElementById('root'), { VITE_BUILD_ID: 'a' }));
+    const p = props.current as Captured;
+    const loading = p.data.listCourses();
+    onUpdate()({ kind: 'hard', id: 'c' });
+    await expect(loading).rejects.toThrow();
+    await vi.waitFor(() => expect(setUpdate).toHaveBeenCalledWith({ kind: 'hard', id: 'c' }));
+    vi.doMock('../src/firestore', () => ({ openFirestore: open }));
+    stopApi.mockClear();
   });
 
   it('reports a Firestore chunk that failed to download, and fetches it again next time', async () => {

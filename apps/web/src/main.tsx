@@ -23,6 +23,9 @@ import type { FirebaseEnv } from './firebase';
 import type { Firestores } from './firestore';
 import type { MediaStorage } from './studio/types';
 import { appRoutes } from './routes';
+import { stopApi } from './api';
+import { setUpdate } from './update';
+import { REQUIRED_UPDATE } from './version';
 
 /** Mount the app into `#root`. Exported so the boot path is testable. */
 export function mount(
@@ -37,15 +40,19 @@ export function mount(
   // The Firestore SDK is its own chunk, fetched the first time something reads data: right after
   // sign-in (the profile watch), never for a visitor who has not signed in.
   // A failed download is forgotten, so the next sign-in fetches the chunk again.
+  // After a required update nothing opens Firestore again (`freeze`).
   let stores: Promise<Firestores> | undefined;
+  let frozen = false;
   const firestores = () =>
-    (stores ??= import('./firestore').then(
-      (m) => m.openFirestore(firebase.app, env.VITE_USE_EMULATORS === 'true'),
-      (e: unknown) => {
-        stores = undefined;
-        throw e;
-      },
-    ));
+    frozen
+      ? Promise.reject(new Error('Gurukul: stopped for a required update'))
+      : (stores ??= import('./firestore').then(
+          (m) => m.openFirestore(firebase.app, env.VITE_USE_EMULATORS === 'true'),
+          (e: unknown) => {
+            stores = undefined;
+            throw e;
+          },
+        ));
   // Not a lazyPort watcher: a chunk that fails to download must reach `onError`, or sign-in hangs.
   const auth = firebaseAuthService(firebase, (uid, cb, onError) => {
     let stop: (() => void) | undefined;
@@ -90,8 +97,21 @@ export function mount(
         throw e;
       },
     ));
+  // A required update stops this tab: the API refuses calls at once, and Firestore is terminated if
+  // it was opened (unsent writes stay queued in its cache for the reloaded page). The dialog asking
+  // the person to update shows once Firestore has stopped, so nothing is sent while it is up.
+  const freeze = () => {
+    frozen = true;
+    stopApi();
+    return Promise.resolve(stores)
+      .then((s) => s?.stop())
+      .catch(() => {});
+  };
   reloadOnStaleBuild();
-  checkForNewBuild(env.VITE_BUILD_ID);
+  checkForNewBuild(env.VITE_BUILD_ID, REQUIRED_UPDATE, (update) => {
+    if (update.kind === 'soft') return setUpdate(update);
+    void freeze().then(() => setUpdate(update));
+  });
   createRoot(element).render(
     <StrictMode>
       <App

@@ -63,6 +63,11 @@ export function openFirestore(app: FirebaseApp, emulators: boolean) {
         }
       }
     },
+    /**
+     * Stops Firestore for good (a required update): listeners end and nothing more is sent. Writes
+     * not yet acknowledged stay queued in the persistent cache, and the reloaded page sends them.
+     */
+    stop: () => terminate(db),
     watchProfile: (
       uid: string,
       cb: (p: ProfileMirror | null) => void,

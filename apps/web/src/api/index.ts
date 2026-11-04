@@ -1,1 +1,1 @@
-export { ApiClientError, callApi, userMessageOf } from './call';
+export { ApiClientError, callApi, stopApi, userMessageOf } from './call';

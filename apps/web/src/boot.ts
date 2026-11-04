@@ -36,7 +36,7 @@ const STALE_RELOAD_GAP_MS = 30_000;
 /**
  * Reloads unless this tab already reloaded in the last 30 seconds, so a build that keeps looking
  * stale can never reload in a loop. With no sessionStorage there is no way to stop a loop, so it
- * does nothing. Shared by both ways a tab learns it runs an old build.
+ * does nothing.
  */
 function reloadOnce(win: Window, event: string): void {
   try {
@@ -62,36 +62,62 @@ export function reloadOnStaleBuild(win: Window = window): void {
   );
 }
 
-/** How often a visible tab asks whether a newer build is live. */
+/** How often an open tab asks whether a newer build is live (browsers slow this in background tabs). */
 export const VERSION_CHECK_MS = 10 * 60_000;
 
-/** Pages where a reload would lose work: a Quiz being taken, any Studio editor. */
-const BUSY_PATH = /^\/(courses\/[^/]+\/quiz\/|studio\/)/;
+/**
+ * A newer build is live. `soft`: offer it, the person picks when. `hard`: the live build's
+ * required-update number is above this tab's, so this tab must stop until it reloads.
+ */
+export interface Update {
+  kind: 'soft' | 'hard';
+  /** The live build's id. */
+  id: string;
+}
+
+/**
+ * What the live `/version.json` means for a tab built as `id` with required-update number
+ * `required`. A file from before the number existed counts as 0; one without a string id is ignored.
+ */
+export function updateFor(id: string, required: number, live: unknown): Update | null {
+  const file = (live ?? {}) as { id?: unknown; required?: unknown };
+  if (typeof file.id !== 'string') return null;
+  const liveRequired = typeof file.required === 'number' ? file.required : 0;
+  if (liveRequired > required) return { kind: 'hard', id: file.id };
+  return file.id === id ? null : { kind: 'soft', id: file.id };
+}
 
 /**
  * A tab left open across a deploy keeps running the old code. When it becomes visible again, and
- * every ten minutes while visible, read `/version.json` (written by the build) and reload if it
- * names a different build. On a Quiz or Studio page, or offline, it waits for the next check
- * instead. Off on the dev server and in tests (`buildId` is 'dev' or absent).
+ * every ten minutes whether visible or not, read `/version.json` (written by the build) and hand any
+ * update to `onUpdate`; nothing reloads by itself. Hidden tabs check too: a background tab running a
+ * broken build is the one a required update most needs to stop. Offline it waits for the next check; after a hard
+ * update it stops checking. Off on the dev server and in tests (`buildId` is 'dev' or absent).
  */
-export function checkForNewBuild(buildId: string | undefined, win: Window = window): void {
+export function checkForNewBuild(
+  buildId: string | undefined,
+  required: number,
+  onUpdate: (update: Update) => void,
+  win: Window = window,
+): void {
   if (!buildId || buildId === 'dev') return;
   let warned = false;
+  let stopped = false;
   const check = async () => {
-    if (win.document.visibilityState !== 'visible' || !win.navigator.onLine) return;
-    if (BUSY_PATH.test(win.location.pathname)) return;
+    if (stopped || !win.navigator.onLine) return;
     let live: unknown;
     try {
       const res = await win.fetch('/version.json', { cache: 'no-store' });
-      live = ((await res.json()) as { id?: unknown }).id;
+      live = await res.json();
     } catch {
       if (!warned) log.warn('Build version check failed');
       warned = true;
       return;
     }
-    if (typeof live === 'string' && live !== buildId) {
-      reloadOnce(win, 'Newer build is live, reloading');
-    }
+    const update = updateFor(buildId, required, live);
+    if (!update) return;
+    stopped = update.kind === 'hard';
+    onUpdate(update);
   };
   win.document.addEventListener('visibilitychange', () => void check());
   setInterval(() => void check(), VERSION_CHECK_MS);

@@ -29,6 +29,8 @@ export interface ToastOptions {
   code?: string | undefined;
   /** One next step, such as Retry, Undo or Open lesson. A toast that names a place links to it here. */
   action?: ToastAction | undefined;
+  /** A quieter second choice beside `action`, such as Later. It closes the toast too. */
+  secondaryAction?: ToastAction | undefined;
   /** Not shown: extra context for the provider's `reportIssue` link, such as an error code and trace id. */
   detail?: string | undefined;
   /** Milliseconds before it closes itself; `0` keeps it until dismissed. Default: by tone. */
@@ -72,6 +74,7 @@ interface ToastEntry {
   title: string | undefined;
   code: string | undefined;
   action: ToastAction | undefined;
+  secondaryAction: ToastAction | undefined;
   detail: string | undefined;
   duration: number;
   leaving: boolean;
@@ -126,6 +129,7 @@ export function ToastProvider({
         title: options.title,
         code: options.code,
         action: options.action,
+        secondaryAction: options.secondaryAction,
         detail: options.detail,
         duration: options.duration ?? duration ?? TOAST_DURATIONS[tone],
         leaving: false,
@@ -182,7 +186,7 @@ function ToastItem({
   onDismiss: (id: number) => void;
   report: { href: string; label: string } | undefined;
 }) {
-  const { id, duration, leaving, tone, action } = toast;
+  const { id, duration, leaving, tone, action, secondaryAction } = toast;
   const [paused, setPaused] = useState(false);
   const left = useRef(duration);
   const ref = useRef<HTMLDivElement>(null);
@@ -229,20 +233,23 @@ function ToastItem({
         </p>
         {toast.title ? <p className="g-toast__message">{toast.message}</p> : null}
         {toast.code ? <code className="g-toast__code">{toast.code}</code> : null}
-        {action || report ? (
+        {action || secondaryAction || report ? (
           <div className="g-toast__actions">
-            {action ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  action.onSelect();
-                  onDismiss(id);
-                }}
-              >
-                {action.label}
-              </Button>
-            ) : null}
+            {[action, secondaryAction].map((a, i) =>
+              a ? (
+                <Button
+                  key={a.label}
+                  variant={i === 0 ? 'secondary' : 'quiet'}
+                  size="sm"
+                  onClick={() => {
+                    a.onSelect();
+                    onDismiss(id);
+                  }}
+                >
+                  {a.label}
+                </Button>
+              ) : null,
+            )}
             {report ? (
               <a
                 className={buttonClass('quiet', undefined, 'sm')}
