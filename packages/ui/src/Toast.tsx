@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { Button, buttonClass } from './Button';
-import { AlertIcon, CheckIcon, InfoIcon, XIcon } from './Icon';
+import { AlertIcon, CheckIcon, GitHubIcon, InfoIcon, XIcon } from './Icon';
 import './toast.css';
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'danger';
@@ -250,6 +250,9 @@ function ToastItem({
                 target="_blank"
                 rel="noreferrer"
               >
+                <span className="g-btn__icon" aria-hidden="true">
+                  <GitHubIcon />
+                </span>
                 {report.label}
               </a>
             ) : null}

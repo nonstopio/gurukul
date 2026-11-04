@@ -114,6 +114,7 @@ export {
   ClockIcon,
   CodeIcon,
   CopyIcon,
+  GitHubIcon,
   EmbedIcon,
   FileIcon,
   GridIcon,
