@@ -196,7 +196,7 @@ A number that failed to load reads "Unavailable", never 0. A count still loading
 | 11  | Real elements: `<button>`, `<Link>`, `<input>` + `<label>`                                                                                                                                | a clickable `<div>`, `<a href>` to an in-app route                                                       |
 | 12  | No emoji, no gradient washes, no left-border accent cards                                                                                                                                 | `🎉 Course complete!`                                                                                    |
 | 13  | Sentence case; role and area names from `useTerms()`, never typed in copy                                                                                                                 | `MY LEARNING`, a literal "Admin" in a button label                                                       |
-| 14  | Motion on `--ease`, 120–320ms, reduced motion honoured; the only loop allowed is the global loader's                                                                                      | a bounce, a looping shimmer, a pulsing badge                                                             |
+| 14  | Motion on `--ease`, 120–320ms, reduced motion honoured; the only loops allowed are the global loader's and the sign-in classroom (`SignInArt`, still under reduced motion)                | a bounce, a looping shimmer, a pulsing badge                                                             |
 | 15  | **No component markup in `apps/web`**: no `<select>`, `<table>`, `<h1>`                                                                                                                   | `<h1 className="page__title">`, `<table className="plain-table">`                                        |
 | 16  | **`apps/web` CSS is layout only**: tokens only, no colour, radius, shadow or font literals                                                                                                | `#fff`, `13px` font size or a `box-shadow` literal in `console.css`                                      |
 | 17  | **One width system**: `Page width` reading / default / wide                                                                                                                               | `max-width: 960px` on a page class                                                                       |
@@ -224,6 +224,8 @@ Two kinds of surface, and one for ceremony:
 - A new colour need is a new **role** in `tokens.css` (and `tokens.ts`), defined from the
   scale, never a literal in a component, never `var(--x, #hex)`.
 - Course covers use named themes (`forest`, `sand`, `sky`, `stone`) with line-art glyphs.
+- The sign-in illustration (`SignInArt`) is the one drawn scene: its colours are the `--art-*` roles
+  in `tokens.css` (a daytime scene in both themes, sky gradient included), used nowhere else.
 - Avatars colour by role: learner mint on ink, Educator violet, Admin sand (`--avatar-*`).
 
 ## Type

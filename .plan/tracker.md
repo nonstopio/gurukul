@@ -283,7 +283,7 @@ Plan: `18-redesign.md`, `04-design-system.md`.
 | `RDS-13` | Assign as a four-step horizontal flow | done | `RDS-12` | `apps/web/src/console/AssignPage.tsx`, `packages/ui/src/Stepper.tsx` (`FlowSteps`, `FlowPanel`), `SuccessCheck.tsx` |
 | `RDS-14` | Catalogue search and filters, course visibility, Home hero | done | `RDS-12` | `courses/{id}.visibility`, `visibleTeamIds` and `users.teamIds` (rules, `firebase/functions/src/teams.ts`, `grading.ts`), `apps/web/src/CoursesPage.tsx`, `HomePage.tsx`, `studio/PublishDialog.tsx`. Before the rules deploy run `npm run backfill-visibility -- --apply` once |
 | `RDS-15` | Studio media gallery and question bank that can create and import | done | `RDS-09` | `packages/ui/src/MediaGallery.tsx`, `apps/web/src/studio/MediaPage.tsx`, `QuestionBankPage.tsx`, `questions/`. Left: media upload (no Storage in v1), asset picker in the lesson editor |
-| `RDS-16` | Sign-in page as a two-column hero | done | `RDS-09` | `apps/web/src/auth/SignInPage.tsx`, `SignInArt.tsx` |
+| `RDS-16` | Sign-in page as a two-column hero | done | `RDS-09` | `apps/web/src/auth/SignInPage.tsx`, `SignInArt.tsx` (an animated outdoor class in inline SVG, CSS keyframes in `learn.css`, colours the `--art-*` roles in `tokens.css`) |
 | `RDS-17` | One people field, Teams or People assign, drawn Checkbox/Radio/Toggle, Studio rows | done | `RDS-12` | `packages/ui/src/PeoplePicker.tsx` (photos, emails, focus lists people), `Checkbox.tsx`, `Radio.tsx`, `ToggleCard.tsx`, `ChoiceCard.tsx`, `IconButton.tsx`, `apps/web/src/console/AudienceStep.tsx`, `PeopleField.tsx`, `studio/StructureTab.tsx`; rules fix for a first completed lesson in `firestore.rules` |
 
 ## Course media uploads

@@ -512,7 +512,7 @@ a.items__row:hover {
   }
 }
 
-/* ---- Sign-in (no shell): a calm two-column hero, copy left, a drawn course card right ---- */
+/* ---- Sign-in (no shell): a calm two-column hero, copy left, a drawn classroom right ---- */
 .signin {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -608,85 +608,499 @@ a.items__row:hover {
   color: var(--warning);
 }
 
-/* The drawn course card: a slab, a 24px disc pitch, and three cards that rise in over it. */
+/*
+ * The sign-in classroom (SignInArt.tsx): a 960 x 840 scene at the panel's 8:7 shape. Colours are
+ * the --art-* roles in tokens.css. Strokes, fills and the board's text are in scene units, so the
+ * drawing scales as one. The lesson loops every --art-loop; each keyframe below is that loop in
+ * percent (1% = 70ms). The resting styles are the finished board, which reduced motion shows.
+ */
 .signin-art {
+  --art-loop: 7s;
   grid-area: art;
-  position: relative;
   align-self: center;
   aspect-ratio: 8 / 7;
   width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
 }
-.signin-art__plate {
+.signin-art svg {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-xl);
 }
-.signin-art__slab {
-  fill: var(--accent-soft);
+.art-sky-top {
+  stop-color: var(--art-sky-top);
 }
-.signin-art__disc {
-  fill: var(--accent-line);
+.art-sky-bottom {
+  stop-color: var(--art-sky-bottom);
 }
-.signin-art__sun {
-  fill: var(--saffron);
+.art-o,
+.art-o3,
+.art-ln,
+.art-bird {
+  stroke: var(--art-ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.signin-art__card,
-.signin-art__ring-plate,
-.signin-art__seal,
-.signin-art__pill {
-  position: absolute;
-  box-shadow: var(--shadow-menu);
+.art-o3,
+.art-ln,
+.art-bird {
+  stroke-width: 3;
 }
-.signin-art__card {
-  inset: 26% 20% auto 7%;
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
+.art-ln,
+.art-bird,
+.art-limb,
+.art-limb-o,
+.art-strand,
+.art-underline {
+  fill: none;
+  stroke-linecap: round;
 }
-.signin-art__card p {
-  margin: 0;
+.art-ol {
+  fill: var(--art-ink);
+  stroke: var(--art-ink);
+  stroke-width: 8;
 }
-.signin-art__kicker {
-  font: 600 var(--text-xs) / 1 var(--font-ui);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-subtle);
+.art-limb-o {
+  stroke: var(--art-ink);
+  stroke-width: 31;
 }
-.signin-art__title {
-  font: 500 var(--text-lg) / var(--leading-snug) var(--font-display);
-  color: var(--text);
+.art-limb {
+  stroke: var(--art-skin);
+  stroke-width: 23;
 }
-.signin-art__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.art-strand {
+  stroke: var(--art-strand);
+  stroke-width: 2.5;
 }
-.signin-art__ring-plate {
-  top: 6%;
-  left: 7%;
-  display: grid;
-  padding: var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
+.art-underline {
+  stroke: var(--art-chalk-mark);
+  stroke-width: 5;
+  stroke-dasharray: 1;
 }
-.signin-art__seal {
-  right: 6%;
-  bottom: 8%;
-  box-shadow: none; /* the wax seal casts its own shadow and is not round */
+.art-sun {
+  fill: var(--art-sun);
 }
-.signin-art__pill {
-  bottom: 12%;
-  left: 12%;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-pill);
-  background: var(--saffron);
-  color: var(--saffron-on);
-  font: 600 var(--text-sm) / 1 var(--font-ui);
-  box-shadow: none;
+.art-sun-light {
+  fill: var(--art-sun-light);
+}
+.art-white {
+  fill: var(--art-white);
+}
+.art-mountain {
+  fill: var(--art-mountain);
+}
+.art-snow {
+  fill: var(--art-snow);
+}
+.art-hill {
+  fill: var(--art-hill);
+}
+.art-grass {
+  fill: var(--art-grass);
+}
+.art-grass-dark {
+  fill: var(--art-grass-dark);
+}
+.art-river {
+  fill: var(--art-river);
+}
+.art-leaf {
+  fill: var(--art-leaf);
+}
+.art-highlight {
+  fill: var(--art-highlight);
+}
+.art-wood {
+  fill: var(--art-wood);
+}
+.art-wood-dark {
+  fill: var(--art-wood-dark);
+}
+.art-board {
+  fill: var(--art-board);
+}
+.art-chalk {
+  fill: var(--art-chalk);
+}
+.art-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.art-line {
+  font-family: var(--font-ui);
+  font-weight: 500;
+}
+.art-tee {
+  fill: var(--art-tee);
+}
+.art-tee-dark {
+  fill: var(--art-tee-dark);
+}
+.art-trousers {
+  fill: var(--art-trousers);
+}
+.art-skin {
+  fill: var(--art-skin);
+}
+.art-skin-light {
+  fill: var(--art-skin-light);
+}
+.art-skin-deep {
+  fill: var(--art-skin-deep);
+}
+.art-hair {
+  fill: var(--art-hair);
+}
+.art-top {
+  fill: var(--art-top);
+}
+.art-shirt {
+  fill: var(--art-shirt);
+}
+.art-shirt-shade {
+  fill: var(--art-shirt-shade);
+}
+.art-shade {
+  fill: var(--art-shade);
+}
+
+/* Moving parts turn about points in their own drawing's units (view-box: px are scene units).
+   :where keeps this at one class, so each part's own rule below names its keyframes. */
+:where(.signin-art)
+  :is(
+    .art-wipe,
+    .art-arm-open,
+    .art-forearm-open,
+    .art-forearm-point,
+    .art-head,
+    .art-pupils,
+    .art-eyes,
+    .art-mouth,
+    .art-nod-left,
+    .art-nod-right,
+    .art-flight,
+    .art-bird
+  ) {
+  transform-box: view-box;
+  animation: var(--art-loop) var(--ease-in-out) infinite;
+}
+/* Each line is under a strip of board that shrinks to the right, so the line writes in. */
+.art-wipe {
+  transform-origin: 602px 0;
+  transform: scaleX(0);
+  animation-timing-function: linear;
+}
+.art-wipe-1 {
+  animation-name: art-write-1;
+}
+.art-wipe-2 {
+  animation-name: art-write-2;
+}
+.art-wipe-3 {
+  animation-name: art-write-3;
+}
+.art-wipe-4 {
+  animation-name: art-write-4;
+}
+.art-writing {
+  animation: art-clear var(--art-loop) linear infinite;
+}
+.art-underline {
+  animation: art-underline var(--art-loop) var(--ease) infinite;
+}
+.art-forearm-point {
+  transform-origin: 1438px 650px;
+  animation-name: art-point;
+}
+.art-arm-open {
+  transform-origin: 1188px 590px;
+  animation-name: art-arm-open;
+}
+.art-forearm-open {
+  transform-origin: 1180px 722px;
+  animation-name: art-forearm-open;
+}
+.art-head {
+  transform-origin: 1310px 420px;
+  transform: rotate(-4deg);
+  animation-name: art-turn;
+}
+.art-pupils {
+  transform: translateX(-3px);
+  animation-name: art-look;
+}
+.art-eyes {
+  transform-origin: 0 341px;
+  animation-name: art-blink;
+}
+.art-mouth {
+  transform-origin: 0 389px;
+  animation-name: art-talk;
+}
+.art-nod-left {
+  transform-origin: 440px 930px;
+  animation-name: art-nod-left;
+}
+.art-nod-right {
+  transform-origin: 1650px 930px;
+  animation-name: art-nod-right;
+}
+.art-clouds {
+  animation: art-drift 18s var(--ease-in-out) infinite alternate;
+}
+/* Three birds cross the sky on one path, a third of the way apart, flapping as they go. */
+.art-flight {
+  animation: art-fly 24s linear infinite;
+  animation-delay: calc(var(--bird) * -8s);
+}
+.art-bird {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: art-flap 0.5s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes art-write-1 {
+  0%,
+  8.6% {
+    transform: scaleX(1);
+  }
+  22.9%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+@keyframes art-write-2 {
+  0%,
+  27.1% {
+    transform: scaleX(1);
+  }
+  41.4%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+@keyframes art-write-3 {
+  0%,
+  45.7% {
+    transform: scaleX(1);
+  }
+  58.6%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+@keyframes art-write-4 {
+  0%,
+  62.9% {
+    transform: scaleX(1);
+  }
+  75.7%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+/* The board is wiped at the end of each lesson, so the next one starts on a clean board. */
+@keyframes art-clear {
+  0%,
+  92% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes art-underline {
+  0%,
+  1.4% {
+    stroke-dashoffset: 1;
+  }
+  6.4%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+/* A jab at each line as it is written, then the arm lowers while the teacher turns to the class. */
+@keyframes art-point {
+  0%,
+  5.7%,
+  14.3%,
+  24.3%,
+  32.9%,
+  42.9%,
+  51.4%,
+  60%,
+  68.6%,
+  77.1% {
+    transform: rotate(0deg);
+  }
+  10%,
+  28.6%,
+  47.1%,
+  64.3% {
+    transform: rotate(-7deg);
+  }
+  85.7%,
+  94.3% {
+    transform: rotate(18deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes art-arm-open {
+  0%,
+  78.6% {
+    transform: rotate(0deg);
+  }
+  84% {
+    transform: rotate(25deg);
+  }
+  88% {
+    transform: rotate(20deg);
+  }
+  91% {
+    transform: rotate(24deg);
+  }
+  94.3% {
+    transform: rotate(22deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes art-forearm-open {
+  0%,
+  78.6% {
+    transform: rotate(0deg);
+  }
+  84% {
+    transform: rotate(62deg);
+  }
+  87.1%,
+  94.3% {
+    transform: rotate(58deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes art-turn {
+  0%,
+  77.1% {
+    transform: rotate(-4deg);
+  }
+  85.7%,
+  94.3% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes art-look {
+  0%,
+  77.1% {
+    transform: translateX(-3px);
+  }
+  85.7%,
+  94.3% {
+    transform: translateX(1px);
+  }
+  100% {
+    transform: translateX(-3px);
+  }
+}
+/* Two blinks a lesson. */
+@keyframes art-blink {
+  0%,
+  33.1%,
+  35.4%,
+  88.9%,
+  91.1%,
+  100% {
+    transform: scaleY(1);
+  }
+  34.3%,
+  90% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes art-talk {
+  0%,
+  78.6%,
+  82.5%,
+  87.5%,
+  92.5%,
+  97%,
+  100% {
+    transform: scaleY(1);
+  }
+  80%,
+  85% {
+    transform: scaleY(1.6);
+  }
+  90%,
+  95% {
+    transform: scaleY(1.4);
+  }
+}
+@keyframes art-nod-left {
+  0%,
+  82.9%,
+  89.3%,
+  90%,
+  96.4%,
+  100% {
+    transform: rotate(0deg);
+  }
+  86.1% {
+    transform: rotate(5deg);
+  }
+  93.2% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes art-nod-right {
+  0%,
+  85%,
+  91.4%,
+  92.1%,
+  98.6%,
+  100% {
+    transform: rotate(0deg);
+  }
+  88.2% {
+    transform: rotate(-5deg);
+  }
+  95.4% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes art-drift {
+  to {
+    transform: translateX(40px);
+  }
+}
+@keyframes art-fly {
+  from {
+    transform: translate(-40px, 0);
+  }
+  to {
+    transform: translate(1000px, 24px);
+  }
+}
+@keyframes art-flap {
+  to {
+    transform: scaleY(0.55);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signin-art * {
+    animation: none !important;
+  }
 }
 
 @keyframes rise-in {
@@ -722,25 +1136,6 @@ a.items__row:hover {
     margin-inline: auto;
   }
 }
-/* Phones: a squarer plate, the card across it, the pill dropped and the seal smaller, so nothing overlaps the card text. */
-@media (width < 40rem) {
-  .signin-art {
-    aspect-ratio: 1 / 1;
-  }
-  .signin-art__card {
-    inset: 30% 6% auto 6%;
-  }
-  .signin-art__pill {
-    display: none;
-  }
-  .signin-art__seal {
-    scale: 0.7;
-    transform-origin: bottom right;
-    bottom: 4%;
-    right: 4%;
-  }
-}
-
 /* ---- Studio's preview renders a Quiz with these ---- */
 .exam {
   display: grid;
