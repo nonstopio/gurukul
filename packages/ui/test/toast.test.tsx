@@ -310,6 +310,7 @@ describe('Toast', () => {
     const link = screen.getByRole('link', { name: 'Report issue' });
     expect(link.getAttribute('href')).toBe('https://example.com/report');
     expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.querySelector('.g-btn__icon svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(reportIssue).toHaveBeenCalledWith(
       expect.objectContaining({

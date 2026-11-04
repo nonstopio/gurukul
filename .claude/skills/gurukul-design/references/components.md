@@ -297,7 +297,7 @@ info, success and warning, `role="alert"` for danger. Toasts stack bottom-right 
 phone), `--radius-lg`, `--shadow-xs`; each has a 44px dismiss button named by `dismissLabel`
 (default "Dismiss"). `useToast` outside a provider throws. With `reportIssue` (a function from the
 toast's `title`, `message`, `code` and the unshown `detail` to a URL), every danger toast also shows a
-quiet **Report issue** link beside its action, opening in a new tab; `reportLabel` renames it. The
+small secondary **Report issue** link with the GitHub mark beside its action, opening in a new tab; `reportLabel` renames it. The
 app passes `reportToast` from `apps/web/src/report.ts`, which opens a prefilled GitHub bug.
 
 A failed action goes through `toastError(toast, error, fallback, retry?)` in
