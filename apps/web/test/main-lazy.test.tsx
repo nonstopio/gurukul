@@ -11,6 +11,7 @@ interface Captured {
   console: { data: { overview(): Promise<unknown> } };
   service: {
     watchProfile(uid: string, cb: () => void, onError: (e: unknown) => void): () => void;
+    signOut(): Promise<void>;
   };
 }
 const props = vi.hoisted(() => ({ current: undefined as unknown }));
@@ -30,8 +31,9 @@ vi.mock('../src/firebase', () => ({
 }));
 const mediaStorage = vi.hoisted(() => vi.fn());
 vi.mock('../src/studio/storage', () => ({ firebaseMediaStorage: mediaStorage }));
+const authSignOut = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('../src/auth/service', () => ({
-  firebaseAuthService: vi.fn((_fb, watchProfile) => ({ watchProfile })),
+  firebaseAuthService: vi.fn((_fb, watchProfile) => ({ watchProfile, signOut: authSignOut })),
 }));
 vi.mock('../src/firestore', () => ({ openFirestore: open }));
 vi.mock('../src/performance', () => ({ startPerformance: perf }));
@@ -156,5 +158,76 @@ describe('main loads Firestore on demand', () => {
       expect(warn).toHaveBeenCalledWith('Performance monitoring did not start', expect.anything()),
     );
     warn.mockRestore();
+  });
+
+  it('signs out without touching Firestore when it was never opened', async () => {
+    vi.resetModules();
+    open.mockReset();
+    authSignOut.mockClear();
+    vi.doMock('../src/firestore', () => ({ openFirestore: open }));
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    await (props.current as Captured).service.signOut();
+    expect(authSignOut).toHaveBeenCalledTimes(1);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('signs out through Firestore, deleting its cache, and opens a fresh one next time', async () => {
+    vi.resetModules();
+    authSignOut.mockClear();
+    const leave = vi.fn((signOut: () => Promise<void>) => signOut());
+    open.mockReset().mockImplementation(() => ({
+      learner: { listCourses: vi.fn().mockResolvedValue([]) },
+      leave,
+    }));
+    vi.doMock('../src/firestore', () => ({ openFirestore: open }));
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    const p = props.current as Captured;
+    await p.data.listCourses();
+    await p.service.signOut();
+    expect(leave).toHaveBeenCalledWith(authSignOut);
+    expect(authSignOut).toHaveBeenCalledTimes(1);
+    await p.data.listCourses();
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens a fresh Firestore after a sign-out that failed, never the shut-down one', async () => {
+    vi.resetModules();
+    authSignOut.mockClear();
+    const leave = vi.fn(() => Promise.reject(new Error('network')));
+    open.mockReset().mockImplementation(() => ({
+      learner: { listCourses: vi.fn().mockResolvedValue([]) },
+      leave,
+    }));
+    vi.doMock('../src/firestore', () => ({ openFirestore: open }));
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    const p = props.current as Captured;
+    await p.data.listCourses();
+    await expect(p.service.signOut()).rejects.toThrow('network');
+    await p.data.listCourses();
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it('signs out plainly when the Firestore chunk fails to download', async () => {
+    vi.resetModules();
+    authSignOut.mockClear();
+    vi.doMock('../src/firestore', () => {
+      throw new Error('Failed to fetch dynamically imported module');
+    });
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    const p = props.current as Captured;
+    // Signing out while the download is still failing waits for it, then signs out plainly.
+    const read = p.data.listCourses();
+    await p.service.signOut();
+    await expect(read).rejects.toThrow();
+    expect(authSignOut).toHaveBeenCalledTimes(1);
+    vi.doUnmock('../src/firestore');
   });
 });

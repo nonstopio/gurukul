@@ -38,5 +38,9 @@ neither showed up.
   rolls back and fires the listener again; an effect keyed on that data must not resend.
 - A trigger returns before reading anything when the fields it derives from did not change
   (`handleProgressWrite`). Every client write wakes it.
+- A fix does not reach tabs already open. On 2026-11-04 two tabs opened before the loop fix kept
+  looping for a day: all tabs of a browser share one write queue, they filled it faster than the
+  server takes writes to one document (about one a second), and the learner's real progress sat
+  behind it unsent. Closing those tabs and signing out (which deletes the cache) clears it.
 - `e2e/tests/write-budget.spec.ts` counts writes while a page sits idle and across two tabs. A new
   page that writes progress or profile data adds a case there.

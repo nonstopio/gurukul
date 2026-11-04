@@ -56,6 +56,8 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
   helper from `@gurukul/schema`) so the UI updates instantly.
 - Offline: Firestore's local cache keeps the last opened course readable;
   completion writes queue and sync. Quizzes need a connection (they call a function).
+  Sign-out waits up to two seconds for queued writes, then deletes this browser's copy,
+  so signing in again starts fresh; a write still queued then is lost.
 
 ## Catalogue
 

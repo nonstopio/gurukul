@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   snapCb: undefined as undefined | ((s: unknown) => void),
   snapErr: undefined as unknown,
   user: null as null | { uid: string },
+  pending: (() => Promise.resolve()) as () => Promise<void>,
+  clear: (() => Promise.resolve()) as () => Promise<void>,
 }));
 vi.mock('firebase/firestore', () => ({
   initializeFirestore: vi.fn((_app, settings) => ({ kind: 'db', settings })),
@@ -17,6 +19,18 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn((ref, patch) => {
     state.updates.push([ref, patch]);
     return state.update();
+  }),
+  waitForPendingWrites: vi.fn(() => {
+    state.calls.push('wait');
+    return state.pending();
+  }),
+  terminate: vi.fn(() => {
+    state.calls.push('terminate');
+    return Promise.resolve();
+  }),
+  clearIndexedDbPersistence: vi.fn(() => {
+    state.calls.push('clear');
+    return state.clear();
   }),
   onSnapshot: vi.fn((_r, cb, onError) => {
     state.snapCb = cb;
@@ -32,13 +46,15 @@ vi.mock('../src/log', () => ({ log: { warn: vi.fn() } }));
 
 import { initializeFirestore } from 'firebase/firestore';
 import { firebaseLearnerData } from '../src/data/firebase';
-import { openFirestore } from '../src/firestore';
+import { openFirestore, SIGN_OUT_SETTLE_MS } from '../src/firestore';
 import { log } from '../src/log';
 
 beforeEach(() => {
   state.calls.length = 0;
   state.updates.length = 0;
   state.update = () => Promise.resolve();
+  state.pending = () => Promise.resolve();
+  state.clear = () => Promise.resolve();
 });
 
 describe('openFirestore', () => {
@@ -117,5 +133,58 @@ describe('openFirestore', () => {
       }),
     );
     expect(cb).toHaveBeenCalledWith({ displayName: 'Ravi' });
+  });
+
+  describe('leave', () => {
+    const signOut = () => {
+      state.calls.push('signOut');
+      return Promise.resolve();
+    };
+
+    it('waits for queued writes, signs out, then shuts down and deletes the local cache', async () => {
+      await openFirestore({} as never, false).leave(signOut);
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+    });
+
+    it('leaves no timer behind once the queue drains quickly', async () => {
+      vi.useFakeTimers();
+      await openFirestore({} as never, false).leave(signOut);
+      expect(vi.getTimerCount()).toBe(0);
+      vi.useRealTimers();
+    });
+
+    it('still shuts down and clears the cache when signing out fails', async () => {
+      const failing = () => {
+        state.calls.push('signOut');
+        return Promise.reject(new Error('network'));
+      };
+      await expect(openFirestore({} as never, false).leave(failing)).rejects.toThrow('network');
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+    });
+
+    it('gives up waiting on a queue that never drains, and still signs out', async () => {
+      vi.useFakeTimers();
+      state.pending = () => new Promise(() => {});
+      const left = openFirestore({} as never, false).leave(signOut);
+      await vi.advanceTimersByTimeAsync(SIGN_OUT_SETTLE_MS);
+      await left;
+      vi.useRealTimers();
+      expect(state.calls).toEqual(['wait', 'signOut', 'terminate', 'clear']);
+    });
+
+    it('signs out even when waiting for the queue fails', async () => {
+      state.pending = () => Promise.reject(new Error('user changed'));
+      await openFirestore({} as never, false).leave(signOut);
+      expect(state.calls).toContain('signOut');
+    });
+
+    it('logs, without failing sign-out, when another tab holds the cache open', async () => {
+      state.clear = () =>
+        Promise.reject(Object.assign(new Error('in use'), { code: 'failed-precondition' }));
+      await openFirestore({} as never, false).leave(signOut);
+      expect(log.warn).toHaveBeenCalledWith('Local cache not cleared', {
+        code: 'failed-precondition',
+      });
+    });
   });
 });
