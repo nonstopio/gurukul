@@ -9,6 +9,7 @@ import './studio.css';
 import { App } from './App';
 import { checkForNewBuild, reloadOnStaleBuild } from './boot';
 import { firebaseAuthService } from './auth/service';
+import type { AuthService } from './auth/service';
 import { firebaseConsoleService } from './console/service';
 import { configureAnalytics } from './analytics';
 import { initFirebase } from './firebase';
@@ -46,7 +47,7 @@ export function mount(
       },
     ));
   // Not a lazyPort watcher: a chunk that fails to download must reach `onError`, or sign-in hangs.
-  const service = firebaseAuthService(firebase, (uid, cb, onError) => {
+  const auth = firebaseAuthService(firebase, (uid, cb, onError) => {
     let stop: (() => void) | undefined;
     let left = false;
     void firestores().then(
@@ -62,6 +63,20 @@ export function mount(
       stop?.();
     };
   });
+  // Signing out also deletes this browser's Firestore cache (`leave`); the next sign-in opens a
+  // fresh instance. Never opened, or failed to download: there is nothing to delete.
+  const service: AuthService = {
+    ...auth,
+    async signOut() {
+      const open = await stores?.catch(() => undefined);
+      if (!open) return auth.signOut();
+      try {
+        await open.leave(auth.signOut);
+      } finally {
+        stores = undefined;
+      }
+    },
+  };
   const data = lazyPort(() => firestores().then((s) => s.learner), ['watchProgress']);
   // The Cloud Storage SDK is its own chunk too, fetched by the first upload, never by a learner.
   // It is started once (connecting an emulator twice throws); a failed download is forgotten.

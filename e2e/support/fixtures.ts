@@ -55,7 +55,8 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
   await popup.waitForLoadState('load');
   const existing = popup.getByRole('listitem').filter({ hasText: person.email });
   const add = popup.getByRole('button', { name: 'Add new account' });
-  await expect(add.or(existing)).toBeVisible();
+  // A second sign-in on the same browser lists the account and still offers "Add new account".
+  await expect(add.or(existing).first()).toBeVisible();
   if (await existing.isVisible()) {
     await existing.click();
   } else {
