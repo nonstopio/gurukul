@@ -11,6 +11,28 @@ const PEOPLE: Person[] = [
   { email: 'meera@example.com' },
 ];
 
+/**
+ * Counts React state updates scheduled while it runs: React reads `window.event` to pick the
+ * priority of an update made outside an event handler. That read is what threw on CI when a late
+ * answer arrived after the test environment had removed `window`.
+ */
+async function updatesDuring(run: () => Promise<void>): Promise<number> {
+  let reads = 0;
+  Object.defineProperty(window, 'event', {
+    configurable: true,
+    get: () => {
+      reads += 1;
+      return undefined;
+    },
+  });
+  try {
+    await run();
+  } finally {
+    delete (window as { event?: unknown }).event;
+  }
+  return reads;
+}
+
 const find = (q: string) =>
   Promise.resolve(
     PEOPLE.filter((p) => `${p.name ?? ''} ${p.email}`.toLowerCase().includes(q.toLowerCase())),
@@ -494,5 +516,21 @@ describe('PeoplePicker: like a Jira people field', () => {
     onChange.mockClear();
     fireEvent.paste(box(), { clipboardData: { getData: () => 'late@x.com' } });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('drops an answer that arrives after the picker has gone', async () => {
+    // A late answer used to set state after the test environment (and `window`) was torn down,
+    // failing CI with an unhandled error although every test passed.
+    let answer: (people: Person[]) => void = () => {};
+    const search = vi.fn(() => new Promise<Person[]>((resolve) => (answer = resolve)));
+    const { unmount } = render(<Harness search={search} />);
+    fireEvent.focus(screen.getByRole('combobox', { name: 'Add people' }));
+    expect(search).toHaveBeenCalled();
+    unmount();
+    const updates = await updatesDuring(async () => {
+      answer(PEOPLE);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(updates).toBe(0);
   });
 });
