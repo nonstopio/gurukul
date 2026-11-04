@@ -6,7 +6,7 @@
 // only the caller knows who exists and how to ask for them. Only the newest search's answer is
 // shown, so a slow early response never replaces the results for what is typed now.
 
-import { Fragment, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent, ReactNode } from 'react';
 import { Avatar } from './Avatar';
 import type { AvatarTone } from './Avatar';
@@ -109,6 +109,13 @@ export function PeoplePicker({
   const [active, setActive] = useState(0);
   const latest = useRef(0);
   const input = useRef<HTMLInputElement>(null);
+  // An answer that arrives after the picker has gone is dropped like an outdated one.
+  useEffect(
+    () => () => {
+      latest.current++;
+    },
+    [],
+  );
 
   const ask = async (query: string) => {
     const mine = ++latest.current;

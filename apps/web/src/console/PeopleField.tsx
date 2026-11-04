@@ -1,6 +1,6 @@
 import { PeoplePicker } from '@gurukul/ui';
 import type { EmailClassification, Person } from '@gurukul/ui';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ConsoleData } from './types';
 import { usePeopleLookup } from './usePeopleSearch';
 
@@ -33,6 +33,14 @@ export function PeopleField({
   const { search, total } = usePeopleLookup(data);
   // Who has been picked or listed so far, by email, for their name and photo on a chip.
   const [known, setKnown] = useState<Record<string, Person>>({});
+  // A search can answer after the field has gone (a lookup waits for typing to pause): drop it.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const remember = (people: Person[]) =>
     setKnown((k) => ({ ...k, ...Object.fromEntries(people.map((p) => [p.email, p])) }));
   const value = emails.map((email) => known[email] ?? { email });
@@ -42,7 +50,7 @@ export function PeopleField({
       value={value}
       search={async (text) => {
         const found = await search(text);
-        remember(found);
+        if (mounted.current) remember(found);
         return found;
       }}
       onChange={(people) => {
