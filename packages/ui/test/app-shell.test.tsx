@@ -122,4 +122,18 @@ describe('AppShell', () => {
     expect(menu().getAttribute('aria-expanded')).toBe('false');
     expect(listeners.size).toBe(0);
   });
+
+  it('renders a footer landmark after the content only when given one', async () => {
+    const { container, rerender } = render(<Shell />);
+    expect(screen.queryByRole('contentinfo')).toBeNull();
+    rerender(
+      <AppShell sidebar={<p>Side</p>} footer={<a href="/changelog">What's new</a>}>
+        <main id="content" />
+      </AppShell>,
+    );
+    const footer = screen.getByRole('contentinfo');
+    expect(footer.previousElementSibling).toBe(screen.getByRole('main'));
+    expect(footer.textContent).toBe("What's new");
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });
