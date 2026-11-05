@@ -51,7 +51,7 @@ describe('App gate', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome to Gurukul.' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'gurukul@nonstopio.com' })).toBeNull();
     expect(screen.queryByRole('link', { name: "What's new" })).toBeNull();
-    expect(screen.getByText(/Knowledge gives humility/)).toBeTruthy();
+    expect(screen.getByText(/Never stop learning, never stop teaching/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
     expect(f.service.signIn).toHaveBeenCalled();
   });
