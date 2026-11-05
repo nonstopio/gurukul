@@ -10,8 +10,7 @@ import type { AnswerKeys } from './seed';
  *   commit messages" in Studio. Her colleague Rohan is a Learner who takes it.
  * - The reader is not an Educator yet and cannot open Studio, so lessons describe what they will
  *   see. Every claim about Studio matches the app: labels in bold are the ones in
- *   apps/web/src/studio/. Nothing here teaches what is not built (cover image upload, lesson
- *   layout) or promises what learners do not see (video length and captions).
+ *   apps/web/src/studio/. Nothing here teaches what is not built (lesson layout).
  * - Reading lessons only, no images or videos. Each lesson ends with a check.
  * - `publishedAt` is null here; the seeder stamps it. Answer keys live in `educatorAnswers`, never
  *   in the course object.
@@ -230,7 +229,7 @@ const chapter2: Chapter = {
         '- **Title**: Kavya types "Writing good commit messages". It can change later.',
         '- **Address**: filled in from the title, here `writing-good-commit-messages`. Lower-case letters, digits and single hyphens only. It appears in links and **cannot change later**, because progress and certificates point at it. If someone already has it, Studio says **That address is taken**.',
         '- **Level**: Foundation, Intermediate or Advanced.',
-        '- **Cover theme**: Forest, Sand, Sky or Stone. The cover shows the first letter of the title.',
+        '- **Cover theme**: Forest, Sand, Sky or Stone. Until the course has an image, its tile shows the title on this colour.',
         '- **Duplicate from**: **Start blank**, or copy a course you can edit.',
         '',
         '**Create course** opens the new course in the course editor.',
@@ -257,7 +256,9 @@ const chapter2: Chapter = {
       md(
         '## Course details',
         '',
-        'Beside the **Structure** tab sits a **Course details** card: **Title**, **Summary**, **Level**, **Pass mark (%)** and **Cover theme**. The address is shown but cannot change. There is an **Upload cover image** button, but uploading covers is not switched on yet. Until it is, the course card shows the first image in its lessons, or the theme and its letter when it has none.',
+        'Beside the **Structure** tab sits a **Course details** card: **Title**, **Summary**, **Level**, **Pass mark (%)** and **Cover theme**. The address is shown but cannot change.',
+        '',
+        'Below them is the cover image: upload one under the same rules as a lesson image, and a tile shows how the course will look in lists. **Replace image** and **Remove image** change only the draft; learners see the new cover once you publish. Without a cover image, the tile shows the first image in the lessons, or the title on the theme colour when there is none.',
         '',
         'The **Summary** is one sentence shown on the course card. A course cannot be published without one.',
         '',
@@ -271,7 +272,7 @@ const chapter2: Chapter = {
         '',
         '## Landing page',
         '',
-        'The **Landing page** tab holds the **Description**, which can use Markdown: say who the course is for and what it covers. Below it, **What learners will be able to do** holds your outcomes, up to 12, added with **Add outcome**. Learners read this page before they start.',
+        'The **Landing page** tab holds the **Description**, which can use Markdown: say who the course is for and what it covers. Below it, **What learners will be able to do** holds your outcomes, up to 12, added with **Add outcome**. Learners read this page before they start, so a course cannot be published without a description and at least 2 outcomes. When one is missing, the publish checklist says so and offers **Open the Landing page**.',
         '',
         '## Certificate',
         '',
@@ -291,7 +292,7 @@ const chapter2: Chapter = {
       md(
         '## Three switches',
         '',
-        'The **Learning rules** card has three switches for the whole course.',
+        'The **Learning rules** card has three switches for the whole course. Each switch is named for what is true now, so its name changes when you flip it: off, they read **Learners go in any order**, **No certificate** and **Videos are optional**, each with a line saying what that means for learners.',
         '',
         '**Learners go in order.** Each chapter stays locked until the one before it is passed. A chapter with Quizzes is passed when every Quiz in it is passed; a chapter without one, when every lesson in it is done. Inside an open chapter, learners can read lessons in any order.',
         '',
@@ -622,7 +623,7 @@ const chapter4: Chapter = {
         '',
         '## Code',
         '',
-        'A **Code** block has a **Language** (JavaScript, TypeScript, Bash, Python, SQL and others, or plain text), an optional **File name**, and two switches: **Copy button** and **Terminal style**. **Highlight lines** draws the eye to a few lines, written like `2,4-6`. This one has a file name and line 3 highlighted:',
+        'A **Code** block has a **Language** (JavaScript, TypeScript, Bash, Python, SQL and others, or plain text), an optional **File name**, and two switches: **Copy button** and **Terminal style**, named for what is on, so turned off they read **No copy button** and **Plain code**. **Highlight lines** draws the eye to a few lines, written like `2,4-6`. This one has a file name and line 3 highlighted:',
       ),
       {
         type: 'code',
@@ -654,13 +655,13 @@ const chapter4: Chapter = {
       md(
         '## Two ways in',
         '',
-        'An **Image** block has two tabs: **Upload** and **Link**.',
+        'An **Image** block has two tabs: **Link** and **Upload**. A new block opens on **Link**, since a link costs no storage; an uploaded image opens on **Upload**.',
+        '',
+        "**Link** takes an **Image address** starting with `https://`. **Choose from this course's media** reuses an image already uploaded to this course, without uploading it again.",
         '',
         '**Upload** takes a **WebP, PNG or JPEG**, chosen, dropped or pasted. The default limit is **500 KB** (an Admin may set it anywhere up to 1 MB), and the long side can be at most **2000 px**; **1600 px wide is ideal**. Studio checks the file before it uploads: the type, the size and the pixels.',
         '',
         'If the image is too big, Studio says why and offers **Shrink it for me**. That redraws the picture as WebP inside your browser, nothing is sent anywhere, and location and camera details are stripped. Nothing is shrunk unless you ask. A narrow image (under 800 px) gets a warning: choose the Small or Medium layout for it.',
-        '',
-        "**Link** takes an **Image address** starting with `https://`. **Choose from this course's media** reuses an image already uploaded to this course, without uploading it again.",
       ),
       warn(
         'No personal data',
@@ -731,10 +732,10 @@ const chapter4: Chapter = {
       md(
         '## File',
         '',
-        'A **File** block is a link to a handout or cheat sheet, with the same two tabs as images.',
+        'A **File** block is a link to a handout or cheat sheet, with the same two tabs as images: **Link** first, where a new block opens, then **Upload**.',
         '',
-        '- **Upload** takes a **PDF only**, up to **1 MB** by default. There is no shrinking for PDFs. For a bigger file, put it on GitHub or Google Drive and use **Link**.',
         '- **Link** takes a **File address** starting with `https://`.',
+        '- **Upload** takes a **PDF only**, up to **1 MB** by default. There is no shrinking for PDFs. For a bigger file, put it on GitHub or Google Drive and use **Link**.',
         '- **Label** is the words on the link, and is required. An uploaded PDF starts with its file name; change it to something a reader understands.',
         '',
         '**Weak**: `final_v3_NEW.pdf`. **Better**: "Commit message cheat sheet (one page)".',
@@ -936,7 +937,7 @@ const chapter6: Chapter = {
       md(
         '## Your draft saves itself',
         '',
-        "About a second after you stop typing, the draft saves. The top of the page says where it stands: **Draft v3 · saving…**, **Draft v3 · unsaved changes**, or **Draft v3 · saved just now**. **Save now** is there if you are in a hurry. If a save fails, it says **Couldn't save — retry**; edits that could not be saved are kept on your computer and offered back next time with **Restore edits**.",
+        "About a second after you stop typing, the draft saves. The top of the page says where it stands. The course editor names the version the draft will publish as: with v3 live, **Draft v4 · saving…**, **Draft v4 · unsaved changes** or **Draft v4 · saved just now**, and **No changes since v3** when the draft matches what learners have. Lesson and Quiz editors say **Draft · saved just now**. **Save now** is there if you are in a hurry. If a save fails, it says **Couldn't save — retry**; edits that could not be saved are kept on your computer and offered back next time with **Restore edits**.",
         '',
         '## Two people, one draft',
         '',
@@ -962,17 +963,23 @@ const chapter6: Chapter = {
       md(
         '## Publish',
         '',
-        'The **Publish** button names the version you are about to make, such as **Publish v4**. It saves first, then opens a dialog with three parts.',
+        'The **Publish** button names the version you are about to make, such as **Publish v4**. When nothing has changed since the live version, it is off and says **No changes since v3**: there is nothing to publish. Otherwise it saves first, then opens a dialog with three parts.',
         '',
         '**What changes for learners** lists lessons and Quizzes added, edited or removed since the last version, with how many learners completed anything removed.',
         '',
-        '**Who can open this course** sets visibility:',
+        '**Who can open it** shows the current visibility, such as "Team only: 1 team. Publishing keeps it." Publishing never changes it; **Change who can open** takes you to where it is set.',
+        '',
+        '**Fix these first** lists anything that blocks publishing, each with a link that opens the lesson or Quiz to fix, or **Open the Landing page**. The usual ones: an empty summary or block, a missing description or fewer than 2 outcomes, an image with no alt text, a video or embed link Gurukul does not support, a Quiz question with no right answer marked or no explanation, a certificate with no Quiz. While anything is listed, the button stays off.',
+        '',
+        '## Who can open it',
+        '',
+        'Visibility lives on the **Structure** tab, in the **Who can open this course** card:',
         '',
         '- **Public**: every signed-in learner sees it in the catalogue.',
         '- **Team only**: only people on the teams you pick.',
         '- **Educators and Admins**: learners do not see it. Useful while you try a course out.',
         '',
-        '**Fix these first** lists anything that blocks publishing, each with a link that opens the lesson or Quiz to fix. The usual ones: an empty summary or block, an image with no alt text, a video or embed link Gurukul does not support, a Quiz question with no right answer marked or no explanation, a certificate with no Quiz. While anything is listed, the button stays off.',
+        '**Save who can open** applies it to the live course at once, without a new version. On a course never published, it takes effect at the first publish.',
         '',
         'When it works: "Published v4. Learners see it now."',
       ),
@@ -981,13 +988,13 @@ const chapter6: Chapter = {
         'A new Video block starts with a bare `https://www.youtube.com/` link, and a new Image or File block starts with no alt text or label. Each blocks publishing until you replace it, so nothing half-made goes live.',
       ),
       check(
-        'Kavya wants to try her course on two teammates before everyone sees it. Which visibility fits?',
+        'Kavya wants only two teammates to try her published course before everyone sees it. What does she do?',
         [
-          'Public, and ask everyone else to ignore it',
-          'Team only, with a team of those two teammates',
-          'Leave it unpublished and send them the draft',
+          'Choose Public, and ask everyone else to ignore it',
+          'Choose Team only with a team of those two in Who can open this course, and Save who can open',
+          'Publish a new version, since visibility only changes when you publish',
         ],
-        'Team only limits the course to the teams picked. Drafts are never shown to learners.',
+        'Team only limits the course to the teams picked, and saving it applies at once, with no new version. Drafts are never shown to learners.',
         1,
       ),
     ]),
@@ -1087,7 +1094,7 @@ const finalSpecs: QuestionSpec[] = [
       'Follow the link beside the problem, write alt text describing the image, then publish',
       'Switch the image to the Link tab',
       'Turn off Issue a certificate',
-      'Publish as Educators and Admins, which skips the check',
+      'Set Who can open this course to Educators and Admins, which skips the check',
     ],
     correct: [0],
     explanation:
@@ -1263,7 +1270,7 @@ const estimatedMinutes = chapters
   .reduce((sum, item) => sum + (item.type === 'lesson' ? item.minutes : 0), 0);
 
 export const educatorCourse: Course = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   id: 'educator-onboarding',
   title: 'Becoming a Gurukul Educator',
   summary:

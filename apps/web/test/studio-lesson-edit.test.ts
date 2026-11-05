@@ -99,6 +99,15 @@ describe('editing a lesson', () => {
     expect(removeBlock(added, a.id).blocks.map((x) => x.id)).toEqual([b.id]);
   });
 
+  it('inserts a block at an index, leaving the lesson unchanged', () => {
+    const [a, b, c] = [newBlock('markdown'), newBlock('video'), newBlock('code')];
+    const base = lessonOf([a, b]);
+    expect(addBlock(base, c, 0).blocks.map((x) => x.id)).toEqual([c.id, a.id, b.id]);
+    expect(addBlock(base, c, 1).blocks.map((x) => x.id)).toEqual([a.id, c.id, b.id]);
+    expect(addBlock(base, c, 9).blocks.map((x) => x.id)).toEqual([a.id, b.id, c.id]);
+    expect(base.blocks.map((x) => x.id)).toEqual([a.id, b.id]);
+  });
+
   it('duplicates a block right after the original under a new id', () => {
     const a = newBlock('markdown');
     const c = check();

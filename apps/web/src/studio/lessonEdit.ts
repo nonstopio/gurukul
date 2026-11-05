@@ -13,9 +13,9 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   check: 'Check',
 };
 
-/** The address a new Image block starts with: a stand-in the Upload tab replaces, never a real image. */
+/** The address a new Image block starts with: a stand-in a link or upload replaces, never a real image. */
 export const PLACEHOLDER_IMAGE = 'https://example.com/image.png';
-/** A new File block's stand-in address: not a real file, so the block opens on Upload. */
+/** A new File block's stand-in address: not a real file, so the Link field starts empty. */
 export const PLACEHOLDER_FILE = 'https://example.com/file.pdf';
 
 /** The block types an Educator can add, in palette order, with the name shown on the tile. */
@@ -81,9 +81,10 @@ export function editLesson(
   };
 }
 
-export const addBlock = (lesson: Lesson, block: Block): Lesson => ({
+/** Puts the block at index `at` (clamped), or at the end when `at` is left out. */
+export const addBlock = (lesson: Lesson, block: Block, at = lesson.blocks.length): Lesson => ({
   ...lesson,
-  blocks: [...lesson.blocks, block],
+  blocks: lesson.blocks.toSpliced(at, 0, block),
 });
 
 export const replaceBlock = (lesson: Lesson, block: Block): Lesson => ({

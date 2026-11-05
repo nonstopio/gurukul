@@ -13,4 +13,6 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
   // check meant, so the course is unchanged: those checks keep revealing only the explanation until
   // an Educator marks the answer, which publishing then requires.
   2: (course) => course,
+  // v4 adds the optional `cover.image`. No older course has one, so the course is unchanged.
+  3: (course) => course,
 };

@@ -16,7 +16,7 @@ describe('educator course', () => {
 
   it('has its identity, rules and certificate', () => {
     expect(educatorCourse).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: 'educator-onboarding',
       title: 'Becoming a Gurukul Educator',
       level: 'foundation',

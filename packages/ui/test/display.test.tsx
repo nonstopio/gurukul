@@ -5,6 +5,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  MAX_PROGRESS_STEPS,
   ProgressBar,
   GlobalLoader,
   ProgressRing,
@@ -71,6 +72,57 @@ describe('ProgressBar', () => {
     render(<ProgressBar value={44} label="Course progress" caption="44% · 10 / 22" />);
     expect(screen.getByText('44% · 10 / 22')).toBeTruthy();
     expect(screen.queryByText('44%')).toBeNull();
+  });
+
+  it('draws one segment per step, done filled and the current one ringed, and prints the count', () => {
+    const { container } = render(
+      <ProgressBar
+        value={50}
+        label="Course progress"
+        steps={[true, false, true, false]}
+        current={1}
+      />,
+    );
+    const bar = screen.getByRole('progressbar', { name: 'Course progress' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('50');
+    expect(bar.getAttribute('aria-valuetext')).toBe('2 of 4 done');
+    expect(screen.getByText('2 of 4 done')).toBeTruthy();
+    expect(container.firstElementChild?.className).toBe('g-progress g-progress--steps');
+    const steps = [...bar.children];
+    expect(steps.map((s) => s.className)).toEqual([
+      'g-progress__step g-progress__step--done',
+      'g-progress__step g-progress__step--current',
+      'g-progress__step g-progress__step--done',
+      'g-progress__step',
+    ]);
+    expect(steps.every((s) => s.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(container.querySelector('.g-progress__fill')).toBeNull();
+  });
+
+  it('speaks the value text it is given, and a caption still replaces the count', () => {
+    render(
+      <ProgressBar
+        value={50}
+        label="p"
+        steps={[true, false]}
+        valueText="50%, 1 of 2 lessons done"
+        caption="custom"
+      />,
+    );
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuetext')).toBe(
+      '50%, 1 of 2 lessons done',
+    );
+    expect(screen.getByText('custom')).toBeTruthy();
+  });
+
+  it(`falls back to one continuous fill above ${MAX_PROGRESS_STEPS} steps`, () => {
+    const many = Array.from({ length: MAX_PROGRESS_STEPS + 1 }, (_, i) => i < 10);
+    const { container, rerender } = render(<ProgressBar value={24} label="p" steps={many} />);
+    expect(container.querySelector('.g-progress__step')).toBeNull();
+    expect((container.querySelector('.g-progress__fill') as HTMLElement).style.width).toBe('24%');
+    expect(screen.getByText(`10 of ${MAX_PROGRESS_STEPS + 1} done`)).toBeTruthy();
+    rerender(<ProgressBar value={24} label="p" steps={many.slice(1)} />);
+    expect(container.querySelectorAll('.g-progress__step')).toHaveLength(MAX_PROGRESS_STEPS);
   });
 });
 
@@ -218,6 +270,7 @@ describe('display components accessibility', () => {
       <main>
         <Chip>Draft</Chip>
         <ProgressBar value={40} label="Course progress" />
+        <ProgressBar value={50} label="Steps" steps={[true, false]} current={1} />
         <ProgressRing value={60} label="Chapter progress" />
         <Card highlighted as="section" aria-label="Current">
           Body

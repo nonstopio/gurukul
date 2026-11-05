@@ -8,6 +8,7 @@ import { EXAMPLES, SHOWN_ELSEWHERE } from '../src/design-system/examples';
 import { groupTokens, parseTokens } from '../src/design-system/tokens';
 import { axeViolations } from './axe';
 import { openApp } from './harness';
+import { choose } from './select';
 
 // Vitest empties every CSS import, `?raw` included; the browser build gets the real file.
 vi.mock('@gurukul/ui/tokens.css?raw', async () => {
@@ -67,7 +68,7 @@ describe('Design system: tokens', () => {
 
   it('shows every group with live samples, filters them, and says when nothing matches', async () => {
     const user = userEvent.setup();
-    const { container } = await openSection();
+    const { container } = await openSection('tokens');
     expect(screen.getByRole('tab', { name: 'Tokens', selected: true })).toBeTruthy();
     for (const name of ['Surfaces, text and lines', 'Accent', 'Motion', 'Scale steps']) {
       expect(screen.getByRole('region', { name })).toBeTruthy();
@@ -100,7 +101,8 @@ describe('Design system: sections', () => {
   it('keeps the section in the URL beside the tab', async () => {
     const user = userEvent.setup();
     const { router } = await openSection('nonsense');
-    expect(screen.getByRole('tab', { name: 'Tokens', selected: true })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Components', selected: true })).toBeTruthy();
+    expect(screen.getAllByRole('tab')[0]?.textContent).toBe('Components');
     await user.click(screen.getByRole('tab', { name: 'Type' }));
     expect(router.state.location.search).toBe('?section=type');
     expect(screen.getByRole('region', { name: 'Families' })).toBeTruthy();
@@ -151,7 +153,7 @@ describe('Design system: components', () => {
       within(card).getByRole('button', { name: 'Remove filter: Level: Foundation' }),
     );
     expect(within(card).queryByText('Level: Foundation')).toBeNull();
-    await user.selectOptions(within(card).getByLabelText('Level'), 'foundation');
+    choose(within(card).getByLabelText('Level'), 'Foundation');
     expect(within(card).getByText('Level: Foundation')).toBeTruthy();
     await user.click(within(card).getByRole('button', { name: 'Assigned to me' }));
     await user.click(within(card).getByRole('button', { name: 'Clear all filters' }));
@@ -252,7 +254,7 @@ describe('Design system: components', () => {
     const bar = screen.getByRole('group', { name: 'Filter example people' });
     await user.type(within(bar).getByLabelText('Search people'), 'r');
     expect(within(bar).getByRole('status').textContent).toBe('3 of 3');
-    await user.selectOptions(within(bar).getByLabelText('Person'), 'b');
+    choose(within(bar).getByLabelText('Person'), 'Ravi Menon');
     expect(within(bar).getByRole('status').textContent).toBe('1 of 3');
     await user.click(within(bar).getByRole('button', { name: 'Clear filters' }));
     expect(within(bar).getByRole('status').textContent).toBe('3 of 3');

@@ -81,7 +81,8 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `listEmailTemplates` | Admin | `{ id, name, when, subject, body }[]`, every email template filled with sample data |
 | `sendTestEmail` | Admin | `{ to: string[] }`: the one or two `@nonstopio.com` addresses the Admin named, de-duplicated (`GEN_5004` when no Gmail credentials are set) |
 | `createCourse` | Educator, Admin | `{ courseId: string }` (`CRS_1002` when the slug is taken) |
-| `publishCourse` | Course Educator, Admin | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems) |
+| `publishCourse` | Course Educator, Admin | `{ version: number }` (`CRS_1003` with `details: { issues: PublishIssue[] }` when the draft has problems); keeps who can open the course as it is, and removes the draft's `answersChanged`; a request still carrying `visibility` or `visibleTeamIds` (a tab from before the access card) is refused with `VAL_1005` "Outdated request" (400, not retryable: reload the page) |
+| `setCourseAccess` | Course Educator, Admin | `CourseAccess`: `{ visibility, visibleTeamIds }` as stored, applied to the live course without a new version (`VAL_1002` for a bad visibility or a team visibility with no team, `CRS_2001` for an unknown course, `AUTH_2001` for someone who may not edit it) |
 | `rollbackCourse` | Course Educator, Admin | `{ version: number }`, the new version (`CRS_2002` for an unknown snapshot) |
 | `archiveCourse` | Admin | `{ status: 'published' \| 'archived' }` |
 

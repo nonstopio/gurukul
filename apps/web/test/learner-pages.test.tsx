@@ -19,6 +19,7 @@ import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
 import { log } from '../src/log';
 import { fakeQuiz } from './fake-quiz';
+import { choose } from './select';
 
 async function open(
   path: string,
@@ -250,9 +251,9 @@ describe('Catalogue', () => {
     expect(screen.getByText('Retired')).toBeTruthy();
     expect(screen.getByText('Assigned')).toBeTruthy();
     expect(screen.getAllByText('Public').length).toBe(2);
-    fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'advanced' } });
+    choose(screen.getByLabelText('Level'), 'Advanced');
     expect(screen.queryByRole('link', { name: 'Git, the NonStop Way' })).toBeNull();
-    fireEvent.change(screen.getByLabelText('Level'), { target: { value: '' } });
+    choose(screen.getByLabelText('Level'), 'Any level');
     fireEvent.click(screen.getByRole('button', { name: 'Assigned to me' }));
     expect(screen.queryByRole('link', { name: 'SQL basics' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Git, the NonStop Way' })).toBeTruthy();
@@ -279,7 +280,7 @@ describe('Catalogue', () => {
     expect(router.state.location.search).toBe('?q=sql');
     expect(screen.queryByRole('link', { name: 'Git, the NonStop Way' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'title' } });
+    choose(screen.getByLabelText('Sort by'), 'Title A to Z');
     expect(router.state.location.search).toBe('?sort=title');
     const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(titles).toEqual(['Git, the NonStop Way', 'SQL basics']);
@@ -792,22 +793,47 @@ describe('Lesson player', () => {
         }),
       );
 
-    it('asks for the answer in a toast until it has been shown, then moves on', async () => {
+    it('holds the button until the answer is shown, says why beside it, then moves on', async () => {
       const { router } = await openWith([check('k')]);
-      const why = 'Answer the question in this lesson to mark it complete.';
-      fireEvent.click(await screen.findByRole('button', { name: /^Mark complete/ }));
-      await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
+      const why = 'Answer the question above to mark this lesson complete.';
+      const button = (await screen.findByRole('button', {
+        name: /^Mark complete/,
+      })) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(
+        document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toBe(why);
+      // The reason sits after the last block, above the footer; the footer's live region is quiet.
+      const footer = button.closest('footer') as HTMLElement;
+      expect(screen.getByText(why).nextElementSibling?.nextElementSibling).toBe(footer);
+      const status = within(footer).getByRole('status');
+      expect(status.textContent).toBe('');
+      fireEvent.click(button);
       expect(router.state.location.pathname).toBe('/courses/git/learn/c');
       fireEvent.click(screen.getByText('Yes'));
-      fireEvent.click(screen.getByRole('button', { name: /^Mark complete/ }));
+      expect(button.disabled).toBe(false);
+      expect(button.getAttribute('aria-describedby')).toBeNull();
+      expect(status.textContent).toBe('You can mark this lesson complete now.');
+      fireEvent.click(button);
       await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/d'));
     });
 
-    it('counts the questions left when there are several', async () => {
+    it('counts the questions left', async () => {
       await openWith([check('k'), check('m')]);
       expect(
-        await screen.findByText('Answer the 2 questions in this lesson to mark it complete.'),
+        await screen.findByText('Answer the 2 questions above to mark this lesson complete.'),
       ).toBeTruthy();
+      fireEvent.click(within(screen.getByRole('group', { name: 'Question k?' })).getByText('Yes'));
+      expect(
+        screen.getByText('Answer the question above to mark this lesson complete.'),
+      ).toBeTruthy();
+    });
+
+    it('announces nothing on a lesson that never had to wait', async () => {
+      await openWith([]);
+      await screen.findByRole('button', { name: /^Mark complete/ });
+      expect(screen.queryByText('You can mark this lesson complete now.')).toBeNull();
+      expect(screen.queryByText(/to mark this lesson complete\.$/)).toBeNull();
     });
   });
 
@@ -874,23 +900,33 @@ describe('Lesson player', () => {
     const markComplete = async () =>
       (await screen.findByRole('button', { name: /^Mark complete/ })) as HTMLButtonElement;
 
-    it('waits for the video on a video90 lesson, and a press says why in a toast', async () => {
+    it('waits for the video on a video90 lesson and says why', async () => {
       const { router } = await openWith([
         lesson('v', { completeWhen: 'video90', blocks: [drive] }),
         lesson('w'),
       ]);
       const button = await markComplete();
-      const why = 'Watch 90% of the video to mark this lesson complete.';
+      const why = 'Watch 90% of the video above to mark this lesson complete.';
+      expect(button.disabled).toBe(true);
       expect(
         document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent,
       ).toBe(why);
-      fireEvent.click(button);
-      await waitFor(() => expect(screen.getAllByText(why)).toHaveLength(2));
+      const attest = screen.getByRole('switch', { name: 'I have watched the video' });
       expect(router.state.location.pathname).toBe('/courses/git/learn/v');
-      fireEvent.click(screen.getByRole('switch', { name: 'I have watched the video' }));
+      fireEvent.click(attest);
+      expect(button.disabled).toBe(false);
       expect(button.getAttribute('aria-describedby')).toBeNull();
       fireEvent.click(button);
       await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/w'));
+    });
+
+    it('counts the videos left', async () => {
+      await openWith([
+        lesson('v', { completeWhen: 'video90', blocks: [drive, { ...drive, id: 'v2' }] }),
+      ]);
+      expect(
+        await screen.findByText('Watch 90% of the 2 videos above to mark this lesson complete.'),
+      ).toBeTruthy();
     });
 
     it('renders a split lesson as one column, like every other layout', async () => {

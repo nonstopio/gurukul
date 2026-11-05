@@ -7,6 +7,7 @@ import { fakeConsole } from './fake-console';
 import { makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { choose, optionNames } from './select';
 
 const question = (id: string, over: Partial<Question> = {}): Question => ({
   id,
@@ -170,7 +171,7 @@ describe('Quiz builder: editing a question', () => {
     change('Question (Markdown)', 'What is HEAD?');
     change('Code (optional)', 'git log');
     change('Explanation', 'It points at the tip.');
-    change('Revisit link', 'l3');
+    choose(screen.getByLabelText('Revisit link'), 'Lesson l3');
     await saveNow();
     expect(saved(studio).p.questions[0]).toMatchObject({
       prompt: 'What is HEAD?',
@@ -179,7 +180,7 @@ describe('Quiz builder: editing a question', () => {
       reviewItemId: 'l3',
     });
     change('Code (optional)', '');
-    change('Revisit link', '');
+    choose(screen.getByLabelText('Revisit link'), 'No link');
     await saveNow();
     const first = saved(studio).p.questions[0] as Question;
     expect('code' in first).toBe(false);
@@ -188,12 +189,13 @@ describe('Quiz builder: editing a question', () => {
 
   it('lists the course lessons as revisit links', async () => {
     await open();
-    const select = screen.getByLabelText('Revisit link');
-    expect(
-      within(select)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['No link', 'Lesson l1', 'Lesson l2', 'Lesson l3', 'Lesson l4']);
+    expect(optionNames(screen.getByLabelText('Revisit link'))).toEqual([
+      'No link',
+      'Lesson l1',
+      'Lesson l2',
+      'Lesson l3',
+      'Lesson l4',
+    ]);
   });
 
   it('marks one correct answer for single choice', async () => {
@@ -206,7 +208,7 @@ describe('Quiz builder: editing a question', () => {
 
   it('shows checkboxes for multiple choice and keeps at least one marked', async () => {
     const { studio } = await open();
-    change('Question type', 'multiple');
+    choose(screen.getByLabelText('Question type'), 'Multiple choice');
     const first = screen.getByLabelText('Answer 1 is correct') as HTMLInputElement;
     expect(first.type).toBe('checkbox');
     fireEvent.click(screen.getByLabelText('Answer 2 is correct'));
@@ -220,15 +222,15 @@ describe('Quiz builder: editing a question', () => {
 
   it('reduces several correct answers to one when leaving multiple choice', async () => {
     const { studio } = await open({ answers: { q1: { k1: ['k1a', 'k1c'], k2: [], k3: [] } } });
-    change('Question type', 'multiple');
-    change('Question type', 'single');
+    choose(screen.getByLabelText('Question type'), 'Multiple choice');
+    choose(screen.getByLabelText('Question type'), 'Single choice');
     await saveNow();
     expect(saved(studio).keys?.k1).toEqual(['k1a']);
   });
 
   it('locks true or false to two answers that cannot be edited or removed', async () => {
     const { studio } = await open();
-    change('Question type', 'trueFalse');
+    choose(screen.getByLabelText('Question type'), 'True or false');
     expect((screen.getByLabelText('Answer 1') as HTMLInputElement).value).toBe('True');
     expect((screen.getByLabelText('Answer 2') as HTMLInputElement).value).toBe('False');
     expect(screen.queryByLabelText('Answer 3')).toBeNull();
@@ -245,7 +247,7 @@ describe('Quiz builder: editing a question', () => {
 
   it('asks for the code in a code-output question', async () => {
     await open();
-    change('Question type', 'codeOutput');
+    choose(screen.getByLabelText('Question type'), 'What does this code print?');
     expect(screen.getByLabelText('Code to read')).toBeTruthy();
   });
 
@@ -391,16 +393,37 @@ describe('Quiz builder: settings', () => {
     change('Pass mark (%)', '80');
     change('Questions shown', '3');
     change('Cooldown between attempts (minutes)', '30');
-    fireEvent.click(screen.getByRole('switch', { name: 'Shuffle answer order' }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Answers in your order',
+        description: 'Every attempt shows the answers in the order you wrote them.',
+      }),
+    );
+    expect(
+      screen.getByRole('switch', {
+        name: 'Shuffle answer order',
+        description: "Each attempt shows every question's answers in a new random order.",
+      }),
+    ).toBeTruthy();
     expect(
       screen.getByText(
         'To keep later chapters locked too, turn on "Learners go in order" in the course\'s Learning rules.',
       ),
     ).toBeTruthy();
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Learners must pass to open the rest of this chapter' }),
+      screen.getByRole('switch', {
+        name: 'Learners must pass to open the rest of this chapter',
+        description:
+          'To keep later chapters locked too, turn on "Learners go in order" in the course\'s Learning rules.',
+      }),
     );
-    change('Reveal answers', 'never');
+    expect(
+      screen.getByRole('switch', {
+        name: 'Learners can skip ahead',
+        description: 'The rest of this chapter stays open whether or not they pass.',
+      }),
+    ).toBeTruthy();
+    choose(screen.getByLabelText('Reveal answers'), 'Never');
     await saveNow();
     expect(saved(studio).p).toMatchObject({
       title: 'Final check',
@@ -418,7 +441,11 @@ describe('Quiz builder: settings', () => {
     change('Pass mark (%)', '80');
     change('Pass mark (%)', '');
     await saveNow();
-    expect('passMark' in saved(studio).p).toBe(false);
+    // Back to the course pass mark, as stored: nothing to write.
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
+    change('Pass mark (%)', '80');
+    await saveNow();
+    expect(saved(studio).p.passMark).toBe(0.8);
   });
 
   it('never lets questions shown go above the number of questions', async () => {

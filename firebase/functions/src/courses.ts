@@ -33,6 +33,8 @@ export interface DraftData {
   rev: number;
   course: Course;
   answers: AnswerKeys;
+  /** An answer key was edited since the last publish (Studio sets it; publishing removes it). */
+  answersChanged?: boolean;
 }
 
 export interface VersionData {
@@ -55,6 +57,8 @@ export interface ReleasePlan {
   access: CourseAccess;
   answers: AnswerKeys;
   resetDraft?: DraftData;
+  /** Removes the draft's `answersChanged` mark: the keys it stood for are now live. */
+  clearAnswersChanged?: boolean;
 }
 
 export interface NewCourse {
@@ -84,6 +88,8 @@ export interface CourseStore {
     decide: (state: ReleaseState) => ReleasePlan,
   ): Promise<number>;
   setStatus(courseId: string, status: 'published' | 'archived'): Promise<void>;
+  /** Writes who may open the course onto its live document; no new version. */
+  setAccess(courseId: string, access: CourseAccess): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
 }
 
@@ -202,9 +208,8 @@ const released = (course: Course, live: LiveCourse, courseId: string, version: n
   estimatedMinutes: estimateMinutes(course),
 });
 
-/** The visibility a publish asks for, or `undefined` when it leaves it as it is. */
-function requestedAccess(data: Record<string, unknown>): CourseAccess | undefined {
-  if (data['visibility'] === undefined) return undefined;
+/** The visibility a request asks for. */
+function requestedAccess(data: Record<string, unknown>): CourseAccess {
   return field(
     'visibility',
     { visibility: data['visibility'], visibleTeamIds: data['visibleTeamIds'] ?? [] },
@@ -243,7 +248,11 @@ export async function publishCourse(
   checks: PublishChecks = publishChecks(),
 ): Promise<{ version: number }> {
   const courseId = idField('courseId', data['courseId']);
-  const requested = requestedAccess(data);
+  // A tab opened before access moved to `setCourseAccess` still sends its choice here; refuse it
+  // rather than publish with that choice silently dropped.
+  const stale = ['visibility', 'visibleTeamIds'].find((field) => field in data);
+  if (stale !== undefined)
+    throw new ApiException('VAL_1005', [stale, 'publishCourse'], { field: stale });
   log.debug('Publishing a course', { courseId });
   const version = await store.release(courseId, caller.uid, null, ({ live, draft }) => {
     const current = requireEditor(caller, live, courseId, 'publishCourse');
@@ -259,9 +268,14 @@ export async function publishCourse(
     }
     const next = current.version + 1;
     const course = released(upgraded, current, courseId, next);
-    // Sent with the publish when the publisher changed it; otherwise the live course keeps its own.
-    const access = requested === undefined ? accessOf(current) : requested;
-    return { version: next, course, access, answers: restrictAnswers(course, draft.answers) };
+    // Who may open it is set apart (`setCourseAccess`), so a publish keeps what the course has.
+    return {
+      version: next,
+      course,
+      access: accessOf(current),
+      answers: restrictAnswers(course, draft.answers),
+      clearAnswersChanged: draft.answersChanged === true,
+    };
   });
   await store.audit({
     action: 'course.publish',
@@ -271,6 +285,31 @@ export async function publishCourse(
   });
   log.info('Course published', { courseId, uid: caller.uid, count: version });
   return { version };
+}
+
+/**
+ * `setCourseAccess`: who may open the course, applied to the live document at once without a new
+ * version. On a course never published it waits there and the first publish keeps it (the rules
+ * show a never-published course to Educators and Admins only, whatever it says).
+ */
+export async function setCourseAccess(
+  store: CourseStore,
+  caller: Caller,
+  data: Record<string, unknown>,
+): Promise<CourseAccess> {
+  const courseId = idField('courseId', data['courseId']);
+  const access = requestedAccess(data);
+  log.debug('Setting who can open a course', { courseId });
+  requireEditor(caller, await store.getLive(courseId), courseId, 'setCourseAccess');
+  await store.setAccess(courseId, access);
+  await store.audit({
+    action: 'course.access',
+    by: caller.uid,
+    target: courseId,
+    detail: { visibility: access.visibility, teams: access.visibleTeamIds.length },
+  });
+  log.info('Course access changed', { courseId, uid: caller.uid, status: access.visibility });
+  return access;
 }
 
 /** `rollbackCourse`: publishes an old snapshot as a new version and resets the draft to it. */

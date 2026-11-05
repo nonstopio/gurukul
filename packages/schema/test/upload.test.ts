@@ -384,8 +384,7 @@ describe('the new block fields', () => {
     expect(blockCodes(c)).toEqual([]);
   });
   it('needs no schemaVersion bump: both readers keep the new fields on a v3 course', () => {
-    const c = withBlocks([image({ layout: 'medium' }), file()]);
-    expect(c.schemaVersion).toBe(3);
+    const c = { ...withBlocks([image({ layout: 'medium' }), file()]), schemaVersion: 3 };
     for (const read of [migrateCourse(c), readCourse(c)]) {
       const blocks = read?.chapters[0]?.items[0];
       expect(blocks?.type === 'lesson' && blocks.blocks).toMatchObject([
@@ -460,6 +459,28 @@ describe('the new block fields', () => {
         .filter((c) => c.startsWith('block.'));
     expect(run({})).toEqual(['block.image.url', 'block.image.upload', 'block.file.url']);
     expect(run({ bucket: 'demo.appspot.com', emulatorHost: '127.0.0.1:9199' })).toEqual([]);
+  });
+  it('checks a cover image like an uploaded block: its own file, in this course', () => {
+    const covered = (image: object) => {
+      const c = makeCourse();
+      return { ...c, cover: { ...c.cover, image } } as Course;
+    };
+    const cover = { url: dl(imageUpload.path), width: 1600, height: 900, upload: imageUpload };
+    const coverCodes = (c: Course) =>
+      validateForPublish(c, { q1: { k1: ['a'] } })
+        .map((i) => i.code)
+        .filter((code) => code.startsWith('course.cover') || code === 'schema');
+    expect(courseSchema.safeParse(covered(cover)).success).toBe(true);
+    expect(coverCodes(covered(cover))).toEqual([]);
+    expect(coverCodes(covered({ ...cover, url: dl('courses/git/media/zzz.png') }))).toEqual([
+      'course.cover.upload',
+    ]);
+    const other = { ...imageUpload, path: 'courses/other/media/abc123.png' };
+    expect(coverCodes(covered({ ...cover, upload: other, url: dl(other.path) }))).toEqual([
+      'course.cover.upload',
+    ]);
+    // Always an upload with its size: a bare address is not a cover image.
+    expect(courseSchema.safeParse(covered({ url: dl(imageUpload.path) })).success).toBe(false);
   });
   it('words the cross-course problem so an Educator can act on it', () => {
     const other = { ...imageUpload, path: 'courses/other/media/abc123.png' };

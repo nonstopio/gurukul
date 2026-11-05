@@ -35,32 +35,6 @@ describe('Field controls', () => {
     expect(screen.getByLabelText('Name').id).toBe('custom');
   });
 
-  it('Select renders its options and is labelled', () => {
-    render(
-      <Select label="Role" error="Pick one" defaultValue="b">
-        <option value="a">Learner</option>
-        <option value="b">Educator</option>
-      </Select>,
-    );
-    const select = screen.getByRole('combobox', { name: 'Role' }) as HTMLSelectElement;
-    expect(select.value).toBe('b');
-    expect(select.getAttribute('aria-invalid')).toBe('true');
-  });
-
-  it('Select wraps the native element with a decorative chevron', () => {
-    render(
-      <Select label="Course">
-        <option>Git basics</option>
-      </Select>,
-    );
-    const select = screen.getByRole('combobox', { name: 'Course' });
-    expect(select.parentElement?.className).toBe('g-select');
-    const chevron = select.nextElementSibling;
-    expect(chevron?.tagName).toBe('svg');
-    expect(chevron?.getAttribute('aria-hidden')).toBe('true');
-    expect(chevron?.getAttribute('class')).toBe('g-select__chevron');
-  });
-
   it('hideLabel keeps the label as the accessible name but hides it visually', () => {
     render(
       <>
@@ -93,6 +67,14 @@ describe('Field controls', () => {
     expect(onChange).toHaveBeenCalledOnce();
   });
 
+  it('a read-only Input keeps its value, label and tab stop', () => {
+    render(<Input label="Address" readOnly defaultValue="git-basics" />);
+    const input = screen.getByRole('textbox', { name: 'Address' }) as HTMLInputElement;
+    expect(input.readOnly).toBe(true);
+    expect(input.value).toBe('git-basics');
+    expect(input.tabIndex).toBe(0);
+  });
+
   it('Field hands any control the props it needs', () => {
     render(
       <Field label="Custom" hint="h">
@@ -116,6 +98,7 @@ describe('Field controls', () => {
           <option>Any status</option>
         </Select>
         <Input label="Locked" disabled defaultValue="x" />
+        <Input label="Address" readOnly defaultValue="git-basics" />
       </form>,
     );
     expect(await axeViolations(container)).toEqual([]);

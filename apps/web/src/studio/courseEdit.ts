@@ -1,5 +1,6 @@
 import { moveItem } from '@gurukul/ui';
-import type { Course, Item, Lesson, Quiz, Chapter } from '@gurukul/schema';
+import type { Course, CoverImage, Item, Lesson, Quiz, Chapter } from '@gurukul/schema';
+import { patch } from './patch';
 import type { Working } from './types';
 
 /**
@@ -46,6 +47,21 @@ export function setCertificate(w: Working, patch: Partial<Course['certificate']>
 
 export function setCoverTheme(w: Working, theme: Course['cover']['theme']): Working {
   return patchCourse(w, { cover: { ...w.course.cover, theme } });
+}
+
+/**
+ * Sets the course's one cover image, or removes it (`undefined`): tiles then show the first lesson
+ * image, else the name on the theme colour. Only the stored fields are kept. The old file stays in
+ * Storage for the weekly clean-up, since a published version may still show it.
+ */
+export function setCoverImage(w: Working, image: CoverImage | undefined): Working {
+  const next = image && {
+    url: image.url,
+    width: image.width,
+    height: image.height,
+    upload: image.upload,
+  };
+  return patchCourse(w, { cover: patch(w.course.cover, { image: next }) });
 }
 
 /** Replaces one learning outcome. */

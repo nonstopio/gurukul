@@ -6,7 +6,7 @@ import { Link, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
 import { BlockScope } from './blocks/BlockScope';
 import { BlockPreviewFrame } from './blocks/BlockPreviewFrame';
-import { BlockPalette } from './blocks/BlockPalette';
+import { BlockInsert, BlockPalette } from './blocks/BlockPalette';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DraftGate } from './DraftGate';
 import { focusBlock } from './focusBlock';
@@ -40,6 +40,14 @@ const completion = (t: Terms): Array<{ value: Lesson['completeWhen']; label: str
   { value: 'video90', label: 'After 90% of the video' },
   { value: 'scrolled', label: 'After scrolling to the end' },
 ];
+
+/** The name of the "+" above block `index`: where the new block lands. */
+const insertLabel = (blocks: Block[], index: number): string => {
+  const before = blocks[index - 1];
+  return before
+    ? `Add block after block ${index}, ${BLOCK_LABELS[before.type]}`
+    : 'Add block at the start';
+};
 
 /** `/studio/courses/:courseId/lessons/:lessonId`: lesson rail, block canvas and lesson settings. */
 export function LessonEditorPage() {
@@ -150,9 +158,9 @@ function LessonEditor({
       .join(' ');
   const titleIssue = issues.find((i) => i.itemId === lessonId && i.code === 'item.title');
 
-  const add = (type: BlockType) => {
+  const add = (type: BlockType, at?: number) => {
     const block = newBlock(type);
-    edit((l) => addBlock(l, block));
+    edit((l) => addBlock(l, block, at));
     setSelected(block.id);
     focusAfterRender.current = block.id;
   };
@@ -217,21 +225,27 @@ function LessonEditor({
               itemKey={(b) => b.id}
               itemLabel={(b) => `${BLOCK_LABELS[b.type]} block`}
               onMove={(from, to) => edit((l) => moveBlock(l, from, to))}
-              renderItem={(block, { handle }) => (
-                <div data-block-id={block.id}>
-                  <BlockScope courseId={courseId} uid={uid} uploadedImages={hosted}>
-                    <BlockPreviewFrame
-                      block={block}
-                      onChange={(next) => edit((l) => replaceBlock(l, next))}
-                      label={BLOCK_LABELS[block.type]}
-                      handle={handle}
-                      selected={selected === block.id}
-                      error={messages(block.id)}
-                      onDuplicate={() => duplicate(block.id)}
-                      onDelete={() => remove(block)}
-                    />
-                  </BlockScope>
-                </div>
+              renderItem={(block, { index, handle }) => (
+                <>
+                  <BlockInsert
+                    label={insertLabel(lesson.blocks, index)}
+                    onAdd={(type) => add(type, index)}
+                  />
+                  <div data-block-id={block.id}>
+                    <BlockScope courseId={courseId} uid={uid} uploadedImages={hosted}>
+                      <BlockPreviewFrame
+                        block={block}
+                        onChange={(next) => edit((l) => replaceBlock(l, next))}
+                        label={BLOCK_LABELS[block.type]}
+                        handle={handle}
+                        selected={selected === block.id}
+                        error={messages(block.id)}
+                        onDuplicate={() => duplicate(block.id)}
+                        onDelete={() => remove(block)}
+                      />
+                    </BlockScope>
+                  </div>
+                </>
               )}
             />
             {lesson.blocks.length === 0 ? (

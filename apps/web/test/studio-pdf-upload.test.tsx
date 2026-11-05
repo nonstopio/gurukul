@@ -45,7 +45,12 @@ function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }
 
 function setup(
   block: Block = newBlock('file'),
-  over: { studio?: ReturnType<typeof fakeStudio>; data?: ReturnType<typeof fakeData> } = {},
+  over: {
+    studio?: ReturnType<typeof fakeStudio>;
+    data?: ReturnType<typeof fakeData>;
+    /** Leave the editor on the tab it opened on. By default the Upload tab is opened, as these tests are about it. */
+    stay?: boolean;
+  } = {},
 ) {
   const studio = over.studio ?? fakeStudio();
   const seen = vi.fn();
@@ -54,6 +59,7 @@ function setup(
       <Harness initial={block} seen={seen} />
     </BlockProviders>,
   );
+  if (!over.stay) fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
   return { ...view, studio, seen, last: () => seen.mock.lastCall?.[0] as Block };
 }
 
@@ -114,7 +120,15 @@ const hosted = (over: object = {}): Block =>
   }) as Block;
 
 describe('the File block tabs', () => {
-  it('opens a new block on Upload, with the rules and the no-personal-data notice', async () => {
+  it('opens a new block on Link, first and empty, and lists Upload second', () => {
+    setup(undefined, { stay: true });
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Link', 'Upload']);
+    expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByLabelText('File address') as HTMLInputElement).value).toBe('');
+  });
+
+  it('shows the rules and the no-personal-data notice on the Upload tab', async () => {
     const { container } = setup();
     expect(screen.getByRole('tab', { name: 'Upload' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('PDF only · up to 1.0 MB')).toBeTruthy();
@@ -127,13 +141,15 @@ describe('the File block tabs', () => {
   });
 
   it('opens a linked file on Link and an uploaded one on Upload', () => {
-    const linked = setup({ ...newBlock('file'), url: 'https://example.com/a.pdf' } as Block);
+    const linked = setup({ ...newBlock('file'), url: 'https://example.com/a.pdf' } as Block, {
+      stay: true,
+    });
     expect(screen.getByRole('tab', { name: 'Link' }).getAttribute('aria-selected')).toBe('true');
     expect(
       screen.getByText(/A file on GitHub or Google Drive \(shared with nonstopio\.com\)/),
     ).toBeTruthy();
     linked.unmount();
-    setup(hosted());
+    setup(hosted(), { stay: true });
     expect(screen.getByRole('tab', { name: 'Upload' }).getAttribute('aria-selected')).toBe('true');
   });
 
@@ -167,7 +183,10 @@ describe('the File block tabs', () => {
   });
 
   it('previews a linked file with a stand-in label until one is typed', () => {
-    const { container } = setup({ ...newBlock('file'), url: 'https://example.com/a.pdf' } as Block);
+    const { container } = setup(
+      { ...newBlock('file'), url: 'https://example.com/a.pdf' } as Block,
+      { stay: true },
+    );
     expect(container.querySelector('.file-link')?.textContent).toBe('Untitled file');
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Cheat sheet' } });
     expect(container.querySelector('.file-link')?.textContent).toBe('Cheat sheet');

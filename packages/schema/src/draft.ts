@@ -3,6 +3,7 @@ import { COURSE_SCHEMA_VERSION, courseSchema } from './course';
 import type { Block, Course, Item, Question } from './course';
 import { isEmbedAllowed, videoEmbedUrl } from './media';
 import { upgradeCourse } from './migrations';
+import { schemaIssues } from './publishWords';
 import { isDownloadUrlFor } from './upload';
 import { itemsOf } from './progress';
 import { timestamp } from './timestamp';
@@ -21,6 +22,12 @@ export const draftSchema = z.object({
   updatedBy: z.string().min(1),
   course: courseSchema,
   answers: z.record(z.string(), z.record(z.string(), z.array(z.string()))),
+  /**
+   * Set when an answer key was edited since the last publish: the browser cannot read the
+   * published keys to compare, so this is how Studio knows there is something to publish. The
+   * publish function removes it. An edit undone after it was saved leaves it set.
+   */
+  answersChanged: z.literal(true).optional(),
 });
 export type Draft = z.infer<typeof draftSchema>;
 
@@ -81,9 +88,21 @@ export interface PublishIssue {
   itemId?: string;
   blockId?: string;
   questionId?: string;
+  /** For `course.outcome.blank`: which outcome, from 0. */
+  outcome?: number;
 }
 
 const blank = (s: string) => s.trim() === '';
+
+/** Outcomes a course needs before it can be published: what the landing page promises. */
+export const MIN_OUTCOMES = 2;
+
+/** Issue codes for the Landing page tab, so the publish checklist can send the Educator there. */
+export const LANDING_ISSUES: ReadonlySet<string> = new Set([
+  'course.description',
+  'course.outcomes',
+  'course.outcome.blank',
+]);
 
 /** Fields where the schema's lower bound is a real rule nothing else words for the Educator. */
 const NUMBERS_AND_IDS = new Set(['questionsShown', 'minutes', 'cooldownMinutes', 'id', 'lang']);
@@ -211,10 +230,13 @@ function questionIssues(
  * An empty list means publishable.
  */
 export function validateForPublish(
-  course: Course,
+  stored: Course,
   answers: AnswerKeys,
   options: { bucket?: string | undefined; emulatorHost?: string | undefined } = {},
 ): PublishIssue[] {
+  // A draft saved at an older schemaVersion (an older tab, an older app) is judged in today's
+  // shape, the shape publishing gives it, never refused for its version.
+  const course = upgradeCourse(stored) as Course;
   const out: PublishIssue[] = [];
   const parsed = courseSchema.safeParse(course);
   if (!parsed.success) {
@@ -222,9 +244,12 @@ export function validateForPublish(
     // On a number or an id it is not: 0 questions shown, negative minutes, an empty id.
     const wordedBelow = (x: { code: string; path: PropertyKey[] }) =>
       x.code === 'too_small' && !NUMBERS_AND_IDS.has(String(x.path[x.path.length - 1]));
-    for (const i of parsed.error.issues.filter((x) => !wordedBelow(x))) {
-      out.push({ code: 'schema', message: `${i.path.join('.') || 'course'}: ${i.message}` });
-    }
+    out.push(
+      ...schemaIssues(
+        parsed.error.issues.filter((x) => !wordedBelow(x)),
+        course,
+      ),
+    );
   }
   try {
     out.push(
@@ -245,6 +270,26 @@ function contentIssues(course: Course, answers: AnswerKeys, ctx: PublishContext)
   if (blank(course.title)) out.push({ code: 'course.title', message: 'The course needs a title.' });
   if (blank(course.summary))
     out.push({ code: 'course.summary', message: 'The course needs a one-sentence summary.' });
+  if (blank(course.description))
+    out.push({ code: 'course.description', message: 'Add a description on the Landing page.' });
+  // A blank outcome would publish as an empty bullet on the landing page.
+  course.outcomes.forEach((o, i) => {
+    if (blank(o))
+      out.push({
+        code: 'course.outcome.blank',
+        message: `Outcome ${i + 1} is empty. Fill it in or remove it on the Landing page.`,
+        outcome: i,
+      });
+  });
+  const outcomes = course.outcomes.filter((o) => !blank(o)).length;
+  if (outcomes < MIN_OUTCOMES)
+    out.push({
+      code: 'course.outcomes',
+      message: `Add at least ${MIN_OUTCOMES} outcomes on the Landing page (you have ${outcomes}).`,
+    });
+  const cover = course.cover.image;
+  const coverProblem = cover ? uploadProblem(ctx, cover.url, cover.upload) : null;
+  if (coverProblem !== null) out.push({ code: 'course.cover.upload', message: coverProblem });
   const items: Item[] = itemsOf(course);
   if (items.length === 0)
     out.push({ code: 'course.empty', message: 'Add at least one lesson before publishing.' });

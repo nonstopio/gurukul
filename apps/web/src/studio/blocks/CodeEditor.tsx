@@ -1,5 +1,6 @@
 import { Input, Select, ToggleCard } from '@gurukul/ui';
 import { patch } from '../patch';
+import { useTerms } from '../../labels/useTerms';
 import { CodeField } from './CodeField';
 import type { BlockEditorProps } from './types';
 
@@ -22,6 +23,7 @@ const LANGUAGES = [
 
 /** A code listing: language, file name, the code, and how it is shown (copy button, terminal look, highlighted lines). */
 export function CodeEditor({ block, onChange }: BlockEditorProps<'code'>) {
+  const t = useTerms();
   const languages = LANGUAGES.includes(block.lang) ? LANGUAGES : [block.lang, ...LANGUAGES];
   return (
     <div className="studio-fields">
@@ -54,12 +56,22 @@ export function CodeEditor({ block, onChange }: BlockEditorProps<'code'>) {
       />
       <div className="studio-row">
         <ToggleCard
-          title="Copy button"
+          title={block.copy ? 'Copy button' : 'No copy button'}
+          description={
+            block.copy
+              ? `${t.Learners} get a button that puts the code on their clipboard, without any $ prompts.`
+              : `${t.Learners} select and copy the code themselves.`
+          }
           checked={block.copy}
           onChange={(e) => onChange({ ...block, copy: e.target.checked })}
         />
         <ToggleCard
-          title="Terminal style"
+          title={block.terminal ? 'Terminal style' : 'Plain code'}
+          description={
+            block.terminal
+              ? "A $ prompt starts each line. With Copy button off, it shows as a command's output instead."
+              : 'Shown as code, with no $ prompt.'
+          }
           checked={block.terminal}
           onChange={(e) => onChange({ ...block, terminal: e.target.checked })}
         />

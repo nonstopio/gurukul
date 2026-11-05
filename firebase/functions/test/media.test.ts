@@ -58,6 +58,23 @@ const withBlocks = (blocks: object[], over: object = {}) =>
     },
   );
 
+/** A course whose cover image is the uploaded file `path`. */
+const covered = (path: string) => {
+  const c = withBlocks([]);
+  return {
+    ...c,
+    cover: {
+      ...c.cover,
+      image: {
+        url: 'https://example.com/c.png',
+        width: 1600,
+        height: 900,
+        upload: { path, bytes: 1000, name: 'c.png', contentType: 'image/png' },
+      },
+    },
+  };
+};
+
 describe('referencedPaths', () => {
   it('lists the upload paths of image and file blocks, and ignores linked media and quizzes', () => {
     const c = withBlocks([
@@ -70,11 +87,19 @@ describe('referencedPaths', () => {
       media('git-basics', 'a.png'),
       media('git-basics', 'b.pdf'),
     ]);
-    expect(referencedPaths({ chapters: [] } as never)).toEqual([]);
+    expect(referencedPaths({ chapters: [], cover: {} } as never)).toEqual([]);
   });
 });
 
 describe('collectReferences', () => {
+  it('counts a cover image in the draft, the course or any version as referenced', () => {
+    // A replaced cover: the draft has the new one, an older version still shows the old one.
+    const [newer, older] = [media('git-basics', 'new.png'), media('git-basics', 'old.png')];
+    expect(collectReferences([covered(newer), withBlocks([]), covered(older)])).toEqual(
+      new Set([newer, older]),
+    );
+  });
+
   it('unions the paths of every copy it is given', () => {
     const a = withBlocks([image(media('git-basics', 'a.png'))]);
     const b = withBlocks([image(media('git-basics', 'b.png'))]);
@@ -173,6 +198,23 @@ describe('runMediaCleanup', () => {
     await expect(run()).resolves.toEqual({ deleted: 1, courses: 1, skipped: 0, blocked: false });
     expect(storage.deleteFile).toHaveBeenCalledTimes(1);
     expect(storage.deleteFile).toHaveBeenCalledWith(media('a', 'orphan.png'));
+  });
+
+  it('deletes a replaced cover image once no copy names it, and keeps one a version still shows', async () => {
+    const { storage, run } = setup({
+      a: {
+        // The draft and the course show the new cover; version 1 shows the first one.
+        objects: [
+          covered(media('a', 'new.png')),
+          covered(media('a', 'new.png')),
+          covered(media('a', 'v1.png')),
+        ],
+        files: [f('a', 'new.png', 99), f('a', 'v1.png', 99), f('a', 'replaced.png', 99)],
+      },
+    });
+    await expect(run()).resolves.toEqual({ deleted: 1, courses: 1, skipped: 0, blocked: false });
+    expect(storage.deleteFile).toHaveBeenCalledTimes(1);
+    expect(storage.deleteFile).toHaveBeenCalledWith(media('a', 'replaced.png'));
   });
 
   it('skips a course with a copy that does not parse, deleting nothing of it, and warns', async () => {

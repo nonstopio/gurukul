@@ -19,6 +19,7 @@ import {
 import type { Firestore } from 'firebase/firestore';
 import { log } from '../log';
 import { DraftConflictError } from './errors';
+import { sameWork } from './studioModel';
 import type { BankQuestion, DraftDoc, StudioCourse, StudioData, VersionRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
@@ -78,6 +79,7 @@ function toDraft(d: Record<string, unknown>): DraftDoc {
     updatedBy: (d.updatedBy as string | undefined) ?? '',
     course: draftCourse(d.course),
     answers: (d.answers as AnswerKeys | undefined) ?? {},
+    ...(d.answersChanged === true ? { answersChanged: true as const } : {}),
   };
 }
 
@@ -122,12 +124,24 @@ export function firebaseStudioData(db: Firestore): StudioData {
       return runTransaction(db, async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists() || snap.data().rev !== baseRev) throw new DraftConflictError();
+        // The mark is decided against the draft as stored now, not as this tab loaded it: a publish
+        // removes it without moving `rev`, so a tab open since then must not write it back unless
+        // its keys still differ from the stored (now live) ones.
+        const prior = snap.data();
+        const marked =
+          prior.answersChanged === true ||
+          !sameWork(
+            { course: work.course, answers: work.answers },
+            { course: work.course, answers: prior.answers as AnswerKeys },
+          );
         tx.update(ref, {
           rev: baseRev + 1,
           updatedAt: serverTimestamp(),
           updatedBy: uid,
           course: cleanForFirestore(work.course),
           answers: cleanForFirestore(work.answers),
+          // Never written false: only the publish function removes the mark.
+          ...(marked ? { answersChanged: true } : {}),
         });
         return baseRev + 1;
       });

@@ -78,7 +78,7 @@ decision: `.plan/11-deployment-and-cost.md`, `.plan/13-open-questions.md` questi
 
 `weeklyMediaCleanup` runs every Sunday at 05:00 UTC. For each course it reads the draft, the live
 course and every version snapshot, and deletes the files in `courses/{courseId}/media/` of the default
-bucket that none of them names and that were created more than 30 days ago. A course with a document
+bucket that none of them names (in a block or as the course's cover image, `cover.image`) and that were created more than 30 days ago. A course with a document
 that does not parse is skipped and logged (`Media clean-up skipped a course`). If a run would delete
 more than 200 files, or more than half of the files of a course with five or more, it deletes nothing
 for that run (or course) and logs a warning with counts (`Media clean-up held back ...`): look at the

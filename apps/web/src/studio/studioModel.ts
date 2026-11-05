@@ -10,7 +10,7 @@ import type {
 } from '@gurukul/schema';
 import type { MediaKind as TileKind, TypeTileKind } from '@gurukul/ui';
 import type { Terms } from '../labels/terms';
-import type { StudioCourse } from './types';
+import type { StudioCourse, Working } from './types';
 
 /** Whether this person may edit a course: an Admin, or one of its Educators. */
 export function canEdit(course: Pick<Course, 'educatorIds'>, uid: string, admin: boolean): boolean {
@@ -86,10 +86,57 @@ export function inTab(row: StudioCourse, tab: CourseTab): boolean {
   return row.live.status === (tab === 'published' ? 'published' : 'draft');
 }
 
+/**
+ * The draft's content in one string, key order and `undefined` fields left out (Firestore drops
+ * them too), so two drafts that say the same thing compare equal however they were built.
+ */
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_k, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)),
+        )
+      : v,
+  );
+
+/** Whether two working copies hold the same course and answer keys: an edit undone saves nothing. */
+export function sameWork(a: Working, b: Working): boolean {
+  return a === b || canonical(a) === canonical(b);
+}
+
+/**
+ * The edited working copy, marked `answersChanged` when its answer keys differ from the stored
+ * draft's, or the stored draft already carries the mark. Published keys are never readable in the
+ * browser, so an edit since the last save is the closest it can tell; an edit undone before the
+ * autosave leaves no mark, one undone after it keeps it until the next publish.
+ */
+export function markAnswerEdits(next: Working, stored: Working): Working {
+  const changed =
+    stored.answersChanged === true || canonical(next.answers) !== canonical(stored.answers);
+  if (changed === (next.answersChanged === true)) return next;
+  if (changed) return { ...next, answersChanged: true };
+  return { course: next.course, answers: next.answers };
+}
+
+/**
+ * Whether publishing the draft would change anything learners see: always for a course never
+ * published; otherwise when an answer key was edited (`answersChanged`) or `diffCourses` finds a
+ * difference (it ignores the version, the publish date, the status and the Educator list).
+ */
+export function hasUnpublishedChanges(live: Course | null, work: Working): boolean {
+  return (
+    live === null ||
+    work.answersChanged === true ||
+    countUnpublished(diffCourses(live, work.course)) > 0
+  );
+}
+
 /** Edits the draft has that learners cannot see yet; null when there is no draft or nothing was ever published. */
 export function unpublishedEdits(row: StudioCourse): number | null {
   if (!row.draft || row.live.version === 0) return null;
-  return countUnpublished(diffCourses(row.live, row.draft.course));
+  return (
+    countUnpublished(diffCourses(row.live, row.draft.course)) + (row.draft.answersChanged ? 1 : 0)
+  );
 }
 
 export interface ChangeSummary {

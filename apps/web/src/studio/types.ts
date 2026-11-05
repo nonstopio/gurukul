@@ -7,12 +7,19 @@ export interface DraftDoc {
   updatedBy: string;
   course: Course;
   answers: AnswerKeys;
+  /** An answer key was edited since the last publish; see `markAnswerEdits`. */
+  answersChanged?: true;
 }
 
 /** The working copy an editor changes: a course and its answer keys. */
 export interface Working {
   course: Course;
   answers: AnswerKeys;
+  /**
+   * Set once an answer key differs from the stored draft's, and kept until a publish removes it:
+   * published keys cannot be read in the browser, so this is how Publish knows they changed.
+   */
+  answersChanged?: true;
 }
 
 /** A course as the Studio lists it: the live document and, where the person may edit it, its draft. */
@@ -73,10 +80,10 @@ export interface CreateCourseRequest {
 /** The Studio's callable functions. Each returns the data of the API envelope. */
 export interface StudioService {
   createCourse(request: CreateCourseRequest): Promise<{ courseId: string }>;
-  /** `visibility` and `visibleTeamIds` set who may open the course; left out, they stay as they are. */
-  publishCourse(
-    request: { courseId: string } & Partial<CourseAccess>,
-  ): Promise<{ version: number }>;
+  /** Who may open the course stays as it is; `setCourseAccess` changes it. */
+  publishCourse(request: { courseId: string }): Promise<{ version: number }>;
+  /** Who may open the course, applied to the live course at once without a new version. */
+  setCourseAccess(request: { courseId: string } & CourseAccess): Promise<CourseAccess>;
   /** Publishes an earlier snapshot as a NEW version. */
   rollbackCourse(request: { courseId: string; version: number }): Promise<{ version: number }>;
   archiveCourse(request: {

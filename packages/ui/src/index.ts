@@ -6,7 +6,7 @@ export { CommandPalette } from './CommandPalette';
 export type { CommandPaletteProps, PaletteItem } from './CommandPalette';
 export { Chip } from './Chip';
 export type { ChipProps, ChipTone } from './Chip';
-export { ProgressBar } from './ProgressBar';
+export { MAX_PROGRESS_STEPS, ProgressBar } from './ProgressBar';
 export type { ProgressBarProps } from './ProgressBar';
 export { ProgressRing } from './ProgressRing';
 export type { ProgressRingProps } from './ProgressRing';
@@ -20,14 +20,12 @@ export { NavItem } from './NavItem';
 export type { NavItemProps, NavItemRenderProps } from './NavItem';
 export { TopBar, TopBarToolsContext, topBarBackClass } from './TopBar';
 export type { TopBarProps } from './TopBar';
-export { Field, Input, Select, Textarea } from './Field';
-export type {
-  FieldControlProps,
-  FieldProps,
-  InputProps,
-  SelectProps,
-  TextareaProps,
-} from './Field';
+export { Field, Input, Textarea } from './Field';
+export type { FieldControlProps, FieldProps, InputProps, TextareaProps } from './Field';
+export { InsertDivider } from './InsertDivider';
+export type { InsertDividerProps } from './InsertDivider';
+export { Select } from './Select';
+export type { SelectChangeEvent, SelectProps } from './Select';
 export { ToggleCard } from './ToggleCard';
 export type { ToggleCardProps } from './ToggleCard';
 export { Toggle } from './Toggle';
@@ -36,6 +34,8 @@ export { Tabs } from './Tabs';
 export type { TabItem, TabsProps } from './Tabs';
 export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
+export { Explanation } from './Explanation';
+export type { ExplanationProps, ExplanationVerdict } from './Explanation';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { CourseTile } from './CourseTile';

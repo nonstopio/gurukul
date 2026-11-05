@@ -14,7 +14,7 @@ import type { TabItem } from '@gurukul/ui';
 import { itemsOf } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
@@ -29,11 +29,12 @@ import { StudioBack } from './DraftGate';
 import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
-import { educatorSummary, canEdit, nameOf } from './studioModel';
+import { educatorSummary, canEdit, hasUnpublishedChanges, nameOf } from './studioModel';
 import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import { useSaveLabel } from './saveLabel';
 import { useDraft } from './useDraft';
 import { VersionsTab } from './VersionsTab';
+import { VISIBILITY_FIELD_ID } from './VisibilityPicker';
 import { ReportIssueLink } from '../ReportIssueLink';
 
 type TabId = 'structure' | 'landing' | 'certificate' | 'analytics' | 'versions';
@@ -118,11 +119,22 @@ function Gate({ live, uid, admin }: { live: Course | null; uid: string; admin: b
 function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
   const courseId = initial.id;
   const draft = useDraft(courseId);
-  const label = useSaveLabel(draft);
   const learner = useLearnerData();
   const toast = useToast();
   const t = useTerms();
   const [live, setLive] = useState(initial);
+  const working = draft.work;
+  // The draft is one working copy that becomes the next version when published, however many
+  // times it was saved. It has unpublished changes only when its content differs from the live
+  // course or an answer key was edited, so undone edits show none.
+  const changed = useMemo(
+    () => !working || hasUnpublishedChanges(live.version > 0 ? live : null, working),
+    [live, working],
+  );
+  const label = useSaveLabel(
+    draft,
+    changed ? `Draft v${live.version + 1}` : `No changes since v${live.version}`,
+  );
   const [tab, setTab] = useState<TabId>('structure');
   const [publishing, setPublishing] = useState(false);
 
@@ -185,7 +197,9 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
         </Button>
       </span>
     ) : (
-      <span role="status">{draft.save === 'conflict' ? `${label} · not saved` : label}</span>
+      <span role="status" id="course-save-state">
+        {draft.save === 'conflict' ? `${label} · not saved` : label}
+      </span>
     );
 
   const tabs: [TabItem, ...TabItem[]] = [
@@ -195,7 +209,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
       panel: (
         <div className="sc-editor">
           <StructureTab course={course} live={published ? live : null} update={update} />
-          <DetailsPanel course={course} educators={live} update={update} />
+          <DetailsPanel course={course} educators={live} published={published} update={update} />
         </div>
       ),
     },
@@ -266,7 +280,15 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
                 {`Preview as ${t.learner}`}
               </Button>
             )}
-            <Button variant="chrome" onClick={() => void openPublish()}>
+            {/* Nothing to publish: who can open the course is changed on its own card, and an
+                answer key edit counts as a change (`answersChanged`). */}
+            <Button
+              variant="chrome"
+              disabled={!changed}
+              title={changed ? undefined : `No changes since v${live.version}`}
+              aria-describedby={changed ? undefined : 'course-save-state'}
+              onClick={() => void openPublish()}
+            >
               Publish v{live.version + 1}
             </Button>
           </>
@@ -295,6 +317,16 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
           work={work}
           live={published ? live : null}
           onClose={() => setPublishing(false)}
+          onOpenLanding={() => {
+            setPublishing(false);
+            setTab('landing');
+          }}
+          onOpenAccess={() => {
+            setPublishing(false);
+            setTab('structure');
+            // The card is on the Structure tab, which is now showing.
+            setTimeout(() => document.getElementById(VISIBILITY_FIELD_ID)?.focus());
+          }}
           onPublished={(version) => {
             draft.reload();
             void refreshLive({ version, status: 'published' });

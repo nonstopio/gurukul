@@ -84,6 +84,9 @@
   --accent-soft: #dff2e8;
   --accent-soft-text: #064a30;
   --accent-decor: #16a272;
+  /* The logo's green as a letter in a display heading (the "k" of the sign-in welcome): 3.2:1 on
+     white, so only at 24px and up, never body text. */
+  --brand-mark: var(--g-green-500);
   --accent-line: #a9d9c0;
   --accent-ring: #cfeadb;
 
@@ -306,6 +309,7 @@
   --accent-soft: #123325;
   --accent-soft-text: #b4efd3;
   --accent-decor: #46d39b;
+  --brand-mark: #46d39b;
   --accent-line: #1f5a41;
   --accent-ring: #164b36;
   --chrome: #111a15;
@@ -357,6 +361,7 @@
     --accent-soft: #123325;
     --accent-soft-text: #b4efd3;
     --accent-decor: #46d39b;
+    --brand-mark: #46d39b;
     --accent-line: #1f5a41;
     --accent-ring: #164b36;
     --chrome: #111a15;

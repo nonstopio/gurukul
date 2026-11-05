@@ -6,6 +6,7 @@ import {
   Card,
   ChevronLeftIcon,
   EmptyState,
+  Explanation,
   Page,
   PageHeader,
   PageSkeleton,
@@ -253,14 +254,18 @@ function PreviewExam({
       </p>
       <QuestionFields question={question} picked={mine} stateOf={stateOf} onPick={pick} />
       {done ? (
-        <div role="status">
-          {key.length === 0 ? (
-            <p>No correct answer is marked yet. Mark one in the builder.</p>
-          ) : (
-            <p>{isCorrect(mine, key) ? 'Correct.' : `Not quite — ${answerText}.`}</p>
-          )}
+        <Explanation
+          verdict={key.length === 0 ? 'neutral' : isCorrect(mine, key) ? 'correct' : 'incorrect'}
+          title={
+            key.length === 0
+              ? 'No correct answer is marked yet. Mark one in the builder.'
+              : isCorrect(mine, key)
+                ? 'Correct.'
+                : `Not quite — ${answerText}.`
+          }
+        >
           <Prose md={question.explanation} />
-        </div>
+        </Explanation>
       ) : null}
       <div className="sc-exam__actions">
         {done ? (

@@ -32,14 +32,15 @@ describe('Unsaved edits in the course editor', () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
 
-  it('names the draft revision and how long ago it was saved, and keeps the age fresh', async () => {
+  it('says the draft matches the live version, how long ago it was saved, and keeps the age fresh', async () => {
     vi.setSystemTime(new Date('2026-03-01T10:00:20Z'));
     await open(7);
-    expect(screen.getByText('Draft v7 · saved just now')).toBeTruthy();
+    // The rev (7) counts saves; it is never shown as a version.
+    expect(screen.getByText('No changes since v3 · saved just now')).toBeTruthy();
     await act(async () => {
       vi.advanceTimersByTime(5 * 60_000);
     });
-    expect(screen.getByText('Draft v7 · saved 5 min ago')).toBeTruthy();
+    expect(screen.getByText('No changes since v3 · saved 5 min ago')).toBeTruthy();
   });
 
   it('says only "saved" when the draft has no save time', async () => {
@@ -49,7 +50,7 @@ describe('Unsaved edits in the course editor', () => {
       studio,
       data: fakeData({ courses: [live] }),
     });
-    expect(await screen.findByText('Draft v2 · saved')).toBeTruthy();
+    expect(await screen.findByText('No changes since v3 · saved')).toBeTruthy();
   });
 
   it('keeps a failed save on this device and offers it back next time', async () => {
@@ -69,7 +70,7 @@ describe('Unsaved edits in the course editor', () => {
     await act(async () => {
       vi.advanceTimersByTime(1100);
     });
-    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Draft v4 · saved just now')).toBeTruthy());
     expect(localStorage.getItem(backupKey('u1', live.id))).toBeNull();
     expect(second.studio.data.saveDraft).toHaveBeenCalled();
   });

@@ -39,13 +39,15 @@ test.describe('Learner', () => {
 
     // The first lesson's video is not recorded yet, so it is not shown and does not hold the lesson back.
     await expect(page.getByText('Video coming soon.')).toHaveCount(0);
-    // Its check question does: until the answer is shown, the button says what is missing.
+    // Its check question does: until the answer is shown, the button is held and says why.
     const markComplete = page.getByRole('button', { name: /^Mark complete/ });
-    await markComplete.click();
-    await expect(page.getByRole('status').filter({ hasText: 'Answer the question' })).toBeVisible();
-    await expect(page).toHaveURL(/\/learn\/what-git-solves$/);
+    await expect(markComplete).toBeDisabled();
+    await expect(
+      page.getByText('Answer the question above to mark this lesson complete.'),
+    ).toBeVisible();
 
     await page.locator('label.g-quiz-option').filter({ hasText: 'Every saved version' }).click();
+    await expect(markComplete).toBeEnabled();
     await expect(page.getByText('Correct', { exact: true })).toBeVisible();
     await markComplete.click();
 

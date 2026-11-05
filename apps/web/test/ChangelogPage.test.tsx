@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ChangelogPage, formatDay } from '../src/changelog/ChangelogPage';
 import { CHANGES, type Change } from '../src/changelog';
 import { axeViolations } from './axe';
+import { choose, optionNames } from './select';
 
 const changes: Change[] = [
   {
@@ -72,17 +73,17 @@ describe('ChangelogPage', () => {
     fireEvent.change(screen.getByLabelText('Search changes'), { target: { value: 'resume' } });
     expect(screen.getByRole('status').textContent).toBe('1 of 3');
     fireEvent.change(screen.getByLabelText('Search changes'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Area'), { target: { value: 'LEARN' } });
+    choose(screen.getByLabelText('Area'), 'Learning');
     expect(screen.getByRole('status').textContent).toBe('2 of 3');
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'feature' } });
+    choose(screen.getByLabelText('Kind'), 'New');
     expect(screen.getByRole('status').textContent).toBe('0 of 3');
     expect(screen.getByRole('heading', { name: 'No change matches' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Show every change' }));
     expect(screen.getByRole('status').textContent).toBe('3 of 3');
-    expect((screen.getByLabelText('Area') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByLabelText('Area').textContent).toBe('Any area');
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
 
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'fix' } });
+    choose(screen.getByLabelText('Kind'), 'Fix');
     expect(screen.getByRole('status').textContent).toBe('1 of 3');
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(screen.getByRole('status').textContent).toBe('3 of 3');
@@ -113,12 +114,10 @@ describe('ChangelogPage', () => {
     });
     expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Area' }), {
-      target: { value: 'LEARN' },
-    });
+    choose(screen.getByRole('combobox', { name: 'Area' }), 'Learning');
     expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'fix' } });
+    choose(screen.getByRole('combobox', { name: 'Kind' }), 'Fix');
     expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search changes' }), {
       target: { value: 'zzz' },
@@ -128,14 +127,12 @@ describe('ChangelogPage', () => {
 
   it('offers only the areas and kinds that entries use', () => {
     render(<ChangelogPage changes={changes} releases={[]} />);
-    const areaOptions = within(screen.getByLabelText('Area')).getAllByRole('option');
-    expect(areaOptions.map((o) => o.textContent)).toEqual([
+    expect(optionNames(screen.getByLabelText('Area'))).toEqual([
       'Any area',
       'Learning',
       'Quizzes & certificates',
     ]);
-    const kindOptions = within(screen.getByLabelText('Kind')).getAllByRole('option');
-    expect(kindOptions.map((o) => o.textContent)).toEqual(['Any kind', 'Docs', 'New', 'Fix']);
+    expect(optionNames(screen.getByLabelText('Kind'))).toEqual(['Any kind', 'Docs', 'New', 'Fix']);
   });
 
   it('has no accessibility violations', async () => {

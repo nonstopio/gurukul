@@ -19,6 +19,7 @@ export const roleTokens = [
   'accent-soft',
   'accent-soft-text',
   'accent-decor',
+  'brand-mark',
   'accent-line',
   'accent-ring',
   'chrome',

@@ -4,6 +4,7 @@ import { log } from '../log';
 import { backupKey, clearBackup, readBackup, writeBackup } from './draftBackup';
 import { DraftConflictError } from './errors';
 import { useStudio } from './StudioProvider';
+import { markAnswerEdits, sameWork } from './studioModel';
 import type { DraftDoc, Working } from './types';
 
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict';
@@ -85,6 +86,8 @@ export function useDraft(courseId: string): DraftApi {
   });
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const saving = useRef(false);
+  /** The content as it is stored now: a save that would write the same again is skipped. */
+  const stored = useRef<Working | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -103,7 +106,12 @@ export function useDraft(courseId: string): DraftApi {
         // Edits made on an older revision would overwrite someone else's work: drop them.
         if (kept && kept.rev !== doc.rev) clearBackup(backupId);
         setBackup(kept && kept.rev === doc.rev ? kept : null);
-        setWork({ course: doc.course, answers: doc.answers });
+        stored.current = {
+          course: doc.course,
+          answers: doc.answers,
+          ...(doc.answersChanged ? { answersChanged: true as const } : {}),
+        };
+        setWork(stored.current);
         setRev(doc.rev);
         setSavedAt(doc.updatedAt);
         setSave('saved');
@@ -124,6 +132,15 @@ export function useDraft(courseId: string): DraftApi {
     clearTimeout(timer.current);
     const { work: current, rev: baseRev, save: state } = latest.current;
     if (!current || state === 'saved' || saving.current) return state === 'saved';
+    // Edits that end where the stored draft already is (a space typed and deleted) write nothing,
+    // so `rev` only moves when the content does. A conflict still needs the Educator's answer.
+    // `stored` is set whenever `work` is: both come from the same load.
+    if (state !== 'conflict' && sameWork(current, stored.current as Working)) {
+      latest.current = { ...latest.current, save: 'saved' };
+      setSave('saved');
+      clearBackup(backupId);
+      return true;
+    }
     saving.current = true;
     setSave('saving');
     const request = data.saveDraft(courseId, current, baseRev, uid);
@@ -137,6 +154,7 @@ export function useDraft(courseId: string): DraftApi {
     });
     try {
       const next = await request;
+      stored.current = current;
       setRev(next);
       setSavedAt(new Date());
       latest.current = { ...latest.current, rev: next };
@@ -162,7 +180,8 @@ export function useDraft(courseId: string): DraftApi {
     (edit: (w: Working) => Working) => {
       setWork((w) => {
         if (!w) return w;
-        const next = edit(w);
+        // `stored` is set whenever `work` is: both come from the same load.
+        const next = markAnswerEdits(edit(w), stored.current as Working);
         latest.current = { ...latest.current, work: next };
         return next;
       });

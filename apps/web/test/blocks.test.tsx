@@ -356,7 +356,7 @@ describe('BlockView', () => {
     expect(group.textContent).toContain('two');
     expect(container.querySelector('a')).toBeNull();
     fireEvent.click(screen.getByLabelText(/Read/));
-    expect(screen.getByRole('status').textContent).toBe('First. Second.');
+    expect(screen.getByRole('status').textContent).toBe('Here is whyFirst. Second.');
   });
 
   it('shows the explanation the moment a learner picks on a question with no key', () => {
@@ -373,7 +373,7 @@ describe('BlockView', () => {
     );
     expect(screen.queryByRole('status')).toBeNull();
     fireEvent.click(screen.getByLabelText(/Two/));
-    expect(screen.getByRole('status').textContent).toBe('Because two.');
+    expect(screen.getByRole('status').textContent).toBe('Here is whyBecause two.');
     expect(onAnswered).toHaveBeenCalledWith('k');
   });
 
@@ -393,7 +393,7 @@ describe('BlockView', () => {
     fireEvent.click(screen.getByLabelText(/One/));
     expect(screen.getByText('Incorrect')).toBeTruthy();
     expect(screen.queryByText('Correct')).toBeNull();
-    expect(screen.getByRole('status').textContent).toBe('Not quite. Try another answer.');
+    expect(screen.getByRole('status').textContent).toBe('Not quiteTry another answer.');
     expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(false);
     expect(onAnswered).not.toHaveBeenCalled();
   });
@@ -415,7 +415,7 @@ describe('BlockView', () => {
     fireEvent.click(screen.getByLabelText(/Two/));
     expect(screen.getByText('Correct')).toBeTruthy();
     expect(screen.queryByText('Incorrect')).toBeNull();
-    expect(screen.getByRole('status').textContent).toBe('Because two.');
+    expect(screen.getByRole('status').textContent).toBe('Correct. Here is whyBecause two.');
     expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(true);
     expect(onAnswered).toHaveBeenCalledTimes(1);
   });

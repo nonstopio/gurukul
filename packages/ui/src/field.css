@@ -46,7 +46,7 @@
   padding: var(--space-3);
   resize: vertical;
 }
-.g-control:hover:not(:disabled) {
+.g-control:hover:not(:disabled, [readonly], [aria-disabled='true']) {
   border-color: var(--text-subtle);
 }
 .g-control:focus-visible {
@@ -57,36 +57,22 @@
 .g-control[aria-invalid='true'] {
   border-color: var(--danger);
 }
-.g-control:disabled {
+/* Read-only: a value to read and copy, not a box to type in. No ground, a dashed hairline, full text contrast. */
+.g-control[readonly] {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border);
+  cursor: default;
+}
+.g-control[readonly]:focus-visible {
+  border-color: var(--border);
+}
+.g-control:disabled,
+.g-control[aria-disabled='true'] {
   background: var(--surface-sunken);
   border-color: var(--border);
   color: var(--text-subtle);
   cursor: not-allowed;
-}
-
-/* Select: the native element (phone pickers, keyboard, screen readers) with our chevron. */
-.g-select {
-  position: relative;
-  display: block;
-}
-.g-control--select {
-  appearance: none;
-  padding-right: calc(var(--space-3) + var(--space-6));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.g-select__chevron {
-  position: absolute;
-  top: 50%;
-  right: var(--space-3);
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
-}
-.g-control--select:disabled + .g-select__chevron {
-  color: var(--text-subtle);
 }
 
 /* Present for assistive tech, invisible on screen (labels inside FilterBar). */

@@ -136,7 +136,7 @@ export const chapterSchema = z.object({
 });
 export type Chapter = z.infer<typeof chapterSchema>;
 
-export const COURSE_SCHEMA_VERSION = 3;
+export const COURSE_SCHEMA_VERSION = 4;
 
 /**
  * The seeded "Becoming a Gurukul Educator" course. Finishing it makes the learner an Educator; a fixed id,
@@ -160,6 +160,18 @@ export const courseSchema = z.object({
   cover: z.object({
     theme: z.enum(['forest', 'sand', 'sky', 'stone']),
     glyph: z.string().max(8),
+    /**
+     * The course's picture (v4), always an upload: what an Image block stores for one. Missing reads
+     * as "no cover image": tiles fall back to the first lesson image, then the theme colour.
+     */
+    image: z
+      .object({
+        url: z.url(),
+        width: z.number().int().positive().max(20_000),
+        height: z.number().int().positive().max(20_000),
+        upload: imageUploadSchema,
+      })
+      .optional(),
   }),
   outcomes: z.array(text(200)).max(12),
   educatorIds: z.array(z.string()).max(50),
@@ -183,3 +195,4 @@ export const courseSchema = z.object({
   estimatedMinutes: z.number().int().min(0),
 });
 export type Course = z.infer<typeof courseSchema>;
+export type CoverImage = NonNullable<Course['cover']['image']>;

@@ -16,6 +16,7 @@ import {
   Chip,
   ChoiceCard,
   IconButton,
+  InsertDivider,
   CodeBlock,
   ColourSwatch,
   CommandPalette,
@@ -25,6 +26,7 @@ import {
   DragList,
   PeoplePicker,
   EmptyState,
+  Explanation,
   FlowPanel,
   FlowSteps,
   StateCard,
@@ -311,6 +313,12 @@ function ProgressExample({ ring }: { ring?: boolean }) {
           <ProgressBar label="Example progress" value={value} />
           <ProgressBar label="Caption" value={44} caption="44% · 10 / 22" />
           <ProgressBar label="No value" value={100} showValue={false} />
+          <ProgressBar
+            label="Steps"
+            value={value}
+            steps={Array.from({ length: 10 }, (_, i) => i < value / 10)}
+            current={value / 10}
+          />
         </div>
       )}
       <Button variant="ghost" onClick={() => setValue((v) => (v + 20) % 120)}>
@@ -900,6 +908,20 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </>
     ),
   },
+  InsertDivider: {
+    rule: 'A quiet "add here" between two items in a list: the plus holds the name, hairlines show on hover and focus.',
+    Example: () => (
+      <InsertDivider>
+        <Menu
+          label="Add a block before block 2"
+          tip="Add block"
+          trigger={<ui.PlusIcon />}
+          triggerClassName={ui.iconButtonClass()}
+          items={[{ label: 'Text', onSelect: noop }]}
+        />
+      </InsertDivider>
+    ),
+  },
   Menu: {
     rule: 'Actions on a thing (row, card, account): a menu button; destructive items last, after a separator.',
     Example: MenuExample,
@@ -915,11 +937,12 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <Input label="Title" hint="Shown on the course card" defaultValue="Git basics" />
         <Input label="Title with error" error="A title is required" defaultValue="" />
         <Input label="Disabled title" disabled defaultValue="Git basics" />
+        <Input label="Read-only address" readOnly defaultValue="git-basics" />
       </div>
     ),
   },
   Select: {
-    rule: 'A choice from a list: a styled native select; filter selects start with “Any …”.',
+    rule: 'A choice from a list: our own listbox, never the browser’s; filter selects start with “Any …”.',
     Example: () => (
       <div className="ds-form">
         <Select label="Team" defaultValue="web">
@@ -1023,6 +1046,22 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
             Body text for the {t} callout.
           </Callout>
         ))}
+      </div>
+    ),
+  },
+  Explanation: {
+    rule: 'Feedback on an answer, verdict in words first: green when right, amber to try again, never red.',
+    Example: () => (
+      <div className="ds-stack">
+        <Explanation verdict="correct" title="Correct. Here is why">
+          Git keeps the full history on your own machine.
+        </Explanation>
+        <Explanation verdict="incorrect" title="Not quite">
+          Try another answer.
+        </Explanation>
+        <Explanation title="Why" role="note">
+          A commit records staged changes locally.
+        </Explanation>
       </div>
     ),
   },
@@ -1152,7 +1191,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     Example: PaginationExample,
   },
   ProgressBar: {
-    rule: 'Progress of a course or list with its label; it prints the percentage.',
+    rule: 'Progress of a course or list with its label; it prints the percentage. Pass steps (one per lesson or Quiz) to draw a segment each and print the count; past 40 it draws one bar.',
     Example: () => <ProgressExample />,
   },
   ProgressRing: {

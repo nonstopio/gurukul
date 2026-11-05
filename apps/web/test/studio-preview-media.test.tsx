@@ -8,6 +8,7 @@ import { axeViolations } from './axe';
 import { fakeData, lesson, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { choose } from './select';
 
 vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -299,10 +300,10 @@ describe('Media library', () => {
       studio: fakeStudio({ courses: galleryRows() }),
     });
     await screen.findByRole('list', { name: 'Media' });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'pdf' } });
+    choose(screen.getByRole('combobox', { name: 'Type' }), 'PDF');
     expect(screen.getAllByRole('button', { name: /PDF/ })).toHaveLength(1);
     expect(screen.getByText('1 of 6')).toBeTruthy();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'all' } });
+    choose(screen.getByRole('combobox', { name: 'Type' }), 'All types');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search media' }), {
       target: { value: 'nothing like it' },
     });
@@ -344,7 +345,7 @@ describe('Media library', () => {
     });
     expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: 'file' } });
+    choose(screen.getByRole('combobox', { name: 'Type' }), 'File');
     expect(screen.getByText('Showing 1–25 of 30')).toBeTruthy();
   });
 
@@ -477,9 +478,7 @@ describe('Media library', () => {
       studio: fakeStudio({ courses: uploadedRows() }),
     });
     await screen.findByRole('list', { name: 'Media' });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'uploaded' },
-    });
+    choose(screen.getByRole('combobox', { name: 'Type' }), 'Uploaded');
     expect(screen.getAllByRole('button', { name: /Uploaded/ })).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /Linked/ })).toBeNull();
     expect(screen.getByText('2 of 3')).toBeTruthy();

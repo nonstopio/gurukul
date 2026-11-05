@@ -14,7 +14,7 @@ export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement
 /**
  * A tick box we draw ourselves: a 22px rounded square that fills with the accent and pops the tick
  * in. It is a real checkbox underneath (Space toggles, Tab reaches it) with a 44px hit area. For a
- * setting that is on or off use `Toggle`; a checkbox is for ticking things in a list.
+ * setting that is on or off use `Toggle`; a checkbox is for ticking things in a list or agreeing to terms.
  */
 export function Checkbox({ label, indeterminate = false, className, ...rest }: CheckboxProps) {
   const input = useRef<HTMLInputElement>(null);

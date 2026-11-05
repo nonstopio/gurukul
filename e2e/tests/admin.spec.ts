@@ -138,7 +138,9 @@ test.describe('Admin', () => {
     }
     await expectNoSeriousViolations(page);
 
-    await page.getByLabel('Template').selectOption({ label: 'Certificate revoked' });
+    // Select is our own listbox, not a native <select>: open it and click the option.
+    await page.getByRole('combobox', { name: 'Template' }).click();
+    await page.getByRole('option', { name: 'Certificate revoked' }).click();
     await page.getByRole('button', { name: 'Send test email' }).click();
     // No Gmail credentials in the emulator: a refusal, never a false "sent".
     await expect(page.getByText(/Email is not set up on this deployment/)).toBeVisible();

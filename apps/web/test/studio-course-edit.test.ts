@@ -14,6 +14,7 @@ import {
   renameItem,
   renameChapter,
   setCertificate,
+  setCoverImage,
   setCoverTheme,
   setOutcome,
   setPassMark,
@@ -65,13 +66,24 @@ describe('courseEdit', () => {
       title: 'Git, well',
     });
     expect(setCoverTheme(w, 'sky').course.cover).toEqual({ theme: 'sky', glyph: 'G' });
+    const upload = { path: 'courses/git/media/a.png', bytes: 1, contentType: 'image/png' } as const;
+    const image = {
+      url: 'https://example.com/a.png',
+      width: 2,
+      height: 1,
+      upload: { ...upload, name: 'a.png' },
+    };
+    const covered = setCoverImage(w, { ...image, extra: true } as typeof image);
+    expect(covered.course.cover).toEqual({ theme: 'forest', glyph: 'G', image });
+    expect(setCoverImage(covered, undefined).course.cover).toEqual({ theme: 'forest', glyph: 'G' });
     const added = addOutcome(w);
-    expect(added.course.outcomes).toEqual(['Commit with confidence', '']);
-    expect(setOutcome(added, 1, 'Branch').course.outcomes).toEqual([
+    expect(added.course.outcomes).toEqual(['Commit with confidence', 'Branch without fear', '']);
+    expect(setOutcome(added, 2, 'Rebase').course.outcomes).toEqual([
       'Commit with confidence',
-      'Branch',
+      'Branch without fear',
+      'Rebase',
     ]);
-    expect(removeOutcome(added, 0).course.outcomes).toEqual(['']);
+    expect(removeOutcome(added, 0).course.outcomes).toEqual(['Branch without fear', '']);
   });
 
   it('adds, renames and moves chapters', () => {
@@ -252,6 +264,7 @@ describe('studioModel', () => {
     expect(unpublishedEdits({ live, draft: draftDoc(live) })).toBe(0);
     const edited = makeCourse({ title: 'Renamed' });
     expect(unpublishedEdits({ live, draft: draftDoc(edited) })).toBe(1);
+    expect(unpublishedEdits({ live, draft: draftDoc(live, { answersChanged: true }) })).toBe(1);
   });
 
   it('counts no edit when an Admin changed only who may edit the live course', () => {

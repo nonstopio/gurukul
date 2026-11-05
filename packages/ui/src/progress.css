@@ -16,6 +16,29 @@
   border-radius: var(--radius-pill);
   transition: width var(--dur-slow) var(--ease);
 }
+/* One segment per step: taller, a small gap between, the ends rounded by the track, done filled,
+   the one being viewed ringed. */
+.g-progress--steps .g-progress__track {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  background: transparent;
+}
+.g-progress__step {
+  flex: 1;
+  min-width: 0;
+  background: var(--border);
+  transition: background var(--dur-slow) var(--ease);
+}
+.g-progress__step--done {
+  background: var(--accent-decor);
+}
+.g-progress__step--current {
+  box-shadow: inset 0 0 0 2px var(--accent-decor);
+}
+.g-progress__step--done.g-progress__step--current {
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
 .g-progress__text {
   min-width: 3ch;
   font: 600 var(--text-xs) / 1 var(--font-ui);

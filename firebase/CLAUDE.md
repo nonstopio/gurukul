@@ -75,7 +75,9 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   Educator or Admin; one transaction writes the live doc, `private/answers` and `versions/{n}`; the live doc's
   `educatorIds` and `educatorNames` always win; both run `upgradeCourse` on the stored course first; publish is gated by
   `validateForPublish` and fails `CRS_1003` with `details.issues` (an uploaded image's address must be the Storage download URL of its own file under this course; `publishChecks` adds the Storage emulator's host inside the Functions emulator only, and no bucket, see its comment); rollback republishes a snapshot as a new
-  version and resets the draft), `archiveCourse` (Admin-only).
+  version and resets the draft; publish removes the draft's `answersChanged` mark and keeps the live
+  visibility; a request still carrying `visibility` or `visibleTeamIds` (a tab from before) fails `VAL_1005`), `setCourseAccess` (course Educator or Admin; writes `visibility` and `visibleTeamIds` on the
+  live document with no new version, also on a never-published course for its first publish), `archiveCourse` (Admin-only).
   Each writes an `audit` entry. Rules: `drafts/current` is author-updatable with a `rev + 1` check, `versions/**`
   is read-only, `questionBank/**` is for educator/admin claims; clients never create or delete drafts.
 - Email goes out through the Gmail API (`gmail.ts`, sender `gurukul@nonstopio.com`) behind the `Mailer` and
@@ -103,7 +105,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `weeklyMediaCleanup` (Sunday 05:00 UTC, `media.ts`, `maxInstances: 1`) is the only thing that deletes
   lesson media (`.plan/19`): per course whose draft, live document and every `versions/{n}` snapshot
   all parse (`upgradeCourse` then `courseSchema`; one that does not skips the course and warns), it
-  deletes files in `courses/{id}/media/` that no copy names and that are 30+ days old by object creation time.
+  deletes files in `courses/{id}/media/` that no copy names (in a block or as `cover.image`) and that are 30+ days old by object creation time.
   Decisions are pure in `media.ts` behind `StoragePort` (`bucketStoragePort`) and `MediaStore`
   (`firestoreMediaStore`); it plans first, and deletes nothing when the run would delete over 200 files,
   or a course with 5+ files would lose over half of them (a warn with counts). Summary fields are counts.

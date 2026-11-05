@@ -1,15 +1,14 @@
 import { Button, Callout, Dialog, useToast } from '@gurukul/ui';
 import { useAnalytics } from '../analytics/react/context';
-import { diffCourses, itemsOf, validateForPublish } from '@gurukul/schema';
+import { LANDING_ISSUES, diffCourses, itemsOf, validateForPublish } from '@gurukul/schema';
 import type { Course, CourseAccess, PublishIssue } from '@gurukul/schema';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiClientError, userMessageOf } from '../api';
-import { useLearnerData } from '../data/DataProvider';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { useStudio } from './StudioProvider';
-import { VisibilityPicker } from './VisibilityPicker';
+import { VISIBILITY_LABELS } from '../learn/catalogue';
 import { changeSummary, issuesFromDetails, itemEditorPath, nameOf } from './studioModel';
 import type { Working } from './types';
 
@@ -19,12 +18,18 @@ export function PublishDialog({
   live,
   onClose,
   onPublished,
+  onOpenLanding,
+  onOpenAccess,
 }: {
   work: Working;
   /** The published copy, or null before the first publication. */
   live: Course | null;
   onClose: () => void;
   onPublished: (version: number) => void;
+  /** Closes the dialog on the Landing page tab, for the description and outcomes checks. */
+  onOpenLanding?: () => void;
+  /** Closes the dialog at the card where who can open the course is changed. */
+  onOpenAccess: () => void;
 }) {
   const { service, data, checks } = useStudio();
   const toast = useToast();
@@ -42,29 +47,19 @@ export function PublishDialog({
   const summary = useMemo(() => changeSummary(live, work.course), [live, work.course]);
   const removedIds = useMemo(() => diffCourses(live, work.course).removed, [live, work.course]);
   const [completions, setCompletions] = useState<Record<string, number>>({});
-  const learner = useLearnerData();
-  // Who may open the course, as it is now; `null` until it loads (or when it cannot be read, in
-  // which case a publish leaves the live setting alone).
+  // Who may open the course, as it is now; shown, not changed here (a publish keeps it). `null`
+  // until it loads, or when it cannot be read.
   const [access, setAccess] = useState<CourseAccess | null>(null);
-  const [teams, setTeams] = useState<string[]>([]);
   useEffect(() => {
     data
       .getAccess(courseId)
       .then(setAccess)
       .catch(() => log.warn('Reading the course visibility failed', { courseId }));
-    learner
-      .orgTeams()
-      .then(setTeams)
-      .catch(() => log.warn('Reading the team list failed', { courseId }));
-  }, [data, learner, courseId]);
-  const needsTeam = access?.visibility === 'teams' && access.visibleTeamIds.length === 0;
+  }, [data, courseId]);
   const issues = refused ?? local;
   const items = useMemo(() => itemsOf(work.course), [work.course]);
-  const blocked = issues.length > 0 || needsTeam;
-  const nothing =
-    live !== null &&
-    !summary.courseChanged &&
-    summary.added.length + summary.edited.length + summary.removed.length === 0;
+  // The editor offers Publish only when something changed (`hasUnpublishedChanges`).
+  const blocked = issues.length > 0;
 
   // Removed lessons that learners can have completed: one count each, when the dialog opens.
   useEffect(() => {
@@ -86,9 +81,7 @@ export function PublishDialog({
     setBusy(true);
     setFailure(null);
     try {
-      const { version } = await service.publishCourse(
-        access ? { courseId, ...access } : { courseId },
-      );
+      const { version } = await service.publishCourse({ courseId });
       analytics.track('course_publish', { course_id: courseId });
       toast.show(`Published v${version}. ${t.Learners} see it now.`, { tone: 'success' });
       onPublished(version);
@@ -160,13 +153,12 @@ export function PublishDialog({
         </h3>
         {live === null ? (
           <p>This is the first publication: everything in the draft goes live.</p>
-        ) : nothing ? (
-          <p>Nothing has changed since v{live.version}.</p>
         ) : (
           <>
             {summary.courseChanged ? (
               <p>{`Course details or the order of ${t.chapters} changed.`}</p>
             ) : null}
+            {work.answersChanged ? <p>{`${t.Quiz} answer keys changed.`}</p> : null}
             {list('Added', summary.added)}
             {list('Edited', summary.edited)}
             {list('Removed', summary.removed, removedIds)}
@@ -179,14 +171,21 @@ export function PublishDialog({
         )}
       </section>
       {access ? (
-        <>
-          <VisibilityPicker value={access} teams={teams} onChange={setAccess} />
-          {needsTeam ? (
-            <p className="sc-help" role="alert">
-              Pick at least one team, or choose another visibility.
-            </p>
-          ) : null}
-        </>
+        <section aria-labelledby="visibility-title" className="sc-changes">
+          <h3 id="visibility-title" className="sc-h3">
+            Who can open it
+          </h3>
+          <p>
+            {access.visibility === 'teams'
+              ? `${VISIBILITY_LABELS.teams}: ${access.visibleTeamIds.length} ${access.visibleTeamIds.length === 1 ? 'team' : 'teams'}. Publishing keeps it.`
+              : `${VISIBILITY_LABELS[access.visibility]}. Publishing keeps it.`}
+          </p>
+          <div>
+            <Button variant="quiet" size="sm" onClick={onOpenAccess}>
+              Change who can open
+            </Button>
+          </div>
+        </section>
       ) : null}
       {issues.length > 0 ? (
         <section aria-labelledby="problems-title" className="sc-problems">
@@ -205,6 +204,13 @@ export function PublishDialog({
                       <Link to={itemEditorPath(courseId, item)}>
                         Open {nameOf(item.title, 'it')}
                       </Link>
+                    </>
+                  ) : onOpenLanding && LANDING_ISSUES.has(issue.code) ? (
+                    <>
+                      {' '}
+                      <Button variant="quiet" size="sm" onClick={onOpenLanding}>
+                        Open the Landing page
+                      </Button>
                     </>
                   ) : null}
                 </li>
