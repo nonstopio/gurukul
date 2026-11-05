@@ -611,6 +611,21 @@ a.items__row:hover {
 .signin__footer a {
   color: var(--accent);
 }
+/* One line, like the sidebar layout's bar: the sutra left, the open-source line centred,
+   "Built by" right. Narrow screens wrap it under the sutra and drop the line, as the bar does. */
+.signin__footer {
+  align-items: center;
+}
+.signin__footer .shell-footer {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-subtle);
+}
+@media (width < 40rem) {
+  .signin__footer .shell-footer {
+    flex-basis: 100%;
+  }
+}
 .signin__error {
   margin: 0;
   padding: var(--space-3) var(--space-4);

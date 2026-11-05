@@ -23,8 +23,9 @@ const reducedMotion = () =>
  * The foot of the sidebar layout: What's new, the GitHub repository, an open-source line that
  * changes every 9 s (held while pointed at or focused, and still under reduced motion), and the
  * people who built Gurukul, from GitHub's contributor list. A failed list shows no "Built by".
+ * `bare` leaves out What's new and GitHub, for the sign-in page.
  */
-export function ShellFooter() {
+export function ShellFooter({ bare = false }: { bare?: boolean }) {
   const [people, setPeople] = useState<Contributor[]>([]);
   const [turn, setTurn] = useState(0);
   const [held, setHeld] = useState(false);
@@ -48,15 +49,19 @@ export function ShellFooter() {
   const callout = CALLOUTS[turn] as (typeof CALLOUTS)[number];
   return (
     <div className="shell-footer">
-      <Link to="/changelog" className="shell-footer__link">
-        <SparkIcon size={14} />
-        What's new
-      </Link>
-      <a className="shell-footer__link" href={REPO_URL} target="_blank" rel="noreferrer">
-        <GitHubIcon size={14} />
-        GitHub
-        <StarIcon size={12} />
-      </a>
+      {bare ? null : (
+        <>
+          <Link to="/changelog" className="shell-footer__link">
+            <SparkIcon size={14} />
+            What's new
+          </Link>
+          <a className="shell-footer__link" href={REPO_URL} target="_blank" rel="noreferrer">
+            <GitHubIcon size={14} />
+            GitHub
+            <StarIcon size={12} />
+          </a>
+        </>
+      )}
       <div className="shell-footer__callout">
         <a
           key={turn}

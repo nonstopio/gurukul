@@ -49,6 +49,20 @@ describe('ShellFooter', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it("leaves out What's new and GitHub when bare, for the sign-in page", async () => {
+    render(
+      <MemoryRouter>
+        <ShellFooter bare />
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('link', { name: "What's new" })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'GitHub' })).toBeNull();
+    expect(callout(CALLOUTS[0]?.text as string)).toBeTruthy();
+  });
+
   it('shows no "Built by" when the contributor list is empty (failed or rate-limited)', async () => {
     await show();
     expect(screen.queryByText('Built by')).toBeNull();
