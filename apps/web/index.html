@@ -29,20 +29,15 @@
       } catch (e) {}
     </script>
     <style>
-      /* The boot loader: pure CSS, painted before any script loads (see packages/ui GlobalLoader). */
+      /* The boot loader: pure CSS, painted before any script loads. Its G is the same drawing as
+         packages/ui GlobalLoader; the colours are literals because tokens.css is not loaded yet. */
       #boot-loader {
         position: fixed;
         inset: 0;
         z-index: 200;
         display: grid;
         place-items: center;
-        align-content: center;
-        gap: 12px;
-        background: var(--bg, #f6f7f3);
-        color: var(--text, #121c17);
-        font:
-          500 14px system-ui,
-          sans-serif;
+        background: #f6f7f3;
         transition: opacity 240ms ease;
       }
       #boot-loader.boot-loader--leaving {
@@ -50,81 +45,94 @@
         pointer-events: none;
       }
       @media (prefers-color-scheme: dark) {
-        #boot-loader {
-          background: var(--bg, #0e1511);
-          color: var(--text, #eaf2ec);
+        :root:not([data-theme='light']) #boot-loader {
+          background: #0e1511;
         }
       }
       :root[data-theme='dark'] #boot-loader {
         background: #0e1511;
-        color: #eaf2ec;
       }
-      :root[data-theme='light'] #boot-loader {
-        background: #f6f7f3;
-        color: #121c17;
-      }
-      #boot-loader svg {
-        width: 72px;
-        height: 72px;
+      #boot-loader .logo {
+        width: 64px;
+        height: 64px;
         overflow: visible;
       }
-      #boot-loader .t {
-        fill: none;
-        stroke: #76847b;
-        stroke-width: 3;
-        opacity: 0.4;
+      #boot-loader .tile {
+        fill: #059d66;
       }
-      #boot-loader .a {
-        fill: none;
-        stroke: #0a6a46;
-        stroke-width: 3;
-        stroke-linecap: round;
-        stroke-dasharray: 60 160;
-        transform-origin: 36px 36px;
-        animation: boot-turn 1600ms linear infinite;
+      #boot-loader .tile,
+      #boot-loader .s {
+        transform-origin: 24px 24px;
+        animation: boot-tile 2000ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
       }
-      #boot-loader .f {
-        fill: #f2a02b;
-        transform-origin: 36px 50px;
-        animation: boot-breathe 1600ms ease-in-out infinite;
+      #boot-loader .s {
+        fill: #fff;
+        animation-name: boot-top;
       }
-      @media (prefers-color-scheme: dark) {
-        #boot-loader .a {
-          stroke: #46d39b;
+      #boot-loader .s2 {
+        animation-name: boot-bottom;
+      }
+      /* The words are for screen readers; the G is what people see. */
+      #boot-loader .l {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      @keyframes boot-top {
+        0% {
+          opacity: 0;
+          transform: translateY(-6px);
         }
-      }
-      :root[data-theme='dark'] #boot-loader .a {
-        stroke: #46d39b;
-      }
-      :root[data-theme='light'] #boot-loader .a {
-        stroke: #0a6a46;
-      }
-      @keyframes boot-turn {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      @keyframes boot-breathe {
-        0%,
-        100% {
-          transform: scale(0.88);
-          opacity: 0.85;
-        }
-        50% {
-          transform: scale(1.08);
+        22%,
+        72% {
           opacity: 1;
+          transform: none;
+        }
+        92%,
+        100% {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+      }
+      @keyframes boot-bottom {
+        0%,
+        12% {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        34%,
+        72% {
+          opacity: 1;
+          transform: none;
+        }
+        92%,
+        100% {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+      }
+      @keyframes boot-tile {
+        0%,
+        72% {
+          transform: none;
+        }
+        86% {
+          transform: scale(0.94);
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        #boot-loader .a {
+        #boot-loader .tile {
           animation: none;
         }
-        #boot-loader .f {
-          animation: boot-pulse 1600ms ease-in-out infinite;
+        #boot-loader .s {
+          animation: boot-pulse 2000ms ease-in-out infinite;
         }
         @keyframes boot-pulse {
           50% {
-            opacity: 0.55;
+            opacity: 0.45;
           }
         }
       }
@@ -141,15 +149,18 @@
   </head>
   <body>
     <div id="boot-loader" role="status">
-      <svg viewBox="0 0 72 72" aria-hidden="true" focusable="false">
-        <circle class="t" cx="36" cy="36" r="30" />
-        <circle class="a" cx="36" cy="36" r="30" />
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+        <rect class="tile" width="48" height="48" rx="3" />
         <path
-          class="f"
-          d="M36 20c2.4 8 10 10 10 20a10 10 0 0 1-20 0c0-4 2-6 4-8 .2 4 2 6 4 6-.4-8-2-12 2-18z"
+          class="s"
+          d="M10.3 10H37.7V19.786L33.786 15.871V13.914H14.214V21.743L10.3 17.829V10Z"
+        />
+        <path
+          class="s s2"
+          d="M10.3 21.743L14.214 25.657V33.486H33.786V25.657H25.957V27.614L22.043 31.529V21.743H37.7V37.4H10.3V21.743Z"
         />
       </svg>
-      <span>Getting your learning ready</span>
+      <span class="l">Getting your learning ready</span>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

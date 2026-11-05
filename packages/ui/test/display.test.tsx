@@ -238,12 +238,11 @@ describe('display components accessibility', () => {
 });
 
 describe('GlobalLoader', () => {
-  it('names what is happening in a polite status region', () => {
-    render(<GlobalLoader label="Loading media" hint="Taking longer than usual…" />);
+  it('names what is happening in a polite status region, for screen readers only', () => {
+    render(<GlobalLoader label="Loading media" />);
     const status = screen.getByRole('status');
     expect(status.className).toBe('g-loader g-loader--section');
-    expect(screen.getByText('Loading media')).toBeTruthy();
-    expect(screen.getByText('Taking longer than usual…')).toBeTruthy();
+    expect(screen.getByText('Loading media').className).toBe('g-loader__sr');
   });
 
   it('covers the screen under a scrim as an overlay', () => {
@@ -251,7 +250,7 @@ describe('GlobalLoader', () => {
     expect(screen.getByRole('status').parentElement?.className).toBe('g-loader-scrim');
   });
 
-  it('keeps only a hidden name beside the mark inline', () => {
+  it('keeps the same hidden name at the small inline size', () => {
     render(<GlobalLoader label="Saving" variant="inline" />);
     expect(screen.getByText('Saving').className).toBe('g-loader__sr');
   });
