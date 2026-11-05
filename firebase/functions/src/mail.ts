@@ -4,6 +4,8 @@
  */
 export interface MailMessage {
   to: string;
+  /** Copied recipients (`Cc:`); absent or empty for none. */
+  cc?: string[];
   subject: string;
   text: string;
 }
@@ -80,6 +82,65 @@ export function buildReminderEmail(
     subject: `Reminder: ${courses.length} courses are waiting for you`,
     text:
       `Hello,\n\nA quick reminder to continue these courses on NonStop Academy:\n\n${list}\n\n` +
+      `If you have already finished, you can ignore this note.\n`,
+  };
+}
+
+/** A course in an email, with its due date when it has one. */
+interface DueCourse {
+  id: string;
+  title: string;
+  dueAt: number | null;
+}
+
+const listOf = (courses: readonly DueCourse[], due: (ms: number) => string): string =>
+  courses
+    .map((c) => `- ${c.title}: ${courseLink(c.id)}${c.dueAt === null ? '' : ` (${due(c.dueAt)})`}`)
+    .join('\n');
+
+/**
+ * The deadline email (`.plan/21-managers.md`): one person's overdue and due-soon courses first,
+ * then anything else due a reminder that day. `cc` are the Managers of the teams those courses
+ * were assigned through; the note says so when there are any.
+ */
+export function buildDeadlineEmail(
+  to: string,
+  courses: {
+    overdue: readonly DueCourse[];
+    dueSoon: readonly DueCourse[];
+    others: readonly DueCourse[];
+  },
+  cc: readonly string[] = [],
+): MailMessage {
+  const { overdue, dueSoon, others } = courses;
+  const late = overdue.length > 0;
+  const urgent = [...overdue, ...dueSoon];
+  const only = urgent.length === 1 ? urgent[0] : undefined;
+  const subject = only
+    ? `${late ? 'Overdue' : 'Due soon'}: ${only.title} on NonStop Academy`
+    : late
+      ? `${urgent.length} courses on NonStop Academy are overdue or due soon`
+      : `${urgent.length} courses on NonStop Academy are due soon`;
+  const sections = [
+    late ? `Past the due date:\n\n${listOf(overdue, (ms) => `was due ${formatDue(ms)}`)}` : '',
+    dueSoon.length > 0
+      ? `Due soon:\n\n${listOf(dueSoon, (ms) => `finish by ${formatDue(ms)}`)}`
+      : '',
+    others.length > 0
+      ? `Also waiting for you:\n\n${listOf(others, (ms) => `finish by ${formatDue(ms)}`)}`
+      : '',
+  ].filter((section) => section !== '');
+  const copied =
+    cc.length > 0
+      ? 'Your team’s manager is copied on this note, so they know where you are.\n'
+      : '';
+  return {
+    to,
+    ...(cc.length > 0 ? { cc: [...cc] } : {}),
+    subject,
+    text:
+      `Hello,\n\nA deadline is close or has passed for courses on NonStop Academy.\n\n` +
+      `${sections.join('\n\n')}\n\n${copied}` +
       `If you have already finished, you can ignore this note.\n`,
   };
 }

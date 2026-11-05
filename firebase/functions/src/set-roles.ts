@@ -20,11 +20,16 @@ export interface RoleAdmin {
     grantedCourseIds: string[],
     change: { added: string[]; removed: string[] },
   ): Promise<void>;
+  /**
+   * Handover: removes this person's email (lower-cased, from their Auth account) from every team's
+   * `managerEmails`. Returns how many teams changed; 0 when they manage none or have no email.
+   */
+  releaseManagedTeams(uid: string): Promise<number>;
   audit(entry: {
     action: string;
     by: string;
     target: string;
-    detail: RolePlan['claims'] & { grantedCourseIds?: string[] };
+    detail: RolePlan['claims'] & { grantedCourseIds?: string[]; teamsReleased?: number };
   }): Promise<void>;
 }
 
@@ -50,6 +55,10 @@ export async function applyRoleChange(
       diffGrants(previous, plan.grantedCourseIds),
     );
   }
+  // Taking the role away hands the person's teams back to Admins at once, in the same call. Run
+  // on every "manager: false", not only a change, so a handover a failed call left half done is
+  // finished by saving again.
+  const released = change.manager === false ? await admin.releaseManagedTeams(targetUid) : 0;
   await admin.revokeTokens(targetUid);
   await admin.audit({
     action: 'roles.set',
@@ -58,9 +67,15 @@ export async function applyRoleChange(
     detail: {
       ...plan.claims,
       ...(plan.grantedCourseIds === undefined ? {} : { grantedCourseIds: plan.grantedCourseIds }),
+      ...(released > 0 ? { teamsReleased: released } : {}),
     },
   });
-  log.info('Roles changed', { uid: targetUid, by: caller.uid, count: plan.roles.length });
+  log.info('Roles changed', {
+    uid: targetUid,
+    by: caller.uid,
+    count: plan.roles.length,
+    teamsReleased: released,
+  });
   return plan;
 }
 
@@ -72,7 +87,12 @@ export async function applyRoleChange(
 export async function grantEducatorByCourse(admin: RoleAdmin, uid: string): Promise<boolean> {
   const current = await admin.getClaims(uid);
   if (current?.educator === true) return false;
-  const claims = { educator: true, admin: current?.admin === true };
+  // Every other claim stays as it is: this call adds a role, it never takes one away.
+  const claims = {
+    educator: true,
+    manager: current?.manager === true,
+    admin: current?.admin === true,
+  };
   const plan: RolePlan = { claims, roles: rolesFromClaims(claims) };
   await admin.setClaims(uid, plan.claims);
   await admin.mirrorRoles(uid, plan);
@@ -97,7 +117,11 @@ export async function grantAdmin(
   }
   const uid = await deps.uidForEmail(target);
   const current = await deps.admin.getClaims(uid);
-  const claims = { educator: current?.educator === true, admin: true };
+  const claims = {
+    educator: current?.educator === true,
+    manager: current?.manager === true,
+    admin: true,
+  };
   const plan: RolePlan = { claims, roles: rolesFromClaims(claims) };
   await deps.admin.setClaims(uid, plan.claims);
   await deps.admin.mirrorRoles(uid, plan);

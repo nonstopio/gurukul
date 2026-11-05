@@ -2,7 +2,12 @@ import { ApiException } from '@gurukul/schema';
 import { requireAdmin } from './errors.js';
 import type { Caller } from './errors.js';
 import { unconfiguredMailer } from './gmail.js';
-import { buildAssignedEmail, buildReminderEmail, buildRevokedEmail } from './mail.js';
+import {
+  buildAssignedEmail,
+  buildDeadlineEmail,
+  buildReminderEmail,
+  buildRevokedEmail,
+} from './mail.js';
 import type { MailMessage, Mailer } from './mail.js';
 import { isAllowedEmail } from './roles.js';
 import { badCount, badField, invalid } from './validation.js';
@@ -17,6 +22,7 @@ export interface EmailTemplate {
 }
 
 const SAMPLE_DUE = Date.UTC(2026, 11, 31);
+const SAMPLE_PAST = Date.UTC(2026, 11, 20);
 const SAMPLE_COURSE = { id: 'sample-course', title: 'Sample course' };
 
 /** Every email Gurukul sends. A new `build*Email` in `mail.ts` is listed here too. */
@@ -32,6 +38,20 @@ export const EMAIL_TEMPLATES: readonly EmailTemplate[] = [
     name: 'Course reminder',
     when: 'A reminder, daily or sent by an Admin, for a course someone has not finished.',
     build: (to) => buildReminderEmail(to, [{ ...SAMPLE_COURSE, dueAt: SAMPLE_DUE }]),
+  },
+  {
+    id: 'deadline',
+    name: 'Deadline notice',
+    when:
+      'The daily run, once when a course is due in 5 days or less and once when it is overdue; ' +
+      'the managers of the team it was assigned through are copied.',
+    // The sample copies nobody: a test send goes only to the addresses the Admin names.
+    build: (to) =>
+      buildDeadlineEmail(to, {
+        overdue: [{ ...SAMPLE_COURSE, dueAt: SAMPLE_PAST }],
+        dueSoon: [{ id: 'sample-soon', title: 'Another sample course', dueAt: SAMPLE_DUE }],
+        others: [],
+      }),
   },
   {
     id: 'revoked',

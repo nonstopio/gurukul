@@ -11,6 +11,11 @@ describe('rolesFromClaims', () => {
       'admin',
     ]);
     expect(rolesFromClaims({ admin: false })).toEqual(['learner']);
+    expect(rolesFromClaims({ manager: true, admin: true })).toEqual([
+      'learner',
+      'manager',
+      'admin',
+    ]);
   });
 });
 
@@ -29,19 +34,30 @@ const admin = { uid: 'k', email: 'k@nonstopio.com', claims: { admin: true } };
 describe('planRoleChange', () => {
   it('merges the change into the current claims', () => {
     expect(planRoleChange(admin, 'u', undefined, { educator: true })).toEqual({
-      claims: { educator: true, admin: false },
+      claims: { educator: true, manager: false, admin: false },
       roles: ['learner', 'educator'],
     });
     expect(planRoleChange(admin, 'u', { educator: true }, { admin: true })).toEqual({
-      claims: { educator: true, admin: true },
+      claims: { educator: true, manager: false, admin: true },
       roles: ['learner', 'educator', 'admin'],
     });
     expect(
       planRoleChange(admin, 'u', { educator: true, admin: true }, { educator: false }).claims,
     ).toEqual({
       educator: false,
+      manager: false,
       admin: true,
     });
+    expect(planRoleChange(admin, 'u', { educator: true }, { manager: true })).toEqual({
+      claims: { educator: true, manager: true, admin: false },
+      roles: ['learner', 'educator', 'manager'],
+    });
+    expect(planRoleChange(admin, 'u', { manager: true }, { educator: true }).claims.manager).toBe(
+      true,
+    );
+    expect(planRoleChange(admin, 'u', { manager: true }, { manager: false }).roles).toEqual([
+      'learner',
+    ]);
   });
 
   it('refuses a caller who is not a NonStop Admin', () => {
@@ -64,6 +80,9 @@ describe('planRoleChange', () => {
     expect(plan({ educator: 'yes' })).toThrowError(
       expect.objectContaining({ code: 'VAL_1002', details: { field: 'educator' } }),
     );
+    expect(plan({ manager: 'yes' })).toThrowError(
+      expect.objectContaining({ code: 'VAL_1002', details: { field: 'manager' } }),
+    );
     expect(plan({ admin: 1 })).toThrowError(
       expect.objectContaining({ code: 'VAL_1002', details: { field: 'admin' } }),
     );
@@ -82,7 +101,7 @@ describe('planRoleChange course grants', () => {
     expect(
       planRoleChange(admin, 'u', undefined, { grantedCourseIds: ['git', 'sql', 'git'] }),
     ).toEqual({
-      claims: { educator: false, admin: false },
+      claims: { educator: false, manager: false, admin: false },
       roles: ['learner'],
       grantedCourseIds: ['git', 'sql'],
     });

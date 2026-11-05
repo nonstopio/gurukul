@@ -48,6 +48,22 @@ describe('buildRawMessage', () => {
     expect(mime).not.toMatch(/^Bcc:/m);
   });
 
+  it('copies the cc addresses on one line, and writes no Cc header for none', () => {
+    expect(mime).not.toMatch(/^Cc:/m);
+    const empty = decode(buildRawMessage({ ...message, cc: [] }, SENDER, SENDER, 'B'));
+    expect(empty).not.toMatch(/^Cc:/m);
+    const copied = decode(
+      buildRawMessage(
+        { ...message, cc: ['m@example.com', 'n@example.com\r\nBcc: x@y.z'] },
+        SENDER,
+        SENDER,
+        'B',
+      ),
+    );
+    expect(copied).toContain('Cc: m@example.com, n@example.com Bcc: x@y.z\r\n');
+    expect(copied).not.toMatch(/^Bcc:/m);
+  });
+
   it('carries the text and an html alternative', () => {
     expect(part(mime, 'text/plain')).toBe(message.text);
     expect(part(mime, 'text/html')).toContain('<a href="https://x.test/a">');

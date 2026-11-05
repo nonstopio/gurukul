@@ -27,6 +27,18 @@ describe('teams', () => {
     const many = Array.from({ length: 501 }, (_, i) => `p${i}@example.com`);
     expect(teamSchema.safeParse({ ...team, memberEmails: many }).success).toBe(false);
   });
+  it('takes up to ten lower-cased manager emails', () => {
+    const managers = Array.from({ length: 10 }, (_, i) => `m${i}@example.com`);
+    expect(teamSchema.safeParse({ ...team, managerEmails: managers }).success).toBe(true);
+    expect(teamSchema.safeParse({ ...team, managerEmails: [] }).success).toBe(true);
+    expect(
+      teamSchema.safeParse({ ...team, managerEmails: [...managers, 'm10@example.com'] }).success,
+    ).toBe(false);
+    expect(teamSchema.safeParse({ ...team, managerEmails: ['Meera@example.com'] }).success).toBe(
+      false,
+    );
+    expect(teamSchema.safeParse({ ...team, managerEmails: ['nope'] }).success).toBe(false);
+  });
   it('makes a document id from the name', () => {
     expect(teamId('Platform & Cloud team')).toBe('platform-cloud-team');
     expect(teamId('!!!')).toBe('team');
@@ -50,6 +62,13 @@ describe('roles', () => {
       'admin',
     ]);
     expect(rolesFromClaims({ educator: false, admin: false })).toEqual(['learner']);
+    expect(rolesFromClaims({ manager: true })).toEqual(['learner', 'manager']);
+    expect(rolesFromClaims({ educator: true, manager: true, admin: true })).toEqual([
+      'learner',
+      'educator',
+      'manager',
+      'admin',
+    ]);
   });
 
   it('allows only the NonStop domain, in any letter case', () => {
@@ -122,6 +141,10 @@ describe('document shapes', () => {
     expect(assignmentSchema.safeParse({ ...base, assignedByName: 'Kavya Rao' }).success).toBe(true);
     expect(assignmentSchema.safeParse({ ...base, assignedByName: null }).success).toBe(true);
     expect(assignmentSchema.safeParse({ ...base, assignedByName: '' }).success).toBe(false);
+    const team = { teamId: 'platform', dueSoonSentAt: ts(6), overdueSentAt: null };
+    expect(assignmentSchema.safeParse({ ...base, ...team }).success).toBe(true);
+    expect(assignmentSchema.safeParse({ ...base, teamId: null }).success).toBe(true);
+    expect(assignmentSchema.safeParse({ ...base, teamId: '' }).success).toBe(false);
     expect(normalizeEmail('  A@NonStopIO.com ')).toBe('a@nonstopio.com');
     expect(assignmentId('git', 'abc')).toBe('git__abc');
   });

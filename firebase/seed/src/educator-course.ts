@@ -1168,15 +1168,16 @@ const finalSpecs: QuestionSpec[] = [
     id: 'q10',
     kind: 'single',
     prompt:
-      'Kavya wants to add a new joiner to the team "Platform", which her colleague Neha created. Kavya is an Educator, not an Admin. What can she do?',
+      'Kavya wants to add a new joiner to the team "Platform", which Neha manages. Kavya is an Educator, not a Manager or an Admin. What can she do?',
     options: [
-      'Ask Neha or an Admin, because Educators edit only teams they created',
+      'Ask Neha or an Admin, because a team is edited by its Managers and by Admins',
       'Edit the team herself, because every Educator edits every team',
       'Delete the team and create it again with the new joiner',
       'Add the new joiner as an Educator of her course instead',
     ],
     correct: [0],
-    explanation: 'An Educator edits only the teams they created, and only an Admin deletes a team.',
+    explanation:
+      'Educators see every team but edit none: a team is kept by its Managers and by Admins, and only an Admin deletes one.',
     review: 'media-and-teams',
   },
 ];
@@ -1219,9 +1220,9 @@ const chapter7: Chapter = {
         '',
         '## Teams',
         '',
-        'A team is a name and a list of people, used for **Team only** courses and by Admins to assign a course to a whole group. On the **Teams** page, **Create team** asks for a **Team name** and **Members**: search by name, or paste emails. People who have not signed in yet are marked invited and join the moment they do.',
+        'A team is a name and a list of people, used for **Team only** courses and to assign a course to a whole group. Members are listed by email: people who have not signed in yet are marked invited and join the moment they do.',
         '',
-        'An Educator can edit only the teams they created. Only an Admin can delete a team, because deleting one shuts its members out of the courses only that team can open.',
+        'Teams are kept by their **Managers** and by Admins; as an Educator you see every team, so you can pick them for a Team only course, but you do not edit them. Only an Admin can delete a team, because deleting one shuts its members out of the courses only that team can open.',
       ),
       check(
         'Kavya wants to remove an image she uploaded and no longer uses. What happens?',

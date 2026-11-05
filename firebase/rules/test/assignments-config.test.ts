@@ -95,6 +95,16 @@ describe('config/org', () => {
       updateDoc(doc(edu, 'config/org'), { signatory: { name: 'Ravi Sample', role: 'Dean' } }),
     );
   });
+  it('lets a manager change the teams list and nothing else', async () => {
+    const mgr = as('mona', { manager: true });
+    await assertSucceeds(updateDoc(doc(mgr, 'config/org'), { teams: ['QA', 'Sales'] }));
+    await assertFails(updateDoc(doc(mgr, 'config/org'), { 'reminders.enabled': false }));
+    await assertFails(
+      updateDoc(doc(as('mona', { manager: true, email: 'm@gmail.com' }), 'config/org'), {
+        teams: [],
+      }),
+    );
+  });
   it('denies writes by a learner, and an educator creating it', async () => {
     await assertFails(updateDoc(doc(as('priya'), 'config/org'), { teams: [] }));
     await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/org')));

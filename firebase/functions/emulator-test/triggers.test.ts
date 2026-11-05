@@ -146,6 +146,7 @@ describe('onProgressWritten, the Educator course', () => {
     expect(stored.certificateId).toMatch(/^NSG-EDUCATOR-\d{2}-0001$/);
     expect((await getAuth().getUser('assigned')).customClaims).toEqual({
       educator: true,
+      manager: false,
       admin: false,
     });
     expect((await db().doc('users/assigned').get()).get('roles')).toEqual(['learner', 'educator']);

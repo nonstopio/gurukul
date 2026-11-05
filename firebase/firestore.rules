@@ -22,9 +22,19 @@ service cloud.firestore {
       return signedIn() && request.auth.token.admin == true;
     }
 
-    // Staff are Educators and Admins: who keeps teams (the Teams page) and so reads the roster.
+    // Staff are Educators and Admins: they read every team (Studio's course access picks teams).
     function isStaff() {
       return signedIn() && (request.auth.token.admin == true || request.auth.token.educator == true);
+    }
+
+    // A Manager (`.plan/21-managers.md`) keeps the teams whose `managerEmails` lists their email.
+    function isManager() {
+      return signedIn() && request.auth.token.manager == true;
+    }
+
+    // Who picks people from the roster: staff and Managers.
+    function readsRoster() {
+      return isStaff() || isManager();
     }
 
     // An Educator may edit only the courses that list them in `educatorIds` (the claim alone is not
@@ -35,14 +45,14 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.educatorIds;
     }
 
-    // A person reads their own profile (staff read any, to pick team members) and may change only
+    // A person reads their own profile (staff and Managers read any, to pick team members) and may change only
     // their display name and label set. Teams are not theirs to pick: staff keep them on the Teams
     // page and the functions copy them to `teamIds`. Creating the profile and the role mirror is
     // the functions' job (Admin SDK).
     // `nameLower` (people search by name) moves with the display name: a write touching either
     // must leave it equal to the display name lower-cased, so it never goes stale.
     match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow read: if signedIn() && (request.auth.uid == uid || readsRoster());
       allow update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'nameLower', 'labels'])
@@ -293,8 +303,8 @@ service cloud.firestore {
     // only an Admin writes it, and `storage.rules` reads the same field. Never deleted.
     match /config/org {
       allow read: if signedIn();
-      // An Educator may change only the teams list (the Teams page writes it with `teams/`).
-      allow update: if isStaff()
+      // An Educator or a Manager may change only the teams list (written with `teams/`).
+      allow update: if readsRoster()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teams'])
         && request.resource.data.teams is list
         && request.resource.data.teams.size() <= 100;
@@ -318,34 +328,48 @@ service cloud.firestore {
     }
 
     // A team and its members (`teams/{id}`): names are public through `config/org.teams`, the
-    // member emails are the Admin's alone. The Teams page writes it in one transaction with
-    // `config/org.teams`. Rules cannot loop over a list, so each email's shape is the app's check
-    // (`teamSchema`); the key set, name and list size are checked here.
+    // member emails are not. The Teams page writes it in one transaction with `config/org.teams`.
+    // Rules cannot loop over a list, so each email's shape is the app's check (`teamSchema`); the
+    // key set, name and list sizes are checked here. Managers (`.plan/21-managers.md`) keep the
+    // teams whose `managerEmails` lists them (lower-cased, so the token email is too); Educators
+    // read every team but no longer write any.
+    function managesTeam(team) {
+      return isManager()
+        && request.auth.token.email.lower() in team.get('managerEmails', []);
+    }
+
     match /teams/{teamId} {
-      allow read: if isStaff();
+      // A Manager's query must ask for `managerEmails array-contains` their own email.
+      allow read: if isStaff() || managesTeam(resource.data);
       // Only an Admin deletes a team: a course can be limited to one (the Educator course's), and
       // deleting it shuts everyone on it out.
       allow delete: if isAdmin();
-      // Whoever creates a team is recorded as its creator, and nobody changes that afterwards. An
-      // Educator edits only the teams they created; an Admin edits any (a team with no creator, such
-      // as the Educator course's, is Admin-only).
-      // `educator-candidates` opens the Educator course (EDUCATOR_TEAM_NAME): if an Admin deletes it,
-      // only an Admin may make it again, so no Educator becomes its creator.
-      allow create: if isStaff() && validTeam()
+      // Whoever creates a team is recorded in `createdBy` (a record that decides nothing), and
+      // nobody changes that afterwards. A Manager's new team must name them a manager.
+      // `educator-candidates` opens the Educator course (EDUCATOR_TEAM_NAME), so only an Admin
+      // writes it, whatever its managers say.
+      allow create: if validTeam()
         && request.resource.data.createdBy == request.auth.uid
-        && (teamId != 'educator-candidates' || isAdmin());
-      allow update: if isStaff() && validTeam()
-        && (isAdmin() || resource.data.get('createdBy', '') == request.auth.uid)
-        && request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
+        && (isAdmin()
+            || (managesTeam(request.resource.data) && teamId != 'educator-candidates'));
+      // A Manager edits a team that lists them but never its managers, themselves included.
+      allow update: if validTeam()
+        && request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '')
+        && (isAdmin()
+            || (managesTeam(resource.data)
+                && teamId != 'educator-candidates'
+                && request.resource.data.get('managerEmails', []) == resource.data.get('managerEmails', [])));
     }
 
     function validTeam() {
-      return request.resource.data.keys().hasOnly(['name', 'memberEmails', 'createdAt', 'createdBy'])
+      return request.resource.data.keys().hasOnly(['name', 'memberEmails', 'createdAt', 'createdBy', 'managerEmails'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 80
         && request.resource.data.memberEmails is list
         && request.resource.data.memberEmails.size() <= 500
+        && request.resource.data.get('managerEmails', []) is list
+        && request.resource.data.get('managerEmails', []).size() <= 10
         && request.resource.data.createdAt is number
         && request.resource.data.get('createdBy', '') is string;
     }

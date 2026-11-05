@@ -65,14 +65,14 @@ describe('firebaseRoleAdmin', () => {
     await admin.setClaims('u', { admin: true });
     await admin.revokeTokens('u');
     await admin.mirrorRoles('u', {
-      claims: { educator: false, admin: true },
+      claims: { educator: false, manager: false, admin: true },
       roles: ['learner', 'admin'],
     });
     await admin.audit({
       action: 'a',
       by: 'b',
       target: 'c',
-      detail: { educator: false, admin: true },
+      detail: { educator: false, manager: false, admin: true },
     });
     expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', { admin: true });
     expect(auth.revokeRefreshTokens).toHaveBeenCalledWith('u');
@@ -104,7 +104,11 @@ describe('firestoreProgressStore', () => {
     };
     const f = fakeDb();
     expect(await firestoreProgressStore(f.db, auth as never).grantEducator('u')).toBe(true);
-    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', { educator: true, admin: false });
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('u', {
+      educator: true,
+      manager: false,
+      admin: false,
+    });
     expect(f.set).toHaveBeenCalledWith({ roles: ['learner', 'educator'] }, { merge: true });
   });
 

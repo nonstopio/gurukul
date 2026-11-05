@@ -15,12 +15,12 @@ import type {
   CourseAccess,
   Reminder,
 } from '@gurukul/schema';
-import { requireAdmin } from './errors.js';
-import type { AuditEntry, Caller } from './errors.js';
+import { isAdmin, managesTeam, requireAdminOrManager } from './errors.js';
+import type { AuditEntry, Caller, TeamRecord } from './errors.js';
 import { log } from './logging/log.js';
 import { buildAssignedEmail } from './mail.js';
 import type { Mailer } from './mail.js';
-import { badCount, badField } from './validation.js';
+import { badCount, badField, invalid } from './validation.js';
 
 /** One assignment document to create; the adapter stamps `assignedBy`, `assignedByName`, `assignedAt` and `status`. */
 export interface NewAssignment {
@@ -31,6 +31,8 @@ export interface NewAssignment {
   dueAt: number | null;
   mandatory: boolean;
   reminder: Reminder;
+  /** The team it was assigned through (the first requested team listing the email), else null. */
+  teamId: string | null;
 }
 
 /** Where `assignCourses` reads and writes. `stores.ts` adapts the Admin SDK. */
@@ -39,6 +41,8 @@ export interface AssignStore {
   courses(
     ids: string[],
   ): Promise<Record<string, { status: unknown; title: string; access?: CourseAccess } | undefined>>;
+  /** The teams that exist among these ids, by id. */
+  teams(ids: string[]): Promise<Map<string, TeamRecord>>;
   /** Who may open which courses: teams and role of each signed-in person, by uid. */
   audiences(uids: string[]): Promise<Map<string, Audience>>;
   /** For each email that has a `users` doc, its uid. */
@@ -71,6 +75,7 @@ export interface AssignResult {
 
 export const MAX_COURSES = 20;
 export const MAX_EMAILS = 1000;
+export const MAX_TEAMS = 20;
 
 /**
  * A stable, non-reversible key for an email, used only inside an assignment document id. It is an
@@ -82,7 +87,9 @@ export const emailKey = (email: string): string =>
 
 interface AssignRequest {
   courseIds: string[];
-  emails: string[];
+  /** Exactly one of `emails` and `teamIds` is non-null. */
+  emails: string[] | null;
+  teamIds: string[] | null;
   dueAt: number | null;
   mandatory: boolean;
   reminder: Reminder;
@@ -94,14 +101,26 @@ const isStrings = (v: unknown): v is string[] =>
 
 /** Checks the shape of the request; the first bad field is a `VAL_100x` `ApiException`. */
 export function parseAssignRequest(data: Record<string, unknown>): AssignRequest {
-  const { courseIds, emails, dueAt, mandatory, reminder, notify } = data;
+  const { courseIds, emails, teamIds, dueAt, mandatory, reminder, notify } = data;
   if (!isStrings(courseIds)) throw badField('courseIds', courseIds, 'must be a list of course ids');
   if (courseIds.length < 1 || courseIds.length > MAX_COURSES) {
     throw badCount('courseIds', `1 to ${MAX_COURSES}`);
   }
-  if (!isStrings(emails)) throw badField('emails', emails, 'must be a list of email addresses');
-  if (emails.length < 1 || emails.length > MAX_EMAILS) {
-    throw badCount('emails', `1 to ${MAX_EMAILS}`);
+  if (emails !== undefined && teamIds !== undefined) {
+    throw invalid('teamIds', 'send emails or teamIds, not both');
+  }
+  if (teamIds !== undefined) {
+    if (!isStrings(teamIds) || teamIds.some((id) => id === '' || id.includes('/'))) {
+      throw badField('teamIds', teamIds, 'must be a list of team ids');
+    }
+    if (teamIds.length < 1 || teamIds.length > MAX_TEAMS) {
+      throw badCount('teamIds', `1 to ${MAX_TEAMS}`);
+    }
+  } else {
+    if (!isStrings(emails)) throw badField('emails', emails, 'must be a list of email addresses');
+    if (emails.length < 1 || emails.length > MAX_EMAILS) {
+      throw badCount('emails', `1 to ${MAX_EMAILS}`);
+    }
   }
   if (courseIds.some((id) => id === '' || id.includes('/'))) {
     throw badField('courseIds', courseIds, 'a course id is empty or contains "/"');
@@ -115,7 +134,41 @@ export function parseAssignRequest(data: Record<string, unknown>): AssignRequest
   if (reminder !== 'weekly' && reminder !== 'beforeDue' && reminder !== 'none') {
     throw badField('reminder', reminder, 'must be weekly, beforeDue or none');
   }
-  return { courseIds: [...new Set(courseIds)], emails, dueAt, mandatory, reminder, notify };
+  return {
+    courseIds: [...new Set(courseIds)],
+    emails: teamIds === undefined ? (emails as string[]) : null,
+    teamIds: teamIds === undefined ? null : [...new Set(teamIds as string[])],
+    dueAt,
+    mandatory,
+    reminder,
+    notify,
+  };
+}
+
+/**
+ * The people on the requested teams, in order, and for each email the first requested team that
+ * lists it. Unknown team: `VAL_1003`; a team the caller does not manage: `AUTH_2001`.
+ */
+async function teamAudience(
+  store: AssignStore,
+  caller: Caller,
+  ids: string[],
+): Promise<{ emails: string[]; teamOf: Map<string, string> }> {
+  const teams = await store.teams(ids);
+  const teamOf = new Map<string, string>();
+  for (const id of ids) {
+    const team = teams.get(id);
+    if (team === undefined) throw new ApiException('VAL_1003', ['team', id], { field: 'teamIds' });
+    if (!managesTeam(caller, team)) {
+      throw new ApiException('AUTH_2001', ['assignCourses'], { teamId: id });
+    }
+    for (const raw of team.memberEmails) {
+      const email = raw.trim().toLowerCase();
+      if (!teamOf.has(email)) teamOf.set(email, id);
+    }
+  }
+  if (teamOf.size > MAX_EMAILS) throw badCount('teamIds', `teams with 1 to ${MAX_EMAILS} people`);
+  return { emails: [...teamOf.keys()], teamOf };
 }
 
 /**
@@ -128,14 +181,23 @@ export async function assignCourses(
   caller: Caller,
   data: Record<string, unknown>,
 ): Promise<AssignResult> {
-  requireAdmin(caller, 'assignCourses');
+  requireAdminOrManager(caller, 'assignCourses');
+  const admin = isAdmin(caller);
   const req = parseAssignRequest(data);
+  // A Manager assigns to the teams they manage, never to addresses of their choosing.
+  if (!admin && req.teamIds === null) {
+    throw new ApiException('AUTH_2001', ['assignCourses'], { field: 'emails' });
+  }
   // An assignment due before it is made is overdue on day one: refuse it.
   if (req.dueAt !== null && req.dueAt < Date.now()) {
     throw badField('dueAt', req.dueAt, 'must not be in the past');
   }
   const { store } = deps;
-  log.debug('Assigning courses', { count: req.emails.length, courseCount: req.courseIds.length });
+  const { emails, teamOf } =
+    req.teamIds === null
+      ? { emails: req.emails as string[], teamOf: new Map<string, string>() }
+      : await teamAudience(store, caller, req.teamIds);
+  log.debug('Assigning courses', { count: emails.length, courseCount: req.courseIds.length });
 
   const found = await store.courses(req.courseIds);
   const titles = new Map<string, string>();
@@ -144,11 +206,16 @@ export async function assignCourses(
     const course = found[id];
     if (course === undefined) throw new ApiException('CRS_2001', [id]);
     if (course.status !== 'published') throw new ApiException('CRS_1001', [id]);
+    // A Manager hands out what any learner may take: not staff-only courses, and never the
+    // Educator course (finishing it makes someone an Educator).
+    if (!admin && (id === EDUCATOR_COURSE_ID || course.access?.visibility === 'staff')) {
+      throw new ApiException('AUTH_2001', ['assignCourses'], { courseId: id });
+    }
     titles.set(id, course.title);
     access.set(id, course.access);
   }
 
-  const first = classifyEmails(req.emails, { signedIn: new Set(), assigned: new Set() });
+  const first = classifyEmails(emails, { signedIn: new Set(), assigned: new Set() });
   const valid = first.filter((c) => c.status !== 'rejected').map((c) => c.email);
   const users = await store.signedInUsers(valid);
   const signedIn = new Set(users.keys());
@@ -202,6 +269,7 @@ export async function assignCourses(
         dueAt: req.dueAt,
         mandatory: req.mandatory,
         reminder: req.reminder,
+        teamId: teamOf.get(email) ?? null,
       });
       newByEmail.set(email, [
         ...(newByEmail.get(email) ?? []),
@@ -235,6 +303,7 @@ export async function assignCourses(
     by: caller.uid,
     detail: {
       courseIds: req.courseIds,
+      ...(req.teamIds === null ? {} : { teamIds: req.teamIds }),
       count: created.length,
       emails: [...new Set(created.map((d) => d.email))],
     },

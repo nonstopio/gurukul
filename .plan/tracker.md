@@ -29,20 +29,16 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| Managers | 0 | 6 | 0 | 0 |
-| **Total** | 176 | 6 | 0 | 14 |
+| Managers | 4 | 2 | 0 | 0 |
+| **Total** | 180 | 2 | 0 | 14 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
 
-1. `MGR-01`
-2. `MGR-02`
-3. `MGR-03`
-4. `MGR-04`
-5. `MGR-06`
-6. `MGR-05`
+1. `MGR-06`
+2. `MGR-05`
 
 
 ## Foundations
@@ -330,9 +326,9 @@ Plan: `21-managers.md`, decided with the maintainer on 2026-11-05.
 
 | ID       | Item                                                                                  | Status | Depends  | Notes                                                                                                                                       |
 | -------- | ------------------------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MGR-01` | `manager` claim and role, `managerEmails` on teams, handover on role removal          | todo   | —        | Schema, `setRoles`, rules (Manager reads and edits only teams that list them; Educators read only) with allow and deny tests                |
-| `MGR-02` | Team-scoped assigning: `assignCourses` with `teamIds`, `teamId` on assignments         | todo   | `MGR-01` | A Manager assigns only to teams they manage; published, non-staff courses, never the Educator course                                        |
-| `MGR-03` | `teamReport`, `updateAssignment`, `removeAssignment`, team-scoped `remindLearners`     | todo   | `MGR-02` | No Quiz scores in the report; both edits audited                                                                                            |
-| `MGR-04` | Due-soon (5 days) and overdue notices with the team's managers in CC                  | todo   | `MGR-02` | `Cc:` in the Gmail message, once-only stamps, one email per person per day, template in `EMAIL_TEMPLATES`                                    |
+| `MGR-01` | `manager` claim and role, `managerEmails` on teams, handover on role removal          | done   | —        | `packages/schema/src/user.ts` (`manager` role and claim, `managerEmails`), `assignment.ts`; `firebase/functions/src/roles.ts`, `set-roles.ts` (handover: `releaseManagedTeams`), `stores.ts`; `firebase/firestore.rules` (`isManager`, `managesTeam`), `firebase/rules/test/teams.test.ts` |
+| `MGR-02` | Team-scoped assigning: `assignCourses` with `teamIds`, `teamId` on assignments         | done   | `MGR-01` | `firebase/functions/src/assign.ts` (`teamIds`, `teamAudience`), `errors.ts` (`requireAdminOrManager`, `managesTeam`) |
+| `MGR-03` | `teamReport`, `updateAssignment`, `removeAssignment`, team-scoped `remindLearners`     | done   | `MGR-02` | `firebase/functions/src/team-report.ts`, `remind.ts` (`teamId`), `handlers.ts`, `index.ts`, `stores.ts` (`firestoreTeamReportStore`) |
+| `MGR-04` | Due-soon (5 days) and overdue notices with the team's managers in CC                  | done   | `MGR-02` | `firebase/functions/src/remind.ts` (`noticeFor`, `ccFor`), `mail.ts` (`buildDeadlineEmail`), `gmail.ts` (`Cc:`), `email-templates.ts` |
 | `MGR-05` | Team area: My teams, Team report, Assign for Managers                                 | todo   | `MGR-03` | Navigation area, Adhyaksha label, tips, changelog                                                                                           |
 | `MGR-06` | Admin: Managers on the Teams page, "No manager" marker, Manager in Roles & access      | todo   | `MGR-01` | Educators see Teams read-only                                                                                                               |

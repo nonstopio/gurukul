@@ -42,6 +42,9 @@ const handlers = vi.hoisted(() => ({
   assignCourses: vi.fn(),
   resetCooldown: vi.fn(),
   remindLearners: vi.fn(),
+  teamReport: vi.fn(),
+  updateAssignment: vi.fn(),
+  removeAssignment: vi.fn(),
 }));
 vi.mock('../src/handlers.js', async (orig) => ({
   ...(await orig<typeof Handlers>()),
@@ -52,6 +55,9 @@ vi.mock('../src/handlers.js', async (orig) => ({
   handleAssignCourses: handlers.assignCourses,
   handleResetCooldown: handlers.resetCooldown,
   handleRemindLearners: handlers.remindLearners,
+  handleTeamReport: handlers.teamReport,
+  handleUpdateAssignment: handlers.updateAssignment,
+  handleRemoveAssignment: handlers.removeAssignment,
 }));
 
 const index = await import('../src/index.js');
@@ -67,6 +73,19 @@ const callables = [
   ['assignCourses', index.assignCourses, handlers.assignCourses, { assigned: 1 }],
   ['resetCooldown', index.resetCooldown, handlers.resetCooldown, { reset: true }],
   ['remindLearners', index.remindLearners, handlers.remindLearners, { queued: 2 }],
+  [
+    'teamReport',
+    index.teamReport,
+    handlers.teamReport,
+    { teamId: 'sales', name: 'Sales', members: [] },
+  ],
+  [
+    'updateAssignment',
+    index.updateAssignment,
+    handlers.updateAssignment,
+    { assignmentId: 'a1', dueAt: null },
+  ],
+  ['removeAssignment', index.removeAssignment, handlers.removeAssignment, { assignmentId: 'a1' }],
 ] as const;
 
 describe.each(callables)('%s envelope', (_name, callable, handler, data) => {

@@ -26,6 +26,8 @@ import { isAllowedEmail } from './roles.js';
 import type { RoleChange, RoleClaims } from './roles.js';
 import { applyRoleChange } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
+import { removeAssignment, teamReport, updateAssignment } from './team-report.js';
+import type { TeamReport, TeamReportStore } from './team-report.js';
 import { badField } from './validation.js';
 
 /** The slice of a callable request the Quiz and certificate callables read. */
@@ -124,7 +126,10 @@ function requireCaller(request: AuthedRequest): Caller {
   return { uid: request.auth.uid, email: request.auth.token.email, claims: request.auth.token };
 }
 
-/** `assignCourses`: Admin-only; assigns courses to people by email, optionally emailing them. */
+/**
+ * `assignCourses`: an Admin assigns courses to people by email or to teams; a Manager to the teams
+ * they manage. Optionally emails them.
+ */
 export async function handleAssignCourses(
   request: AuthedRequest,
   deps: { store: AssignStore; mailer: Mailer },
@@ -142,7 +147,7 @@ export async function handleResetCooldown(
   return resetCooldown(admin, caller, asObject(request.data));
 }
 
-/** `remindLearners`: Admin-only; queues reminders for unfinished assignments. */
+/** `remindLearners`: an Admin, or a Manager for a team they manage, emails unfinished assignments. */
 export async function handleRemindLearners(
   request: AuthedRequest,
   deps: { store: ReminderStore; mailer: Mailer },
@@ -203,4 +208,29 @@ export async function handleSendTestEmail(
   deps: { mailer: Mailer },
 ): Promise<{ to: string[] }> {
   return sendTestEmail(deps, requireCaller(request), asObject(request.data));
+}
+
+/** `teamReport`: an Admin or the team's Manager sees its members' assignments and progress. */
+export async function handleTeamReport(
+  request: AuthedRequest,
+  store: TeamReportStore,
+): Promise<TeamReport> {
+  return teamReport(store, requireCaller(request), asObject(request.data));
+}
+
+/** `updateAssignment`: a new due date, or none, for one assignment. */
+export async function handleUpdateAssignment(
+  request: AuthedRequest,
+  store: TeamReportStore,
+  now: () => number,
+): Promise<{ assignmentId: string; dueAt: number | null }> {
+  return updateAssignment(store, requireCaller(request), asObject(request.data), now());
+}
+
+/** `removeAssignment`: deletes one assignment; the person's progress stays. */
+export async function handleRemoveAssignment(
+  request: AuthedRequest,
+  store: TeamReportStore,
+): Promise<{ assignmentId: string }> {
+  return removeAssignment(store, requireCaller(request), asObject(request.data));
 }

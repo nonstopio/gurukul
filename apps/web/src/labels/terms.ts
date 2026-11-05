@@ -14,6 +14,8 @@ const NAMES = {
   learners: { generic: 'Learners', gurukul: 'Shishyas' },
   educator: { generic: 'Educator', gurukul: 'Acharya' },
   educators: { generic: 'Educators', gurukul: 'Acharyas' },
+  manager: { generic: 'Manager', gurukul: 'Adhyaksha' },
+  managers: { generic: 'Managers', gurukul: 'Adhyakshas' },
   admin: { generic: 'Admin', gurukul: 'Kulapati' },
   admins: { generic: 'Admins', gurukul: 'Kulapatis' },
   chapter: { generic: 'Chapter', gurukul: 'Parva' },

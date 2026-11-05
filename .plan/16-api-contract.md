@@ -75,9 +75,12 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `checkAnswer` | Learner | `{ correct: boolean, correctOptionIds: string[], explanation: string }` |
 | `gradeAttempt` | Learner | `AttemptResult`: `{ attemptId, score, correctCount, total, passed, best, results[], nextAttemptAt }` |
 | `revokeCertificate` | Admin | `{ id: string, revoked: boolean }` |
-| `assignCourses` | Admin | `{ summary: AssignSummary, assigned: number, notified: number, failed: { email, courseId }[] }` |
+| `assignCourses` | Admin; Manager with `teamIds` of their teams | `{ summary: AssignSummary, assigned: number, notified: number, failed: { email, courseId }[] }`; the request carries `emails` or `teamIds`, never both (`VAL_1002`); a Manager sending `emails`, a team they do not manage, a `staff` course or the Educator course gets `AUTH_2001`, an unknown team `VAL_1003` |
 | `resetCooldown` | Admin | `{ ok: true }` |
-| `remindLearners` | Admin | `{ sent: number, skipped: number }` |
+| `remindLearners` | Admin; Manager with `teamId` of their team | `{ sent: number, skipped: number }`; optional `teamId` narrows to that team's members |
+| `teamReport` | Admin, the team's Manager | `{ teamId, name, members: { email, uid \| null, displayName \| null, assignments: { assignmentId, courseId, courseTitle, status, dueAt: ms \| null, percent, teamId \| null }[] }[] }`, no Quiz scores (`VAL_1003` unknown team) |
+| `updateAssignment` | Admin; Manager for an assignment whose `teamId` they manage | `{ assignmentId, dueAt: ms \| null }`; clears the deadline notice stamps (`VAL_1002` for a past date, `VAL_1003` unknown assignment) |
+| `removeAssignment` | Admin; Manager for an assignment whose `teamId` they manage | `{ assignmentId }` |
 | `listEmailTemplates` | Admin | `{ id, name, when, subject, body }[]`, every email template filled with sample data |
 | `sendTestEmail` | Admin | `{ to: string[] }`: the one or two `@nonstopio.com` addresses the Admin named, de-duplicated (`GEN_5004` when no Gmail credentials are set) |
 | `createCourse` | Educator, Admin | `{ courseId: string }` (`CRS_1002` when the slug is taken) |

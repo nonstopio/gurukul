@@ -32,6 +32,10 @@ function roleRows(t: Terms): Record<Role, { name: string; can: string }> {
   return {
     learner: { name: t.Learner, can: `Takes courses and ${t.quizzes}, and earns certificates.` },
     educator: { name: t.Educator, can: `Writes and publishes courses in ${t.Studio}.` },
+    manager: {
+      name: t.Manager,
+      can: 'Keeps their teams, assigns them courses and follows their progress.',
+    },
     admin: {
       name: t.Admin,
       can: 'Assigns courses, manages people and roles, and sets up the org.',
