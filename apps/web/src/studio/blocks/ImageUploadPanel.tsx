@@ -1,15 +1,12 @@
 import { formatBytes } from '@gurukul/schema';
-import type { Block } from '@gurukul/schema';
 import { Button, Callout, CopyIcon, FileDrop, UploadIcon, buttonClass } from '@gurukul/ui';
 import { SHRINK_GUIDE_URL } from '../media/failure';
-import type { ImageUpload } from './useImageUpload';
-
-type ImageBlock = Extract<Block, { type: 'image' }>;
+import type { ImageHolder, ImageUpload } from './useImageUpload';
 
 const px = (width: number, height: number) => `${width} × ${height} px`;
 
 /**
- * The Image block's Upload tab: the no-personal-data notice, the file drop (rules first), what a
+ * The Upload tab of an Image block or a course's cover: the no-personal-data notice, the file drop (rules first), what a
  * refused file got wrong, the preview's facts and the Upload button. What is on screen is
  * `source.stage`; the block changes only when an upload finishes (see `useImageUpload`).
  */
@@ -18,7 +15,7 @@ export function ImageUploadPanel({
   source,
   onRemove,
 }: {
-  block: ImageBlock;
+  block: ImageHolder;
   source: ImageUpload;
   onRemove: () => void;
 }) {

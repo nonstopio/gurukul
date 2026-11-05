@@ -1,7 +1,7 @@
 import { formatBytes, shrinkPrompt } from '@gurukul/schema';
 import type {
-  Block,
   ImageContentType,
+  ImageUpload as StoredUpload,
   ShrinkTarget,
   UploadPolicy,
   UploadProblem,
@@ -20,7 +20,20 @@ import { isShrinkable, shrinkImage } from '../media/shrink';
 import { useStudio } from '../StudioProvider';
 import { useBlockScope } from './BlockScope';
 
-type ImageBlock = Extract<Block, { type: 'image' }>;
+/** What holds an uploaded image: an Image block, or a course's cover. */
+export interface ImageHolder {
+  width?: number | undefined;
+  height?: number | undefined;
+  upload?: StoredUpload | undefined;
+}
+
+/** What a finished upload writes onto its holder. */
+export interface UploadedImage {
+  url: string;
+  width: number;
+  height: number;
+  upload: StoredUpload;
+}
 
 /** A file that passed the check and waits for the Educator to upload it. */
 export interface PickedImage {
@@ -77,11 +90,13 @@ export interface ImageUpload {
 
 /**
  * The Upload tab's state machine: pick, check, preview, upload, cancel, retry. The draft changes
- * only when an upload has finished: a refused, cancelled or failed one writes nothing.
+ * only when an upload has finished: a refused, cancelled or failed one writes nothing. `holder` is
+ * an Image block or a course's cover; `done` is the success toast's text for it.
  */
-export function useImageUpload(
-  block: ImageBlock,
-  onChange: (block: ImageBlock) => void,
+export function useImageUpload<T extends ImageHolder>(
+  holder: T,
+  onChange: (next: T & UploadedImage) => void,
+  done = 'The image is in the lesson. Learners see it once you publish.',
 ): ImageUpload {
   const { courseId, uid } = useBlockScope();
   const { policy } = useUploadPolicy();
@@ -90,9 +105,9 @@ export function useImageUpload(
   const [stage, setStage] = useState<UploadStage>({ step: 'idle' });
   // The block as it is when the upload ends, not as it was when it began: the Educator may have
   // typed alt text meanwhile.
-  const latest = useRef(block);
+  const latest = useRef(holder);
   useEffect(() => {
-    latest.current = block;
+    latest.current = holder;
   });
   const running = useRef<AbortController | null>(null);
   const gone = useRef(false);
@@ -239,7 +254,7 @@ export function useImageUpload(
         },
       });
       setStage({ step: 'idle' });
-      toast.show('The image is in the lesson. Learners see it once you publish.', {
+      toast.show(done, {
         tone: 'success',
         title: 'Image uploaded',
       });

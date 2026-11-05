@@ -9,6 +9,7 @@ import {
   handleGradeAttempt,
   handleRevokeCertificate,
   handleArchiveCourse,
+  handleSetCourseAccess,
   handleCreateCourse,
   handlePublishCourse,
   handleRollbackCourse,
@@ -343,6 +344,7 @@ describe('Studio callables', () => {
     create: vi.fn().mockResolvedValue(true),
     release: vi.fn().mockResolvedValue(2),
     setStatus: vi.fn().mockResolvedValue(undefined),
+    setAccess: vi.fn().mockResolvedValue(undefined),
     audit: vi.fn().mockResolvedValue(undefined),
   });
   const token = {
@@ -359,6 +361,7 @@ describe('Studio callables', () => {
     (r: AuthedRequest) => handlePublishCourse(r, studio()),
     (r: AuthedRequest) => handleRollbackCourse(r, studio()),
     (r: AuthedRequest) => handleArchiveCourse(r, studio()),
+    (r: AuthedRequest) => handleSetCourseAccess(r, studio()),
   ];
 
   it.each(calls.map((c, i) => [i, c] as const))(
@@ -389,6 +392,12 @@ describe('Studio callables', () => {
     expect(await handleArchiveCourse(as({ courseId: 'c', archived: true }), s)).toEqual({
       status: 'archived',
     });
+    expect(
+      await handleSetCourseAccess(
+        as({ courseId: 'c', visibility: 'staff', visibleTeamIds: [] }),
+        s,
+      ),
+    ).toEqual({ visibility: 'staff', visibleTeamIds: [] });
     await expect(handlePublishCourse(as(undefined), s)).rejects.toMatchObject({ code: 'VAL_1001' });
   });
 });

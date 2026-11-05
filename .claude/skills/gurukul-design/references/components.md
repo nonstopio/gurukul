@@ -64,6 +64,16 @@ animates on `--dur-slow`. The element with `role="progressbar"` carries `aria-va
 `aria-label`; the bar prints the percentage beside it (`showValue={false}` to hide), the ring prints it
 in the middle (hidden from assistive tech, the role already says it).
 
+`steps` (one boolean per lesson or Quiz, true when done) and `current` (the index being viewed)
+make it a step bar, as in the lesson player's top bar: one segment per step, 10px tall, 2px apart,
+the bar's ends rounded by the `--radius-pill` track; done `--accent-decor`, not yet `--border`, the
+current one a 2px inset ring (`--accent-decor`; `--surface` when it is already done, leaving a
+hollow fill). The segments are `aria-hidden`; the one `progressbar` keeps the percentage in
+`aria-valuenow` and speaks `valueText` (default "3 of 8 done"; pass the course's words, e.g.
+"60%, 3 of 5 lessons and Quizzes done"). The caption prints "3 of 8 done" unless `caption` is
+given. Above `MAX_PROGRESS_STEPS` (40) segments get too thin, so it draws the continuous bar and
+still prints the count.
+
 ## Card — shipped
 
 `<Card as="div|section|article|li" highlighted?>`. `--surface`, 1px `--border`, `--radius-xl`,
@@ -103,7 +113,7 @@ Router use: `render` receives the anchor props (`className`, `aria-current`, `ch
 `<TopBar title titleAs? back? status? actions? />`. Used by the lesson player, Quiz, result and
 editors: a `<header>` on `--chrome`, wrapping flex row. `title` is the page `h1`, Fraunces `--text-lg`
 `--chrome-text-strong`; `titleAs="p"` when the page below carries its own `h1` (one per page). A
-`ProgressBar` in `status` draws 6px on `--chrome-active` with a mint fill and chrome-text caption. `back` is any node; give a link or button `className={topBarBackClass}` for the
+`ProgressBar` in `status` draws 6px on `--chrome-active` with a mint fill and chrome-text caption; a step bar draws its segments 10px on `--chrome-line` with `--chrome-accent` done and ring (`--chrome` for a done current one), up to 26rem wide, and takes a row of its own on a phone. `back` is any node; give a link or button `className={topBarBackClass}` for the
 44px chrome look. `status` (progress, "Saved") and `actions` (a `chrome` Button) sit on the right.
 `TopBarToolsContext` holds controls every `TopBar` shows at its far right, after `actions`: the focused
 layout provides the theme switcher there once, so no page passes it in.
@@ -116,7 +126,9 @@ layout provides the theme switcher there once, so no page passes it in.
 Label above (14/600 `--text-body`, bound with `htmlFor`), optional hint (12 `--text-subtle`),
 control 44px, `--border-strong`, `--radius-md`, 16px text; focus `--focus-ring`. `error` turns the
 border `--danger`, sets `aria-invalid`, and prints the message in `--danger` with an icon; hint and
-error ids are joined into `aria-describedby`. Disabled is 0.5 opacity, `not-allowed`.
+error ids are joined into `aria-describedby`. Disabled is `--surface-sunken`, `not-allowed` (see below).
+Read-only (`readOnly`) shows a value people read and copy, not type: no ground, dashed `--border`, full
+`--text` contrast, default cursor, no hover change; focus keeps `--focus-ring`. Never use `disabled` for it.
 
 ## Toggle — shipped
 
@@ -259,6 +271,17 @@ state ground with a 1px matching line, a 20px icon (`aria-hidden`) and a bold le
 on `--info-soft` / `--info-line`; tip: `--warning` on `--warning-soft` / `--warning-line`; warning:
 `--danger` on `--danger-soft` / `--danger-line`. No left-border accent.
 
+## Explanation — shipped
+
+`<Explanation verdict="correct|incorrect|neutral" title="Correct. Here is why">reason</Explanation>`.
+Feedback on an answer (a lesson Check, a Quiz question, a review row), so it never reads as more
+lesson text. `role="status"` by default (announced when it appears); a review list passes
+`role="note"`. `--radius-lg` panel on a soft ground with a 1px line, an 18px icon (`aria-hidden`) and
+a bold lead-in that says the verdict in words. correct: `CheckIcon`, `--success` on `--success-soft` /
+`--accent-line`; incorrect: `LightbulbIcon`, `--warning` on `--warning-soft` / `--warning-line` (a
+nudge, never danger red); neutral (no key, or a review "Why"): `InfoIcon`, `--info` on `--info-soft`
+/ `--info-line`. `ResultRow` puts its explanation in one headed "Why".
+
 ## EmptyState — shipped
 
 `<EmptyState title headingAs="h2|h3|h4" icon? action?>one line why and what next</EmptyState>`. Centred
@@ -376,7 +399,8 @@ with `aria-describedby`. The control only reports the file; the caller checks it
 button ("Open full size: <alt>") that opens a `Dialog size="lg"` titled by the alt text, holding the image at its
 natural size in a scrollable, keyboard-focusable region with the caption under it; Escape closes it and focus returns
 to the button. An image that fails to load becomes a quiet `--surface-sunken` box with a dashed border holding the alt
-text (no broken-image icon, no zoom button). `onSize` reports the natural pixels after a load, for an editor.
+text (no broken-image icon, no zoom button). The `<figcaption>` is the picture's label: 14px `--text-muted`, 8px under the
+image's left edge, no rule (a left rule reads as a quote). `onSize` reports the natural pixels after a load, for an editor.
 `blurHash` (a valid hash, with `width` and `height`) paints the decoded 32 x 32 placeholder (`blurHashStyle`) over a
 frame at the image's aspect ratio, `aria-hidden`, no alt text; when the image loads it fades out over `--dur-slow`
 and is removed (at once under reduced motion). An invalid or missing hash, or missing sizes, renders nothing extra;
@@ -517,6 +541,15 @@ short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `ico
 `Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
 link (`position: relative; z-index: 1`).
 
+## InsertDivider — shipped
+
+`<InsertDivider className?>control</InsertDivider>` (`src/InsertDivider.tsx`, `insert-divider.css`): a
+quiet "add here" between two items in a list (the Studio's "+" above each lesson block). A flex row
+with the control centred and a 1px `--border` hairline either side, `opacity: 0` until the row is
+hovered or holds focus (`--dur-fast` `--ease` fade, none under reduced motion). The control inside
+carries the name: a `Menu` with `iconButtonClass()` and a `PlusIcon` trigger, or an `IconButton`.
+The caller's `className` adds layout only (spacing).
+
 ## Menu — shipped
 
 `<Menu label items trigger? triggerClassName? align? placement?>` — actions on a thing (row,
@@ -599,12 +632,32 @@ under on narrow screens. At most one primary button in `actions`.
 card blocks inside a `Page` of the same width, `role="status"`, `aria-busy`, a hidden "Loading"
 label. Use it instead of "Loading…" text.
 
-## Select (styled native) — shipped
+## Select — shipped
 
-A native `<select class="g-control g-control--select">` inside `span.g-select` with a decorative
-`ChevronDownIcon` on the right (`pointer-events: none`). `appearance: none`, 44px, 16px text (no
-iOS zoom), ellipsis. Still role `combobox`, so phones show their own picker and e2e `selectOption`
-works. Filter selects start with "Any …". Never a raw `<select>` or a hand-built dropdown.
+A WAI-ARIA select-only combobox (`src/Select.tsx`, `select.css`), never the browser's list. Same
+props as before: `label`, `hideLabel`, `hint`, `error`, `disabled`, `value` or `defaultValue`,
+`<option value>` children (an option without `value` uses its text), and
+`onChange(e)` with `e.target.value`, so callers read it as they did a native select.
+
+- Control: `div.g-control.g-control--select[role=combobox]` showing the chosen option, ellipsis,
+  decorative `ChevronDownIcon` that turns over while open. Named by the Field label
+  (`aria-labelledby`, the label's id is the control id + `-label`), hint and error via
+  `aria-describedby`, `aria-invalid`; disabled is `aria-disabled` and out of the tab order.
+  Open: accent border and focus ring.
+- Popup: `role=listbox`, rendered only while open, `position: fixed` against the control so a
+  dialog's scrolling body cannot clip it; below, or above when under 240px is free below and
+  more is free above; follows scroll and resize. `--surface`, `--border`, `--radius-lg`,
+  `--shadow-menu`, `--z-menu`, max 18rem or the room there is, then scrolls.
+- Options: 44px rows; active (keyboard or hover) `--accent-soft` with a 2px `--accent` outline;
+  the chosen one `aria-selected`, semibold, with a `CheckIcon` in `--accent`.
+- Keys: Enter, Space, ↓ / ↑ (Alt+↓ too) open on the chosen option, Home/End open at an end;
+  open, ↓ ↑ Home End PageUp PageDown move (clamped), Enter/Space choose and close, Escape closes
+  with no change and stops there (a dialog around it stays open), Tab chooses the active option and
+  moves on; typed letters jump (a repeat cycles, letters within 500ms form a prefix). Focus never
+  leaves the control (`aria-activedescendant`); blur closes. Mouse: click toggles, hover
+  highlights, click chooses.
+- Tests: open it and click the option by name (`choose(combobox, name)` in `apps/web/test/select.ts`;
+  in e2e, click the combobox then the option). `selectOption` and `fireEvent.change` no longer apply.
 
 Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focus border
 `--accent` + `--focus-ring`; `aria-invalid` border `--danger`; disabled `--surface-sunken` ground,

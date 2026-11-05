@@ -801,12 +801,18 @@ export function firestoreCourseStore(db: Firestore): CourseStore {
         });
         if (plan.resetDraft) {
           tx.set(draftRef, { ...plan.resetDraft, updatedAt: now, updatedBy: uid });
+        } else if (plan.clearAnswersChanged) {
+          // Not a save: `rev` stays, so an editor open elsewhere is not told of a conflict.
+          tx.update(draftRef, { answersChanged: FieldValue.delete() });
         }
         return version;
       });
     },
     async setStatus(courseId, status) {
       await db.doc(`courses/${courseId}`).update({ status });
+    },
+    async setAccess(courseId, { visibility, visibleTeamIds }) {
+      await db.doc(`courses/${courseId}`).update({ visibility, visibleTeamIds });
     },
     async audit(entry) {
       await writeAudit(db, entry);

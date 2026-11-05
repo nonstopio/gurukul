@@ -110,6 +110,7 @@ function Player({
     (blockId: string) => setAnswered((a) => ({ ...a, [`${itemId}/${blockId}`]: true })),
     [itemId],
   );
+  const [waitedOn, setWaitedOn] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const atEnd = useReachedEnd(endRef, itemId);
   const known = index >= 0;
@@ -210,25 +211,27 @@ function Player({
   const done = s === 'done';
   const watching = needsWatching(lesson, course.rules.requireVideoWatch);
   const videosDone = videosOf(lesson).every((v) => watched[`${lesson.id}/${v.id}`]);
+  const videosLeft = videosOf(lesson).filter((v) => !watched[`${lesson.id}/${v.id}`]).length;
   const checksLeft = lesson.blocks.filter(
     (b) => b.type === 'check' && !answered[`${lesson.id}/${b.id}`],
   ).length;
+  // What still stands between the learner and "Mark complete".
   const waitingFor = done
     ? null
     : watching && !videosDone
-      ? 'Watch 90% of the video to mark this lesson complete.'
+      ? `Watch 90% of ${videosLeft === 1 ? 'the video' : `the ${videosLeft} videos`} above to mark this lesson complete.`
       : checksLeft > 0
-        ? `Answer the ${checksLeft === 1 ? 'question' : `${checksLeft} questions`} in this lesson to mark it complete.`
+        ? `Answer ${checksLeft === 1 ? 'the question' : `the ${checksLeft} questions`} above to mark this lesson complete.`
         : lesson.completeWhen === 'scrolled' && !atEnd
           ? 'Read to the end to mark this lesson complete.'
           : null;
+  // Once this lesson has waited on something, its clearing is announced: the button only changes
+  // look, which a screen reader does not hear.
+  if (waitingFor && waitedOn !== itemId) setWaitedOn(itemId);
+  const nowReady = !waitingFor && !done && waitedOn === itemId;
   // The write lands in the local cache at once and syncs when it can, so moving on never waits
   // for the server: offline, it would wait until the connection came back.
   const complete = () => {
-    if (waitingFor) {
-      toast.show(waitingFor);
-      return;
-    }
     // Never walk into a locked item: say what still stands in the way instead.
     const after = itemStates(course, {
       ...state,
@@ -285,7 +288,9 @@ function Player({
           <ProgressBar
             value={percent}
             label="Course progress"
-            caption={`${percent}% · ${finishedCount} / ${items.length}`}
+            steps={items.map((i) => states[i.id] === 'done')}
+            current={index}
+            valueText={`${percent}%, ${finishedCount} of ${items.length} lessons and ${t.Quizzes} done`}
           />
         }
       />
@@ -314,13 +319,21 @@ function Player({
                 {...(watching && !done ? { onWatched } : {})}
               />
             ))}
-            <div ref={endRef} aria-hidden="true" />
+            {/* After the last block, in the lesson's rhythm; the end sentinel below it doubles the gap
+                to the footer's line. "Mark complete" points here. */}
             {waitingFor ? (
-              <p id="complete-hint" className="article__hint">
+              <p id="complete-hint" className="article__reason">
+                <LockIcon />
                 {waitingFor}
               </p>
             ) : null}
+            <div ref={endRef} aria-hidden="true" />
             <footer className="article__footer">
+              {/* The button only changes look when the wait is over, which a screen reader does not
+                  hear. Out of the flow, so it takes no room in the footer row. */}
+              <p className="sr-only" role="status">
+                {nowReady ? 'You can mark this lesson complete now.' : ''}
+              </p>
               {prev ? (
                 <Link className={buttonClass('secondary')} to={itemPath(course.id, prev)}>
                   <ChevronLeftIcon />
@@ -329,6 +342,7 @@ function Player({
               ) : null}
               <Button
                 onClick={complete}
+                disabled={!!waitingFor}
                 {...(waitingFor ? { 'aria-describedby': 'complete-hint' } : {})}
               >
                 {done

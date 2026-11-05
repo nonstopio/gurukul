@@ -21,8 +21,8 @@ email or a phone number.
 ## Consent
 
 - Consent starts **denied** and Consent Mode v2 advertising signals stay denied always.
-- Signing in requires accepting the privacy policy (`/privacy`, public) with a switch on the
-  sign-in page. No acceptance, no sign-in. The acceptance is stored per browser with the policy
+- Signing in requires accepting the privacy policy (`/privacy`, public) with a tick box (`Checkbox`)
+  on the sign-in page. No acceptance, no sign-in. The acceptance is stored per browser with the policy
   version (`gurukul.privacy.accepted`).
 - Analytics consent is granted only while an accepting person is signed in, and denied again on
   sign-out. A visitor who is not signed in sends nothing and loads nothing from Google.

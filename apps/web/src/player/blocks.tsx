@@ -1,6 +1,7 @@
 import {
   Callout,
   CodeBlock,
+  Explanation,
   FileIcon,
   ImageFigure,
   QuizOption,
@@ -98,13 +99,18 @@ function CheckBlock({
         </QuizOption>
       ))}
       {solved ? (
-        <p role="status" className="check__explanation">
-          <Inline md={block.explanation} />
-        </p>
+        <Explanation
+          verdict={block.correct === undefined ? 'neutral' : 'correct'}
+          title={block.correct === undefined ? 'Here is why' : 'Correct. Here is why'}
+        >
+          <p className="check__explanation">
+            <Inline md={block.explanation} />
+          </p>
+        </Explanation>
       ) : picked !== null ? (
-        <p role="status" className="check__explanation">
-          Not quite. Try another answer.
-        </p>
+        <Explanation verdict="incorrect" title="Not quite">
+          <p className="check__explanation">Try another answer.</p>
+        </Explanation>
       ) : null}
     </div>
   );

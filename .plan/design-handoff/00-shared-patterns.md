@@ -23,8 +23,10 @@ learning) · **Studio** (Courses, Question bank, Media library; Switch to).
 
 Top bar: `--chrome`, padding 12px `clamp(16px,3vw,32px)`, wraps. Left: back
 link (44px target, chevron + label, `--chrome-text`) · divider · course title
-Fraunces 17–18px white. Right: progress (6px bar `--chrome-active` track,
-mint fill, "44% · 10 / 22") or save state, then actions (`chrome` Button).
+Fraunces 17–18px white. Right: progress or save state, then actions (`chrome`
+Button). The lesson's progress (`ProgressBar` with `steps`) is segmented, one
+step per lesson and Quiz, done steps filled `--accent-decor`, with "1 of 26 done" beside it; above
+40 items a segment is too thin to read, so it draws one continuous fill.
 
 ## Breakpoints
 

@@ -5,6 +5,7 @@ import { fakeConsole } from './fake-console';
 import { fakeData, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { optionNames } from './select';
 
 const mine = (over: Partial<Course> = {}) =>
   makeCourse({ educatorIds: ['u1'], version: 3, ...over });
@@ -45,7 +46,8 @@ describe('Studio in Gurukul names', () => {
   });
 
   it('names the structure, details, landing, analytics, versions and publish screens', async () => {
-    await openEditor();
+    // An edited draft: with nothing to publish, Publish is disabled.
+    await openEditor(mine(), { ...mine(), summary: 'Edited summary' });
     expect(await screen.findByRole('button', { name: 'Add Parva' })).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Vyasa Studio' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Preview as Shishya' })).toBeTruthy();
@@ -74,12 +76,20 @@ describe('Studio in Gurukul names', () => {
     const draft = draftDoc(makeCourse());
     await gurukul('/studio/courses/git/lessons/l1', fakeStudio({ draft }));
     expect(await screen.findByRole('heading', { name: 'Lessons and Parikshas' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'The Shishya marks it done' })).toBeTruthy();
+    expect(optionNames(screen.getByRole('combobox', { name: 'Completion rule' }))).toContain(
+      'The Shishya marks it done',
+    );
 
     await gurukul('/studio/courses/git/quiz/q1', fakeStudio({ draft }));
     expect(await screen.findByRole('region', { name: 'Pariksha settings' })).toBeTruthy();
-    expect(
+    fireEvent.click(
       screen.getByRole('switch', { name: 'Shishyas must pass to open the rest of this Parva' }),
+    );
+    expect(
+      screen.getByRole('switch', {
+        name: 'Shishyas can skip ahead',
+        description: 'The rest of this Parva stays open whether or not they pass.',
+      }),
     ).toBeTruthy();
 
     await gurukul('/studio/courses/git/preview/l1', fakeStudio({ draft }));

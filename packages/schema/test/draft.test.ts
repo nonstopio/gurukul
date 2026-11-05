@@ -6,6 +6,7 @@ import {
   diffCourses,
   draftSchema,
   estimateMinutes,
+  LANDING_ISSUES,
   slugify,
   validateForPublish,
 } from '../src';
@@ -73,6 +74,8 @@ describe('blankCourse and estimateMinutes', () => {
     const doc = { rev: 1, updatedAt: ts(1), updatedBy: 'u1', course: good(), answers: keys };
     expect(draftSchema.safeParse(doc).success).toBe(true);
     expect(draftSchema.safeParse({ ...doc, rev: -1 }).success).toBe(false);
+    expect(draftSchema.safeParse({ ...doc, answersChanged: true }).success).toBe(true);
+    expect(draftSchema.safeParse({ ...doc, answersChanged: false }).success).toBe(false);
   });
 });
 
@@ -91,11 +94,51 @@ describe('validateForPublish', () => {
     expect(codes(empty)).toContain('course.empty');
   });
 
+  it('asks for a landing page description and two outcomes, blank ones not counted', () => {
+    const c = good();
+    c.description = '  ';
+    c.outcomes = ['Commit', ' '];
+    const issues = validateForPublish(c, keys);
+    expect(issues).toEqual([
+      { code: 'course.description', message: 'Add a description on the Landing page.' },
+      {
+        code: 'course.outcome.blank',
+        message: 'Outcome 2 is empty. Fill it in or remove it on the Landing page.',
+        outcome: 1,
+      },
+      {
+        code: 'course.outcomes',
+        message: 'Add at least 2 outcomes on the Landing page (you have 1).',
+      },
+    ]);
+    expect([...LANDING_ISSUES].sort()).toEqual([
+      'course.description',
+      'course.outcome.blank',
+      'course.outcomes',
+    ]);
+    c.outcomes = [];
+    expect(validateForPublish(c, keys).map((i) => i.message)).toContain(
+      'Add at least 2 outcomes on the Landing page (you have 0).',
+    );
+  });
+
+  it('refuses a blank outcome even with enough filled ones: it would publish as an empty bullet', () => {
+    const c = good();
+    c.outcomes = ['Commit', 'Branch', '', 'Merge'];
+    expect(validateForPublish(c, keys)).toEqual([
+      {
+        code: 'course.outcome.blank',
+        message: 'Outcome 3 is empty. Fill it in or remove it on the Landing page.',
+        outcome: 2,
+      },
+    ]);
+  });
+
   it('reports structural problems from the schema', () => {
     const c = good();
     (c as { level: string }).level = 'expert';
-    expect(validateForPublish(c, keys).find((i) => i.code === 'schema')?.message).toContain(
-      'level',
+    expect(validateForPublish(c, keys).find((i) => i.code === 'schema')?.message).toBe(
+      'The level has a value Gurukul does not accept.',
     );
     const whole = good();
     (whole as { title: unknown }).title = 5;
@@ -103,9 +146,30 @@ describe('validateForPublish', () => {
     const root = { ...good(), chapters: 'x' } as unknown as Course;
     expect(
       validateForPublish(root, keys).some(
-        (i) => i.code === 'schema' && i.message.startsWith('chapters'),
+        (i) => i.code === 'schema' && i.message.startsWith('The chapter list'),
       ),
     ).toBe(true);
+  });
+
+  it("judges a draft saved at an older schemaVersion in today's shape, so it still publishes", () => {
+    const v3 = { ...good(), schemaVersion: 3 } as unknown as Course;
+    expect(validateForPublish(v3, keys)).toEqual([]);
+    const v1: Partial<Course> = { ...good(), schemaVersion: 1 } as unknown as Course;
+    delete v1.educatorNames;
+    expect(validateForPublish(v1 as Course, keys)).toEqual([]);
+  });
+
+  it("never shows an internal field as something to fix, nor the schema's own wording", () => {
+    const newer = { ...good(), schemaVersion: 99 } as unknown as Course;
+    const issues = validateForPublish(newer, keys);
+    expect(issues).toEqual([
+      {
+        code: 'schema.outdated',
+        message:
+          'This draft was saved by an older version of Gurukul. Reload the page; if this stays, use Report issue.',
+      },
+    ]);
+    expect(JSON.stringify(issues)).not.toMatch(/schemaVersion|Invalid input/);
   });
 
   it('does not let a too-small number or empty id through as if it were fine', () => {
@@ -137,7 +201,7 @@ describe('validateForPublish', () => {
   it('reports a value that is not a course at all, without crashing', () => {
     const issues = validateForPublish(null as unknown as Course, {});
     expect(issues).toHaveLength(1);
-    expect(issues[0]?.message.startsWith('course:')).toBe(true);
+    expect(issues[0]?.message).toBe('The course has a value Gurukul does not accept.');
   });
 
   it('flags titles, an empty lesson and repeated ids', () => {

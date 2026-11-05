@@ -51,15 +51,17 @@ checked by a script in `npm run check` (`scripts/check-design.mjs`, tested in `s
 | `Avatar`        | Initials circle, colour by role, sizes 24/34/36/48.                                                                    |
 | `UserCard`      | Avatar, name, email or role; a menu button.                                                                            |
 | `Menu`          | Menu button + `role="menu"` popover: arrow keys, Home/End, type-ahead, Escape, click-outside, focus return. Account menu and row actions. |
-| `Select`        | Still a native `<select>` (keyboard, mobile pickers and screen readers for free; e2e `selectOption` keeps working), now with `appearance: none`, an SVG chevron, 44px, hover, focus, invalid and disabled states. |
+| `Select`        | A select-only combobox (WAI-ARIA APG) with our own listbox popup: the same props as a native select (`<option>` children, `onChange(e)` with `e.target.value`), an SVG chevron, 44px, hover, focus, open, invalid and disabled states, a check on the chosen option. |
 | `FilterBar`     | Search + selects + toggles in one wrapping row, labels visually hidden, a "Clear filters" action.                     |
 | `SegmentedControl` | Moved from `apps/web/src/studio/blocks/Segmented.tsx`.                                                              |
 | `Button`        | Gains `loading` (spinner-free: label kept, `aria-busy`, disabled) and `size="sm"`.                                    |
 | `DataTable`     | Absorbs the four `.plain-table` uses (a `plain` variant: no sort, no paging).                                          |
 | `PageSkeleton`  | Replaces "Loading…" text for lazy routes and `Loaded`.                                                                 |
 
-A custom listbox (combobox) is not built: the native select covers every list we have (the
-longest is courses, tens of items). Add one when a list needs search.
+`Select` was first a styled native `<select>`; its open list was the operating system's, which
+looked foreign and differed between browsers, so it became our own listbox (no search: the
+longest list is courses, tens of items, and typed letters jump). A list that needs search is a
+`PeoplePicker`-style combobox, built when one does.
 
 ### 3. Design system screens for Admins
 

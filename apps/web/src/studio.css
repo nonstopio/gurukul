@@ -296,6 +296,14 @@
   margin: 0;
   padding: 0;
   border: 0;
+  min-width: 0;
+}
+/* A legend sits on the fieldset's border with its own padding; floated, it is an ordinary first
+   row, flush with the field labels and a label's gap above the cards. */
+.sc-teams > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
 }
 .sc-changes__group ul,
 .sc-problems ul {
@@ -444,6 +452,10 @@
 .studio-answer .g-check {
   flex: none;
   margin-bottom: var(--space-3);
+}
+/* The "+" above each block, on a hairline that shows on hover and keyboard focus. */
+.studio-insert {
+  margin-bottom: var(--space-2);
 }
 .studio-palette {
   display: flex;

@@ -6,6 +6,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -121,6 +122,27 @@ describe('courses/{id}/drafts/current', () => {
     await assertFails(
       updateDoc(doc(priya(), 'courses/wip/drafts/current'), draftSave({ updatedBy: 'priya' })),
     );
+  });
+
+  it('accepts setting the answersChanged mark, and a save that keeps one already set', async () => {
+    const ref = doc(asha(), 'courses/wip/drafts/current');
+    await assertSucceeds(updateDoc(ref, draftSave({ answersChanged: true })));
+    await assertSucceeds(updateDoc(ref, draftSave({ rev: 6, answersChanged: true })));
+  });
+
+  it('denies an answersChanged mark that is not true', async () => {
+    const ref = doc(asha(), 'courses/wip/drafts/current');
+    await assertFails(updateDoc(ref, draftSave({ answersChanged: false })));
+    await assertFails(updateDoc(ref, draftSave({ answersChanged: 'yes' })));
+  });
+
+  it('denies a save that removes a stored answersChanged mark: only publishing clears it', async () => {
+    const ref = doc(asha(), 'courses/wip/drafts/current');
+    await assertSucceeds(updateDoc(ref, draftSave({ answersChanged: true })));
+    // A full set without the mark, and a field delete, both drop it.
+    await assertFails(setDoc(ref, draftSave({ rev: 6 })));
+    await assertFails(updateDoc(ref, { ...draftSave({ rev: 6 }), answersChanged: deleteField() }));
+    await assertFails(updateDoc(ref, draftSave({ rev: 6, answersChanged: false })));
   });
 
   it('denies a stale or skipped rev, a forged author or time, and extra keys', async () => {

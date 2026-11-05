@@ -136,6 +136,17 @@ export const ERROR_CODES = {
     userMessage: 'The list has too many or too few items.',
     developerMessage: "Field '%s' must have %s items.",
   },
+  // A request shaped by an older page: today's function no longer takes the field, and dropping it
+  // quietly would lose what the person chose.
+  VAL_1005: {
+    title: 'Outdated request',
+    category: 'VALIDATION',
+    retryable: false,
+    status: 400,
+    userMessage:
+      'Reload the page to publish: who can open the course is now set on the course page.',
+    developerMessage: "Field '%s' is no longer accepted by '%s'.",
+  },
   USR_1001: {
     title: 'Cannot remove your own Admin role',
     category: 'USER',

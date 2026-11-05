@@ -19,9 +19,14 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
    video is a step in the flow, where the author placed it; an unrecorded
    placeholder video is not shown); the outline rail shows where you are.
    "Mark complete" saves and moves to the next item once the lesson's rule is
-   met and every check question has had its answer shown. Pressed earlier, or
-   when the next item is still locked, it stays put and a toast names what to do,
-   with an "Open lesson" / "Open Quiz" button to the item in the way. A locked
+   met and every check question has had its answer shown. Until then it is
+   disabled, and the reason ("Answer the question above to mark this lesson
+   complete.") sits with a lock icon above the footer divider, tied to the button
+   by `aria-describedby`; when the wait ends, an sr-only status says "You can
+   mark this lesson complete now." No toast for that case. When the lesson is
+   done but the next item is still locked, the button stays put and a toast
+   names what to do, with an "Open lesson" / "Open Quiz" button to the item in
+   the way. A locked
    item opened from a link names that item and opens it the same way. Buttons
    say the action only ("Mark complete", "Next", "Previous", "Resume"), never
    the next item's name; the forward button sits on the right.

@@ -17,10 +17,13 @@ vi.mock('../src/log', () => ({
 }));
 
 import { ERROR_CODES } from '@gurukul/schema';
+import { choose } from './select';
 const ROLLBACK_MISSING = ERROR_CODES.CRS_2002.userMessage;
 const KEYS = { q1: { k1: ['a'] } };
 const mine = (over: Partial<Course> = {}) =>
   makeCourse({ educatorIds: ['u1'], version: 3, ...over });
+/** A draft with something to publish: Publish is disabled when nothing changed. */
+const edited = (over: Partial<Course> = {}) => mine({ summary: 'An edited summary', ...over });
 
 interface Setup {
   live?: Course;
@@ -124,7 +127,7 @@ describe('Course editor: the shell', () => {
     await ready();
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
     expect(screen.getByText('Live: v3')).toBeTruthy();
-    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
+    expect(screen.getByText(/^No changes since v3 · saved/)).toBeTruthy();
     expect(
       screen
         .getAllByRole('link', { name: 'Studio' })
@@ -138,6 +141,50 @@ describe('Course editor: the shell', () => {
       screen.getByText('Learners on v3 keep their progress — matched by lesson id.'),
     ).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('shows the version the draft becomes, and disables Publish when nothing changed', async () => {
+    const { studio } = await open();
+    await ready();
+    const publish = () => screen.getByRole('button', { name: 'Publish v4' }) as HTMLButtonElement;
+    expect(publish().disabled).toBe(true);
+    expect(publish().title).toBe('No changes since v3');
+    expect(publish().getAttribute('aria-describedby')).toBe('course-save-state');
+    expect(document.getElementById('course-save-state')?.textContent).toMatch(
+      /^No changes since v3/,
+    );
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Git, the NonStop Way ' },
+    });
+    expect(screen.getByText('Draft v4 · unsaved changes')).toBeTruthy();
+    expect(publish().disabled).toBe(false);
+    expect(publish().className).toMatch(/g-btn--chrome\b/);
+    expect(publish().title).toBe('');
+    expect(publish().getAttribute('aria-describedby')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Git, the NonStop Way' } });
+    expect(screen.getByText('No changes since v3 · unsaved changes')).toBeTruthy();
+    expect(publish().disabled).toBe(true);
+    expect(studio.service.publishCourse).not.toHaveBeenCalled();
+  });
+
+  it('counts an answer key edit as something to publish, and says so in the dialog', async () => {
+    const live = mine();
+    const studio = fakeStudio({
+      draft: draftDoc(live, { rev: 5, answers: KEYS, answersChanged: true }),
+    });
+    await openApp(`/studio/courses/${live.id}`, {
+      roles: ['educator'],
+      studio,
+      data: fakeData({ courses: [live] }),
+      console: fakeConsole(),
+    });
+    await ready();
+    expect(screen.getByText(/^Draft v4 · saved/)).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Quiz answer keys changed.')).toBeTruthy();
   });
 
   it('handles a never-published, empty course', async () => {
@@ -228,7 +275,7 @@ describe('Course editor: structure', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Title of chapter 1' }), {
       target: { value: 'Start' },
     });
-    expect(screen.getByText(/^Draft v5 · unsaved changes/)).toBeTruthy();
+    expect(screen.getByText(/^Draft v4 · unsaved changes/)).toBeTruthy();
     fireEvent.click(
       screen.getAllByRole('button', { name: 'Lesson in chapter 1' })[0] as HTMLElement,
     );
@@ -423,7 +470,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       vi.advanceTimersByTime(1100);
     });
-    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v4 · saved/)).toBeTruthy());
     expect(studio.data.saveDraft).toHaveBeenCalledWith(
       'git',
       expect.objectContaining({ course: expect.objectContaining({ title: 'Renamed' }) }),
@@ -446,7 +493,7 @@ describe('Course editor: saving', () => {
     await act(async () => {
       fireEvent.click(retry);
     });
-    await waitFor(() => expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/^Draft v4 · saved/)).toBeTruthy());
   });
 
   it('warns about a conflict and reloads on request', async () => {
@@ -460,7 +507,7 @@ describe('Course editor: saving', () => {
     expect(
       await screen.findByText('Someone else saved this draft. Reload to continue.'),
     ).toBeTruthy();
-    expect(screen.getByText('Draft v5 · not saved')).toBeTruthy();
+    expect(screen.getByText('Draft v4 · not saved')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() => expect(studio.data.getDraft).toHaveBeenCalledTimes(2));
     await waitFor(() =>
@@ -482,23 +529,28 @@ describe('Course editor: details, landing page, certificate', () => {
     expect(addr.value).toBe('git');
     fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'New summary' } });
     expect((screen.getByLabelText('Summary') as HTMLTextAreaElement).value).toBe('New summary');
-    fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'advanced' } });
-    expect((screen.getByLabelText('Level') as HTMLSelectElement).value).toBe('advanced');
+    choose(screen.getByLabelText('Level'), 'Advanced');
+    expect(screen.getByLabelText('Level').textContent).toBe('Advanced');
     fireEvent.change(screen.getByLabelText('Pass mark (%)'), { target: { value: '80' } });
     expect((screen.getByLabelText('Pass mark (%)') as HTMLInputElement).value).toBe('80');
     fireEvent.change(screen.getByLabelText('Pass mark (%)'), { target: { value: '' } });
     expect((screen.getByLabelText('Pass mark (%)') as HTMLInputElement).value).toBe('80');
     fireEvent.click(screen.getByRole('radio', { name: 'Stone' }));
     expect((screen.getByRole('radio', { name: 'Stone' }) as HTMLInputElement).checked).toBe(true);
-    for (const name of ['Learners go in order', 'Issue a certificate', 'Require watching videos']) {
-      const toggle = screen.getByRole('switch', { name }) as HTMLInputElement;
+    // Each rule's name follows its switch.
+    for (const [on, off] of [
+      ['Learners go in order', 'Learners go in any order'],
+      ['Issue a certificate', 'No certificate'],
+      ['Require watching videos', 'Videos are optional'],
+    ] as const) {
+      const toggle = screen.getByRole('switch', {
+        name: new RegExp(`^(${on}|${off})$`),
+      }) as HTMLInputElement;
       const before = toggle.checked;
       fireEvent.click(toggle);
-      expect((screen.getByRole('switch', { name }) as HTMLInputElement).checked).toBe(!before);
+      const after = screen.getByRole('switch', { name: before ? off : on }) as HTMLInputElement;
+      expect(after.checked).toBe(!before);
     }
-    expect(
-      (screen.getByRole('button', { name: 'Upload cover image' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
     expect(screen.getByText('2 people. An Admin changes this list in the console.')).toBeTruthy();
     expect(screen.getByText('u2')).toBeTruthy();
   });
@@ -510,18 +562,29 @@ describe('Course editor: details, landing page, certificate', () => {
   });
 
   it('edits the description and outcomes', async () => {
-    await open();
+    await open({ live: mine({ outcomes: ['Commit with confidence'] }) });
     await ready();
     fireEvent.click(screen.getByRole('tab', { name: 'Landing page' }));
+    expect(
+      screen.getByText('Add at least 2 outcomes on the Landing page (you have 1).'),
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: ' ' } });
+    expect(screen.getByText('Add a description on the Landing page.')).toBeTruthy();
+    expect(screen.getByLabelText('Description').getAttribute('aria-invalid')).toBe('true');
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: '# Hi' } });
+    expect(screen.queryByText('Add a description on the Landing page.')).toBeNull();
     fireEvent.change(screen.getByLabelText('Outcome 1'), { target: { value: 'Rebase' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add outcome' }));
     fireEvent.change(screen.getByLabelText('Outcome 2'), { target: { value: 'Merge' } });
+    expect(screen.queryByText(/^Add at least 2 outcomes/)).toBeNull();
     expect((screen.getByLabelText('Outcome 1') as HTMLInputElement).value).toBe('Rebase');
     fireEvent.click(screen.getByRole('button', { name: 'Remove outcome 1' }));
     expect((screen.getByLabelText('Outcome 1') as HTMLInputElement).value).toBe('Merge');
     fireEvent.click(screen.getByRole('button', { name: 'Remove outcome 1' }));
-    expect(screen.getByText('No outcomes yet.')).toBeTruthy();
+    expect(screen.getByText('At least 2 outcomes to publish. No outcomes yet.')).toBeTruthy();
+    expect(
+      screen.getByText('Add at least 2 outcomes on the Landing page (you have 0).'),
+    ).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -819,11 +882,7 @@ describe('Course editor: publishing', () => {
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Publish v4' }));
     });
-    expect(studio.service.publishCourse).toHaveBeenCalledWith({
-      courseId: 'git',
-      visibility: 'public',
-      visibleTeamIds: [],
-    });
+    expect(studio.service.publishCourse).toHaveBeenCalledWith({ courseId: 'git' });
     expect(await screen.findByText('Published v4. Learners see it now.')).toBeTruthy();
     expect(await screen.findByText('Live: v4')).toBeTruthy();
     expect(studio.data.getDraft).toHaveBeenCalledTimes(2);
@@ -849,13 +908,13 @@ describe('Course editor: publishing', () => {
     const live = mine();
     const data = fakeData({ courses: [live] });
     data.data.getCourse = vi.fn().mockResolvedValueOnce(live).mockRejectedValue(new Error('x'));
-    const { studio } = await open({ live, getCourse: data });
+    const { studio } = await open({ live, draft: edited(), getCourse: data });
     await ready();
     studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
     });
-    expect(await screen.findByText(/Nothing has changed since v3/)).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Publish v4' })).toBeTruthy();
     await act(async () => {
       fireEvent.click(
         within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish v4' }),
@@ -865,76 +924,75 @@ describe('Course editor: publishing', () => {
     expect(log.warn).toHaveBeenCalledWith('Reloading the live course failed', { courseId: 'git' });
   });
 
-  it('sets who can open the course: teams from the Admin list, and no publish without one', async () => {
+  it('shows who can open the course, and sends people to the card that changes it', async () => {
     const live = mine();
-    const learner = fakeData({ courses: [live], teams: ['Platform', 'QA Guild'] });
-    const { studio } = await open({ live, getCourse: learner });
+    const { studio } = await open({ live, draft: edited() });
     vi.mocked(studio.data.getAccess).mockResolvedValue({
-      visibility: 'public',
-      visibleTeamIds: [],
-    });
-    await ready();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
-    });
-    const dialog = await screen.findByRole('dialog', { name: /^Publish v/ });
-    const select = await within(dialog).findByLabelText('Visibility');
-    expect(within(dialog).getByText(/Every signed-in learner sees it/)).toBeTruthy();
-    fireEvent.change(select, { target: { value: 'staff' } });
-    expect(within(dialog).getByText(/Only educators and Admins see it/)).toBeTruthy();
-    fireEvent.change(select, { target: { value: 'teams' } });
-    expect(
-      within(dialog).getByText('Pick at least one team, or choose another visibility.'),
-    ).toBeTruthy();
-    expect(
-      (within(dialog).getByRole('button', { name: /^Publish v/ }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'QA Guild' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Platform' }));
-    studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /^Publish v/ }));
-    });
-    expect(studio.service.publishCourse).toHaveBeenCalledWith({
-      courseId: 'git',
       visibility: 'teams',
       visibleTeamIds: ['qa-guild'],
     });
-  });
-
-  it('explains when no teams exist yet, and publishes without visibility when it cannot be read', async () => {
-    const live = mine();
-    const learner = fakeData({ courses: [live] });
-    learner.data.orgTeams = vi.fn().mockRejectedValue(new Error('x'));
-    const { studio } = await open({ live, getCourse: learner });
-    vi.mocked(studio.data.getAccess).mockResolvedValueOnce({
-      visibility: 'teams',
-      visibleTeamIds: ['x'],
-    });
     await ready();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
     });
-    const dialog = await screen.findByRole('dialog', { name: /^Publish v/ });
-    expect(await within(dialog).findByText(/Teams are made in Studio, under Teams/)).toBeTruthy();
-    expect(learner.data.orgTeams).toHaveBeenCalled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    vi.mocked(studio.data.getAccess).mockRejectedValue(new Error('x'));
+    const dialog = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(await within(dialog).findByText('Team only: 1 team. Publishing keeps it.')).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Visibility')).toBeNull();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Change who can open' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Publish v/ }));
+      vi.runOnlyPendingTimers();
     });
-    const again = await screen.findByRole('dialog', { name: /^Publish v/ });
-    expect(within(again).queryByLabelText('Visibility')).toBeNull();
+    vi.useRealTimers();
+    expect(document.activeElement).toBe(screen.getByLabelText('Visibility'));
     studio.service.publishCourse = vi.fn().mockResolvedValue({ version: 4 });
     await act(async () => {
-      fireEvent.click(within(again).getByRole('button', { name: /^Publish v/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
     });
+    const again = await screen.findByRole('dialog', { name: 'Publish v4' });
+    expect(await within(again).findByText('Team only: 1 team. Publishing keeps it.')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(within(again).getByRole('button', { name: 'Publish v4' }));
+    });
+    // A publish never carries who can open the course: it keeps what the live course has.
     expect(studio.service.publishCourse).toHaveBeenCalledWith({ courseId: 'git' });
   });
 
+  it('names other visibilities, plural teams, and leaves the line out when it cannot be read', async () => {
+    const { studio } = await open({ draft: edited() });
+    const access = vi.mocked(studio.data.getAccess);
+    await ready();
+    access.mockResolvedValueOnce({ visibility: 'teams', visibleTeamIds: ['a', 'b'] });
+    const openDialog = async () => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
+      });
+      return screen.findByRole('dialog', { name: 'Publish v4' });
+    };
+    let dialog = await openDialog();
+    expect(
+      await within(dialog).findByText('Team only: 2 teams. Publishing keeps it.'),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    access.mockResolvedValueOnce({ visibility: 'staff', visibleTeamIds: [] });
+    dialog = await openDialog();
+    expect(
+      await within(dialog).findByText('Educators and Admins. Publishing keeps it.'),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    access.mockRejectedValueOnce(new Error('x'));
+    dialog = await openDialog();
+    await waitFor(() =>
+      expect(log.warn).toHaveBeenCalledWith('Reading the course visibility failed', {
+        courseId: 'git',
+      }),
+    );
+    expect(within(dialog).queryByText(/Publishing keeps it/)).toBeNull();
+  });
+
   it('warns in the publish dialog that publishing an archived course un-archives it', async () => {
-    await open({ live: mine({ status: 'archived' }) });
+    await open({ live: mine({ status: 'archived' }), draft: edited({ status: 'archived' }) });
     await ready();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
@@ -1001,7 +1059,7 @@ describe('Course editor: publishing', () => {
 
   it('shows the issues the server refuses with', async () => {
     const live = mine();
-    const { studio } = await open({ live });
+    const { studio } = await open({ live, draft: edited() });
     await ready();
     studio.service.publishCourse = vi.fn().mockRejectedValue(
       apiFailure('CRS_1003', {
@@ -1030,7 +1088,7 @@ describe('Course editor: publishing', () => {
   });
 
   it('shows other publish failures', async () => {
-    const { studio } = await open();
+    const { studio } = await open({ draft: edited() });
     await ready();
     studio.service.publishCourse = vi
       .fn()

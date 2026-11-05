@@ -136,10 +136,11 @@ export function shownName(displayName: string | null | undefined, email: string)
 }
 
 /**
- * The picture for a course's tile: the first image in its lessons, in reading order. A course with
- * no picture gets none, and its tile shows the course name on its own colour instead.
+ * The picture for a course's tile: its cover image, else the first image in its lessons, in reading
+ * order. A course with no picture gets none, and its tile shows the course name on its own colour.
  */
-export function courseImageUrl(course: Pick<Course, 'chapters'>): string | undefined {
+export function courseImageUrl(course: Pick<Course, 'chapters' | 'cover'>): string | undefined {
+  if (course.cover.image) return course.cover.image.url;
   for (const chapter of course.chapters) {
     for (const item of chapter.items) {
       if (item.type !== 'lesson') continue;

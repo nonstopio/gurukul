@@ -66,6 +66,8 @@ function setup() {
       <Harness seen={seen} />
     </BlockProviders>,
   );
+  // A new block opens on Link; these tests are about the Upload tab.
+  fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
   return { ...view, studio, seen };
 }
 

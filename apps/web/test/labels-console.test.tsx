@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeConsole, userRow } from './fake-console';
 import { fakeData } from './fake-data';
 import { openApp } from './harness';
+import { choose, optionNames } from './select';
 
 const gurukulAdmin = { roles: ['admin'] as Array<'admin'>, labels: 'gurukul' as const };
 
@@ -108,13 +109,13 @@ describe('the console in Gurukul names', () => {
     expect(screen.getByRole('cell', { name: 'Shishya' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Shishyas' })).toBeTruthy();
     expect(screen.getByRole('tablist', { name: 'Shishya groups' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Kulapati' })).toBeTruthy();
+    expect(optionNames(screen.getByRole('combobox', { name: 'Role' }))).toContain('Kulapati');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/Acharya and Kulapati are separate/)).toBeTruthy();
-    expect(within(dialog).getByRole('option', { name: 'Make Kulapati' })).toBeTruthy();
-    fireEvent.change(within(dialog).getByLabelText('Acharya'), { target: { value: 'remove' } });
+    expect(optionNames(within(dialog).getByLabelText('Kulapati'))).toContain('Make Kulapati');
+    choose(within(dialog).getByLabelText('Acharya'), 'Remove Acharya');
     expect(
       within(dialog).getByText('Removing Acharya also clears their granted courses.'),
     ).toBeTruthy();

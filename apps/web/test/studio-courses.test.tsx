@@ -5,6 +5,7 @@ import { fakeData, lesson, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
 import { apiFailure } from './studio-fixtures';
+import { choose } from './select';
 
 vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -223,9 +224,9 @@ describe('Studio courses page', () => {
     expect((within(dialog).getByLabelText('Address') as HTMLInputElement).value).toBe(
       'cafe-basics',
     );
-    fireEvent.change(within(dialog).getByLabelText('Level'), { target: { value: 'advanced' } });
+    choose(within(dialog).getByLabelText('Level'), 'Advanced');
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Sky' }));
-    fireEvent.change(within(dialog).getByLabelText('Duplicate from'), { target: { value: 'git' } });
+    choose(within(dialog).getByLabelText('Duplicate from'), /^Git/);
     await act(async () => {
       fireEvent.submit(dialog.querySelector('form') as HTMLFormElement);
     });

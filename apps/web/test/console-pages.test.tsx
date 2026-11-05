@@ -5,6 +5,7 @@ import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { fakeData, makeCourse, progressRow } from './fake-data';
 import { openApp } from './harness';
+import { choose } from './select';
 
 const adminCaller = { roles: ['admin'] as Array<'admin'> };
 const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
@@ -703,15 +704,15 @@ describe('Overview: Needs attention', () => {
     });
     await openApp('/admin', { ...adminCaller, console: c });
     await screen.findByRole('button', { name: 'Nudge out@nonstopio.com' });
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    choose(screen.getByLabelText('Team'), 'QA');
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Nudge out@nonstopio.com' })).toBeNull(),
     );
     expect(screen.getByRole('button', { name: 'Nudge in@nonstopio.com' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^Reset/ })).toHaveLength(1);
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: '' } });
+    choose(screen.getByLabelText('Team'), 'Any team');
     await screen.findByRole('button', { name: 'Nudge old@nonstopio.com' });
-    fireEvent.change(screen.getByLabelText('Date range'), { target: { value: '30d' } });
+    choose(screen.getByLabelText('Date range'), 'Last 30 days');
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Nudge old@nonstopio.com' })).toBeNull(),
     );

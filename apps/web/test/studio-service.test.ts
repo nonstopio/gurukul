@@ -17,6 +17,9 @@ describe('firebaseStudioService', () => {
       await s.createCourse({ title: 'T', slug: 't', level: 'foundation', theme: 'forest' }),
     ).toEqual({ from: 'createCourse' });
     expect(await s.publishCourse({ courseId: 'git' })).toEqual({ from: 'publishCourse' });
+    expect(
+      await s.setCourseAccess({ courseId: 'git', visibility: 'public', visibleTeamIds: [] }),
+    ).toEqual({ from: 'setCourseAccess' });
     expect(await s.rollbackCourse({ courseId: 'git', version: 2 })).toEqual({
       from: 'rollbackCourse',
     });
@@ -26,6 +29,7 @@ describe('firebaseStudioService', () => {
     expect(calls.map(([n]) => n)).toEqual([
       'createCourse',
       'publishCourse',
+      'setCourseAccess',
       'rollbackCourse',
       'archiveCourse',
     ]);

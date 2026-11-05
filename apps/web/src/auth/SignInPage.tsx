@@ -1,4 +1,4 @@
-import { Button, CheckIcon, GridIcon, PageHeader, StarIcon, Toggle } from '@gurukul/ui';
+import { Button, CheckIcon, Checkbox, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from './AuthProvider';
@@ -66,8 +66,11 @@ export function SignInPage() {
       <section className="signin__copy" aria-label="Sign in">
         <div className="rise" style={rise(1)}>
           <PageHeader
-            eyebrow="NonStop Academy"
-            title="Welcome to Gurukul."
+            title={
+              <>
+                Welcome to Guru<span className="signin__k">k</span>ul.
+              </>
+            }
             lead="Courses, Quizzes and certificates for every NonStopian. Sign in with your NonStop io Google account to pick up where you left off."
           />
         </div>
@@ -87,7 +90,7 @@ export function SignInPage() {
                 Gurukul measures how it is used, to improve the courses. Read the{' '}
                 <Link to="/privacy">privacy policy</Link>; you need to accept it to sign in.
               </p>
-              <Toggle
+              <Checkbox
                 label="I accept the privacy policy"
                 checked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
@@ -120,7 +123,8 @@ export function SignInPage() {
       <SignInArt />
       <footer className="signin__footer rise" style={rise(6)}>
         <p lang="sa" className="signin__sutra">
-          विद्या ददाति विनयम् <span lang="en">· Knowledge gives humility.</span>
+          स्वाध्यायप्रवचनाभ्यां न प्रमदितव्यम्{' '}
+          <span lang="en">· Never stop learning, never stop teaching.</span>
         </p>
         <ShellFooter bare />
       </footer>

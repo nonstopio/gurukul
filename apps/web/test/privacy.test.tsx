@@ -56,7 +56,7 @@ describe('signing in', () => {
     const f = renderSignIn();
     const button = screen.getByRole('button', { name: /sign in with google/i });
     expect((button as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('switch', { name: 'I accept the privacy policy' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I accept the privacy policy' }));
     expect((button as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(button);
     await vi.waitFor(() => expect(f.service.signIn).toHaveBeenCalled());
@@ -67,7 +67,7 @@ describe('signing in', () => {
   });
   it('does not ask again once accepted', () => {
     renderSignIn();
-    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(
       (screen.getByRole('button', { name: /sign in with google/i }) as HTMLButtonElement).disabled,
     ).toBe(false);

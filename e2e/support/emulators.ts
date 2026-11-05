@@ -16,6 +16,7 @@ const DOCS = `${FIRESTORE_URL}/v1/projects/${PROJECT_ID}/databases/(default)/doc
 const SEEDED_PATHS = [
   'courses/git-the-nonstop-way',
   'courses/git-the-nonstop-way/private/answers',
+  'courses/git-the-nonstop-way/drafts/current',
   'courses/educator-onboarding',
   'courses/educator-onboarding/private/answers',
   'teams/educator-candidates',

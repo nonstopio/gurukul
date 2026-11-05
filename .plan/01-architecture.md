@@ -97,7 +97,8 @@ per-question results (with explanations if configured).
 **Publishing.** Studio edits `courses/{id}/drafts/current`. `publishCourse`
 validates against the schema, splits answer keys out into `private/answers`,
 writes the published course with `version + 1`, and keeps the previous
-version in `courses/{id}/versions/{n}`.
+version in `courses/{id}/versions/{n}`. Who can open the course is not part of a version:
+`setCourseAccess` changes it on the live course directly.
 
 ## Decisions and alternatives
 

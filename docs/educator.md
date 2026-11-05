@@ -23,14 +23,16 @@ lesson never loses anyone's work.
   explanation, link the lesson to revisit, and set the pass mark, number shown, retake wait, shuffle
   and when answers are revealed. Good questions can be saved to the **question bank** and imported
   into any Quiz.
-- Your work **autosaves** a second after you stop typing ("Saved just now"). If someone else saved
-  the same draft meanwhile you will be told, and asked to reload.
+- Your work **autosaves** a second after you stop typing. The course editor names the version the
+  draft will publish as ("Draft v4 · saved just now" while v3 is live), or says "No changes since v3"
+  when there is nothing new; the lesson and Quiz editors say "Draft · saved just now". If someone
+  else saved the same draft meanwhile you will be told, and asked to reload.
 
 ## Uploading images
 
 An Image block has two tabs. **Upload** puts the picture in Gurukul, so there is nothing else to host and
-the link cannot break. **Link** is the address of an image that lives elsewhere, as before. A new block
-opens on Upload; an image you linked earlier opens on Link.
+the link cannot break. **Link** is the address of an image that lives elsewhere. Link comes first and a new
+block opens on it, since a link uses no Gurukul storage; an image you uploaded earlier opens on Upload.
 
 To upload, choose the file, drop it on the box, or focus the box and paste a copied image. Gurukul checks it
 in your browser first and shows a preview at the size learners will see (1280 px or 390 px wide) before
@@ -49,6 +51,13 @@ so and the prompt for your coding agent is still there.
 **A blurred preview, made for you.** When an image uploads, Gurukul also keeps a tiny blurred version of it
 (about 30 characters). Learners see it, at the picture's own shape, while the real image loads, so the
 lesson does not jump. You do nothing; it is not made for linked images.
+
+### A cover image
+
+The course's **Course details** card takes one cover image, uploaded under the same rules as a lesson image,
+with a tile beside it showing how the course will look in lists. **Replace image** and **Remove image**
+change only the draft; learners see the new cover once you publish. Without a cover image, the tile shows the
+first image in the lessons, or the title on the theme colour.
 
 ### Reusing an image
 
@@ -102,8 +111,7 @@ An uploaded file can be opened by anyone who is given its address, and it stays 
 ## Uploading PDFs
 
 A File block has the same two tabs. **Upload** puts a PDF in Gurukul; **Link** is the address of a file that
-lives elsewhere. A new block opens on Upload; a file you linked earlier opens on Link, and an uploaded one
-on Upload. Choose the PDF, drop it on the box, or focus the box and paste. Gurukul checks it in your
+lives elsewhere. A new block opens on Link, the first tab; an uploaded one opens on Upload. Choose the PDF, drop it on the box, or focus the box and paste. Gurukul checks it in your
 browser first (it must really be a PDF, not a renamed file), then **Upload PDF** sends it. You can cancel
 a running upload, and if it fails nothing is saved: try again. **Replace PDF** uploads a new file and
 **Remove PDF** clears the block; neither deletes the old file, because a published version may still link it.
@@ -142,10 +150,17 @@ Check document properties (author, comments) and hidden text, not only the pages
 
 ## Publishing
 
-**Publish** checks the whole course and lists anything to fix: an empty lesson, a video link that is
-not YouTube, Drive or Loom, an image with no alt text, a question with no marked answer. Fix them and
-publish again. Publishing creates a new version learners see straight away. Learners already part-way
+**Publish** is off, with "No changes since v3", when the draft matches the live version: there is
+nothing to publish. Otherwise it checks the whole course and lists anything to fix: an empty lesson, a
+video link that is not YouTube, Drive or Loom, an image with no alt text, a question with no marked
+answer, and on the **Landing page** a description and at least 2 outcomes (**Open the Landing page**
+takes you there). Fix them and publish again. Publishing creates a new version learners see straight away. Learners already part-way
 through keep their progress. Every version is kept: open **Versions** and **Roll back** to publish an
 earlier one as a new version.
+
+**Who can open the course** (Public, Team only, or Educators and Admins) is set in the **Who can open
+this course** card on the **Structure** tab. **Save who can open** applies it to the live course at once,
+without a new version; on a course never published it takes effect at the first publish. The Publish
+dialog only shows it ("Publishing keeps it") with a **Change who can open** link back to the card.
 
 **Preview as learner** shows the draft the way learners will see it, without recording progress.

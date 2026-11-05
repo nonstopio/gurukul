@@ -10,6 +10,7 @@ import {
   publishCourse,
   restrictAnswers,
   rollbackCourse,
+  setCourseAccess,
 } from '../src/courses.js';
 import type {
   CourseStore,
@@ -46,7 +47,16 @@ const ajay = { uid: 'ajay', email: 'ajay@nonstopio.com', claims: { admin: true }
 const priya = { uid: 'priya', email: 'priya@nonstopio.com', claims: {} };
 
 const validCourse = (over: object = {}) =>
-  course({}, { summary: 'Learn git', educatorIds: ['asha'], ...over }) as unknown as Course;
+  course(
+    {},
+    {
+      summary: 'Learn git',
+      description: 'Git for teams.',
+      outcomes: ['Commit', 'Branch'],
+      educatorIds: ['asha'],
+      ...over,
+    },
+  ) as unknown as Course;
 const draftOf = (over: Partial<DraftData> = {}): DraftData => ({
   rev: 4,
   course: validCourse({ title: 'Draft title', educatorIds: ['intruder'] }),
@@ -60,6 +70,7 @@ interface Fake {
   plans: { plan: ReleasePlan; uid: string }[];
   audits: unknown[];
   setStatus: Mock<CourseStore['setStatus']>;
+  setAccess: Mock<CourseStore['setAccess']>;
 }
 function fake(state: Partial<ReleaseState> & { drafts?: boolean; taken?: boolean } = {}): Fake {
   const live: LiveCourse | undefined =
@@ -70,6 +81,7 @@ function fake(state: Partial<ReleaseState> & { drafts?: boolean; taken?: boolean
     plans: [],
     audits: [],
     setStatus: vi.fn<CourseStore['setStatus']>().mockResolvedValue(undefined),
+    setAccess: vi.fn<CourseStore['setAccess']>().mockResolvedValue(undefined),
     store: undefined as never,
   };
   out.store = {
@@ -85,6 +97,7 @@ function fake(state: Partial<ReleaseState> & { drafts?: boolean; taken?: boolean
       return plan.version;
     }),
     setStatus: out.setStatus,
+    setAccess: out.setAccess,
     audit: vi.fn(async (e) => void out.audits.push(e)),
   };
   return out;
@@ -275,12 +288,38 @@ describe('publishCourse', () => {
     });
     expect(plan.answers).toEqual(answerKey);
     expect(plan.resetDraft).toBeUndefined();
+    expect(plan.clearAnswersChanged).toBe(false);
     expect(f.audits).toEqual([
       { action: 'course.publish', by: 'asha', target: 'git-basics', detail: { version: 3 } },
     ]);
   });
 
-  it('keeps the live visibility unless the publish sets one, and a missing one reads as public', async () => {
+  it('refuses a request that still carries visibility or visibleTeamIds: an older tab must reload', async () => {
+    for (const [field, value] of [
+      ['visibility', 'public'],
+      ['visibleTeamIds', []],
+    ] as const) {
+      const f = fake();
+      const e = (await publishCourse(f.store, asha, { courseId: 'c', [field]: value }).catch(
+        (x: unknown) => x,
+      )) as ApiException;
+      expect(e.code).toBe('VAL_1005');
+      expect(e.details).toEqual({ field });
+      expect(parses(e)).toMatchObject({
+        status: 400,
+        errors: [
+          {
+            userMessage:
+              'Reload the page to publish: who can open the course is now set on the course page.',
+          },
+        ],
+      });
+      expect(f.plans).toEqual([]);
+      expect(f.audits).toEqual([]);
+    }
+  });
+
+  it('keeps the live visibility, and a missing one reads as public', async () => {
     const live: LiveCourse = {
       version: 2,
       status: 'published',
@@ -299,25 +338,10 @@ describe('publishCourse', () => {
     expect(legacy.plans[0]?.plan.access).toEqual({ visibility: 'public', visibleTeamIds: [] });
   });
 
-  it('publishes with the visibility the publisher chose, and refuses a bad one', async () => {
-    const f = fake();
-    await publishCourse(f.store, asha, {
-      courseId: 'c',
-      visibility: 'teams',
-      visibleTeamIds: ['qa'],
-    });
-    expect(f.plans[0]?.plan.access).toEqual({ visibility: 'teams', visibleTeamIds: ['qa'] });
-    await publishCourse(f.store, asha, { courseId: 'c', visibility: 'staff' });
-    expect(f.plans[1]?.plan.access).toEqual({ visibility: 'staff', visibleTeamIds: [] });
-    for (const bad of [
-      { visibility: 'everyone' },
-      { visibility: 'teams' },
-      { visibility: 'teams', visibleTeamIds: [] },
-    ]) {
-      await expect(
-        publishCourse(fake().store, asha, { courseId: 'c', ...bad }),
-      ).rejects.toMatchObject({ code: 'VAL_1002' });
-    }
+  it("clears the draft's answersChanged mark when it publishes edited answer keys", async () => {
+    const f = fake({ draft: draftOf({ answersChanged: true }) });
+    await publishCourse(f.store, asha, { courseId: 'c' });
+    expect(f.plans[0]?.plan.clearAnswersChanged).toBe(true);
   });
 
   it('upgrades a draft saved at an older schemaVersion before validating and publishing it', async () => {
@@ -344,6 +368,32 @@ describe('publishCourse', () => {
     expect(issues.map((i) => i.code)).toContain('course.summary');
     expect(issues.map((i) => i.code)).toContain('question.key.missing');
     expect(parses(e)).toMatchObject({ status: 400, errors: [{ details: { issues } }] });
+    expect(f.audits).toEqual([]);
+  });
+
+  it('refuses a draft with no landing description or fewer than two outcomes', async () => {
+    const f = fake({
+      draft: draftOf({ course: validCourse({ description: ' ', outcomes: ['Commit', ''] }) }),
+    });
+    const e = (await publishCourse(f.store, asha, { courseId: 'c' }).catch(
+      (x: unknown) => x,
+    )) as ApiException;
+    expect(e.code).toBe('CRS_1003');
+    expect((e.details['issues'] as { code: string }[]).map((i) => i.code)).toEqual([
+      'course.description',
+      'course.outcome.blank',
+      'course.outcomes',
+    ]);
+    expect(parses(e)).toMatchObject({
+      success: false,
+      data: null,
+      errors: [
+        {
+          code: 'CRS_1003',
+          userMessage: 'This course has problems to fix before it can be published.',
+        },
+      ],
+    });
     expect(f.audits).toEqual([]);
   });
 
@@ -508,6 +558,63 @@ describe('rollbackCourse', () => {
       code,
       details: { field: 'version' },
     });
+  });
+});
+
+describe('setCourseAccess', () => {
+  it('writes who may open the course without a new version, and audits it', async () => {
+    const f = fake();
+    const data = await setCourseAccess(f.store, asha, {
+      courseId: 'git-basics',
+      visibility: 'teams',
+      visibleTeamIds: ['qa', 'platform'],
+    });
+    const access = { visibility: 'teams', visibleTeamIds: ['qa', 'platform'] };
+    expect(envelope.parse(apiOk(data)).data).toEqual(access);
+    expect(f.setAccess).toHaveBeenCalledWith('git-basics', access);
+    expect(f.plans).toEqual([]);
+    expect(f.audits).toEqual([
+      {
+        action: 'course.access',
+        by: 'asha',
+        target: 'git-basics',
+        detail: { visibility: 'teams', teams: 2 },
+      },
+    ]);
+  });
+
+  it('stores it on a course never published, for its first publish', async () => {
+    const f = fake({ live: { version: 0, status: 'draft', educatorIds: ['asha'] } });
+    await setCourseAccess(f.store, ajay, { courseId: 'c', visibility: 'staff' });
+    expect(f.setAccess).toHaveBeenCalledWith('c', { visibility: 'staff', visibleTeamIds: [] });
+  });
+
+  it('refuses a bad visibility, a missing course and someone who may not edit it', async () => {
+    for (const bad of [
+      { visibility: 'everyone' },
+      { visibility: 'teams' },
+      { visibility: 'teams', visibleTeamIds: [] },
+      {},
+    ]) {
+      const e = await setCourseAccess(fake().store, asha, { courseId: 'c', ...bad }).catch(
+        (x: ApiException) => x,
+      );
+      expect(e).toMatchObject({ code: 'VAL_1002' });
+      expect(parses(e as ApiException).status).toBe(400);
+    }
+    const ask = { courseId: 'c', visibility: 'public' };
+    await expect(setCourseAccess(fake({ live: undefined }).store, asha, ask)).rejects.toMatchObject(
+      { code: 'CRS_2001' },
+    );
+    const f = fake();
+    await expect(setCourseAccess(f.store, rohan, ask)).rejects.toMatchObject({
+      code: 'AUTH_2001',
+    });
+    await expect(setCourseAccess(f.store, priya, ask)).rejects.toMatchObject({
+      code: 'AUTH_2001',
+    });
+    expect(f.setAccess).not.toHaveBeenCalled();
+    expect(f.audits).toEqual([]);
   });
 });
 

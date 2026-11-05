@@ -26,6 +26,7 @@ const handleCreateCourse = vi.fn();
 const handleListEmailTemplates = vi.fn();
 const handleSendTestEmail = vi.fn();
 const handlePublishCourse = vi.fn();
+const handleSetCourseAccess = vi.fn();
 const handleRollbackCourse = vi.fn();
 const handleArchiveCourse = vi.fn();
 const handleAttemptCreated = vi.fn().mockResolvedValue('counted');
@@ -114,6 +115,7 @@ vi.mock('../src/handlers.js', async (orig) => ({
   handleListEmailTemplates,
   handleSendTestEmail,
   handlePublishCourse,
+  handleSetCourseAccess,
   handleRollbackCourse,
   handleArchiveCourse,
 }));
@@ -330,6 +332,7 @@ describe('index', () => {
       'sendTestEmail',
       'createCourse',
       'publishCourse',
+      'setCourseAccess',
       'rollbackCourse',
       'archiveCourse',
     ] as const;
@@ -363,6 +366,7 @@ describe('index', () => {
       [mod.sendTestEmail, handleSendTestEmail, []],
       [mod.createCourse, handleCreateCourse, []],
       [mod.publishCourse, handlePublishCourse, []],
+      [mod.setCourseAccess, handleSetCourseAccess, []],
       [mod.rollbackCourse, handleRollbackCourse, []],
       [mod.archiveCourse, handleArchiveCourse, []],
     ] as const;

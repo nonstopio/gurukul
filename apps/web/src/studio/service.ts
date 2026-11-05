@@ -1,3 +1,4 @@
+import type { CourseAccess } from '@gurukul/schema';
 import type { Functions } from 'firebase/functions';
 import { callApi } from '../api';
 import type { CreateCourseRequest, StudioService } from './types';
@@ -8,6 +9,8 @@ export function firebaseStudioService(functions: Functions): StudioService {
       callApi<CreateCourseRequest, { courseId: string }>(functions, 'createCourse', request),
     publishCourse: (request) =>
       callApi<typeof request, { version: number }>(functions, 'publishCourse', request),
+    setCourseAccess: (request) =>
+      callApi<typeof request, CourseAccess>(functions, 'setCourseAccess', request),
     rollbackCourse: (request) =>
       callApi<{ courseId: string; version: number }, { version: number }>(
         functions,

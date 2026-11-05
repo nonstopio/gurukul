@@ -48,7 +48,12 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<'video'>) {
         </div>
       ) : null}
       <ToggleCard
-        title="Captions are available"
+        title={block.captions ? 'Captions are available' : 'No captions'}
+        description={
+          block.captions
+            ? `${t.Learners} see "Captions available" above the video. Turn on only if it has them.`
+            : 'Nothing about captions is shown. Turn on if the video has them.'
+        }
         checked={block.captions}
         onChange={(e) => onChange({ ...block, captions: e.target.checked })}
       />

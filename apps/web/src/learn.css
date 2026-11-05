@@ -173,6 +173,10 @@
   align-items: center;
   gap: var(--space-5);
 }
+/* The pass-mark line under the ring and counts. */
+.progress-summary + p {
+  margin-top: var(--space-4);
+}
 .chapter {
   padding: var(--space-2);
 }
@@ -324,11 +328,6 @@ a.items__row:hover {
 .article--article .prose {
   font-size: var(--text-lg);
 }
-.article__hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
 .article__footer {
   display: flex;
   flex-wrap: wrap;
@@ -340,6 +339,18 @@ a.items__row:hover {
 /* The forward action sits on the right, with or without Previous beside it. */
 .article__footer > :last-child {
   margin-inline-start: auto;
+}
+/* Why "Mark complete" cannot be pressed yet, after the last block and above the footer's line. */
+.article__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-body);
+}
+.article__reason svg {
+  flex: none;
+  color: var(--text-muted);
 }
 @media (width < 64rem) {
   .player {
@@ -398,8 +409,7 @@ a.items__row:hover {
   margin: 0;
   font-weight: 600;
 }
-.check__prompt code,
-.check__explanation code {
+.check__prompt code {
   padding: 0.1em 0.35em;
   border-radius: var(--radius-sm);
   background: var(--surface-hover);
@@ -407,7 +417,6 @@ a.items__row:hover {
 }
 .check__explanation {
   margin: 0;
-  color: var(--text-body);
 }
 .unsupported {
   padding: var(--space-3) var(--space-4);
@@ -467,7 +476,6 @@ a.items__row:hover {
 }
 .exam__feedback {
   margin: 0;
-  color: var(--text-body);
 }
 .exam__footer {
   display: flex;
@@ -587,6 +595,10 @@ a.items__row:hover {
 }
 .signin__footer p {
   margin: 0;
+}
+.signin__k {
+  /* The logo's green "k", echoed in the welcome. */
+  color: var(--brand-mark);
 }
 .signin__sutra {
   font: 500 var(--text-md) / var(--leading-snug) var(--font-display);

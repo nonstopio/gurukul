@@ -19,6 +19,16 @@ async function openNewLesson(page: Page, title: string, slug: string, block = 'I
   await dialog.getByRole('button', { name: 'Create course' }).click();
   await expect(page).toHaveURL(new RegExp(`/studio/courses/${slug}$`));
   await page.getByLabel('Summary').fill('How a picture gets into a lesson.');
+  // Publishing needs a landing page description and at least two outcomes.
+  await page.getByRole('tab', { name: 'Landing page' }).click();
+  await page
+    .getByLabel('Description')
+    .fill('For Educators who add pictures and handouts to lessons.');
+  await page.getByRole('button', { name: 'Add outcome' }).click();
+  await page.getByLabel('Outcome 1', { exact: true }).fill('Upload an image with alt text');
+  await page.getByRole('button', { name: 'Add outcome' }).click();
+  await page.getByLabel('Outcome 2', { exact: true }).fill('Attach a PDF handout');
+  await page.getByRole('tab', { name: 'Structure' }).click();
   await page.getByRole('button', { name: 'Add chapter' }).click();
   await page.getByLabel('Title of chapter 1').fill('Pictures');
   await page.getByRole('button', { name: /^Lesson/ }).click();
@@ -29,6 +39,9 @@ async function openNewLesson(page: Page, title: string, slug: string, block = 'I
   await page.getByRole('button', { name: block, exact: true }).click();
   // A feature tip may open beside the new tabs; it is not what this test is about.
   await page.keyboard.press('Escape');
+  // A new block opens on Link; these tests are about Upload.
+  await expect(page.getByRole('tab', { name: 'Link' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Upload' }).click();
 }
 
 test.describe('Educator uploads an image', () => {

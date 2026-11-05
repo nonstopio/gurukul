@@ -64,3 +64,26 @@
   white-space: nowrap;
   color: var(--chrome-text);
 }
+.g-topbar__status .g-progress--steps .g-progress__track {
+  height: 10px;
+  background: transparent;
+}
+.g-topbar__status .g-progress__step {
+  background: var(--chrome-line);
+}
+.g-topbar__status .g-progress__step--done {
+  background: var(--chrome-accent);
+}
+.g-topbar__status .g-progress__step--current {
+  box-shadow: inset 0 0 0 2px var(--chrome-accent);
+}
+.g-topbar__status .g-progress__step--done.g-progress__step--current {
+  box-shadow: inset 0 0 0 2px var(--chrome);
+}
+/* A step bar needs room for its segments: wider, and a whole row of its own on a phone. */
+.g-topbar__status:has(.g-progress--steps) {
+  flex: 0 1 26rem;
+}
+.g-topbar__status .g-progress--steps {
+  width: 100%;
+}

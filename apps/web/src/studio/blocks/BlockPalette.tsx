@@ -8,8 +8,12 @@ import {
   EmbedIcon,
   FileIcon,
   ImageIcon,
+  InsertDivider,
+  Menu,
   PlayIcon,
+  PlusIcon,
   TextIcon,
+  iconButtonClass,
 } from '@gurukul/ui';
 import { createElement } from 'react';
 import { PALETTE } from '../lessonEdit';
@@ -43,5 +47,27 @@ export function BlockPalette({ onAdd }: { onAdd: (type: BlockType) => void }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+/**
+ * A quiet "+" on a divider above a block: a menu of the same block types as the palette, so a block
+ * can be added in place instead of at the bottom and dragged up. `label` names where it goes.
+ */
+export function BlockInsert({ label, onAdd }: { label: string; onAdd: (type: BlockType) => void }) {
+  return (
+    <InsertDivider className="studio-insert">
+      <Menu
+        label={label}
+        tip="Add block"
+        trigger={<PlusIcon />}
+        triggerClassName={iconButtonClass()}
+        items={PALETTE.map(({ type, label: name }) => ({
+          label: name,
+          icon: createElement(ICONS[type], { size: 18 }),
+          onSelect: () => onAdd(type),
+        }))}
+      />
+    </InsertDivider>
   );
 }

@@ -1,8 +1,11 @@
 import { Button, Card, Input, PlusIcon, Textarea } from '@gurukul/ui';
+import { LANDING_ISSUES, MIN_OUTCOMES, validateForPublish } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
+import { useMemo } from 'react';
 import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { addOutcome, patchCourse, removeOutcome, setCertificate, setOutcome } from './courseEdit';
+import { useStudio } from './StudioProvider';
 import type { Working } from './types';
 
 type Update = (edit: (w: Working) => Working) => void;
@@ -12,6 +15,14 @@ const MAX_OUTCOMES = 12;
 /** The page learners see before they start: a description and what they will be able to do. */
 export function LandingTab({ course, update }: { course: Course; update: Update }) {
   const t = useTerms();
+  const { checks } = useStudio();
+  // Only the Landing page's own publish checks show here; answer keys do not affect them.
+  const issues = useMemo(
+    () => validateForPublish(course, {}, checks).filter((i) => LANDING_ISSUES.has(i.code)),
+    [course, checks],
+  );
+  const issue = (code: string) => issues.find((i) => i.code === code)?.message;
+  const outcomesIssue = issue('course.outcomes');
   return (
     <section className="sc-tab" aria-labelledby="landing-title">
       <h2 id="landing-title" className="sc-h2">
@@ -20,7 +31,8 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
       <Card className="sc-panel">
         <Textarea
           label="Description"
-          hint="Markdown works here. Say who the course is for and what it covers."
+          hint="Required to publish. Markdown works here. Say who the course is for and what it covers."
+          error={issue('course.description')}
           rows={10}
           maxLength={10000}
           value={course.description}
@@ -28,12 +40,20 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
         />
       </Card>
       <Card title={`What ${t.learners} will be able to do`} titleAs="h3" className="sc-panel">
-        {course.outcomes.length === 0 ? <p className="sc-help">No outcomes yet.</p> : null}
+        <p className="sc-help">
+          {`At least ${MIN_OUTCOMES} outcomes to publish.`}
+          {course.outcomes.length === 0 ? ' No outcomes yet.' : null}
+        </p>
         <ul className="sc-outcomes">
           {course.outcomes.map((outcome, i) => (
             <li key={i} className="sc-outcome">
               <Input
                 label={`Outcome ${i + 1}`}
+                error={
+                  issues.some((x) => x.code === 'course.outcome.blank' && x.outcome === i)
+                    ? 'Fill it in or remove it.'
+                    : undefined
+                }
                 value={outcome}
                 maxLength={200}
                 onChange={(e) => update((w) => setOutcome(w, i, e.target.value))}
@@ -49,6 +69,7 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
             </li>
           ))}
         </ul>
+        {outcomesIssue ? <p className="studio-error">{outcomesIssue}</p> : null}
         <Button
           variant="secondary"
           icon={<PlusIcon />}

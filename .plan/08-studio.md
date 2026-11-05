@@ -16,17 +16,45 @@ builder. Handoff: `design-handoff/03-studio.md`.
 ## Drafts and publishing
 
 - Editing writes `courses/{id}/drafts/current` (debounced autosave, ~1s, with
-  a "Draft v7 · saved just now" indicator (the draft's `rev`, and the age of its last save) and a conflict warning if another editor saved
-  in between — last-write-wins with a `rev` check). A save that fails is also kept in
+  a "Draft v4 · saved just now" indicator and a conflict warning if another editor saved
+  in between — last-write-wins with a `rev` check). The draft is one working copy: its version is
+  the one it becomes when published (live v3 → "Draft v4", however many saves), never its `rev`,
+  which counts saves for the conflict check and is not shown. A save whose content equals the stored
+  draft (an edit typed and undone) writes nothing. When the draft's content equals the live course
+  (`diffCourses` finds nothing) and no answer key was edited, the course editor says "No changes
+  since v3" and **Publish is disabled** (its tooltip says the same). A course never published is
+  always publishable (subject to `validateForPublish`).
+- **Answer key edits count as a change.** Published keys are never readable in the browser, so the
+  draft carries `answersChanged: true` once an edit leaves its answer keys different from the stored
+  draft's; `publishCourse` removes it. Each save decides the mark against the draft stored at that
+  moment (in the save transaction), so a tab opened before a publish does not write it back; the
+  rules let a save add the mark but never drop one that is stored. An edit undone before the autosave leaves no mark; one undone
+  after it keeps the mark (and Publish) until the next publish, which is accepted. A draft whose keys
+  were edited before the mark existed shows no change until another edit.
+  The lesson and Quiz editors say "Draft · saved just now". A save that fails is also kept in
   the browser's localStorage (per person and course, with the `rev` it was made on) and offered
   back as "Restore edits" while the stored draft is still that `rev`; in-app navigation with
   unsaved edits saves first and asks only if the save fails.
 - **Publish** calls `publishCourse({ courseId })`: validate with the schema,
   check every Quiz has answers for every question, strip answers into
   `private/answers`, bump `version`, snapshot the old version into `versions/`.
-- The publish dialog also sets **who can open the course**: Public, Teams (pick teams from
-  `config/org.teams`) or Educators and Admins. It starts from what the live course has; changing it
-  alone is enough to publish. See `02-data-model.md` (Course visibility).
+- Publishing also needs the **landing page**: a description that is not blank and at least two
+  outcomes that are not blank (`MIN_OUTCOMES` in `validateForPublish`, codes `course.description`
+  and `course.outcomes`). The Landing page tab says both are required and shows the issue inline;
+  the publish dialog's "Fix these first" list links to that tab. A blank outcome also blocks
+  publishing (`course.outcome.blank`, "Outcome N is empty…") and its input is marked invalid. The
+  server runs the same check.
+  Courses already published stay published; only their next publish asks for it.
+- The **Learning rules** each say what they do now, and the name and line follow the switch (off:
+  "go in any order", "No certificate", "Videos are optional"): go in order (a chapter opens once
+  the one before is passed: its Quizzes, or every lesson if it has none), issue a certificate
+  (finish every lesson and pass every Quiz), require watching videos (Mark complete waits for 90%
+  of each video actually played).
+- **Who can open the course** (Public, Teams picked from `config/org.teams`, or Educators and
+  Admins) is its own card on the Structure tab, beside the course details. Saving it calls
+  `setCourseAccess`, which applies it to the live course at once without a new version; on a course
+  never published it is kept for the first publish. The publish dialog shows the current setting,
+  says publishing keeps it, and links to the card. See `02-data-model.md` (Course visibility).
 - "2 unpublished edits" = diff count between draft and published: items added, removed or
   changed, plus one for any course-level change. Only what publishing would change counts: the
   draft is compared in today's schema, and the Educator list (always taken from the live course)
@@ -47,7 +75,8 @@ builder. Handoff: `design-handoff/03-studio.md`.
 
 ## Lesson editor
 
-- Title; ordered blocks with drag handle, duplicate, delete.
+- Title; ordered blocks with drag handle, duplicate, delete, and a "+" above each block that
+  opens the block types and inserts the chosen one there (the palette below adds at the end).
 - Block palette: Text (markdown with a small toolbar), Video, Code, Callout,
   Image (URL + required alt text), Embed (allow-listed), File (link), Check
   (ungraded inline question). Planned: Image and File gain an **Upload** tab beside Link (images

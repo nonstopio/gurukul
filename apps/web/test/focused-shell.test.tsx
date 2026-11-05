@@ -19,14 +19,25 @@ beforeAll(() =>
 );
 
 describe('focused shell', () => {
-  it('gives the lesson the top bar alone, one h1, and progress as "60% · 3 / 5"', async () => {
+  it('gives the lesson the top bar alone, one h1, and progress in steps, "3 of 5 done"', async () => {
     const { container } = await openApp('/courses/git/learn/l3', { data: progress() });
     await screen.findByRole('heading', { level: 1, name: 'Lesson l3' });
     expect(headings()).toEqual(['Lesson l3']);
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     // The top bar is the first header; the page's own PageHeader follows it.
     expect(screen.getAllByRole('banner')[0]?.textContent).toContain('Git, the NonStop Way');
-    expect(screen.getByText('60% · 3 / 5')).toBeTruthy();
+    expect(screen.getByText('3 of 5 done')).toBeTruthy();
+    const bar = screen.getByRole('progressbar', { name: 'Course progress' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('60');
+    expect(bar.getAttribute('aria-valuetext')).toBe('60%, 3 of 5 lessons and Quizzes done');
+    // One segment per item, l1 to l3 done; l3 is open, so its segment is the current one.
+    expect([...bar.children].map((s) => s.className)).toEqual([
+      'g-progress__step g-progress__step--done',
+      'g-progress__step g-progress__step--done',
+      'g-progress__step g-progress__step--done g-progress__step--current',
+      'g-progress__step',
+      'g-progress__step',
+    ]);
     expect(screen.getByRole('link', { name: 'Skip to content' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
