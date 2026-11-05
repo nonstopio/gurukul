@@ -67,8 +67,9 @@ submits; nothing is sent without them. The issue is public, so the report holds 
 wrote: raw error text only from JavaScript engine errors (which quote code, not data), never from
 Firestore or the API, whose trace id finds the details in the logs; and every sentence is scrubbed
 of emails, long ids and long numbers as a second net (`apps/web/src/report.ts`).
-It replaces "write to gurukul@nonstopio.com" on error screens; the sign-in help link stays email,
-since someone who cannot sign in may have no GitHub account either.
+It replaces "write to gurukul@nonstopio.com" on error screens. The sign-in page has no email
+link either (maintainer's choice, 2026-11-05): its footer carries the app bar's open-source line,
+whose "Tell us" link opens a GitHub issue, and the people who built Gurukul.
 
 ## Decisions
 
