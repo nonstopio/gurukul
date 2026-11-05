@@ -57,6 +57,7 @@ export function AudienceStep({
   onEmails,
   classify,
   summary,
+  teamsOnly = false,
 }: {
   data: ConsoleData;
   mode: AudienceMode;
@@ -71,6 +72,11 @@ export function AudienceStep({
   classify: (email: string) => ClassifiedEmail;
   /** The sentence under the picker: who will be assigned. */
   summary: string;
+  /**
+   * The Team area's Assign: teams only (no switch to People) and no New team here, since a
+   * Manager's new team is made on My teams with them as its manager.
+   */
+  teamsOnly?: boolean;
 }) {
   const [asking, setAsking] = useState<AudienceMode | null>(null);
   const picked = mode === 'teams' ? teamNames.length : emails.length;
@@ -80,6 +86,24 @@ export function AudienceStep({
     if (picked === 0) onMode(next);
     else setAsking(next);
   };
+
+  if (teamsOnly) {
+    return (
+      <>
+        <TeamsPicker
+          data={data}
+          teamList={teamList}
+          onTeamCreated={onTeamCreated}
+          teamNames={teamNames}
+          onTeamNames={onTeamNames}
+          canCreate={false}
+        />
+        <p className="console-muted" aria-live="polite">
+          {summary}
+        </p>
+      </>
+    );
+  }
 
   return (
     <>
@@ -159,12 +183,15 @@ function TeamsPicker({
   onTeamCreated,
   teamNames,
   onTeamNames,
+  canCreate = true,
 }: {
   data: ConsoleData;
   teamList: Loadable<Team[]>;
   onTeamCreated: (team: Team) => void;
   teamNames: string[];
   onTeamNames: (names: string[]) => void;
+  /** Offers New team (Admins' Assign). */
+  canCreate?: boolean;
 }) {
   const toast = useToast();
   const [query, setQuery] = useState('');
@@ -234,14 +261,16 @@ function TeamsPicker({
                   setPage(1);
                 }}
               />
-              <Button
-                variant="secondary"
-                icon={<PlusIcon />}
-                aria-expanded={creating}
-                onClick={() => setCreating(!creating)}
-              >
-                New team
-              </Button>
+              {canCreate ? (
+                <Button
+                  variant="secondary"
+                  icon={<PlusIcon />}
+                  aria-expanded={creating}
+                  onClick={() => setCreating(!creating)}
+                >
+                  New team
+                </Button>
+              ) : null}
             </div>
             {creating ? (
               <div className="console-new-team">
@@ -277,7 +306,9 @@ function TeamsPicker({
             </p>
             {teams.length === 0 && creating ? null : teams.length === 0 ? (
               <EmptyState title="No teams yet">
-                Use New team to make the first one, then pick it here.
+                {canCreate
+                  ? 'Use New team to make the first one, then pick it here.'
+                  : 'Create a team on My teams, then pick it here.'}
               </EmptyState>
             ) : matches.length === 0 ? (
               <EmptyState title={`No team matches “${query.trim()}”`}>

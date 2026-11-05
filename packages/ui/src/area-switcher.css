@@ -35,6 +35,11 @@
   display: flex;
   flex: 1;
 }
+/* Four areas (Learn, Studio, Team, Admin) do not fit one row of the sidebar: two rows of two. */
+.g-area-switcher:has(> :nth-child(4)) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
 .g-area-switcher__slot > .g-area-switcher__item {
   flex: 1;
 }

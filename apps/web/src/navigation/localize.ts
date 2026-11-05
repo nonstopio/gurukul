@@ -4,7 +4,7 @@ import type { Destination } from './types';
 // Area metadata is written in the generic names; each known word is swapped for the person's own
 // name where it is shown and matched. Case picks the key: "Learners" → t.Learners, "quiz" → t.quiz.
 const WORD =
-  /\b(?:[Ll]earners?|[Ee]ducators?|[Aa]dmins?|[Cc]hapters?|[Qq]uiz(?:zes)?|[Ss]tudio|[Aa]nalytics)\b/g;
+  /\b(?:[Ll]earners?|[Ee]ducators?|[Mm]anagers?|[Aa]dmins?|[Cc]hapters?|[Qq]uiz(?:zes)?|[Ss]tudio|[Aa]nalytics)\b/g;
 
 /** One metadata string in the person's names. Write metadata so no "a"/"an" sits before a swapped word. */
 export function localize(text: string, t: Terms): string {

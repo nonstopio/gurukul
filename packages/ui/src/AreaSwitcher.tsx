@@ -21,7 +21,10 @@ export interface AreaSwitcherProps {
   items: readonly AreaSwitcherItem[];
 }
 
-/** A compact row of links at the top of the sidebar: Learn, Studio, Admin. Tab reaches each link. */
+/**
+ * A compact row of links at the top of the sidebar: Learn, Studio, Team, Admin (four in two rows
+ * of two). Tab reaches each link.
+ */
 export function AreaSwitcher({ label = 'Areas', items }: AreaSwitcherProps) {
   return (
     <nav className="g-area-switcher" aria-label={label}>

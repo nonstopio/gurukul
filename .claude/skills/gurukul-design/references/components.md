@@ -169,7 +169,8 @@ internal state seeded by `defaultValue`.
 Generic over the row type; no sorting. A `<table>` with a visually hidden `<caption>` (`caption` is required,
 it is the table's name) in a `--radius-xl` hairline card. Header row 12px/600 `--text-muted` on
 `--surface-sunken`, sticky inside the scroll box (give `maxHeight` for a vertical scroll); rows 14px,
-1px `--border` separators; `align: 'end'` right-aligns numbers (tabular figures). The table is 640px wide
+1px `--border` separators; `align: 'end'` right-aligns numbers (tabular figures). A plain link in a cell
+(a record that opens its page) is `--accent` 600; one styled as a button keeps its own look. The table is 640px wide
 at least and scrolls horizontally inside its card on a phone.
 
 Selection is controlled (`selected` is a list of row keys). The header checkbox is "Select all rows on
@@ -570,8 +571,8 @@ card, account). `items` are `{ label, onSelect, icon?, danger?, disabled?, hint?
 
 ## AreaSwitcher — shipped
 
-`<AreaSwitcher items label?>` with `Sidebar switcher={…}` — Learn, Studio and Admin as a compact
-row of links under the brand: `<nav aria-label="Areas">` on `--chrome-raised`, each link 44px,
+`<AreaSwitcher items label?>` with `Sidebar switcher={…}` — Learn, Studio, Team and Admin as a compact
+row of links under the brand (four do not fit the sidebar's width, so four sit in two rows of two): `<nav aria-label="Areas">` on `--chrome-raised`, each link 44px,
 `--radius-sm`, hover `--chrome-hover`, the current area `--chrome-active` with `aria-current="page"`
 (colour changes on `--dur-base`). Items are `{ id, label, href, current?, render? }`; `render` lets
 the router draw the link (as `NavItem`). Render it only when the person may open more than one

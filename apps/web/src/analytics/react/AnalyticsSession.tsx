@@ -28,7 +28,9 @@ function takeSignInMark(): boolean {
 
 /** The most privileged role, as one stable segment. */
 export function topRole(roles: readonly Role[]): Role {
-  return roles.includes('admin') ? 'admin' : roles.includes('educator') ? 'educator' : 'learner';
+  if (roles.includes('admin')) return 'admin';
+  if (roles.includes('educator')) return 'educator';
+  return roles.includes('manager') ? 'manager' : 'learner';
 }
 
 /**

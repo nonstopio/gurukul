@@ -364,19 +364,42 @@ export function firebaseConsoleData(db: Firestore): ConsoleData {
         .map((name) => ({ id: teamId(name), name, memberEmails: [], createdAt: 0 }));
       return [...stored, ...bare].sort((a, b) => a.name.localeCompare(b.name));
     },
-    async saveTeam(team, previousName) {
+    async saveTeam(team, previousName, options = {}) {
       const orgRef = doc(db, 'config', 'org');
       const teamRef = doc(db, 'teams', team.id);
+      // A Manager's create cannot read the team first (see `SaveTeamOptions`).
+      const check = previousName === null && options.checkTaken !== false;
       await runTransaction(db, async (tx) => {
-        const [org, existing] = await Promise.all([tx.get(orgRef), tx.get(teamRef)]);
-        if (previousName === null && existing.exists()) throw new Error('Team already exists');
-        const { name, memberEmails, createdAt, createdBy } = team;
+        const org = await tx.get(orgRef);
+        if (check && (await tx.get(teamRef)).exists()) {
+          throw new Error('Team already exists');
+        }
+        const { name, memberEmails, createdAt, createdBy, managerEmails } = team;
         tx.set(
           teamRef,
-          teamSchema.parse({ name, memberEmails, createdAt, ...(createdBy ? { createdBy } : {}) }),
+          teamSchema.parse({
+            name,
+            memberEmails,
+            createdAt,
+            ...(createdBy ? { createdBy } : {}),
+            // Kept exactly as given: the rules refuse a Manager's edit that changes the list.
+            ...(managerEmails ? { managerEmails } : {}),
+          }),
         );
         tx.set(orgRef, withTeams(org.data(), team.name, previousName));
       });
+    },
+    async managedTeams(email) {
+      const snap = await getDocs(
+        query(
+          collection(db, 'teams'),
+          where('managerEmails', 'array-contains', email.trim().toLowerCase()),
+          limit(TEAM_LIMIT),
+        ),
+      );
+      return snap.docs
+        .map((d) => ({ id: d.id, ...teamSchema.parse(d.data()) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
     async deleteTeam(team) {
       const orgRef = doc(db, 'config', 'org');

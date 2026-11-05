@@ -1,4 +1,4 @@
-import { classifyEmails, summarize } from '@gurukul/schema';
+import { EDUCATOR_COURSE_ID, classifyEmails, summarize } from '@gurukul/schema';
 import type { ClassifiedEmail, Reminder, Team } from '@gurukul/schema';
 import {
   Button,
@@ -17,6 +17,8 @@ import {
 } from '@gurukul/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
+import { useSession, useUser } from '../auth/AuthProvider';
+import { loadMyTeams } from '../team/useMyTeams';
 import { toastError } from '../errors';
 import { log } from '../log';
 import { AudienceStep } from './AudienceStep';
@@ -46,15 +48,35 @@ const HEADINGS = ['Choose courses', 'Who is it for?', 'Set the deadline', 'Revie
 interface Prefill {
   emails?: string[];
   courseId?: string;
+  /** Teams picked already (the team report's Assign courses). */
+  teamNames?: string[];
+}
+
+/** Where Assign runs: the Admin console, or the Team area (my teams only). */
+export type AssignScope = 'admin' | 'team';
+
+/** `/team/assign`: Assign for Managers (and Admins) with the Teams audience only, my teams only. */
+export function TeamAssignPage() {
+  return <AssignPage scope="team" />;
 }
 
 /**
  * `/admin/assign`: four steps (Course, Audience, Schedule, Review). Nothing is assigned until the
  * Assign button on the last one; leaving half-way costs nothing.
+ *
+ * With `scope="team"` (`/team/assign`) the audience is teams only, from the teams I manage (every
+ * team for an Admin), sent as `teamIds`; the courses leave out staff-only ones and the Educator
+ * course, which a Manager may not assign. A Manager cannot read assignments, so who already has a
+ * course is counted by the function, after the Assign button, not in the review.
  */
-export function AssignPage() {
+export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
   const { data, service } = useConsole();
   const t = useTerms();
+  const forTeams = scope === 'team';
+  const admin = useSession().roles.includes('admin');
+  const email = String(useUser().email);
+  // Reading who already has a course reads assignments, which only an Admin may.
+  const readsAssigned = admin;
   const learner = useLearnerData();
   const audience = useAudience();
   const toast = useToast();
@@ -64,6 +86,7 @@ export function AssignPage() {
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [problem, setProblem] = useState<{ message: string } | null>(null);
   const [courseIds, setCourseIds] = useState<string[]>(prefill.courseId ? [prefill.courseId] : []);
+  const [pickedNames, setTeamNames] = useState<string[]>(prefill.teamNames ?? []);
   const [query, setQuery] = useState('');
   const [coursePage, setCoursePage] = useState(1);
   const [emails, setEmails] = useState<string[]>(prefill.emails ?? []);
@@ -72,8 +95,9 @@ export function AssignPage() {
   const [mandatory, setMandatory] = useState(true);
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<AudienceMode>(prefill.emails?.length ? 'people' : 'teams');
-  const [teamNames, setTeamNames] = useState<string[]>([]);
+  const [mode, setMode] = useState<AudienceMode>(
+    prefill.emails?.length && !forTeams ? 'people' : 'teams',
+  );
   // Each picked team's members, by team name: the people listed on it and anyone whose profile
   // says they are on it.
   const [members, setMembers] = useState<Record<string, string[]>>({});
@@ -84,9 +108,12 @@ export function AssignPage() {
     byCourse: {},
   });
   const [failed, setFailed] = useState<AssignResult['failed']>([]);
-  const [done, setDone] = useState<{ people: number; pending: number; courses: string[] } | null>(
-    null,
-  );
+  const [done, setDone] = useState<{
+    people: number;
+    pending: number;
+    courses: string[];
+    teamIds: string[];
+  } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const problemRef = useRef<HTMLParagraphElement>(null);
   const moved = useRef(false);
@@ -94,32 +121,51 @@ export function AssignPage() {
   const courseList = useAsync(
     useCallback(async () => {
       const courses = await learner.listCourses(audience);
-      return courses.filter((c) => c.status === 'published');
-    }, [learner, audience]),
+      return courses.filter(
+        (c) =>
+          c.status === 'published' &&
+          // A Manager may not assign a staff-only course or the one that makes Educators.
+          (!forTeams || ((c.visibility ?? 'public') !== 'staff' && c.id !== EDUCATOR_COURSE_ID)),
+      );
+    }, [learner, audience, forTeams]),
   );
-  const teamList = useAsync(useCallback(() => data.teamList(), [data]));
+  const teamList = useAsync(
+    useCallback(
+      () => (forTeams ? loadMyTeams(data, admin, email) : data.teamList()),
+      [data, forTeams, admin, email],
+    ),
+  );
   const courses = courseList.state === 'ready' ? courseList.value : [];
   const loadedTeams = teamList.state === 'ready' ? teamList.value : NO_TEAMS;
   const teams = [...loadedTeams, ...madeTeams];
   const teamsLoadable: Loadable<Team[]> =
     teamList.state === 'ready' ? { state: 'ready', value: teams } : teamList;
+  // In the Team area a team handed over by another page that is not among mine is left out.
+  const teamNames = forTeams
+    ? pickedNames.filter((n) => teams.some((x) => x.name === n))
+    : pickedNames;
+  // A team-scoped assign counts only a team's listed members: those are whom the function assigns.
+  const membersOf = (name: string) =>
+    forTeams ? (teams.find((x) => x.name === name) as Team).memberEmails : (members[name] ?? []);
   // Who would be assigned: the people picked, or everyone on the teams picked.
-  const recipients =
-    mode === 'teams' ? [...new Set(teamNames.flatMap((n) => members[n] ?? []))] : emails;
-  const counting = mode === 'teams' && teamNames.some((n) => !(n in members));
+  const recipients = mode === 'teams' ? [...new Set(teamNames.flatMap(membersOf))] : emails;
+  const counting = mode === 'teams' && !forTeams && teamNames.some((n) => !(n in members));
 
   useEffect(() => {
     let live = true;
-    void data.knownEmails(recipients, courseIds).then((k) => live && setKnown(k));
+    void data
+      .knownEmails(recipients, readsAssigned ? courseIds : [])
+      .then((k) => live && setKnown(k));
     return () => {
       live = false;
     };
     // `recipients` is rebuilt every render; its contents are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, recipients.join(','), courseIds]);
+  }, [data, recipients.join(','), courseIds, readsAssigned]);
 
   // A team that was just picked has its members read once; the answer is kept by team name.
   useEffect(() => {
+    if (forTeams) return;
     for (const name of teamNames) {
       if (name in members) continue;
       const listed = (teams.find((x) => x.name === name) as Team).memberEmails;
@@ -138,7 +184,7 @@ export function AssignPage() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, teamNames]);
+  }, [data, teamNames.join(','), forTeams]);
 
   // Each step's heading takes focus when the step changes; a problem takes it when one is shown.
   useEffect(() => {
@@ -184,15 +230,22 @@ export function AssignPage() {
     go(step + 1);
   };
 
-  const send = (ids: string[], to: string[]) =>
-    service.assignCourses({
+  /** The picked teams' ids, for a team-scoped assign. */
+  const pickedTeamIds = () => teamNames.map((n) => (teams.find((x) => x.name === n) as Team).id);
+
+  const send = (ids: string[], to: string[]) => {
+    const rest = {
       courseIds: ids,
-      emails: to,
       dueAt: due ? Date.parse(`${due}T23:59:59`) : null,
       mandatory,
       reminder,
       notify,
-    });
+    };
+    // The Team area sends teams; the function reads their members and records the team on each.
+    return service.assignCourses(
+      forTeams ? { ...rest, teamIds: pickedTeamIds() } : { ...rest, emails: to },
+    );
+  };
 
   const finish = (res: AssignResult[]) => {
     const left = res.flatMap((r) => r.failed);
@@ -217,7 +270,7 @@ export function AssignPage() {
     );
     setFailed([]);
     setBusy(false);
-    setDone({ people, pending, courses: courseIds });
+    setDone({ people, pending, courses: courseIds, teamIds: forTeams ? pickedTeamIds() : [] });
   };
 
   const submit = async () => {
@@ -235,6 +288,7 @@ export function AssignPage() {
     setBusy(true);
     const ids = [...new Set(failed.map((f) => f.courseId))];
     try {
+      // Teams are sent again whole: the function skips whoever already has the course.
       const res = await Promise.all(
         ids.map((id) =>
           send(
@@ -289,7 +343,9 @@ export function AssignPage() {
         {() =>
           courses.length === 0 ? (
             <EmptyState title="No published courses yet">
-              Publish a course in the Studio, then assign it here.
+              {forTeams
+                ? 'Courses you can assign appear here once they are published.'
+                : 'Publish a course in the Studio, then assign it here.'}
             </EmptyState>
           ) : matchingCourses.length === 0 ? (
             <EmptyState title={`No course matches “${query.trim()}”`}>
@@ -339,6 +395,7 @@ export function AssignPage() {
       onMode={changeMode}
       teamList={teamsLoadable}
       onTeamCreated={(team) => setMadeTeams((m) => [...m, team])}
+      teamsOnly={forTeams}
       teamNames={teamNames}
       onTeamNames={setTeamNames}
       emails={emails}
@@ -405,14 +462,24 @@ export function AssignPage() {
         <dd>{summary.signedIn}</dd>
         <dt>New (pending invite)</dt>
         <dd>{summary.newInvites}</dd>
-        <dt>Already assigned</dt>
-        <dd>{summary.alreadyAssigned}</dd>
+        {readsAssigned ? (
+          <>
+            <dt>Already assigned</dt>
+            <dd>{summary.alreadyAssigned}</dd>
+          </>
+        ) : null}
         <dt>Rejected</dt>
         <dd>{summary.rejected.length}</dd>
         <dt>Due</dt>
         <dd>{due || 'No deadline'}</dd>
       </dl>
-      {courseIds.length > 1 ? (
+      {readsAssigned ? null : (
+        <p className="console-muted">
+          Anyone who already has a course keeps it as it is; they are counted as already assigned
+          once you assign.
+        </p>
+      )}
+      {courseIds.length > 1 && readsAssigned ? (
         <ul aria-label="Per course">
           {courses
             .filter((c) => courseIds.includes(c.id))
@@ -480,9 +547,13 @@ export function AssignPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow={t.Admin}
+        eyebrow={forTeams ? 'Team' : t.Admin}
         title="Assign courses"
-        lead="Pick courses, pick people, set a deadline, then check it. Nothing is assigned until the last step."
+        lead={
+          forTeams
+            ? 'Pick courses, pick your teams, set a deadline, then check it. Nothing is assigned until the last step.'
+            : 'Pick courses, pick people, set a deadline, then check it. Nothing is assigned until the last step.'
+        }
       />
       {done ? (
         <div className="console-done" role="status">
@@ -495,16 +566,29 @@ export function AssignPage() {
             course the first time they sign in.
           </p>
           <div className="console-flow-nav">
-            <Link
-              className={buttonClass('primary')}
-              to={
-                done.courses.length === 1
-                  ? `/admin/learners?course=${encodeURIComponent(done.courses[0] as string)}`
-                  : '/admin/learners'
-              }
-            >
-              View learners
-            </Link>
+            {forTeams ? (
+              <Link
+                className={buttonClass('primary')}
+                to={
+                  done.teamIds.length === 1
+                    ? `/team/${encodeURIComponent(done.teamIds[0] as string)}`
+                    : '/team'
+                }
+              >
+                {done.teamIds.length === 1 ? 'View team report' : 'View my teams'}
+              </Link>
+            ) : (
+              <Link
+                className={buttonClass('primary')}
+                to={
+                  done.courses.length === 1
+                    ? `/admin/learners?course=${encodeURIComponent(done.courses[0] as string)}`
+                    : '/admin/learners'
+                }
+              >
+                View learners
+              </Link>
+            )}
             <Button variant="secondary" onClick={reset}>
               Assign more
             </Button>

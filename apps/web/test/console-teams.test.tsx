@@ -166,6 +166,7 @@ describe('Create team', () => {
       expect(c.data.saveTeam).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'quality', memberEmails: ['a@nonstopio.com'] }),
         null,
+        { checkTaken: true },
       ),
     );
   });
@@ -219,6 +220,7 @@ describe('Edit and delete', () => {
           createdAt: 5,
         },
         'Platform',
+        { checkTaken: true },
       ),
     );
     expect(await screen.findByText('Saved Cloud')).toBeTruthy();
@@ -248,16 +250,26 @@ describe('Edit and delete', () => {
     expect(previous).toBe('QA');
   });
 
-  it('lets an Educator edit only the teams they made, and delete none', async () => {
+  it('shows an Educator every team read-only: no Create, no Edit, no Delete', async () => {
     const mine: Team = { ...bare, createdBy: 'u1' };
     const theirs: Team = { ...platform, createdBy: 'someone-else' };
-    await openApp(PATH, {
+    const { container } = await openApp(PATH, {
       roles: ['educator'],
       console: fakeConsole({ teamList: [theirs, mine] }),
     });
-    expect(await screen.findByRole('button', { name: 'Edit QA' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit Platform' })).toBeNull();
+    expect(await screen.findByText('Platform')).toBeTruthy();
+    expect(screen.getByText(/Managers and Admins keep them/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Edit/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create team' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('gives an Educator an empty state with nothing to create', async () => {
+    await openApp(PATH, { roles: ['educator'], console: fakeConsole() });
+    expect(await screen.findByText('No teams yet')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Create team' })).toBeNull();
   });
 
   it('lets an Admin edit any team, keeping its creator, or none for an older team', async () => {
@@ -332,5 +344,75 @@ describe('Edit and delete', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete Platform' }));
     expect(await screen.findByText('Could not delete the team. Try again.')).toBeTruthy();
     expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+});
+
+describe('Managers of a team', () => {
+  it('lists each team’s managers, and marks a team with none', async () => {
+    const managed: Team = { ...platform, managerEmails: ['neha@nonstopio.com'] };
+    await openApp(PATH, { ...admin, console: fakeConsole({ teamList: [managed, bare] }) });
+    const table = await screen.findByRole('table', { name: 'Teams' });
+    expect(within(table).getByRole('columnheader', { name: 'Managers' })).toBeTruthy();
+    expect(within(table).getByRole('row', { name: /Platform/ }).textContent).toContain(
+      'neha@nonstopio.com',
+    );
+    expect(within(table).getByRole('row', { name: /QA/ }).textContent).toContain('No manager');
+  });
+
+  it('lets an Admin name managers, lower-cased, on a new team', async () => {
+    const c = fakeConsole();
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: 'Create team' }))[0] as HTMLElement,
+    );
+    fireEvent.change(nameField(), { target: { value: 'Mobile' } });
+    paste('a@nonstopio.com');
+    fireEvent.paste(within(dialog()).getByRole('combobox', { name: 'Managers' }), {
+      clipboardData: { getData: () => 'Neha@NonStopIO.com' },
+    });
+    expect(within(dialog()).getByText(/Up to 10\. They assign this team courses/)).toBeTruthy();
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
+    expect(vi.mocked(c.data.saveTeam).mock.calls[0]?.[0]).toMatchObject({
+      managerEmails: ['neha@nonstopio.com'],
+    });
+  });
+
+  it('keeps managers on edit, saves an emptied list, and refuses more than 10', async () => {
+    const managed: Team = { ...platform, managerEmails: ['neha@nonstopio.com'] };
+    const c = fakeConsole({ teamList: [managed] });
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Platform' }));
+    fireEvent.paste(within(dialog()).getByRole('combobox', { name: 'Managers' }), {
+      clipboardData: {
+        getData: () => Array.from({ length: 10 }, (_, i) => `m${i}@nonstopio.com`).join(' '),
+      },
+    });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    expect(await within(dialog()).findByText('A team has at most 10 managers.')).toBeTruthy();
+    expect(c.data.saveTeam).not.toHaveBeenCalled();
+    for (const email of [
+      'neha@nonstopio.com',
+      ...Array.from({ length: 10 }, (_, i) => `m${i}@nonstopio.com`),
+    ]) {
+      fireEvent.click(within(dialog()).getByRole('button', { name: `Remove ${email}` }));
+    }
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
+    expect(vi.mocked(c.data.saveTeam).mock.calls[0]?.[0]).toMatchObject({ managerEmails: [] });
+  });
+
+  it('refuses a manager address that is not a NonStop one', async () => {
+    const c = fakeConsole({ teamList: [platform] });
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Platform' }));
+    fireEvent.paste(within(dialog()).getByRole('combobox', { name: 'Managers' }), {
+      clipboardData: { getData: () => 'boss@gmail.com' },
+    });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save team' }));
+    expect(
+      await within(dialog()).findByText('Fix or remove the addresses marked invalid.'),
+    ).toBeTruthy();
+    expect(c.data.saveTeam).not.toHaveBeenCalled();
   });
 });

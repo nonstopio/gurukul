@@ -94,7 +94,22 @@ The Gmail message gains a `Cc:` header; the deadline email is in `EMAIL_TEMPLATE
   - Assign (`/team/assign`): the Assign screen with the Teams audience only, my teams only.
 - `/studio/teams`: Admins edit every team and set its Managers (`PeoplePicker`); Educators see the
   list read-only.
-- Roles & access: Manager is a third checkbox in Grant a role and a row in the permission matrix.
+- Roles & access: Manager is a third switch in Grant a role (a `ToggleCard`, like the others), a
+  column in the permission matrix, a count card and a Managers list with the teams each manages.
+
+As built (2026-11-06):
+
+- An Admin's My teams lists every team with a document, not only the ones naming them, so an Admin
+  can open any team's report; a Manager's lists the teams that name them (the only query the rules
+  allow). Create team there names the creator its manager, Admin or not.
+- The report's row actions are two icon buttons (Change due date, Remove), not a menu: a menu's
+  panel is clipped by the table's scroll box. A Manager gets them on assignments made through the
+  team in front of them; one made through another of their teams is changed from that team's report.
+- Assign for a Manager cannot preview who already has a course (assignments are Admin-read only);
+  the function skips them. It counts a team's listed members only,
+  since those are whom the function assigns.
+- A team named "Assign" (id `assign`) would have no reachable report: `/team/assign` is the Assign
+  screen. Left as planned; refuse that name in the team dialog if it ever matters.
 
 ## Out of scope, for later
 

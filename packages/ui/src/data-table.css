@@ -5,6 +5,12 @@
   overflow: hidden;
   font-family: var(--font-ui);
 }
+/* A record's link in a cell (a team, a course) reads as a link: accent, never the browser's blue. */
+.g-table td a:not([class*='g-']),
+.g-table tbody th a:not([class*='g-']) {
+  color: var(--accent);
+  font-weight: 600;
+}
 .g-table__scroll {
   overflow: auto;
   max-height: var(--table-max-height, none);

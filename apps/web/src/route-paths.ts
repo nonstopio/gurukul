@@ -34,6 +34,9 @@ export const ROUTE_PATHS = [
   '/studio/teams',
   '/studio/bank',
   '/studio/media',
+  '/team',
+  '/team/assign',
+  '/team/:teamId',
 ] as const;
 
 export type RoutePath = (typeof ROUTE_PATHS)[number];

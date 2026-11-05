@@ -113,7 +113,7 @@ describe('the console in Gurukul names', () => {
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Acharya and Kulapati are separate/)).toBeTruthy();
+    expect(within(dialog).getByText(/Acharya, Adhyaksha and Kulapati are separate/)).toBeTruthy();
     expect(optionNames(within(dialog).getByLabelText('Kulapati'))).toContain('Make Kulapati');
     choose(within(dialog).getByLabelText('Acharya'), 'Remove Acharya');
     expect(

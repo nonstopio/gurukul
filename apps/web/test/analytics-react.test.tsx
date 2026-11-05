@@ -368,6 +368,8 @@ describe('AnalyticsSession', () => {
   it('picks the most privileged role', () => {
     expect(topRole(['learner'])).toBe('learner');
     expect(topRole(['learner', 'educator'])).toBe('educator');
+    expect(topRole(['learner', 'manager'])).toBe('manager');
+    expect(topRole(['manager', 'educator'])).toBe('educator');
     expect(topRole(['educator', 'admin'])).toBe('admin');
   });
 });

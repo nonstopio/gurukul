@@ -356,6 +356,7 @@ describe('Roles & access', () => {
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u2',
         educator: false,
+        manager: false,
         admin: false,
         grantedCourseIds: [],
       }),
@@ -383,6 +384,7 @@ describe('Roles & access', () => {
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u7',
         educator: true,
+        manager: false,
         admin: true,
         grantedCourseIds: ['wip', 'old'],
       }),
@@ -502,6 +504,7 @@ describe('Roles & access', () => {
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u1',
         educator: true,
+        manager: false,
         admin: false,
         grantedCourseIds: ['gone'],
       }),
@@ -535,6 +538,7 @@ describe('Roles & access', () => {
       expect(c.service.setRoles).toHaveBeenCalledWith({
         uid: 'u5',
         educator: false,
+        manager: false,
         admin: false,
         grantedCourseIds: [],
       }),

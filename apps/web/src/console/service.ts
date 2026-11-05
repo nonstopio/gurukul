@@ -5,7 +5,9 @@ import type {
   EmailTemplateView,
   AssignResult,
   ConsoleService,
+  RemindRequest,
   SetRolesRequest,
+  TeamReport,
 } from './types';
 
 export function firebaseConsoleService(functions: Functions): ConsoleService {
@@ -18,9 +20,22 @@ export function firebaseConsoleService(functions: Functions): ConsoleService {
       await callApi(functions, 'resetCooldown', request);
     },
     remindLearners: (request) =>
-      callApi<{ courseId?: string; emails?: string[] }, { sent: number; skipped: number }>(
+      callApi<RemindRequest, { sent: number; skipped: number }>(
         functions,
         'remindLearners',
+        request,
+      ),
+    teamReport: (request) =>
+      callApi<{ teamId: string }, TeamReport>(functions, 'teamReport', request),
+    updateAssignment: (request) =>
+      callApi<
+        { assignmentId: string; dueAt: number | null },
+        { assignmentId: string; dueAt: number | null }
+      >(functions, 'updateAssignment', request),
+    removeAssignment: (request) =>
+      callApi<{ assignmentId: string }, { assignmentId: string }>(
+        functions,
+        'removeAssignment',
         request,
       ),
     listEmailTemplates: () =>

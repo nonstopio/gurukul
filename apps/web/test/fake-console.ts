@@ -12,6 +12,7 @@ import type {
   AssignmentFull,
   AuditRow,
   CourseLearner,
+  TeamReport,
   UserRow,
 } from '../src/console/types';
 
@@ -49,6 +50,10 @@ export function fakeConsole(
     courses?: Course[];
     /** Who started the course, for an Educator's analytics. */
     learners?: CourseLearner[];
+    /** The teams a Manager manages; defaults to those in `teamList` that list priya@nonstopio.com. */
+    managed?: Team[];
+    /** What `teamReport` answers; defaults to an empty report on the asked team. */
+    report?: TeamReport;
   } = {},
 ) {
   const users = init.users ?? [];
@@ -106,6 +111,11 @@ export function fakeConsole(
     ),
     saveTeam: vi.fn().mockResolvedValue(undefined),
     deleteTeam: vi.fn().mockResolvedValue(undefined),
+    managedTeams: vi.fn(
+      async (email: string) =>
+        init.managed ??
+        (init.teamList ?? []).filter((t) => (t.managerEmails ?? []).includes(email)),
+    ),
   };
   const service: ConsoleService = {
     assignCourses: vi.fn().mockResolvedValue({
@@ -117,6 +127,19 @@ export function fakeConsole(
     setRoles: vi.fn().mockResolvedValue({ roles: ['learner', 'educator'] }),
     resetCooldown: vi.fn().mockResolvedValue(undefined),
     remindLearners: vi.fn().mockResolvedValue({ sent: 1, skipped: 0 }),
+    teamReport: vi.fn(
+      async ({ teamId: id }: { teamId: string }) =>
+        init.report ?? { teamId: id, name: id, members: [] },
+    ),
+    updateAssignment: vi.fn(
+      async ({ assignmentId, dueAt }: { assignmentId: string; dueAt: number | null }) => ({
+        assignmentId,
+        dueAt,
+      }),
+    ),
+    removeAssignment: vi.fn(async ({ assignmentId }: { assignmentId: string }) => ({
+      assignmentId,
+    })),
     revokeCertificate: vi.fn().mockResolvedValue(undefined),
     listEmailTemplates: vi.fn().mockResolvedValue([
       {

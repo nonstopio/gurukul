@@ -129,8 +129,8 @@ export interface ConsoleData {
   usersInTeam(team: string): Promise<UserRow[]>;
   /** Profiles for a page of people known only by their assignments (in chunks of 30). */
   usersByUid(uids: string[]): Promise<UserRow[]>;
-  /** People holding a granted role (educator or admin), for Roles & access. */
-  usersWithRole(role: 'educator' | 'admin'): Promise<UserRow[]>;
+  /** People holding a granted role (educator, manager or admin), for Roles & access. */
+  usersWithRole(role: GrantedRole): Promise<UserRow[]>;
   /** Every course, drafts and never-published ones included (capped), for granting to an Educator. */
   allCourses(): Promise<Course[]>;
   /**
@@ -155,7 +155,12 @@ export interface ConsoleData {
    * Creates (`previousName` null: fails when the id is taken) or updates a team, and keeps its name
    * in `config/org.teams` (replacing `previousName`) in the same transaction.
    */
-  saveTeam(team: Team, previousName: string | null): Promise<void>;
+  saveTeam(team: Team, previousName: string | null, options?: SaveTeamOptions): Promise<void>;
+  /**
+   * The teams whose `managerEmails` lists this email (lower-cased), by name: what a Manager may
+   * read. The rules accept only this query from a Manager, never a read of every team.
+   */
+  managedTeams(email: string): Promise<Team[]>;
   /** Deletes the team and its name from `config/org.teams`; profiles that picked it keep it. */
   deleteTeam(team: Team): Promise<void>;
   /** One page of audit entries, newest first, with people resolved to names. */
@@ -164,20 +169,32 @@ export interface ConsoleData {
   auditCount(): Promise<number>;
 }
 
+/** A role an Admin grants with `setRoles`; everyone is a Learner. */
+export type GrantedRole = 'educator' | 'manager' | 'admin';
+
+export interface SaveTeamOptions {
+  /**
+   * Whether a create first reads the team to refuse a taken id (default true). A Manager cannot
+   * read a team that does not list them, nor one that does not exist yet, so their create writes
+   * without reading: the rules then refuse a write over someone else's team as an update.
+   */
+  checkTaken?: boolean;
+}
+
 export interface KnownEmails {
   signedIn: Set<string>;
   assigned: Set<string>;
   byCourse: Record<string, Set<string>>;
 }
 
-export interface AssignRequest {
+/** `emails` (Admins only) or `teamIds` (Admins, and Managers for the teams they manage), never both. */
+export type AssignRequest = {
   courseIds: string[];
-  emails: string[];
   dueAt: number | null;
   mandatory: boolean;
   reminder: Reminder;
   notify: boolean;
-}
+} & ({ emails: string[]; teamIds?: never } | { teamIds: string[]; emails?: never });
 
 export interface AssignResult {
   summary: AssignSummary;
@@ -190,8 +207,16 @@ export interface AssignResult {
 export interface SetRolesRequest {
   uid: string;
   educator?: boolean;
+  /** Taking it away also takes the person off every team's managers (`setRoles` does it). */
+  manager?: boolean;
   admin?: boolean;
   grantedCourseIds?: string[];
+}
+
+export interface RemindRequest {
+  courseId?: string;
+  emails?: string[];
+  teamId?: string;
 }
 
 /** One email Gurukul sends, filled with sample data. */
@@ -203,15 +228,52 @@ export interface EmailTemplateView {
   body: string;
 }
 
-/** The Admin-only callable functions. */
+type AssignmentStatus = AssignmentFull['status'];
+
+/** One assignment in a team report (`teamReport`). Never a Quiz score. Times in milliseconds. */
+export interface TeamReportAssignment {
+  assignmentId: string;
+  courseId: string;
+  courseTitle: string;
+  status: AssignmentStatus;
+  dueAt: number | null;
+  /** 0 to 100. */
+  percent: number;
+  /** The team it was assigned through; a Manager may change only their teams' ones. */
+  teamId: string | null;
+}
+
+export interface TeamReportMember {
+  email: string;
+  /** Null until the person signs in for the first time. */
+  uid: string | null;
+  displayName: string | null;
+  assignments: TeamReportAssignment[];
+}
+
+/** What `teamReport` returns: the web's copy of the contract in `firebase/functions/src/team-report.ts`. */
+export interface TeamReport {
+  teamId: string;
+  name: string;
+  members: TeamReportMember[];
+}
+
+/** The callables of the Admin console and the Team area. Most are Admin-only; see each. */
 export interface ConsoleService {
   assignCourses(request: AssignRequest): Promise<AssignResult>;
   setRoles(request: SetRolesRequest): Promise<{ roles: string[] }>;
   resetCooldown(request: { uid: string; courseId: string; quizId: string }): Promise<void>;
-  remindLearners(request: {
-    courseId?: string;
-    emails?: string[];
-  }): Promise<{ sent: number; skipped: number }>;
+  /** A Manager must pass a `teamId` they manage; an Admin may, to narrow it to that team. */
+  remindLearners(request: RemindRequest): Promise<{ sent: number; skipped: number }>;
+  /** An Admin, or a Manager of the team. */
+  teamReport(request: { teamId: string }): Promise<TeamReport>;
+  /** A new due date (ms) or none; a Manager only for an assignment made through their team. */
+  updateAssignment(request: {
+    assignmentId: string;
+    dueAt: number | null;
+  }): Promise<{ assignmentId: string; dueAt: number | null }>;
+  /** Takes the course off the person's list; their progress stays. Same access as the above. */
+  removeAssignment(request: { assignmentId: string }): Promise<{ assignmentId: string }>;
   revokeCertificate(request: { id: string; revoked?: boolean }): Promise<void>;
   listEmailTemplates(): Promise<EmailTemplateView[]>;
   sendTestEmail(request: { templateId: string; recipients: string[] }): Promise<{ to: string[] }>;
