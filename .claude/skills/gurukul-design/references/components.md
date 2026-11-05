@@ -600,7 +600,7 @@ Profile, the label switch, What's new and Sign out — Sign out is always there.
 
 ## AppShell — shipped
 
-`<AppShell sidebar bar? navKey? menuLabel? sidebarId?>` — the only sidebar layout. Children are the
+`<AppShell sidebar bar? footer? navKey? menuLabel? sidebarId?>` — the only sidebar layout. Children are the
 content column; the app renders `<main id="content">` inside. ≥ 64rem: grid
 `var(--sidebar-width) minmax(0,1fr)`, the sidebar container sticky at `top: 0`, `height: 100dvh`,
 its nav scrolling inside so the `UserCard` never leaves the screen; the bar (search) sticky with a
@@ -609,7 +609,10 @@ inside one. < 64rem: the sidebar is a drawer (`--z-drawer`, `min(85vw, 18rem)`, 
 `--dur-base`) over a `--scrim`, opened by the "Menu" button (`aria-expanded`, `aria-controls`).
 Opening focuses the first link; Escape or the scrim close it and return focus; the content is
 `inert` while open; a new `navKey` (the pathname) closes it; widening past 64rem closes it.
-Never give the `Sidebar` an id or its own open state.
+`footer` is a `<footer>` (contentinfo) after the content: the content column is a flex column of at
+least `100dvh`, so the footer sits at the window's foot on a short page and after the page on a long
+one, never fixed over it; `--surface` with a top hairline, `--text-xs` `--text-muted`; hidden in
+print. The app's `ShellFooter` lays out its inside. Never give the `Sidebar` an id or its own open state.
 
 ## Page and PageHeader — shipped
 

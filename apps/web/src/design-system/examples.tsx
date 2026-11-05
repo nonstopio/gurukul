@@ -1152,10 +1152,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     Example: SearchCardExample,
   },
   GlobalLoader: {
-    rule: 'A region or blocked operation whose layout is unknown: one label saying what is happening; a Skeleton whenever the layout is known.',
+    rule: 'A region or blocked operation whose layout is unknown: the G alone, with a label screen readers announce; a Skeleton whenever the layout is known.',
     Example: () => (
       <div className="ds-stack">
-        <GlobalLoader label="Loading media" hint="Taking longer than usual…" />
+        <GlobalLoader label="Loading media" />
         <GlobalLoader label="Saving" variant="inline" />
       </div>
     ),

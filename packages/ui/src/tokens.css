@@ -90,6 +90,10 @@
   --accent-line: #a9d9c0;
   --accent-ring: #cfeadb;
 
+  /* ---- Roles: brand (the logo's G tile, the same in both themes; the global loader draws it) ---- */
+  --brand-tile: #059d66;
+  --brand-tile-on: #ffffff;
+
   /* ---- Roles: chrome (sidebars, top bars, focused headers) ---- */
   --chrome: #eef1ea;
   --chrome-raised: #e4e9e0;
@@ -112,7 +116,7 @@
   --avatar-admin: var(--g-sand-400);
   --avatar-on: var(--g-ink-950);
 
-  /* ---- Roles: saffron (highlight fills: streaks, new, the loader flame; never text on surface) ---- */
+  /* ---- Roles: saffron (highlight fills: streaks, new; never text on surface) ---- */
   --saffron: #f2a02b;
   --saffron-on: #2a1700;
   --saffron-soft: #fdeccb;
@@ -276,7 +280,7 @@
   --dur-base: 240ms;
   --dur-slow: 400ms;
   --dur-page: 500ms;
-  --dur-loader: 1600ms; /* one turn of the global loader; kept under reduced motion */
+  --dur-loader: 2000ms; /* one cycle of the global loader's G; kept under reduced motion */
 }
 
 @media (prefers-reduced-motion: reduce) {

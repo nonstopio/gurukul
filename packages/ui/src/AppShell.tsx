@@ -20,6 +20,8 @@ export interface AppShellProps {
   sidebarId?: string | undefined;
   /** When it changes the drawer closes: pass the pathname. */
   navKey?: string | undefined;
+  /** A thin bar at the foot of the content column, under the page (not fixed over it). Hidden in print. */
+  footer?: ReactNode;
   /** The content column; the app renders its own `<main>` here. */
   children: ReactNode;
 }
@@ -34,6 +36,7 @@ export function AppShell({
   menuLabel = 'Menu',
   sidebarId = 'app-sidebar',
   navKey,
+  footer,
   children,
 }: AppShellProps) {
   const [open, setOpen] = useState(false);
@@ -109,6 +112,7 @@ export function AppShell({
           {bar}
         </header>
         {children}
+        {footer ? <footer className="g-app-shell__footer">{footer}</footer> : null}
       </div>
     </div>
   );

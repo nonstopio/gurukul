@@ -22,6 +22,8 @@ export const roleTokens = [
   'brand-mark',
   'accent-line',
   'accent-ring',
+  'brand-tile',
+  'brand-tile-on',
   'chrome',
   'chrome-raised',
   'chrome-text',

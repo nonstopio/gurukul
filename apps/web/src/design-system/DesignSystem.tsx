@@ -207,7 +207,8 @@ const SHELLS = [
   {
     layout: 'AppShell',
     routes: 'Home, catalogue, course, certificates, profile, console, Studio lists, changelog',
-    chrome: 'Ink sidebar: brand, nav groups, the UserCard at the foot. Search in a sticky top bar.',
+    chrome:
+      'Ink sidebar: brand, nav groups, the UserCard at the foot. Search in a sticky top bar. A thin bar after the page: What’s new, GitHub, contributors.',
   },
   {
     layout: 'FocusedShell',

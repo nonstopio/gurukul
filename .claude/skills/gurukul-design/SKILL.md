@@ -118,10 +118,10 @@ need; never reorder, never add a second header.
 
 Two layouts, chosen per route in `routes.tsx` (`FOCUSED`), never by a page:
 
-| Layout         | Routes                                                                           | Chrome                                                                                       |
-| -------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `AppShell`     | Home, catalogue, course, certificates, profile, console, Studio lists, changelog | Ink sidebar: brand, nav groups, `UserCard` pinned at the bottom. Top bar in content: search. |
-| `FocusedShell` | Lesson, Quiz, result, Studio course editor, lesson editor, Quiz builder, preview | Ink top bar: back link, title, status (progress or save state), actions. No sidebar.         |
+| Layout         | Routes                                                                           | Chrome                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppShell`     | Home, catalogue, course, certificates, profile, console, Studio lists, changelog | Ink sidebar: brand, nav groups, `UserCard` pinned at the bottom. Top bar in content: search. Foot of the content: `ShellFooter` (What's new, GitHub, contributors). |
+| `FocusedShell` | Lesson, Quiz, result, Studio course editor, lesson editor, Quiz builder, preview | Ink top bar: back link, title, status (progress or save state), actions. No sidebar.                                                                                |
 
 The contract, tested in `packages/ui/test/app-shell.test.tsx`:
 

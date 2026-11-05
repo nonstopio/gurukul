@@ -107,3 +107,17 @@ describe('the account menu', () => {
     expect(screen.getByRole('menuitem', { name: "What's new" })).toBeTruthy();
   });
 });
+
+describe('the foot of the page', () => {
+  it('ends the sidebar layout', async () => {
+    await openApp('/');
+    const foot = await screen.findByRole('contentinfo');
+    expect(within(foot).getByRole('link', { name: "What's new" })).toBeTruthy();
+  });
+
+  it('is left out of the focused layout (a lesson)', async () => {
+    await openApp('/courses/git/learn/l1');
+    expect((await screen.findByRole('main')).className).toBe('focused');
+    expect(screen.queryByRole('contentinfo')).toBeNull();
+  });
+});

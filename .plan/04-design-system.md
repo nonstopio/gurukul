@@ -19,7 +19,7 @@ Two themes, Light and Dark, that follow the system until a person chooses (Syste
 the account menu and Profile, kept on the device). Light: a warm `#F6F7F3` page, white cards, a
 light-tinted sidebar that follows the theme (no permanent dark slab). Dark: deep green `#0E1511`
 ground. NonStop green is the one accent (`#0A6A46` in Light, `#46D39B` in Dark); saffron is a
-highlight fill (streaks, new, the loader flame), never text on a surface. Body text holds 11:1 or
+highlight fill (streaks, new), never text on a surface. Body text holds 11:1 or
 more, the palest text 5:1 or more, control edges 3:1 or more, in both themes. Inter for UI,
 Fraunces for titles and ceremony, JetBrains Mono for code. The certificate is the one "paper and
 gold" surface. The full system, with live previews, is the "Gurukul Design System" artifact
@@ -54,7 +54,7 @@ Roles keep their names; `tokens.css` declares Light values in `:root` and Dark v
 (a test keeps the two dark blocks identical). `index.html` applies the saved choice before first
 paint and shows a boot loader until the session is known. Motion tokens: `--ease` (out), `--ease-in`,
 `--ease-in-out`, `--ease-spring`; `--dur-instant` to `--dur-page`; all collapse to 0 under reduced
-motion except the loader's turn, which becomes an opacity pulse. Toasts stay 4s (success), 6s
+motion except the loader's cycle, where the G stops moving and only pulses in opacity. Toasts stay 4s (success), 6s
 (info), 8s (warning) and until closed (error).
 
 ## Reporting a failure

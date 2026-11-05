@@ -24,3 +24,7 @@ afterEach(() => {
 // The editors use CodeMirror, which jsdom cannot type into; their tests get a textarea instead.
 // `codefield.test.tsx` takes the real component back with `vi.importActual`.
 vi.mock('../src/studio/blocks/CodeField', async () => await import('./codeFieldStub'));
+
+// The shell's foot asks GitHub for the contributors; no test reaches the internet. The list is
+// empty unless a test says otherwise; `contributors.test.ts` takes the real module back.
+vi.mock('../src/contributors', () => ({ loadContributors: vi.fn(() => Promise.resolve([])) }));

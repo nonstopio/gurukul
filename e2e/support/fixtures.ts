@@ -5,11 +5,12 @@ import { resetEmulators } from './emulators';
 /**
  * Web fonts, the stylesheets of the Auth emulator's sign-in widget and YouTube (the player API and
  * its embeds) come from the internet; they are blocked so a slow network cannot slow or change a
- * run. With YouTube blocked, a video lesson falls back to "I have watched the video". Firebase's
+ * run. With YouTube blocked, a video lesson falls back to "I have watched the video"; with GitHub
+ * blocked, the shell's foot shows no contributor avatars. Firebase's
  * own script (apis.google.com) is left alone: the SDK fails the sign-in if it cannot start.
  */
 const EXTERNAL =
-  /^https:\/\/(unpkg\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|www\.youtube\.com|www\.youtube-nocookie\.com)\//;
+  /^https:\/\/(unpkg\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|www\.youtube\.com|www\.youtube-nocookie\.com|api\.github\.com|avatars\.githubusercontent\.com)\//;
 
 export const test = base.extend<{ clean: boolean }>({
   context: async ({ context }, use) => {
