@@ -120,6 +120,79 @@ describe('useDraft', () => {
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
   });
 
+  it('writes nothing when edits end where the stored draft already is', async () => {
+    const { result, studio } = setup();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    const original = result.current.work?.course.title as string;
+    act(() => result.current.update(rename(`${original} `)));
+    act(() => result.current.update(rename(original)));
+    expect(result.current.save).toBe('dirty');
+    await act(async () => {
+      vi.advanceTimersByTime(AUTOSAVE_MS);
+    });
+    await waitFor(() => expect(result.current.save).toBe('saved'));
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
+    expect(result.current.rev).toBe(4);
+    // After a real save, the saved content is what an undo returns to.
+    act(() => result.current.update(rename('A')));
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(true);
+    });
+    act(() => result.current.update(rename('B')));
+    act(() => result.current.update(rename('A')));
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(true);
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+    expect(result.current).toMatchObject({ rev: 5, save: 'saved' });
+  });
+
+  it('marks an answer key edit, saves the mark, and keeps one the stored draft has', async () => {
+    const { result, studio } = setup();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => result.current.update(rename('Renamed')));
+    expect(result.current.work).not.toHaveProperty('answersChanged');
+    act(() => result.current.update((w) => ({ ...w, answers: { q1: { k1: ['b'] } } })));
+    expect(result.current.work?.answersChanged).toBe(true);
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(true);
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledWith(
+      'git',
+      expect.objectContaining({ answersChanged: true }),
+      4,
+      'u1',
+    );
+    // Put back after the save: the mark stays until a publish removes it.
+    act(() => result.current.update((w) => ({ ...w, answers: {} })));
+    expect(result.current.work?.answersChanged).toBe(true);
+
+    const marked = setup(
+      fakeStudio({ draft: draftDoc(makeCourse(), { rev: 2, answersChanged: true }) }),
+    );
+    await waitFor(() => expect(marked.result.current.status).toBe('ready'));
+    act(() => marked.result.current.update(rename('Other')));
+    expect(marked.result.current.work?.answersChanged).toBe(true);
+  });
+
+  it('still reports a conflict when the edits were undone', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
+    studio.data.saveDraft = vi.fn().mockRejectedValue(new DraftConflictError());
+    const { result } = setup(studio);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    const original = result.current.work?.course.title as string;
+    act(() => result.current.update(rename('F')));
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(false);
+    });
+    act(() => result.current.update(rename(original)));
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(false);
+    });
+    expect(result.current.save).toBe('conflict');
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
+  });
+
   it('stays dirty when edits arrive while a save is in flight', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
     let finish: (rev: number) => void = () => {};

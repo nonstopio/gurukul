@@ -46,7 +46,7 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
   const signIn = page.getByRole('button', { name: 'Sign in with Google' });
   await expect(signIn).toBeVisible();
   // The first sign-in on a browser asks for the privacy policy to be accepted.
-  const accept = page.getByRole('switch', { name: 'I accept the privacy policy' });
+  const accept = page.getByRole('checkbox', { name: 'I accept the privacy policy' });
   if ((await accept.count()) && !(await accept.isChecked())) {
     await page.getByText('I accept the privacy policy').click();
   }

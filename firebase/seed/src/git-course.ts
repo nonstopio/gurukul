@@ -1752,7 +1752,7 @@ const estimatedMinutes = chapters
   .reduce((sum, item) => sum + (item.type === 'lesson' ? item.minutes : 0), 0);
 
 export const gitCourse: Course = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   id: 'git-the-nonstop-way',
   title: 'Git, the NonStop Way',
   summary:

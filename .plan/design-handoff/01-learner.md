@@ -12,11 +12,11 @@ SVG (mint, 16% opacity, bottom-right, `aria-hidden`). Form pane `flex: 1 1 440px
 | Element | Spec |
 |---|---|
 | Brand | Logo 34px · divider · "Gurukul" Fraunces 24px `--chrome-accent` |
-| Kicker | "NonStop Academy", micro label, mint |
+| Kicker | None on sign-in: the page opens on the title (2026-11-05) |
 | Headline | Fraunces 500 `clamp(40px,5vw,64px)`, white, `text-wrap: balance` |
 | Lead | 18px/1.6 `--g-ink-100`-ish (`--chrome-text`) |
 | Benefits | 3 rows, 20px mint stroke icon + 15px text |
-| Quote | Fraunces italic 16px `--chrome-label` |
+| Sutra | Footer line: स्वाध्यायप्रवचनाभ्यां न प्रमदितव्यम् (`lang="sa"`), Fraunces 500 `--text-md` `--text`, then "· Never stop learning, never stop teaching." (`lang="en"`) in the UI font, `--text-sm` `--text-subtle` |
 | Form title | "Sign in to Gurukul", Fraunces 34px |
 | Google button | Official Google button, full width, 52px |
 | Invite note | Callout (accent tone): "Assigned a course before you joined? …" |

@@ -1,4 +1,5 @@
 import { ApiException } from '@gurukul/schema';
+import type { CourseAccess } from '@gurukul/schema';
 import { revokeCertificate } from './certificates.js';
 import type { CertificateAdmin } from './certificates.js';
 import { assignCourses } from './assign.js';
@@ -6,7 +7,13 @@ import type { AssignResult, AssignStore } from './assign.js';
 import { resetCooldown } from './cooldown.js';
 import { listEmailTemplates, sendTestEmail } from './email-templates.js';
 import type { TemplateView } from './email-templates.js';
-import { archiveCourse, createCourse, publishCourse, rollbackCourse } from './courses.js';
+import {
+  archiveCourse,
+  createCourse,
+  publishCourse,
+  rollbackCourse,
+  setCourseAccess,
+} from './courses.js';
 import type { CourseStore } from './courses.js';
 import type { CooldownAdmin } from './cooldown.js';
 import type { Caller } from './errors.js';
@@ -159,6 +166,14 @@ export async function handlePublishCourse(
   store: CourseStore,
 ): Promise<{ version: number }> {
   return publishCourse(store, requireVerified(request), asObject(request.data));
+}
+
+/** `setCourseAccess`: who may open the course, applied at once without a new version. */
+export async function handleSetCourseAccess(
+  request: AuthedRequest,
+  store: CourseStore,
+): Promise<CourseAccess> {
+  return setCourseAccess(store, requireVerified(request), asObject(request.data));
 }
 
 /** `rollbackCourse`: republishes an old version as a new one. */

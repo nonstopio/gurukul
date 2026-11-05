@@ -68,6 +68,14 @@ test.describe('Educator in Studio', () => {
     await expect(page).toHaveURL(/\/studio\/courses\/reading-code-reviews$/);
 
     await page.getByLabel('Summary').fill('How to read a review comment and answer it well.');
+    // Publishing needs a landing page description and at least two outcomes.
+    await page.getByRole('tab', { name: 'Landing page' }).click();
+    await page.getByLabel('Description').fill('For anyone whose code gets reviewed.');
+    await page.getByRole('button', { name: 'Add outcome' }).click();
+    await page.getByLabel('Outcome 1', { exact: true }).fill('Read a review comment as a question');
+    await page.getByRole('button', { name: 'Add outcome' }).click();
+    await page.getByLabel('Outcome 2', { exact: true }).fill('Answer a comment kindly and clearly');
+    await page.getByRole('tab', { name: 'Structure' }).click();
     await page.getByRole('button', { name: 'Add chapter' }).click();
     await page.getByLabel('Title of chapter 1').fill('Reading comments');
     await page.getByRole('button', { name: /^Lesson/ }).click();

@@ -4,7 +4,7 @@ Educators can upload an **image** or a **PDF** into a lesson from Studio, previe
 it sits on the page, and publish it. Learners who may open the course see it. Everything else
 (videos, large files, other file types) stays a link, as in v1.
 
-Status: built (`MED-02` to `MED-12`), waiting only on the maintainer's `MED-01` follow-ups: the Firebase Rules Firestore Service Agent role, and `roles/storage.objectAdmin` for the clean-up function. Tracker section **Course media uploads** (`MED-*`).
+Status: built (`MED-02` to `MED-13`), waiting only on the maintainer's `MED-01` follow-ups: the Firebase Rules Firestore Service Agent role, and `roles/storage.objectAdmin` for the clean-up function. Tracker section **Course media uploads** (`MED-*`).
 
 ## What changes, in one paragraph
 
@@ -233,8 +233,8 @@ used by the Image and File block editors and, later, the Media library.
 
 Flow for an image:
 
-1. The block editor shows two tabs, **Upload** (default for a new block) and **Link** (today's
-   address field). An existing linked image opens on Link.
+1. The block editor shows two tabs, **Link** (the address field; first, and the default for a new
+   block, since a link costs no Storage) and **Upload**. An existing uploaded image opens on Upload.
 2. **Pick or drop** a file (button, drag and drop, or paste from the clipboard). The control states
    the policy before anyone picks: "WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal".
 3. **Check** in the browser: type by extension and first bytes, size, decoded pixel size
@@ -334,6 +334,25 @@ pass (Studio when `VITE_USE_EMULATORS` is on, the Functions emulator through
 planned bucket. `upload.name` (the display name) is `file.name` cut to 120 characters; an edit field
 is not built.
 
+## Cover images
+
+Added 2026-11-05 (`MED-13`). A course has **one** optional cover image, `cover.image` on the course
+object (`schemaVersion` 4): what an Image block stores for an upload, `{ url, width, height, upload }`,
+always an upload (no linked covers). Studio's course editor (Details panel) uploads it with the same
+pieces as the Image block, under the same rules: `useImageUpload` (generalised to any holder of an
+uploaded image), `ImageUploadPanel` (policy, checks, guidance, agent prompt, Shrink it for me), the
+same `MediaStorage` port, path `courses/{courseId}/media/{mediaId}.{ext}` and Storage rules. The
+panel shows a course tile preview.
+
+- **Replace** uploads a new file and overwrites the field; **Remove** clears it, back to the first
+  lesson image or the theme colour. Neither deletes the old file (Storage forbids client deletes,
+  and a published version may still show it); the weekly clean-up does (below).
+- **Where it shows**: every `CourseTile` (catalogue, Home, Studio courses, Admin course choice) via
+  `courseImageUrl`: cover image, else the first lesson image, else the title on the theme colour.
+  The course overview has no picture today, so it shows none.
+- **Publish** checks it like an uploaded block (`course.cover.upload`): its own file in this course,
+  the download URL for exactly that path.
+
 ## Media library
 
 `/studio/media` already lists every image, video, embed and file link in the courses a person can
@@ -345,7 +364,7 @@ without uploading it again. Reuse across courses keeps working by copying the ad
 
 Files are immutable and small, so v1 deletes nothing automatically: deleting a file that a
 published version or a rollback target still uses would break that version. `MED-10` adds a
-weekly scheduled function that, per course, collects every `upload.path` in the draft, the live
+weekly scheduled function that, per course, collects every `upload.path` (blocks and the cover image) in the draft, the live
 course and every `versions/` snapshot, and deletes media files referenced by none of them and older
 than 30 days. Built in `MED-10` (`firebase/functions/src/media.ts`, Sunday 05:00 UTC), with safeguards beyond the plan: a course is skipped whole when any stored copy of it does not parse; a file with no known creation time stays; one run deletes nothing if it would delete more than 200 files; and a course with five or more files that would lose more than half of them is skipped, all with a warning. The functions' service account needs `roles/storage.objectAdmin` on the default bucket (`docs/operations.md`). Until then the cost of orphans is negligible (see below).
 
@@ -408,6 +427,7 @@ v1 does not re-encode uploads on the server.
 | `MED-10` | Functions: weekly clean-up of unreferenced media                                                  |
 | `MED-11` | Schema: BlurHash encoder, decoder and `upload.blurHash` (pure, no dependency)                     |
 | `MED-12` | Studio and player: BlurHash placeholders for uploaded images and PDF first pages                  |
+| `MED-13` | Schema v4, Studio and clean-up: one uploaded cover image per course                               |
 
 Each user-facing slice carries its changelog entry; `MED-05` adds the uploads section to the
 Educator guide in `docs/` and a feature tip on the Upload tab (`adding-feature-tips`).

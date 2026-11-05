@@ -1,6 +1,6 @@
 .g-figure {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin: 0 auto var(--space-4);
   width: 100%;
 }
@@ -49,11 +49,9 @@
   font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
   color: var(--text-muted);
 }
-/* A caption reads as a caption: smaller, quieter, set apart from the paragraphs around it. */
+/* A caption is the picture's label: tight under its left edge, smaller and quieter, no rule (a rule reads as a quote). */
 .g-figure__caption {
   margin: 0;
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--border-strong);
   font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
   color: var(--text-muted);
 }

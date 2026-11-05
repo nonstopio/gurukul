@@ -68,9 +68,17 @@ export const TIPS: readonly Tip[] = [
   {
     id: 'image-upload',
     where: ['/studio/courses/:courseId/lessons/:lessonId'],
-    el: '.g-tabs__list[aria-label="Image source"] [role="tab"]:first-child',
+    el: '.g-tabs__list[aria-label="Image source"] [role="tab"][id$="-tab-upload"]',
     side: 'bottom',
     title: 'Upload an image',
     text: 'Drop, paste or choose an image here. Gurukul checks it and shows a preview before it uploads, so you need no other host.',
+  },
+  {
+    id: 'insert-block',
+    where: ['/studio/courses/:courseId/lessons/:lessonId'],
+    el: '.studio-insert .g-iconbtn',
+    side: 'right',
+    title: 'Add a block here',
+    text: 'The plus above a block adds a new one in that place, so you need not add it at the bottom and drag it up.',
   },
 ];

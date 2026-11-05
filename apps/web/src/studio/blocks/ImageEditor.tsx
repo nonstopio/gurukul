@@ -17,20 +17,19 @@ const LAYOUTS = [
 
 /**
  * An image, uploaded or linked. Alt text is required: it is what people who cannot see the image
- * hear. The Upload tab (the default for a new block and for an uploaded image) checks the file in
- * the browser, previews it, and uploads it to Cloud Storage; the Link tab is the address field. An
- * existing linked image opens on Link. Layout, Open full size and Border work for both; a linked
+ * hear. Link comes first and is the default for a new block and a linked image, since a link costs
+ * no storage; the Upload tab (where an uploaded image opens) checks the file in the browser,
+ * previews it, and uploads it to Cloud Storage. Layout, Open full size and Border work for both; a linked
  * image's width and height are read from the loaded preview so the lesson does not jump.
  */
 export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
-  const [tab, setTab] = useState(
-    block.url && block.url !== PLACEHOLDER_IMAGE && !block.upload ? 'link' : 'upload',
-  );
+  const [tab, setTab] = useState(block.upload ? 'upload' : 'link');
   const source = useImageUpload(block, onChange);
   const picked = 'picked' in source.stage ? source.stage.picked : undefined;
   // A new block's stand-in address is not an image: nothing to preview until there is a real one.
   const src = picked?.previewUrl ?? (block.url === PLACEHOLDER_IMAGE ? '' : block.url);
   const size = picked ?? block;
+  const border = block.border ?? true;
 
   return (
     <div className="studio-fields">
@@ -39,26 +38,6 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
         value={tab}
         onValueChange={setTab}
         tabs={[
-          {
-            id: 'upload',
-            label: 'Upload',
-            panel: (
-              <ImageUploadPanel
-                block={block}
-                source={source}
-                onRemove={() =>
-                  onChange(
-                    patch(block, {
-                      url: '',
-                      upload: undefined,
-                      width: undefined,
-                      height: undefined,
-                    }),
-                  )
-                }
-              />
-            ),
-          },
           {
             id: 'link',
             label: 'Link',
@@ -71,13 +50,34 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
                     ? 'This image is uploaded to Gurukul. An address here links another image instead.'
                     : undefined
                 }
-                value={block.url}
+                // A new block's stand-in address is not one to edit: the field starts empty.
+                value={block.url === PLACEHOLDER_IMAGE ? '' : block.url}
                 onChange={(e) =>
                   // The size and the upload belong to the old image; the preview reads the new
                   // address once it loads.
                   onChange(
                     patch(block, {
                       url: e.target.value,
+                      upload: undefined,
+                      width: undefined,
+                      height: undefined,
+                    }),
+                  )
+                }
+              />
+            ),
+          },
+          {
+            id: 'upload',
+            label: 'Upload',
+            panel: (
+              <ImageUploadPanel
+                block={block}
+                source={source}
+                onRemove={() =>
+                  onChange(
+                    patch(block, {
+                      url: '',
                       upload: undefined,
                       width: undefined,
                       height: undefined,
@@ -120,15 +120,23 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
         />
       </div>
       <ToggleCard
-        title="Open full size"
-        description="Clicking the image opens it at its natural size."
+        title={block.zoom ? 'Open full size' : 'No full-size view'}
+        description={
+          block.zoom
+            ? 'Clicking the image opens it at its natural size.'
+            : 'The image stays in the page; clicking it does nothing.'
+        }
         checked={block.zoom ?? false}
         onChange={(e) => onChange({ ...block, zoom: e.target.checked })}
       />
       <ToggleCard
-        title="Border"
-        description="A thin frame round the image. Turn it off for photos and transparent images."
-        checked={block.border ?? true}
+        title={border ? 'Border' : 'No border'}
+        description={
+          border
+            ? 'A thin frame round the image. Turn it off for photos and transparent images.'
+            : 'The image sits on the page with no frame, as photos and transparent images suit.'
+        }
+        checked={border}
         onChange={(e) => onChange({ ...block, border: e.target.checked })}
       />
       {src ? (

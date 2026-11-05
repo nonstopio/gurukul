@@ -29,9 +29,9 @@ const TOKENS = parseTokens(tokensCss);
 const BY_GROUP = Object.fromEntries(groupTokens(TOKENS).map((g) => [g.label, g.tokens]));
 
 const SECTIONS = [
+  { id: 'components', label: 'Components' },
   { id: 'tokens', label: 'Tokens' },
   { id: 'type', label: 'Type' },
-  { id: 'components', label: 'Components' },
   { id: 'patterns', label: 'Patterns' },
 ] as const;
 type Section = (typeof SECTIONS)[number]['id'];
@@ -363,7 +363,7 @@ const VIEWS: Record<Section, () => ReactNode> = {
  */
 export function DesignSystem() {
   const [params, setParams] = useSearchParams();
-  const section = SECTIONS.find((s) => s.id === params.get('section'))?.id ?? 'tokens';
+  const section = SECTIONS.find((s) => s.id === params.get('section'))?.id ?? 'components';
   const View = VIEWS[section];
   return (
     <div className="ds-section">

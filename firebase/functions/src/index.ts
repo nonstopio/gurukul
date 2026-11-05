@@ -28,6 +28,7 @@ import {
   handleRevokeCertificate,
   handleRollbackCourse,
   handleSendTestEmail,
+  handleSetCourseAccess,
   handleSetRoles,
 } from './handlers.js';
 import { runLogged } from './logging/trigger.js';
@@ -273,6 +274,11 @@ export const createCourse = apiCallable((request) =>
 /** Studio: validates the draft and makes it the live version. */
 export const publishCourse = apiCallable((request) =>
   handlePublishCourse(request, firestoreCourseStore(getFirestore())),
+);
+
+/** Studio: who may open a course, applied to the live course at once without a new version. */
+export const setCourseAccess = apiCallable((request) =>
+  handleSetCourseAccess(request, firestoreCourseStore(getFirestore())),
 );
 
 /** Studio: republishes an old version as a new one and resets the draft to it. */

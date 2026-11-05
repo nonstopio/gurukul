@@ -1,11 +1,20 @@
 import type { Page } from '@playwright/test';
-import { countChanges, itemIds, readDoc, setCourseField, uidOf } from '../support/emulators';
+import {
+  countChanges,
+  grantRoles,
+  itemIds,
+  readDoc,
+  setCourseField,
+  uidOf,
+} from '../support/emulators';
 import { FIRESTORE_URL, GIT_COURSE } from '../support/env';
 import { expect, signedInAsLearner, test } from '../support/fixtures';
 
 // A page left open must not write or retry in a loop: unit tests render once and stop, so only a
 // real browser, a real emulator and a clock catch it. Each loop below once reached production.
 const asha = { email: 'asha.rao@nonstopio.com', name: 'Asha Rao' };
+/** Gets Educator and Admin roles; her own person so the roles do not reach the other cases. */
+const nisha = { email: 'nisha.editor@nonstopio.com', name: 'Nisha Editor' };
 const IDLE_MS = 8_000;
 
 const lesson = (id: string) => `/courses/${GIT_COURSE.id}/learn/${id}`;
@@ -48,6 +57,22 @@ test.describe('Write budget', () => {
     await expect.poll(progress.lastItemId).toBe(second);
 
     expect(await countChanges(progress.path, IDLE_MS)).toBeLessThanOrEqual(2);
+  });
+
+  test('a Studio edit that is undone writes nothing', async ({ page }) => {
+    // Every keystroke-level edit once saved the draft and bumped its number, even when the text
+    // ended where it started.
+    await signedInAsLearner(page, nisha);
+    await grantRoles(nisha.email, ['educator', 'admin']);
+    await page.goto(`/studio/courses/${GIT_COURSE.id}`);
+    const title = page.getByLabel('Title', { exact: true });
+    await expect(title).toHaveValue(GIT_COURSE.title);
+    const changes = countChanges(`courses/${GIT_COURSE.id}/drafts/current`, IDLE_MS);
+    for (let i = 0; i < 3; i += 1) {
+      await title.fill(`${GIT_COURSE.title} `);
+      await title.fill(GIT_COURSE.title);
+    }
+    expect(await changes).toBe(0);
   });
 
   test('a lesson the learner cannot start does not retry', async ({ page }) => {

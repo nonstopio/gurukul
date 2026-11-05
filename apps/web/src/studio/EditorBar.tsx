@@ -18,7 +18,7 @@ import type { DraftApi } from './useDraft';
 
 /**
  * A focused editor's frame. The dark top bar: back to the course, the title (the page's `h1`), the
- * save state in words (Draft v3 · saved just now, saving…, unsaved changes, a retry button when
+ * save state in words (Draft · saved just now, saving…, unsaved changes, a retry button when
  * the save failed) and the page's actions. Under it, at wide width: where you are, the notices
  * (edits kept on this device, and Reload when someone else saved the draft first), then the page.
  */
@@ -36,14 +36,7 @@ export function EditorBar({
   crumbs: BreadcrumbItem[];
   draft: Pick<
     DraftApi,
-    | 'save'
-    | 'rev'
-    | 'savedAt'
-    | 'saveNow'
-    | 'reload'
-    | 'backupAt'
-    | 'restoreBackup'
-    | 'discardBackup'
+    'save' | 'savedAt' | 'saveNow' | 'reload' | 'backupAt' | 'restoreBackup' | 'discardBackup'
   >;
   actions?: ReactNode;
   children: ReactNode;

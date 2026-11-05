@@ -4,6 +4,7 @@ import {
   Button,
   Callout,
   Dialog,
+  Explanation,
   Page,
   PageHeader,
   TopBar,
@@ -350,9 +351,12 @@ function Questions({
           busy={busy}
         />
         {checked ? (
-          <p role="status" className="exam__feedback">
-            <strong>{verdictText(question, checked)}</strong> {checked.explanation}
-          </p>
+          <Explanation
+            verdict={checked.correct ? 'correct' : 'incorrect'}
+            title={verdictText(question, checked)}
+          >
+            <p className="exam__feedback">{checked.explanation}</p>
+          </Explanation>
         ) : null}
         <footer className="exam__footer">
           <p>

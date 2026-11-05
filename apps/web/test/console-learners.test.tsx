@@ -6,6 +6,7 @@ import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { certificateRow, progressRow } from './fake-data';
 import { openApp } from './harness';
+import { choose } from './select';
 
 const admin = { roles: ['admin'] as Array<'admin'> };
 const asg = (email: string, over: Partial<AssignmentFull> = {}): AssignmentFull => ({
@@ -118,7 +119,7 @@ describe('Learners', () => {
     const c = setup();
     await openApp('/admin/learners?course=git', { ...admin, console: c });
     await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
-    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('git');
+    expect(screen.getByLabelText('Course').textContent).toMatch(/^Git/);
   });
 
   it('names each role in the row, an Admin included', async () => {
@@ -134,11 +135,11 @@ describe('Learners', () => {
     await openApp('/admin/learners?course=git', { ...admin, console: c });
     await waitFor(() => expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' }));
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'r' } });
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'admin' } });
+    choose(screen.getByLabelText('Role'), 'Admin');
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('');
-    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('');
-    expect((screen.getByLabelText('Role') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByLabelText('Course').textContent).toBe('Any course');
+    expect(screen.getByLabelText('Role').textContent).toBe('Any role');
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
 
@@ -154,15 +155,15 @@ describe('Learners', () => {
     expect(screen.queryByText('new@nonstopio.com')).toBeNull();
     expect(screen.getByRole('tab', { name: 'All (1)' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    choose(screen.getByLabelText('Team'), 'QA');
     await waitFor(() => expect(c.data.usersInTeam).toHaveBeenCalledWith('QA'));
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Course'), { target: { value: 'git' } });
+    choose(screen.getByLabelText('Team'), 'Any team');
+    choose(screen.getByLabelText('Course'), /^Git/);
     expect(await screen.findByText('new@nonstopio.com')).toBeTruthy();
     expect(await screen.findByText('Priya')).toBeTruthy();
     expect(c.data.assignments).toHaveBeenCalledWith({ courseId: 'git' });
-    fireEvent.change(screen.getByLabelText('Course'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'educator' } });
+    choose(screen.getByLabelText('Course'), 'Any course');
+    choose(screen.getByLabelText('Role'), 'Educator');
     await screen.findByText('Priya');
     expect(screen.queryByText('Rohan')).toBeNull();
     expect(screen.queryByText('new@nonstopio.com')).toBeNull();
@@ -176,14 +177,14 @@ describe('Learners', () => {
     const c = setup({ team });
     await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    choose(screen.getByLabelText('Team'), 'QA');
     expect(await screen.findByText('Meera')).toBeTruthy();
     expect(await screen.findByRole('tab', { name: 'All (2)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Overdue (1)' })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'educator' } });
+    choose(screen.getByLabelText('Role'), 'Educator');
     expect(await screen.findByRole('tab', { name: 'All (1)' })).toBeTruthy();
     expect(screen.queryByText('Meera')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } });
+    choose(screen.getByLabelText('Role'), 'Any role');
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'user3' } });
     expect(await screen.findByRole('tab', { name: 'All (1)' })).toBeTruthy();
     expect(screen.getByText('Meera')).toBeTruthy();
@@ -232,7 +233,7 @@ describe('Learners', () => {
     const c = setup({ team });
     await openApp('/admin/learners', { ...admin, console: c });
     await screen.findByText('Priya');
-    fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+    choose(screen.getByLabelText('Team'), 'QA');
     await screen.findByText('T0');
     fireEvent.click(screen.getByLabelText('Select T0'));
     expect(screen.getByText('1 selected')).toBeTruthy();
@@ -252,7 +253,7 @@ describe('Learners', () => {
       const c = setup({ team });
       await openApp('/admin/learners', { ...admin, console: c });
       await screen.findByText('Priya');
-      fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+      choose(screen.getByLabelText('Team'), 'QA');
       await screen.findByText('T0');
       expect(screen.queryByRole('button', { name: /^Select all \d/ })).toBeNull();
       tickPage();
@@ -276,7 +277,7 @@ describe('Learners', () => {
     it('drops back to the ticked rows when one is unticked', async () => {
       await openApp('/admin/learners', { ...admin, console: setup({ team }) });
       await screen.findByText('Priya');
-      fireEvent.change(screen.getByLabelText('Team'), { target: { value: 'QA' } });
+      choose(screen.getByLabelText('Team'), 'QA');
       await screen.findByText('T0');
       tickPage();
       fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
@@ -339,7 +340,7 @@ describe('Learners', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Select all 26' }));
       expect(await screen.findByText('26 selected')).toBeTruthy();
       fireEvent.click(screen.getByRole('tab', { name: /^All \(/ }));
-      fireEvent.change(screen.getByLabelText('Course'), { target: { value: 'git' } });
+      choose(screen.getByLabelText('Course'), /^Git/);
       await screen.findByText('invite0@nonstopio.com');
       tickPage();
       fireEvent.click(await screen.findByRole('button', { name: 'Select all 26' }));
@@ -401,9 +402,9 @@ describe('Learners', () => {
     expect(
       screen.getByText(/1 will be skipped: pending invites have no account yet\./),
     ).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'remove' } });
+    choose(screen.getByLabelText('Admin'), 'Remove Admin');
     expect(screen.getByText(/1 will be skipped: pending invites.*your own/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'add' } });
+    choose(screen.getByLabelText('Admin'), 'Make Admin');
     fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
     await waitFor(() =>
       expect(c.service.setRoles).toHaveBeenCalledWith({
@@ -432,9 +433,9 @@ describe('Learners', () => {
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Priya'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'remove' } });
+    choose(screen.getByLabelText('Admin'), 'Remove Admin');
     expect(screen.getByRole('button', { name: 'Apply to 0 people' })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Admin'), { target: { value: 'keep' } });
+    choose(screen.getByLabelText('Admin'), 'Leave as it is');
     expect(screen.getByRole('button', { name: 'Apply to 1 person' })).toBeTruthy();
   });
 
@@ -444,7 +445,7 @@ describe('Learners', () => {
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Educator'), { target: { value: 'remove' } });
+    choose(screen.getByLabelText('Educator'), 'Remove Educator');
     expect(screen.getByText(/also clears their granted courses/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Apply to 1 person' }));
     await waitFor(() =>
@@ -461,7 +462,7 @@ describe('Learners', () => {
     await screen.findByText('Priya');
     fireEvent.click(screen.getByLabelText('Select Rohan'));
     fireEvent.click(screen.getByRole('button', { name: 'Change role' }));
-    fireEvent.change(screen.getByLabelText('Educator'), { target: { value: 'keep' } });
+    choose(screen.getByLabelText('Educator'), 'Leave as it is');
     expect(
       (screen.getByRole('button', { name: 'Apply to 1 person' }) as HTMLButtonElement).disabled,
     ).toBe(true);

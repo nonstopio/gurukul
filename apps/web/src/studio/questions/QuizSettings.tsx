@@ -63,14 +63,27 @@ export function QuizSettings({
         }
       />
       <ToggleCard
-        title="Shuffle answer order"
+        title={quiz.shuffleOptions ? 'Shuffle answer order' : 'Answers in your order'}
+        description={
+          quiz.shuffleOptions
+            ? "Each attempt shows every question's answers in a new random order."
+            : 'Every attempt shows the answers in the order you wrote them.'
+        }
         checked={quiz.shuffleOptions}
         onChange={(e) => onChange((p) => ({ ...p, shuffleOptions: e.target.checked }))}
       />
       {/* It locks only what follows in its own chapter (`itemStates`); later chapters wait on "go in order". */}
       <ToggleCard
-        title={`${t.Learners} must pass to open the rest of this ${t.chapter}`}
-        description={`To keep later ${t.chapters} locked too, turn on "${t.Learners} go in order" in the course's Learning rules.`}
+        title={
+          quiz.blocksNext
+            ? `${t.Learners} must pass to open the rest of this ${t.chapter}`
+            : `${t.Learners} can skip ahead`
+        }
+        description={
+          quiz.blocksNext
+            ? `To keep later ${t.chapters} locked too, turn on "${t.Learners} go in order" in the course's Learning rules.`
+            : `The rest of this ${t.chapter} stays open whether or not they pass.`
+        }
         checked={quiz.blocksNext}
         onChange={(e) => onChange((p) => ({ ...p, blocksNext: e.target.checked }))}
       />

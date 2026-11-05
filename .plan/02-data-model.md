@@ -10,7 +10,7 @@ contract; the schema package is the executable one. They change together.
 |---|---|---|---|
 | `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Educator, Admin (an Educator reads the roster to pick team members) | self: `displayName`, `nameLower`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; `team` and `teamIds` are never writable from a client |
 | `courses/{courseId}` | **The published course object**, plus `visibility` and `visibleTeamIds` beside it (see [Course visibility](#course-visibility)) | any signed-in user when `published` or `archived` (archived shows as Retired) **and they may open it**: public, or a team they are on; every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
-| `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers }` (answer keys included, so the author can edit them) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
+| `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers, answersChanged? }` (answer keys included, so the author can edit them; `answersChanged: true` marks an answer key edit since the last publish, which removes it) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
 | `courses/{courseId}/private/answers` | Quiz answer keys | never | never |
 | `assignments/{assignmentId}` | Who must take what, by when | the assignee (by uid), Admin | never (function) |
@@ -41,10 +41,13 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
   role, was the open question; `staff` is deliberately all staff rather than staff of a team, because
   it costs nothing (it is a claim) and a team-scoped staff list would need a second membership
   lookup in the rules for no known need. Revisit if a team wants its own Educator-only courses.
-- The publisher sets it in the Studio publish dialog; `publishCourse({ courseId, visibility?,
-  visibleTeamIds? })`. Left out, the live course keeps what it has (a never-published or older
-  course counts as `public`). Rollback keeps the live course's visibility. The function writes
-  both fields into `courses/{id}` with every release, and a version snapshot keeps them.
+- An Educator of the course or an Admin sets it on the course editor's "Who can open this course"
+  card; `setCourseAccess({ courseId, visibility, visibleTeamIds })` writes both fields onto
+  `courses/{id}` at once, with no new version (an `audit` entry `course.access`). On a course never
+  published it waits there: the rules show such a course to staff only, whatever it says, and the
+  first publish keeps it. `publishCourse` and rollback keep what the live course has (a missing one
+  counts as `public`) and write it with every release, so a version snapshot holds the setting of
+  its day; a later change is not in the snapshot.
 - **Who is on a team** is `users/{uid}.teamIds`: the `onTeamWritten` function copies each
   `teams/{id}` write onto the profiles of everyone the write listed before or after: each profile is
   reset, in a transaction, to the teams that list its email **now**, never to a diff, so retried or
@@ -93,13 +96,18 @@ document limit. `schemaVersion` lets the shape evolve with tested migrations.
 
 ```ts
 type Course = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   id: string;                    // = slug, stable forever
   title: string;
   summary: string;               // one sentence, shown on cards
   description: string;           // markdown, course overview
   level: 'foundation' | 'intermediate' | 'advanced';
-  cover: { theme: 'forest' | 'sand' | 'sky' | 'stone'; glyph: string };
+  cover: {
+    theme: 'forest' | 'sand' | 'sky' | 'stone'; glyph: string;
+    // v4, optional: the course's one picture, always an upload (19-course-media-uploads.md).
+    // Tiles show it, else the first lesson image, else the title on the theme colour.
+    image?: { url: string; width: number; height: number; upload: ImageUpload };
+  };
   outcomes: string[];            // "What you will learn"
   educatorIds: string[];          // uids who may edit
   educatorNames: Record<string, string>; // uid → display name, for Studio (v2); `users` is private
@@ -277,3 +285,12 @@ tests, registered in `steps.ts` under the version they upgrade from.
   player shows "This content needs a newer version of the app."), and returns
   `null` for a course it cannot read at all. The catalogue and Studio's course
   list skip a `null` course with a warning instead of failing the list.
+- `validateForPublish` upgrades the draft first too, so a draft saved at an older
+  `schemaVersion` (an older tab, an older app) is judged in the shape publishing
+  gives it. Studio leaves a stored draft at its version until publish. Whatever the
+  schema still refuses is worded for the Educator (`publishWords.ts`: "The title of
+  lesson 2 in chapter 1 is empty."); a field they cannot edit (the version, an id)
+  shows only "saved by an older version of Gurukul, reload".
+
+Steps so far: v1→v2 adds `educatorNames`; v2→v3 (optional `correct` on checks) and
+v3→v4 (optional `cover.image`) change nothing in the stored course.

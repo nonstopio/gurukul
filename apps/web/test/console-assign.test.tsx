@@ -5,6 +5,7 @@ import { fakeConsole, userRow } from './fake-console';
 import { fakeData, makeCourse } from './fake-data';
 import { openApp } from './harness';
 import type { KnownEmails, UserRow } from '../src/console/types';
+import { choose } from './select';
 
 const admin = { roles: ['admin'] as Array<'admin'> };
 const PATH = '/admin/assign';
@@ -649,7 +650,7 @@ describe('Assign: schedule and review', () => {
     next();
     await heading('Set the deadline');
     fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2100-12-01' } });
-    fireEvent.change(screen.getByLabelText('Reminders'), { target: { value: 'beforeDue' } });
+    choose(screen.getByLabelText('Reminders'), 'Before the due date');
     fireEvent.click(screen.getByRole('switch', { name: 'Mandatory' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Email learners now' }));
     next();

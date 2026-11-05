@@ -27,7 +27,7 @@ export const quiz = (over: object = {}) => ({
 });
 
 export const course = (quizOver: object = {}, over: object = {}) => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
   id: 'git-basics',
   title: 'Git basics',
   summary: '',

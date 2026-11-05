@@ -7,6 +7,7 @@ import { axeViolations } from './axe';
 import { makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { choose } from './select';
 
 const blocks = (): Block[] => [
   { type: 'markdown', id: 'b1', md: 'Hello **world**' },
@@ -65,7 +66,7 @@ describe('lesson editor: layout', () => {
     ).toBeNull();
     const settings = screen.getByRole('complementary', { name: 'Lesson settings' });
     expect(within(settings).getByText(/plain JSON/)).toBeTruthy();
-    expect(screen.getByText(/^Draft v\d+ · saved/)).toBeTruthy();
+    expect(screen.getByText(/^Draft · saved/)).toBeTruthy();
   });
 
   it('has no accessibility violations', async () => {
@@ -143,11 +144,11 @@ describe('lesson editor: title and settings', () => {
     fireEvent.change(await screen.findByLabelText('Lesson title'), {
       target: { value: 'Branching' },
     });
-    expect(screen.getByText(/^Draft v3 · unsaved changes/)).toBeTruthy();
+    expect(screen.getByText(/^Draft · unsaved changes/)).toBeTruthy();
     await saveNow();
     expect(studio.data.saveDraft).toHaveBeenCalledWith('git', expect.anything(), 3, 'u1');
     expect(savedLesson(studio).title).toBe('Branching');
-    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
+    expect(await screen.findByText(/^Draft · saved/)).toBeTruthy();
   });
 
   it('flags a blank title inline', async () => {
@@ -166,7 +167,7 @@ describe('lesson editor: title and settings', () => {
     const { studio } = await open();
     await screen.findByLabelText('Lesson title');
     fireEvent.change(screen.getByLabelText('Estimated minutes'), { target: { value: '25' } });
-    fireEvent.change(screen.getByLabelText('Completion rule'), { target: { value: 'video90' } });
+    choose(screen.getByLabelText('Completion rule'), 'After 90% of the video');
     fireEvent.change(screen.getByLabelText('Type label'), { target: { value: 'Hands-on' } });
     await saveNow();
     expect(savedLesson(studio)).toMatchObject({
@@ -195,6 +196,38 @@ describe('lesson editor: blocks', () => {
       expect(added?.id).toMatch(/^b-[0-9a-f]{8}$/);
     },
   );
+
+  it('inserts a block between two blocks from the "+" above a block, and focuses it', async () => {
+    const { studio } = await open();
+    await screen.findByLabelText('Lesson title');
+    expect(screen.getByRole('button', { name: 'Add block at the start' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add block after block 1, Text' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add block after block 2, Video' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Code' }));
+    const group = await screen.findByRole('group', { name: 'Code block' });
+    await waitFor(() => expect(group.contains(document.activeElement)).toBe(true));
+    await saveNow();
+    expect(savedLesson(studio).blocks.map((b) => b.type)).toEqual([
+      'markdown',
+      'video',
+      'code',
+      'image',
+    ]);
+  });
+
+  it('inserts a block at the start from the first "+"', async () => {
+    const { studio } = await open();
+    await screen.findByLabelText('Lesson title');
+    fireEvent.click(screen.getByRole('button', { name: 'Add block at the start' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Callout' }));
+    await saveNow();
+    expect(savedLesson(studio).blocks.map((b) => b.type)).toEqual([
+      'callout',
+      'markdown',
+      'video',
+      'image',
+    ]);
+  });
 
   it('opens the block palette on "/" unless the person is typing', async () => {
     await open();
@@ -272,7 +305,8 @@ describe('lesson editor: blocks', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('group', { name: 'Callout block' })).toBeNull();
     await saveNow();
-    expect(savedLesson(studio).blocks).toEqual([]);
+    // Added and removed again: the lesson is as stored, so nothing is written.
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
   });
 
   it('asks before deleting a block with content, and keeps it on cancel', async () => {
@@ -375,7 +409,7 @@ describe('lesson editor: saving', () => {
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     expect(savedLesson(studio).title).toBe('Auto');
-    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
+    expect(await screen.findByText(/^Draft · saved/)).toBeTruthy();
   });
 
   it('offers a retry when a save fails', async () => {
@@ -388,7 +422,7 @@ describe('lesson editor: saving', () => {
       fireEvent.click(retry);
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText(/^Draft v\d+ · saved/)).toBeTruthy();
+    expect(await screen.findByText(/^Draft · saved/)).toBeTruthy();
   });
 
   it('explains a conflict and reloads the stored draft', async () => {

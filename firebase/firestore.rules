@@ -118,7 +118,11 @@ service cloud.firestore {
       match /drafts/{draftId} {
         allow read: if isAdmin() || isEducatorOf(courseId);
         allow update: if (isAdmin() || isEducatorOf(courseId))
-          && request.resource.data.keys().hasOnly(['rev', 'updatedAt', 'updatedBy', 'course', 'answers'])
+          && request.resource.data.keys().hasOnly(['rev', 'updatedAt', 'updatedBy', 'course', 'answers', 'answersChanged'])
+          // Studio marks an answer key edit (the published keys are unreadable to compare); only
+          // ever `true`. A save may add it but never drop a stored one: only the publish function
+          // (Admin SDK) removes it, once the keys it stands for are live.
+          && request.resource.data.get('answersChanged', !('answersChanged' in resource.data)) == true
           && request.resource.data.rev is int
           && request.resource.data.rev == resource.data.rev + 1
           && request.resource.data.updatedBy == request.auth.uid

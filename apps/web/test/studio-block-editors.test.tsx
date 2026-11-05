@@ -8,6 +8,7 @@ import { newBlock } from '../src/studio/lessonEdit';
 import type { CourseImage } from '../src/studio/media/courseMedia';
 import { axeViolations } from './axe';
 import { BlockProviders } from './block-harness';
+import { choose as pickOption } from './select';
 
 /** Renders one block editor the way the page does: controlled, with the latest block kept in `seen`. */
 function Harness({ initial, seen }: { initial: Block; seen: (b: Block) => void }) {
@@ -124,12 +125,24 @@ describe('video block editor', () => {
 
   it('changes the host, the link and the captions', () => {
     const { last } = setup(video());
-    type('Video host', 'drive');
+    pickOption(screen.getByLabelText('Video host'), 'Google Drive');
     expect(last()).toMatchObject({ provider: 'drive' });
     type('Video link', 'https://drive.google.com/file/d/xyz/view');
     expect(last()).toMatchObject({ url: 'https://drive.google.com/file/d/xyz/view' });
-    fireEvent.click(screen.getByRole('switch', { name: 'Captions are available' }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'No captions',
+        description: 'Nothing about captions is shown. Turn on if the video has them.',
+      }),
+    );
     expect(last()).toMatchObject({ captions: true });
+    expect(
+      screen.getByRole('switch', {
+        name: 'Captions are available',
+        description:
+          'Learners see "Captions available" above the video. Turn on only if it has them.',
+      }),
+    ).toBeTruthy();
   });
 
   it('sets and clears the length, which is absent rather than empty', () => {
@@ -163,7 +176,7 @@ describe('code block editor', () => {
 
   it('edits language, file name, code and the options', () => {
     const { last } = setup(code());
-    type('Language', 'bash');
+    pickOption(screen.getByLabelText('Language'), 'bash');
     expect(last()).toMatchObject({ lang: 'bash' });
     type('File name (optional)', 'run.sh');
     expect(last()).toMatchObject({ file: 'run.sh' });
@@ -171,10 +184,34 @@ describe('code block editor', () => {
     expect('file' in last()).toBe(false);
     type('Code', 'ls -la');
     expect(last()).toMatchObject({ code: 'ls -la' });
-    fireEvent.click(screen.getByRole('switch', { name: 'Copy button' }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Copy button',
+        description:
+          'Learners get a button that puts the code on their clipboard, without any $ prompts.',
+      }),
+    );
     expect(last()).toMatchObject({ copy: false });
-    fireEvent.click(screen.getByRole('switch', { name: 'Terminal style' }));
+    expect(
+      screen.getByRole('switch', {
+        name: 'No copy button',
+        description: 'Learners select and copy the code themselves.',
+      }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Plain code',
+        description: 'Shown as code, with no $ prompt.',
+      }),
+    );
     expect(last()).toMatchObject({ terminal: true });
+    expect(
+      screen.getByRole('switch', {
+        name: 'Terminal style',
+        description:
+          "A $ prompt starts each line. With Copy button off, it shows as a command's output instead.",
+      }),
+    ).toBeTruthy();
     type('Highlight lines (optional)', '2,4-6');
     expect(last()).toMatchObject({ highlight: '2,4-6' });
     type('Highlight lines (optional)', '');
@@ -183,7 +220,7 @@ describe('code block editor', () => {
 
   it('keeps a language that is not in the list selectable', () => {
     setup(code({ lang: 'elixir' }));
-    expect((screen.getByLabelText('Language') as HTMLSelectElement).value).toBe('elixir');
+    expect(screen.getByLabelText('Language').textContent).toBe('elixir');
   });
 
   it('has no accessibility violations', async () => {
@@ -261,7 +298,7 @@ describe('image block editor', () => {
       'true',
     );
     expect(
-      (screen.getByRole('switch', { name: 'Open full size' }) as HTMLInputElement).checked,
+      (screen.getByRole('switch', { name: 'No full-size view' }) as HTMLInputElement).checked,
     ).toBe(false);
     expect((screen.getByRole('switch', { name: 'Border' }) as HTMLInputElement).checked).toBe(true);
   });
@@ -273,11 +310,33 @@ describe('image block editor', () => {
     expect(screen.getByRole('button', { name: 'Small' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
     expect(last()).toMatchObject({ layout: 'medium' });
-    fireEvent.click(screen.getByRole('switch', { name: 'Open full size' }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'No full-size view',
+        description: 'The image stays in the page; clicking it does nothing.',
+      }),
+    );
     expect(last()).toMatchObject({ zoom: true });
-    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    expect(
+      screen.getByRole('switch', {
+        name: 'Open full size',
+        description: 'Clicking the image opens it at its natural size.',
+      }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Border',
+        description: 'A thin frame round the image. Turn it off for photos and transparent images.',
+      }),
+    );
     expect(last()).toMatchObject({ border: false });
-    fireEvent.click(screen.getByRole('switch', { name: 'Border' }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'No border',
+        description:
+          'The image sits on the page with no frame, as photos and transparent images suit.',
+      }),
+    );
     expect(last()).toMatchObject({ border: true });
   });
 

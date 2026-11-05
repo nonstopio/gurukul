@@ -181,6 +181,9 @@ describe('drafts', () => {
       updatedBy: '',
       answers: {},
     });
+    expect(await data.getDraft('bare')).not.toHaveProperty('answersChanged');
+    store.docs.set('courses/keys/drafts/current', { ...draft(), answersChanged: true });
+    expect((await data.getDraft('keys'))?.answersChanged).toBe(true);
   });
 
   it('loads a draft that would not pass the strict course schema, but not one that is not a course', async () => {
@@ -194,7 +197,7 @@ describe('drafts', () => {
   });
 
   it('saves with the next rev, cleaning undefined fields', async () => {
-    store.docs.set('courses/git/drafts/current', draft(3));
+    store.docs.set('courses/git/drafts/current', { ...draft(3), answers: {} });
     const course = { ...makeCourse(), kindLabel: undefined } as never;
     expect(await data.saveDraft('git', { course, answers: {} }, 3, 'u1')).toBe(4);
     expect(store.writes[0]).toEqual([
@@ -203,6 +206,25 @@ describe('drafts', () => {
       expect.objectContaining({ rev: 4, updatedAt: 'NOW', updatedBy: 'u1', answers: {} }),
     ]);
     expect(JSON.stringify(store.writes[0])).not.toContain('kindLabel');
+    expect(JSON.stringify(store.writes[0])).not.toContain('answersChanged');
+  });
+
+  it('marks answersChanged when the keys differ from the stored ones, or the stored draft is marked', async () => {
+    store.docs.set('courses/git/drafts/current', draft(3));
+    const edited = { course: makeCourse(), answers: { q1: { k1: ['b'] } } };
+    await data.saveDraft('git', edited, 3, 'u1');
+    expect(store.writes[0]?.[2]).toMatchObject({ answersChanged: true });
+    store.docs.set('courses/git/drafts/current', { ...draft(3), answersChanged: true });
+    await data.saveDraft('git', { course: makeCourse(), answers: draft().answers }, 3, 'u1');
+    expect(store.writes[1]?.[2]).toMatchObject({ answersChanged: true });
+  });
+
+  it('does not write back a mark a publish removed: keys equal to the stored ones save unmarked', async () => {
+    // This tab loaded the draft while it was marked; a publish since removed the mark (rev unchanged).
+    store.docs.set('courses/git/drafts/current', draft(3));
+    const work = { course: makeCourse(), answers: draft().answers, answersChanged: true as const };
+    await data.saveDraft('git', work, 3, 'u1');
+    expect(JSON.stringify(store.writes[0])).not.toContain('answersChanged');
   });
 
   it('refuses to save over a draft that moved on, or that is gone', async () => {

@@ -700,6 +700,7 @@ describe('firestoreCourseStore', () => {
         data: () => docs[ref.path],
       })),
       set: vi.fn(),
+      update: vi.fn(),
     };
     const refOf = (path: string): object => ({
       path,
@@ -785,6 +786,17 @@ describe('firestoreCourseStore', () => {
       answers: { pk: { q: ['a'] } },
     });
     expect(tx.set).toHaveBeenCalledTimes(3);
+    expect(tx.update).not.toHaveBeenCalled();
+  });
+
+  it("publishes: removes the draft's answersChanged mark when the plan says so", async () => {
+    const { db, tx } = dbWith({ 'courses/c': live, 'courses/c/drafts/current': draft });
+    const decide = vi.fn().mockReturnValue({ ...(plan as object), clearAnswersChanged: true });
+    await firestoreCourseStore(db).release('c', 'asha', null, decide);
+    expect(tx.update).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'courses/c/drafts/current' }),
+      { answersChanged: 'DELETE' },
+    );
   });
 
   it('rolls back: loads the snapshot and resets the draft', async () => {
@@ -812,6 +824,8 @@ describe('firestoreCourseStore', () => {
     const store = firestoreCourseStore(db);
     await store.setStatus('c', 'archived');
     expect(updates).toHaveBeenCalledWith({ status: 'archived' });
+    await store.setAccess('c', { visibility: 'teams', visibleTeamIds: ['qa'] });
+    expect(updates).toHaveBeenCalledWith({ visibility: 'teams', visibleTeamIds: ['qa'] });
     await store.audit({ action: 'course.archive', by: 'k', detail: {} });
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ at: 'NOW' }));
   });

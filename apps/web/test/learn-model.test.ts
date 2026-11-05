@@ -312,7 +312,7 @@ describe('Home status, up next and recent activity', () => {
 describe('courseImageUrl', () => {
   const lesson = (blocks: unknown[]) => ({ type: 'lesson', id: 'l', blocks });
   const withItems = (...items: unknown[]) =>
-    ({ chapters: [{ id: 'c', title: 'C', items }] }) as unknown as Course;
+    ({ cover: {}, chapters: [{ id: 'c', title: 'C', items }] }) as unknown as Course;
   it('is the first image in reading order', () => {
     const c = withItems(
       lesson([{ type: 'text', id: 't' }]),
@@ -326,7 +326,12 @@ describe('courseImageUrl', () => {
   });
   it('skips quizzes and is undefined when the course has no picture', () => {
     expect(courseImageUrl(withItems({ type: 'quiz', id: 'q' }, lesson([])))).toBeUndefined();
-    expect(courseImageUrl({ chapters: [] })).toBeUndefined();
+    expect(courseImageUrl({ cover: { theme: 'sky', glyph: '' }, chapters: [] })).toBeUndefined();
+  });
+  it('is the cover image before any lesson image', () => {
+    const c = withItems(lesson([{ type: 'image', id: 'i1', url: 'https://example.com/1.png' }]));
+    const cover = { image: { url: 'https://example.com/cover.png' } } as Course['cover'];
+    expect(courseImageUrl({ ...c, cover })).toBe('https://example.com/cover.png');
   });
 });
 

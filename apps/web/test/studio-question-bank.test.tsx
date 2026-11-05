@@ -6,6 +6,7 @@ import { axeViolations } from './axe';
 import { lesson, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { choose } from './select';
 
 vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -267,9 +268,9 @@ describe('row actions', () => {
     expect(screen.getByLabelText('Answer 1').hasAttribute('readonly')).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     pick(await rowOf('Prompt 2?'), 'Edit');
-    expect(
-      (screen.getByRole('combobox', { name: 'Question type' }) as HTMLSelectElement).value,
-    ).toBe('codeOutput');
+    expect(screen.getByRole('combobox', { name: 'Question type' }).textContent).toBe(
+      'What does this code print?',
+    );
   });
 });
 
@@ -320,9 +321,7 @@ describe('new question', () => {
     const { studio } = await open([]);
     fireEvent.click(await screen.findByRole('button', { name: 'New question' }));
     const dialog = screen.getByRole('dialog', { name: 'New question' });
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Question type' }), {
-      target: { value: 'multiple' },
-    });
+    choose(within(dialog).getByRole('combobox', { name: 'Question type' }), 'Multiple choice');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add answer' }));
     fireEvent.change(within(dialog).getByLabelText('Question (Markdown)'), {
       target: { value: 'Pick two' },
@@ -375,7 +374,7 @@ describe('import from a Quiz', () => {
     const { studio, dialog } = await openImport();
     const add = within(dialog).getByRole('button', { name: 'Add 0 to the bank' });
     expect((add as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: 'git/q1' } });
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz I$/);
     expect(within(dialog).queryByText('Unkeyed?')).toBeNull();
     const already = within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ });
     expect((already as HTMLInputElement).disabled).toBe(true);
@@ -402,14 +401,14 @@ describe('import from a Quiz', () => {
       [],
       [{ live: c, draft: draftDoc(c, { answers: { q2: { 'q2-k0': ['x'], 'q2-k1': ['y'] } } }) }],
     );
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: 'git/q1' } });
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz I$/);
     expect(within(dialog).getByText(/no question with a marked answer/)).toBeTruthy();
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: 'git/q2' } });
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz II$/);
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /B\?/ }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /C\?/ }));
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: '' } });
+    choose(within(dialog).getByLabelText('Quiz'), 'Choose a Quiz');
     expect(within(dialog).queryByRole('checkbox')).toBeNull();
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: 'git/q2' } });
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz II$/);
     expect(within(dialog).getByRole('button', { name: 'Add 0 to the bank' })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /B\?/ }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /C\?/ }));
@@ -428,7 +427,7 @@ describe('import from a Quiz', () => {
   it('keeps the dialog and says so when an import fails', async () => {
     const { studio, dialog } = await openImport([]);
     vi.mocked(studio.data.addToBank).mockRejectedValueOnce(new Error('denied'));
-    fireEvent.change(within(dialog).getByLabelText('Quiz'), { target: { value: 'git/q1' } });
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz I$/);
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ }));
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Add 1 to the bank' }));

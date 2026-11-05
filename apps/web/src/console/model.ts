@@ -1,5 +1,6 @@
 import { lastWeeks, nameKey, teamId } from '@gurukul/schema';
-import type { Course, CourseStats, OrgStats, Quiz } from '@gurukul/schema';
+import type { Course, CourseStats, OrgStats, Quiz, Visibility } from '@gurukul/schema';
+import { VISIBILITY_LABELS } from '../learn/catalogue';
 import type { ProgressRow } from '../data/types';
 import { article } from '../labels/terms';
 import type { Terms } from '../labels/terms';
@@ -444,6 +445,7 @@ const auditLabels = (t: Terms): Record<string, string> => ({
   'course.publish': 'Published a course',
   'course.rollback': 'Rolled a course back',
   'course.archive': 'Archived or restored a course',
+  'course.access': 'Changed who can open a course',
 });
 
 /** The audit action in words; an action this build does not know is shown as written. */
@@ -671,6 +673,8 @@ export function auditDetail(
       return `Back to version ${count(detail.restoredVersion) ?? '?'}, now version ${count(detail.version) ?? '?'}`;
     case 'course.archive':
       return text(detail.status);
+    case 'course.access':
+      return VISIBILITY_LABELS[text(detail.visibility) as Visibility] ?? null;
     default:
       return null;
   }

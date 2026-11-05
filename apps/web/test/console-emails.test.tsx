@@ -4,6 +4,7 @@ import { ApiClientError } from '../src/api';
 import { axeViolations } from './axe';
 import { fakeConsole } from './fake-console';
 import { openApp } from './harness';
+import { choose } from './select';
 
 vi.mock('@gurukul/ui/tokens.css?raw', async () => {
   const { readFileSync } = await import('node:fs');
@@ -25,7 +26,7 @@ describe('Email templates', () => {
   it('sends the selected template to the address filled in for the Admin, and says where it went', async () => {
     const c = fakeConsole();
     await openApp('/admin/emails', { ...admin, console: c });
-    fireEvent.change(await screen.findByLabelText('Template'), { target: { value: 'revoked' } });
+    choose(await screen.findByLabelText('Template'), 'Certificate revoked');
     expect(screen.getByRole('button', { name: `Remove ${EMAIL}` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
     await waitFor(() =>

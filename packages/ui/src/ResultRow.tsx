@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { Explanation } from './Explanation';
 import { CheckIcon, XIcon } from './Icon';
 import type { NavItemRenderProps } from './NavItem';
 import './result-row.css';
@@ -21,7 +22,7 @@ export interface ResultRowProps extends Omit<HTMLAttributes<HTMLLIElement>, 'chi
   yourAnswer: ReactNode;
   /** The right answer. Omit it when the Quiz does not reveal answers. */
   correctAnswer?: ReactNode;
-  /** The explanation slot. Omit it when there is none. */
+  /** The explanation, shown in an `Explanation` panel headed "Why". Omit it when there is none. */
   children?: ReactNode;
   /** A link back to the lesson that teaches this. */
   revisit?: ResultRowRevisit;
@@ -66,7 +67,11 @@ export function ResultRow({
             </div>
           )}
         </dl>
-        {children ? <div className="g-result__explanation">{children}</div> : null}
+        {children ? (
+          <Explanation className="g-result__explanation" role="note" title="Why">
+            {children}
+          </Explanation>
+        ) : null}
         {revisit ? (
           revisit.render ? (
             revisit.render({ ...linkProps, href: revisit.href })

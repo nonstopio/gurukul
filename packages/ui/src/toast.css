@@ -19,9 +19,10 @@
 .g-toast {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  /* Icon, text and close button sit on one centre line; the timer bar has its own 3px at the foot. */
+  align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-1) var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-1) var(--space-3) var(--space-4);
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -76,6 +77,12 @@
 .g-toast__icon {
   flex: none;
   display: inline-grid;
+}
+/* A toast with more than its one line keeps the icon and close button level with the title. */
+.g-toast:has(.g-toast__message, .g-toast__code, .g-toast__actions) {
+  align-items: flex-start;
+}
+.g-toast:has(.g-toast__message, .g-toast__code, .g-toast__actions) .g-toast__icon {
   margin-top: var(--space-1);
 }
 .g-toast__body {

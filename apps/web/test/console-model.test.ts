@@ -386,6 +386,8 @@ describe('auditDetail', () => {
     );
     expect(auditDetail('course.rollback', {}, g)).toBe('Back to version ?, now version ?');
     expect(auditDetail('course.archive', { status: 'archived' }, g)).toBe('archived');
+    expect(auditDetail('course.access', { visibility: 'teams', teams: 2 }, g)).toBe('Team only');
+    expect(auditDetail('course.access', {}, g)).toBeNull();
     expect(auditDetail('odd.thing', { x: 1 }, g)).toBeNull();
   });
 });

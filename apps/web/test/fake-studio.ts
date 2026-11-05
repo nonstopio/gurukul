@@ -48,6 +48,10 @@ export function fakeStudio(
   const service: StudioService = {
     createCourse: vi.fn().mockResolvedValue({ courseId: 'new-course' }),
     publishCourse: vi.fn().mockResolvedValue({ version: 1 }),
+    setCourseAccess: vi.fn(async ({ visibility, visibleTeamIds }) => ({
+      visibility,
+      visibleTeamIds,
+    })),
     rollbackCourse: vi.fn().mockResolvedValue({ version: 3 }),
     archiveCourse: vi.fn().mockResolvedValue({ status: 'archived' }),
   };

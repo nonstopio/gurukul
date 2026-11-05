@@ -280,7 +280,9 @@ describe('ResultRow', () => {
     expect(screen.getByText(/Incorrect\./)).toBeTruthy();
     expect(container.querySelector('s')?.textContent).toBe('Only fetches');
     expect(screen.getByText('Fetches and merges')).toBeTruthy();
-    expect(screen.getByText('Pull is fetch followed by merge.')).toBeTruthy();
+    // The explanation is a quiet "Why" note, not a second live region in the list.
+    expect(screen.getByRole('note').textContent).toBe('WhyPull is fetch followed by merge.');
+    expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByRole('link', { name: 'Revisit lesson: Pulling' }).getAttribute('href')).toBe(
       '/lesson/3',
     );

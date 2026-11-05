@@ -65,10 +65,13 @@ function uploadPaths(blocks: readonly Block[]): string[] {
   );
 }
 
-/** Every upload path in a parsed course. Quiz items have no blocks. */
+/** Every upload path in a parsed course: its cover image and its blocks. Quiz items have no blocks. */
 export function referencedPaths(course: Course): string[] {
-  return course.chapters.flatMap((chapter) =>
-    chapter.items.flatMap((item) => (item.type === 'lesson' ? uploadPaths(item.blocks) : [])),
+  const cover = course.cover.image ? [course.cover.image.upload.path] : [];
+  return cover.concat(
+    course.chapters.flatMap((chapter) =>
+      chapter.items.flatMap((item) => (item.type === 'lesson' ? uploadPaths(item.blocks) : [])),
+    ),
   );
 }
 
