@@ -25,9 +25,9 @@ async function openNewLesson(page: Page, title: string, slug: string, block = 'I
     .getByLabel('Description')
     .fill('For Educators who add pictures and handouts to lessons.');
   await page.getByRole('button', { name: 'Add outcome' }).click();
-  await page.getByLabel('Outcome 1').fill('Upload an image with alt text');
+  await page.getByLabel('Outcome 1', { exact: true }).fill('Upload an image with alt text');
   await page.getByRole('button', { name: 'Add outcome' }).click();
-  await page.getByLabel('Outcome 2').fill('Attach a PDF handout');
+  await page.getByLabel('Outcome 2', { exact: true }).fill('Attach a PDF handout');
   await page.getByRole('tab', { name: 'Structure' }).click();
   await page.getByRole('button', { name: 'Add chapter' }).click();
   await page.getByLabel('Title of chapter 1').fill('Pictures');

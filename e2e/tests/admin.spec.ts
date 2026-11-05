@@ -117,6 +117,8 @@ test.describe('Admin', () => {
       .getByRole('link', { name: 'Design system' })
       .click();
     await expect(page).toHaveURL(/\/admin\/design-system/);
+    await expect(page.getByRole('tab', { name: 'Components', selected: true })).toBeVisible();
+    await page.getByRole('tab', { name: 'Tokens' }).click();
     await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
     await expectNoSeriousViolations(page);
 
