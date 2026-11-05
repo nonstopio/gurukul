@@ -17,7 +17,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [00-vision-and-scope.md](00-vision-and-scope.md) | What we build, for whom, what is out of scope |
 | [01-architecture.md](01-architecture.md) | Monorepo, Firebase services, request flows |
 | [02-data-model.md](02-data-model.md) | The course object and every Firestore collection |
-| [03-auth-and-roles.md](03-auth-and-roles.md) | Google sign-in, domain lock, Learner / Educator / Admin |
+| [03-auth-and-roles.md](03-auth-and-roles.md) | Google sign-in, domain lock, Learner / Educator / Admin / Manager |
 | [04-design-system.md](04-design-system.md) | Tokens, components, accessibility bar |
 | [05-learner-experience.md](05-learner-experience.md) | Home, course, lesson player, progress and resume |
 | [06-quiz-and-certificates.md](06-quiz-and-certificates.md) | Quizzes, server grading, certificates and verification |
@@ -34,6 +34,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 | [17-logging.md](17-logging.md) | Structured logging, levels, masking and the `log` helper |
 | [19-course-media-uploads.md](19-course-media-uploads.md) | Image and PDF uploads in Studio: policy, limits, guidance, Storage rules, layouts, cost |
 | [20-product-analytics.md](20-product-analytics.md) | Google Analytics 4 events, consent at sign-in, what is never sent |
+| [21-managers.md](21-managers.md) | The Manager role: teams they manage, assigning to them, deadline email with the manager in CC |
 | [tracker.md](tracker.md) | Status: every plan item as done, todo, blocked or maintainer, and the order to pick them up |
 | [design-handoff/](design-handoff/README.md) | Screen-by-screen developer handoff for all 19 designs |
 

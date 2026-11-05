@@ -29,12 +29,20 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 176 | 0 | 0 | 14 |
+| Managers | 0 | 6 | 0 | 0 |
+| **Total** | 176 | 6 | 0 | 14 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
+
+1. `MGR-01`
+2. `MGR-02`
+3. `MGR-03`
+4. `MGR-04`
+5. `MGR-06`
+6. `MGR-05`
 
 
 ## Foundations
@@ -315,3 +323,16 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | -------- | ------------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `PLN-01` | This tracker and the `pick-up-next` skill | done | —     | `.plan/tracker.md`, `scripts/tracker.mjs`, `.claude/skills/pick-up-next/`                                                                                                                                                                              |
 | `PLN-02` | The plan matches what was built       | done   | —       | `.plan/01-architecture.md` (functions list, app folders), `02-data-model.md` (`counters`, `mail`, archived reads, update-only drafts), `03-auth-and-roles.md`, `08-studio.md` (slug fixed at creation), `11-deployment-and-cost.md` (artifact policy step), `12-milestones.md` (M6 status), `13-open-questions.md` (questions 3, 8, 13) |
+
+## Managers
+
+Plan: `21-managers.md`, decided with the maintainer on 2026-11-05.
+
+| ID       | Item                                                                                  | Status | Depends  | Notes                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MGR-01` | `manager` claim and role, `managerEmails` on teams, handover on role removal          | todo   | —        | Schema, `setRoles`, rules (Manager reads and edits only teams that list them; Educators read only) with allow and deny tests                |
+| `MGR-02` | Team-scoped assigning: `assignCourses` with `teamIds`, `teamId` on assignments         | todo   | `MGR-01` | A Manager assigns only to teams they manage; published, non-staff courses, never the Educator course                                        |
+| `MGR-03` | `teamReport`, `updateAssignment`, `removeAssignment`, team-scoped `remindLearners`     | todo   | `MGR-02` | No Quiz scores in the report; both edits audited                                                                                            |
+| `MGR-04` | Due-soon (5 days) and overdue notices with the team's managers in CC                  | todo   | `MGR-02` | `Cc:` in the Gmail message, once-only stamps, one email per person per day, template in `EMAIL_TEMPLATES`                                    |
+| `MGR-05` | Team area: My teams, Team report, Assign for Managers                                 | todo   | `MGR-03` | Navigation area, Adhyaksha label, tips, changelog                                                                                           |
+| `MGR-06` | Admin: Managers on the Teams page, "No manager" marker, Manager in Roles & access      | todo   | `MGR-01` | Educators see Teams read-only                                                                                                               |
