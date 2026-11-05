@@ -6,6 +6,7 @@ import { SignInArt, rise } from './SignInArt';
 import { markSignInStarted } from '../analytics/react/AnalyticsSession';
 import { acceptPolicy, usePolicyAccepted } from '../privacy/policy';
 import { Logo } from '../Logo';
+import { ShellFooter } from '../ShellFooter';
 
 /** Google's four-colour "G", as their sign-in branding guidelines ask for on a Google button. */
 function GoogleMark() {
@@ -121,10 +122,7 @@ export function SignInPage() {
         <p lang="sa" className="signin__sutra">
           विद्या ददाति विनयम् <span lang="en">· Knowledge gives humility.</span>
         </p>
-        <p className="learn-meta">
-          Trouble signing in? Write to{' '}
-          <a href="mailto:gurukul@nonstopio.com">gurukul@nonstopio.com</a>.
-        </p>
+        <ShellFooter bare />
       </footer>
     </main>
   );
