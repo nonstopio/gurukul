@@ -51,7 +51,12 @@
   bank (`02-data-model.md`), so an Admin assigns the course only to people trusted with that.
 - Per-course edit rights (which courses an Educator may edit) are stored in
   `courses/{id}.educatorIds`, checked by rules on the draft document. Claims
-  stay small; course lists do not go in the token.
+  stay small; course lists do not go in the token. Being listed counts only with the
+  `educator` claim, in the rules (`isEducatorOf`) and in the Studio callables alike: someone
+  whose role was taken away edits, publishes and rolls back nothing, even if a list still names them.
+- Every callable admits the same people the rules' `signedIn()` does (a verified
+  `@nonstopio.com` Google sign-in) before it looks at a role claim, so a claim on any other
+  account opens nothing.
 - An Admin cannot remove their own Admin role (no lock-out).
 
 **Bootstrap:** the first Admin is set with a one-off script,

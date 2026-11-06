@@ -455,6 +455,17 @@ describe('publishCourse', () => {
     });
   });
 
+  it('refuses someone the course lists whose Educator role was taken away', async () => {
+    const former = { ...asha, claims: {} };
+    for (const call of [
+      () => publishCourse(fake().store, former, { courseId: 'c' }),
+      () => rollbackCourse(fake().store, former, { courseId: 'c', version: 1 }),
+      () => setCourseAccess(fake().store, former, { courseId: 'c', visibility: 'public' }),
+    ]) {
+      await expect(call()).rejects.toMatchObject({ code: 'AUTH_2001' });
+    }
+  });
+
   it('refuses non-editors, a missing course and a missing draft', async () => {
     await expect(publishCourse(fake().store, rohan, { courseId: 'c' })).rejects.toMatchObject({
       code: 'AUTH_2001',

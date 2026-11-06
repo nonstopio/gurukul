@@ -23,6 +23,9 @@ import type { AuthedRequest } from '../src/handlers.js';
 import type { GradingStore } from '../src/grading.js';
 import { answerKey, course, progress, ts } from './fixtures.js';
 
+/** What a verified Google sign-in adds to an ID token; every callable requires it. */
+const GOOGLE = { email_verified: true, firebase: { sign_in_provider: 'google.com' } };
+
 const learner = (over: object = {}): AuthedRequest => ({
   auth: {
     uid: 'u',
@@ -180,7 +183,7 @@ describe('handleRevokeCertificate', () => {
     mailer: { send: vi.fn().mockResolvedValue(undefined) },
   });
   const adminCaller = {
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
+    auth: { uid: 'k', token: { ...GOOGLE, email: 'k@nonstopio.com', admin: true } },
     data: { id: 'NSG-GIT-26-0001' },
   };
 
@@ -197,7 +200,7 @@ describe('handleRevokeCertificate', () => {
     });
     await expect(
       handleRevokeCertificate(
-        { ...adminCaller, auth: { uid: 'x', token: { email: 'x@nonstopio.com' } } },
+        { ...adminCaller, auth: { uid: 'x', token: { ...GOOGLE, email: 'x@nonstopio.com' } } },
         admin(),
       ),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
@@ -217,12 +220,15 @@ describe('handleRevokeCertificate', () => {
 
 describe('console callables', () => {
   const asAdmin = (data: unknown): AuthedRequest => ({
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
+    auth: {
+      uid: 'k',
+      token: { ...GOOGLE, email: 'k@nonstopio.com', name: 'Kavya Rao', admin: true },
+    },
     data,
   });
   const signedOutRequest: AuthedRequest = { data: {} };
   const learnerReq: AuthedRequest = {
-    auth: { uid: 'u', token: { email: 'u@nonstopio.com' } },
+    auth: { uid: 'u', token: { ...GOOGLE, email: 'u@nonstopio.com' } },
     data: { uid: 'u', courseId: 'git', quizId: 'pk', courseIds: ['git'] },
   };
 
@@ -233,6 +239,7 @@ describe('console callables', () => {
       audiences: vi.fn().mockResolvedValue(new Map()),
       signedInUsers: vi.fn().mockResolvedValue(new Map()),
       existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
+      profileName: vi.fn().mockResolvedValue(null),
       createAssignments: vi.fn().mockResolvedValue([]),
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
@@ -252,6 +259,9 @@ describe('console callables', () => {
       deps,
     );
     expect(ok).toMatchObject({ assigned: 1, notified: 1 });
+    // The token's name reaches the assignment, so learners see who assigned the course.
+    expect(assignStore.createAssignments).toHaveBeenCalledWith('k', 'Kavya Rao', expect.any(Array));
+    expect(assignStore.profileName).not.toHaveBeenCalled();
     await expect(handleAssignCourses(signedOutRequest, deps)).rejects.toMatchObject({
       code: 'AUTH_1001',
     });
@@ -344,9 +354,32 @@ describe('console callables', () => {
   });
 });
 
+describe('console callables need a verified Google sign-in', () => {
+  // An Admin or Manager claim on an email/password or unverified account opens nothing, as in the rules.
+  const unverified: AuthedRequest = {
+    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true, manager: true } },
+    data: {},
+  };
+  const never = {} as never;
+
+  it.each([
+    ['revokeCertificate', () => handleRevokeCertificate(unverified, never)],
+    ['assignCourses', () => handleAssignCourses(unverified, never)],
+    ['resetCooldown', () => handleResetCooldown(unverified, never)],
+    ['remindLearners', () => handleRemindLearners(unverified, never, () => 0)],
+    ['listEmailTemplates', async () => handleListEmailTemplates(unverified)],
+    ['sendTestEmail', () => handleSendTestEmail(unverified, never)],
+    ['teamReport', () => handleTeamReport(unverified, never)],
+    ['updateAssignment', () => handleUpdateAssignment(unverified, never, () => 0)],
+    ['removeAssignment', () => handleRemoveAssignment(unverified, never)],
+  ])('%s refuses it with AUTH_1002', async (_name, call) => {
+    await expect(call()).rejects.toMatchObject({ code: 'AUTH_1002' });
+  });
+});
+
 describe('team callables', () => {
   const asManager = (data: unknown): AuthedRequest => ({
-    auth: { uid: 'm', token: { email: 'm@nonstopio.com', manager: true } },
+    auth: { uid: 'm', token: { ...GOOGLE, email: 'm@nonstopio.com', manager: true } },
     data,
   });
   const store = (): TeamReportStore => ({

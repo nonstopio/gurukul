@@ -100,8 +100,13 @@ const hasRole = (caller: Caller): boolean =>
 const displayName = (caller: Caller): string | undefined =>
   caller.name?.trim() || caller.email?.split('@')[0] || undefined;
 
+/**
+ * An Admin, or an Educator the course lists. Being listed is not enough without the claim, as in
+ * the rules' `isEducatorOf`: someone whose Educator role was taken away edits nothing.
+ */
 const canEdit = (caller: Caller, live: Pick<LiveCourse, 'educatorIds'>): boolean =>
-  caller.claims?.admin === true || live.educatorIds.includes(caller.uid);
+  caller.claims?.admin === true ||
+  (caller.claims?.educator === true && live.educatorIds.includes(caller.uid));
 
 function field<T>(
   name: string,

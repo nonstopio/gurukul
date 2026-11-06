@@ -54,20 +54,17 @@ export async function handleSetRoles(
   request: AuthedRequest,
   admin: RoleAdmin,
 ): Promise<{ roles: string[] }> {
-  if (!request.auth) throw new ApiException('AUTH_1001');
+  const caller = requireVerified(request);
   const { uid, ...change } = asObject(request.data);
   if (typeof uid !== 'string' || uid === '') throw badField('uid', uid, 'must be a person’s uid');
-  const { token } = request.auth;
-  const plan = await applyRoleChange(
-    admin,
-    { uid: request.auth.uid, email: token.email, claims: token },
-    uid,
-    change as RoleChange,
-  );
+  const plan = await applyRoleChange(admin, caller, uid, change as RoleChange);
   return { roles: plan.roles };
 }
 
-/** The caller of a Studio or learner callable: a verified NonStop account signed in with Google. */
+/**
+ * The caller of any callable: a verified NonStop account signed in with Google, the same test as
+ * the rules' `signedIn()`. A role claim on any other account counts for nothing.
+ */
 function requireVerified(request: AuthedRequest): Caller {
   if (!request.auth) throw new ApiException('AUTH_1001');
   const { uid, token } = request.auth;
@@ -111,19 +108,7 @@ export async function handleRevokeCertificate(
   request: AuthedRequest,
   deps: { admin: CertificateAdmin; mailer: Mailer },
 ): Promise<{ id: string; revoked: boolean }> {
-  if (!request.auth) throw new ApiException('AUTH_1001');
-  const { token } = request.auth;
-  return revokeCertificate(
-    deps,
-    { uid: request.auth.uid, email: token.email, claims: token },
-    asObject(request.data),
-  );
-}
-
-/** The caller of a console callable; whether they are an Admin is decided by the operation. */
-function requireCaller(request: AuthedRequest): Caller {
-  if (!request.auth) throw new ApiException('AUTH_1001');
-  return { uid: request.auth.uid, email: request.auth.token.email, claims: request.auth.token };
+  return revokeCertificate(deps, requireVerified(request), asObject(request.data));
 }
 
 /**
@@ -134,7 +119,7 @@ export async function handleAssignCourses(
   request: AuthedRequest,
   deps: { store: AssignStore; mailer: Mailer },
 ): Promise<AssignResult> {
-  const caller = requireCaller(request);
+  const caller = requireVerified(request);
   return assignCourses(deps, caller, asObject(request.data));
 }
 
@@ -143,7 +128,7 @@ export async function handleResetCooldown(
   request: AuthedRequest,
   admin: CooldownAdmin,
 ): Promise<{ ok: true }> {
-  const caller = requireCaller(request);
+  const caller = requireVerified(request);
   return resetCooldown(admin, caller, asObject(request.data));
 }
 
@@ -153,7 +138,7 @@ export async function handleRemindLearners(
   deps: { store: ReminderStore; mailer: Mailer },
   now: () => number,
 ): Promise<{ sent: number; skipped: number }> {
-  const caller = requireCaller(request);
+  const caller = requireVerified(request);
   return remindLearners(deps, caller, asObject(request.data), now());
 }
 
@@ -199,7 +184,7 @@ export async function handleArchiveCourse(
 
 /** `listEmailTemplates`: Admin-only; every email Gurukul sends, filled with sample data. */
 export function handleListEmailTemplates(request: AuthedRequest): TemplateView[] {
-  return listEmailTemplates(requireCaller(request));
+  return listEmailTemplates(requireVerified(request));
 }
 
 /** `sendTestEmail`: Admin-only; one template, with sample data, to the one or two addresses named. */
@@ -207,7 +192,7 @@ export async function handleSendTestEmail(
   request: AuthedRequest,
   deps: { mailer: Mailer },
 ): Promise<{ to: string[] }> {
-  return sendTestEmail(deps, requireCaller(request), asObject(request.data));
+  return sendTestEmail(deps, requireVerified(request), asObject(request.data));
 }
 
 /** `teamReport`: an Admin or the team's Manager sees its members' assignments and progress. */
@@ -215,7 +200,7 @@ export async function handleTeamReport(
   request: AuthedRequest,
   store: TeamReportStore,
 ): Promise<TeamReport> {
-  return teamReport(store, requireCaller(request), asObject(request.data));
+  return teamReport(store, requireVerified(request), asObject(request.data));
 }
 
 /** `updateAssignment`: a new due date, or none, for one assignment. */
@@ -224,7 +209,7 @@ export async function handleUpdateAssignment(
   store: TeamReportStore,
   now: () => number,
 ): Promise<{ assignmentId: string; dueAt: number | null }> {
-  return updateAssignment(store, requireCaller(request), asObject(request.data), now());
+  return updateAssignment(store, requireVerified(request), asObject(request.data), now());
 }
 
 /** `removeAssignment`: deletes one assignment; the person's progress stays. */
@@ -232,5 +217,5 @@ export async function handleRemoveAssignment(
   request: AuthedRequest,
   store: TeamReportStore,
 ): Promise<{ assignmentId: string }> {
-  return removeAssignment(store, requireCaller(request), asObject(request.data));
+  return removeAssignment(store, requireVerified(request), asObject(request.data));
 }

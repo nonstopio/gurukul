@@ -362,6 +362,10 @@ export function firestoreCertificateAdmin(db: Firestore): CertificateAdmin {
 /** `AssignStore` over the Admin SDK. */
 export function firestoreAssignStore(db: Firestore): AssignStore {
   return {
+    async profileName(uid) {
+      const name: unknown = (await db.doc(`users/${uid}`).get()).get('displayName');
+      return typeof name === 'string' ? name : null;
+    },
     async courses(ids) {
       const snaps = await db.getAll(...ids.map((id) => db.doc(`courses/${id}`)));
       return Object.fromEntries(

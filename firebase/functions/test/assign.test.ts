@@ -19,6 +19,7 @@ function setup(over: Partial<AssignStore> = {}) {
     audiences: vi.fn().mockResolvedValue(new Map()),
     signedInUsers: vi.fn().mockResolvedValue(new Map([['priya@nonstopio.com', 'priya']])),
     existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
+    profileName: vi.fn().mockResolvedValue(null),
     createAssignments: vi.fn().mockResolvedValue([]),
     bumpAssigned: vi.fn().mockResolvedValue(undefined),
     audit: vi.fn().mockResolvedValue(undefined),
@@ -93,10 +94,23 @@ describe('assignCourses', () => {
     expect(mailer.send).not.toHaveBeenCalled();
   });
 
-  it('stores no assigner name when the token carries none', async () => {
-    const { store, deps } = setup();
+  it('falls back to the profile name when the token carries none', async () => {
+    const { store, deps } = setup({ profileName: vi.fn().mockResolvedValue(' Kavya R ') });
     await assignCourses(deps, { ...admin, name: undefined }, request());
+    expect(store.profileName).toHaveBeenCalledWith('k');
+    expect(store.createAssignments).toHaveBeenCalledWith('k', 'Kavya R', expect.any(Array));
+  });
+
+  it('stores no assigner name when neither the token nor the profile has one', async () => {
+    const { store, deps } = setup({ profileName: vi.fn().mockResolvedValue('  ') });
+    await assignCourses(deps, { ...admin, name: ' ' }, request());
     expect(store.createAssignments).toHaveBeenCalledWith('k', null, expect.any(Array));
+  });
+
+  it('reads no profile when the token names the caller', async () => {
+    const { store, deps } = setup();
+    await assignCourses(deps, admin, request());
+    expect(store.profileName).not.toHaveBeenCalled();
   });
 
   it('never overwrites an existing assignment and counts pairs across courses', async () => {

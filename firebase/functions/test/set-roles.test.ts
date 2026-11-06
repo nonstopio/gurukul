@@ -3,6 +3,9 @@ import { handleSetRoles } from '../src/handlers.js';
 import { applyRoleChange, grantAdmin, grantEducatorByCourse } from '../src/set-roles.js';
 import type { RoleAdmin } from '../src/set-roles.js';
 
+/** What a verified Google sign-in adds to an ID token; every callable requires it. */
+const GOOGLE = { email_verified: true, firebase: { sign_in_provider: 'google.com' } };
+
 const admin = (
   claims: { educator?: boolean; manager?: boolean; adminCaller?: boolean } | undefined = undefined,
 ): RoleAdmin => ({
@@ -181,7 +184,7 @@ describe('grantAdmin', () => {
 
 describe('handleSetRoles', () => {
   const request = (over: object = {}) => ({
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
+    auth: { uid: 'k', token: { ...GOOGLE, email: 'k@nonstopio.com', admin: true } },
     data: { uid: 'u', educator: true },
     ...over,
   });
@@ -205,8 +208,30 @@ describe('handleSetRoles', () => {
     });
   });
 
+  it('refuses an Admin claim on an account that is not a verified Google sign-in', async () => {
+    for (const token of [
+      { ...GOOGLE, email: 'k@nonstopio.com', admin: true, email_verified: false },
+      {
+        ...GOOGLE,
+        email: 'k@nonstopio.com',
+        admin: true,
+        firebase: { sign_in_provider: 'password' },
+      },
+    ]) {
+      const change = admin();
+      await expect(
+        handleSetRoles(request({ auth: { uid: 'k', token } }), change),
+      ).rejects.toMatchObject({
+        code: 'AUTH_1002',
+      });
+      expect(change.setClaims).not.toHaveBeenCalled();
+    }
+  });
+
   it('lets a refused change surface as its ApiException and rethrows anything else', async () => {
-    const notAdmin = request({ auth: { uid: 'x', token: { email: 'x@nonstopio.com' } } });
+    const notAdmin = request({
+      auth: { uid: 'x', token: { ...GOOGLE, email: 'x@nonstopio.com' } },
+    });
     await expect(handleSetRoles(notAdmin, admin())).rejects.toMatchObject({
       code: 'AUTH_2001',
     });
