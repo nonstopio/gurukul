@@ -123,7 +123,8 @@ export async function handleRevokeCertificate(
 /** The caller of a console callable; whether they are an Admin is decided by the operation. */
 function requireCaller(request: AuthedRequest): Caller {
   if (!request.auth) throw new ApiException('AUTH_1001');
-  return { uid: request.auth.uid, email: request.auth.token.email, claims: request.auth.token };
+  const { uid, token } = request.auth;
+  return { uid, email: token.email, name: token.name, claims: token };
 }
 
 /**

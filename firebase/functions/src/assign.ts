@@ -47,6 +47,8 @@ export interface AssignStore {
   audiences(uids: string[]): Promise<Map<string, Audience>>;
   /** For each email that has a `users` doc, its uid. */
   signedInUsers(emails: string[]): Promise<Map<string, string>>;
+  /** The `displayName` on the person's `users` doc, or null when there is none. */
+  profileName(uid: string): Promise<string | null>;
   /** Which of these assignment ids already exist. */
   existingAssignmentIds(ids: string[]): Promise<Set<string>>;
   /**
@@ -71,6 +73,14 @@ export interface AssignResult {
   notified: number;
   /** (course, email) pairs that could not be written; empty when everything was. */
   failed: { email: string; courseId: string }[];
+}
+
+/**
+ * The name learners see as who assigned their course: the token's Google name, else the caller's
+ * profile `displayName` (read only when the token has none), else null.
+ */
+async function assignerName(store: AssignStore, caller: Caller): Promise<string | null> {
+  return caller.name?.trim() || (await store.profileName(caller.uid))?.trim() || null;
 }
 
 export const MAX_COURSES = 20;
@@ -280,7 +290,7 @@ export async function assignCourses(
 
   const failedIds = new Set(
     docs.length > 0
-      ? await store.createAssignments(caller.uid, caller.name?.trim() || null, docs)
+      ? await store.createAssignments(caller.uid, await assignerName(store, caller), docs)
       : [],
   );
   const created = docs.filter((d) => !failedIds.has(d.id));

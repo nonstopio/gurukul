@@ -217,7 +217,7 @@ describe('handleRevokeCertificate', () => {
 
 describe('console callables', () => {
   const asAdmin = (data: unknown): AuthedRequest => ({
-    auth: { uid: 'k', token: { email: 'k@nonstopio.com', admin: true } },
+    auth: { uid: 'k', token: { email: 'k@nonstopio.com', name: 'Kavya Rao', admin: true } },
     data,
   });
   const signedOutRequest: AuthedRequest = { data: {} };
@@ -233,6 +233,7 @@ describe('console callables', () => {
       audiences: vi.fn().mockResolvedValue(new Map()),
       signedInUsers: vi.fn().mockResolvedValue(new Map()),
       existingAssignmentIds: vi.fn().mockResolvedValue(new Set()),
+      profileName: vi.fn().mockResolvedValue(null),
       createAssignments: vi.fn().mockResolvedValue([]),
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
@@ -252,6 +253,9 @@ describe('console callables', () => {
       deps,
     );
     expect(ok).toMatchObject({ assigned: 1, notified: 1 });
+    // The token's name reaches the assignment, so learners see who assigned the course.
+    expect(assignStore.createAssignments).toHaveBeenCalledWith('k', 'Kavya Rao', expect.any(Array));
+    expect(assignStore.profileName).not.toHaveBeenCalled();
     await expect(handleAssignCourses(signedOutRequest, deps)).rejects.toMatchObject({
       code: 'AUTH_1001',
     });

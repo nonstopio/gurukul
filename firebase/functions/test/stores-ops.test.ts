@@ -225,6 +225,17 @@ describe('firestoreAssignStore', () => {
     expect(await firestoreAssignStore(db).signedInUsers([])).toEqual(new Map());
   });
 
+  it('reads the profile displayName, or null when there is none', async () => {
+    const names: unknown[] = ['Kavya Rao', undefined, 42];
+    const get = vi.fn(async () => ({ get: () => names.shift() }));
+    const db = { doc: vi.fn((p: string) => ({ path: p, get })) } as never;
+    const store = firestoreAssignStore(db);
+    expect(await store.profileName('k')).toBe('Kavya Rao');
+    expect(await store.profileName('k')).toBeNull();
+    expect(await store.profileName('k')).toBeNull();
+    expect((db as { doc: ReturnType<typeof vi.fn> }).doc).toHaveBeenCalledWith('users/k');
+  });
+
   it('reports which assignment ids exist', async () => {
     const db = {
       doc: vi.fn((p: string) => p),
