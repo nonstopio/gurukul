@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { timestamp } from './timestamp';
 import { uploadLimitsSchema } from './upload';
 
-export const roleSchema = z.enum(['learner', 'educator', 'admin']);
+export const roleSchema = z.enum(['learner', 'educator', 'manager', 'admin']);
 export type Role = z.infer<typeof roleSchema>;
 
 /**
@@ -50,6 +50,9 @@ export const orgConfigSchema = z.object({
 });
 export type OrgConfig = z.infer<typeof orgConfigSchema>;
 
+/** The most Managers one team can name (`teams/{id}.managerEmails`); the rules check the same. */
+export const MAX_TEAM_MANAGERS = 10;
+
 /**
  * `teams/{id}`: a team and its members, keyed by email so a person can be on a team before their
  * first sign-in. `config/org.teams` keeps the names only (what a learner picks from).
@@ -60,10 +63,23 @@ export const teamSchema = z.object({
   /** Milliseconds since the epoch. */
   createdAt: z.number(),
   /**
-   * Uid of the Educator or Admin who made it: an Educator edits only their own teams. Missing on
-   * teams made before it was recorded and on the seeded Educator course's team: Admins only.
+   * Uid of whoever made it, kept as a record: it decides nothing (`.plan/21-managers.md`). Missing
+   * on teams made before it was recorded and on the seeded Educator course's team.
    */
   createdBy: z.string().min(1).optional(),
+  /**
+   * Lower-cased emails of the Managers who manage the team (keyed by email, like members, so a
+   * Manager can be named before their first sign-in). Empty or missing: Admins only.
+   */
+  managerEmails: z
+    .array(
+      z
+        .email()
+        .max(254)
+        .refine((e) => e === e.toLowerCase(), 'must be lower-cased'),
+    )
+    .max(MAX_TEAM_MANAGERS)
+    .optional(),
 });
 export type TeamDoc = z.infer<typeof teamSchema>;
 export type Team = TeamDoc & { id: string };
@@ -89,6 +105,7 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
 /** Claim keys set by the `setRoles` function. */
 export interface RoleClaims {
   educator?: boolean;
+  manager?: boolean;
   admin?: boolean;
 }
 
@@ -96,6 +113,7 @@ export interface RoleClaims {
 export function rolesFromClaims(claims: RoleClaims | undefined): Role[] {
   const roles: Role[] = ['learner'];
   if (claims?.educator === true) roles.push('educator');
+  if (claims?.manager === true) roles.push('manager');
   if (claims?.admin === true) roles.push('admin');
   return roles;
 }

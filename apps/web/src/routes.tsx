@@ -31,6 +31,9 @@ const CompletePage = lazyPage(() => import('./certificates/pages'), 'CompletePag
 const VerifyPage = lazyPage(() => import('./certificates/pages'), 'VerifyPage');
 const ChangelogPage = lazyPage(() => import('./changelog/ChangelogPage'), 'ChangelogPage');
 const AssignPage = lazyPage(() => import('./console/AssignPage'), 'AssignPage');
+const TeamAssignPage = lazyPage(() => import('./console/AssignPage'), 'TeamAssignPage');
+const TeamHomePage = lazyPage(() => import('./team/TeamHomePage'), 'TeamHomePage');
+const TeamReportPage = lazyPage(() => import('./team/TeamReportPage'), 'TeamReportPage');
 const AuditPage = lazyPage(() => import('./console/AuditPage'), 'AuditPage');
 const CourseAnalyticsPage = lazyPage(
   () => import('./console/CourseAnalyticsPage'),
@@ -176,6 +179,22 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
       <DesktopOnly>
         <MediaPage />
       </DesktopOnly>
+    </RequireRole>
+  ),
+  // The Team area: Managers keep their own teams; Admins see every team.
+  '/team': (
+    <RequireRole any={['manager', 'admin']}>
+      <TeamHomePage />
+    </RequireRole>
+  ),
+  '/team/assign': (
+    <RequireRole any={['manager', 'admin']}>
+      <TeamAssignPage />
+    </RequireRole>
+  ),
+  '/team/:teamId': (
+    <RequireRole any={['manager', 'admin']}>
+      <TeamReportPage />
     </RequireRole>
   ),
 };

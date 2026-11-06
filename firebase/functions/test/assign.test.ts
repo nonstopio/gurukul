@@ -1,4 +1,4 @@
-import { assignmentId } from '@gurukul/schema';
+import { EDUCATOR_COURSE_ID, assignmentId } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
 import { assignCourses, parseAssignRequest, emailKey } from '../src/assign.js';
 import type { AssignStore } from '../src/assign.js';
@@ -23,6 +23,7 @@ function setup(over: Partial<AssignStore> = {}) {
     bumpAssigned: vi.fn().mockResolvedValue(undefined),
     audit: vi.fn().mockResolvedValue(undefined),
     addTeamMembers: vi.fn().mockResolvedValue(undefined),
+    teams: vi.fn().mockResolvedValue(new Map()),
     ...over,
   };
   const mailer = { send: vi.fn().mockResolvedValue(undefined) };
@@ -66,6 +67,7 @@ describe('assignCourses', () => {
         dueAt: FUTURE,
         mandatory: true,
         reminder: 'weekly',
+        teamId: null,
       },
       {
         id: id('git', 'new@nonstopio.com'),
@@ -75,6 +77,7 @@ describe('assignCourses', () => {
         dueAt: FUTURE,
         mandatory: true,
         reminder: 'weekly',
+        teamId: null,
       },
     ]);
     expect(store.bumpAssigned).toHaveBeenCalledWith({ git: 2 });
@@ -333,6 +336,118 @@ describe('a deadline in the past', () => {
   });
 });
 
+describe('assigning to teams', () => {
+  const manager = { uid: 'm', email: 'M@nonstopio.com', name: 'Mona', claims: { manager: true } };
+  const team = (id: string, members: string[], managers: string[] = ['m@nonstopio.com']) => ({
+    id,
+    name: id,
+    memberEmails: members,
+    managerEmails: managers,
+  });
+  const teams = new Map([
+    ['sales', team('sales', ['Priya@nonstopio.com', 'new@nonstopio.com'])],
+    ['ops', team('ops', ['new@nonstopio.com', 'ops@nonstopio.com'])],
+    ['other', team('other', ['x@nonstopio.com'], ['z@nonstopio.com'])],
+  ]);
+  const byTeams = (teamIds: string[], over: Record<string, unknown> = {}) =>
+    request({ emails: undefined, teamIds, ...over });
+
+  it('lets a manager assign their teams’ people, recording the first team that lists each', async () => {
+    const { store, deps } = setup({ teams: vi.fn().mockResolvedValue(teams) });
+    const out = await assignCourses(deps, manager, byTeams(['sales', 'ops']));
+    expect(out.assigned).toBe(3);
+    expect(store.teams).toHaveBeenCalledWith(['sales', 'ops']);
+    const docs = (store.createAssignments as ReturnType<typeof vi.fn>).mock.calls[0]?.[2];
+    expect(docs.map((d: { email: string; teamId: string }) => [d.email, d.teamId])).toEqual([
+      ['priya@nonstopio.com', 'sales'],
+      ['new@nonstopio.com', 'sales'],
+      ['ops@nonstopio.com', 'ops'],
+    ]);
+    expect(store.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: 'm',
+        detail: expect.objectContaining({ teamIds: ['sales', 'ops'], count: 3 }),
+      }),
+    );
+  });
+
+  it('lets an admin assign any team, managed or not', async () => {
+    const { store, deps } = setup({ teams: vi.fn().mockResolvedValue(teams) });
+    expect((await assignCourses(deps, admin, byTeams(['other']))).assigned).toBe(1);
+    const docs = (store.createAssignments as ReturnType<typeof vi.fn>).mock.calls[0]?.[2];
+    expect(docs[0]).toMatchObject({ email: 'x@nonstopio.com', teamId: 'other' });
+  });
+
+  it('refuses a manager emails, another team, the Educator team and an unknown team', async () => {
+    const withTeams = new Map([
+      ...teams,
+      ['educator-candidates', team('educator-candidates', ['a@nonstopio.com'])],
+    ]);
+    for (const [data, code] of [
+      [request(), 'AUTH_2001'],
+      [byTeams(['other']), 'AUTH_2001'],
+      [byTeams(['educator-candidates']), 'AUTH_2001'],
+      [byTeams(['nope']), 'VAL_1003'],
+    ] as const) {
+      const { store, deps } = setup({ teams: vi.fn().mockResolvedValue(withTeams) });
+      await expect(assignCourses(deps, manager, data)).rejects.toMatchObject({ code });
+      expect(store.createAssignments).not.toHaveBeenCalled();
+    }
+    const asEducator = setup({ teams: vi.fn().mockResolvedValue(teams) });
+    await expect(
+      assignCourses(
+        asEducator.deps,
+        { uid: 'e', email: 'm@nonstopio.com', claims: { educator: true } },
+        byTeams(['sales']),
+      ),
+    ).rejects.toMatchObject({ code: 'AUTH_2001' });
+  });
+
+  it('refuses a manager a staff-only course or the Educator course', async () => {
+    for (const [id, course] of [
+      ['git', { ...published('Git'), access: { visibility: 'staff', visibleTeamIds: [] } }],
+      [EDUCATOR_COURSE_ID, published('Educators')],
+    ] as const) {
+      const { store, deps } = setup({
+        teams: vi.fn().mockResolvedValue(teams),
+        courses: vi.fn().mockResolvedValue({ [id]: course }),
+      });
+      await expect(
+        assignCourses(deps, manager, byTeams(['sales'], { courseIds: [id] })),
+      ).rejects.toMatchObject({ code: 'AUTH_2001', details: { courseId: id } });
+      expect(store.createAssignments).not.toHaveBeenCalled();
+    }
+    const { deps } = setup({
+      teams: vi.fn().mockResolvedValue(teams),
+      courses: vi.fn().mockResolvedValue({
+        git: { ...published('Git'), access: { visibility: 'teams', visibleTeamIds: ['sales'] } },
+      }),
+    });
+    expect((await assignCourses(deps, manager, byTeams(['sales']))).assigned).toBe(2);
+  });
+
+  it('refuses teams with more than 1000 people in all', async () => {
+    const big = (id: string, from: number) =>
+      team(
+        id,
+        Array.from({ length: 500 }, (_, i) => `p${from + i}@nonstopio.com`),
+      );
+    const { deps } = setup({
+      teams: vi.fn().mockResolvedValue(
+        new Map([
+          ['a', big('a', 0)],
+          ['b', big('b', 500)],
+          ['c', big('c', 1000)],
+        ]),
+      ),
+    });
+    await expect(assignCourses(deps, admin, byTeams(['a', 'b', 'c']))).rejects.toMatchObject({
+      code: 'VAL_1004',
+      details: { field: 'teamIds' },
+    });
+  });
+});
+
 describe('parseAssignRequest', () => {
   it.each([
     ['no courses', { courseIds: [] }, 'VAL_1004', 'courseIds'],
@@ -351,6 +466,17 @@ describe('parseAssignRequest', () => {
     ['1001 emails', { emails: new Array(1001).fill('a@nonstopio.com') }, 'VAL_1004', 'emails'],
     ['emails not strings', { emails: [1] }, 'VAL_1002', 'emails'],
     ['emails missing', { emails: undefined }, 'VAL_1001', 'emails'],
+    ['both emails and teamIds', { teamIds: ['sales'] }, 'VAL_1002', 'teamIds'],
+    ['no teams', { emails: undefined, teamIds: [] }, 'VAL_1004', 'teamIds'],
+    [
+      '21 teams',
+      { emails: undefined, teamIds: Array.from({ length: 21 }, (_, i) => `t${i}`) },
+      'VAL_1004',
+      'teamIds',
+    ],
+    ['teamIds not a list', { emails: undefined, teamIds: 'sales' }, 'VAL_1002', 'teamIds'],
+    ['a team id with a slash', { emails: undefined, teamIds: ['a/b'] }, 'VAL_1002', 'teamIds'],
+    ['an empty team id', { emails: undefined, teamIds: [''] }, 'VAL_1002', 'teamIds'],
     ['dueAt as text', { dueAt: 'soon' }, 'VAL_1002', 'dueAt'],
     ['dueAt not finite', { dueAt: Infinity }, 'VAL_1002', 'dueAt'],
     ['dueAt undefined', { dueAt: undefined }, 'VAL_1001', 'dueAt'],
@@ -376,6 +502,10 @@ describe('parseAssignRequest', () => {
       ),
     ).toMatchObject({ dueAt: 0, reminder: 'beforeDue' });
     expect(parseAssignRequest(request({ reminder: 'none' })).reminder).toBe('none');
+    expect(
+      parseAssignRequest(request({ emails: undefined, teamIds: ['sales', 'ops', 'sales'] })),
+    ).toMatchObject({ emails: null, teamIds: ['sales', 'ops'] });
+    expect(parseAssignRequest(request()).teamIds).toBeNull();
   });
 });
 

@@ -4,7 +4,7 @@ import { applyRoleChange, grantAdmin, grantEducatorByCourse } from '../src/set-r
 import type { RoleAdmin } from '../src/set-roles.js';
 
 const admin = (
-  claims: { educator?: boolean; adminCaller?: boolean } | undefined = undefined,
+  claims: { educator?: boolean; manager?: boolean; adminCaller?: boolean } | undefined = undefined,
 ): RoleAdmin => ({
   getClaims: vi.fn().mockResolvedValue(claims),
   setClaims: vi.fn().mockResolvedValue(undefined),
@@ -12,6 +12,7 @@ const admin = (
   getGrantedCourseIds: vi.fn().mockResolvedValue([]),
   applyCourseGrants: vi.fn().mockResolvedValue(undefined),
   mirrorRoles: vi.fn().mockResolvedValue(undefined),
+  releaseManagedTeams: vi.fn().mockResolvedValue(0),
   audit: vi.fn().mockResolvedValue(undefined),
 });
 const adminCaller = { uid: 'k', email: 'k@nonstopio.com', claims: { admin: true } };
@@ -21,14 +22,14 @@ describe('applyRoleChange', () => {
     const a = admin();
     const plan = await applyRoleChange(a, adminCaller, 'u', { educator: true });
     expect(plan.roles).toEqual(['learner', 'educator']);
-    expect(a.setClaims).toHaveBeenCalledWith('u', { educator: true, admin: false });
+    expect(a.setClaims).toHaveBeenCalledWith('u', { educator: true, manager: false, admin: false });
     expect(a.mirrorRoles).toHaveBeenCalledWith('u', plan);
     expect(a.revokeTokens).toHaveBeenCalledWith('u');
     expect(a.audit).toHaveBeenCalledWith({
       action: 'roles.set',
       by: 'k',
       target: 'u',
-      detail: { educator: true, admin: false },
+      detail: { educator: true, manager: false, admin: false },
     });
   });
 
@@ -43,7 +44,7 @@ describe('applyRoleChange', () => {
     });
     expect(a.audit).toHaveBeenCalledWith(
       expect.objectContaining({
-        detail: { educator: false, admin: false, grantedCourseIds: ['sql', 'go'] },
+        detail: { educator: false, manager: false, admin: false, grantedCourseIds: ['sql', 'go'] },
       }),
     );
   });
@@ -55,6 +56,31 @@ describe('applyRoleChange', () => {
     await applyRoleChange(a, adminCaller, 'u', { educator: true });
     expect(a.getGrantedCourseIds).not.toHaveBeenCalled();
     expect(a.applyCourseGrants).not.toHaveBeenCalled();
+  });
+
+  it('grants Manager without touching any team', async () => {
+    const a = admin();
+    const plan = await applyRoleChange(a, adminCaller, 'u', { manager: true });
+    expect(plan.roles).toEqual(['learner', 'manager']);
+    expect(a.releaseManagedTeams).not.toHaveBeenCalled();
+  });
+
+  it('hands a removed Manager’s teams back to Admins in the same call, and audits how many', async () => {
+    const a = admin({ manager: true });
+    a.releaseManagedTeams = vi.fn().mockResolvedValue(2);
+    await applyRoleChange(a, adminCaller, 'u', { manager: false });
+    expect(a.releaseManagedTeams).toHaveBeenCalledWith('u');
+    expect(a.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { educator: false, manager: false, admin: false, teamsReleased: 2 },
+      }),
+    );
+    const none = admin();
+    await applyRoleChange(none, adminCaller, 'u', { manager: false });
+    expect(none.releaseManagedTeams).toHaveBeenCalledWith('u');
+    expect(none.audit).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: { educator: false, manager: false, admin: false } }),
+    );
   });
 
   it('writes nothing when the change is refused', async () => {
@@ -73,9 +99,9 @@ describe('grantEducatorByCourse', () => {
   it('adds Educator, keeps Admin, audits, and does not sign the learner out', async () => {
     const a = admin({ admin: true } as never);
     expect(await grantEducatorByCourse(a, 'u1')).toBe(true);
-    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, admin: true });
+    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, manager: false, admin: true });
     expect(a.mirrorRoles).toHaveBeenCalledWith('u1', {
-      claims: { educator: true, admin: true },
+      claims: { educator: true, manager: false, admin: true },
       roles: ['learner', 'educator', 'admin'],
     });
     expect(a.revokeTokens).not.toHaveBeenCalled();
@@ -83,14 +109,24 @@ describe('grantEducatorByCourse', () => {
       action: 'roles.course',
       by: 'system',
       target: 'u1',
-      detail: { educator: true, admin: true },
+      detail: { educator: true, manager: false, admin: true },
     });
   });
 
   it('makes a Learner an Educator only', async () => {
     const a = admin();
     expect(await grantEducatorByCourse(a, 'u1')).toBe(true);
-    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, admin: false });
+    expect(a.setClaims).toHaveBeenCalledWith('u1', {
+      educator: true,
+      manager: false,
+      admin: false,
+    });
+  });
+
+  it('keeps a Manager claim', async () => {
+    const a = admin({ manager: true });
+    await grantEducatorByCourse(a, 'u1');
+    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, manager: true, admin: false });
   });
 
   it('does nothing for an existing Educator', async () => {
@@ -109,9 +145,9 @@ describe('grantAdmin', () => {
       ' You@NonStopIO.com ',
     );
     expect(uid).toBe('u1');
-    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, admin: true });
+    expect(a.setClaims).toHaveBeenCalledWith('u1', { educator: true, manager: false, admin: true });
     expect(a.mirrorRoles).toHaveBeenCalledWith('u1', {
-      claims: { educator: true, admin: true },
+      claims: { educator: true, manager: false, admin: true },
       roles: ['learner', 'educator', 'admin'],
     });
     expect(a.revokeTokens).toHaveBeenCalledWith('u1');
@@ -123,7 +159,17 @@ describe('grantAdmin', () => {
   it('works for a person with no claims yet', async () => {
     const a = admin();
     await grantAdmin({ uidForEmail: async () => 'u2', admin: a }, 'a@nonstopio.com');
-    expect(a.setClaims).toHaveBeenCalledWith('u2', { educator: false, admin: true });
+    expect(a.setClaims).toHaveBeenCalledWith('u2', {
+      educator: false,
+      manager: false,
+      admin: true,
+    });
+  });
+
+  it('keeps an existing Manager claim', async () => {
+    const a = admin({ manager: true });
+    await grantAdmin({ uidForEmail: async () => 'u3', admin: a }, 'a@nonstopio.com');
+    expect(a.setClaims).toHaveBeenCalledWith('u3', { educator: false, manager: true, admin: true });
   });
 
   it.each([undefined, '', 'a@gmail.com'])('prints usage for %j', async (email) => {

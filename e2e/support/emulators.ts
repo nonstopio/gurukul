@@ -102,11 +102,14 @@ export async function uidOf(email: string): Promise<string> {
 }
 
 /**
- * Makes a signed-in person an Educator and/or Admin, the way the `setRoles` function does: custom
+ * Makes a signed-in person an Educator, Manager and/or Admin, the way the `setRoles` function does: custom
  * claims on the Auth account, and the `roles` mirror on `users/{uid}`. The running app notices the
  * mirror change and refreshes its token, so no reload is needed.
  */
-export async function grantRoles(email: string, roles: Array<'educator' | 'admin'>): Promise<void> {
+export async function grantRoles(
+  email: string,
+  roles: Array<'educator' | 'manager' | 'admin'>,
+): Promise<void> {
   const uid = await uidOf(email);
   const claims = Object.fromEntries(roles.map((r) => [r, true]));
   await call(

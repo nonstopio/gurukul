@@ -196,6 +196,31 @@ describe('teams', () => {
     expect((store.docs.get('config/org') as { teams: string[] }).teams).toEqual(['Platform']);
   });
 
+  it('keeps a team’s managers, and lets a Manager create without reading the team', async () => {
+    const managed = { ...body, managerEmails: ['neha@nonstopio.com'] };
+    store.docs.set('teams/platform', body);
+    await data.saveTeam({ id: 'platform', ...managed, createdBy: 'u1' }, null, {
+      checkTaken: false,
+    });
+    expect(store.docs.get('teams/platform')).toEqual({ ...managed, createdBy: 'u1' });
+    await expect(
+      data.saveTeam({ id: 'platform', ...managed }, null, { checkTaken: true }),
+    ).rejects.toThrow('already');
+  });
+
+  it('reads a Manager’s teams by their lower-cased email, by name', async () => {
+    store.queue = [[d('w', { ...body, name: 'Web' }), d('a', { ...body, name: 'Apps' })]];
+    expect((await data.managedTeams(' Neha@NonStopIO.com ')).map((t) => t.name)).toEqual([
+      'Apps',
+      'Web',
+    ]);
+    expect(store.queries[0]).toEqual([
+      { collection: 'teams' },
+      { where: ['managerEmails', 'array-contains', 'neha@nonstopio.com'] },
+      { limit: 100 },
+    ]);
+  });
+
   it('deletes the document and the name', async () => {
     store.docs.set('teams/platform', body);
     store.docs.set('config/org', { ...DEFAULT_ORG_CONFIG, teams: ['QA', 'Platform'] });

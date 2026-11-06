@@ -58,16 +58,25 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   live in `grading.ts`; the answer key never leaves the server. `revokeCertificate` is Admin-only
   and writes an `audit` entry; a new revocation emails the learner through the mailer. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 
-- Admin console callables (all Admin-only, each writes an `audit` entry): `assignCourses`
-  (1-20 published courses x 1-1000 emails; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps
+- Admin console callables (Admin-only unless noted, each writes an `audit` entry): `assignCourses`
+  (1-20 published courses x 1-1000 emails, or 1-20 `teamIds` whose `memberEmails` are assigned and each new
+  assignment records `teamId`, the first requested team listing the email; a Manager may send only `teamIds` of
+  teams they manage, and only published, non-`staff` courses other than the Educator course, else `AUTH_2001`; ids `{courseId}__{hmac-sha256(email)}`, created never overwritten, bumps
   `stats/*.assigned` and `stats/org.assignmentsTotal`; a failed batch does not abort the call: `AssignResult.failed`
   lists the course/email pairs that were not written, and only written pairs are counted, audited and emailed;
   each assignment stores `assignedByName`), `resetCooldown` (sets `lastAttemptAt` to epoch 0),
   `remindLearners` (max 200 people, one email each listing their unfinished courses, nobody reminded in the last
-  20 hours via `lastRemindedAt`), and
+  20 hours via `lastRemindedAt`; optional `teamId` narrows it to that team's members, and a Manager must pass one
+  they manage), the team callables in `team-report.ts` (Admin, or a Manager of the team; adapter
+  `firestoreTeamReportStore`): `teamReport` (members with each assignment's course, status, due date and percent,
+  never Quiz scores; assignments read by email 30 at a time, progress only for started ones), `updateAssignment`
+  (new or no due date, clears `dueSoonSentAt`/`overdueSentAt`, audit `assign.update`) and `removeAssignment`
+  (deletes it and decrements the counters, audit `assign.remove`), where a Manager may touch only an assignment
+  whose `teamId` they manage (`managesTeam` in `errors.ts`; `educator-candidates` is Admin-only), and
   `listEmailTemplates` and `sendTestEmail` (every template in `email-templates.ts` with sample data; the test goes to the one or two
   `@nonstopio.com` `recipients` named, `[Test]` subject, `GEN_5004` when the mailer is `unconfiguredMailer`; no audit entry), and
-  `setRoles` with optional `grantedCourseIds` (syncs `courses/{id}.educatorIds` and the profile's display name
+  `setRoles` (`educator`, `manager`, `admin`; `manager: false` also removes the person's email from every team's
+  `managerEmails` in the same call, `releaseManagedTeams`) with optional `grantedCourseIds` (syncs `courses/{id}.educatorIds` and the profile's display name
   into `educatorNames` on every granted course, existing courses only).
 - Studio callables (decisions in `courses.ts`, adapter `firestoreCourseStore`): `createCourse`
   (Educator or Admin; transaction creates `courses/{slug}` blank plus `drafts/current` rev 1, or copies a
@@ -97,6 +106,10 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `dailyReminders` 04:00 sends weekly/before-due reminders for mandatory assignments when
   `config/org.reminders.enabled`: one email per person listing everything due, none to anyone reminded in the
   last 20 hours (`remind.ts`; 20, not 24, so a run a few seconds early still counts yesterday's as a day old).
+  It also owes once-only deadline notices on any incomplete assignment with a due date and a reminder other than
+  `none` (`noticeFor`: due-soon within 5 days, stamped `dueSoonSentAt`; overdue, stamped `overdueSentAt`): a person
+  owing one gets the deadline email (`buildDeadlineEmail`) instead, with the current `managerEmails` of the notice
+  assignments' teams in `Cc:` (`ccFor`: deduped, never the learner, at most 10; read at send time).
   Never schedule more often than daily. `weeklyBackup` (Sunday 02:00 UTC, `backup.ts`) starts a Firestore
   export to `gs://$BACKUP_BUCKET/backups/YYYY-MM-DD` through the `BackupPort` (`firestoreBackupPort`, the
   Firestore Admin client) and warns, without throwing, when `BACKUP_BUCKET` is unset. It never deletes:

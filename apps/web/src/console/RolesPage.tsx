@@ -34,38 +34,39 @@ import { useConsole } from './ConsoleProvider';
 import { usePeopleLookup } from './usePeopleSearch';
 import type { UserRow } from './types';
 
-type RoleKind = 'learner' | 'educator' | 'admin';
+type RoleKind = 'learner' | 'educator' | 'manager' | 'admin';
 
-/** The two granted roles, held independently: a person can be an Educator, an Admin or both. */
+/** The three granted roles, held independently: a person can hold any mix of them. */
 interface Held {
   educator: boolean;
+  manager: boolean;
   admin: boolean;
 }
 
-const CARDS: Array<{ role: RoleKind; text: string }> = [
-  { role: 'learner', text: 'Everyone signed in. Takes courses and earns certificates.' },
-  { role: 'educator', text: 'Builds and edits the courses they are granted.' },
-  { role: 'admin', text: 'Assigns courses, grants roles and sees everything.' },
-];
-
 /** What each role does, in a line: on the role cards and on the switches. */
-const ROLE_TEXT = {
-  educator: CARDS[1]?.text,
-  admin: CARDS[2]?.text,
+const ROLE_TEXT: Record<RoleKind, string> = {
+  learner: 'Everyone signed in. Takes courses and earns certificates.',
+  educator: 'Builds and edits the courses they are granted.',
+  manager: 'Keeps their teams, assigns them courses and follows their progress.',
+  admin: 'Assigns courses, grants roles and sees everything.',
 };
 
-type MatrixRow = [string, string, string, string];
+const ROLES: readonly RoleKind[] = ['learner', 'educator', 'manager', 'admin'];
+
+type MatrixRow = [string, string, string, string, string];
 
 const matrix = (t: Terms): MatrixRow[] => [
-  ['Take courses and earn certificates', 'Yes', 'Yes', 'Yes'],
-  ['Build and publish courses', 'No', 'Granted courses', 'Yes'],
-  ['Assign courses and send reminders', 'No', 'No', 'Yes'],
-  ['Grant and revoke roles', 'No', 'No', 'Yes'],
-  [`See all ${t.learners} and analytics`, 'No', 'Own courses', 'Yes'],
+  ['Take courses and earn certificates', 'Yes', 'Yes', 'Yes', 'Yes'],
+  ['Build and publish courses', 'No', 'Granted courses', 'No', 'Yes'],
+  ['Create and edit teams', 'No', 'No', 'Own teams', 'Yes'],
+  ['Assign courses and send reminders', 'No', 'No', 'Own teams', 'Yes'],
+  ['Grant and revoke roles', 'No', 'No', 'No', 'Yes'],
+  [`See all ${t.learners} and analytics`, 'No', 'Own courses', 'Own teams', 'Yes'],
 ];
 
 const held = (u: UserRow): Held => ({
   educator: u.roles.includes('educator'),
+  manager: u.roles.includes('manager'),
   admin: u.roles.includes('admin'),
 });
 
@@ -74,6 +75,9 @@ const STATUS_LABEL: Record<Course['status'], string | undefined> = {
   published: undefined,
   archived: 'Archived',
 };
+
+const roleName = (role: RoleKind, t: Terms) =>
+  ({ learner: t.Learner, educator: t.Educator, manager: t.Manager, admin: t.Admin })[role];
 
 /** How many courses the grant dialog lists before "Show more". */
 const COURSES_SHOWN = 6;
@@ -117,13 +121,15 @@ export function RolesPage() {
   const [editing, setEditing] = useState<UserRow | 'new' | null>(null);
   const result = useAsync(
     useCallback(async () => {
-      const [educators, admins, courses, everyone] = await Promise.all([
+      const [educators, managers, admins, courses, everyone, teams] = await Promise.all([
         data.usersWithRole('educator'),
+        data.usersWithRole('manager'),
         data.usersWithRole('admin'),
         data.allCourses(),
         data.userCount(),
+        data.teamList(),
       ]);
-      return { educators, admins, courses, everyone, reload };
+      return { educators, managers, admins, courses, everyone, teams, reload };
     }, [data, reload]),
   );
 
@@ -132,6 +138,7 @@ export function RolesPage() {
       await service.setRoles({
         uid: user.uid,
         educator: roles.educator,
+        manager: roles.manager,
         admin: roles.admin,
         grantedCourseIds: roles.educator ? courseIds : [],
       });
@@ -149,27 +156,27 @@ export function RolesPage() {
       <PageHeader
         eyebrow={t.Admin}
         title="Roles & access"
-        lead={`Who is ${article(t.Educator)} or ${article(t.Admin)}, and what each role can do.`}
+        lead={`Who is ${article(t.Educator)}, ${article(t.Manager)} or ${article(t.Admin)}, and what each role can do.`}
         actions={<Button onClick={() => setEditing('new')}>Grant a role</Button>}
       />
       <Callout tone="note" title="Roles are enforced by security rules">
         <p>Changing a role takes effect the next time the person&apos;s session refreshes.</p>
       </Callout>
       <Loaded loadable={result}>
-        {({ educators, admins, courses, everyone }) => (
+        {({ educators, managers, admins, courses, everyone, teams }) => (
           <>
             <div className="console-stats">
-              {CARDS.map((c) => {
-                const name = { learner: t.Learner, educator: t.Educator, admin: t.Admin }[c.role];
-                const count =
-                  c.role === 'educator'
-                    ? educators.length
-                    : c.role === 'admin'
-                      ? admins.length
-                      : everyone;
+              {ROLES.map((role) => {
+                const name = roleName(role, t);
+                const count = {
+                  learner: everyone,
+                  educator: educators.length,
+                  manager: managers.length,
+                  admin: admins.length,
+                }[role];
                 return (
-                  <section key={c.role} aria-label={name}>
-                    <StatCard label={name} value={String(count)} sub={c.text} />
+                  <section key={role} aria-label={name}>
+                    <StatCard label={name} value={String(count)} sub={ROLE_TEXT[role]} />
                   </section>
                 );
               })}
@@ -183,7 +190,8 @@ export function RolesPage() {
                 { id: 'what', header: 'Capability', rowHeader: true, cell: ([what]) => what },
                 { id: 'learner', header: t.Learner, cell: (r) => r[1] },
                 { id: 'educator', header: t.Educator, cell: (r) => r[2] },
-                { id: 'admin', header: t.Admin, cell: (r) => r[3] },
+                { id: 'manager', header: t.Manager, cell: (r) => r[3] },
+                { id: 'admin', header: t.Admin, cell: (r) => r[4] },
               ]}
             />
 
@@ -223,6 +231,49 @@ export function RolesPage() {
                           </Button>
                         </li>
                       ))}
+                    </ul>
+                  )}
+                </Paged>
+              )}
+            </Card>
+
+            <Card title={t.Managers}>
+              {managers.length === 0 ? (
+                <EmptyState title={`No ${t.Managers} yet`}>
+                  {`Grant the role to a team lead, then name them on a team in Teams.`}
+                </EmptyState>
+              ) : (
+                <Paged rows={managers} label={`${t.Managers} pages`}>
+                  {(onPage) => (
+                    <ul className="console-rows">
+                      {onPage.map((u) => {
+                        const theirs = teams.filter((x) =>
+                          (x.managerEmails ?? []).includes(u.email.toLowerCase()),
+                        );
+                        return (
+                          <li key={u.uid} className="console-row">
+                            <Avatar name={u.displayName || u.email} size={34} />
+                            <span className="console-row__text">
+                              <strong>{u.displayName || u.email}</strong>
+                              <span className="console-row__chips">
+                                {theirs.length === 0 ? (
+                                  <Chip>No teams yet</Chip>
+                                ) : (
+                                  theirs.map((x) => <Chip key={x.id}>{x.name}</Chip>)
+                                )}
+                              </span>
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setEditing(u)}
+                              aria-label={`Edit ${u.displayName || u.email} as ${t.Manager}`}
+                            >
+                              Edit
+                            </Button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </Paged>
@@ -290,7 +341,7 @@ function GrantDialog({
   const [user, setUser] = useState<UserRow | null>(initial);
   const people = usePeopleLookup(data);
   const [roles, setRoles] = useState<Held>(
-    initial ? held(initial) : { educator: true, admin: false },
+    initial ? held(initial) : { educator: true, manager: false, admin: false },
   );
   const [courseIds, setCourseIds] = useState<string[]>(initial?.grantedCourseIds ?? []);
   const [courseQuery, setCourseQuery] = useState('');
@@ -350,13 +401,19 @@ function GrantDialog({
       {user ? (
         <fieldset className="console-fieldset">
           <legend>Roles</legend>
-          <p>{`Everyone is ${article(t.Learner)}. Add either or both of the roles below.`}</p>
+          <p>{`Everyone is ${article(t.Learner)}. Add any of the roles below, alone or together.`}</p>
           <div className="console-switches">
             <ToggleCard
               title={t.Educator}
               description={ROLE_TEXT.educator}
               checked={roles.educator}
               onChange={(e) => setRoles({ ...roles, educator: e.target.checked })}
+            />
+            <ToggleCard
+              title={t.Manager}
+              description={ROLE_TEXT.manager}
+              checked={roles.manager}
+              onChange={(e) => setRoles({ ...roles, manager: e.target.checked })}
             />
             <ToggleCard
               title={t.Admin}
@@ -368,6 +425,9 @@ function GrantDialog({
           </div>
           {self && wasAdmin ? (
             <p>{`You cannot remove your own ${t.Admin} role. Ask another ${t.Admin}.`}</p>
+          ) : null}
+          {user.roles.includes('manager') && !roles.manager ? (
+            <p>{`Taking the ${t.Manager} role away also takes them off every team they manage. ${t.Admins} look after those teams until someone else is named.`}</p>
           ) : null}
         </fieldset>
       ) : null}

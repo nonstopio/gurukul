@@ -6,11 +6,12 @@ import { invalid, missing } from './validation.js';
  * users/{uid}.roles. Security rules read the claims; the UI reads the mirror.
  * See .plan/03-auth-and-roles.md.
  */
-export type Role = 'learner' | 'educator' | 'admin';
+export type Role = 'learner' | 'educator' | 'manager' | 'admin';
 
 /** Claim keys set by the role-grant function. */
 export interface RoleClaims {
   educator?: boolean;
+  manager?: boolean;
   admin?: boolean;
 }
 
@@ -18,6 +19,7 @@ export interface RoleClaims {
 export function rolesFromClaims(claims: RoleClaims | undefined): Role[] {
   const roles: Role[] = ['learner'];
   if (claims?.educator === true) roles.push('educator');
+  if (claims?.manager === true) roles.push('manager');
   if (claims?.admin === true) roles.push('admin');
   return roles;
 }
@@ -31,6 +33,8 @@ export function isAllowedEmail(email: string | undefined, domain = 'nonstopio.co
 /** What an Admin asks `setRoles` to change on one person. Omitted keys stay as they are. */
 export interface RoleChange {
   educator?: boolean;
+  /** Taking it away also removes the person from every team's `managerEmails`. */
+  manager?: boolean;
   admin?: boolean;
   /** The courses this person may edit as an Educator; replaces the previous list. At most 50. */
   grantedCourseIds?: string[];
@@ -64,7 +68,7 @@ export function planRoleChange(
   if (!isAllowedEmail(caller.email) || caller.claims?.admin !== true) {
     throw new ApiException('AUTH_2001', ['setRoles']);
   }
-  for (const field of ['educator', 'admin'] as const) {
+  for (const field of ['educator', 'manager', 'admin'] as const) {
     if (change[field] !== undefined && typeof change[field] !== 'boolean') {
       throw invalid(field, 'must be true or false');
     }
@@ -74,14 +78,16 @@ export function planRoleChange(
   }
   if (
     change.educator === undefined &&
+    change.manager === undefined &&
     change.admin === undefined &&
     change.grantedCourseIds === undefined
   ) {
-    throw missing('educator, admin or grantedCourseIds');
+    throw missing('educator, manager, admin or grantedCourseIds');
   }
   if (caller.uid === targetUid && change.admin === false) throw new ApiException('USR_1001');
   const claims = {
     educator: change.educator ?? current?.educator === true,
+    manager: change.manager ?? current?.manager === true,
     admin: change.admin ?? current?.admin === true,
   };
   return {

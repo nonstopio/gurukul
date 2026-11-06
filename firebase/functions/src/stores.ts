@@ -17,17 +17,18 @@ import { planCertificate } from './certificates.js';
 import type { CertificateAdmin } from './certificates.js';
 import type { CooldownAdmin } from './cooldown.js';
 import type { CourseStore, DraftData, LiveCourse, VersionData } from './courses.js';
-import type { AuditEntry } from './errors.js';
+import type { AuditEntry, TeamRecord } from './errors.js';
 import type { GradingStore } from './grading.js';
 import type { MediaFile, MediaStore, StoragePort } from './media.js';
 import type { UserStore } from './profile.js';
 import { log } from './logging/log.js';
 import type { ProgressStore } from './progress.js';
-import type { ReminderCandidate, ReminderStore } from './remind.js';
+import type { Notice, ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
 import { grantEducatorByCourse } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
 import type { TeamStore } from './teams.js';
+import type { ManagedAssignment, TeamReportStore } from './team-report.js';
 
 /** Splits a list into pieces of at most `size`: Firestore caps `in` queries and batches. */
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -39,6 +40,28 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 const writeAudit = async (db: Firestore, entry: AuditEntry): Promise<void> => {
   await db.collection('audit').add({ ...entry, at: FieldValue.serverTimestamp() });
 };
+
+const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+
+/** A `teams/{id}` snapshot as a `TeamRecord`; lists that are missing read as empty. */
+function toTeam(snap: { id: string; get(field: string): unknown }): TeamRecord {
+  return {
+    id: snap.id,
+    name: String(snap.get('name') ?? snap.id),
+    memberEmails: strings(snap.get('memberEmails')),
+    managerEmails: strings(snap.get('managerEmails')),
+  };
+}
+
+/** The existing teams among `ids`, by id: one `getAll`. */
+async function readTeams(db: Firestore, ids: string[]): Promise<Map<string, TeamRecord>> {
+  const found = new Map<string, TeamRecord>();
+  if (ids.length === 0) return found;
+  const snaps = await db.getAll(...ids.map((id) => db.doc(`teams/${id}`)));
+  for (const snap of snaps) if (snap.exists) found.set(snap.id, toTeam(snap));
+  return found;
+}
 
 /** `UserStore` over the Admin SDK. Kept thin: the decisions live in `profile.ts`. */
 export function firestoreUserStore(db: Firestore): UserStore {
@@ -113,6 +136,22 @@ export function firebaseRoleAdmin(auth: Auth, db: Firestore): RoleAdmin {
     },
     async mirrorRoles(uid, plan) {
       await db.doc(`users/${uid}`).set({ roles: plan.roles }, { merge: true });
+    },
+    async releaseManagedTeams(uid) {
+      const email = (await auth.getUser(uid)).email?.toLowerCase();
+      if (!email) return 0;
+      // A person manages a handful of teams at most; 100 bounds the read.
+      const snap = await db
+        .collection('teams')
+        .where('managerEmails', 'array-contains', email)
+        .limit(100)
+        .get();
+      if (snap.empty) return 0;
+      const batch = db.batch();
+      for (const d of snap.docs)
+        batch.update(d.ref, { managerEmails: FieldValue.arrayRemove(email) });
+      await batch.commit();
+      return snap.size;
     },
     async getGrantedCourseIds(uid) {
       return ((await db.doc(`users/${uid}`).get()).get('grantedCourseIds') ?? []) as string[];
@@ -341,6 +380,9 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
         ]),
       );
     },
+    async teams(ids) {
+      return readTeams(db, ids);
+    },
     async audiences(uids) {
       const found = new Map<string, Audience>();
       for (const part of chunk(uids, 300)) {
@@ -414,6 +456,7 @@ export function firestoreAssignStore(db: Firestore): AssignStore {
             mandatory: d.mandatory,
             reminder: d.reminder,
             status,
+            teamId: d.teamId,
           });
         }
         try {
@@ -481,6 +524,9 @@ function toCandidate(d: QueryDocumentSnapshot): ReminderCandidate {
     assignedAt: { toMillis(): number };
     dueAt?: Millis;
     lastRemindedAt?: Millis;
+    teamId?: string | null;
+    dueSoonSentAt?: Millis;
+    overdueSentAt?: Millis;
   };
   return {
     id: d.id,
@@ -492,8 +538,16 @@ function toCandidate(d: QueryDocumentSnapshot): ReminderCandidate {
     assignedAt: x.assignedAt.toMillis(),
     dueAt: millis(x.dueAt),
     lastRemindedAt: millis(x.lastRemindedAt),
+    teamId: x.teamId ?? null,
+    dueSoonSentAt: millis(x.dueSoonSentAt),
+    overdueSentAt: millis(x.overdueSentAt),
   };
 }
+
+const NOTICE_FIELD: Record<Notice, string> = {
+  dueSoon: 'dueSoonSentAt',
+  overdue: 'overdueSentAt',
+};
 
 const OPEN = ['assigned', 'started'];
 
@@ -537,8 +591,124 @@ export function firestoreReminderStore(db: Firestore): ReminderStore {
         await batch.commit();
       }
     },
+    async markNoticed(notices) {
+      for (const part of chunk(Object.entries(notices), 400)) {
+        const batch = db.batch();
+        for (const [id, notice] of part) {
+          batch.update(db.doc(`assignments/${id}`), {
+            [NOTICE_FIELD[notice]]: FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    },
+    async teamManagers(teamIds) {
+      const teams = await readTeams(db, teamIds);
+      return Object.fromEntries([...teams].map(([id, team]) => [id, team.managerEmails]));
+    },
+    async team(id) {
+      return (await readTeams(db, [id])).get(id);
+    },
     async remindersEnabled() {
       return (await db.doc('config/org').get()).get('reminders')?.enabled === true;
+    },
+    async audit(entry) {
+      await writeAudit(db, entry);
+    },
+  };
+}
+
+function toManaged(d: { id: string; data(): unknown }): ManagedAssignment {
+  const x = d.data() as {
+    email: string;
+    uid?: string | null;
+    courseId: string;
+    status: ManagedAssignment['status'];
+    dueAt?: Millis;
+    teamId?: string | null;
+  };
+  return {
+    id: d.id,
+    email: x.email,
+    uid: x.uid ?? null,
+    courseId: x.courseId,
+    status: x.status,
+    dueAt: millis(x.dueAt),
+    teamId: x.teamId ?? null,
+  };
+}
+
+/** `TeamReportStore` over the Admin SDK: reads bounded by the team's size (500 at most). */
+export function firestoreTeamReportStore(db: Firestore): TeamReportStore {
+  return {
+    async team(id) {
+      return (await readTeams(db, [id])).get(id);
+    },
+    async assignment(id) {
+      const snap = await db.doc(`assignments/${id}`).get();
+      return snap.exists ? toManaged(snap) : undefined;
+    },
+    async assignmentsFor(emails) {
+      const out: ManagedAssignment[] = [];
+      for (const part of chunk(emails, 30)) {
+        const snap = await db.collection('assignments').where('email', 'in', part).get();
+        out.push(...snap.docs.map(toManaged));
+      }
+      return out;
+    },
+    async profiles(emails) {
+      const found = new Map<string, { uid: string; displayName: string | null }>();
+      for (const part of chunk(emails, 30)) {
+        const snap = await db.collection('users').where('email', 'in', part).get();
+        for (const d of snap.docs) {
+          const name = d.get('displayName');
+          found.set(d.get('email'), {
+            uid: d.id,
+            displayName: typeof name === 'string' && name !== '' ? name : null,
+          });
+        }
+      }
+      return found;
+    },
+    async percents(pairs) {
+      const found = new Map<string, number>();
+      for (const part of chunk(pairs, 300)) {
+        const snaps = await db.getAll(
+          ...part.map((p) => db.doc(`progress/${progressDocId(p.uid, p.courseId)}`)),
+        );
+        for (const snap of snaps) {
+          const percent = snap.exists ? snap.get('percent') : undefined;
+          if (typeof percent === 'number') found.set(snap.id, percent);
+        }
+      }
+      return found;
+    },
+    async courseTitles(ids) {
+      const snaps = await db.getAll(...ids.map((id) => db.doc(`courses/${id}`)));
+      return Object.fromEntries(snaps.map((snap) => [snap.id, snap.get('title')]));
+    },
+    async setDueAt(id, dueAt) {
+      await db.doc(`assignments/${id}`).update({
+        dueAt: dueAt === null ? null : Timestamp.fromMillis(dueAt),
+        dueSoonSentAt: null,
+        overdueSentAt: null,
+      });
+    },
+    async deleteAssignment(assignment) {
+      const batch = db.batch();
+      batch.delete(db.doc(`assignments/${assignment.id}`));
+      // The daily roll-up recounts both from the assignments; this keeps them right until then.
+      batch.set(
+        db.doc(`stats/course_${assignment.courseId}`),
+        { assigned: FieldValue.increment(-1) },
+        { merge: true },
+      );
+      batch.set(
+        db.doc('stats/org'),
+        { assignmentsTotal: FieldValue.increment(-1) },
+        { merge: true },
+      );
+      await batch.commit();
     },
     async audit(entry) {
       await writeAudit(db, entry);

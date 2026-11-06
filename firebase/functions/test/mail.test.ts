@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildAssignedEmail,
+  buildDeadlineEmail,
   buildReminderEmail,
   buildRevokedEmail,
   courseLink,
@@ -76,5 +77,59 @@ describe('buildRevokedEmail', () => {
     expect(m.subject).toBe('Your certificate for Git basics was revoked');
     expect(m.text).toContain('"Git basics"');
     expect(m.text).toContain('gurukul@nonstopio.com');
+  });
+
+  describe('deadline email', () => {
+    const late = { id: 'git', title: 'Git', dueAt: Date.UTC(2026, 10, 1) };
+    const soon = { id: 'sql', title: 'SQL', dueAt: Date.UTC(2026, 10, 9) };
+    const other = { id: 'css', title: 'CSS', dueAt: null };
+
+    it('lists overdue, then due soon, then the rest, and says the manager is copied', () => {
+      const m = buildDeadlineEmail(
+        'p@example.com',
+        { overdue: [late], dueSoon: [soon], others: [other, { ...soon, id: 'go', title: 'Go' }] },
+        ['m@example.com'],
+      );
+      expect(m.to).toBe('p@example.com');
+      expect(m.cc).toEqual(['m@example.com']);
+      expect(m.subject).toBe('2 courses on NonStop Academy are overdue or due soon');
+      expect(m.text).toContain(
+        '- Git: https://nonstop-gurukul.web.app/courses/git (was due 1 Nov 2026)',
+      );
+      expect(m.text).toContain('(finish by 9 Nov 2026)');
+      expect(m.text).toContain('- CSS: https://nonstop-gurukul.web.app/courses/css\n');
+      const order = ['Past the due date', 'Due soon', 'Also waiting for you'].map((h) =>
+        m.text.indexOf(h),
+      );
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+      expect(order[0]).toBeGreaterThan(0);
+      expect(m.text).toContain('manager is copied');
+    });
+
+    it('names a single course in the subject and copies nobody by default', () => {
+      const overdue = buildDeadlineEmail('p@example.com', {
+        overdue: [late],
+        dueSoon: [],
+        others: [],
+      });
+      expect(overdue.subject).toBe('Overdue: Git on NonStop Academy');
+      expect(overdue).not.toHaveProperty('cc');
+      expect(overdue.text).not.toContain('Due soon');
+      expect(overdue.text).not.toContain('Also waiting');
+      expect(overdue.text).not.toContain('copied');
+      const dueSoon = buildDeadlineEmail(
+        'p@example.com',
+        { overdue: [], dueSoon: [soon], others: [] },
+        [],
+      );
+      expect(dueSoon.subject).toBe('Due soon: SQL on NonStop Academy');
+      expect(dueSoon.text).not.toContain('Past the due date');
+      const two = buildDeadlineEmail('p@example.com', {
+        overdue: [],
+        dueSoon: [soon, soon],
+        others: [],
+      });
+      expect(two.subject).toBe('2 courses on NonStop Academy are due soon');
+    });
   });
 });

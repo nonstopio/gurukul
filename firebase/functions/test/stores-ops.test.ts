@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import type { Notice } from '../src/remind.js';
 import {
   bucketStoragePort,
   firebaseRoleAdmin,
@@ -253,6 +254,7 @@ describe('firestoreAssignStore', () => {
       dueAt: i === 0 ? 1000 : null,
       mandatory: true,
       reminder: 'weekly' as const,
+      teamId: i === 0 ? 'sales' : null,
     }));
     expect(await firestoreAssignStore(db).createAssignments('k', 'Kavya Rao', docs)).toEqual([]);
     expect(batches[0]?.create).toHaveBeenCalledTimes(400);
@@ -269,11 +271,12 @@ describe('firestoreAssignStore', () => {
       mandatory: true,
       reminder: 'weekly',
       status: 'assigned',
+      teamId: 'sales',
     });
     expect(batches[0]?.create).toHaveBeenNthCalledWith(
       2,
       'assignments/git__1',
-      expect.objectContaining({ uid: null, dueAt: null }),
+      expect.objectContaining({ uid: null, dueAt: null, teamId: null }),
     );
     expect(batches[0]?.commit).toHaveBeenCalledOnce();
     expect(batches[1]?.commit).toHaveBeenCalledOnce();
@@ -297,6 +300,7 @@ describe('firestoreAssignStore', () => {
       dueAt: null,
       mandatory: true,
       reminder: 'weekly' as const,
+      teamId: null,
     });
     await firestoreAssignStore(db).createAssignments('k', null, [doc('priya'), doc('ravi')]);
     expect(batch.create).toHaveBeenNthCalledWith(
@@ -326,6 +330,7 @@ describe('firestoreAssignStore', () => {
       dueAt: null,
       mandatory: true,
       reminder: 'weekly' as const,
+      teamId: null,
     }));
     const failed = await firestoreAssignStore(db).createAssignments('k', 'Kavya Rao', docs);
     expect(failed).toHaveLength(400);
@@ -417,6 +422,9 @@ describe('firestoreReminderStore', () => {
     assignedAt: 10,
     dueAt: 20,
     lastRemindedAt: 30,
+    teamId: null,
+    dueSoonSentAt: null,
+    overdueSentAt: null,
   };
 
   it('lists a course’s open assignments, reading times as milliseconds', async () => {
@@ -432,6 +440,18 @@ describe('firestoreReminderStore', () => {
     expect(where2).toHaveBeenCalledWith('status', 'in', ['assigned', 'started']);
     expect(out[0]).toEqual(expected);
     expect(out[1]).toMatchObject({ id: 'y', mandatory: false, dueAt: null, lastRemindedAt: null });
+  });
+
+  it('reads the team and the deadline notice stamps', async () => {
+    const get = vi.fn().mockResolvedValue({
+      docs: [snap('x', { teamId: 'sales', dueSoonSentAt: ts(40), overdueSentAt: ts(50) })],
+    });
+    const limit = vi.fn().mockReturnValue({ get });
+    const where = vi.fn().mockReturnValue({ limit });
+    const db = { collection: vi.fn().mockReturnValue({ where }) } as never;
+    expect(await firestoreReminderStore(db).scheduled()).toEqual([
+      { ...expected, teamId: 'sales', dueSoonSentAt: 40, overdueSentAt: 50 },
+    ]);
   });
 
   it('lists the assignments of emails in chunks of 30', async () => {
@@ -476,6 +496,54 @@ describe('firestoreReminderStore', () => {
     await firestoreReminderStore(db).markReminded(Array.from({ length: 401 }, (_, i) => `a${i}`));
     expect(batches[0]?.update).toHaveBeenCalledTimes(400);
     expect(batches[1]?.update).toHaveBeenCalledWith('assignments/a400', { lastRemindedAt: 'NOW' });
+  });
+
+  it('stamps each notice in its own field, in batches of 400', async () => {
+    const batches = [batchOf(), batchOf()];
+    const db = {
+      doc: vi.fn((p: string) => p),
+      batch: vi.fn().mockReturnValueOnce(batches[0]).mockReturnValueOnce(batches[1]),
+    } as never;
+    const notices: Record<string, Notice> = Object.fromEntries(
+      Array.from({ length: 401 }, (_, i) => [`a${i}`, i === 400 ? 'overdue' : 'dueSoon']),
+    );
+    await firestoreReminderStore(db).markNoticed(notices);
+    expect(batches[0]?.update).toHaveBeenCalledTimes(400);
+    expect(batches[0]?.update).toHaveBeenCalledWith('assignments/a0', { dueSoonSentAt: 'NOW' });
+    expect(batches[1]?.update).toHaveBeenCalledWith('assignments/a400', { overdueSentAt: 'NOW' });
+  });
+
+  it('reads the current managers of existing teams, and one team', async () => {
+    const team = (id: string, fields: Record<string, unknown>) => ({
+      id,
+      exists: true,
+      get: (k: string) => fields[k],
+    });
+    const getAll = vi
+      .fn()
+      .mockResolvedValueOnce([
+        team('sales', { name: 'Sales', managerEmails: ['m@nonstopio.com', 3] }),
+        team('ops', {}),
+        { id: 'gone', exists: false },
+      ])
+      .mockResolvedValueOnce([team('sales', { name: 'Sales', memberEmails: ['p@nonstopio.com'] })])
+      .mockResolvedValueOnce([{ id: 'gone', exists: false }]);
+    const db = { doc: vi.fn((p: string) => p), getAll } as never;
+    const store = firestoreReminderStore(db);
+    expect(await store.teamManagers(['sales', 'ops', 'gone'])).toEqual({
+      sales: ['m@nonstopio.com'],
+      ops: [],
+    });
+    expect(getAll).toHaveBeenCalledWith('teams/sales', 'teams/ops', 'teams/gone');
+    expect(await store.team('sales')).toEqual({
+      id: 'sales',
+      name: 'Sales',
+      memberEmails: ['p@nonstopio.com'],
+      managerEmails: [],
+    });
+    expect(await store.team('gone')).toBeUndefined();
+    expect(await store.teamManagers([])).toEqual({});
+    expect(getAll).toHaveBeenCalledTimes(3);
   });
 
   it('reads the reminder switch, off when config is missing or empty', async () => {

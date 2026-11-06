@@ -47,7 +47,7 @@ import {
   tabCounts,
 } from './model';
 import type { LearnerRow, LearnerTab, Person } from './model';
-import type { AssignmentFull, UserPage, UserRow } from './types';
+import type { AssignmentFull, GrantedRole, UserPage, UserRow } from './types';
 
 /** People per read when "Select all" walks the whole list. */
 const SELECT_ALL_READ = 100;
@@ -201,7 +201,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       team
         ? data.usersInTeam(team)
         : role
-          ? data.usersWithRole(role as 'educator' | 'admin')
+          ? data.usersWithRole(role as GrantedRole)
           : prefix
             ? data.searchUsers(prefix)
             : null,
@@ -373,7 +373,9 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
               cell: (r) =>
                 r.roles
                   .filter((x) => x !== 'learner')
-                  .map((x) => (x === 'admin' ? terms.Admin : terms.Educator))
+                  .map((x) =>
+                    x === 'admin' ? terms.Admin : x === 'manager' ? terms.Manager : terms.Educator,
+                  )
                   .join(', ') || (r.status === 'invited' ? '—' : terms.Learner),
             },
             { id: 'courses', header: 'Courses', cell: (r) => `${r.assigned} · ${r.done} done` },
@@ -461,6 +463,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
         >
           <option value="">Any role</option>
           <option value="educator">{terms.Educator}</option>
+          <option value="manager">{terms.Manager}</option>
           <option value="admin">{terms.Admin}</option>
         </Select>
       </FilterBar>
@@ -550,15 +553,15 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
 
 /** What to do to one role for everyone selected. */
 type RoleAction = 'keep' | 'add' | 'remove';
-/** The roles to change; a role left out stays as it is. Educator and Admin are independent. */
-type BulkRoleChange = { educator?: boolean; admin?: boolean };
+/** The roles to change; a role left out stays as it is. The three roles are independent. */
+type BulkRoleChange = { educator?: boolean; manager?: boolean; admin?: boolean };
 
-const flag = (key: 'educator' | 'admin', a: RoleAction): BulkRoleChange =>
+const flag = (key: GrantedRole, a: RoleAction): BulkRoleChange =>
   a === 'keep' ? {} : { [key]: a === 'add' };
 
 /**
- * Adds or removes Educator and Admin on everyone selected, each on its own, as the Roles screen
- * does. Everyone is a Learner, so there is no third role to pick. Pending invites have no account
+ * Adds or removes Educator, Manager and Admin on everyone selected, each on its own, as the Roles
+ * screen does. Everyone is a Learner, so that is not a role to pick. Pending invites have no account
  * yet and your own account cannot lose Admin, so those are skipped and counted, not failed.
  */
 function BulkRoleDialog({
@@ -574,12 +577,17 @@ function BulkRoleDialog({
 }) {
   const t = useTerms();
   const [educator, setEducator] = useState<RoleAction>('add');
+  const [manager, setManager] = useState<RoleAction>('keep');
   const [admin, setAdmin] = useState<RoleAction>('keep');
   const [saving, setSaving] = useState(false);
   const eligible = people.filter((p) => p.uid !== null && !(p.uid === meUid && admin === 'remove'));
   const skipped = people.length - eligible.length;
-  const nothingToChange = educator === 'keep' && admin === 'keep';
-  const change: BulkRoleChange = { ...flag('educator', educator), ...flag('admin', admin) };
+  const nothingToChange = educator === 'keep' && manager === 'keep' && admin === 'keep';
+  const change: BulkRoleChange = {
+    ...flag('educator', educator),
+    ...flag('manager', manager),
+    ...flag('admin', admin),
+  };
   return (
     <Dialog
       open
@@ -599,7 +607,7 @@ function BulkRoleDialog({
       }
     >
       <p>
-        {`Everyone is ${article(t.Learner)}. ${t.Educator} and ${t.Admin} are separate: change either or both.`}
+        {`Everyone is ${article(t.Learner)}. ${t.Educator}, ${t.Manager} and ${t.Admin} are separate: change any of them.`}
       </p>
       <Select
         label={t.Educator}
@@ -609,6 +617,15 @@ function BulkRoleDialog({
         <option value="keep">Leave as it is</option>
         <option value="add">{`Make ${t.Educator}`}</option>
         <option value="remove">{`Remove ${t.Educator}`}</option>
+      </Select>
+      <Select
+        label={t.Manager}
+        value={manager}
+        onChange={(e) => setManager(e.target.value as RoleAction)}
+      >
+        <option value="keep">Leave as it is</option>
+        <option value="add">{`Make ${t.Manager}`}</option>
+        <option value="remove">{`Remove ${t.Manager}`}</option>
       </Select>
       <Select
         label={t.Admin}

@@ -20,7 +20,7 @@ export async function openApp(
     console?: ReturnType<typeof fakeConsole>;
     studio?: ReturnType<typeof fakeStudio>;
     signedIn?: boolean;
-    roles?: Array<'educator' | 'admin'>;
+    roles?: Array<'educator' | 'manager' | 'admin'>;
     /** The person's label set; `null` for someone who has not picked one yet. */
     labels?: LabelSet | null;
     /** Overrides on the signed-in Google user (a missing display name, say). */

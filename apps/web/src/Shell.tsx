@@ -74,12 +74,14 @@ export function groupByArea(destinations: readonly Destination[]): [string, Dest
   return [...groups];
 }
 
-export type AreaKey = 'learn' | 'studio' | 'admin';
+export type AreaKey = 'learn' | 'studio' | 'team' | 'admin';
+
+const AREA_KEYS: readonly AreaKey[] = ['learn', 'studio', 'team', 'admin'];
 
 /** The area a route belongs to, by its first segment: what the switcher highlights. */
 export function areaKeyOf(path: string): AreaKey {
-  if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
-  return path === '/studio' || path.startsWith('/studio/') ? 'studio' : 'learn';
+  const first = path.split('/')[1] as AreaKey;
+  return AREA_KEYS.includes(first) ? first : 'learn';
 }
 
 /**
@@ -169,6 +171,8 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'studio-teams': UsersIcon,
   'studio-bank': ChecklistIcon,
   'studio-media': ImageIcon,
+  'team-teams': UsersIcon,
+  'team-assign': SendIcon,
 };
 
 /** The sidebar icon for a page, by its navigation id; none for an id without one. */
@@ -177,10 +181,17 @@ export function navIcon(id: string): ReactNode {
   return Glyph ? <Glyph /> : undefined;
 }
 
-/** The highest role picks the avatar's colour. */
+/** The highest role picks the avatar's colour. A Manager has no colour of their own yet. */
 export function topRole(roles: readonly Role[]): AvatarTone {
   if (roles.includes('admin')) return 'admin';
   return roles.includes('educator') ? 'educator' : 'learner';
+}
+
+/** The person's highest role by name, for the account menu: Admin, Educator, Manager, Learner. */
+export function roleLabel(roles: readonly Role[], t: Terms): string {
+  if (roles.includes('admin')) return t.Admin;
+  if (roles.includes('educator')) return t.Educator;
+  return roles.includes('manager') ? t.Manager : t.Learner;
 }
 
 /**
@@ -202,8 +213,8 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   );
   const here = pathname.replace(/\/+$/, '') || '/';
   const area = areaKeyOf(here);
-  // The areas this person may open, in Learn, Studio, Admin order, each starting at its first page.
-  const switcher = (['learn', 'studio', 'admin'] as const).flatMap((key) => {
+  // The areas this person may open, in Learn, Studio, Team, Admin order, each at its first page.
+  const switcher = AREA_KEYS.flatMap((key) => {
     const first = destinations.find((d) => areaKeyOf(d.path) === key);
     return first ? [{ key, first }] : [];
   });
@@ -212,7 +223,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const groups = groupByArea(
     switcher.length > 1 ? navigable.filter((d) => areaKeyOf(d.path) === area) : navigable,
   );
-  const areaName = { learn: 'Learn', studio: t.Studio, admin: t.Admin };
+  const areaName = { learn: 'Learn', studio: t.Studio, team: 'Team', admin: t.Admin };
   const tone = topRole(roles);
   const nextLabels: LabelSet = labels === 'gurukul' ? 'generic' : 'gurukul';
 
@@ -245,7 +256,7 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
           }
           footer={
             <UserCard
-              roleLabel={{ admin: t.Admin, educator: t.Educator, learner: t.Learner }[tone]}
+              roleLabel={roleLabel(roles, t)}
               name={shownName(user.displayName, String(user.email))}
               detail={String(user.email)}
               tone={tone}

@@ -29,6 +29,9 @@ const handlePublishCourse = vi.fn();
 const handleSetCourseAccess = vi.fn();
 const handleRollbackCourse = vi.fn();
 const handleArchiveCourse = vi.fn();
+const handleTeamReport = vi.fn();
+const handleUpdateAssignment = vi.fn();
+const handleRemoveAssignment = vi.fn();
 const handleAttemptCreated = vi.fn().mockResolvedValue('counted');
 const runDailyRollup = vi.fn().mockResolvedValue({});
 const runDailyReminders = vi.fn().mockResolvedValue({});
@@ -118,6 +121,9 @@ vi.mock('../src/handlers.js', async (orig) => ({
   handleSetCourseAccess,
   handleRollbackCourse,
   handleArchiveCourse,
+  handleTeamReport,
+  handleUpdateAssignment,
+  handleRemoveAssignment,
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -335,6 +341,9 @@ describe('index', () => {
       'setCourseAccess',
       'rollbackCourse',
       'archiveCourse',
+      'teamReport',
+      'updateAssignment',
+      'removeAssignment',
     ] as const;
     expect(created).toHaveLength(callables.length);
     for (const name of callables) expect(created).toContain(mod[name]);
@@ -369,6 +378,9 @@ describe('index', () => {
       [mod.setCourseAccess, handleSetCourseAccess, []],
       [mod.rollbackCourse, handleRollbackCourse, []],
       [mod.archiveCourse, handleArchiveCourse, []],
+      [mod.teamReport, handleTeamReport, []],
+      [mod.updateAssignment, handleUpdateAssignment, [Date.now]],
+      [mod.removeAssignment, handleRemoveAssignment, []],
     ] as const;
     handleListEmailTemplates.mockReturnValueOnce([]);
     expect(

@@ -1,5 +1,5 @@
 /** Gurukul roles. Everyone signed in is a Learner; the others are granted. */
-export type Role = 'learner' | 'educator' | 'admin';
+export type Role = 'learner' | 'educator' | 'manager' | 'admin';
 
 /** One page somebody can open from global search (and, from M1, the sidebar). */
 export interface PageNavigation {

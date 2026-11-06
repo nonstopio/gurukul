@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { remindLearners, runDailyReminders, selectManual, selectScheduled } from '../src/remind.js';
+import {
+  ccFor,
+  noticeFor,
+  remindLearners,
+  runDailyReminders,
+  selectManual,
+  selectScheduled,
+} from '../src/remind.js';
 import type { ReminderCandidate, ReminderStore, Selection } from '../src/remind.js';
 
 const DAY = 86_400_000;
@@ -14,6 +21,9 @@ const cand = (id: string, over: Partial<ReminderCandidate> = {}): ReminderCandid
   assignedAt: NOW - 30 * DAY,
   dueAt: null,
   lastRemindedAt: null,
+  teamId: null,
+  dueSoonSentAt: null,
+  overdueSentAt: null,
   ...over,
 });
 
@@ -78,7 +88,7 @@ describe('selectScheduled', () => {
       [
         cand('soon', { ...base, dueAt: NOW + 2 * DAY }),
         cand('overdue', { ...base, dueAt: NOW - DAY, lastRemindedAt: NOW - DAY + 60_000 }),
-        cand('far', { ...base, dueAt: NOW + 4 * DAY }),
+        cand('far', { ...base, dueAt: NOW + 4 * DAY, dueSoonSentAt: NOW - DAY }),
         cand('nodue', { ...base, dueAt: null }),
         cand('today', { ...base, dueAt: NOW + DAY, lastRemindedAt: NOW - 3_600_000 }),
       ],
@@ -130,6 +140,9 @@ function setup(over: Partial<ReminderStore> = {}, enabled = true) {
     scheduled: vi.fn().mockResolvedValue([cand('a', { assignedAt: NOW - 9 * DAY })]),
     courseTitles: vi.fn().mockResolvedValue({ git: 'Git basics' }),
     markReminded: vi.fn().mockResolvedValue(undefined),
+    markNoticed: vi.fn().mockResolvedValue(undefined),
+    teamManagers: vi.fn().mockResolvedValue({}),
+    team: vi.fn().mockResolvedValue(undefined),
     remindersEnabled: vi.fn().mockResolvedValue(enabled),
     audit: vi.fn().mockResolvedValue(undefined),
     ...over,
@@ -230,7 +243,8 @@ describe('remindLearners', () => {
       ),
     ).rejects.toMatchObject({ code: 'AUTH_2001' });
     for (const [bad, code, field] of [
-      [{}, 'VAL_1001', 'courseId or emails'],
+      [{}, 'VAL_1001', 'courseId, emails or teamId'],
+      [{ teamId: '' }, 'VAL_1002', 'teamId'],
       [{ courseId: '' }, 'VAL_1002', 'courseId'],
       [{ courseId: 4 }, 'VAL_1002', 'courseId'],
       [{ emails: [] }, 'VAL_1004', 'emails'],
@@ -288,5 +302,210 @@ describe('runDailyReminders', () => {
     });
     expect(await runDailyReminders(deps, NOW)).toEqual({ sent: 0, skipped: 1 });
     expect(store.markReminded).not.toHaveBeenCalled();
+  });
+});
+
+describe('noticeFor', () => {
+  it('owes overdue once the due date has passed, and due-soon within 5 days, once each', () => {
+    const due = (dueAt: number, over: Partial<ReminderCandidate> = {}) =>
+      noticeFor(cand('a', { dueAt, ...over }), NOW);
+    expect(due(NOW)).toBe('overdue');
+    expect(due(NOW - DAY, { dueSoonSentAt: NOW - 5 * DAY })).toBe('overdue');
+    expect(due(NOW - DAY, { overdueSentAt: NOW - 1000 })).toBeNull();
+    expect(due(NOW + 5 * DAY)).toBe('dueSoon');
+    expect(due(NOW + 1)).toBe('dueSoon');
+    expect(due(NOW + 5 * DAY + 1)).toBeNull();
+    expect(due(NOW + DAY, { dueSoonSentAt: NOW - DAY })).toBeNull();
+  });
+
+  it('owes nothing without a due date, for reminder "none" or a finished course', () => {
+    expect(noticeFor(cand('a'), NOW)).toBeNull();
+    expect(noticeFor(cand('a', { dueAt: NOW - DAY, reminder: 'none' }), NOW)).toBeNull();
+    expect(noticeFor(cand('a', { dueAt: NOW - DAY, status: 'completed' }), NOW)).toBeNull();
+  });
+});
+
+describe('selectScheduled deadline notices', () => {
+  it('adds notices for optional assignments too and names each one owed', () => {
+    const p = { email: 'p@nonstopio.com' };
+    const out = selectScheduled(
+      [
+        cand('late', { ...p, mandatory: false, dueAt: NOW - DAY }),
+        cand('soon', { ...p, courseId: 'sql', reminder: 'beforeDue', dueAt: NOW + 2 * DAY }),
+        cand('weekly', { ...p, courseId: 'css', assignedAt: NOW - 8 * DAY }),
+        cand('quiet', { email: 'q@nonstopio.com', mandatory: false, dueAt: NOW + 9 * DAY }),
+      ],
+      NOW,
+    );
+    expect(out.due).toHaveLength(1);
+    expect(ids(out.due)).toEqual([['late', 'soon', 'weekly']]);
+    expect(out.due[0]?.notices).toEqual({ late: 'overdue', soon: 'dueSoon' });
+    expect(out.skipped).toBe(0);
+  });
+
+  it('holds a notice for tomorrow when the person was reminded today', () => {
+    const out = selectScheduled(
+      [cand('late', { mandatory: false, dueAt: NOW - DAY, lastRemindedAt: NOW - 1000 })],
+      NOW,
+    );
+    expect(out.due).toEqual([]);
+    expect(out.skipped).toBe(1);
+  });
+
+  it('gives a plain reminder no notices', () => {
+    expect(selectManual([cand('a', { dueAt: NOW - DAY })], NOW).due[0]?.notices).toEqual({});
+  });
+});
+
+describe('ccFor', () => {
+  const person = (
+    assignments: ReminderCandidate[],
+    notices: Record<string, 'dueSoon' | 'overdue'>,
+  ) => ({
+    email: 'p@nonstopio.com',
+    assignments,
+    notices,
+  });
+
+  it('copies the managers of the notice assignments’ teams, deduped and without the learner', () => {
+    const cc = ccFor(
+      person(
+        [
+          cand('a', { teamId: 'sales' }),
+          cand('b', { teamId: 'ops' }),
+          cand('c', { teamId: 'hr' }),
+          cand('d', { teamId: null }),
+          cand('e', { teamId: 'gone' }),
+        ],
+        { a: 'overdue', b: 'dueSoon', d: 'overdue', e: 'dueSoon' },
+      ),
+      {
+        sales: ['m@nonstopio.com', 'p@nonstopio.com'],
+        ops: ['m@nonstopio.com', 'n@nonstopio.com'],
+        hr: ['h@nonstopio.com'],
+      },
+    );
+    expect(cc).toEqual(['m@nonstopio.com', 'n@nonstopio.com']);
+  });
+
+  it('copies at most 10 people', () => {
+    const managers = { sales: Array.from({ length: 12 }, (_, i) => `m${i}@nonstopio.com`) };
+    const cc = ccFor(person([cand('a', { teamId: 'sales' })], { a: 'overdue' }), managers);
+    expect(cc).toHaveLength(10);
+  });
+});
+
+describe('runDailyReminders deadline email', () => {
+  const p = { email: 'p@nonstopio.com' };
+  const scheduled = [
+    cand('late', { ...p, mandatory: false, dueAt: NOW - DAY, teamId: 'sales' }),
+    cand('soon', { ...p, courseId: 'sql', dueAt: NOW + 2 * DAY, teamId: null }),
+    cand('weekly', { ...p, courseId: 'css', assignedAt: NOW - 8 * DAY, teamId: 'ops' }),
+    cand('other', { email: 'q@nonstopio.com', assignedAt: NOW - 8 * DAY, teamId: 'ops' }),
+  ];
+
+  it('sends the deadline email with the team managers in CC, and stamps the notices', async () => {
+    const { store, mailer, deps } = setup({
+      scheduled: vi.fn().mockResolvedValue(scheduled),
+      courseTitles: vi.fn().mockResolvedValue({ git: 'Git basics', sql: 'SQL', css: 'CSS' }),
+      teamManagers: vi.fn().mockResolvedValue({ sales: ['m@nonstopio.com'] }),
+    });
+    expect(await runDailyReminders(deps, NOW)).toEqual({ sent: 2, skipped: 0 });
+    expect(store.teamManagers).toHaveBeenCalledWith(['sales']);
+    const [deadline, plain] = mailer.send.mock.calls.map(([m]) => m);
+    expect(deadline).toMatchObject({ to: 'p@nonstopio.com', cc: ['m@nonstopio.com'] });
+    expect(deadline.text.indexOf('Git basics')).toBeLessThan(deadline.text.indexOf('CSS'));
+    expect(deadline.text.indexOf('SQL')).toBeLessThan(deadline.text.indexOf('CSS'));
+    expect(plain).toMatchObject({ to: 'q@nonstopio.com' });
+    expect(plain).not.toHaveProperty('cc');
+    expect(store.markReminded).toHaveBeenCalledWith(['late', 'soon', 'weekly', 'other']);
+    expect(store.markNoticed).toHaveBeenCalledWith({ late: 'overdue', soon: 'dueSoon' });
+  });
+
+  it('reads no managers when no notice came through a team, and copies nobody', async () => {
+    const { store, mailer, deps } = setup({
+      scheduled: vi.fn().mockResolvedValue([scheduled[1]]),
+    });
+    await runDailyReminders(deps, NOW);
+    expect(store.teamManagers).not.toHaveBeenCalled();
+    expect(mailer.send.mock.calls[0]?.[0]).not.toHaveProperty('cc');
+    expect(store.markNoticed).toHaveBeenCalledWith({ soon: 'dueSoon' });
+  });
+
+  it('stamps no notice of a person whose email was not sent', async () => {
+    const { store, mailer, deps } = setup({ scheduled: vi.fn().mockResolvedValue(scheduled) });
+    mailer.send.mockRejectedValueOnce(new Error('mail down'));
+    await expect(runDailyReminders(deps, NOW)).rejects.toThrow('mail down');
+    expect(store.markReminded).not.toHaveBeenCalled();
+    expect(store.markNoticed).not.toHaveBeenCalled();
+  });
+});
+
+describe('remindLearners for a team', () => {
+  const manager = { uid: 'm', email: 'M@nonstopio.com', claims: { manager: true } };
+  const sales = {
+    id: 'sales',
+    name: 'Sales',
+    memberEmails: ['C@nonstopio.com', 'd@nonstopio.com'],
+    managerEmails: ['m@nonstopio.com'],
+  };
+
+  it('lets a manager remind the members of a team they manage, and audits the team', async () => {
+    const { store, mailer, deps } = setup({ team: vi.fn().mockResolvedValue(sales) });
+    expect(await remindLearners(deps, manager, { teamId: 'sales' }, NOW)).toEqual({
+      sent: 2,
+      skipped: 0,
+    });
+    expect(store.team).toHaveBeenCalledWith('sales');
+    expect(store.forEmails).toHaveBeenCalledWith(['c@nonstopio.com', 'd@nonstopio.com']);
+    expect(mailer.send).toHaveBeenCalledTimes(2);
+    expect(store.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: 'm',
+        detail: { courseId: null, teamId: 'sales', sent: 2, skipped: 0 },
+      }),
+    );
+  });
+
+  it('narrows a course or a list of emails to the team', async () => {
+    const course = setup({ team: vi.fn().mockResolvedValue(sales) });
+    expect(
+      await remindLearners(course.deps, manager, { teamId: 'sales', courseId: 'sql' }, NOW),
+    ).toEqual({ sent: 1, skipped: 0 });
+    expect(course.store.forCourse).not.toHaveBeenCalled();
+    const listed = setup({ team: vi.fn().mockResolvedValue(sales) });
+    await remindLearners(
+      listed.deps,
+      admin,
+      { teamId: 'sales', emails: ['d@nonstopio.com', 'x@nonstopio.com'] },
+      NOW,
+    );
+    expect(listed.store.forEmails).toHaveBeenCalledWith(['d@nonstopio.com']);
+    const outside = setup({ team: vi.fn().mockResolvedValue(sales) });
+    expect(
+      await remindLearners(
+        outside.deps,
+        admin,
+        { teamId: 'sales', emails: ['x@nonstopio.com'] },
+        NOW,
+      ),
+    ).toEqual({ sent: 0, skipped: 0 });
+    expect(outside.store.forEmails).not.toHaveBeenCalled();
+  });
+
+  it('refuses a manager without a team, with a team they do not manage, and an unknown team', async () => {
+    const { deps } = setup({ team: vi.fn().mockResolvedValue({ ...sales, managerEmails: [] }) });
+    await expect(remindLearners(deps, manager, { courseId: 'git' }, NOW)).rejects.toMatchObject({
+      code: 'AUTH_2001',
+      details: { field: 'teamId' },
+    });
+    await expect(remindLearners(deps, manager, { teamId: 'sales' }, NOW)).rejects.toMatchObject({
+      code: 'AUTH_2001',
+      details: { teamId: 'sales' },
+    });
+    const missing = setup();
+    await expect(
+      remindLearners(missing.deps, admin, { teamId: 'nope' }, NOW),
+    ).rejects.toMatchObject({ code: 'VAL_1003', details: { field: 'teamId' } });
   });
 });

@@ -24,12 +24,15 @@ import {
   handleGradeAttempt,
   handlePublishCourse,
   handleRemindLearners,
+  handleRemoveAssignment,
   handleResetCooldown,
   handleRevokeCertificate,
   handleRollbackCourse,
   handleSendTestEmail,
   handleSetCourseAccess,
   handleSetRoles,
+  handleTeamReport,
+  handleUpdateAssignment,
 } from './handlers.js';
 import { runLogged } from './logging/trigger.js';
 import { runDailyReminders } from './remind.js';
@@ -50,6 +53,7 @@ import {
   firestoreProgressStore,
   firestoreReminderStore,
   firestoreRollupStore,
+  firestoreTeamReportStore,
   firestoreTeamStore,
   firestoreUserStore,
 } from './stores.js';
@@ -142,7 +146,10 @@ export const dailyRollup = onSchedule(
   },
 );
 
-/** 04:00 UTC daily: weekly and before-due reminders, when `config/org.reminders.enabled`. */
+/**
+ * 04:00 UTC daily: weekly and before-due reminders, and the once-only due-soon and overdue notices
+ * (team Managers in CC), when `config/org.reminders.enabled`.
+ */
 export const dailyReminders = onSchedule(
   { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1', ...MAIL },
   async () => {
@@ -233,7 +240,7 @@ export const revokeCertificate = apiCallable(
   MAIL,
 );
 
-/** Admin-only: assign courses to people by email (optionally emailing them). */
+/** Admin, or a Manager for their teams: assign courses (optionally emailing the people). */
 export const assignCourses = apiCallable((request) => {
   const db = getFirestore();
   return handleAssignCourses(request, {
@@ -247,7 +254,7 @@ export const resetCooldown = apiCallable((request) =>
   handleResetCooldown(request, firestoreCooldownAdmin(getFirestore())),
 );
 
-/** Admin-only: queue reminders for unfinished assignments. */
+/** Admin, or a Manager for their team: email reminders for unfinished assignments. */
 export const remindLearners = apiCallable((request) => {
   const db = getFirestore();
   return handleRemindLearners(
@@ -256,6 +263,21 @@ export const remindLearners = apiCallable((request) => {
     Date.now,
   );
 }, MAIL);
+
+/** Admin, or the team's Manager: each member's assignments, status, due date and percent. */
+export const teamReport = apiCallable((request) =>
+  handleTeamReport(request, firestoreTeamReportStore(getFirestore())),
+);
+
+/** Admin, or a Manager for their teams' assignments: change or clear a due date. */
+export const updateAssignment = apiCallable((request) =>
+  handleUpdateAssignment(request, firestoreTeamReportStore(getFirestore()), Date.now),
+);
+
+/** Admin, or a Manager for their teams' assignments: remove an assignment. */
+export const removeAssignment = apiCallable((request) =>
+  handleRemoveAssignment(request, firestoreTeamReportStore(getFirestore())),
+);
 
 /** Admin-only: every email Gurukul sends, filled with sample data. */
 export const listEmailTemplates = apiCallable((request) => handleListEmailTemplates(request));

@@ -81,4 +81,20 @@ export const TIPS: readonly Tip[] = [
     title: 'Add a block here',
     text: 'The plus above a block adds a new one in that place, so you need not add it at the bottom and drag it up.',
   },
+  {
+    id: 'team-report',
+    where: ['/team'],
+    el: '.team-link',
+    side: 'right',
+    title: 'Team report',
+    text: 'Open a team to see who is behind, change a due date or take a course off someone’s list.',
+  },
+  {
+    id: 'team-remind',
+    where: ['/team/:teamId'],
+    el: '.team-remind',
+    side: 'bottom',
+    title: 'Remind team',
+    text: 'Email everyone on this team who still has a course to finish. Nobody gets more than one reminder a day.',
+  },
 ];

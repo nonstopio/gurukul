@@ -51,6 +51,9 @@ export function buildRawMessage(
     `From: NonStop Academy <${oneLine(from)}>`,
     `Reply-To: ${oneLine(replyTo)}`,
     `To: ${oneLine(message.to)}`,
+    ...(message.cc !== undefined && message.cc.length > 0
+      ? [`Cc: ${message.cc.map(oneLine).join(', ')}`]
+      : []),
     `Subject: =?UTF-8?B?${b64(oneLine(message.subject))}?=`,
     'MIME-Version: 1.0',
     `Content-Type: multipart/alternative; boundary="${boundary}"`,

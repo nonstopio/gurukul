@@ -77,6 +77,13 @@ describe('users/{uid}', () => {
     );
   });
 
+  it('lets a manager read any profile, for picking team members', async () => {
+    await assertSucceeds(getDoc(doc(nonstop('mona', { manager: true }), 'users/priya')));
+    await assertFails(
+      getDoc(doc(nonstop('mona', { manager: true, email: 'm@gmail.com' }), 'users/priya')),
+    );
+  });
+
   it('denies a personal Gmail account, even for its own uid', async () => {
     const db = nonstop('priya', { email: 'priya@gmail.com' });
     await assertFails(getDoc(doc(db, 'users/priya')));

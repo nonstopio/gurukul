@@ -31,6 +31,15 @@ describe('firebaseConsoleService', () => {
       recipients: ['a@nonstopio.com'],
     });
     expect(fns.resetCooldown).toHaveBeenCalledWith({ uid: 'u', courseId: 'g', quizId: 'p' });
+    expect(await service.teamReport({ teamId: 'web' })).toEqual({ from: 'teamReport' });
+    expect(await service.updateAssignment({ assignmentId: 'a', dueAt: null })).toEqual({
+      from: 'updateAssignment',
+    });
+    expect(await service.removeAssignment({ assignmentId: 'a' })).toEqual({
+      from: 'removeAssignment',
+    });
+    expect(fns.updateAssignment).toHaveBeenCalledWith({ assignmentId: 'a', dueAt: null });
+    expect(fns.removeAssignment).toHaveBeenCalledWith({ assignmentId: 'a' });
     expect(fns.revokeCertificate).toHaveBeenCalledWith({ id: 'X' });
   });
 

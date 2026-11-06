@@ -435,6 +435,8 @@ export function medianDays(stats: Pick<CourseStats, 'finishDaysHistogram'>): num
 /** Plain-English names for the audit actions the functions write. */
 const auditLabels = (t: Terms): Record<string, string> => ({
   assign: 'Assigned courses',
+  'assign.update': 'Changed a due date',
+  'assign.remove': 'Removed an assignment',
   'reminders.send': 'Sent reminders',
   'roles.set': 'Changed a role',
   'roles.bootstrap': `Granted the first ${t.Admin} role`,
@@ -651,13 +653,20 @@ export function auditDetail(
       const courses = list(detail.courseIds).join(', ');
       return `${assignedWho(detail)}${courses === '' ? '' : ` to ${courses}`}`;
     }
+    case 'assign.update': {
+      const due = count(detail.dueAt);
+      const course = text(detail.courseId) ?? '?';
+      return due === null ? `${course}: no due date` : `${course}: due ${dueDay(due)}`;
+    }
+    case 'assign.remove':
+      return text(detail.courseId);
     case 'reminders.send':
       return `Sent ${count(detail.sent) ?? 0}, skipped ${count(detail.skipped) ?? 0}${
         text(detail.courseId) === null ? '' : ` for ${text(detail.courseId)}`
       }`;
     case 'roles.set':
     case 'roles.bootstrap': {
-      const held = (['educator', 'admin'] as const).filter((r) => detail[r] === true);
+      const held = (['educator', 'manager', 'admin'] as const).filter((r) => detail[r] === true);
       return held.length === 0 ? `${t.Learner} only` : `Now ${held.map((r) => t[r]).join(' and ')}`;
     }
     case 'cooldown.reset':
@@ -678,6 +687,15 @@ export function auditDetail(
     default:
       return null;
   }
+}
+
+/** "15 Nov 2026": a due date (milliseconds) as a day in the viewer's own time zone. */
+export function dueDay(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 /** "30 October 2026, 14:05 IST": the day and the time of day, in the viewer's own time zone. */

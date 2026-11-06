@@ -15,6 +15,12 @@ export const assignmentSchema = z.object({
   status: z.enum(['assigned', 'started', 'completed']),
   /** When the last reminder email was queued; the one-a-day cap reads it. Absent until the first one. */
   lastRemindedAt: timestamp.nullable().optional(),
+  /** The team it was assigned through; its Managers are copied on deadline email. Absent: none. */
+  teamId: z.string().min(1).max(80).nullable().optional(),
+  /** When the once-only "due in 5 days or less" notice went out; a new due date clears it. */
+  dueSoonSentAt: timestamp.nullable().optional(),
+  /** When the once-only overdue notice went out; a new due date clears it. */
+  overdueSentAt: timestamp.nullable().optional(),
 });
 export type Assignment = z.infer<typeof assignmentSchema>;
 

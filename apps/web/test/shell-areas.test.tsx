@@ -1,6 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { areaKeyOf } from '../src/Shell';
+import { areaKeyOf, roleLabel } from '../src/Shell';
+import { terms } from '../src/labels/terms';
 import { axeViolations } from './axe';
 import { openApp } from './harness';
 
@@ -13,6 +14,17 @@ describe('areaKeyOf', () => {
     expect(areaKeyOf('/administrators')).toBe('learn');
     expect(areaKeyOf('/studio')).toBe('studio');
     expect(areaKeyOf('/studio/bank')).toBe('studio');
+    expect(areaKeyOf('/team')).toBe('team');
+    expect(areaKeyOf('/team/web')).toBe('team');
+    expect(areaKeyOf('/teams')).toBe('learn');
+  });
+
+  it('names the highest role, a Manager below an Educator', () => {
+    const t = terms('generic');
+    expect(roleLabel(['learner'], t)).toBe('Learner');
+    expect(roleLabel(['learner', 'manager'], t)).toBe('Manager');
+    expect(roleLabel(['learner', 'manager', 'educator'], t)).toBe('Educator');
+    expect(roleLabel(['learner', 'manager', 'admin'], t)).toBe('Admin');
   });
 });
 
@@ -29,8 +41,8 @@ describe('the area switcher', () => {
     const { container } = await openApp('/admin/learners', { roles: ['admin'] });
     const areas = await screen.findByRole('navigation', { name: 'Areas' });
     const links = within(areas).getAllByRole('link');
-    expect(links.map((l) => l.textContent)).toEqual(['Learn', 'Studio', 'Admin']);
-    expect(links.map((l) => l.getAttribute('aria-current'))).toEqual([null, null, 'page']);
+    expect(links.map((l) => l.textContent)).toEqual(['Learn', 'Studio', 'Team', 'Admin']);
+    expect(links.map((l) => l.getAttribute('aria-current'))).toEqual([null, null, null, 'page']);
     const main = screen.getByRole('navigation', { name: 'Main' });
     expect(within(main).getByRole('link', { name: 'Audit log' })).toBeTruthy();
     expect(within(main).getByRole('link', { name: 'Design system' })).toBeTruthy();

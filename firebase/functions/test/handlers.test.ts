@@ -13,7 +13,11 @@ import {
   handleCreateCourse,
   handlePublishCourse,
   handleRollbackCourse,
+  handleRemoveAssignment,
+  handleTeamReport,
+  handleUpdateAssignment,
 } from '../src/handlers.js';
+import type { TeamReportStore } from '../src/team-report.js';
 import type { CourseStore } from '../src/courses.js';
 import type { AuthedRequest } from '../src/handlers.js';
 import type { GradingStore } from '../src/grading.js';
@@ -233,6 +237,7 @@ describe('console callables', () => {
       bumpAssigned: vi.fn().mockResolvedValue(undefined),
       audit: vi.fn().mockResolvedValue(undefined),
       addTeamMembers: vi.fn().mockResolvedValue(undefined),
+      teams: vi.fn().mockResolvedValue(new Map()),
     };
     const deps = { store: assignStore, mailer };
     const ok = await handleAssignCourses(
@@ -294,7 +299,7 @@ describe('console callables', () => {
 
   it('the email template callables sign in and need an Admin', async () => {
     const mailer = { send: vi.fn().mockResolvedValue(undefined) };
-    expect(handleListEmailTemplates(asAdmin({}))).toHaveLength(3);
+    expect(handleListEmailTemplates(asAdmin({}))).toHaveLength(4);
     expect(() => handleListEmailTemplates(signedOutRequest)).toThrow(
       expect.objectContaining({ code: 'AUTH_1001' }),
     );
@@ -319,6 +324,9 @@ describe('console callables', () => {
       scheduled: vi.fn(),
       courseTitles: vi.fn(),
       markReminded: vi.fn(),
+      markNoticed: vi.fn(),
+      teamManagers: vi.fn(),
+      team: vi.fn(),
       remindersEnabled: vi.fn(),
       audit: vi.fn().mockResolvedValue(undefined),
     };
@@ -332,6 +340,63 @@ describe('console callables', () => {
     });
     await expect(handleRemindLearners(learnerReq, deps, () => 5)).rejects.toMatchObject({
       code: 'AUTH_2001',
+    });
+  });
+});
+
+describe('team callables', () => {
+  const asManager = (data: unknown): AuthedRequest => ({
+    auth: { uid: 'm', token: { email: 'm@nonstopio.com', manager: true } },
+    data,
+  });
+  const store = (): TeamReportStore => ({
+    team: vi.fn().mockResolvedValue({
+      id: 'sales',
+      name: 'Sales',
+      memberEmails: [],
+      managerEmails: ['m@nonstopio.com'],
+    }),
+    assignment: vi.fn().mockResolvedValue({
+      id: 'a1',
+      email: 'p@nonstopio.com',
+      uid: null,
+      courseId: 'git',
+      status: 'assigned',
+      dueAt: null,
+      teamId: 'sales',
+    }),
+    assignmentsFor: vi.fn(),
+    profiles: vi.fn(),
+    percents: vi.fn(),
+    courseTitles: vi.fn(),
+    setDueAt: vi.fn().mockResolvedValue(undefined),
+    deleteAssignment: vi.fn().mockResolvedValue(undefined),
+    audit: vi.fn().mockResolvedValue(undefined),
+  });
+
+  it('teamReport, updateAssignment and removeAssignment sign the caller in and pass the request', async () => {
+    const s = store();
+    expect(await handleTeamReport(asManager({ teamId: 'sales' }), s)).toEqual({
+      teamId: 'sales',
+      name: 'Sales',
+      members: [],
+    });
+    expect(
+      await handleUpdateAssignment(asManager({ assignmentId: 'a1', dueAt: 10 }), s, () => 5),
+    ).toEqual({ assignmentId: 'a1', dueAt: 10 });
+    await expect(
+      handleUpdateAssignment(asManager({ assignmentId: 'a1', dueAt: 4 }), s, () => 5),
+    ).rejects.toMatchObject({ code: 'VAL_1002' });
+    expect(await handleRemoveAssignment(asManager({ assignmentId: 'a1' }), s)).toEqual({
+      assignmentId: 'a1',
+    });
+    const signedOut: AuthedRequest = { data: {} };
+    await expect(handleTeamReport(signedOut, s)).rejects.toMatchObject({ code: 'AUTH_1001' });
+    await expect(handleUpdateAssignment(signedOut, s, () => 5)).rejects.toMatchObject({
+      code: 'AUTH_1001',
+    });
+    await expect(handleRemoveAssignment(signedOut, s)).rejects.toMatchObject({
+      code: 'AUTH_1001',
     });
   });
 });

@@ -8,7 +8,7 @@ contract; the schema package is the executable one. They change together.
 
 | Path | Holds | Client read | Client write |
 |---|---|---|---|
-| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Educator, Admin (an Educator reads the roster to pick team members) | self: `displayName`, `nameLower`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; `team` and `teamIds` are never writable from a client |
+| `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Educator, Manager, Admin (they read the roster to pick team members) | self: `displayName`, `nameLower`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; `team` and `teamIds` are never writable from a client |
 | `courses/{courseId}` | **The published course object**, plus `visibility` and `visibleTeamIds` beside it (see [Course visibility](#course-visibility)) | any signed-in user when `published` or `archived` (archived shows as Retired) **and they may open it**: public, or a team they are on; every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers, answersChanged? }` (answer keys included, so the author can edit them; `answersChanged: true` marks an answer key edit since the last publish, which removes it) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
@@ -20,8 +20,8 @@ contract; the schema package is the executable one. They change together.
 | `stats/{scope}` | Counters for Analytics (`org`, `course_{id}`) | Admin, granted Educators | never (function) |
 | `audit/{id}` | Who did what (assign, role change, revoke, publish) | Admin | never (function) |
 | `questionBank/{id}` (M5) | Reusable Quiz questions, answers included: `{ question, answers, tags, createdBy, createdAt }` | Educators, Admin | create: Educators, Admin (own uid, server time); update: its creator or an Admin, `question`, `answers`, `tags` only; delete: its creator or an Admin |
-| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued), optional `uploads` (`imageMaxKB`, `pdfMaxKB`: whole KB from 50 to the 1024 hard ceiling, Admin only; missing reads as 500 / 1024; see `19-course-media-uploads.md`); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator may change only `teams` (Teams page) |
-| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt, createdBy? }` (see [Teams](#teams)); only these keys | Educator, Admin | Educator, Admin (Teams page, `/studio/teams`): `name` 1–80 characters, `memberEmails` a list of at most 500, `createdAt` a number (milliseconds); a create sets `createdBy` to the writer's uid and nobody changes it; an Educator edits only teams they created, an Admin any (a team without `createdBy`, older ones and the seeded Educator course's team, is Admin-only); deleted by an Admin only, since a course can be limited to a team |
+| `config/org` | Allowed domain (fixed to `nonstopio.com`), teams list of names (at most 100; the names learners pick from, kept in step with `teams/`), `reminders.enabled`, `signatory` (`name`, `role`: who signs certificates, copied onto each certificate when issued), optional `uploads` (`imageMaxKB`, `pdfMaxKB`: whole KB from 50 to the 1024 hard ceiling, Admin only; missing reads as 500 / 1024; see `19-course-media-uploads.md`); only these keys, never deleted; the seed creates the default if missing | signed-in | Admin (Org settings); an Educator or a Manager may change only `teams` (kept in step with `teams/`) |
+| `teams/{teamId}` | A team: `{ name, memberEmails, createdAt, createdBy?, managerEmails? }` (see [Teams](#teams)); only these keys | Educator, Admin; a Manager the teams whose `managerEmails` lists them | Admin, Manager (`21-managers.md`): `name` 1–80 characters, `memberEmails` a list of at most 500, `managerEmails` at most 10, `createdAt` a number (milliseconds); a create sets `createdBy` to the writer's uid and nobody changes it; a Manager creates teams that list them and edits teams that list them without changing `managerEmails`; an Admin edits any (a team with no manager is Admin-only); `educator-candidates` is Admin-only; deleted by an Admin only, since a course can be limited to a team |
 | `counters/certificates` | The certificate id sequence | never | never (function) |
 | `mail/{autoId}` | Retired: email now goes straight through the Gmail API (`firebase/functions/src/gmail.ts`); nothing writes here, and the rule that denies browsers stays | never | never (function) |
 
@@ -210,7 +210,7 @@ type User = {
   photoURL: string | null;
   team: string | null;
   teamIds?: string[];            // `teamId(name)` of each `teams/` document that lists this email; set by functions only
-  roles: Array<'learner' | 'educator' | 'admin'>;   // mirror of the claims
+  roles: Array<'learner' | 'educator' | 'admin' | 'manager'>;   // mirror of the claims
   grantedCourseIds: string[];
   createdAt: Timestamp;
 };
@@ -239,6 +239,10 @@ type Assignment = {
   mandatory: boolean;
   reminder: 'weekly' | 'beforeDue' | 'none';
   status: 'assigned' | 'started' | 'completed';   // maintained by functions
+  teamId?: string | null;        // the team it was assigned through; its managers are CC'd on deadline email
+  lastRemindedAt?: Timestamp | null;
+  dueSoonSentAt?: Timestamp | null; // the 5-days-left notice (`21-managers.md`), once
+  overdueSentAt?: Timestamp | null; // the overdue notice, once; both cleared by a new due date
 };
 ```
 

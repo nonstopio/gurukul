@@ -29,12 +29,14 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
-| **Total** | 176 | 0 | 0 | 14 |
+| Managers | 6 | 0 | 0 | 0 |
+| **Total** | 182 | 0 | 0 | 14 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
+
 
 
 ## Foundations
@@ -315,3 +317,16 @@ Plan: `19-course-media-uploads.md`, M7 in `12-milestones.md`. Decisions behind i
 | -------- | ------------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `PLN-01` | This tracker and the `pick-up-next` skill | done | —     | `.plan/tracker.md`, `scripts/tracker.mjs`, `.claude/skills/pick-up-next/`                                                                                                                                                                              |
 | `PLN-02` | The plan matches what was built       | done   | —       | `.plan/01-architecture.md` (functions list, app folders), `02-data-model.md` (`counters`, `mail`, archived reads, update-only drafts), `03-auth-and-roles.md`, `08-studio.md` (slug fixed at creation), `11-deployment-and-cost.md` (artifact policy step), `12-milestones.md` (M6 status), `13-open-questions.md` (questions 3, 8, 13) |
+
+## Managers
+
+Plan: `21-managers.md`, decided with the maintainer on 2026-11-05.
+
+| ID       | Item                                                                                  | Status | Depends  | Notes                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MGR-01` | `manager` claim and role, `managerEmails` on teams, handover on role removal          | done   | —        | `packages/schema/src/user.ts` (`manager` role and claim, `managerEmails`), `assignment.ts`; `firebase/functions/src/roles.ts`, `set-roles.ts` (handover: `releaseManagedTeams`), `stores.ts`; `firebase/firestore.rules` (`isManager`, `managesTeam`), `firebase/rules/test/teams.test.ts` |
+| `MGR-02` | Team-scoped assigning: `assignCourses` with `teamIds`, `teamId` on assignments         | done   | `MGR-01` | `firebase/functions/src/assign.ts` (`teamIds`, `teamAudience`), `errors.ts` (`requireAdminOrManager`, `managesTeam`) |
+| `MGR-03` | `teamReport`, `updateAssignment`, `removeAssignment`, team-scoped `remindLearners`     | done   | `MGR-02` | `firebase/functions/src/team-report.ts`, `remind.ts` (`teamId`), `handlers.ts`, `index.ts`, `stores.ts` (`firestoreTeamReportStore`) |
+| `MGR-04` | Due-soon (5 days) and overdue notices with the team's managers in CC                  | done   | `MGR-02` | `firebase/functions/src/remind.ts` (`noticeFor`, `ccFor`), `mail.ts` (`buildDeadlineEmail`), `gmail.ts` (`Cc:`), `email-templates.ts` |
+| `MGR-05` | Team area: My teams, Team report, Assign for Managers                                 | done   | `MGR-03` | `apps/web/src/team/` (`TeamHomePage`, `TeamReportPage`, `useMyTeams`, `model.ts`), `console/AssignPage.tsx` (`TeamAssignPage`, `scope="team"`), `AudienceStep.tsx` (`teamsOnly`), `console/firebase.ts` (`managedTeams`), `navigation/areas/team.ts`, `Shell.tsx` (Team area), `tips/registry.ts`, `e2e/tests/manager.spec.ts` |
+| `MGR-06` | Admin: Managers on the Teams page, "No manager" marker, Manager in Roles & access      | done   | `MGR-01` | `apps/web/src/console/TeamsPage.tsx` (Educators read-only), `TeamDialog.tsx` (Managers field), `RolesPage.tsx` (Manager switch, card, matrix column, Managers list), `LearnersPage.tsx` (role column, filter, bulk dialog), `model.ts` (audit words) |
