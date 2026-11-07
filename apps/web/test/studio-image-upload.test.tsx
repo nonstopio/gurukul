@@ -496,6 +496,53 @@ describe('uploading', () => {
     expect(last()).toMatchObject({ alt: 'A branch diagram', layout: 'medium', width: 1200 });
   });
 
+  it('drops the upload when a link is typed while it runs, and keeps the link', async () => {
+    const studio = fakeStudio();
+    const ctl = pendingUpload(studio);
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(ctl.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    expect(ctl.request?.signal.aborted).toBe(true);
+    await act(async () => ctl.fail(new UploadCancelledError()));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.png' });
+    expect(last()).not.toHaveProperty('upload');
+    expect(screen.getByRole('img', { name: 'Image preview' }).getAttribute('src')).toBe(
+      'https://example.com/other.png',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(screen.queryByRole('button', { name: 'Upload image' })).toBeNull();
+    expect(screen.queryByText('Image uploaded')).toBeNull();
+  });
+
+  it('writes nothing when the link is typed after the file is up but before the upload ends', async () => {
+    const studio = fakeStudio();
+    let hashed: (hash: string | undefined) => void = () => {};
+    vi.mocked(imageBlurHash).mockReturnValue(
+      new Promise((resolve) => {
+        hashed = resolve;
+      }),
+    );
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    // The storage upload has resolved; only the blur hash is still being made.
+    await waitFor(() => expect(studio.storage.upload).toHaveBeenCalledOnce());
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => hashed(HASH));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.png' });
+    expect(last()).not.toHaveProperty('upload');
+    expect(screen.queryByText('Image uploaded')).toBeNull();
+  });
+
   it('cancels, keeps the file ready and writes nothing', async () => {
     const studio = fakeStudio();
     const ctl = pendingUpload(studio);

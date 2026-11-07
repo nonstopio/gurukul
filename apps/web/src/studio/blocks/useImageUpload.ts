@@ -83,6 +83,11 @@ export interface ImageUpload {
   ) => Promise<void>;
   /** Drops the shrunk file; nothing was uploaded. */
   discard: () => void;
+  /**
+   * The Educator chose another image (typed a link): stops any upload, forgets the picked file and
+   * goes back to idle. The stopped upload writes nothing, even if its file already reached Storage.
+   */
+  drop: () => void;
   copyPrompt: (target: ShrinkTarget) => Promise<void>;
   /** The picked file's preview address while one waits or uploads. */
   previewUrl: string | undefined;
@@ -110,6 +115,8 @@ export function useImageUpload<T extends ImageHolder>(
     latest.current = holder;
   });
   const running = useRef<AbortController | null>(null);
+  // The upload `drop` stopped: it ends idle, not ready to try again.
+  const dropped = useRef<AbortController | null>(null);
   const gone = useRef(false);
   useEffect(() => {
     gone.current = false;
@@ -240,6 +247,9 @@ export function useImageUpload<T extends ImageHolder>(
         signal: controller.signal,
       });
       const blurHash = await hashing;
+      // Stopped after the file was up (another image was chosen, or the editor went away): the
+      // block already holds something newer, and this upload must not overwrite it.
+      if (controller.signal.aborted) throw new UploadCancelledError();
       onChange({
         ...latest.current,
         url,
@@ -260,7 +270,7 @@ export function useImageUpload<T extends ImageHolder>(
       });
     } catch (error) {
       if (error instanceof UploadCancelledError) {
-        setStage({ step: 'ready', picked });
+        setStage(dropped.current === controller ? { step: 'idle' } : { step: 'ready', picked });
         return;
       }
       log.warn('Image upload failed', { courseId, code: (error as { code?: unknown }).code });
@@ -293,6 +303,11 @@ export function useImageUpload<T extends ImageHolder>(
     cancel: () => running.current?.abort(),
     shrink,
     discard: () => setStage({ step: 'idle' }),
+    drop: () => {
+      dropped.current = running.current;
+      running.current?.abort();
+      setStage({ step: 'idle' });
+    },
     copyPrompt,
     previewUrl,
   };
