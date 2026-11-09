@@ -331,6 +331,31 @@ describe('picking an image', () => {
     expect(bitmap).toHaveBeenCalledOnce();
   });
 
+  it('forgets a file still being checked when a link is typed', async () => {
+    const { container } = setup();
+    let finish: (size: { width: number; height: number }) => void = () => {};
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = (size) => resolve({ ...size, close: () => {} });
+          }),
+      ),
+    );
+    act(() => void fireEvent.change(picker(container), { target: { files: [pngFile()] } }));
+    await screen.findByText('Checking shot.png…');
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => finish({ width: 900, height: 600 }));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByRole('img', { name: 'Image preview' }).getAttribute('src')).toBe(
+      'https://example.com/other.png',
+    );
+  });
+
   it('makes no preview when the editor goes away while a file is being checked', async () => {
     const { container, unmount } = setup();
     let finish: (size: { width: number; height: number }) => void = () => {};

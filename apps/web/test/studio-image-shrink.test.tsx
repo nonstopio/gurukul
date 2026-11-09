@@ -263,6 +263,25 @@ describe('Shrink it for me', () => {
     expect(screen.getByRole('button', { name: 'Upload image' })).toBeTruthy();
   });
 
+  it('forgets the shrunk file when a link is typed while it works', async () => {
+    browser({ width: 3000, height: 2000 }, () => 180 * KB);
+    const { container } = setup();
+    await pick(container, file('holiday.png', 1800 * KB));
+    let release: (blob: Blob | null) => void = () => {};
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((cb) => {
+      release = cb;
+    });
+    await shrink();
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => {
+      release(new Blob([new Uint8Array(RIFF), new Uint8Array(1000)], { type: 'image/webp' }));
+    });
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(0);
+  });
+
   it('ends quietly when the Educator leaves while it works', async () => {
     browser({ width: 3000, height: 2000 }, () => 180 * KB);
     const { container, unmount } = setup();

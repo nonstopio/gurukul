@@ -117,14 +117,16 @@ export function useImageUpload<T extends ImageHolder>(
   const running = useRef<AbortController | null>(null);
   // The upload `drop` stopped: it ends idle, not ready to try again.
   const dropped = useRef<AbortController | null>(null);
-  const gone = useRef(false);
-  useEffect(() => {
-    gone.current = false;
-    return () => {
-      gone.current = true;
+  // Moves on when the file in hand stops mattering: the editor went away, or the Educator typed a
+  // link (`drop`). A check or shrink that finishes after that is for nobody and changes nothing.
+  const epoch = useRef(0);
+  useEffect(
+    () => () => {
+      epoch.current += 1;
       running.current?.abort();
-    };
-  }, []);
+    },
+    [],
+  );
 
   const previewUrl =
     stage.step === 'ready' || stage.step === 'uploading' ? stage.picked.previewUrl : undefined;
@@ -134,6 +136,7 @@ export function useImageUpload<T extends ImageHolder>(
   }, [previewUrl]);
 
   const pick = async (file: File) => {
+    const mine = epoch.current;
     setStage({ step: 'checking', name: file.name });
     const target: ShrinkTarget = { kind: 'image', name: file.name, size: file.size };
     let result;
@@ -152,8 +155,8 @@ export function useImageUpload<T extends ImageHolder>(
       });
       return;
     }
-    // The drop zone takes no file while one is being checked, so only leaving can interrupt.
-    if (gone.current) return;
+    // The drop zone takes no file while one is being checked: only leaving or a typed link interrupt.
+    if (epoch.current !== mine) return;
     const { candidate, check } = result;
     const { width, height } = candidate;
     const sized =
@@ -193,9 +196,10 @@ export function useImageUpload<T extends ImageHolder>(
     { file, width, height }: NonNullable<RefusedStage['shrinkable']>,
     { target, problems }: RefusedStage,
   ) => {
+    const mine = epoch.current;
     setStage({ step: 'shrinking', name: file.name });
     const result = await shrinkImage(file, { width, height }, policy);
-    if (gone.current) return;
+    if (epoch.current !== mine) return;
     if (result.ok) {
       setStage({
         step: 'ready',
@@ -304,6 +308,7 @@ export function useImageUpload<T extends ImageHolder>(
     shrink,
     discard: () => setStage({ step: 'idle' }),
     drop: () => {
+      epoch.current += 1;
       dropped.current = running.current;
       running.current?.abort();
       setStage({ step: 'idle' });
