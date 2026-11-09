@@ -147,7 +147,14 @@ export function TeamDialog({
         </>
       }
     >
-      <form id={formId} className="console-flow" onSubmit={(e) => void submit(e)}>
+      {/* Locked while it saves: what is stored is what was on screen when Save was pressed. */}
+      <form
+        id={formId}
+        className="console-flow"
+        inert={saving}
+        aria-busy={saving}
+        onSubmit={(e) => void submit(e)}
+      >
         <Input
           label="Team name"
           value={name}

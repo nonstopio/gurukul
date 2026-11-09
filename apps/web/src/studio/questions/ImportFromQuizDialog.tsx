@@ -27,7 +27,11 @@ export function ImportFromQuizDialog({
   const [saving, setSaving] = useState(false);
   const source = sources.find((s) => s.id === quizId);
   const inBank = (k: Keyed) => bankPrompts.has(k.question.prompt.trim().toLowerCase());
-  const chosen = (source?.questions ?? []).filter((k) => picked.includes(k.question.id));
+  // A question already in the bank is never sent again, even if it was ticked before it got there
+  // (a retry after an import that stopped halfway).
+  const chosen = (source?.questions ?? []).filter(
+    (k) => picked.includes(k.question.id) && !inBank(k),
+  );
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -88,7 +92,7 @@ export function ImportFromQuizDialog({
                     <li key={k.question.id} className="sc-row">
                       <Checkbox
                         className="sc-bank__pick"
-                        checked={picked.includes(k.question.id)}
+                        checked={picked.includes(k.question.id) && !inBank(k)}
                         disabled={inBank(k)}
                         onChange={() => toggle(k.question.id)}
                         label={

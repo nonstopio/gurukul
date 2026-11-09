@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { Team } from '@gurukul/schema';
 import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from './axe';
@@ -181,6 +181,29 @@ describe('Create team', () => {
     paste(Array.from({ length: 501 }, (_, i) => `p${i}@nonstopio.com`).join(' '));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
     expect(await within(dialog()).findByText('A team holds at most 500 people.')).toBeTruthy();
+  });
+
+  it('locks the fields while it saves, so what is stored is what was on screen', async () => {
+    const c = fakeConsole();
+    let finish: () => void = () => {};
+    vi.mocked(c.data.saveTeam).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: 'Create team' }))[0] as HTMLElement,
+    );
+    fireEvent.change(nameField(), { target: { value: 'Mobile' } });
+    paste('a@nonstopio.com');
+    expect(nameField().closest('[inert]')).toBeNull();
+    act(() => {
+      fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
+    });
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
+    expect(nameField().closest('[inert]')).not.toBeNull();
+    expect(nameField().closest('[aria-busy="true"]')).not.toBeNull();
+    await act(async () => finish());
+    expect(await screen.findByText('Created Mobile')).toBeTruthy();
   });
 
   it('keeps the dialog and says so when saving fails; Cancel closes it', async () => {

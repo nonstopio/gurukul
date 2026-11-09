@@ -145,6 +145,27 @@ describe('Who can open this course', () => {
     ).toBeTruthy();
   });
 
+  it('keeps a choice changed while the save was on its way, still unsaved', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse({ educatorIds: ['u1'], version: 3 })) });
+    let finish: (access: CourseAccess) => void = () => {};
+    studio.service.setCourseAccess = vi.fn(
+      () => new Promise<CourseAccess>((resolve) => (finish = resolve)),
+    );
+    const { card } = await open({ studio });
+    const select = await within(card).findByLabelText('Visibility');
+    choose(select, 'Educators and Admins');
+    act(() => {
+      fireEvent.click(save(card));
+    });
+    choose(within(card).getByLabelText('Visibility'), 'Public');
+    choose(within(card).getByLabelText('Visibility'), 'Team only');
+    await act(async () => finish({ visibility: 'staff', visibleTeamIds: [] }));
+    expect(await screen.findByText('Saved. It applies to the live course now.')).toBeTruthy();
+    // Still the newer choice, and Save is offered for it (once a team is picked).
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Platform' }));
+    expect(save(card).disabled).toBe(false);
+  });
+
   it('shows a failed save and lets it be tried again', async () => {
     const live = makeCourse({ educatorIds: ['u1'], version: 3 });
     const studio = fakeStudio({ draft: draftDoc(live, { rev: 5 }) });
