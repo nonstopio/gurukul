@@ -193,10 +193,9 @@ describe('useDraft', () => {
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
   });
 
-  it('stays dirty when edits arrive while a save is in flight', async () => {
+  it('saves edits made while a save is in flight once it lands, with the new rev', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
     let finish: (rev: number) => void = () => {};
-    // Later saves (the flush when the test unmounts) settle, as real ones do.
     studio.data.saveDraft = vi
       .fn()
       .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
@@ -209,14 +208,81 @@ describe('useDraft', () => {
       first = result.current.saveNow();
     });
     expect(result.current.save).toBe('saving');
-    expect(await result.current.saveNow()).toBe(false);
     act(() => result.current.update(rename('E')));
+    // The autosave for E fires while D is still on its way: it waits instead of giving up.
+    let second: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      second = result.current.saveNow();
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     await act(async () => {
       finish(2);
       expect(await first).toBe(false);
+      expect(await second).toBe(true);
     });
-    expect(result.current.save).toBe('dirty');
-    expect(result.current.rev).toBe(2);
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(studio.data.saveDraft).mock.calls[1]?.[2]).toBe(2);
+    expect(vi.mocked(studio.data.saveDraft).mock.calls[1]?.[1].course.title).toBe('E');
+    expect(result.current.save).toBe('saved');
+    expect(result.current.rev).toBe(3);
+  });
+
+  it('saves edits made while a save is in flight without another keystroke', async () => {
+    vi.useFakeTimers();
+    try {
+      const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
+      let finish: (rev: number) => void = () => {};
+      studio.data.saveDraft = vi
+        .fn()
+        .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
+        .mockResolvedValue(3);
+      const { result } = setup(studio);
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      expect(result.current.status).toBe('ready');
+      act(() => result.current.update(rename('D')));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+      });
+      act(() => result.current.update(rename('E')));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+      });
+      expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+      await act(async () => finish(2));
+      expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
+      expect(result.current.save).toBe('saved');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a waiting save when the one in flight met someone else's save", async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
+    let refuse: (e: Error) => void = () => {};
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((_, r) => (refuse = r)));
+    const { result } = setup(studio);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => result.current.update(rename('D')));
+    let first: Promise<boolean> = Promise.resolve(true);
+    let second: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      first = result.current.saveNow();
+    });
+    act(() => result.current.update(rename('E')));
+    act(() => {
+      second = result.current.saveNow();
+    });
+    await act(async () => {
+      refuse(new DraftConflictError());
+      expect(await first).toBe(false);
+      expect(await second).toBe(false);
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+    expect(result.current.save).toBe('conflict');
   });
 
   it('marks a conflict, keeps it through later edits, and reloads on request', async () => {
