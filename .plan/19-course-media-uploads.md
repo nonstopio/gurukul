@@ -247,7 +247,9 @@ Flow for an image:
 6. **Upload** with a progress bar (`uploadBytesResumable`), cancellable. On success the block
    gets `url`, `upload`, `width`, `height`, and autosave stores the draft as for any edit. On
    failure: a clear retry message (offline, permission, too large per the server); nothing is
-   written to the draft.
+   written to the draft. Typing an address on **Link** while a file is being checked, waits for
+   Upload or is uploading drops that file: the upload is stopped and writes nothing, so the typed
+   address is what the block keeps.
 7. **Replace** uploads a new file and points the block at it. **Remove** clears the block. Neither
    deletes the old file (a published version may still use it).
 

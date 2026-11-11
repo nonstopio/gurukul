@@ -20,7 +20,8 @@ builder. Handoff: `design-handoff/03-studio.md`.
   in between — last-write-wins with a `rev` check). The draft is one working copy: its version is
   the one it becomes when published (live v3 → "Draft v4", however many saves), never its `rev`,
   which counts saves for the conflict check and is not shown. A save whose content equals the stored
-  draft (an edit typed and undone) writes nothing. When the draft's content equals the live course
+  draft (an edit typed and undone) writes nothing. A save asked for while another is on its way
+  waits for it, then saves what changed since with the new `rev`; after a conflict it does not try. When the draft's content equals the live course
   (`diffCourses` finds nothing) and no answer key was edited, the course editor says "No changes
   since v3" and **Publish is disabled** (its tooltip says the same). A course never published is
   always publishable (subject to `validateForPublish`).
