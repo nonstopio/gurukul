@@ -494,6 +494,74 @@ describe('uploading', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
+  it('keeps the typed address when a dropped upload then fails for another reason', async () => {
+    const studio = fakeStudio();
+    const ctl = pendingUpload(studio);
+    const { container, last } = setup(newBlock('file'), { studio });
+    await pick(container, pdfFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(ctl.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('File address'), {
+      target: { value: 'https://example.com/other.pdf' },
+    });
+    // The file was already up: the abort came too late, and reading its address failed.
+    await act(async () => ctl.fail({ code: 'storage/network-request-failed' }));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.pdf' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(screen.queryByRole('button', { name: /^(Try again|Upload PDF)$/ })).toBeNull();
+    expect(errorBox()).toBeNull();
+  });
+
+  it('lets a file picked after a drop upload while the dropped one is still settling', async () => {
+    const studio = fakeStudio();
+    const first = pendingUpload(studio);
+    const { container, last } = setup(newBlock('file'), { studio });
+    await pick(container, pdfFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(first.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('File address'), {
+      target: { value: 'https://example.com/other.pdf' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    const second = pendingUpload(studio);
+    await pick(container, pdfFile('second.pdf'));
+    fireEvent.click(upload());
+    await waitFor(() => expect(second.request).toBeDefined());
+    // The dropped upload settles late: the new one is not touched.
+    await act(async () => first.fail(new UploadCancelledError()));
+    expect(screen.getByRole('progressbar', { name: 'Upload progress' })).toBeTruthy();
+    await act(async () => second.done('https://firebasestorage.googleapis.com/v0/b/b/o/second'));
+    expect(last()).toMatchObject({
+      url: 'https://firebasestorage.googleapis.com/v0/b/b/o/second',
+      upload: { name: 'second.pdf' },
+    });
+    expect(await screen.findByText('PDF uploaded')).toBeTruthy();
+  });
+
+  it('shows no refusal for an unreadable file abandoned for a typed address', async () => {
+    const { container } = setup();
+    let fail: () => void = () => {};
+    const slow = pdfFile();
+    vi.spyOn(slow, 'slice').mockReturnValue({
+      arrayBuffer: () =>
+        new Promise<ArrayBuffer>((_, reject) => {
+          fail = () => reject(new Error('unreadable'));
+        }),
+    } as unknown as Blob);
+    act(() => void fireEvent.change(picker(container), { target: { files: [slow] } }));
+    await screen.findByText(/^Checking /);
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('File address'), {
+      target: { value: 'https://example.com/other.pdf' },
+    });
+    await act(async () => fail());
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(errorBox()).toBeNull();
+    expect(screen.queryByText(/could not be read/)).toBeNull();
+  });
+
   it('cancels, keeps the file ready and writes nothing', async () => {
     const studio = fakeStudio();
     const ctl = pendingUpload(studio);

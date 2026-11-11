@@ -364,6 +364,33 @@ describe('useDraft', () => {
     await waitFor(() => expect(third.result.current.status).toBe('ready'));
   });
 
+  it('makes the next page wait for a save queued behind another when the page is left', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
+    let finishFirst: (rev: number) => void = () => undefined;
+    let finishSecond: (rev: number) => void = () => undefined;
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((r) => (finishFirst = r)))
+      .mockImplementationOnce(() => new Promise<number>((r) => (finishSecond = r)));
+    const first = setup(studio);
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    act(() => first.result.current.update(rename('Q')));
+    act(() => void first.result.current.saveNow());
+    act(() => first.result.current.update(rename('R')));
+    // Left while Q is on its way: the flush for R queues behind it.
+    first.unmount();
+    const calls = vi.mocked(studio.data.getDraft).mock.calls.length;
+    const second = setup(studio);
+    await act(async () => finishFirst(5));
+    await waitFor(() => expect(studio.data.saveDraft).toHaveBeenCalledTimes(2));
+    // Q landed, but R is still on its way: the next page has not read the draft yet.
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls);
+    expect(second.result.current.status).toBe('loading');
+    await act(async () => finishSecond(6));
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls + 1);
+  });
+
   it('keeps the newest save registered when an older one settles first', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
     const done: ((rev: number) => void)[] = [];

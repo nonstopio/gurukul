@@ -201,9 +201,33 @@ describe('Create team', () => {
     });
     await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
     expect(nameField().closest('[inert]')).not.toBeNull();
-    expect(nameField().closest('[aria-busy="true"]')).not.toBeNull();
     await act(async () => finish());
     expect(await screen.findByText('Created Mobile')).toBeTruthy();
+  });
+
+  it('gives focus back to the field that sent the form with Enter when saving fails', async () => {
+    const c = fakeConsole();
+    let fail: () => void = () => {};
+    vi.mocked(c.data.saveTeam).mockImplementationOnce(
+      () => new Promise<void>((_, reject) => (fail = () => reject(new Error('denied')))),
+    );
+    await openApp(PATH, { ...admin, console: c });
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: 'Create team' }))[0] as HTMLElement,
+    );
+    paste('a@nonstopio.com');
+    nameField().focus();
+    fireEvent.change(nameField(), { target: { value: 'Mobile' } });
+    act(() => {
+      fireEvent.submit(nameField().closest('form') as HTMLFormElement);
+    });
+    await waitFor(() => expect(c.data.saveTeam).toHaveBeenCalled());
+    // A browser drops focus from a field that goes inert; jsdom does not, so the test does it.
+    act(() => nameField().blur());
+    expect(document.activeElement).not.toBe(nameField());
+    await act(async () => fail());
+    expect(await screen.findByText('Could not save the team. Try again.')).toBeTruthy();
+    expect(document.activeElement).toBe(nameField());
   });
 
   it('keeps the dialog and says so when saving fails; Cancel closes it', async () => {
@@ -215,9 +239,13 @@ describe('Create team', () => {
     );
     fireEvent.change(nameField(), { target: { value: 'Mobile' } });
     paste('a@nonstopio.com');
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Create team' }));
+    const create = within(dialog()).getByRole('button', { name: 'Create team' });
+    // Sent from the button, outside the form: nothing in the form is given focus afterwards.
+    create.focus();
+    fireEvent.click(create);
     expect(await screen.findByText('Could not save the team. Try again.')).toBeTruthy();
     expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(document.activeElement).not.toBe(nameField());
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });

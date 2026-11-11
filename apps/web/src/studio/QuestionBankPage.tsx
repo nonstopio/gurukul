@@ -25,7 +25,14 @@ import { pageFor } from '../paging';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BankQuestionDialog } from './questions/BankQuestionDialog';
 import { ImportFromQuizDialog } from './questions/ImportFromQuizDialog';
-import { KIND_LABELS, bankEntry, bankUsage, matchBank, quizSources } from './questionEdit';
+import {
+  KIND_LABELS,
+  bankEntry,
+  bankUsage,
+  matchBank,
+  promptKey,
+  quizSources,
+} from './questionEdit';
 import type { Keyed } from './questionEdit';
 import { useStudio } from './StudioProvider';
 import type { BankQuestion } from './types';
@@ -49,6 +56,8 @@ export function QuestionBankPage() {
   const [dialog, setDialog] = useState<'new' | 'import' | null>(null);
   const [editing, setEditing] = useState<BankQuestion | null>(null);
   const [deleting, setDeleting] = useState<BankQuestion | null>(null);
+  // Prompts an import stored before it failed (see `importMany`).
+  const [imported, setImported] = useState<ReadonlySet<string>>(new Set());
   const bank = useAsync(
     useCallback(() => {
       void reload;
@@ -89,13 +98,20 @@ export function QuestionBankPage() {
   };
 
   const importMany = async (picked: Keyed[], tags: string[]) => {
+    const stored: string[] = [];
     try {
-      for (const keyed of picked) await data.addToBank(bankEntry(keyed, tags), uid);
+      for (const keyed of picked) {
+        await data.addToBank(bankEntry(keyed, tags), uid);
+        stored.push(promptKey(keyed.question.prompt));
+      }
       log.info('Questions imported into the bank', { count: picked.length });
       setDialog(null);
       done(`${picked.length} ${picked.length === 1 ? 'question' : 'questions'} added to the bank`);
     } catch (e) {
       log.error('Importing questions into the bank failed', e, { count: picked.length });
+      // Known stored at once: the bank is read again, but a retry before that read lands (or after
+      // it fails) must not send these a second time.
+      setImported((now) => new Set([...now, ...stored]));
       toast.show(userMessageOf(e, "Couldn't import the questions. Try again."), {
         tone: 'danger',
       });
@@ -266,11 +282,12 @@ export function QuestionBankPage() {
         <ImportFromQuizDialog
           sources={quizSources(rows)}
           bankPrompts={
-            new Set(
-              bank.state === 'ready'
-                ? bank.value.map((b) => b.question.prompt.trim().toLowerCase())
-                : [],
-            )
+            new Set([
+              ...(bank.state === 'ready'
+                ? bank.value.map((b) => promptKey(b.question.prompt))
+                : []),
+              ...imported,
+            ])
           }
           onClose={() => setDialog(null)}
           onImport={importMany}

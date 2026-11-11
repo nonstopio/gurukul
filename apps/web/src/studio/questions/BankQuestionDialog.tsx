@@ -91,7 +91,7 @@ export function BankQuestionDialog({
       }
     >
       {/* Locked while it saves: what is stored is what was on screen when Save was pressed. */}
-      <div className="studio-question" inert={saving} aria-busy={saving}>
+      <div className="studio-question" inert={saving}>
         <Select
           label="Question type"
           value={question.kind}

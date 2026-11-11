@@ -2,7 +2,7 @@ import type { ChangelogEntry } from '../types';
 
 export default {
   date: '2026-11-07',
-  id: 'IMAGE-LINK-DURING-UPLOAD',
+  id: 'LINK-DURING-UPLOAD',
   title: 'An address typed during an upload is the one the lesson keeps',
   area: 'STUDIO',
   kind: 'fix',

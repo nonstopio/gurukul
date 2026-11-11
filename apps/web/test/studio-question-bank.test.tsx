@@ -360,7 +360,6 @@ describe('new question', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Add to bank' }));
     });
     expect(prompt.closest('[inert]')).not.toBeNull();
-    expect(prompt.closest('[aria-busy="true"]')).not.toBeNull();
     await act(async () => finish());
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -452,8 +451,9 @@ describe('import from a Quiz', () => {
     vi.mocked(studio.data.addToBank)
       .mockResolvedValueOnce('one')
       .mockRejectedValueOnce(new Error('denied'));
-    // The bank, read again after the failure, holds the first question.
-    vi.mocked(studio.data.questionBank).mockResolvedValue([entry('1')]);
+    // The bank is read again after the failure, and that read never lands: the dialog must know
+    // what was stored without it.
+    vi.mocked(studio.data.questionBank).mockReturnValue(new Promise(() => {}));
     choose(within(dialog).getByLabelText('Quiz'), /› Quiz I$/);
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Other\?/ }));
@@ -461,7 +461,7 @@ describe('import from a Quiz', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Add 2 to the bank' }));
     });
     expect(await screen.findByText(/Couldn.t import the questions/)).toBeTruthy();
-    const retry = await within(dialog).findByRole('button', { name: 'Add 1 to the bank' });
+    const retry = within(dialog).getByRole('button', { name: 'Add 1 to the bank' });
     const done = within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ }) as HTMLInputElement;
     expect(done.disabled).toBe(true);
     expect(done.checked).toBe(false);

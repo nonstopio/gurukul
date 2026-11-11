@@ -162,6 +162,7 @@ describe('Who can open this course', () => {
     await act(async () => finish({ visibility: 'staff', visibleTeamIds: [] }));
     expect(await screen.findByText('Saved. It applies to the live course now.')).toBeTruthy();
     // Still the newer choice, and Save is offered for it (once a team is picked).
+    expect(within(card).getByLabelText('Visibility').textContent).toContain('Team only');
     fireEvent.click(within(card).getByRole('checkbox', { name: 'Platform' }));
     expect(save(card).disabled).toBe(false);
   });

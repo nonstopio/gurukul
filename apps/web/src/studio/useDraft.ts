@@ -41,6 +41,18 @@ export interface DraftApi {
  */
 const inflight = new Map<string, Promise<unknown>>();
 
+/** Registers a save as the one the next page waits for, until it settles or a newer one replaces it. */
+const track = (courseId: string, pending: Promise<unknown>) => {
+  const settled = pending.then(
+    () => undefined,
+    () => undefined,
+  );
+  inflight.set(courseId, settled);
+  void settled.then(() => {
+    if (inflight.get(courseId) === settled) inflight.delete(courseId);
+  });
+};
+
 /** The longest a page waits for an earlier save: a stalled network must not block loading. */
 export const SAVE_WAIT_MS = 3000;
 const waitFor = (courseId: string, pending: Promise<unknown>): Promise<unknown> =>
@@ -143,14 +155,7 @@ export function useDraft(courseId: string): DraftApi {
     }
     setSave('saving');
     const request = data.saveDraft(courseId, current, baseRev, uid);
-    const settled = request.then(
-      () => undefined,
-      () => undefined,
-    );
-    inflight.set(courseId, settled);
-    void settled.then(() => {
-      if (inflight.get(courseId) === settled) inflight.delete(courseId);
-    });
+    track(courseId, request);
     try {
       const next = await request;
       stored.current = current;
@@ -175,23 +180,30 @@ export function useDraft(courseId: string): DraftApi {
     }
   }, [data, courseId, uid, backupId]);
 
-  const saveNow = useCallback(async (): Promise<boolean> => {
+  const saveNow = useCallback((): Promise<boolean> => {
     clearTimeout(timer.current);
-    // A save already on its way: let it land (it moves `rev`), then save what was edited since.
-    // Giving up here left those edits unsaved with no autosave pending, and made leaving the
-    // page report them as failed. Someone else's save (a conflict) is not retried.
-    while (saving.current) {
-      await saving.current;
-      if (latest.current.save === 'conflict') return false;
-    }
-    const request = saveOnce();
-    saving.current = request;
-    try {
-      return await request;
-    } finally {
-      saving.current = null;
-    }
-  }, [saveOnce]);
+    const waiting = saving.current !== null;
+    const queued = (async () => {
+      // A save already on its way: let it land (it moves `rev`), then save what was edited since.
+      // Giving up here left those edits unsaved with no autosave pending, and made leaving the
+      // page report them as failed. Someone else's save (a conflict) is not retried.
+      while (saving.current) {
+        await saving.current;
+        if (latest.current.save === 'conflict') return false;
+      }
+      const request = saveOnce();
+      saving.current = request;
+      try {
+        return await request;
+      } finally {
+        saving.current = null;
+      }
+    })();
+    // Registered now, not when its own save starts: a page that loads the draft meanwhile (this one
+    // flushed on the way out) must wait for this save as well as the one ahead of it.
+    if (waiting) track(courseId, queued);
+    return queued;
+  }, [saveOnce, courseId]);
 
   const update = useCallback(
     (edit: (w: Working) => Working) => {

@@ -2,7 +2,7 @@ import { MAX_TEAM_MANAGERS, classifyEmails, teamId } from '@gurukul/schema';
 import type { Team } from '@gurukul/schema';
 import type { EmailClassification } from '@gurukul/ui';
 import { Button, Dialog, Input, useToast } from '@gurukul/ui';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useUser } from '../auth/AuthProvider';
 import { article } from '../labels/terms';
@@ -55,6 +55,13 @@ export function TeamDialog({
   const [nameError, setNameError] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  /** The field that sent the form with Enter, to focus again once a failed save unlocks it. */
+  const resumeFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (saving || !resumeFocus.current) return;
+    resumeFocus.current.focus();
+    resumeFocus.current = null;
+  }, [saving]);
   const everyone = [...emails, ...managers];
 
   useEffect(() => {
@@ -119,6 +126,9 @@ export function TeamDialog({
         : { createdBy: uid }),
       ...(managed ? { managerEmails: managed } : {}),
     };
+    // Enter in a field sends the form, and the field goes inert with it: a failed save gives focus back.
+    const active = document.activeElement;
+    resumeFocus.current = e.currentTarget.contains(active) ? (active as HTMLElement) : null;
     setSaving(true);
     try {
       await data.saveTeam(saved, team?.name ?? null, { checkTaken });
@@ -148,13 +158,7 @@ export function TeamDialog({
       }
     >
       {/* Locked while it saves: what is stored is what was on screen when Save was pressed. */}
-      <form
-        id={formId}
-        className="console-flow"
-        inert={saving}
-        aria-busy={saving}
-        onSubmit={(e) => void submit(e)}
-      >
+      <form id={formId} className="console-flow" inert={saving} onSubmit={(e) => void submit(e)}>
         <Input
           label="Team name"
           value={name}

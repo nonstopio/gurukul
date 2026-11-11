@@ -1,7 +1,7 @@
 import { Button, Checkbox, Dialog, EmptyState, Input, Select } from '@gurukul/ui';
 import { useState } from 'react';
 import { useTerms } from '../../labels/useTerms';
-import { KIND_LABELS, parseTags } from '../questionEdit';
+import { KIND_LABELS, parseTags, promptKey } from '../questionEdit';
 import type { Keyed, QuizSource } from '../questionEdit';
 
 /**
@@ -26,7 +26,7 @@ export function ImportFromQuizDialog({
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const source = sources.find((s) => s.id === quizId);
-  const inBank = (k: Keyed) => bankPrompts.has(k.question.prompt.trim().toLowerCase());
+  const inBank = (k: Keyed) => bankPrompts.has(promptKey(k.question.prompt));
   // A question already in the bank is never sent again, even if it was ticked before it got there
   // (a retry after an import that stopped halfway).
   const chosen = (source?.questions ?? []).filter(
