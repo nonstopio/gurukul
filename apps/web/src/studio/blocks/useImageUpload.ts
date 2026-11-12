@@ -83,6 +83,11 @@ export interface ImageUpload {
   ) => Promise<void>;
   /** Drops the shrunk file; nothing was uploaded. */
   discard: () => void;
+  /**
+   * The Educator chose another image (typed a link): stops any upload, forgets the picked file and
+   * goes back to idle. The stopped upload writes nothing, even if its file already reached Storage.
+   */
+  drop: () => void;
   copyPrompt: (target: ShrinkTarget) => Promise<void>;
   /** The picked file's preview address while one waits or uploads. */
   previewUrl: string | undefined;
@@ -110,14 +115,16 @@ export function useImageUpload<T extends ImageHolder>(
     latest.current = holder;
   });
   const running = useRef<AbortController | null>(null);
-  const gone = useRef(false);
-  useEffect(() => {
-    gone.current = false;
-    return () => {
-      gone.current = true;
+  // Moves on when the file in hand stops mattering: the editor went away, or the Educator typed a
+  // link (`drop`). A check or shrink that finishes after that is for nobody and changes nothing.
+  const epoch = useRef(0);
+  useEffect(
+    () => () => {
+      epoch.current += 1;
       running.current?.abort();
-    };
-  }, []);
+    },
+    [],
+  );
 
   const previewUrl =
     stage.step === 'ready' || stage.step === 'uploading' ? stage.picked.previewUrl : undefined;
@@ -127,12 +134,20 @@ export function useImageUpload<T extends ImageHolder>(
   }, [previewUrl]);
 
   const pick = async (file: File) => {
+    const mine = epoch.current;
     setStage({ step: 'checking', name: file.name });
     const target: ShrinkTarget = { kind: 'image', name: file.name, size: file.size };
     let result;
     try {
       result = await inspectImage(file, policy);
     } catch {
+      // Read below, once it is known the answer is still wanted.
+      result = undefined;
+    }
+    // The drop zone takes no file while one is being checked: only leaving or a typed link interrupt,
+    // and then the answer, whatever it is, is for nobody.
+    if (epoch.current !== mine) return;
+    if (!result) {
       setStage({
         step: 'refused',
         target,
@@ -145,8 +160,6 @@ export function useImageUpload<T extends ImageHolder>(
       });
       return;
     }
-    // The drop zone takes no file while one is being checked, so only leaving can interrupt.
-    if (gone.current) return;
     const { candidate, check } = result;
     const { width, height } = candidate;
     const sized =
@@ -186,9 +199,10 @@ export function useImageUpload<T extends ImageHolder>(
     { file, width, height }: NonNullable<RefusedStage['shrinkable']>,
     { target, problems }: RefusedStage,
   ) => {
+    const mine = epoch.current;
     setStage({ step: 'shrinking', name: file.name });
     const result = await shrinkImage(file, { width, height }, policy);
-    if (gone.current) return;
+    if (epoch.current !== mine) return;
     if (result.ok) {
       setStage({
         step: 'ready',
@@ -219,6 +233,7 @@ export function useImageUpload<T extends ImageHolder>(
     if (running.current) return;
     const controller = new AbortController();
     running.current = controller;
+    const mine = epoch.current;
     setStage({ step: 'uploading', picked, progress: 0 });
     const contentType = picked.file.type as ImageContentType;
     const path = mediaPath(courseId, newMediaId(), contentType);
@@ -240,6 +255,9 @@ export function useImageUpload<T extends ImageHolder>(
         signal: controller.signal,
       });
       const blurHash = await hashing;
+      // Stopped after the file was up (another image was chosen, or the editor went away): the
+      // block already holds something newer, and this upload must not overwrite it.
+      if (controller.signal.aborted) throw new UploadCancelledError();
       onChange({
         ...latest.current,
         url,
@@ -259,6 +277,9 @@ export function useImageUpload<T extends ImageHolder>(
         title: 'Image uploaded',
       });
     } catch (error) {
+      // Dropped (a link was typed) or left: `drop` already went back to idle, and a file picked
+      // since is not this upload's to touch, whatever error it ended with.
+      if (epoch.current !== mine) return;
       if (error instanceof UploadCancelledError) {
         setStage({ step: 'ready', picked });
         return;
@@ -266,7 +287,8 @@ export function useImageUpload<T extends ImageHolder>(
       log.warn('Image upload failed', { courseId, code: (error as { code?: unknown }).code });
       setStage({ step: 'ready', picked, failure: uploadFailureMessage(error) });
     } finally {
-      running.current = null;
+      // A dropped upload no longer holds the slot: a file picked since may be uploading.
+      if (running.current === controller) running.current = null;
     }
   };
 
@@ -293,6 +315,12 @@ export function useImageUpload<T extends ImageHolder>(
     cancel: () => running.current?.abort(),
     shrink,
     discard: () => setStage({ step: 'idle' }),
+    drop: () => {
+      epoch.current += 1;
+      running.current?.abort();
+      running.current = null;
+      setStage({ step: 'idle' });
+    },
     copyPrompt,
     previewUrl,
   };

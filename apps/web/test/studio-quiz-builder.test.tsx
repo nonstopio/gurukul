@@ -471,6 +471,24 @@ describe('Quiz builder: question bank', () => {
     expect(await screen.findByText('Saved to the question bank')).toBeTruthy();
   });
 
+  it('stores the question once however fast Save to question bank is pressed', async () => {
+    const { studio } = await open();
+    let finish: () => void = () => {};
+    vi.mocked(studio.data.addToBank).mockImplementationOnce(
+      () => new Promise((resolve) => (finish = () => resolve('new'))),
+    );
+    const button = screen.getByRole('button', { name: 'Save to question bank' });
+    act(() => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    expect(studio.data.addToBank).toHaveBeenCalledTimes(1);
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => finish());
+    expect(await screen.findByText('Saved to the question bank')).toBeTruthy();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('tells you when saving to the bank fails', async () => {
     const { studio } = await open();
     vi.mocked(studio.data.addToBank).mockRejectedValueOnce(new Error('denied'));

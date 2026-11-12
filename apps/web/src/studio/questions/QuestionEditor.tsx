@@ -39,6 +39,7 @@ export function QuestionEditor({
   onEdit,
   onDelete,
   onSaveToBank,
+  savingToBank = false,
 }: {
   keyed: Keyed;
   lessons: Lesson[];
@@ -48,6 +49,8 @@ export function QuestionEditor({
   onEdit: (edit: (keyed: Keyed) => Keyed) => void;
   onDelete: () => void;
   onSaveToBank: (tags: string[]) => void;
+  /** True while this question is on its way to the bank: the button is busy and takes no click. */
+  savingToBank?: boolean;
 }) {
   const { question, key } = keyed;
   const t = useTerms();
@@ -170,7 +173,11 @@ export function QuestionEditor({
           value={tags}
           onChange={(e) => setTags(e.target.value)}
         />
-        <Button variant="secondary" onClick={() => onSaveToBank(parseTags(tags))}>
+        <Button
+          variant="secondary"
+          loading={savingToBank}
+          onClick={() => onSaveToBank(parseTags(tags))}
+        >
           Save to question bank
         </Button>
       </div>

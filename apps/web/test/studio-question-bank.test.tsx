@@ -342,6 +342,28 @@ describe('new question', () => {
     expect(saved.tags).toEqual([]);
   });
 
+  it('locks the fields while it saves, so what is stored is what was on screen', async () => {
+    const { studio } = await open([]);
+    let finish: () => void = () => {};
+    vi.mocked(studio.data.addToBank).mockImplementationOnce(
+      () => new Promise((resolve) => (finish = () => resolve('new'))),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'New question' }));
+    const dialog = screen.getByRole('dialog', { name: 'New question' });
+    const prompt = within(dialog).getByLabelText('Question (Markdown)');
+    fireEvent.change(prompt, { target: { value: 'Q' } });
+    fireEvent.change(within(dialog).getByLabelText('Answer 1'), { target: { value: 'A' } });
+    fireEvent.change(within(dialog).getByLabelText('Answer 2'), { target: { value: 'B' } });
+    fireEvent.change(within(dialog).getByLabelText('Explanation'), { target: { value: 'E' } });
+    expect(prompt.closest('[inert]')).toBeNull();
+    act(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add to bank' }));
+    });
+    expect(prompt.closest('[inert]')).not.toBeNull();
+    await act(async () => finish());
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('keeps the dialog open and says so when adding fails, and Cancel closes it', async () => {
     const { studio } = await open([]);
     vi.mocked(studio.data.addToBank).mockRejectedValueOnce(new Error('denied'));
@@ -422,6 +444,34 @@ describe('import from a Quiz', () => {
     expect(within(dialog).getByRole('heading', { name: 'No Quiz to import from' })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('sends only what is not in the bank yet when an import that stopped halfway is tried again', async () => {
+    const { studio, dialog } = await openImport([]);
+    vi.mocked(studio.data.addToBank)
+      .mockResolvedValueOnce('one')
+      .mockRejectedValueOnce(new Error('denied'));
+    // The bank is read again after the failure, and that read never lands: the dialog must know
+    // what was stored without it.
+    vi.mocked(studio.data.questionBank).mockReturnValue(new Promise(() => {}));
+    choose(within(dialog).getByLabelText('Quiz'), /› Quiz I$/);
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Other\?/ }));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add 2 to the bank' }));
+    });
+    expect(await screen.findByText(/Couldn.t import the questions/)).toBeTruthy();
+    const retry = within(dialog).getByRole('button', { name: 'Add 1 to the bank' });
+    const done = within(dialog).getByRole('checkbox', { name: /Prompt 1\?/ }) as HTMLInputElement;
+    expect(done.disabled).toBe(true);
+    expect(done.checked).toBe(false);
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    expect(studio.data.addToBank).toHaveBeenCalledTimes(3);
+    const last = vi.mocked(studio.data.addToBank).mock.calls[2]?.[0] as Entry;
+    expect(last.question.prompt).toBe('Other?');
+    expect(await screen.findByText('1 question added to the bank')).toBeTruthy();
   });
 
   it('keeps the dialog and says so when an import fails', async () => {

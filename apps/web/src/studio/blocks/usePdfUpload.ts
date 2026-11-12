@@ -45,6 +45,11 @@ export interface PdfUpload {
   /** Uploads the picked file; on success the block gets its address, `upload` and, if empty, a label. */
   upload: (picked: PickedPdf) => Promise<void>;
   cancel: () => void;
+  /**
+   * The Educator typed a link: stops any upload, forgets the picked file and goes back to idle. The
+   * stopped upload writes nothing, even if its file already reached Storage.
+   */
+  drop: () => void;
   copyPrompt: (target: ShrinkTarget) => Promise<void>;
 }
 
@@ -68,14 +73,16 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
     latest.current = block;
   });
   const running = useRef<AbortController | null>(null);
-  const gone = useRef(false);
-  useEffect(() => {
-    gone.current = false;
-    return () => {
-      gone.current = true;
+  // Moves on when the file in hand stops mattering: the editor went away, or the Educator typed a
+  // link (`drop`). A check or shrink that finishes after that is for nobody and changes nothing.
+  const epoch = useRef(0);
+  useEffect(
+    () => () => {
+      epoch.current += 1;
       running.current?.abort();
-    };
-  }, []);
+    },
+    [],
+  );
 
   const previewUrl =
     stage.step === 'ready' || stage.step === 'uploading' ? stage.picked.previewUrl : undefined;
@@ -85,6 +92,7 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
   }, [previewUrl]);
 
   const pick = async (file: File) => {
+    const mine = epoch.current;
     setStage({ step: 'checking', name: file.name });
     const target: ShrinkTarget = { kind: 'pdf', name: file.name, size: file.size };
     let result;
@@ -92,6 +100,11 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
       // No pixels to read from a PDF: the decoder is told there are none.
       result = await inspectImage(file, policy, async () => null);
     } catch {
+      // Read below, once it is known the answer is still wanted.
+      result = undefined;
+    }
+    if (epoch.current !== mine) return;
+    if (!result) {
       setStage({
         step: 'refused',
         target,
@@ -105,7 +118,6 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
       });
       return;
     }
-    if (gone.current) return;
     const { check } = result;
     if (check.kind === 'image') {
       setStage({
@@ -133,6 +145,7 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
     if (running.current) return;
     const controller = new AbortController();
     running.current = controller;
+    const mine = epoch.current;
     setStage({ step: 'uploading', picked, progress: 0 });
     const path = mediaPath(courseId, newMediaId(), PDF_CONTENT_TYPE);
     // Made while the file uploads; it never fails, so a placeholder cannot hold an upload back.
@@ -147,6 +160,9 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
         signal: controller.signal,
       });
       const blurHash = await hashing;
+      // Stopped after the file was up (a link was typed, or the editor went away): the block
+      // already holds something newer, and this upload must not overwrite it.
+      if (controller.signal.aborted) throw new UploadCancelledError();
       const now = latest.current;
       onChange({
         ...now,
@@ -166,6 +182,9 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
         title: 'PDF uploaded',
       });
     } catch (error) {
+      // Dropped (a link was typed) or left: `drop` already went back to idle, and a file picked
+      // since is not this upload's to touch, whatever error it ended with.
+      if (epoch.current !== mine) return;
       if (error instanceof UploadCancelledError) {
         setStage({ step: 'ready', picked });
         return;
@@ -173,7 +192,8 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
       log.warn('PDF upload failed', { courseId, code: (error as { code?: unknown }).code });
       setStage({ step: 'ready', picked, failure: uploadFailureMessage(error) });
     } finally {
-      running.current = null;
+      // A dropped upload no longer holds the slot: a file picked since may be uploading.
+      if (running.current === controller) running.current = null;
     }
   };
 
@@ -192,5 +212,18 @@ export function usePdfUpload(block: FileBlock, onChange: (block: FileBlock) => v
     }
   };
 
-  return { stage, policy, pick, upload, cancel: () => running.current?.abort(), copyPrompt };
+  return {
+    stage,
+    policy,
+    pick,
+    upload,
+    cancel: () => running.current?.abort(),
+    drop: () => {
+      epoch.current += 1;
+      running.current?.abort();
+      running.current = null;
+      setStage({ step: 'idle' });
+    },
+    copyPrompt,
+  };
 }

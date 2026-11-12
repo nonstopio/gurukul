@@ -56,8 +56,13 @@ export function FileEditor({ block, onChange }: BlockEditorProps<'file'>) {
                 }
                 // A new block's stand-in address is not one to edit: the field starts empty.
                 value={block.url === PLACEHOLDER_FILE ? '' : block.url}
-                // The upload belongs to the old file: a typed address makes this a plain link.
-                onChange={(e) => onChange(patch(block, { url: e.target.value, upload: undefined }))}
+                onChange={(e) => {
+                  // A typed address is the file now: an upload still running, or a file waiting
+                  // for Upload, must not replace it (`drop` makes sure the upload writes nothing).
+                  source.drop();
+                  // The upload belongs to the old file: a typed address makes this a plain link.
+                  onChange(patch(block, { url: e.target.value, upload: undefined }));
+                }}
               />
             ),
           },

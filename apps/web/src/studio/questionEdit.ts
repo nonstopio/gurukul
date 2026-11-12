@@ -326,3 +326,6 @@ export function removeQuestion(work: Working, quizId: string, questionId: string
 
 export const moveQuestion = (work: Working, quizId: string, from: number, to: number): Working =>
   withQuiz(work, quizId, (p) => ({ ...p, questions: moveItem(p.questions, from, to) }));
+
+/** How the bank tells one question's text from another: case and surrounding spaces do not count. */
+export const promptKey = (prompt: string): string => prompt.trim().toLowerCase();

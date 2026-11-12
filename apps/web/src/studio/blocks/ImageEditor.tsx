@@ -52,7 +52,10 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
                 }
                 // A new block's stand-in address is not one to edit: the field starts empty.
                 value={block.url === PLACEHOLDER_IMAGE ? '' : block.url}
-                onChange={(e) =>
+                onChange={(e) => {
+                  // A typed address is the image now: an upload still running, or a file waiting
+                  // for Upload, must not replace it (`drop` makes sure the upload writes nothing).
+                  source.drop();
                   // The size and the upload belong to the old image; the preview reads the new
                   // address once it loads.
                   onChange(
@@ -62,8 +65,8 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
                       width: undefined,
                       height: undefined,
                     }),
-                  )
-                }
+                  );
+                }}
               />
             ),
           },

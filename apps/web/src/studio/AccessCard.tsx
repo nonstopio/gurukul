@@ -66,10 +66,12 @@ function AccessForm({
 
   const save = async () => {
     setBusy(true);
+    const sent = value;
     try {
-      const next = await service.setCourseAccess({ courseId, ...value });
+      const next = await service.setCourseAccess({ courseId, ...sent });
       setSaved(next);
-      setValue(next);
+      // A choice changed while the save was on its way is newer: keep it, still unsaved.
+      setValue((now) => (now === sent ? next : now));
       toast.show(
         published
           ? 'Saved. It applies to the live course now.'

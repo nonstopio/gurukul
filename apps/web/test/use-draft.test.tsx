@@ -193,10 +193,9 @@ describe('useDraft', () => {
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
   });
 
-  it('stays dirty when edits arrive while a save is in flight', async () => {
+  it('saves edits made while a save is in flight once it lands, with the new rev', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
     let finish: (rev: number) => void = () => {};
-    // Later saves (the flush when the test unmounts) settle, as real ones do.
     studio.data.saveDraft = vi
       .fn()
       .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
@@ -209,14 +208,81 @@ describe('useDraft', () => {
       first = result.current.saveNow();
     });
     expect(result.current.save).toBe('saving');
-    expect(await result.current.saveNow()).toBe(false);
     act(() => result.current.update(rename('E')));
+    // The autosave for E fires while D is still on its way: it waits instead of giving up.
+    let second: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      second = result.current.saveNow();
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     await act(async () => {
       finish(2);
       expect(await first).toBe(false);
+      expect(await second).toBe(true);
     });
-    expect(result.current.save).toBe('dirty');
-    expect(result.current.rev).toBe(2);
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(studio.data.saveDraft).mock.calls[1]?.[2]).toBe(2);
+    expect(vi.mocked(studio.data.saveDraft).mock.calls[1]?.[1].course.title).toBe('E');
+    expect(result.current.save).toBe('saved');
+    expect(result.current.rev).toBe(3);
+  });
+
+  it('saves edits made while a save is in flight without another keystroke', async () => {
+    vi.useFakeTimers();
+    try {
+      const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
+      let finish: (rev: number) => void = () => {};
+      studio.data.saveDraft = vi
+        .fn()
+        .mockImplementationOnce(() => new Promise<number>((r) => (finish = r)))
+        .mockResolvedValue(3);
+      const { result } = setup(studio);
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+      expect(result.current.status).toBe('ready');
+      act(() => result.current.update(rename('D')));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+      });
+      act(() => result.current.update(rename('E')));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+      });
+      expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+      await act(async () => finish(2));
+      expect(studio.data.saveDraft).toHaveBeenCalledTimes(2);
+      expect(result.current.save).toBe('saved');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a waiting save when the one in flight met someone else's save", async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 1 }) });
+    let refuse: (e: Error) => void = () => {};
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((_, r) => (refuse = r)));
+    const { result } = setup(studio);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => result.current.update(rename('D')));
+    let first: Promise<boolean> = Promise.resolve(true);
+    let second: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      first = result.current.saveNow();
+    });
+    act(() => result.current.update(rename('E')));
+    act(() => {
+      second = result.current.saveNow();
+    });
+    await act(async () => {
+      refuse(new DraftConflictError());
+      expect(await first).toBe(false);
+      expect(await second).toBe(false);
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
+    expect(result.current.save).toBe('conflict');
   });
 
   it('marks a conflict, keeps it through later edits, and reloads on request', async () => {
@@ -296,6 +362,33 @@ describe('useDraft', () => {
     await act(async () => fail(new Error('down')));
     const third = setup(studio);
     await waitFor(() => expect(third.result.current.status).toBe('ready'));
+  });
+
+  it('makes the next page wait for a save queued behind another when the page is left', async () => {
+    const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
+    let finishFirst: (rev: number) => void = () => undefined;
+    let finishSecond: (rev: number) => void = () => undefined;
+    studio.data.saveDraft = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<number>((r) => (finishFirst = r)))
+      .mockImplementationOnce(() => new Promise<number>((r) => (finishSecond = r)));
+    const first = setup(studio);
+    await waitFor(() => expect(first.result.current.status).toBe('ready'));
+    act(() => first.result.current.update(rename('Q')));
+    act(() => void first.result.current.saveNow());
+    act(() => first.result.current.update(rename('R')));
+    // Left while Q is on its way: the flush for R queues behind it.
+    first.unmount();
+    const calls = vi.mocked(studio.data.getDraft).mock.calls.length;
+    const second = setup(studio);
+    await act(async () => finishFirst(5));
+    await waitFor(() => expect(studio.data.saveDraft).toHaveBeenCalledTimes(2));
+    // Q landed, but R is still on its way: the next page has not read the draft yet.
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls);
+    expect(second.result.current.status).toBe('loading');
+    await act(async () => finishSecond(6));
+    await waitFor(() => expect(second.result.current.status).toBe('ready'));
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(calls + 1);
   });
 
   it('keeps the newest save registered when an older one settles first', async () => {

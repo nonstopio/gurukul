@@ -41,6 +41,18 @@ export interface DraftApi {
  */
 const inflight = new Map<string, Promise<unknown>>();
 
+/** Registers a save as the one the next page waits for, until it settles or a newer one replaces it. */
+const track = (courseId: string, pending: Promise<unknown>) => {
+  const settled = pending.then(
+    () => undefined,
+    () => undefined,
+  );
+  inflight.set(courseId, settled);
+  void settled.then(() => {
+    if (inflight.get(courseId) === settled) inflight.delete(courseId);
+  });
+};
+
 /** The longest a page waits for an earlier save: a stalled network must not block loading. */
 export const SAVE_WAIT_MS = 3000;
 const waitFor = (courseId: string, pending: Promise<unknown>): Promise<unknown> =>
@@ -85,7 +97,8 @@ export function useDraft(courseId: string): DraftApi {
     latest.current = { work, rev, save };
   });
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const saving = useRef(false);
+  /** The save on its way to the server, if any: a second save waits for it instead of giving up. */
+  const saving = useRef<Promise<boolean> | null>(null);
   /** The content as it is stored now: a save that would write the same again is skipped. */
   const stored = useRef<Working | null>(null);
 
@@ -128,10 +141,9 @@ export function useDraft(courseId: string): DraftApi {
     };
   }, [data, courseId, key, backupId]);
 
-  const saveNow = useCallback(async (): Promise<boolean> => {
-    clearTimeout(timer.current);
+  const saveOnce = useCallback(async (): Promise<boolean> => {
     const { work: current, rev: baseRev, save: state } = latest.current;
-    if (!current || state === 'saved' || saving.current) return state === 'saved';
+    if (!current || state === 'saved') return state === 'saved';
     // Edits that end where the stored draft already is (a space typed and deleted) write nothing,
     // so `rev` only moves when the content does. A conflict still needs the Educator's answer.
     // `stored` is set whenever `work` is: both come from the same load.
@@ -141,17 +153,9 @@ export function useDraft(courseId: string): DraftApi {
       clearBackup(backupId);
       return true;
     }
-    saving.current = true;
     setSave('saving');
     const request = data.saveDraft(courseId, current, baseRev, uid);
-    const settled = request.then(
-      () => undefined,
-      () => undefined,
-    );
-    inflight.set(courseId, settled);
-    void settled.then(() => {
-      if (inflight.get(courseId) === settled) inflight.delete(courseId);
-    });
+    track(courseId, request);
     try {
       const next = await request;
       stored.current = current;
@@ -164,17 +168,42 @@ export function useDraft(courseId: string): DraftApi {
       if (!stillDirty) clearBackup(backupId);
       return !stillDirty;
     } catch (e) {
-      if (e instanceof DraftConflictError) setSave('conflict');
-      else {
+      if (e instanceof DraftConflictError) {
+        latest.current = { ...latest.current, save: 'conflict' };
+        setSave('conflict');
+      } else {
         log.warn('Saving a draft failed', { courseId });
         writeBackup(backupId, { rev: baseRev, savedAt: Date.now(), work: current });
         setSave('error');
       }
       return false;
-    } finally {
-      saving.current = false;
     }
   }, [data, courseId, uid, backupId]);
+
+  const saveNow = useCallback((): Promise<boolean> => {
+    clearTimeout(timer.current);
+    const waiting = saving.current !== null;
+    const queued = (async () => {
+      // A save already on its way: let it land (it moves `rev`), then save what was edited since.
+      // Giving up here left those edits unsaved with no autosave pending, and made leaving the
+      // page report them as failed. Someone else's save (a conflict) is not retried.
+      while (saving.current) {
+        await saving.current;
+        if (latest.current.save === 'conflict') return false;
+      }
+      const request = saveOnce();
+      saving.current = request;
+      try {
+        return await request;
+      } finally {
+        saving.current = null;
+      }
+    })();
+    // Registered now, not when its own save starts: a page that loads the draft meanwhile (this one
+    // flushed on the way out) must wait for this save as well as the one ahead of it.
+    if (waiting) track(courseId, queued);
+    return queued;
+  }, [saveOnce, courseId]);
 
   const update = useCallback(
     (edit: (w: Working) => Working) => {

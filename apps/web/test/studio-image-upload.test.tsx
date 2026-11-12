@@ -331,6 +331,31 @@ describe('picking an image', () => {
     expect(bitmap).toHaveBeenCalledOnce();
   });
 
+  it('forgets a file still being checked when a link is typed', async () => {
+    const { container } = setup();
+    let finish: (size: { width: number; height: number }) => void = () => {};
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = (size) => resolve({ ...size, close: () => {} });
+          }),
+      ),
+    );
+    act(() => void fireEvent.change(picker(container), { target: { files: [pngFile()] } }));
+    await screen.findByText('Checking shot.png…');
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => finish({ width: 900, height: 600 }));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByRole('img', { name: 'Image preview' }).getAttribute('src')).toBe(
+      'https://example.com/other.png',
+    );
+  });
+
   it('makes no preview when the editor goes away while a file is being checked', async () => {
     const { container, unmount } = setup();
     let finish: (size: { width: number; height: number }) => void = () => {};
@@ -494,6 +519,121 @@ describe('uploading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
     await act(async () => ctl.done('https://firebasestorage.googleapis.com/v0/b/b/o/p'));
     expect(last()).toMatchObject({ alt: 'A branch diagram', layout: 'medium', width: 1200 });
+  });
+
+  it('drops the upload when a link is typed while it runs, and keeps the link', async () => {
+    const studio = fakeStudio();
+    const ctl = pendingUpload(studio);
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(ctl.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    expect(ctl.request?.signal.aborted).toBe(true);
+    await act(async () => ctl.fail(new UploadCancelledError()));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.png' });
+    expect(last()).not.toHaveProperty('upload');
+    expect(screen.getByRole('img', { name: 'Image preview' }).getAttribute('src')).toBe(
+      'https://example.com/other.png',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(screen.queryByRole('button', { name: 'Upload image' })).toBeNull();
+    expect(screen.queryByText('Image uploaded')).toBeNull();
+  });
+
+  it('writes nothing when the link is typed after the file is up but before the upload ends', async () => {
+    const studio = fakeStudio();
+    let hashed: (hash: string | undefined) => void = () => {};
+    vi.mocked(imageBlurHash).mockReturnValue(
+      new Promise((resolve) => {
+        hashed = resolve;
+      }),
+    );
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    // The storage upload has resolved; only the blur hash is still being made.
+    await waitFor(() => expect(studio.storage.upload).toHaveBeenCalledOnce());
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => hashed(HASH));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.png' });
+    expect(last()).not.toHaveProperty('upload');
+    expect(screen.queryByText('Image uploaded')).toBeNull();
+  });
+
+  it('keeps the typed address when a dropped upload then fails for another reason', async () => {
+    const studio = fakeStudio();
+    const ctl = pendingUpload(studio);
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(ctl.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    // The file was already up: the abort came too late, and reading its address failed.
+    await act(async () => ctl.fail({ code: 'storage/network-request-failed' }));
+    expect(last()).toMatchObject({ url: 'https://example.com/other.png' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(screen.queryByRole('button', { name: /^(Try again|Upload image)$/ })).toBeNull();
+    expect(errorBox()).toBeNull();
+  });
+
+  it('lets a file picked after a drop upload while the dropped one is still settling', async () => {
+    const studio = fakeStudio();
+    const first = pendingUpload(studio);
+    const { container, last } = setup(newBlock('image'), { studio });
+    await pick(container, pngFile());
+    fireEvent.click(upload());
+    await waitFor(() => expect(first.request).toBeDefined());
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    const second = pendingUpload(studio);
+    await pick(container, pngFile('second.png'));
+    fireEvent.click(upload());
+    await waitFor(() => expect(second.request).toBeDefined());
+    // The dropped upload settles late: the new one is not touched.
+    await act(async () => first.fail(new UploadCancelledError()));
+    expect(screen.getByRole('progressbar', { name: 'Upload progress' })).toBeTruthy();
+    await act(async () => second.done('https://firebasestorage.googleapis.com/v0/b/b/o/second'));
+    expect(last()).toMatchObject({
+      url: 'https://firebasestorage.googleapis.com/v0/b/b/o/second',
+      upload: { name: 'second.png' },
+    });
+    expect(await screen.findByText('Image uploaded')).toBeTruthy();
+  });
+
+  it('shows no refusal for an unreadable file abandoned for a typed address', async () => {
+    const { container } = setup();
+    let fail: () => void = () => {};
+    const slow = pngFile();
+    vi.spyOn(slow, 'slice').mockReturnValue({
+      arrayBuffer: () =>
+        new Promise<ArrayBuffer>((_, reject) => {
+          fail = () => reject(new Error('unreadable'));
+        }),
+    } as unknown as Blob);
+    act(() => void fireEvent.change(picker(container), { target: { files: [slow] } }));
+    await screen.findByText(/^Checking /);
+    fireEvent.click(screen.getByRole('tab', { name: 'Link' }));
+    fireEvent.change(screen.getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    await act(async () => fail());
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }));
+    expect(errorBox()).toBeNull();
+    expect(screen.queryByText(/could not be read/)).toBeNull();
   });
 
   it('cancels, keeps the file ready and writes nothing', async () => {

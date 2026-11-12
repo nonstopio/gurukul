@@ -233,18 +233,19 @@ describe('lesson editor: blocks', () => {
     await open();
     const title = (await screen.findByLabelText('Lesson title')) as HTMLInputElement;
     const tile = screen.getByRole('button', { name: 'Text' });
-    // Typing in a field with text keeps the slash.
-    title.focus();
-    expect(fireEvent.keyDown(title, { key: '/' })).toBe(true);
-    expect(document.activeElement).toBe(title);
+    // Outside a field it jumps to the palette. The handler attaches in a passive effect that can
+    // run after the title renders, so wait for it before checking the keys it must leave alone:
+    // checked earlier, they could pass only because nothing was listening yet.
+    await waitFor(() => expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false));
+    expect(document.activeElement).toBe(tile);
     // A modifier key is left alone.
     expect(fireEvent.keyDown(document.body, { key: '/', ctrlKey: true })).toBe(true);
     // Another key is ignored.
     expect(fireEvent.keyDown(document.body, { key: 'a' })).toBe(true);
-    // Outside a field it jumps to the palette. The handler attaches in a passive effect that can
-    // run after the title renders, so wait for it.
-    await waitFor(() => expect(fireEvent.keyDown(document.body, { key: '/' })).toBe(false));
-    expect(document.activeElement).toBe(tile);
+    // Typing in a field with text keeps the slash.
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: '/' })).toBe(true);
+    expect(document.activeElement).toBe(title);
     // An empty field counts as not typing yet.
     fireEvent.change(title, { target: { value: '' } });
     title.focus();

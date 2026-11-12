@@ -10,7 +10,7 @@ import {
   UploadIcon,
   useToast,
 } from '@gurukul/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toastError } from '../errors';
 import { useUser } from '../auth/AuthProvider';
@@ -81,6 +81,9 @@ function Builder({
   const [selectedId, setSelectedId] = useState<string | null>(asked);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  // Questions on their way to the bank: the ref turns away a second click at once, the state shows it.
+  const banking = useRef(new Set<string>());
+  const [bankingIds, setBankingIds] = useState<ReadonlySet<string>>(new Set());
   const issues = useMemo(
     () => validateForPublish(work.course, work.answers, checks),
     [work, checks],
@@ -135,6 +138,10 @@ function Builder({
   };
   const saveToBank = async (entry: Keyed, tags: string[]) => {
     const ids = { courseId, quizId, questionId: entry.question.id };
+    // A second click before the button shows it is busy must not store the question twice.
+    if (banking.current.has(entry.question.id)) return;
+    banking.current.add(entry.question.id);
+    setBankingIds(new Set(banking.current));
     try {
       await data.addToBank(bankEntry(entry, tags), uid);
       log.info('Question saved to the bank', ids);
@@ -147,6 +154,9 @@ function Builder({
         "Couldn't save the question to the bank. Try again.",
         () => void saveToBank(entry, tags),
       );
+    } finally {
+      banking.current.delete(entry.question.id);
+      setBankingIds(new Set(banking.current));
     }
   };
 
@@ -237,6 +247,7 @@ function Builder({
                 }
                 onDelete={() => setDeleting(keyed.question.id)}
                 onSaveToBank={(tags) => void saveToBank(keyed, tags)}
+                savingToBank={bankingIds.has(keyed.question.id)}
               />
             ) : (
               <EmptyState
