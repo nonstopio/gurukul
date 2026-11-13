@@ -5,7 +5,6 @@ import {
   clientFromCredentials,
   createMailer,
   gmailMailer,
-  htmlFromText,
   serviceAccountPort,
   unconfiguredMailer,
 } from '../src/gmail.js';
@@ -16,6 +15,7 @@ const message = {
   to: 'a@example.com',
   subject: 'Hi\r\nBcc: x@y.z',
   text: 'Hello <b>\n\nhttps://x.test/a',
+  html: '<p>Hello &lt;b&gt;</p><a href="https://x.test/a">x</a>',
 };
 const decode = (raw: string): string => Buffer.from(raw, 'base64url').toString('utf8');
 const part = (mime: string, type: string): string => {
@@ -29,20 +29,11 @@ afterEach(() => {
   delete process.env['SITE_URL'];
 });
 
-describe('htmlFromText', () => {
-  it('escapes markup, links urls and keeps paragraphs', () => {
-    const html = htmlFromText(message.text);
-    expect(html).toContain('Hello &lt;b&gt;');
-    expect(html).toContain('<a href="https://x.test/a">https://x.test/a</a>');
-    expect(html.match(/<p /g)?.length).toBe(3);
-  });
-});
-
 describe('buildRawMessage', () => {
   const mime = decode(buildRawMessage(message, SENDER, 'help@nonstopio.com', 'B'));
 
   it('sets from, reply-to and to, and cannot be given a header by a subject', () => {
-    expect(mime).toContain(`From: NonStop Academy <${SENDER}>`);
+    expect(mime).toContain(`From: NonStop Gurukul <${SENDER}>`);
     expect(mime).toContain('Reply-To: help@nonstopio.com');
     expect(mime).toContain('To: a@example.com');
     expect(mime).not.toMatch(/^Bcc:/m);
@@ -66,7 +57,7 @@ describe('buildRawMessage', () => {
 
   it('carries the text and an html alternative', () => {
     expect(part(mime, 'text/plain')).toBe(message.text);
-    expect(part(mime, 'text/html')).toContain('<a href="https://x.test/a">');
+    expect(part(mime, 'text/html')).toBe(message.html);
   });
 
   it('works with the default boundary', () => {
@@ -79,7 +70,7 @@ describe('gmailMailer', () => {
     const sendRaw = vi.fn().mockResolvedValue(undefined);
     await gmailMailer({ sendRaw }).send(message);
     const mime = decode(sendRaw.mock.calls[0]?.[0] as string);
-    expect(mime).toContain(`From: NonStop Academy <${SENDER}>`);
+    expect(mime).toContain(`From: NonStop Gurukul <${SENDER}>`);
     expect(mime).toContain(`Reply-To: ${SENDER}`);
   });
 
@@ -134,7 +125,7 @@ describe('createMailer', () => {
     ).send(message);
     expect(makeClient).toHaveBeenCalledWith('{}', 'f@nonstopio.com');
     const mime = decode(request.mock.calls[0]?.[0].data.raw as string);
-    expect(mime).toContain('From: NonStop Academy <f@nonstopio.com>');
+    expect(mime).toContain('From: NonStop Gurukul <f@nonstopio.com>');
     expect(mime).toContain('Reply-To: r@nonstopio.com');
   });
 

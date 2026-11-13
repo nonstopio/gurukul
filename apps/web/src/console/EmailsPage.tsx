@@ -27,6 +27,12 @@ export function EmailsPage() {
   );
 }
 
+/**
+ * The email as the preview frame shows it. The frame runs no scripts and cannot touch this page;
+ * a link in it opens a new tab, since the site refuses to load inside a frame.
+ */
+const previewDoc = (html: string): string => html.replace('<head>', '<head><base target="_blank">');
+
 function Templates({ templates }: { templates: EmailTemplateView[] }) {
   const { data, service } = useConsole();
   const toast = useToast();
@@ -101,7 +107,16 @@ function Templates({ templates }: { templates: EmailTemplateView[] }) {
           <p>
             <strong>Subject:</strong> {t.subject}
           </p>
-          <pre className="emails-body">{t.body}</pre>
+          <iframe
+            className="emails-preview"
+            title={`${t.name} preview`}
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            srcDoc={previewDoc(t.html)}
+          />
+          <details className="emails-text">
+            <summary>Plain-text version</summary>
+            <pre className="emails-body">{t.body}</pre>
+          </details>
         </Card>
       ))}
     </div>

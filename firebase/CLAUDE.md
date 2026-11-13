@@ -56,7 +56,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   writes `progress/{id}/attempts/{aid}` and `progress.quiz[id]` in one transaction). Both refuse a
   Quiz the learner's `itemStates` shows as locked (`PRK_1003`), and a retired (archived) course with `CRS_1004`. Decisions
   live in `grading.ts`; the answer key never leaves the server. `revokeCertificate` is Admin-only
-  and writes an `audit` entry; a new revocation emails the learner through the mailer. Certificates are publicly `get`-able (verification); `counters/**` is closed.
+  and writes an `audit` entry; a new revocation emails the learner through the mailer. Emails are HTML plus a plain-text alternative; `mail-html.ts` holds the shared layout and every dynamic value in it is escaped. Certificates are publicly `get`-able (verification); `counters/**` is closed.
 
 - Admin console callables (Admin-only unless noted, each writes an `audit` entry): `assignCourses`
   (1-20 published courses x 1-1000 emails, or 1-20 `teamIds` whose `memberEmails` are assigned and each new

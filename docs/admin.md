@@ -22,8 +22,9 @@ The summary on the right shows exactly what will happen before you press **Assig
 not signed in yet are invited: the course appears the first time they sign in. Assigning twice is
 harmless; already-assigned people are skipped.
 
-> Emails are queued but not sent yet. Sending needs a decision on the mail service (see
-> `.plan/13-open-questions.md`, question 4).
+With **Notify** on, each person gets one email from `gurukul@nonstopio.com` listing the courses, the
+due date and a button to open them. **Email templates** (`/admin/emails`) previews every email
+Gurukul sends and sends a test to one or two NonStop io addresses.
 
 ## Learners
 

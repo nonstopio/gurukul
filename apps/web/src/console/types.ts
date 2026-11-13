@@ -225,7 +225,10 @@ export interface EmailTemplateView {
   name: string;
   when: string;
   subject: string;
+  /** The plain-text version. */
   body: string;
+  /** The designed email, as a complete HTML document. */
+  html: string;
 }
 
 type AssignmentStatus = AssignmentFull['status'];

@@ -146,8 +146,9 @@ export function fakeConsole(
         id: 'assigned',
         name: 'Course assigned',
         when: 'An Admin assigns a course.',
-        subject: 'New course on NonStop Academy: Sample course',
+        subject: 'New course on NonStop Gurukul: Sample course',
         body: 'Hello,\n\nYou have been assigned a course.',
+        html: '<html><head></head><body><p>You have been assigned a course.</p></body></html>',
       },
       {
         id: 'revoked',
@@ -155,6 +156,7 @@ export function fakeConsole(
         when: 'An Admin revokes a certificate.',
         subject: 'Your certificate was revoked',
         body: 'Hello,\n\nRevoked.',
+        html: '<p>Revoked.</p>',
       },
     ]),
     sendTestEmail: vi

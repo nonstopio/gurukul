@@ -20,7 +20,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Sign-in, roles and shell | 16 | 0 | 0 | 0 |
 | Learner experience | 20 | 0 | 0 | 0 |
 | Quizzes and certificates | 10 | 0 | 0 | 0 |
-| Admin console and Analytics | 33 | 0 | 0 | 0 |
+| Admin console and Analytics | 34 | 0 | 0 | 0 |
 | Studio | 20 | 0 | 0 | 0 |
 | Design system | 6 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
@@ -30,7 +30,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| **Total** | 182 | 0 | 0 | 14 |
+| **Total** | 183 | 0 | 0 | 14 |
 
 ## Pick order
 
@@ -158,6 +158,7 @@ Plan: `07-admin-console.md`, `09-analytics.md`, `design-handoff/02-admin-console
 | `KUL-25` | Educators see their learners | done | — | First slice: Studio Analytics lists learner names, progress and last active for an Educator's own courses: `firebase/firestore.rules` (`courses/{id}/learners`, no client writes), `firebase/functions/src/progress.ts` and `stores.ts` (`recordLearner` on a first start), `apps/web/src/studio/AnalyticsTab.tsx`; `.plan/09-analytics.md`. Left: `KUL-32` |
 | `KUL-26` | Learners counts and pending invites past the newest 500 assignments          | done    | —        | `apps/web/src/console/firebase.ts` (`openAssignments`), `LearnersPage.tsx`, `model.ts`; index `status`+`dueAt`                                                                       |
 | `KUL-33` | Email templates view and test send | done | `KUL-24` | `firebase/functions/src/email-templates.ts` (`EMAIL_TEMPLATES`, `listEmailTemplates`, `sendTestEmail`), `handlers.ts`, `index.ts`; `apps/web/src/console/EmailsPage.tsx` (`/admin/emails`); `GEN_5004` in `packages/schema/src/api.ts`; `e2e/tests/admin.spec.ts`; `.plan/07-admin-console.md`, `16-api-contract.md` |
+| `KUL-34` | Designed HTML emails | done | `KUL-33` | `firebase/functions/src/mail-html.ts` (one layout: header, course cards, one button, footer; tables with inline styles, every value escaped), `mail.ts` (each `build*Email` returns `html` and `text`), `gmail.ts` (sends both parts), `email-templates.ts` (`html` in the view); `apps/web/src/console/EmailsPage.tsx` (sandboxed preview); `e2e/tests/admin.spec.ts`; `.plan/07-admin-console.md`. Not yet viewed in Gmail or Outlook: needs a test send once `OPS-25` is live |
 | `KUL-27` | Overview pending-invite count past the newest 500 assignments | done | — | `apps/web/src/console/OverviewPage.tsx` (Pending invites: distinct emails from `openAssignments`, same source as Learners); test in `apps/web/test/console-pages.test.tsx` |
 
 ## Studio
