@@ -1,6 +1,6 @@
 # NonStop Gurukul
 
-**The open-source learning platform behind NonStop Academy.**
+**NonStop io's open-source learning platform.**
 
 Gurukul is where NonStopians take courses, clear short checkpoint quizzes
 (_Quizzes_) and earn certificates. Admins (_Admins_) assign courses and

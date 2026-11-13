@@ -209,7 +209,7 @@ describe('seedOrgConfig', () => {
           domain: 'nonstopio.com',
           teams: [],
           reminders: { enabled: false },
-          signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+          signatory: { name: 'Asha Example', role: 'Head of NonStop Gurukul' },
         },
       },
     ]);

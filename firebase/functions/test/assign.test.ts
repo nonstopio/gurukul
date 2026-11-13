@@ -140,7 +140,7 @@ describe('assignCourses', () => {
     expect(priya.text).toContain('/courses/sql');
     expect(priya.text).not.toContain('/courses/git');
     const fresh = mailer.send.mock.calls.find((c) => c[0].to === 'new@nonstopio.com')?.[0];
-    expect(fresh.subject).toBe('You have 2 new courses on NonStop Academy');
+    expect(fresh.subject).toBe('You have 2 new courses on NonStop Gurukul');
   });
 
   it('reports pairs whose batch failed, and bumps, audits and emails only what was written', async () => {

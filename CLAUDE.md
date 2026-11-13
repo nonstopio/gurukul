@@ -1,6 +1,6 @@
 # Working on Gurukul
 
-Gurukul is NonStop io's open-source learning platform (NonStop Academy):
+NonStop Gurukul is NonStop io's open-source learning platform:
 Google sign-in, courses made of chapters and lessons, Quiz checkpoints,
 certificates, an Admin console and a Studio for Educators. People pick
 Gurukul names (Shishya, Kulapati, Pariksha) or plain English for what they

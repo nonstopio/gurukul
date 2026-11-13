@@ -44,7 +44,7 @@ beforeEach(async () => {
       domain: 'nonstopio.com',
       teams: ['QA', 'Dev'],
       reminders: { enabled: false },
-      signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+      signatory: { name: 'Asha Example', role: 'Head of NonStop Gurukul' },
     });
   });
 });
