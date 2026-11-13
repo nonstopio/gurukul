@@ -19,8 +19,20 @@ describe('Email templates', () => {
     const { container } = await openApp('/admin/emails', { ...admin });
     expect(await screen.findByRole('region', { name: 'Course assigned' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Certificate revoked' })).toBeTruthy();
-    expect(screen.getByText('New course on NonStop Academy: Sample course')).toBeTruthy();
+    expect(screen.getByText('New course on NonStop Gurukul: Sample course')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('previews the real HTML in a sandboxed frame and keeps the plain text in a details', async () => {
+    await openApp('/admin/emails', { ...admin });
+    const frame = (await screen.findByTitle('Course assigned preview')) as HTMLIFrameElement;
+    // No scripts and no same-origin access; links may only open a new tab.
+    expect(frame.getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox');
+    expect(frame.getAttribute('srcdoc')).toBe(
+      '<html><head><base target="_blank"></head><body><p>You have been assigned a course.</p></body></html>',
+    );
+    expect(screen.getAllByText('Plain-text version')).toHaveLength(2);
+    expect(screen.getByText(/You have been assigned a course\./, { selector: 'pre' })).toBeTruthy();
   });
 
   it('sends the selected template to the address filled in for the Admin, and says where it went', async () => {

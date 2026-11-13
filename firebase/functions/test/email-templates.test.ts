@@ -18,9 +18,29 @@ describe('listEmailTemplates', () => {
     const views = listEmailTemplates(admin);
     expect(views.map((v) => v.id)).toEqual(EMAIL_TEMPLATES.map((t) => t.id));
     for (const v of views) {
-      expect(v.name && v.when && v.subject && v.body).toBeTruthy();
+      expect(v.name && v.when && v.subject && v.body && v.html).toBeTruthy();
     }
     expect(views.find((v) => v.id === 'assigned')?.body).toContain('31 Dec 2026');
+    expect(views.find((v) => v.id === 'assigned')?.html).toContain('Finish by 31 Dec 2026');
+  });
+
+  it('builds every template as one complete, well-formed HTML page', () => {
+    const count = (html: string, re: RegExp): number => (html.match(re) ?? []).length;
+    for (const { id, subject, html } of listEmailTemplates(admin)) {
+      expect(html.startsWith('<!doctype html><html lang="en">'), id).toBe(true);
+      expect(html.endsWith('</body></html>'), id).toBe(true);
+      expect(html, id).toContain(`<title>${subject}</title>`);
+      // The hidden inbox-preview line comes before anything visible.
+      expect(html.indexOf('display:none'), id).toBeLessThan(html.indexOf('<table'));
+      for (const tag of ['table', 'tr', 'td', 'div', 'a']) {
+        expect(count(html, new RegExp(`<${tag}[ >]`, 'g')), `${id} <${tag}>`).toBe(
+          count(html, new RegExp(`</${tag}>`, 'g')),
+        );
+      }
+      expect(html, id).not.toMatch(/undefined|\[object|NaN|null/);
+      // Email clients drop stylesheets and scripts: everything is inline, and nothing runs.
+      expect(html, id).not.toMatch(/<style|<script|<link|\son\w+=/);
+    }
   });
 
   it('refuses anyone who is not an Admin', () => {

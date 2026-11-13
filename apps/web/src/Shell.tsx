@@ -63,8 +63,8 @@ export function titleFor(
 ): string {
   const target = path.replace(/\/+$/, '') || '/';
   const page = areas.flatMap((a) => a.pages).find((p) => p.path === target);
-  if (!page) return 'Gurukul · NonStop Academy';
-  return page.path === '/' ? 'Gurukul · NonStop Academy' : `${localize(page.label, t)} · Gurukul`;
+  if (!page || page.path === '/') return 'NonStop Gurukul';
+  return `${localize(page.label, t)} · Gurukul`;
 }
 
 /** Groups what this person can open by area, in catalog order. */

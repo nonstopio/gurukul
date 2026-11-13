@@ -1,6 +1,6 @@
 # Gurukul plan
 
-The reviewed plan for NonStop Gurukul (NonStop Academy). Code follows this
+The reviewed plan for NonStop Gurukul. Code follows this
 plan; a change in scope, data shape, roles or cost changes the plan first, in
 the same PR.
 
@@ -51,7 +51,7 @@ cross-cutting ones are collected in `13-open-questions.md`.
 
 | Term | Meaning |
 |---|---|
-| Gurukul | The platform (public name: NonStop Academy) |
+| Gurukul | The platform (public name: NonStop Gurukul) |
 | Learner | Learner — every signed-in person |
 | Educator | Educator — builds and edits the courses they are granted |
 | Admin | Admin — assigns, grants roles, sees everything |

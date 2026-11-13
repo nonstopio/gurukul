@@ -7,7 +7,7 @@ export default {
   area: 'PLATFORM',
   kind: 'feature',
   why:
-    'The Sanskrit names suit NonStop Academy but not everyone who reads the app, and not every ' +
+    'The Sanskrit names suit NonStop Gurukul but not everyone who reads the app, and not every ' +
     'team that adopts this open-source project. Now each person picks the names they read; the ' +
     'code and data use plain English names throughout.',
   detail: [

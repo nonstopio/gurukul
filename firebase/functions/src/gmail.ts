@@ -13,27 +13,6 @@ export interface GmailPort {
   sendRaw(raw: string): Promise<void>;
 }
 
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/** The plain-text body as a small HTML page: paragraphs, bullet lines and links made clickable. */
-export function htmlFromText(text: string): string {
-  const linked = (line: string): string =>
-    escapeHtml(line).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`);
-  const body = text
-    .trim()
-    .split(/\n{2,}/)
-    .map((block) => `<p style="margin:0 0 16px">${block.split('\n').map(linked).join('<br>')}</p>`)
-    .join('');
-  return (
-    '<!doctype html><html><body style="margin:0;background:#f6f5f2;padding:24px">' +
-    '<div style="max-width:560px;margin:0 auto;background:#fff;padding:24px;border-radius:8px;' +
-    'font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1c1b1a">' +
-    `${body}<p style="margin:24px 0 0;color:#6b6862;font-size:13px">NonStop Academy</p>` +
-    '</div></body></html>'
-  );
-}
-
 const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64');
 const wrap = (s: string): string => s.replace(/(.{76})/g, '$1\r\n');
 
@@ -48,7 +27,7 @@ export function buildRawMessage(
   boundary = `gurukul-${Math.random().toString(36).slice(2)}`,
 ): string {
   const lines = [
-    `From: NonStop Academy <${oneLine(from)}>`,
+    `From: NonStop Gurukul <${oneLine(from)}>`,
     `Reply-To: ${oneLine(replyTo)}`,
     `To: ${oneLine(message.to)}`,
     ...(message.cc !== undefined && message.cc.length > 0
@@ -67,7 +46,7 @@ export function buildRawMessage(
     'Content-Type: text/html; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
     '',
-    wrap(b64(htmlFromText(message.text))),
+    wrap(b64(message.html)),
     `--${boundary}--`,
     '',
   ];

@@ -1,7 +1,7 @@
 {
   "name": "gurukul",
   "private": true,
-  "description": "NonStop Gurukul \u2014 the open-source learning platform behind NonStop Academy. Monorepo root.",
+  "description": "NonStop Gurukul \u2014 NonStop io's open-source learning platform. Monorepo root.",
   "license": "MIT",
   "engines": {
     "node": ">=22"

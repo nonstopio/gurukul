@@ -59,7 +59,7 @@ file. After assigning exactly one course the console opens Learners filtered to 
 ## Email notifications
 
 Firebase has no built-in email sending. Decided (open question 4): the first option, sender
-`gurukul@nonstopio.com`, in `firebase/functions/src/gmail.ts` behind a `Mailer` port; without
+`gurukul@nonstopio.com`, in `firebase/functions/src/gmail.ts` behind a `Mailer` port (emails are HTML with a plain-text alternative, see Email templates); without
 credentials it logs a warning and sends nothing. Options considered:
 
 | Option | Cost | Notes |
@@ -89,12 +89,18 @@ and assigns their members. Data: [02 · Data model](02-data-model.md#teams).
 
 ## Email templates
 
-`/admin/emails` lists every email Gurukul sends (course assigned, reminder, certificate revoked),
+`/admin/emails` lists every email Gurukul sends (course assigned, reminder, deadline notice, certificate revoked),
 filled with sample data, and sends the chosen one to one or two `@nonstopio.com` addresses the Admin types (the first is filled with their own), subject prefixed
 `[Test]`, so email can be proven end to end without assigning a real course. Callables
 `listEmailTemplates` and `sendTestEmail` (Admin-only; no audit entry, since nothing changes and only
 NonStop io addresses can receive it). Without Gmail credentials the send fails with `GEN_5004` instead of
 looking like success. A new `build*Email` in `mail.ts` is added to `EMAIL_TEMPLATES` too.
+
+Every email is HTML with a plain-text alternative (`multipart/alternative`): each `build*Email` returns
+both. One shared layout lives in `firebase/functions/src/mail-html.ts` (header band, course cards, one
+button, footer; tables with inline styles so Outlook and Gmail render it, every dynamic value escaped).
+`listEmailTemplates` returns the HTML next to the text, and the Emails page previews the HTML in a
+sandboxed frame with the plain text under "Plain-text version".
 
 ## Org settings
 

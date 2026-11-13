@@ -99,7 +99,7 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
   domain: 'nonstopio.com',
   teams: [],
   reminders: { enabled: false },
-  signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+  signatory: { name: 'Asha Example', role: 'Head of NonStop Gurukul' },
 };
 
 /** Claim keys set by the `setRoles` function. */

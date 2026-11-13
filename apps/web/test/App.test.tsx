@@ -134,7 +134,7 @@ describe('signed-in shell', () => {
     );
     expect(within(nav).queryByRole('link', { name: 'Changelog' })).toBeNull();
     expect(within(nav).queryByRole('link', { name: 'Overview' })).toBeNull();
-    expect(document.title).toBe('Gurukul · NonStop Academy');
+    expect(document.title).toBe('NonStop Gurukul');
   });
 
   it('opens and closes the sidebar from the menu button, and closes it after navigating', async () => {
@@ -254,8 +254,8 @@ describe('offline banner', () => {
 describe('titleFor and groupByArea', () => {
   it('names a page from its navigation label', () => {
     expect(titleFor('/changelog/')).toBe('Changelog · Gurukul');
-    expect(titleFor('/')).toBe('Gurukul · NonStop Academy');
-    expect(titleFor('/nowhere')).toBe('Gurukul · NonStop Academy');
+    expect(titleFor('/')).toBe('NonStop Gurukul');
+    expect(titleFor('/nowhere')).toBe('NonStop Gurukul');
   });
 
   it('groups destinations by area, keeping order', () => {

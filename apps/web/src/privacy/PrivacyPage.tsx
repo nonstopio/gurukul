@@ -9,7 +9,7 @@ export function PrivacyPage() {
     <main id="content">
       <Page width="reading">
         <PageHeader
-          eyebrow="NonStop Academy"
+          eyebrow="NonStop Gurukul"
           title="Privacy policy"
           lead={`How Gurukul measures its own use. Version ${POLICY_VERSION}.`}
         />

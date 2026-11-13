@@ -60,7 +60,7 @@ describe('config/org', () => {
     domain: 'nonstopio.com',
     teams: ['QA', 'Dev'],
     reminders: { enabled: true },
-    signatory: { name: 'Asha Example', role: 'Head of NonStop Academy' },
+    signatory: { name: 'Asha Example', role: 'Head of NonStop Gurukul' },
   };
 
   it('lets any signed-in NonStop account read it', async () => {

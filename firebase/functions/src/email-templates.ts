@@ -66,15 +66,18 @@ export interface TemplateView {
   name: string;
   when: string;
   subject: string;
+  /** The plain-text alternative. */
   body: string;
+  /** The designed email. */
+  html: string;
 }
 
 /** `listEmailTemplates`: each template as the Admin would receive it, with sample data. */
 export function listEmailTemplates(caller: Caller): TemplateView[] {
   requireAdmin(caller, 'listEmailTemplates');
   return EMAIL_TEMPLATES.map(({ id, name, when, build }) => {
-    const { subject, text } = build(caller.email as string);
-    return { id, name, when, subject, body: text };
+    const { subject, text, html } = build(caller.email as string);
+    return { id, name, when, subject, body: text, html };
   });
 }
 

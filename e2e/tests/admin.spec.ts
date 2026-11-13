@@ -135,9 +135,20 @@ test.describe('Admin', () => {
     await grantRoles(meera.email, ['admin']);
     await page.goto('/admin/emails');
     await expect(page.getByRole('heading', { level: 1, name: 'Email templates' })).toBeVisible();
-    for (const name of ['Course assigned', 'Course reminder', 'Certificate revoked']) {
+    for (const name of [
+      'Course assigned',
+      'Course reminder',
+      'Deadline notice',
+      'Certificate revoked',
+    ]) {
       await expect(page.getByRole('region', { name })).toBeVisible();
     }
+    // Each template is previewed as the designed email, not as text.
+    const preview = page.frameLocator('iframe[title="Deadline notice preview"]');
+    await expect(
+      preview.getByRole('heading', { name: 'Courses need your attention' }),
+    ).toBeVisible();
+    await expect(preview.getByRole('link', { name: 'Open NonStop Gurukul' })).toBeVisible();
     await expectNoSeriousViolations(page);
 
     // Select is our own listbox, not a native <select>: open it and click the option.

@@ -30,7 +30,7 @@ export const certificateRow = (over: Partial<CertificateRow> = {}): CertificateR
   courseVersion: 1,
   issuedAt: new Date('2026-11-09T00:00:00Z'),
   signatoryName: 'The Admin',
-  signatoryRole: 'NonStop Academy',
+  signatoryRole: 'NonStop Gurukul',
   revoked: false,
   revokedAt: null,
   ...over,
