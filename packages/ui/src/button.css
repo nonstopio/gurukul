@@ -78,6 +78,13 @@
 .g-btn--chrome-secondary:hover:not(:disabled) {
   background: var(--chrome-hover);
 }
+/* A toggle button (`aria-pressed`): on, it takes the selection look, hover or not. */
+.g-btn[aria-pressed='true'],
+.g-btn[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-soft-text);
+}
 .g-btn--sm {
   min-height: calc(var(--control-height) - var(--space-2));
   padding: 0 var(--space-3);

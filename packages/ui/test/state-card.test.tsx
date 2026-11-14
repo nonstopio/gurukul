@@ -42,21 +42,27 @@ describe('StateCard', () => {
     expect(container.querySelector('.g-state__actions')).toBeNull();
   });
 
-  it.each<StateCardVariant>(['error', 'offline', 'forbidden'])(
-    'has no axe violations as %s',
-    async (variant) => {
-      const { container } = render(
-        <StateCard
-          variant={variant}
-          title="Title"
-          code="X-1"
-          kind="Kind"
-          actions={<button type="button">Go</button>}
-        >
-          Message
-        </StateCard>,
-      );
-      expect(await axeViolations(container)).toEqual([]);
-    },
-  );
+  it.each<[StateCardVariant, string]>([
+    ['error', 'sad'],
+    ['offline', 'worried'],
+    ['forbidden', 'confused'],
+  ])('leads %s with the decorative owl (%s) and has no axe violations', async (variant, face) => {
+    const { container } = render(
+      <StateCard
+        variant={variant}
+        title="Title"
+        code="X-1"
+        kind="Kind"
+        actions={<button type="button">Go</button>}
+      >
+        Message
+      </StateCard>,
+    );
+    const owl = container.querySelector('svg.g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe(face);
+    expect(owl?.getAttribute('data-variant')).toBe('body');
+    expect(owl?.getAttribute('width')).toBe('64');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });

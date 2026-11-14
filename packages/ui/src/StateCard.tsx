@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
-import { AlertIcon, InfoIcon, LockIcon } from './Icon';
 import { cx } from './cx';
+import { Mascot } from './Mascot';
+import type { MascotState } from './Mascot';
 import './state-card.css';
 
 export type StateCardVariant = 'error' | 'offline' | 'forbidden';
@@ -22,7 +23,12 @@ export interface StateCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'ti
   children?: ReactNode;
 }
 
-const ICONS = { error: AlertIcon, offline: InfoIcon, forbidden: LockIcon };
+/** The owl's state per variant; the title says what happened in words. No access is a puzzle, not a sorrow. */
+const FACES: Record<StateCardVariant, MascotState> = {
+  error: 'error',
+  offline: 'warning',
+  forbidden: 'validation',
+};
 
 /**
  * A block for a region that could not be shown: failed to load, offline, or not allowed. Empty has
@@ -39,13 +45,10 @@ export function StateCard({
   children,
   ...rest
 }: StateCardProps) {
-  const Icon = ICONS[variant];
   const role = variant === 'error' ? 'alert' : variant === 'offline' ? 'status' : undefined;
   return (
     <div className={cx('g-state', `g-state--${variant}`, className)} role={role} {...rest}>
-      <span className="g-state__icon">
-        <Icon size={20} />
-      </span>
+      <Mascot state={FACES[variant]} size={64} className="g-state__icon" />
       <Heading className="g-state__title">{title}</Heading>
       {children ? <p className="g-state__text">{children}</p> : null}
       {code ? <code className="g-state__code">{kind ? `${code} · ${kind}` : code}</code> : null}

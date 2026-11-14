@@ -22,7 +22,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Quizzes and certificates | 10 | 0 | 0 | 0 |
 | Admin console and Analytics | 34 | 0 | 0 | 0 |
 | Studio | 20 | 0 | 0 | 0 |
-| Design system | 6 | 0 | 0 | 0 |
+| Design system | 9 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 22 | 0 | 0 | 11 |
 | First course: Git | 6 | 0 | 0 | 2 |
@@ -30,7 +30,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| **Total** | 183 | 0 | 0 | 14 |
+| **Total** | 186 | 0 | 0 | 14 |
 
 ## Pick order
 
@@ -200,6 +200,9 @@ Plan: `04-design-system.md`.
 | `DS-06` | Gallery: Sidebar, TopBar, VideoBlock, Certificate | done | — | `apps/web/src/design-system/examples.tsx` (Sidebar, SidebarGroup, NavItem, TopBar, VideoBlock, a normal and a revoked long-name Certificate in size-capped frames), `design-system.css`; axe-checked in `apps/web/test/ui-gallery.test.tsx` |
 | `DS-04` | Shared icon set | done | — | `packages/ui/src/Icon.tsx` (`Icon` base, 16-grid stroke, `aria-hidden` unless `label`; 37 named icons in use), `packages/ui/test/icons.test.tsx`, gallery section in `apps/web/src/design-system/`, recipe in `.claude/skills/gurukul-design/references/components.md`. Brand marks, data graphics, the seal and filled diagrams stay inline |
 | `DS-05` | axe on the remaining page tests | done | — | `apps/web/test/ChangelogPage.test.tsx`, `apps/web/test/GlobalSearch.test.tsx` (`axeViolations` from `apps/web/test/axe.ts`) |
+| `DS-07` | Owl mascot component: 24 expressions, states, body, face and loading | done | `DS-04` | `packages/ui/src/Mascot.tsx`, `mascot.css`, `--mascot-*` roles in `tokens.css` and `tokens.ts`, `packages/ui/test/mascot.test.tsx`; plan in `04-design-system.md` (The owl mascot) |
+| `DS-08` | Admin → Mascot page: every face, states, sizes, loader, both grounds, usage | done | `DS-07` | `apps/web/src/mascot/MascotPage.tsx` (`/admin/mascot`, after Design system), `Mascot` `ground` and `paused` props, `--mascot-light-*` and `--mascot-dark-*` roles; `apps/web/test/mascot-page.test.tsx`, `e2e/tests/admin.spec.ts` |
+| `DS-09` | Owl placed across the product: empty, not found, errors, toasts, loader, tips, results | done | `DS-07` | `EmptyState`, `Callout`, `PageHeader` `mascot` props, `Toast`, `GlobalLoader`; `apps/web/src/tips/useTips.ts`, `quiz/ResultPage.tsx`, `studio/ConfirmDialog.tsx`, `auth/RequireSession.tsx`; plan in `04-design-system.md` (Where it appears) |
 
 ## Global search
 

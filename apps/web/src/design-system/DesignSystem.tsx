@@ -20,6 +20,7 @@ import {
   UsersIcon,
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
+import { Alerts } from './Alerts';
 import { EXAMPLES } from './examples';
 import { groupTokens, parseTokens } from './tokens';
 import type { SampleKind, Token } from './tokens';
@@ -30,6 +31,7 @@ const BY_GROUP = Object.fromEntries(groupTokens(TOKENS).map((g) => [g.label, g.t
 
 const SECTIONS = [
   { id: 'components', label: 'Components' },
+  { id: 'alerts', label: 'Alerts' },
   { id: 'tokens', label: 'Tokens' },
   { id: 'type', label: 'Type' },
   { id: 'patterns', label: 'Patterns' },
@@ -295,7 +297,7 @@ function Patterns() {
             </EmptyState>
           </Card>
           <Card title="Error" titleAs="h3">
-            <Callout tone="warning" title="This did not load">
+            <Callout tone="warning" mascot="error" title="This did not load">
               <p>Check your connection and try again.</p>
               <Button variant="secondary">Retry</Button>
             </Callout>
@@ -354,12 +356,13 @@ const VIEWS: Record<Section, () => ReactNode> = {
   tokens: Tokens,
   type: Type,
   components: Components,
+  alerts: Alerts,
   patterns: Patterns,
 };
 
 /**
  * Org settings → Design system: the real tokens (read from tokens.css), the type scale, every
- * `@gurukul/ui` component live with its rule, and the page patterns. The section is in the URL.
+ * `@gurukul/ui` component live with its rule, every alert raised on demand, and the page patterns. The section is in the URL.
  */
 export function DesignSystem() {
   const [params, setParams] = useSearchParams();

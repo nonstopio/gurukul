@@ -1,0 +1,180 @@
+/* The owl keeps its colours on both grounds; tokens.css lifts the body in dark so it stays visible.
+   SVG transform origins are in viewBox units (200 by 200). */
+.g-mascot {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+}
+.g-mascot[data-variant='face'] {
+  overflow: hidden;
+}
+.g-mascot__shadow {
+  fill: var(--mascot-shadow);
+}
+.g-mascot__foot {
+  fill: var(--mascot-belly);
+}
+.g-mascot__dark {
+  fill: var(--mascot-body-dark);
+}
+.g-mascot__body {
+  fill: var(--mascot-body);
+}
+.g-mascot__belly {
+  fill: var(--mascot-belly);
+}
+.g-mascot__feathers {
+  fill: none;
+  stroke: var(--mascot-feather);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.g-mascot__disc {
+  fill: var(--mascot-face);
+}
+
+/* A fixed ground: the owl takes that ground's body values, whatever the page's theme. */
+.g-mascot--ground-light,
+.g-mascot--ground-dark {
+  border-radius: var(--radius-lg);
+}
+.g-mascot--ground-light {
+  --mascot-body: var(--mascot-light-body);
+  --mascot-body-dark: var(--mascot-light-body-dark);
+  --mascot-shadow: var(--mascot-light-shadow);
+  background: var(--mascot-light-ground);
+}
+.g-mascot--ground-dark {
+  --mascot-body: var(--mascot-dark-body);
+  --mascot-body-dark: var(--mascot-dark-body-dark);
+  --mascot-shadow: var(--mascot-dark-shadow);
+  background: var(--mascot-dark-ground);
+}
+
+/* The face: filled shapes use currentColor; a path with no fill of its own is a line. */
+.g-mascot__face {
+  color: var(--mascot-ink);
+}
+.g-mascot__face path:not([fill]) {
+  fill: none;
+}
+.g-mascot__face .g-mascot__shine {
+  fill: var(--mascot-shine);
+  stroke: none;
+}
+.g-mascot__face .g-mascot__blush {
+  fill: var(--mascot-belly);
+  stroke: none;
+  opacity: 0.55;
+}
+.g-mascot__face .g-mascot__sweat {
+  fill: var(--mascot-drop);
+  stroke-width: 1.5;
+}
+.g-mascot__face .g-mascot__tongue {
+  stroke: var(--mascot-belly);
+}
+.g-mascot__sparkle {
+  fill: var(--mascot-belly);
+}
+.g-mascot__bulb {
+  fill: var(--mascot-belly);
+  stroke: var(--mascot-ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.g-mascot__bulb .g-mascot__rays {
+  fill: none;
+  stroke: var(--mascot-belly);
+}
+.g-mascot__bulb .g-mascot__bulb-base {
+  fill: var(--mascot-body-dark);
+  stroke: none;
+}
+
+/* Loading: the owl waddles in place, wings flapping, one foot then the other. One cycle is
+   --dur-loader. Only transform and opacity move. */
+.g-mascot--loading .g-mascot__owl {
+  transform-origin: 100px 180px;
+  animation: g-mascot-waddle var(--dur-loader) var(--ease-in-out) infinite;
+}
+.g-mascot--loading .g-mascot__wing--l {
+  transform-origin: 52px 104px;
+  animation: g-mascot-flap-l calc(var(--dur-loader) / 2) var(--ease-in-out) infinite;
+}
+.g-mascot--loading .g-mascot__wing--r {
+  transform-origin: 148px 104px;
+  animation: g-mascot-flap-r calc(var(--dur-loader) / 2) var(--ease-in-out) infinite;
+}
+.g-mascot--loading .g-mascot__foot {
+  animation: g-mascot-step var(--dur-loader) var(--ease-in-out) infinite;
+}
+.g-mascot--loading .g-mascot__foot--r {
+  animation-delay: calc(var(--dur-loader) / -2);
+}
+.g-mascot--loading .g-mascot__shadow {
+  transform-origin: 100px 184px;
+  animation: g-mascot-shadow calc(var(--dur-loader) / 2) var(--ease-in-out) infinite;
+}
+@keyframes g-mascot-waddle {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  25%,
+  75% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes g-mascot-flap-l {
+  50% {
+    transform: rotate(14deg);
+  }
+}
+@keyframes g-mascot-flap-r {
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes g-mascot-step {
+  0%,
+  50%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes g-mascot-shadow {
+  50% {
+    transform: scaleX(0.9);
+  }
+}
+
+/* A pause control holds the loop where it is. */
+.g-mascot.g-mascot--paused * {
+  animation-play-state: paused;
+}
+
+/* Reduced motion: --dur-loader is kept for loaders, so nothing moves or turns here; the owl only
+   pulses in opacity so it still reads as alive, and a pause control still holds it. */
+@media (prefers-reduced-motion: reduce) {
+  .g-mascot.g-mascot--loading * {
+    animation: none;
+  }
+  .g-mascot.g-mascot--loading .g-mascot__owl {
+    animation: g-mascot-pulse var(--dur-loader) var(--ease-in-out) infinite;
+  }
+  .g-mascot.g-mascot--loading.g-mascot--paused .g-mascot__owl {
+    animation-play-state: paused;
+  }
+  @keyframes g-mascot-pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+}

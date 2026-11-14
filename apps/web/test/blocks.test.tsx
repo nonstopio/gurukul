@@ -394,6 +394,9 @@ describe('BlockView', () => {
     expect(screen.getByText('Incorrect')).toBeTruthy();
     expect(screen.queryByText('Correct')).toBeNull();
     expect(screen.getByRole('status').textContent).toBe('Not quiteTry another answer.');
+    expect(
+      screen.getByRole('status').querySelector('.g-mascot')?.getAttribute('data-expression'),
+    ).toBe('wink');
     expect((screen.getByLabelText(/Three/) as HTMLInputElement).disabled).toBe(false);
     expect(onAnswered).not.toHaveBeenCalled();
   });

@@ -177,6 +177,7 @@ export function TeamsPage() {
                 open={deleting !== null}
                 onClose={() => setDeleting(null)}
                 title={`Delete ${deleting?.name ?? ''}?`}
+                mascot="warning"
                 footer={
                   <>
                     <Button variant="secondary" onClick={() => setDeleting(null)}>

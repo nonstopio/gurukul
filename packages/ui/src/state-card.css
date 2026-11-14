@@ -8,25 +8,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
-.g-state__icon {
-  display: inline-grid;
-  place-items: center;
-  width: var(--space-10);
-  height: var(--space-10);
-  border-radius: var(--radius-md);
-}
-.g-state--error .g-state__icon {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-.g-state--offline .g-state__icon {
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-.g-state--forbidden .g-state__icon {
-  background: var(--surface-sunken);
-  color: var(--text-muted);
-}
 .g-state__title {
   margin: 0;
   font: 500 var(--text-lg) / var(--leading-snug) var(--font-display);

@@ -68,6 +68,7 @@ describe('UpdatePrompt', () => {
     await settle();
     const dialog = screen.getByRole('dialog', { name: 'Gurukul has been updated' });
     expect(dialog.textContent).toContain('Update now to keep going.');
+    expect(dialog.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('surprised');
     expect(toastTitle()).toBeNull();
     expect(screen.queryByRole('button', { name: /close|later/i })).toBeNull();
     const update = screen.getByRole('button', { name: 'Update' });

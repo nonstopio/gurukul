@@ -70,13 +70,39 @@ describe('App gate', () => {
     );
     act(() => f.emitUser({ ...NONSTOP, email: 'priya@gmail.com' }));
     act(() => f.emitUser(null));
-    const alert = screen.getByText(/priya@gmail.com/);
-    expect(alert.getAttribute('role')).toBe('alert');
+    const alert = screen
+      .getAllByRole('alert')
+      .find((a) => a.textContent.includes('priya@gmail.com')) as HTMLElement;
     expect(alert.textContent).toMatch(/@nonstopio.com/);
+    // Choosing a personal account is the person's mix-up, not a Gurukul failure.
+    expect(alert.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('confused');
     expect(document.activeElement).toBe(alert);
     expect(screen.queryByRole('button', { name: 'Sign in with Google' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Try another account' }));
     expect(f.service.signIn).toHaveBeenCalledWith({ chooseAccount: true });
+  });
+
+  it('shows the sad owl when sign-in itself fails', async () => {
+    const f = fakeAuth();
+    f.service.signIn = vi.fn().mockRejectedValue(new Error('popup closed'));
+    render(
+      <App
+        service={f.service}
+        data={fakeData().data}
+        quiz={fakeQuiz()}
+        console={fakeConsole()}
+        studio={fakeStudio()}
+        router={createMemoryRouter(appRoutes())}
+      />,
+    );
+    act(() => f.emitUser(null));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
+    });
+    const alert = screen
+      .getAllByRole('alert')
+      .find((a) => a.textContent.includes('Sign-in did not finish')) as HTMLElement;
+    expect(alert.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('sad');
   });
 });
 
@@ -207,6 +233,9 @@ describe('signed-in shell', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'This page does not exist.' }),
     ).toBeTruthy();
+    expect(document.querySelector('.g-empty .g-mascot')?.getAttribute('data-expression')).toBe(
+      'curious',
+    );
   });
 
   it('searches and navigates in-app', async () => {
@@ -230,7 +259,11 @@ describe('offline banner', () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     await open('/');
     const text = "You're offline. Progress will sync when you're back.";
-    expect((await screen.findByText(text)).getAttribute('role')).toBe('status');
+    const banner = await screen.findByText(text);
+    expect(banner.getAttribute('role')).toBe('status');
+    const owl = banner.querySelector('.g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe('worried');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
     online.mockReturnValue(true);
     act(() => {
       window.dispatchEvent(new Event('online'));

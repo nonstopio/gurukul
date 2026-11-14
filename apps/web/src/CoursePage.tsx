@@ -68,6 +68,7 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
             <PageHeader title="Course not found" />
             <EmptyState
               title="This course does not exist"
+              mascot="notFound"
               headingAs="h2"
               action={
                 <Link className={buttonClass('secondary')} to="/courses">

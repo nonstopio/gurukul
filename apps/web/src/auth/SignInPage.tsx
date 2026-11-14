@@ -1,7 +1,7 @@
-import { Button, CheckIcon, Checkbox, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
+import { Button, Callout, CheckIcon, Checkbox, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
-import { useSession } from './AuthProvider';
+import { RETRY_MESSAGE, useSession } from './AuthProvider';
 import { SignInArt, rise } from './SignInArt';
 import { markSignInStarted } from '../analytics/react/AnalyticsSession';
 import { acceptPolicy, usePolicyAccepted } from '../privacy/policy';
@@ -45,7 +45,7 @@ const BENEFITS = [
  */
 export function SignInPage() {
   const { signIn, error, wrongAccount } = useSession();
-  const alert = useRef<HTMLParagraphElement>(null);
+  const alert = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(false);
   const accepted = usePolicyAccepted();
   const [agreed, setAgreed] = useState(false);
@@ -75,9 +75,16 @@ export function SignInPage() {
           />
         </div>
         {error ? (
-          <p ref={alert} role="alert" className="signin__error rise" style={rise(2)} tabIndex={-1}>
-            {error}
-          </p>
+          <Callout
+            ref={alert}
+            tone="warning"
+            mascot={error === RETRY_MESSAGE ? 'error' : 'validation'}
+            title={error}
+            role="alert"
+            className="rise"
+            style={rise(2)}
+            tabIndex={-1}
+          />
         ) : null}
         <div className="signin__action rise" style={rise(2)}>
           {accepted ? (

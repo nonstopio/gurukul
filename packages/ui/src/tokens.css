@@ -194,6 +194,28 @@
   --art-shirt: #f3f3ef;
   --art-shirt-shade: #d5d8d1;
 
+  /* ---- Roles: the owl mascot (Mascot). Its identity, the same on both grounds; dark only lifts
+     the body and shadow so the owl does not sink into the ink ground ---- */
+  --mascot-body: var(--mascot-light-body);
+  --mascot-body-dark: var(--mascot-light-body-dark);
+  --mascot-belly: #f2a02b; /* belly, feet, tongue, blush, sparkles */
+  --mascot-feather: #6b3a00;
+  --mascot-face: #dff2e8;
+  --mascot-ink: #121c17;
+  --mascot-shine: #ffffff;
+  --mascot-drop: #9fd3f0; /* a sweat drop */
+  --mascot-shadow: var(--mascot-light-shadow);
+  /* Both grounds' values, fixed whatever the theme, so the owl can be shown on each side by side
+     (Mascot `ground`, Admin → Mascot). The theme picks one set for --mascot-body and friends. */
+  --mascot-light-ground: #f6f7f3;
+  --mascot-light-body: #0a6a46;
+  --mascot-light-body-dark: #064a30;
+  --mascot-light-shadow: rgb(18 28 23 / 0.16);
+  --mascot-dark-ground: #0e1511;
+  --mascot-dark-body: #13865a;
+  --mascot-dark-body-dark: #0b6340;
+  --mascot-dark-shadow: rgb(0 0 0 / 0.45);
+
   /* ---- Roles: code ---- */
   --code-bg: #0a1714;
   --code-header: #10241f;
@@ -344,6 +366,9 @@
   --info-line: #2d4f86;
   --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-menu: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+  --mascot-body: var(--mascot-dark-body);
+  --mascot-body-dark: var(--mascot-dark-body-dark);
+  --mascot-shadow: var(--mascot-dark-shadow);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -396,5 +421,8 @@
     --info-line: #2d4f86;
     --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow-menu: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+    --mascot-body: var(--mascot-dark-body);
+    --mascot-body-dark: var(--mascot-dark-body-dark);
+    --mascot-shadow: var(--mascot-dark-shadow);
   }
 }

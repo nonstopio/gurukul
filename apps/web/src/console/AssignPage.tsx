@@ -3,6 +3,7 @@ import type { ClassifiedEmail, Reminder, Team } from '@gurukul/schema';
 import {
   Button,
   buttonClass,
+  Callout,
   EmptyState,
   FlowPanel,
   FlowSteps,
@@ -509,8 +510,7 @@ export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
         </ul>
       ) : null}
       {failed.length > 0 ? (
-        <div role="alert" className="console-flow">
-          <p>These could not be saved:</p>
+        <Callout tone="warning" mascot="error" role="alert" title="These could not be saved">
           <ul aria-label="Failed assignments">
             {failed.map((f) => (
               <li key={`${f.courseId}:${f.email}`}>
@@ -521,7 +521,7 @@ export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
           <Button variant="secondary" disabled={busy} onClick={() => void retry()}>
             Retry
           </Button>
-        </div>
+        </Callout>
       ) : null}
       <p className="console-muted">
         People who have not signed in yet are invited: the course appears the first time they sign

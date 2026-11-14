@@ -64,7 +64,7 @@ export function AnalyticsTab({
       {result.state === 'loading' ? (
         <Loading label="Loading the numbers…" />
       ) : result.state === 'error' ? (
-        <Callout tone="warning" title="The numbers are not available" role="alert">
+        <Callout tone="warning" title="The numbers are not available" role="alert" mascot="error">
           <p>You may not have access to them, or the connection dropped. Try again later.</p>
           <ReportIssueLink
             problem={{
@@ -85,7 +85,12 @@ export function AnalyticsTab({
         {learners.state === 'loading' ? (
           <Loading label={`Loading the ${t.learners}…`} />
         ) : learners.state === 'error' ? (
-          <Callout tone="warning" title={`The ${t.learners} are not available`} role="alert">
+          <Callout
+            tone="warning"
+            title={`The ${t.learners} are not available`}
+            role="alert"
+            mascot="error"
+          >
             <p>You may not have access to them, or the connection dropped. Try again later.</p>
             <ReportIssueLink
               problem={{

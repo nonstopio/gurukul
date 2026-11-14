@@ -626,15 +626,6 @@ a.items__row:hover {
     flex-basis: 100%;
   }
 }
-.signin__error {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--warning-line);
-  border-radius: var(--radius-md);
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-
 /*
  * The sign-in classroom (SignInArt.tsx): a 960 x 840 scene at the panel's 8:7 shape. Colours are
  * the --art-* roles in tokens.css. Strokes, fills and the board's text are in scene units, so the

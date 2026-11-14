@@ -3,6 +3,7 @@ import type { ClipboardEvent, DragEvent, ReactNode } from 'react';
 import { Button } from './Button';
 import { cx } from './cx';
 import { UploadIcon } from './Icon';
+import { Mascot } from './Mascot';
 import { ProgressBar } from './ProgressBar';
 import './file-drop.css';
 
@@ -137,7 +138,8 @@ export function FileDrop({
       </p>
       {hasError ? (
         <div className="g-filedrop__error" id={errorId} role="alert">
-          {error}
+          <Mascot state="validation" variant="face" size={32} />
+          <div className="g-filedrop__error-text">{error}</div>
         </div>
       ) : null}
     </div>

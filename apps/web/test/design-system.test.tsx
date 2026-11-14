@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as ui from '@gurukul/ui';
 import css from '@gurukul/ui/tokens.css?raw';
 import { describe, expect, it, vi } from 'vitest';
+import { OVERLAY_MS } from '../src/design-system/Alerts';
 import { TokenList } from '../src/design-system/DesignSystem';
 import { EXAMPLES, SHOWN_ELSEWHERE } from '../src/design-system/examples';
 import { groupTokens, parseTokens } from '../src/design-system/tokens';
@@ -127,6 +128,83 @@ describe('Design system: sections', () => {
     expect(screen.getByRole('rowheader', { name: 'Empty' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
+});
+
+/** The owl's face on the toast that shows `text`. */
+const toastFace = (text: string) =>
+  screen
+    .getByText(text)
+    .closest('.g-toast')
+    ?.querySelector('.g-mascot')
+    ?.getAttribute('data-expression');
+
+describe('Design system: alerts', () => {
+  it('raises every alert from a button, with the owl leading each', async () => {
+    const user = userEvent.setup();
+    const { container } = await openSection('alerts');
+    expect(screen.getByRole('tab', { name: 'Alerts', selected: true })).toBeTruthy();
+    for (const name of ['Toasts', 'Dialogs and overlays', 'In the page', 'Answer feedback']) {
+      expect(screen.getByRole('region', { name })).toBeTruthy();
+    }
+    expect(screen.getByText('This did not load')).toBeTruthy();
+    expect(screen.getByText('Not quite')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Show success toast' }));
+    expect(await screen.findByText('Your progress is saved.')).toBeTruthy();
+    expect(toastFace('Your progress is saved.')).toBe('happy');
+    await user.click(screen.getByRole('button', { name: 'Show info toast' }));
+    expect(toastFace('The next lesson is locked')).toBe('neutral');
+    await user.click(await screen.findByRole('button', { name: 'Open lesson' }));
+    await user.click(screen.getByRole('button', { name: 'Show warning toast' }));
+    expect(await screen.findByText('API-RATE')).toBeTruthy();
+    expect(toastFace('Too many requests')).toBe('worried');
+    await user.click(screen.getByRole('button', { name: 'Show error toast' }));
+    const error = within(await screen.findByRole('alert'));
+    expect(error.getByText('Something went wrong on our side')).toBeTruthy();
+    expect(error.getByText('SRV-INTERNAL')).toBeTruthy();
+    expect(error.getByRole('link', { name: 'Report issue' })).toBeTruthy();
+    expect(
+      error
+        .getByText('Something went wrong on our side')
+        .closest('.g-toast')
+        ?.querySelector('.g-mascot')
+        ?.getAttribute('data-expression'),
+    ).toBe('sad');
+    await user.click(error.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Trying again…')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Show delete confirmation' }));
+    const confirm = await screen.findByRole('dialog', { name: 'Delete this lesson?' });
+    expect(confirm.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('worried');
+    await user.click(within(confirm).getByRole('button', { name: 'Delete lesson' }));
+    await user.click(screen.getByRole('button', { name: 'Show delete confirmation' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Show update dialog' }));
+    const update = await screen.findByRole('dialog', { name: 'Gurukul has been updated' });
+    expect(update.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('surprised');
+    await user.click(within(update).getByRole('button', { name: 'Close example' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Show loading overlay' }));
+      const overlay = screen
+        .getByText('Example: assigning to 12 people')
+        .closest('[role="status"]') as HTMLElement;
+      const owl = overlay.querySelector('.g-mascot');
+      expect(owl?.getAttribute('data-variant')).toBe('loading');
+      expect(owl?.getAttribute('data-expression')).toBe('cool');
+      act(() => vi.advanceTimersByTime(OVERLAY_MS));
+      expect(screen.queryByText('Example: assigning to 12 people')).toBeNull();
+      expect(document.querySelector('.g-mascot[data-variant="loading"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 30_000);
 });
 
 describe('Design system: components', () => {

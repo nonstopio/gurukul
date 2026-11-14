@@ -1,5 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
+import { Mascot } from './Mascot';
+import type { MascotState } from './Mascot';
 import './page-header.css';
 
 export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
@@ -20,6 +22,8 @@ export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
    * system tab), so that page keeps one `h1`. Default: `h1`.
    */
   titleAs?: 'h1' | 'h2';
+  /** The owl beside the title for a moment that earns one: `milestone` on completion, `error` on a crash. Decorative. */
+  mascot?: MascotState;
 }
 
 /**
@@ -34,6 +38,7 @@ export function PageHeader({
   meta,
   actions,
   titleAs: Title = 'h1',
+  mascot,
   className,
   ...rest
 }: PageHeaderProps) {
@@ -41,6 +46,7 @@ export function PageHeader({
     <header className={cx('g-page-header', className)} {...rest}>
       {breadcrumb}
       <div className="g-page-header__row">
+        {mascot ? <Mascot state={mascot} size={72} /> : null}
         <div className="g-page-header__text">
           {eyebrow ? <p className="g-page-header__eyebrow">{eyebrow}</p> : null}
           <Title className="g-page-header__title">{title}</Title>

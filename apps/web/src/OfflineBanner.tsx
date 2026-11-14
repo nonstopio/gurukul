@@ -1,3 +1,4 @@
+import { Mascot } from '@gurukul/ui';
 import { useSyncExternalStore } from 'react';
 
 function subscribe(onChange: () => void): () => void {
@@ -19,6 +20,7 @@ export function OfflineBanner() {
   if (useOnline()) return null;
   return (
     <p className="app__offline" role="status">
+      <Mascot state="warning" variant="face" size={24} />
       You're offline. Progress will sync when you're back.
     </p>
   );

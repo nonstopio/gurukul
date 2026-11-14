@@ -137,6 +137,7 @@ function LessonEditor({
         <EmptyState
           headingAs="h2"
           title="This lesson does not exist"
+          mascot="notFound"
           action={
             <Link className={buttonClass('secondary')} to={`/studio/courses/${courseId}`}>
               Back to the course

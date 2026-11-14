@@ -46,7 +46,9 @@ describe('the area switcher', () => {
     const main = screen.getByRole('navigation', { name: 'Main' });
     expect(within(main).getByRole('link', { name: 'Audit log' })).toBeTruthy();
     expect(within(main).getByRole('link', { name: 'Design system' })).toBeTruthy();
+    expect(within(main).getByRole('link', { name: 'Mascot' })).toBeTruthy();
     expect(within(main).queryByRole('link', { name: 'Home' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Gurukul home' }).getAttribute('href')).toBe('/');
     expect(await axeViolations(container)).toEqual([]);
 
     fireEvent.click(within(areas).getByRole('link', { name: 'Studio' }));

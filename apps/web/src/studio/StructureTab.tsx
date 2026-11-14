@@ -230,6 +230,7 @@ export function StructureTab({
           open
           onClose={() => setConfirm(null)}
           title={confirm.kind === 'chapter' ? `Delete this ${t.chapter}?` : 'Delete this item?'}
+          mascot="warning"
           footer={
             <>
               <Button variant="secondary" onClick={() => setConfirm(null)}>

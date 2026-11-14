@@ -169,6 +169,8 @@ describe('useTips', () => {
     expect(shownTips().map((h) => h.id)).toEqual(['a', 'b']);
     expect(shownTips()[0]?.popover).toMatchObject({ side: 'right' });
     expect(shownTips()[0]?.popover.description).toContain('First &#38; &#60;b&#62;');
+    // The owl's tip face leads every bubble.
+    expect(shownTips()[1]?.popover.description).toMatch(/^<svg[^>]*data-expression="wink"/);
     expect(shownTips()[1]?.popover.side).toBe('bottom');
     expect(lib.h.show).toHaveBeenCalledTimes(1);
     expect(lib.h.open).not.toHaveBeenCalled();

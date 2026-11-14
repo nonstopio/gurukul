@@ -143,7 +143,7 @@ export function PublishDialog({
         </Callout>
       ) : null}
       {failure ? (
-        <Callout tone="warning" title="Not published" role="alert">
+        <Callout tone="warning" title="Not published" role="alert" mascot="error">
           <p>{failure}</p>
         </Callout>
       ) : null}

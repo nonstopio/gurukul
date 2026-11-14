@@ -3,6 +3,7 @@ import type { Question } from '@gurukul/schema';
 import {
   Card,
   Chip,
+  Mascot,
   Page,
   PageHeader,
   ProgressRing,
@@ -116,6 +117,8 @@ export function ResultPage() {
             <Page width="reading">
               <Card className="verdict">
                 <ProgressRing value={score * 100} label={`${quiz.title} score`} size={148} />
+                {/* A pass celebrates; a miss gets the tip face, never a sad one (the words say the rest). */}
+                <Mascot state={passed ? 'complete' : 'tip'} size={96} />
                 <PageHeader
                   meta={
                     <Chip tone={passed ? 'accent' : 'warning'}>

@@ -103,6 +103,22 @@
   color: var(--text-body);
   font-size: var(--text-sm);
 }
+/* An alerting dialog: the owl's face leads the body, top-aligned with the first line. */
+.g-dialog__body--mascot {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.g-dialog__content {
+  flex: 1;
+  min-width: 0;
+}
+.g-dialog__content > :first-child {
+  margin-top: 0;
+}
+.g-dialog__content > :last-child {
+  margin-bottom: 0;
+}
 .g-dialog__footer {
   display: flex;
   flex-wrap: wrap;

@@ -6,7 +6,6 @@ import {
   Page,
   PageHeader,
   Pagination,
-  UsersIcon,
   buttonClass,
 } from '@gurukul/ui';
 import { useState } from 'react';
@@ -74,7 +73,7 @@ export function TeamHomePage() {
                   )
                 }
                 empty={
-                  <EmptyState title="No teams yet" icon={<UsersIcon />} action={create}>
+                  <EmptyState title="No teams yet" action={create}>
                     {admin
                       ? 'Create a team, then assign it courses and follow how its people get on.'
                       : `Create a team of the people you look after, or ask ${article(t.Admin)} to name you on one.`}

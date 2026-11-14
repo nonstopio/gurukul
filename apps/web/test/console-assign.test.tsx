@@ -578,6 +578,7 @@ describe('Assign: switching between teams and people', () => {
     people();
     const dialog = screen.getByRole('dialog', { name: 'Switch to people?' });
     expect(dialog.textContent).toContain('You picked 2 teams.');
+    expect(dialog.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('worried');
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     people();
@@ -845,6 +846,9 @@ describe('Assign: results and failures', () => {
     const failed = await screen.findByRole('list', { name: 'Failed assignments' });
     expect(within(failed).getByText(/a@nonstopio.com: Git, the NonStop Way/)).toBeTruthy();
     expect(within(failed).getByText(/b@nonstopio.com: gone/)).toBeTruthy();
+    const box = failed.closest('[role="alert"]') as HTMLElement;
+    expect(within(box).getByText('These could not be saved')).toBeTruthy();
+    expect(box.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('sad');
     expect(screen.queryByRole('heading', { name: /^Assigned to/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Could not retry. Try again.')).toBeTruthy();

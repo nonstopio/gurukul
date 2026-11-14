@@ -19,6 +19,7 @@ export function RouteErrorPage() {
       <Page width="reading">
         <PageHeader
           title="Something went wrong"
+          mascot="error"
           lead="This page could not be shown. Reloading usually fixes it; if it keeps happening, report it and we will look into it."
           actions={
             <>

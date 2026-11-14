@@ -83,6 +83,11 @@ describe('Quiz screen', () => {
     fireEvent.click(primary);
     expect(await screen.findByText('Not quite — the answer is B.')).toBeTruthy();
     expect(screen.getByText('Beta wins.', { exact: false })).toBeTruthy();
+    // A wrong answer gets the encouraging wink, never a sad or worried owl.
+    const verdict = screen
+      .getAllByRole('status')
+      .find((s) => s.textContent.includes('Not quite')) as HTMLElement;
+    expect(verdict.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('wink');
     expect(quiz.checkAnswer).toHaveBeenCalledWith({
       courseId: 'git',
       quizId: 'q1',
@@ -143,6 +148,10 @@ describe('Quiz screen', () => {
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'Not this time.' })).toBeTruthy();
     expect(screen.getByText('Not passed yet')).toBeTruthy();
+    // A miss gets the owl's tip face, never a sad one.
+    expect(document.querySelector('.verdict .g-mascot')?.getAttribute('data-expression')).toBe(
+      'wink',
+    );
     expect(screen.getByText(/1 of 2 correctly \(50%\)/)).toBeTruthy();
     expect(screen.getByRole('timer').textContent).toMatch(/^Retake opens in (10:00|9:5\d)$/);
     expect(screen.getByRole('link', { name: 'Revisit lessons' }).getAttribute('href')).toBe(
@@ -470,6 +479,9 @@ describe('Result screen', () => {
   it('celebrates a pass and continues to the next lesson', async () => {
     await openApp({ pathname: RESULT, state: passedState }, { data: data() });
     expect(await screen.findByRole('heading', { level: 1, name: 'Quiz I cleared.' })).toBeTruthy();
+    expect(document.querySelector('.verdict .g-mascot')?.getAttribute('data-expression')).toBe(
+      'celebrate',
+    );
     expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe(
       '/courses/git/learn/l4',
     );
@@ -663,6 +675,9 @@ describe('Course complete', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Git, the NonStop Way, done.' }),
     ).toBeTruthy();
+    expect(
+      document.querySelector('.g-page-header .g-mascot')?.getAttribute('data-expression'),
+    ).toBe('celebrate');
     expect(screen.getByText('9 November 2026')).toBeTruthy();
     expect(screen.getByText('90%')).toBeTruthy();
     expect(screen.getByText('Time invested')).toBeTruthy();

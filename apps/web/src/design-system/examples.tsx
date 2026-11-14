@@ -52,6 +52,7 @@ import {
   Seal,
   SearchCard,
   SegmentedControl,
+  Mascot,
   Select,
   Sidebar,
   SidebarGroup,
@@ -184,6 +185,9 @@ function ButtonExample() {
       </Button>
       <Button variant="secondary" size="sm">
         Small
+      </Button>
+      <Button variant="secondary" aria-pressed>
+        Pressed
       </Button>
       <Button loading={busy} onClick={() => setBusy(true)}>
         Save example
@@ -796,7 +800,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     ),
   },
   Button: {
-    rule: 'One primary per view; secondary for the rest; danger only to confirm a destructive Dialog; loading while a click is pending.',
+    rule: 'One primary per view; secondary for the rest; danger only to confirm a destructive Dialog; loading while a click is pending; aria-pressed makes a toggle that takes the selection look.',
     Example: ButtonExample,
   },
   Card: {
@@ -1028,6 +1032,19 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
       </FlowPanel>
     ),
   },
+  Mascot: {
+    rule: 'The owl reacts to a product moment (state="empty", "error", "tip"); decorative beside the words that carry the meaning, a face at 24–40px, the loader inside a status region.',
+    Example: () => (
+      <div className="ds-stack">
+        <Mascot state="empty" size={64} />
+        <Mascot state="tip" variant="face" size={32} />
+        <div role="status">
+          <Mascot state="loading" variant="loading" size={56} />
+          <span>Loading your courses</span>
+        </div>
+      </div>
+    ),
+  },
   SuccessCheck: {
     rule: 'A ring and tick that draw once when a task is done; decorative, so say the result in words beside it.',
     Example: () => (
@@ -1152,7 +1169,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     Example: SearchCardExample,
   },
   GlobalLoader: {
-    rule: 'A region or blocked operation whose layout is unknown: the G alone, with a label screen readers announce; a Skeleton whenever the layout is known.',
+    rule: 'The waddling owl with its words under it for a region or a blocked operation; the small G inline; a Skeleton whenever the layout is known.',
     Example: () => (
       <div className="ds-stack">
         <GlobalLoader label="Loading media" />
@@ -1285,28 +1302,30 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     rule: 'Pick a file by button, drop or paste, with the rules stated first; checking, an error and a cancellable upload each say what is happening.',
     Example: () => (
       <Frame>
-        <FileDrop
-          label="Choose an image"
-          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
-          accept="image/webp,image/png,image/jpeg"
-          onFile={noop}
-        />
-        <FileDrop
-          label="Choose an image"
-          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
-          state="error"
-          error="This image is 1.8 MB. Images can be up to 500 KB."
-          onFile={noop}
-        />
-        <FileDrop
-          label="Choose an image"
-          policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
-          state="uploading"
-          fileName="diagram.png"
-          progress={40}
-          onCancel={noop}
-          onFile={noop}
-        />
+        <div className="ds-stack">
+          <FileDrop
+            label="Choose an image"
+            policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+            accept="image/webp,image/png,image/jpeg"
+            onFile={noop}
+          />
+          <FileDrop
+            label="Choose an image"
+            policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+            state="error"
+            error="This image is 1.8 MB. Images can be up to 500 KB."
+            onFile={noop}
+          />
+          <FileDrop
+            label="Choose an image"
+            policy="WebP, PNG or JPEG · up to 500 KB · 1600 px wide is ideal"
+            state="uploading"
+            fileName="diagram.png"
+            progress={40}
+            onCancel={noop}
+            onFile={noop}
+          />
+        </div>
       </Frame>
     ),
   },

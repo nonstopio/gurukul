@@ -380,6 +380,7 @@ function Questions({
       <Dialog
         open={leaving}
         title={`Leave this ${t.Quiz}?`}
+        mascot="warning"
         onClose={() => setLeaving(false)}
         footer={
           <>

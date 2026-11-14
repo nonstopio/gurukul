@@ -20,6 +20,7 @@ export function ConfirmDialog({
       open
       title={title}
       onClose={onClose}
+      mascot="warning"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>

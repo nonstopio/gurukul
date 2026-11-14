@@ -149,6 +149,7 @@ export function AudienceStep({
           open
           onClose={() => setAsking(null)}
           title={`Switch to ${asking}?`}
+          mascot="warning"
           footer={
             <>
               <Button variant="secondary" onClick={() => setAsking(null)}>

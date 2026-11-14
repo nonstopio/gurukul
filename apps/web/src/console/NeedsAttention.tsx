@@ -77,7 +77,7 @@ export function NeedsAttention({
                 <div>
                   <h3>Overdue</h3>
                   {overdue.length === 0 ? (
-                    <EmptyState title="Nobody is overdue" headingAs="h4">
+                    <EmptyState title="Nobody is overdue" headingAs="h4" mascot="success">
                       Nothing past its due date here.
                     </EmptyState>
                   ) : (
@@ -98,7 +98,7 @@ export function NeedsAttention({
                 <div>
                   <h3>Failed twice</h3>
                   {failed.length === 0 ? (
-                    <EmptyState title="Nobody is stuck" headingAs="h4">
+                    <EmptyState title="Nobody is stuck" headingAs="h4" mascot="success">
                       {`No one has failed a ${t.Quiz} twice.`}
                     </EmptyState>
                   ) : (

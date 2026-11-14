@@ -36,6 +36,20 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe('Toast', () => {
+  it.each([
+    ['success', 'happy'],
+    ['info', 'neutral'],
+    ['warning', 'worried'],
+    ['danger', 'sad'],
+  ] as const)("shows the owl's face for a %s toast", (tone, face) => {
+    setup();
+    act(() => void api.show('Saved', { tone }));
+    const owl = document.querySelector('.g-toast__icon .g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe(face);
+    expect(owl?.getAttribute('data-variant')).toBe('face');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('renders two live regions, polite status and assertive alert, before any toast', () => {
     setup();
     expect(screen.getByRole('status')).toBeTruthy();

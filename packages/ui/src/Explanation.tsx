@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from './cx';
-import { CheckIcon, InfoIcon, LightbulbIcon } from './Icon';
+import { Mascot } from './Mascot';
+import type { MascotState } from './Mascot';
 import './explanation.css';
 
 export type ExplanationVerdict = 'correct' | 'incorrect' | 'neutral';
@@ -12,10 +13,11 @@ export interface ExplanationProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   title: ReactNode;
 }
 
-const ICONS: Record<ExplanationVerdict, typeof InfoIcon> = {
-  correct: CheckIcon,
-  incorrect: LightbulbIcon,
-  neutral: InfoIcon,
+/** The owl's face per verdict. A wrong answer gets the encouraging `tip` wink, never a sad face. */
+const FACES: Record<ExplanationVerdict, MascotState> = {
+  correct: 'success',
+  incorrect: 'tip',
+  neutral: 'info',
 };
 
 /**
@@ -30,14 +32,13 @@ export function Explanation({
   children,
   ...rest
 }: ExplanationProps) {
-  const Glyph = ICONS[verdict];
   return (
     <div
       className={cx('g-explanation', `g-explanation--${verdict}`, className)}
       role="status"
       {...rest}
     >
-      <Glyph className="g-explanation__icon" size={18} />
+      <Mascot state={FACES[verdict]} variant="face" size={32} className="g-explanation__icon" />
       <div className="g-explanation__body">
         <p className="g-explanation__title">{title}</p>
         {children}
