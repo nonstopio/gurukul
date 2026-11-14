@@ -157,6 +157,8 @@ export { Radio } from './Radio';
 export type { RadioProps } from './Radio';
 export { ChoiceCard } from './ChoiceCard';
 export type { ChoiceCardProps } from './ChoiceCard';
+export { OptionCard, OptionCardGroup, OptionCardRow } from './OptionCard';
+export type { OptionCardProps } from './OptionCard';
 export { IconButton, iconButtonClass } from './IconButton';
 export type { IconButtonProps, IconButtonTone } from './IconButton';
 export { Menu } from './Menu';

@@ -1,4 +1,4 @@
-# Vyasa Studio
+# Karyashala
 
 ## 14 · Courses — `/studio` [M5]
 
@@ -17,7 +17,7 @@ Sidebar shell with the Studio nav set; user card shows "Acharya · Educator".
 
 ## 15 · Course editor — `/studio/courses/:courseId` [M5]
 
-**Shell:** focused top bar: back "Vyasa Studio", course title, chip "Live: v3",
+**Shell:** focused top bar: back "Karyashala", course title, chip "Live: v3",
 save state ("Draft v4 · saved just now" / "Saving…" / "Couldn't save — retry"),
 ghost "Preview as learner", chrome "Publish v4".
 

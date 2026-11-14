@@ -42,14 +42,14 @@ describe('Studio in Gurukul names', () => {
   it('names a missing draft', async () => {
     await openEditor(mine(), null);
     expect(await screen.findByText(/Ask a Kulapati to check it\./)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Back to Vyasa Studio' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to Karyashala' })).toBeTruthy();
   });
 
   it('names the structure, details, landing, analytics, versions and publish screens', async () => {
     // An edited draft: with nothing to publish, Publish is disabled.
     await openEditor(mine(), { ...mine(), summary: 'Edited summary' });
     expect(await screen.findByRole('button', { name: 'Add Parva' })).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: 'Vyasa Studio' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Karyashala' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Preview as Shishya' })).toBeTruthy();
     expect(screen.getByText(/A Kulapati changes this list in the console\./)).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'Shishyas go in order' })).toBeTruthy();
@@ -70,6 +70,14 @@ describe('Studio in Gurukul names', () => {
   it('names an empty course outline', async () => {
     await openEditor(mine({ chapters: [] }));
     expect(await screen.findByText('Start with a Parva')).toBeTruthy();
+  });
+
+  it('titles the course list and the question bank', async () => {
+    const list = await gurukul('/studio', fakeStudio());
+    expect(await screen.findByRole('heading', { level: 1, name: 'Granthas' })).toBeTruthy();
+    list.unmount();
+    await gurukul('/studio/bank', fakeStudio());
+    expect(await screen.findByRole('heading', { level: 1, name: 'Prashna Kosha' })).toBeTruthy();
   });
 
   it('names the lesson editor, Quiz builder, preview and question bank', async () => {

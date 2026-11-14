@@ -54,8 +54,8 @@ export const TIPS: readonly Tip[] = [
     where: ['/profile'],
     el: '.profile__labels .g-segmented',
     side: 'right',
-    title: 'Names',
-    text: 'Pick Gurukul names or plain English for roles and pages. It changes everywhere at once.',
+    title: 'Labels',
+    text: 'Pick Gurukul labels or plain English for roles and pages. It changes everywhere at once.',
   },
   {
     id: 'tips-switch',

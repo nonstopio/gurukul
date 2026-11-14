@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 import * as ui from '@gurukul/ui';
 import {
@@ -15,6 +15,9 @@ import {
   Checkbox,
   Chip,
   ChoiceCard,
+  OptionCard,
+  OptionCardGroup,
+  OptionCardRow,
   IconButton,
   InsertDivider,
   CodeBlock,
@@ -456,6 +459,36 @@ function ChoiceCardExample() {
   );
 }
 
+function OptionCardExample() {
+  const [looking, setLooking] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  return (
+    <div className="ds-stack">
+      <div className="ds-option-pair" style={{ '--rows': 4 } as CSSProperties}>
+        {['Sanskrit', 'Plain English'].map((name) => (
+          <OptionCard
+            key={name}
+            title={name}
+            cta={`Select ${name}`}
+            bodyId={`ds-option-${name.length}`}
+            rows={4}
+            active={looking === name}
+            onPreview={(on) => setLooking(on ? name : null)}
+            onSelect={() => setPicked(name)}
+          >
+            <OptionCardGroup>People</OptionCardGroup>
+            <OptionCardRow
+              title={name === 'Sanskrit' ? 'Shishya' : 'Learner'}
+              note="Takes courses"
+            />
+          </OptionCard>
+        ))}
+      </div>
+      <p>{picked ? `Picked ${picked}` : 'Nothing picked yet'}</p>
+    </div>
+  );
+}
+
 function TileChoiceExample() {
   const [picked, setPicked] = useState(true);
   return (
@@ -710,6 +743,8 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   SidebarGroup: 'inside the Sidebar example',
   NavItem: 'inside the Sidebar example',
   Field: 'the base of Input, Select and Textarea',
+  OptionCardGroup: 'inside the OptionCard example',
+  OptionCardRow: 'inside the OptionCard example',
 };
 
 function SearchCardExample() {
@@ -1163,6 +1198,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
   ChoiceCard: {
     rule: 'One option in a pick-many list of teams or people: an icon, a name and a count, and the whole card is the checkbox.',
     Example: ChoiceCardExample,
+  },
+  OptionCard: {
+    rule: 'A pick-one card that is a single button: a title, rows of detail and a call to action at its foot; hover and focus preview, a click picks.',
+    Example: OptionCardExample,
   },
   SearchCard: {
     rule: 'A list people search: one card with a large search field, views, dropdowns, removable active filters and a count.',

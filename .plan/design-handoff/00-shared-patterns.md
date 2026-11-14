@@ -16,7 +16,7 @@
 
 Nav sets: **Learner** (My learning, Course catalog, Certificates; "Consoles"
 group only with roles) · **Kulapati** (Sanjaya overview, Learners, Assign
-courses, Course analytics, Roles & access; Switch to: Vyasa Studio, My
+courses, Course analytics, Roles & access; Switch to: Karyashala, My
 learning) · **Studio** (Courses, Question bank, Media library; Switch to).
 
 ### Focused shell (Lesson, Pariksha, Result, editors)

@@ -8,7 +8,7 @@ import { SignInPage } from './SignInPage';
 
 /**
  * Everything inside needs a signed-in NonStop account: loading, then sign-in, then (until they
- * accept the current privacy policy) the policy, then (once, until they pick) which names to use,
+ * accept the current privacy policy) the policy, then (once, until they pick) which labels to use,
  * then the page.
  */
 export function RequireSession() {

@@ -151,7 +151,7 @@ export function QuestionBankPage() {
     <Page>
       <PageHeader
         eyebrow={t.Studio}
-        title="Question bank"
+        title={t.QuestionBank}
         lead={`Write a question once, then add it to any ${t.Quiz}.`}
         actions={actions}
       />

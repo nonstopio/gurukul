@@ -71,7 +71,7 @@ with `{"email":["demo.admin@nonstopio.com"]}`), set claims (`accounts:update` wi
 `customAttributes: "{\"admin\":true,\"educator\":true}"`), and patch `users/{uid}.roles` to
 `["learner","educator","admin"]` in the Firestore emulator REST API. Send
 `Authorization: Bearer owner` on all three; the app refreshes its token when the roles mirror
-changes. The first screen then asks which names to use; leave that choice to the maintainer.
+changes. The first screen then asks which labels to use; leave that choice to the maintainer.
 
 ### Taking the feedback
 

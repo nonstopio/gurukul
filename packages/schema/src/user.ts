@@ -6,7 +6,7 @@ export const roleSchema = z.enum(['learner', 'educator', 'manager', 'admin']);
 export type Role = z.infer<typeof roleSchema>;
 
 /**
- * Which names the app shows a person: `generic` (Learner, Educator, Admin, Chapter, Quiz) or
+ * Which labels the app shows a person: `generic` (Learner, Educator, Admin, Chapter, Quiz) or
  * `gurukul` (Shishya, Acharya, Kulapati, Parva, Pariksha). Display only: code and data always use
  * the generic names. Unset until the person picks one on first sign-in.
  */

@@ -96,9 +96,9 @@ describe('shell accessibility', () => {
     await screen.findByRole('heading', { level: 1, name: 'Changelog' });
     expect(document.activeElement).toBe(document.body);
     await act(() => router.navigate('/courses'));
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Course catalogue' });
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Catalogue' });
     await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe('Course catalogue');
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe('Catalogue');
   });
 });
 

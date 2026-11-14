@@ -46,7 +46,7 @@ import { OfflineBanner } from './OfflineBanner';
 import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
-import { localize, localizePage } from './navigation/localize';
+import { localizeLabel, localizePage } from './navigation/localize';
 import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
 import { TrackClick } from './analytics/react/Track';
 import { ShellFooter } from './ShellFooter';
@@ -65,7 +65,7 @@ export function titleFor(
   const target = path.replace(/\/+$/, '') || '/';
   const page = areas.flatMap((a) => a.pages).find((p) => p.path === target);
   if (!page || page.path === '/') return 'NonStop Gurukul';
-  return `${localize(page.label, t)} · Gurukul`;
+  return `${localizeLabel(page.label, t)} · Gurukul`;
 }
 
 /** Groups what this person can open by area, in catalog order. */
@@ -270,7 +270,8 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               items={[
                 { label: 'Profile', icon: <UserIcon />, onSelect: () => void navigate('/profile') },
                 {
-                  label: nextLabels === 'gurukul' ? 'Use Gurukul names' : 'Use plain English names',
+                  label:
+                    nextLabels === 'gurukul' ? 'Use Gurukul labels' : 'Use plain English labels',
                   icon: <LanguagesIcon />,
                   onSelect: () => void saveLabels(nextLabels),
                 },

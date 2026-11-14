@@ -15,7 +15,7 @@ export interface Session {
   roles: Role[];
   /** The teams the person is on, which decide the `teams` courses they may open. */
   teamIds: string[];
-  /** Which names the app shows (`users/{uid}.labels`); `null` until the person picks. */
+  /** Which labels the app shows (`users/{uid}.labels`); `null` until the person picks. */
   labels: LabelSet | null;
   /** Why sign-in failed, or why a non-NonStop account was signed back out. */
   error: string | null;

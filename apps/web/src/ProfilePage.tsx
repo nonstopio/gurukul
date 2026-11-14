@@ -155,15 +155,15 @@ function TipsChoice() {
   );
 }
 
-/** Which names the app uses; saved at once, like the account menu's switch. */
+/** Which labels the app uses; saved at once, like the account menu's switch. */
 function LabelsChoice() {
   const labels = useLabelSet();
   const save = useSaveLabels();
   return (
     <div className="profile__labels">
-      <p className="profile__label">Names</p>
+      <p className="profile__label">Labels</p>
       <SegmentedControl<LabelSet>
-        label="Names"
+        label="Labels"
         value={labels}
         options={LABEL_OPTIONS.map((o) => ({ value: o.set, label: o.title }))}
         onChange={(set) => void save(set)}

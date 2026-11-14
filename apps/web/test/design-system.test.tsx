@@ -292,6 +292,9 @@ describe('Design system: components', () => {
     await user.click(screen.getByRole('radio', { name: 'Choice B' }));
     await user.click(screen.getByRole('checkbox', { name: 'Mobile' }));
     await user.click(screen.getByRole('checkbox', { name: 'Platform' }));
+    await user.click(screen.getByRole('button', { name: 'Select Sanskrit' }));
+    await user.click(screen.getByRole('button', { name: 'Select Plain English' }));
+    expect(screen.getByText('Picked Plain English')).toBeTruthy();
     await user.click(screen.getByRole('checkbox', { name: 'Git, the NonStop Way' }));
     await user.click(screen.getByRole('checkbox', { name: 'Git, the NonStop Way' }));
     await user.click(screen.getByRole('checkbox', { name: /A checkbox answer/ }));

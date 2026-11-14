@@ -175,7 +175,7 @@ function Overview({
         breadcrumb={
           <Breadcrumb
             items={[
-              { label: 'Catalogue', render: (p) => <Link to="/courses" {...(p as object)} /> },
+              { label: t.Catalogue, render: (p) => <Link to="/courses" {...(p as object)} /> },
               { label: course.title },
             ]}
           />
