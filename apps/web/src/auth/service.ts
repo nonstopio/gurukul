@@ -27,7 +27,7 @@ export interface ProfileMirror {
   team: string | null;
   /** `teamId` of each team the person is on (`users/{uid}.teamIds`, set by functions); unset means none. */
   teamIds?: string[] | undefined;
-  /** Unset until the person picks which names the app shows them. */
+  /** Unset until the person picks which labels the app shows them. */
   labels?: LabelSet | undefined;
 }
 

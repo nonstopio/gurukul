@@ -38,7 +38,7 @@ export function TeamHomePage() {
     <Page>
       <PageHeader
         eyebrow="Team"
-        title="My teams"
+        title={`My ${t.teams}`}
         lead={
           admin
             ? `Every team, since you are one of the ${t.Admins}. Open one to see who is behind, change due dates and send reminders.`

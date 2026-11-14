@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest';
 import { terms } from '../src/labels/terms';
 import { AREAS } from '../src/navigation';
-import { localize } from '../src/navigation/localize';
+import { localize, localizeLabel } from '../src/navigation/localize';
 import { navIcon } from '../src/Shell';
 import { fakeConsole, userRow } from './fake-console';
 import { openApp } from './harness';
@@ -11,10 +11,30 @@ describe('localize', () => {
   it('swaps each known word by its case and leaves the rest alone', () => {
     const k = terms('gurukul');
     expect(localize('Learners and learner Quizzes in Studio; Analytics, adminship', k)).toBe(
-      'Shishyas and Shishya Parikshas in Vyasa Studio; Sanjaya, adminship',
+      'Shishyas and Shishya Parikshas in Karyashala; Sanjaya, adminship',
     );
     const text = 'Reusable Quiz questions for learners';
     expect(localize(text, terms('generic'))).toBe(text);
+  });
+});
+
+describe('localizeLabel', () => {
+  it('names the pages that are a name by themselves, and falls back to localize', () => {
+    const k = terms('gurukul');
+    expect(
+      ['Home', 'Catalogue', 'Certificates', 'Teams', 'My teams', 'Question bank', 'Learners'].map(
+        (l) => localizeLabel(l, k),
+      ),
+    ).toEqual([
+      'Ashram',
+      'Granthalaya',
+      'Pramanapatras',
+      'Kulas',
+      'My Kulas',
+      'Prashna Kosha',
+      'Shishyas',
+    ]);
+    expect(localizeLabel('Question bank', terms('generic'))).toBe('Question bank');
   });
 });
 
@@ -30,7 +50,7 @@ describe('navigation in Gurukul names', () => {
     await openApp('/admin/learners', { roles: ['admin'], labels: 'gurukul', console: c });
     const nav = await screen.findByRole('navigation', { name: 'Main' });
     expect(nav.textContent).toContain('Kulapati console');
-    expect(screen.getByRole('navigation', { name: 'Areas' }).textContent).toContain('Vyasa Studio');
+    expect(screen.getByRole('navigation', { name: 'Areas' }).textContent).toContain('Karyashala');
     expect(screen.getByRole('link', { name: 'Shishyas' })).toBeTruthy();
     await waitFor(() => expect(document.title).toBe('Shishyas · Gurukul'));
 
@@ -39,7 +59,7 @@ describe('navigation in Gurukul names', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Search Gurukul' }), {
       target: { value: 'pariksha' },
     });
-    expect(options()[0]).toContain('Question bankVyasa Studio · Reusable Pariksha questions');
+    expect(options()[0]).toContain('Prashna KoshaKaryashala · Reusable Pariksha questions');
     fireEvent.change(screen.getByRole('combobox', { name: 'Search Gurukul' }), {
       target: { value: 'shishyas' },
     });
@@ -50,6 +70,19 @@ describe('navigation in Gurukul names', () => {
     expect((await screen.findByRole('option', { name: /Asha Rao/ })).textContent).toContain(
       'Shishyas',
     );
+  });
+});
+
+describe('search in the Gurukul set', () => {
+  it('finds Ashram by "home" and Granthalaya by "catalogue", the generic words', async () => {
+    await openApp('/courses', { labels: 'gurukul' });
+    fireEvent.click(await screen.findByRole('button', { name: /Search/ }));
+    await act(async () => {});
+    const box = screen.getByRole('combobox', { name: 'Search Gurukul' });
+    fireEvent.change(box, { target: { value: 'home' } });
+    expect(options().some((o) => o?.startsWith('Ashram'))).toBe(true);
+    fireEvent.change(box, { target: { value: 'catalogue' } });
+    expect(options().some((o) => o?.startsWith('Granthalaya'))).toBe(true);
   });
 });
 

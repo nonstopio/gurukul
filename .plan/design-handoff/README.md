@@ -8,7 +8,7 @@ The canvas is the visual reference; these files are the build contract. Where
 they differ, these files win and the canvas is updated.
 
 The canvas and these specs show the **Gurukul label set** (Shishya, Acharya, Kulapati, Parva,
-Pariksha, Vyasa Studio, Sanjaya). In code every such name comes from `useTerms()`, which reads
+Pariksha, Karyashala, Sanjaya). In code every such name comes from `useTerms()`, which reads
 the person's label set; the generic equivalents are in `../00-vision-and-scope.md` ("Names: two
 label sets").
 

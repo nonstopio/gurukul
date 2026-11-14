@@ -27,6 +27,7 @@ import { dueDay } from '../console/model';
 import type { TeamReport, TeamReportAssignment } from '../console/types';
 import { useAsync } from '../data/useAsync';
 import { toastError } from '../errors';
+import { useTerms } from '../labels/useTerms';
 import { LoadedPage } from '../learn/ui';
 import { pageFor } from '../paging';
 import { dayInput, endOfDay, reportCounts, reportCourses, reportRows, statusOf } from './model';
@@ -85,6 +86,7 @@ export function TeamReportPage() {
 }
 
 function Report({ report, onChanged }: { report: TeamReport; onChanged: () => void }) {
+  const t = useTerms();
   const { service } = useConsole();
   const admin = useSession().roles.includes('admin');
   const toast = useToast();
@@ -120,7 +122,7 @@ function Report({ report, onChanged }: { report: TeamReport; onChanged: () => vo
         breadcrumb={
           <Breadcrumb
             items={[
-              { label: 'My teams', render: (p) => <Link to="/team" {...(p as object)} /> },
+              { label: `My ${t.teams}`, render: (p) => <Link to="/team" {...(p as object)} /> },
               { label: report.name },
             ]}
           />

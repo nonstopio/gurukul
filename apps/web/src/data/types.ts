@@ -97,6 +97,6 @@ export interface LearnerData {
   orgTeams(): Promise<string[]>;
   /** `config/org.uploads`, the limits an Admin lowered; `undefined` when none are saved or the stored value is not valid. */
   uploadLimits(): Promise<UploadLimits | undefined>;
-  /** Which names the app shows this person (`users/{uid}.labels`). */
+  /** Which labels the app shows this person (`users/{uid}.labels`). */
   setLabels(uid: string, labels: LabelSet): Promise<void>;
 }

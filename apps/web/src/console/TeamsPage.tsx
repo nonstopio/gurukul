@@ -67,7 +67,7 @@ export function TeamsPage() {
     <Page>
       <PageHeader
         eyebrow={t.Studio}
-        title="Teams"
+        title={t.Teams}
         lead={
           isAdmin
             ? `Groups of people you can assign courses to together, and their ${t.managers}. ${t.Learners} see the teams they are on on their profile.`

@@ -70,19 +70,19 @@ export async function signInWithGoogle(page: Page, person: Person): Promise<void
 }
 
 /**
- * Opens the app signed out, signs in, picks which names to use (asked once, on first sign-in;
- * plain English unless a spec asks for the Gurukul names), and waits for Home.
+ * Opens the app signed out, signs in, picks which labels to use (asked once, on first sign-in;
+ * plain English unless a spec asks for the Gurukul labels), and waits for Home.
  */
 export async function signedInAsLearner(
   page: Page,
   person: Person,
-  names: 'Plain English' | 'Gurukul names' = 'Plain English',
+  names: 'Plain English' | 'Gurukul labels' = 'Plain English',
 ): Promise<void> {
   await page.goto('/');
   await signInWithGoogle(page, person);
   const home = page.getByRole('heading', { level: 1, name: /^Namaste/ });
-  const choice = page.getByRole('heading', { level: 1, name: 'Which names should Gurukul use?' });
+  const choice = page.getByRole('heading', { level: 1, name: 'Which labels should Gurukul use?' });
   await expect(home.or(choice)).toBeVisible();
-  if (await choice.isVisible()) await page.getByRole('button', { name: new RegExp(names) }).click();
+  if (await choice.isVisible()) await page.getByRole('button', { name: `Select ${names}` }).click();
   await expect(home).toBeVisible();
 }

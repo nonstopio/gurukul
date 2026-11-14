@@ -20,7 +20,7 @@ describe('the console in Gurukul names', () => {
 
   it('names the course analytics', async () => {
     await openApp('/admin/courses/git', { ...gurukulAdmin, console: fakeConsole() });
-    expect(await screen.findByRole('link', { name: 'Edit in Vyasa Studio' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Edit in Karyashala' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Where Shishyas stop' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Parikshas' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Pariksha' })).toBeTruthy();
@@ -55,6 +55,14 @@ describe('the console in Gurukul names', () => {
   it('names the teams copy', async () => {
     await openApp('/studio/teams', { ...gurukulAdmin, console: fakeConsole() });
     expect(await screen.findByText(/Shishyas see the teams they are on/)).toBeTruthy();
+  });
+
+  it('titles the Teams and My teams pages, and the team report breadcrumb', async () => {
+    const teams = await openApp('/studio/teams', { ...gurukulAdmin, console: fakeConsole() });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kulas' })).toBeTruthy();
+    teams.unmount();
+    await openApp('/team', { ...gurukulAdmin, console: fakeConsole() });
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Kulas' })).toBeTruthy();
   });
 
   it('names the assign toggle', async () => {

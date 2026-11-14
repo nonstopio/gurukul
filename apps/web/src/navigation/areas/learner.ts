@@ -31,7 +31,7 @@ export const navigation = {
       id: 'profile',
       path: '/profile',
       label: 'Profile',
-      description: 'Your account, roles, team and which names Gurukul uses',
+      description: 'Your account, roles, team and which labels Gurukul uses',
       keywords: ['account', 'me', 'team', 'labels', 'names', 'sign out', 'settings'],
     },
   ],

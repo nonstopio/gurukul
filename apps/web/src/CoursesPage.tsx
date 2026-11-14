@@ -77,7 +77,7 @@ export function CoursesPage() {
   return (
     <Page>
       <PageHeader
-        title="Course catalogue"
+        title={t.Catalogue}
         lead="Every course you can open is here. Pick one and start."
       />
       <SearchCard

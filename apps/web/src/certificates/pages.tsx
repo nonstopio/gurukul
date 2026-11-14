@@ -100,6 +100,7 @@ function TrackCourseComplete({ courseId }: { courseId: string }) {
 
 export function CertificatePage() {
   const { id = '' } = useParams();
+  const t = useTerms();
   const data = useLearnerData();
   const copy = useCopyVerifyLink();
   const result = useAsync(useCallback(() => data.getCertificate(id), [data, id]));
@@ -126,7 +127,7 @@ export function CertificatePage() {
                   <Breadcrumb
                     items={[
                       {
-                        label: 'Certificates',
+                        label: t.Certificates,
                         render: (p) => <Link to="/certificates" {...(p as object)} />,
                       },
                       { label: c.id },
@@ -230,7 +231,7 @@ export function CertificatesPage() {
   return (
     <Page>
       <PageHeader
-        title="Certificates"
+        title={t.Certificates}
         lead="Every certificate you have earned, newest first. Each one has a public verify link."
       />
       <Loaded loadable={result}>

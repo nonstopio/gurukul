@@ -18,10 +18,10 @@ certificate at the end — built for NonStop and open-sourced.
 | **Educator** | Create and edit the courses an Admin grants them, entirely in the browser: chapters, lessons, content blocks, Quizzes; publish new versions; see their courses' analytics |
 | **Admin** | Everything an Educator can, on every course; assign courses to people or to emails not yet signed in, in bulk; grant roles; see organisation analytics |
 
-## Names: two label sets
+## Labels: two label sets
 
 The code, the data, the routes and the role claims use one plain vocabulary: Learner, Educator,
-Admin, Chapter, Quiz, Studio, Analytics. What a person *reads* comes from a **label set** they
+Admin, Course, Chapter, Lesson, Quiz and the rest below. What a person *reads* comes from a **label set** they
 pick on their first sign-in and can switch from the sidebar at any time:
 
 | Generic (code and the `generic` set) | `gurukul` set | Meaning |
@@ -31,11 +31,19 @@ pick on their first sign-in and can switch from the sidebar at any time:
 | Admin | Kulapati | Runs the platform: assigns, grants roles, sees every report |
 | Chapter | Parva | A part of a course |
 | Quiz | Pariksha | The checkpoint at the end of a chapter |
-| Studio | Vyasa Studio | Where courses are built |
+| Course | Grantha | A text studied end to end |
+| Lesson | Adhyaya | A section of a Parva, as in the Mahabharata |
+| Certificate | Pramanapatra | Proof of learning |
+| Home | Ashram | Where a Shishya's day starts |
+| Catalogue | Granthalaya | The library of Granthas |
+| Studio | Karyashala | The workshop where Granthas are made |
+| Question bank | Prashna Kosha | A store of questions |
 | Analytics | Sanjaya | The Admin's overview of the organisation |
+| Team | Kula | The group you belong to |
+| Manager | Adhyaksha | Oversees a team |
 
 The choice lives on the profile (`users/{uid}.labels`); until it is made, every page waits on
-the choice screen. The Gurukul names live in one file, `apps/web/src/labels/terms.ts`, so the
+the choice screen: a side-by-side dictionary (People, Learning, Places) with each name's meaning. The names that stand alone are shown in the sidebar items, the document title, global search results, the page titles of the catalogue, Certificates, Teams, My teams, Question bank and the Studio course list, and the breadcrumbs that point back to them. Course and Lesson are in the dictionary but are not substituted in course titles, lesson titles or running sentences. The Gurukul labels live in one file, `apps/web/src/labels/terms.ts`, so the
 project can be adopted without them. Text written by the server (emails, API messages) and the
 changelog's history use the generic names. "Gurukul" stays the product's name in both sets.
 

@@ -3,7 +3,7 @@
 NonStop Gurukul is NonStop io's open-source learning platform:
 Google sign-in, courses made of chapters and lessons, Quiz checkpoints,
 certificates, an Admin console and a Studio for Educators. People pick
-Gurukul names (Shishya, Kulapati, Pariksha) or plain English for what they
+Gurukul labels (Shishya, Kulapati, Pariksha) or plain English for what they
 read; code always uses the plain names (`apps/web/src/labels/`). This is
 the contributor contract for agents working in this repository. Read the
 nearest nested `CLAUDE.md` before editing `apps/`, `packages/` or `firebase/`.

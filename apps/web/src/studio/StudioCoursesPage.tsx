@@ -53,7 +53,7 @@ export function StudioCoursesPage() {
     <Page width="wide">
       <PageHeader
         eyebrow={t.Studio}
-        title="Courses"
+        title={t.Courses}
         lead={`Build courses ${t.chapter} by ${t.chapter}.`}
         actions={<Button onClick={() => setCreating(true)}>New course</Button>}
       />

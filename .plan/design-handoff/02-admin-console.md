@@ -64,7 +64,7 @@ rejected chips never block, they are skipped.
 
 | Region | Spec |
 |---|---|
-| Header | Breadcrumb, `<h1>` course title, chips (Published · v3), Acharya + updated; secondary "Edit in Vyasa Studio", primary "Assign this course" |
+| Header | Breadcrumb, `<h1>` course title, chips (Published · v3), Acharya + updated; secondary "Edit in Karyashala", primary "Assign this course" |
 | KPIs | Assigned, Started (% of assigned), Certified, Median time to finish |
 | Where learners stop | `FunnelBar` rows: label (190px) · 26px bar on `--surface-sunken` · count right. The largest drop between consecutive rows is coloured warning and called out in a sentence below — computed, not hand-written |
 | Hardest questions | Top 3 by first-try correct %; % coloured danger (<50%) or warning (<70%); "Edit question" → Pariksha builder at that question |

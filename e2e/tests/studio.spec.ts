@@ -93,7 +93,7 @@ test.describe('Educator in Studio', () => {
 
     // Not published yet, so learners cannot see it.
     await page.goto('/courses');
-    await expect(page.getByRole('heading', { level: 1, name: 'Course catalogue' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Catalogue' })).toBeVisible();
     await expect(page.getByRole('link', { name: GIT_COURSE.title })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Reading Code Reviews' })).toHaveCount(0);
 

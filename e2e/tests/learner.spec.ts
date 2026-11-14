@@ -83,7 +83,7 @@ test.describe('Learner', () => {
     await expect(signIn).toBeEnabled();
 
     await signInWithGoogle(page, asha);
-    await page.getByRole('button', { name: /Plain English/ }).click();
+    await page.getByRole('button', { name: 'Select Plain English' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Namaste, Asha' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Privacy policy' })).toHaveCount(0);
   });

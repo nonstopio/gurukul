@@ -81,11 +81,11 @@ describe('Profile', () => {
 
   it('switches the names Gurukul uses, and signs out', async () => {
     const { data, auth } = await openApp('/profile');
-    const names = screen.getByRole('group', { name: 'Names' });
+    const names = screen.getByRole('group', { name: 'Labels' });
     expect(
       within(names).getByRole('button', { name: 'Plain English' }).getAttribute('aria-pressed'),
     ).toBe('true');
-    fireEvent.click(within(names).getByRole('button', { name: 'Gurukul names' }));
+    fireEvent.click(within(names).getByRole('button', { name: 'Gurukul labels' }));
     expect(data.data.setLabels).toHaveBeenCalledWith('u1', 'gurukul');
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.service.signOut).toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { fakeData, makeCourse, progressRow } from './fake-data';
 import { openApp } from './harness';
@@ -88,6 +88,24 @@ describe('learner screens in Gurukul names', () => {
     });
     await openApp('/courses/git/complete', { labels, data: fakeData({ watched: done }) });
     expect(await screen.findByText('Pariksha average')).toBeTruthy();
+  });
+
+  it('names the sidebar, the page titles, the course breadcrumb and the document title', async () => {
+    const home = await openApp('/', { labels });
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('link', { name: 'Ashram' })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: 'Granthalaya' })).toBeTruthy();
+    home.unmount();
+    const catalogue = await openApp('/courses', { labels });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Granthalaya' })).toBeTruthy();
+    await waitFor(() => expect(document.title).toBe('Granthalaya · Gurukul'));
+    catalogue.unmount();
+    const certs = await openApp('/certificates', { labels });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Pramanapatras' })).toBeTruthy();
+    certs.unmount();
+    await openApp('/courses/git', { labels });
+    const crumbs = await screen.findByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByRole('link', { name: 'Granthalaya' })).toBeTruthy();
   });
 
   it('not-allowed page and the shortcuts dialog', async () => {
