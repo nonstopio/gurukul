@@ -796,6 +796,19 @@ is `--text-md` 600, `meta` one muted line (a member count, an email). Picked: `-
 `--accent-soft` card, the icon tile fills `--accent`, and the tick pops in (`--dur-slow`). Lay a list out with
 `.console-choice-grid`. `disabled` (a limit, e.g. 15 teams) dims it and blocks picking. Pair it with a search field and a count ("Showing 10 of 23 teams") and "Show more".
 
+## OptionCard — shipped
+
+`<OptionCard title cta label? bodyId? onSelect onPreview? active? rows? className?>` with `OptionCardGroup` (a small
+caption) and `OptionCardRow title note?` (a bold line and a quiet note) inside: a pick-one card that is **one
+`<button>`**, for a decision with two or three big options (the first-sign-in label choice). Title in
+`--text-xl` display, the rows, then a full-width `--accent` call to action at the foot that presses in on hover or
+focus. Click anywhere picks; hover and focus only call `onPreview(true|false)` so a page can react (the owl) without
+choosing. `active` grounds it in `--accent-soft` with an `--accent` border. `bodyId` names the rows element the button
+is `aria-describedby`; `OptionCardRow` puts a visually hidden ", " and ". " between title, note and the next row so
+the description reads as separate items. `rows` makes the card span that many rows of the parent grid on a
+`subgrid`, so two cards side by side line up row for row. `:focus-visible` shows `--focus-ring` plus a transparent
+outline that survives forced-colors mode. Never put a link or another button inside; a pick-many list is `ChoiceCard`.
+
 ## SearchCard — shipped
 
 `<SearchCard label search={{ value, onChange, label, placeholder? }} views? filters? active? count? onClear? />`.

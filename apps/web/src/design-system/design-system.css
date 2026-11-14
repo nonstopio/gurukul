@@ -146,3 +146,11 @@
 .ds-leading {
   width: 4rem;
 }
+
+/* Two OptionCards side by side; each spans every row so their rows line up. */
+.ds-option-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), auto);
+  gap: var(--space-4);
+}
