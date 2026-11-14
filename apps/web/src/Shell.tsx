@@ -240,7 +240,11 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       sidebar={
         <Sidebar
           label="Main"
-          brand={<Logo className="app__logo" />}
+          brand={
+            <Link to="/" aria-label="Gurukul home" className="app__brand">
+              <Logo className="app__logo" />
+            </Link>
+          }
           switcher={
             switcher.length > 1 ? (
               <AreaSwitcher

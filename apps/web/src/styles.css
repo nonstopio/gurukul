@@ -174,7 +174,15 @@ body {
 .g-topbar__tools {
   margin-left: auto;
 }
-/* The sidebar brand: the Gurukul logo (AppShell does the layout). */
+/* The sidebar brand: the Gurukul logo (AppShell does the layout), a link with the focus ring. */
+.app__brand {
+  display: block;
+  border-radius: var(--radius-md);
+}
+.app__brand:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 .app__logo {
   display: block;
   height: 1.75rem;

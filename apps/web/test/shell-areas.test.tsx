@@ -63,6 +63,12 @@ describe('the area switcher', () => {
     ).toBeTruthy();
   });
 
+  it('takes an Admin home from the console through the logo', async () => {
+    await openApp('/admin/learners', { roles: ['admin'] });
+    fireEvent.click(await screen.findByRole('link', { name: 'Gurukul home' }));
+    expect(await screen.findByRole('heading', { level: 1, name: /^Namaste/ })).toBeTruthy();
+  });
+
   it('shows an Educator only Learn and Studio', async () => {
     await openApp('/', { roles: ['educator'] });
     const areas = await screen.findByRole('navigation', { name: 'Areas' });
