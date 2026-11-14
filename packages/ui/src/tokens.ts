@@ -102,6 +102,23 @@ export const roleTokens = [
   'art-top',
   'art-shirt',
   'art-shirt-shade',
+  'mascot-body',
+  'mascot-body-dark',
+  'mascot-belly',
+  'mascot-feather',
+  'mascot-face',
+  'mascot-ink',
+  'mascot-shine',
+  'mascot-drop',
+  'mascot-shadow',
+  'mascot-light-ground',
+  'mascot-light-body',
+  'mascot-light-body-dark',
+  'mascot-light-shadow',
+  'mascot-dark-ground',
+  'mascot-dark-body',
+  'mascot-dark-body-dark',
+  'mascot-dark-shadow',
 ] as const;
 
 export type RoleToken = (typeof roleTokens)[number];

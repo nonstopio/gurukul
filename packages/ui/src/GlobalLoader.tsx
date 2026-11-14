@@ -1,13 +1,15 @@
+import { Mascot } from './Mascot';
 import './global-loader.css';
 
 export type GlobalLoaderVariant = 'section' | 'overlay' | 'inline';
 
 export interface GlobalLoaderProps {
-  /** What is happening, in words: "Assigning to 12 people". Announced politely, never shown: the G is what people see. */
+  /** What is happening, in words: "Assigning to 12 people". Announced politely; shown under the owl, hidden beside the inline G. */
   label: string;
   /**
    * `section` fills the region that is loading; `overlay` covers the screen under a scrim while an
-   * operation blocks it; `inline` is the small mark next to a verb in progress. Default: `section`.
+   * operation blocks it (both: the owl's waddling loop at 96px with the label under it); `inline` is
+   * the small G next to a verb in progress, where the owl would be too small to read. Default: `section`.
    */
   variant?: GlobalLoaderVariant;
 }
@@ -35,10 +37,11 @@ function LoaderMark() {
 
 /** The one loader for a region or operation whose layout is unknown. Prefer a Skeleton otherwise. */
 export function GlobalLoader({ label, variant = 'section' }: GlobalLoaderProps) {
+  const inline = variant === 'inline';
   const body = (
     <div className={`g-loader g-loader--${variant}`} role="status">
-      <LoaderMark />
-      <span className="g-loader__sr">{label}</span>
+      {inline ? <LoaderMark /> : <Mascot state="loading" variant="loading" size={96} />}
+      <span className={inline ? 'g-loader__sr' : 'g-loader__label'}>{label}</span>
     </div>
   );
   return variant === 'overlay' ? <div className="g-loader-scrim">{body}</div> : body;

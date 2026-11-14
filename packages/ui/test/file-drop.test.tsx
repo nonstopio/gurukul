@@ -156,6 +156,9 @@ describe('FileDrop states', () => {
     const zone = screen.getByRole('button', { name: /Choose/ });
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toBe('This image is 1.8 MB.');
+    const owl = alert.querySelector('svg.g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe('confused');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
     expect(zone.getAttribute('aria-describedby')).toContain(alert.id);
     expect(await axeViolations(container)).toEqual([]);
   });

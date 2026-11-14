@@ -20,6 +20,7 @@ import {
   Sidebar,
   SidebarGroup,
   SparkIcon,
+  StarIcon,
   UserCard,
   UserIcon,
   UsersIcon,
@@ -166,6 +167,7 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'admin-audit': ClockIcon,
   'admin-emails': FileIcon,
   'admin-design-system': CodeIcon,
+  'admin-mascot': StarIcon,
   'admin-settings': SettingsIcon,
   'studio-courses': PenIcon,
   'studio-teams': UsersIcon,
@@ -240,7 +242,11 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
       sidebar={
         <Sidebar
           label="Main"
-          brand={<Logo className="app__logo" />}
+          brand={
+            <Link to="/" aria-label="Gurukul home" className="app__brand">
+              <Logo className="app__logo" />
+            </Link>
+          }
           switcher={
             switcher.length > 1 ? (
               <AreaSwitcher

@@ -35,7 +35,12 @@ export function UpdatePrompt({ reload = reloadPage }: { reload?: () => void }) {
 
   if (update?.kind !== 'hard') return null;
   return (
-    <Dialog open title="Gurukul has been updated" footer={<Button onClick={reload}>Update</Button>}>
+    <Dialog
+      open
+      title="Gurukul has been updated"
+      mascot="new"
+      footer={<Button onClick={reload}>Update</Button>}
+    >
       <p>Update now to keep going.</p>
     </Dialog>
   );

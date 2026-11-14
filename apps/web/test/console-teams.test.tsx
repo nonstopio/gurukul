@@ -360,6 +360,7 @@ describe('Edit and delete', () => {
     expect(
       within(dialog()).getByText(/loses the courses that only this team can open/),
     ).toBeTruthy();
+    expect(dialog().querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('worried');
     expect((confirm() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(typed(), { target: { value: 'platform' } });
     expect((confirm() as HTMLButtonElement).disabled).toBe(true);

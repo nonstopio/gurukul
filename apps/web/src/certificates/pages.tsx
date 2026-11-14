@@ -110,6 +110,7 @@ export function CertificatePage() {
           {c === null ? (
             <PageHeader
               title="Certificate not found"
+              mascot="notFound"
               lead="Check the address, or open it from your certificates."
               actions={
                 <Link className={buttonClass('secondary')} to="/certificates">
@@ -185,6 +186,7 @@ export function VerifyPage() {
               <PageHeader
                 eyebrow={eyebrow}
                 title="Certificate not found"
+                mascot="notFound"
                 lead={`No certificate has the id ${id}. Check it was typed correctly.`}
               />
             </Page>
@@ -440,6 +442,7 @@ export function CompletePage() {
             <PageHeader
               eyebrow="Course complete"
               title={`${course.title}, done.`}
+              mascot="milestone"
               actions={
                 certificateId ? (
                   <>

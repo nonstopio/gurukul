@@ -162,6 +162,7 @@ export function VersionsTab({
         open={archiving}
         onClose={() => setArchiving(false)}
         title="Archive this course?"
+        mascot="warning"
         footer={
           <>
             <Button variant="secondary" onClick={() => setArchiving(false)}>

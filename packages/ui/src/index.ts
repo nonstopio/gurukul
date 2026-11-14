@@ -182,5 +182,7 @@ export type {
   MediaKind,
   MediaPreviewProps,
 } from './MediaGallery';
+export { Mascot, MASCOT_EXPRESSIONS, MASCOT_STATES, mascotExpressionForState } from './Mascot';
+export type { MascotExpression, MascotProps, MascotState, MascotVariant } from './Mascot';
 import './motion.css';
 import './tips.css';

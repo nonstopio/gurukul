@@ -192,32 +192,63 @@ describe('Card', () => {
 });
 
 describe('Callout', () => {
-  it.each<CalloutTone>(['note', 'tip', 'warning'])('renders the %s tone', (tone) => {
-    render(
+  it.each<[CalloutTone, string]>([
+    ['note', 'neutral'],
+    ['tip', 'wink'],
+    ['warning', 'worried'],
+  ])('renders the %s tone, led by the owl (%s)', async (tone, face) => {
+    const { container } = render(
       <Callout tone={tone} title="Heads up">
         Body text
       </Callout>,
     );
     const box = screen.getByRole('note');
     expect(box.className).toBe(`g-callout g-callout--${tone}`);
-    expect(box.textContent).toContain('Heads up');
-    expect(box.textContent).toContain('Body text');
-    expect(box.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(box.textContent).toBe('Heads upBody text');
+    const owl = box.querySelector('svg.g-mascot');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+    expect(owl?.getAttribute('data-expression')).toBe(face);
+    expect(owl?.getAttribute('width')).toBe('32');
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('is a note by default', () => {
     render(<Callout title="FYI" className="x" />);
     expect(screen.getByRole('note').className).toBe('g-callout g-callout--note x');
   });
+
+  it("takes a state more specific than the tone's", () => {
+    render(<Callout tone="warning" title="This did not load" mascot="error" />);
+    const owl = screen.getByRole('note').querySelector('svg');
+    expect(owl?.getAttribute('data-expression')).toBe('sad');
+    expect(owl?.getAttribute('data-variant')).toBe('face');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+  });
 });
 
 describe('EmptyState', () => {
-  it('renders a heading and nothing else when given only a title', () => {
+  it('renders a heading and the curious owl when given only a title', () => {
     const { container } = render(<EmptyState title="No courses yet" />);
     expect(screen.getByRole('heading', { level: 3, name: 'No courses yet' })).toBeTruthy();
     expect(container.querySelector('.g-empty__text')).toBeNull();
     expect(container.querySelector('.g-empty__action')).toBeNull();
-    expect(container.querySelector('.g-empty__icon')).toBeNull();
+    const owl = container.querySelector('.g-empty__icon .g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe('curious');
+    expect(owl?.getAttribute('width')).toBe('64');
+    expect(owl?.parentElement?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it("takes the owl's state, and an icon replaces the owl", () => {
+    const { container, rerender } = render(<EmptyState title="Nobody is stuck" mascot="success" />);
+    expect(container.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('happy');
+    rerender(<EmptyState title="Not for this role" icon={<svg data-testid="lock" />} />);
+    expect(screen.getByTestId('lock')).toBeTruthy();
+    expect(container.querySelector('.g-mascot')).toBeNull();
+  });
+
+  it('has no axe violations with the owl', async () => {
+    const { container } = render(<EmptyState title="No courses yet">Ask an Admin.</EmptyState>);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('renders icon, text and action, at the requested heading level', () => {
@@ -291,11 +322,15 @@ describe('display components accessibility', () => {
 });
 
 describe('GlobalLoader', () => {
-  it('names what is happening in a polite status region, for screen readers only', () => {
+  it('shows the walking owl at 96px with the words under it, in a polite status region', () => {
     render(<GlobalLoader label="Loading media" />);
     const status = screen.getByRole('status');
     expect(status.className).toBe('g-loader g-loader--section');
-    expect(screen.getByText('Loading media').className).toBe('g-loader__sr');
+    expect(screen.getByText('Loading media').className).toBe('g-loader__label');
+    const owl = status.querySelector('.g-mascot');
+    expect(owl?.getAttribute('class')).toContain('g-mascot--loading');
+    expect(owl?.getAttribute('width')).toBe('96');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('covers the screen under a scrim as an overlay', () => {
@@ -303,9 +338,11 @@ describe('GlobalLoader', () => {
     expect(screen.getByRole('status').parentElement?.className).toBe('g-loader-scrim');
   });
 
-  it('keeps the same hidden name at the small inline size', () => {
+  it('keeps the G and a hidden name at the small inline size', () => {
     render(<GlobalLoader label="Saving" variant="inline" />);
     expect(screen.getByText('Saving').className).toBe('g-loader__sr');
+    expect(screen.getByRole('status').querySelector('.g-loader__mark')).toBeTruthy();
+    expect(screen.getByRole('status').querySelector('.g-mascot')).toBeNull();
   });
 
   it('has no axe violations', async () => {

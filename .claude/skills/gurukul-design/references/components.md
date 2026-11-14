@@ -231,13 +231,42 @@ them) and moving focus to the step heading. Nothing is saved before the last ste
 `<SuccessCheck size? />`: a decorative `--success` ring and tick that draw once (`--dur-base`,
 `--ease-spring`). Put the result in words beside it (`role="status"`); never use it for a mere save.
 
+## Mascot — shipped
+
+`<Mascot state? expression? variant? size? label? ground? paused? />`: the owl (plan: `04-design-system.md`, The
+owl mascot). Product UI passes a `state` (`MASCOT_STATES`: empty → curious, error → sad, tip →
+wink, loading → cool, …), editorial art an `expression` (24 in `MASCOT_EXPRESSIONS`); a state wins
+and anything unknown is `neutral`. `variant`: `body` (default; 56px inline, 64px+ in open space),
+`face` (24–40px), `loading` (56px inline, 96px on a page; waddles on `--dur-loader`; under reduced
+motion it stands still and only pulses in opacity, and `paused` still holds it). Decorative unless given a `label`; the words beside it carry the meaning, and a
+loader sits inside one `role="status"` with plain words saying what is loading. A wrong answer is
+`tip`, never `sad`. Colours are the `--mascot-*` roles. `ground="light"|"dark"` draws it on a fixed
+ground whatever the theme and `paused` holds the loading loop; both are for Admin → Mascot
+(`/admin/mascot`), the owl's full gallery, not for product screens.
+
+Where it already appears, through shared components (so a screen rarely places one itself):
+`EmptyState` (curious, 64px, `mascot` to change the state), `StateCard` (64px: error sad, offline
+worried, forbidden confused). Every alert box leads with the face, top-aligned with its first line
+and the words beside it, never above: `Callout` (32px, by tone; `mascot` for a more specific moment,
+`error` on a failed load or request), `Explanation` (32px: correct happy, incorrect `tip`, neutral
+info), every `Toast` (32px by tone), `Dialog mascot` (40px, beside the body: `warning` on a confirm or
+delete, `new` on the update dialog). Also `PageHeader mascot` (72px: `milestone` on course complete,
+`error` on the crash page, `notFound` on a missing certificate), `GlobalLoader` `section` and
+`overlay` (waddling owl, 96px, words under it), the feature-tip bubble (wink face, 28px) and the
+offline banner (24px worried face). Screens: the Quiz result (96px, `complete` on a pass, `tip` on a
+miss). One-line field and step errors under a control keep plain text: a face there breaks the 44px
+rhythm. Admin → Design system → Alerts raises every one of them from a button.
+
 ## Dialog — shipped
 
 `<Dialog open onClose title size="md|lg|drawer" footer? closeLabel?>children</Dialog>`. Rendered in a portal
 (`role="dialog" aria-modal="true" aria-labelledby` the Fraunces `h2` title). On open focus moves to the
 first focusable thing in the body (the close button if there is none); Tab and Shift+Tab wrap inside;
 Escape and the backdrop (a real button, ink at 55%) close; page scroll is locked and restored; focus
-returns to the opener on close. A 44px close button sits in the header. `md` is a centred panel, max
+returns to the opener on close. A 44px close button sits in the header. `mascot` (a `MascotState`)
+leads the body with the owl's 40px face, for a dialog that alerts: `warning` on a confirm or delete
+(Studio's `ConfirmDialog` passes it), `new` on the update dialog; a form dialog has none, and neither
+does a dialog whose body already has a `Callout` (Studio's roll-back dialog): one owl per dialog. `md` is a centred panel, max
 560px, `lg` 56rem for a grid of cards, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
 `--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
 The caller owns `open`. One dialog at a time.
@@ -267,28 +296,35 @@ callout sentence from the same numbers, never by hand. On a phone the bar drops 
 
 ## Callout — shipped
 
-`<Callout tone="note|tip|warning" title>body</Callout>`. `role="note"`, `--radius-lg` box on a soft
-state ground with a 1px matching line, a 20px icon (`aria-hidden`) and a bold lead-in. note: `--info`
-on `--info-soft` / `--info-line`; tip: `--warning` on `--warning-soft` / `--warning-line`; warning:
-`--danger` on `--danger-soft` / `--danger-line`. No left-border accent.
+`<Callout tone="note|tip|warning" title mascot? ref?>body</Callout>`. `role="note"`, `--radius-lg` box on a soft
+state ground with a 1px matching line, the owl's 32px face (`aria-hidden`, top-aligned with the
+title) and a bold lead-in that says the tone in words. note: info face, `--info` on `--info-soft` /
+`--info-line`; tip: wink, `--warning` on `--warning-soft` / `--warning-line`; warning: worried,
+`--danger` on `--danger-soft` / `--danger-line`. No left-border accent. `mascot` (a `MascotState`)
+picks a more specific face: a failed load or request passes `error`. It takes a `ref` and `tabIndex`
+for an alert that receives focus (the sign-in refusal: a non-NonStop account is `validation`, the
+confused face, because picking that account was the person's choice; "Sign-in did not finish" is
+`error`, the sad face).
 
 ## Explanation — shipped
 
 `<Explanation verdict="correct|incorrect|neutral" title="Correct. Here is why">reason</Explanation>`.
 Feedback on an answer (a lesson Check, a Quiz question, a review row), so it never reads as more
 lesson text. `role="status"` by default (announced when it appears); a review list passes
-`role="note"`. `--radius-lg` panel on a soft ground with a 1px line, an 18px icon (`aria-hidden`) and
-a bold lead-in that says the verdict in words. correct: `CheckIcon`, `--success` on `--success-soft` /
-`--accent-line`; incorrect: `LightbulbIcon`, `--warning` on `--warning-soft` / `--warning-line` (a
-nudge, never danger red); neutral (no key, or a review "Why"): `InfoIcon`, `--info` on `--info-soft`
-/ `--info-line`. `ResultRow` puts its explanation in one headed "Why".
+`role="note"`. `--radius-lg` panel on a soft ground with a 1px line, the owl's 32px face
+(`aria-hidden`, top-aligned with the title) and a bold lead-in that says the verdict in words.
+correct: happy, `--success` on `--success-soft` / `--accent-line`; incorrect: the `tip` wink (never
+sad or worried), `--warning` on `--warning-soft` / `--warning-line` (a nudge, never danger red);
+neutral (no key, or a review "Why"): info face, `--info` on `--info-soft` / `--info-line`. `ResultRow` puts its explanation in one headed "Why".
 
 ## EmptyState — shipped
 
 `<EmptyState title headingAs="h2|h3|h4" icon? action?>one line why and what next</EmptyState>`. Centred
 on `--surface` with a 1px dashed `--border-strong` and `--radius-xl`; title in Fraunces `--text-xl`
 (heading level to fit the page, default `h3`), text `--text-muted` max 44ch, `action` is usually a
-Button. Say what is missing; never invent numbers.
+Button. Say what is missing; never invent numbers. The owl (64px, decorative) sits above the title:
+`mascot` picks its state (`empty` by default, `notFound` for a missing record, `success` for good
+news such as "Nobody is overdue"); an `icon` replaces it where a symbol says more (a lock).
 
 ## Skeleton — shipped
 
@@ -312,8 +348,9 @@ message becomes the one line of detail), `code` (mono, such as `NET-OFFLINE`), `
 runs), `secondaryAction` (a quiet `Button` beside it, such as Later; closes the toast too), `duration`. **A toast that names a lesson, Quiz, course or other place carries an action
 that opens it** (`Open lesson`, `Open Quiz`): the label says the action, never the place's name,
 which is already in the message. Default time by tone: success
-4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has an
-icon plus a screen-reader word, never colour alone. A thin timer bar runs down and the timeout
+4s, info 6s, warning 8s, danger until closed (a provider `duration` overrides all). Each tone has the
+owl's 32px face (success happy, info neutral, warning worried, danger sad) plus a screen-reader word,
+never colour alone. A thin timer bar runs down and the timeout
 pauses on hover and focus, resuming with what was left. Three at a time: the oldest is dropped.
 Enter on `--ease` / `--dur-base`, exit on `--ease-in` / `--dur-fast`; under reduced motion the
 durations are 0. The provider keeps two live regions mounted from the start: `role="status"` for
@@ -335,11 +372,12 @@ appears: a form error stays on the form.
 ## StateCard — shipped
 
 `<StateCard variant="error|offline|forbidden" title code? kind? actions? headingAs?>message</StateCard>`.
-A bordered `--surface` block: tinted icon square (danger, warning, sunken), the title in the display
-face, one or two sentences, `code · kind` in mono (`NET-TIMEOUT · Network`), then the actions (Retry
+A bordered `--surface` block: the decorative owl (64px body: error sad, offline worried, forbidden
+confused), the title in the display face, one or two sentences, `code · kind` in mono (`NET-TIMEOUT · Network`), then the actions (Retry
 primary, a way back secondary). `error` has `role="alert"`, `offline` `role="status"`, `forbidden`
 no live role (it is a page, not an event). Empty is not here: use `EmptyState`, and a filtered-empty
-list offers "Clear filters" inside it. Loading is `Skeleton` / `GlobalLoader`. Never show raw
+list offers "Clear filters" inside it. Loading is `Skeleton` / `GlobalLoader` (the waddling owl
+at 96px with its words under it for `section` and `overlay`; the small G for `inline`). Never show raw
 exception text; take the sentence and code from `describeError`.
 
 ## CodeBlock — shipped
@@ -385,6 +423,7 @@ for when the embed is blocked.
 Picks one file three ways: the zone is a real `<button>` (opens the native picker; Enter and Space work), a file dropped on
 it, or a file pasted while it has focus (pasted text passes through). The policy line is always visible under the zone,
 before anyone picks, and is part of the button's `aria-describedby`; the caller builds it from the live upload policy.
+An `error` shows in a `role="alert"` box under it, led by the owl's 32px confused face (`validation`).
 `dragging` is the control's own state (dashed border turns `--accent` on `--accent-soft`, label "Drop to check it").
 `checking` and `uploading` replace the zone with a status line in a `role="status"` region (progress is spoken in tens, not
 every percent), and `uploading` adds a `ProgressBar` ("Upload progress") and a Cancel upload button when `onCancel` is given.
@@ -625,7 +664,9 @@ stacks below. A `div`: the shell owns `<main>`.
 `<PageHeader title eyebrow? lead? breadcrumb? meta? actions?>` — the first child of `Page` and the
 only `h1`. Breadcrumb above; then eyebrow (micro label), title (Fraunces 500 `--text-3xl`,
 `--text-2xl` below 40rem), meta (chips), lead (`--text-muted`, 60ch); actions right, wrapping
-under on narrow screens. At most one primary button in `actions`.
+under on narrow screens. At most one primary button in `actions`. `mascot` (a `MascotState`) puts
+the decorative 72px owl at the start of the row, for a moment that earns one (course complete,
+the crash page, a missing record); on a phone it sits on its own line above the title.
 
 ## PageSkeleton — shipped
 
@@ -672,6 +713,10 @@ Every `.g-control` (input, select, textarea): hover border `--text-subtle`; focu
 - Padding: a button with an icon or spinner has `--space-3` on the icon side and `--space-4` on the other, so the pair sits centred.
   Icons go on create and tool actions and on a row of quiet row actions where every button has one; never on Save, Cancel or Back.
 - `size="sm"`: 36px, `--space-3` padding, dense rows only. `buttonClass(variant, extra, size?)`.
+- `aria-pressed`: a toggle button. Pressed, it takes `--accent-soft` with an `--accent` border and
+  `--accent-soft-text`, hover or not. For an on/off control in a toolbar (Pause animations) and for
+  picking one of many that do not fit a `SegmentedControl` (Admin → Mascot's 24 face tiles and 14
+  state chips, wrapping, in a `role="group"` with a label); 2–4 modes stay a `SegmentedControl`.
 - `quiet`: borderless, `--text-body`, hover `--surface-hover`. Neutral edits in a dense row (Rename, Collapse).
 - `danger-quiet`: borderless, `--danger` text, hover `--danger-soft`. The Delete or Remove in a row or card
   that opens a confirmation; never the confirm itself. With a `TrashIcon`.

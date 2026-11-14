@@ -32,7 +32,7 @@ export function Loaded<T>({
     // Plain words and Retry; raw error text is not for people (CLAUDE.md, API responses).
     const { retry, error } = loadable;
     return (
-      <Callout tone="warning" title="This did not load" role="alert">
+      <Callout tone="warning" title="This did not load" role="alert" mascot="error">
         <p>Check your connection and {retry ? 'try again' : 'reload the page'}.</p>
         <div className="load-actions">
           {retry && (

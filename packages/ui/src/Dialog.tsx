@@ -6,6 +6,8 @@ import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { XIcon } from './Icon';
+import { Mascot } from './Mascot';
+import type { MascotState } from './Mascot';
 import './dialog.css';
 
 export interface DialogProps {
@@ -20,6 +22,8 @@ export interface DialogProps {
   footer?: ReactNode;
   /** Accessible name of the close button. Default: "Close". */
   closeLabel?: string;
+  /** The owl's face leading the body, for a dialog that alerts: `warning` for a confirm or delete, `error` for a failure, `new` for an update. */
+  mascot?: MascotState | undefined;
   children: ReactNode;
 }
 
@@ -37,6 +41,7 @@ function DialogPanel({
   size = 'md',
   footer,
   closeLabel = 'Close',
+  mascot,
   children,
 }: Omit<DialogProps, 'open'>) {
   const titleId = useId();
@@ -125,8 +130,18 @@ function DialogPanel({
             </button>
           ) : null}
         </div>
-        <div className="g-dialog__body" ref={bodyRef}>
-          {children}
+        <div
+          className={mascot ? 'g-dialog__body g-dialog__body--mascot' : 'g-dialog__body'}
+          ref={bodyRef}
+        >
+          {mascot ? (
+            <>
+              <Mascot state={mascot} variant="face" size={40} />
+              <div className="g-dialog__content">{children}</div>
+            </>
+          ) : (
+            children
+          )}
         </div>
         {footer ? <div className="g-dialog__footer">{footer}</div> : null}
       </div>

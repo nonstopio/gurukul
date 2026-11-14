@@ -83,6 +83,7 @@ function Gate({ live, uid, admin }: { live: Course | null; uid: string; admin: b
       <Frame title="Course not found">
         <EmptyState
           title="This course does not exist"
+          mascot="notFound"
           headingAs="h2"
           action={
             <Link className={buttonClass('secondary')} to="/studio">
@@ -163,7 +164,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
             {`The draft is created with the course. Ask ${article(t.Admin)} to check it.`}
           </EmptyState>
         ) : (
-          <Callout tone="warning" title="The draft did not load" role="alert">
+          <Callout tone="warning" title="The draft did not load" role="alert" mascot="error">
             <p>Check your connection, then try again.</p>
             <div className="load-actions">
               <Button variant="secondary" onClick={draft.reload}>

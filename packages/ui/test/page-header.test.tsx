@@ -56,4 +56,14 @@ describe('PageHeader', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Example page' })).toBeTruthy();
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
   });
+
+  it('puts the decorative owl for its state before the title, and none without one', () => {
+    const { container, rerender } = render(<PageHeader title="Course, done." mascot="milestone" />);
+    const owl = container.querySelector('.g-page-header__row > .g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe('celebrate');
+    expect(owl?.getAttribute('width')).toBe('72');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+    rerender(<PageHeader title="Learners" />);
+    expect(container.querySelector('.g-mascot')).toBeNull();
+  });
 });

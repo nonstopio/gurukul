@@ -70,10 +70,22 @@
   overflow-wrap: anywhere;
 }
 .g-filedrop__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
   padding: var(--space-4);
   background: var(--danger-soft);
   border: 1px solid var(--danger-line);
   border-radius: var(--radius-lg);
   color: var(--text-body);
   font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+}
+.g-filedrop__error-text {
+  min-width: 0;
+}
+.g-filedrop__error-text > :first-child {
+  margin-top: 0;
+}
+.g-filedrop__error-text > :last-child {
+  margin-bottom: 0;
 }

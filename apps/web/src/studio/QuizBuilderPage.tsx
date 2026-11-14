@@ -108,6 +108,7 @@ function Builder({
         <EmptyState
           headingAs="h2"
           title={`This ${t.Quiz} does not exist`}
+          mascot="notFound"
           action={
             <Link className={buttonClass('secondary')} to={`/studio/courses/${courseId}`}>
               Back to the course

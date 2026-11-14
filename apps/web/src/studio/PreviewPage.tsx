@@ -65,6 +65,7 @@ export function PreviewPage() {
                 ? 'There is no draft to preview'
                 : 'The preview did not load'
             }
+            mascot={draft.status === 'missing' ? 'notFound' : 'error'}
             headingAs="h2"
             action={
               <Link className={buttonClass('secondary')} to="/studio">

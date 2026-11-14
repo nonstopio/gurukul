@@ -197,6 +197,33 @@ describe('Dialog', () => {
     expect(await axeViolations(screen.getByRole('dialog'))).toEqual([]);
   });
 
+  it("an alerting dialog leads its body with the owl's face, decorative", async () => {
+    render(
+      <Dialog open onClose={vi.fn()} title="Delete this lesson?" mascot="warning">
+        <p>It is removed from the draft.</p>
+      </Dialog>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Delete this lesson?' });
+    const owl = dialog.querySelector('.g-dialog__body > svg.g-mascot');
+    expect(owl?.getAttribute('data-expression')).toBe('worried');
+    expect(owl?.getAttribute('aria-hidden')).toBe('true');
+    expect(dialog.querySelector('.g-dialog__content')?.textContent).toBe(
+      'It is removed from the draft.',
+    );
+    expect(await axeViolations(dialog)).toEqual([]);
+  });
+
+  it('shows no owl without `mascot`, as a form dialog', () => {
+    render(
+      <Dialog open onClose={vi.fn()} title="Create team">
+        <p>Name the team.</p>
+      </Dialog>,
+    );
+    expect(
+      screen.getByRole('dialog', { name: 'Create team' }).querySelector('.g-mascot'),
+    ).toBeNull();
+  });
+
   it('has no axe violations', async () => {
     render(<Harness />);
     open();

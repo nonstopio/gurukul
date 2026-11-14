@@ -101,7 +101,7 @@ function Form({
     >
       <form id="new-course-form" className="sc-form" onSubmit={(e) => void submit(e)}>
         {problem ? (
-          <Callout tone="warning" title="The course was not created" role="alert">
+          <Callout tone="warning" title="The course was not created" role="alert" mascot="error">
             <p>{problem}</p>
           </Callout>
         ) : null}

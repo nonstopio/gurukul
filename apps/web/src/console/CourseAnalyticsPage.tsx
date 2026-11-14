@@ -67,6 +67,7 @@ export function CourseAnalyticsPage() {
                 <PageHeader eyebrow={t.Admin} title="Course analytics" />
                 <EmptyState
                   title="This course does not exist"
+                  mascot="notFound"
                   headingAs="h2"
                   action={
                     <Link className={buttonClass('secondary')} to="/admin">

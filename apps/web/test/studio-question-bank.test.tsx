@@ -197,6 +197,7 @@ describe('row actions', () => {
     expect(within(await rowOf('Prompt 2?')).queryByRole('button')).toBeNull();
     pick(await rowOf('Prompt 1?'), 'Delete');
     const dialog = screen.getByRole('dialog', { name: 'Delete this question from the bank?' });
+    expect(dialog.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('worried');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(studio.data.removeFromBank).not.toHaveBeenCalled();
     pick(await rowOf('Prompt 1?'), 'Delete');

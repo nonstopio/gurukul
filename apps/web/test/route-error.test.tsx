@@ -25,6 +25,7 @@ it('shows a plain message, counts the crash by error name and offers Reload', ()
     </AnalyticsProvider>,
   );
   expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeTruthy();
+  expect(document.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('sad');
   expect(analytics.track).toHaveBeenCalledWith('app_error', { source: 'route', code: 'TypeError' });
   expect(JSON.stringify(analytics.track.mock.calls)).not.toContain('secret');
   const report = screen.getByRole('link', { name: 'Report issue' }).getAttribute('href') as string;

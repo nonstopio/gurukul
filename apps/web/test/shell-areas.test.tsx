@@ -46,7 +46,9 @@ describe('the area switcher', () => {
     const main = screen.getByRole('navigation', { name: 'Main' });
     expect(within(main).getByRole('link', { name: 'Audit log' })).toBeTruthy();
     expect(within(main).getByRole('link', { name: 'Design system' })).toBeTruthy();
+    expect(within(main).getByRole('link', { name: 'Mascot' })).toBeTruthy();
     expect(within(main).queryByRole('link', { name: 'Home' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Gurukul home' }).getAttribute('href')).toBe('/');
     expect(await axeViolations(container)).toEqual([]);
 
     fireEvent.click(within(areas).getByRole('link', { name: 'Studio' }));
@@ -61,6 +63,12 @@ describe('the area switcher', () => {
         name: 'Question bank',
       }),
     ).toBeTruthy();
+  });
+
+  it('takes an Admin home from the console through the logo', async () => {
+    await openApp('/admin/learners', { roles: ['admin'] });
+    fireEvent.click(await screen.findByRole('link', { name: 'Gurukul home' }));
+    expect(await screen.findByRole('heading', { level: 1, name: /^Namaste/ })).toBeTruthy();
   });
 
   it('shows an Educator only Learn and Studio', async () => {

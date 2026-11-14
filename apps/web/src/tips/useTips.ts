@@ -1,7 +1,10 @@
 import { hints as createHints } from 'driver.js/hints';
 import type { DriverHint } from 'driver.js/hints';
 import 'driver.js/dist/hints.css';
-import { useEffect } from 'react';
+import { Mascot } from '@gurukul/ui';
+import { createElement, useEffect } from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { matchPath, useLocation } from 'react-router';
 import { TIPS } from './registry';
 import type { Tip } from './registry';
@@ -23,6 +26,24 @@ function onScreen(node: Element) {
   return r.width > 0 && r.right > 0 && r.left < innerWidth;
 }
 
+let face = '';
+/**
+ * The owl's tip face (a wink), as markup: Driver.js takes the bubble as an HTML string. Drawn once
+ * with React into a detached node and kept, so the bubble shows the same `Mascot` as everywhere else.
+ */
+function tipFace() {
+  if (!face) {
+    const node = document.createElement('span');
+    const root = createRoot(node);
+    flushSync(() =>
+      root.render(createElement(Mascot, { state: 'tip', variant: 'face', size: 28 })),
+    );
+    face = node.innerHTML;
+    root.unmount();
+  }
+  return face;
+}
+
 function toHint({ id, title, text, side }: Tip, element: Element): DriverHint {
   return {
     id,
@@ -31,7 +52,7 @@ function toHint({ id, title, text, side }: Tip, element: Element): DriverHint {
     beacon: { side: 'top', align: 'end', offsetX: -12, offsetY: 12 },
     popover: {
       title,
-      description: `<span><b>Tip:</b> ${text.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`)}</span>`,
+      description: `${tipFace()}<span><b>Tip:</b> ${text.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`)}</span>`,
       side: side ?? 'bottom',
       align: 'start',
       buttonText: 'Got it',

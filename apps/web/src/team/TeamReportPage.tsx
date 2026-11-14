@@ -268,6 +268,7 @@ function Report({ report, onChanged }: { report: TeamReport; onChanged: () => vo
           open
           onClose={() => setRemoving(null)}
           title={`Remove ${(removing.assignment as TeamReportAssignment).courseTitle}?`}
+          mascot="warning"
           footer={
             <>
               <Button variant="secondary" onClick={() => setRemoving(null)}>

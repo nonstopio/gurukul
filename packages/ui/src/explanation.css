@@ -21,17 +21,13 @@
 }
 .g-explanation__icon {
   flex: none;
-  margin-top: 3px;
 }
-.g-explanation--correct .g-explanation__icon,
 .g-explanation--correct .g-explanation__title {
   color: var(--success);
 }
-.g-explanation--incorrect .g-explanation__icon,
 .g-explanation--incorrect .g-explanation__title {
   color: var(--warning);
 }
-.g-explanation--neutral .g-explanation__icon,
 .g-explanation--neutral .g-explanation__title {
   color: var(--info);
 }

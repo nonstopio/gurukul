@@ -122,6 +122,19 @@ test.describe('Admin', () => {
     await expect(page.getByRole('region', { name: 'Accent' })).toBeVisible();
     await expectNoSeriousViolations(page);
 
+    // The Mascot page sits right after it and shows every face of the owl.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Mascot' })
+      .click();
+    await expect(page).toHaveURL(/\/admin\/mascot/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Mascot' })).toBeVisible();
+    const faces = page.getByRole('group', { name: 'Expressions' }).getByRole('button');
+    await expect(faces).toHaveCount(24);
+    await page.getByRole('button', { name: /Having an idea/ }).click();
+    await expect(page.getByRole('img', { name: 'The owl, having an idea' })).toBeVisible();
+    await expectNoSeriousViolations(page);
+
     // Meera is on neither team, so her profile says so and offers no way to pick one.
     await page.goto('/profile');
     await expect(page.getByText('You are not on a team yet.')).toBeVisible();

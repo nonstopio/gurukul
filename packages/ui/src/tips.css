@@ -62,7 +62,12 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
+/* The owl's tip face (28px) sits beside the sentence; `.g-mascot` keeps it from shrinking.
+   driver.js sets display: block inline. */
 .g-tip .driver-popover-description {
+  display: flex !important;
+  align-items: flex-start;
+  gap: var(--space-3);
   font: inherit;
 }
 .g-tip .driver-popover-description b {

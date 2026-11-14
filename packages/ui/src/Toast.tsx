@@ -9,7 +9,9 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { Button, buttonClass } from './Button';
-import { AlertIcon, CheckIcon, GitHubIcon, InfoIcon, XIcon } from './Icon';
+import { GitHubIcon, XIcon } from './Icon';
+import { Mascot } from './Mascot';
+import type { MascotState } from './Mascot';
 import './toast.css';
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'danger';
@@ -60,11 +62,12 @@ const KIND_WORD: Record<ToastTone, string> = {
   warning: 'Warning',
   danger: 'Error',
 };
-const KIND_ICON = {
-  success: CheckIcon,
-  info: InfoIcon,
-  warning: AlertIcon,
-  danger: XIcon,
+/** The owl's face for each tone; the tone's colour and hidden word still say what kind it is. */
+const KIND_FACE: Record<ToastTone, MascotState> = {
+  success: 'success',
+  info: 'info',
+  warning: 'warning',
+  danger: 'error',
 };
 
 interface ToastEntry {
@@ -215,7 +218,6 @@ function ToastItem({
     };
   }, [id, duration, paused, leaving, onDismiss]);
 
-  const Icon = KIND_ICON[tone];
   return (
     <div
       className={`g-toast g-toast--${tone}`}
@@ -224,7 +226,7 @@ function ToastItem({
       ref={ref}
     >
       <span className="g-toast__icon">
-        <Icon />
+        <Mascot state={KIND_FACE[tone]} variant="face" size={32} />
       </span>
       <div className="g-toast__body">
         <p className="g-toast__title">

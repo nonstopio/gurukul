@@ -1,4 +1,4 @@
-import { PageSkeleton } from '@gurukul/ui';
+import { GlobalLoader } from '@gurukul/ui';
 import { Outlet } from 'react-router';
 import { LabelChoicePage } from '../labels/LabelChoice';
 import { AcceptPolicyPage } from '../privacy/AcceptPolicyPage';
@@ -17,7 +17,7 @@ export function RequireSession() {
   if (status === 'loading') {
     return (
       <main id="content">
-        <PageSkeleton label="Loading Gurukul" />
+        <GlobalLoader label="Loading Gurukul" />
       </main>
     );
   }
