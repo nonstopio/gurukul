@@ -17,6 +17,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
+import { COURSE_TTL_MS } from '../data/firebase';
 import { log } from '../log';
 import { DraftConflictError } from './errors';
 import { sameWork } from './studioModel';
@@ -85,32 +86,56 @@ function toDraft(d: Record<string, unknown>): DraftDoc {
 
 export function firebaseStudioData(db: Firestore): StudioData {
   const draftRef = (courseId: string) => doc(db, 'courses', courseId, 'drafts', 'current');
+  // The list costs about three reads per course, and the Studio list, Media and Question bank
+  // each ask for it: one promise per person is reused for five minutes. Our own changes drop it (see
+  // `forgetCourses`), so only someone else's edit waits.
+  // ponytail: someone else's edit shows up within 5 minutes; listen to the courses if that matters.
+  const lists = new Map<string, { at: number; promise: Promise<StudioCourse[]> }>();
+  async function liveCourses(): Promise<Course[]> {
+    const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
+    const live: Course[] = [];
+    for (const d of snap.docs) {
+      const course = readCourse(d.data());
+      if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
+      else live.push(course);
+    }
+    return live;
+  }
   return {
+    listLiveCourses: liveCourses,
     // Every Educator and Admin sees every course, never-published ones included (the rules allow
     // it); only the drafts of courses they may edit are read.
-    async listCourses(uid, admin) {
-      const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
-      const live: Course[] = [];
-      for (const d of snap.docs) {
-        const course = readCourse(d.data());
-        if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
-        else live.push(course);
-      }
-      return Promise.all(
-        live.map(async (course): Promise<StudioCourse> => {
-          const editable = admin || course.educatorIds.includes(uid);
-          if (!editable) return { live: course, draft: null };
-          const [snap, learners] = await Promise.all([
-            getDoc(draftRef(course.id)),
-            learnersStarted(db, course.id),
-          ]);
-          const row: StudioCourse = {
-            live: course,
-            draft: snap.exists() ? toDraft(snap.data()) : null,
-          };
-          return learners === null ? row : { ...row, learners };
-        }),
-      );
+    listCourses(uid, admin) {
+      const key = `${uid}/${admin}`;
+      const hit = lists.get(key);
+      if (hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise;
+      const entry = {
+        at: Date.now(),
+        promise: liveCourses().then((live) =>
+          Promise.all(
+            live.map(async (course): Promise<StudioCourse> => {
+              const editable = admin || course.educatorIds.includes(uid);
+              if (!editable) return { live: course, draft: null };
+              const [snap, learners] = await Promise.all([
+                getDoc(draftRef(course.id)),
+                learnersStarted(db, course.id),
+              ]);
+              const row: StudioCourse = {
+                live: course,
+                draft: snap.exists() ? toDraft(snap.data()) : null,
+              };
+              return learners === null ? row : { ...row, learners };
+            }),
+          ),
+        ),
+      };
+      lists.set(key, entry);
+      // A failed read is not kept, so Retry asks again.
+      entry.promise.catch(() => lists.delete(key));
+      return entry.promise;
+    },
+    async forgetCourses() {
+      lists.clear();
     },
     async getAccess(courseId) {
       return accessOf((await getDoc(doc(db, 'courses', courseId))).data());
@@ -144,6 +169,9 @@ export function firebaseStudioData(db: Firestore): StudioData {
           ...(marked ? { answersChanged: true } : {}),
         });
         return baseRev + 1;
+      }).then((rev) => {
+        lists.clear();
+        return rev;
       });
     },
     async listVersions(courseId) {

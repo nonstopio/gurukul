@@ -8,7 +8,7 @@ import type { Course, Lesson } from '@gurukul/schema';
 import type { ConsoleData, UserRow } from '../console/types';
 import type { LearnerData } from '../data/types';
 import { canEdit } from '../studio/studioModel';
-import type { StudioCourse, StudioData } from '../studio/types';
+import type { StudioData } from '../studio/types';
 import type { Terms } from '../labels/terms';
 import { log } from '../log';
 import { allowed } from './catalog';
@@ -63,34 +63,31 @@ const STATUS: Record<Course['status'], string> = {
 };
 
 /**
- * Each course this person may edit, drafts never published included, opening the course editor.
- * Titled as Studio shows it: from the draft when there is one.
+ * Each course this person may edit, opening the course editor. From the live documents: one read,
+ * so a draft never published is titled as it was created and a draft's rename waits for a publish.
  */
 export function editableCourseDestinations(
-  rows: readonly StudioCourse[],
+  courses: readonly Course[],
   uid: string,
   admin: boolean,
   t: Terms,
 ): Destination[] {
-  return rows
-    .filter((r) => canEdit(r.live, uid, admin))
-    .map(({ live, draft }) => {
-      const shown = draft?.course ?? live;
-      return {
-        id: `studio:${live.id}`,
-        path: `/studio/courses/${live.id}`,
-        label: shown.title,
-        areaName: t.Studio,
-        description: `${STATUS[live.status]} · ${shown.summary}`,
-        keywords: [STATUS[live.status], 'edit', 'course'],
-        kind: 'Course',
-      };
-    });
+  return courses
+    .filter((c) => canEdit(c, uid, admin))
+    .map((c) => ({
+      id: `studio:${c.id}`,
+      path: `/studio/courses/${c.id}`,
+      label: c.title,
+      areaName: t.Studio,
+      description: `${STATUS[c.status]} · ${c.summary}`,
+      keywords: [STATUS[c.status], 'edit', 'course'],
+      kind: 'Course',
+    }));
 }
 
-/** For Educators and Admins: Studio's own course list (the same reads as `/studio`). */
+/** For Educators and Admins: the courses they may edit, from the one live-courses query. */
 export function editableCourseSource(
-  data: Pick<StudioData, 'listCourses'>,
+  data: Pick<StudioData, 'listLiveCourses'>,
   uid: string,
   admin: boolean,
   t: Terms,
@@ -98,7 +95,7 @@ export function editableCourseSource(
   return {
     id: 'editable-courses',
     roles: ['educator', 'admin'],
-    load: async () => editableCourseDestinations(await data.listCourses(uid, admin), uid, admin, t),
+    load: async () => editableCourseDestinations(await data.listLiveCourses(), uid, admin, t),
   };
 }
 

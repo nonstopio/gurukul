@@ -15,7 +15,6 @@ import {
 } from '../src/navigation/records';
 import type { Destination, RecordLookup, RecordSource } from '../src/navigation/types';
 import { lesson, makeCourse } from './fake-data';
-import { draftDoc } from './fake-studio';
 
 const GENERIC = terms('generic');
 
@@ -86,22 +85,25 @@ describe('courseSource', () => {
 });
 
 describe('editableCourseDestinations', () => {
-  const rows = [
-    {
-      live: makeCourse({ id: 'new', title: 'Old title', status: 'draft', educatorIds: ['u1'] }),
-      draft: draftDoc(makeCourse({ id: 'new', title: 'Brand new', summary: 'Still writing.' })),
-    },
-    { live: makeCourse({ educatorIds: ['u1'] }), draft: null },
-    { live: makeCourse({ id: 'other', title: 'Not mine', educatorIds: ['x'] }), draft: null },
+  const courses = [
+    makeCourse({
+      id: 'new',
+      title: 'As created',
+      summary: 'Still writing.',
+      status: 'draft',
+      educatorIds: ['u1'],
+    }),
+    makeCourse({ educatorIds: ['u1'] }),
+    makeCourse({ id: 'other', title: 'Not mine', educatorIds: ['x'] }),
   ];
 
-  it('lists the courses this Educator edits, titled from the draft, opening the editor', () => {
-    const out = editableCourseDestinations(rows, 'u1', false, GENERIC);
+  it('lists the courses this Educator edits, titled from the live course, opening the editor', () => {
+    const out = editableCourseDestinations(courses, 'u1', false, GENERIC);
     expect(out).toEqual([
       {
         id: 'studio:new',
         path: '/studio/courses/new',
-        label: 'Brand new',
+        label: 'As created',
         areaName: 'Studio',
         description: 'Draft · Still writing.',
         keywords: ['Draft', 'edit', 'course'],
@@ -116,7 +118,7 @@ describe('editableCourseDestinations', () => {
   });
 
   it('gives an Admin every course, as Studio does', () => {
-    expect(editableCourseDestinations(rows, 'k1', true, GENERIC).map((d) => d.id)).toEqual([
+    expect(editableCourseDestinations(courses, 'k1', true, GENERIC).map((d) => d.id)).toEqual([
       'studio:new',
       'studio:git',
       'studio:other',
@@ -125,12 +127,12 @@ describe('editableCourseDestinations', () => {
 });
 
 describe('editableCourseSource', () => {
-  it("is for Educators and Admins and reads Studio's course list", async () => {
-    const listCourses = vi.fn().mockResolvedValue([{ live: makeCourse(), draft: null }]);
-    const source = editableCourseSource({ listCourses }, 'u1', true, GENERIC);
+  it('is for Educators and Admins and reads only the live courses', async () => {
+    const listLiveCourses = vi.fn().mockResolvedValue([makeCourse()]);
+    const source = editableCourseSource({ listLiveCourses }, 'u1', true, GENERIC);
     expect(source.roles).toEqual(['educator', 'admin']);
     expect((await source.load()).map((d) => d.path)).toEqual(['/studio/courses/git']);
-    expect(listCourses).toHaveBeenCalledWith('u1', true);
+    expect(listLiveCourses).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -52,13 +52,15 @@ A new area is a new file in `areas/`; nothing to register.
 ## Record results
 
 Search also offers records — courses and their lessons, the courses an Educator or Admin may
-edit (drafts included), and people for Admins. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
+edit (never-published ones included), and people for Admins. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
 and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The sources are built in
 `Frame` (`src/Shell.tsx`) and passed to `GlobalSearchProvider`, which:
 
 - loads them **once, the first time the palette opens** — no reads before someone searches, and a
   source reuses a query the person's screens already make (courses: the catalogue's `listCourses`;
-  editable courses: Studio's `listCourses`, opening `/studio/courses/<id>`);
+  editable courses: Studio's `listLiveCourses`, one query of the live documents with no draft or
+  stats reads, so titles are the published ones and a draft's rename shows after its next publish,
+  opening `/studio/courses/<id>`);
 - keeps them with the roles they were loaded for, so a change of roles never shows the old ones;
 - ranks them with the pages, but lists pages only while the query is empty.
 

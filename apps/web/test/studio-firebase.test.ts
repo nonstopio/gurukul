@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeCourse } from './fake-data';
 
 const store = vi.hoisted(() => ({
@@ -53,10 +53,11 @@ vi.mock('firebase/firestore', () => ({
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
+import { COURSE_TTL_MS } from '../src/data/firebase';
 import { DraftConflictError } from '../src/studio/errors';
 import { cleanForFirestore, firebaseStudioData } from '../src/studio/firebase';
 
-const data = firebaseStudioData({} as never);
+let data = firebaseStudioData({} as never);
 const ts = (ms: number) => ({ toDate: () => new Date(ms), toMillis: () => ms });
 const live = (id: string, educatorIds: string[] = [], over: object = {}) => ({
   ...makeCourse({ id, educatorIds }),
@@ -73,6 +74,7 @@ const draft = (rev = 3) => ({
 });
 
 beforeEach(() => {
+  data = firebaseStudioData({} as never);
   store.docs.clear();
   store.queue = [];
   store.queries = [];
@@ -98,6 +100,81 @@ describe('cleanForFirestore', () => {
       g: null,
       h: 'x',
     });
+  });
+});
+
+describe('listLiveCourses', () => {
+  it('makes the one courses query and reads no draft or stats document', async () => {
+    store.queue = [
+      [d('git', live('git', ['u1'])), d('broken', { ...live('broken'), schemaVersion: 0 })],
+    ];
+    store.docs.set('courses/git/drafts/current', draft());
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rows = await data.listLiveCourses();
+    expect(rows.map((c) => c.id)).toEqual(['git']);
+    expect(store.queries).toHaveLength(1);
+    warn.mockRestore();
+  });
+});
+
+describe('listCourses remembered for five minutes', () => {
+  const reads = () => store.queries.length;
+
+  afterEach(() => vi.useRealTimers());
+
+  it('asks once within the time and again after it', async () => {
+    vi.useFakeTimers();
+    store.queue = [[d('git', live('git', ['u1']))], [d('git', live('git', ['u1']))]];
+    const first = await data.listCourses('u1', false);
+    expect(await data.listCourses('u1', false)).toBe(first);
+    expect(reads()).toBe(1);
+    vi.advanceTimersByTime(COURSE_TTL_MS + 1);
+    await data.listCourses('u1', false);
+    expect(reads()).toBe(2);
+  });
+
+  it('never serves one person or role the list of another', async () => {
+    store.queue = [
+      [d('git', live('git', ['u1']))],
+      [d('git', live('git', ['u1']))],
+      [d('git', live('git', ['u1']))],
+    ];
+    await data.listCourses('u1', false);
+    await data.listCourses('u2', false);
+    await data.listCourses('u1', true);
+    expect(reads()).toBe(3);
+  });
+
+  it('does not keep a failed read', async () => {
+    store.queue = [[d('git', live('git', ['u1']))]];
+    store.docs.set('courses/git/drafts/current', 'not a draft');
+    await expect(data.listCourses('u1', false)).rejects.toThrow();
+    store.docs.set('courses/git/drafts/current', draft());
+    store.queue = [[d('git', live('git', ['u1']))]];
+    expect((await data.listCourses('u1', false))[0]?.draft?.rev).toBe(3);
+    expect(reads()).toBe(2);
+  });
+
+  it('is dropped by forgetCourses', async () => {
+    store.queue = [[d('git', live('git'))], [d('git', live('git'))]];
+    await data.listCourses('k1', true);
+    await data.forgetCourses();
+    await data.listCourses('k1', true);
+    expect(reads()).toBe(2);
+  });
+
+  it('is dropped by a saved draft, but not by one that conflicts', async () => {
+    store.queue = [[d('git', live('git'))], [d('git', live('git'))]];
+    store.docs.set('courses/git/drafts/current', draft(3));
+    await data.listCourses('k1', true);
+    await expect(
+      data.saveDraft('git', { course: makeCourse(), answers: {} }, 1, 'u1'),
+    ).rejects.toBeInstanceOf(DraftConflictError);
+    await data.listCourses('k1', true);
+    expect(reads()).toBe(1);
+    await data.saveDraft('git', { course: makeCourse(), answers: {} }, 3, 'u1');
+    await data.listCourses('k1', true);
+    expect(reads()).toBe(2);
   });
 });
 

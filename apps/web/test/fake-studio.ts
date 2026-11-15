@@ -34,6 +34,8 @@ export function fakeStudio(
 ) {
   const data: StudioData = {
     listCourses: vi.fn().mockResolvedValue(init.courses ?? []),
+    listLiveCourses: vi.fn().mockResolvedValue((init.courses ?? []).map((c) => c.live)),
+    forgetCourses: vi.fn().mockResolvedValue(undefined),
     getDraft: vi.fn().mockResolvedValue(init.draft === undefined ? null : init.draft),
     saveDraft: vi.fn(async (_id: string, _work: unknown, baseRev: number) => baseRev + 1),
     listVersions: vi.fn().mockResolvedValue(init.versions ?? []),

@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { MediaStorage, PublishChecks, StudioData, StudioService } from './types';
 
@@ -20,7 +20,27 @@ export function StudioProvider({
   checks,
   children,
 }: StudioValue & { children: ReactNode }) {
-  return <Ctx.Provider value={{ data, service, storage, checks }}>{children}</Ctx.Provider>;
+  // The one place a change made here drops the remembered course list: every service call that
+  // succeeds (create, publish, rollback, archive, access) makes it stale.
+  const watched = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.keys(service).map((name) => [
+          name,
+          async (...args: unknown[]) => {
+            const result = await (
+              service[name as keyof StudioService] as (...a: unknown[]) => Promise<unknown>
+            )(...args);
+            void data.forgetCourses();
+            return result;
+          },
+        ]),
+      ) as unknown as StudioService,
+    [service, data],
+  );
+  return (
+    <Ctx.Provider value={{ data, service: watched, storage, checks }}>{children}</Ctx.Provider>
+  );
 }
 
 /** The Studio's data and callables. Throws outside `StudioProvider`: a missing provider is a bug. */
