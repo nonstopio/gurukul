@@ -3,7 +3,6 @@ import type { ComponentType, ReactElement } from 'react';
 import type { RouteObject } from 'react-router';
 import { RequireRole } from './auth/RequireRole';
 import { RequireSession } from './auth/RequireSession';
-import { CoursePage } from './CoursePage';
 import { CoursesPage } from './CoursesPage';
 import { HomePage } from './HomePage';
 import { NotFoundPage } from './NotFoundPage';
@@ -59,6 +58,8 @@ const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage'
 const QuestionBankPage = lazyPage(() => import('./studio/QuestionBankPage'), 'QuestionBankPage');
 const StudioCoursesPage = lazyPage(() => import('./studio/StudioCoursesPage'), 'StudioCoursesPage');
 const ProfilePage = lazyPage(() => import('./ProfilePage'), 'ProfilePage');
+// Lazy so the Markdown parser its description needs stays out of the first download.
+const CoursePage = lazyPage(() => import('./CoursePage'), 'CoursePage');
 const LessonPage = lazyPage(() => import('./LessonPage'), 'LessonPage');
 const QuizPage = lazyPage(() => import('./quiz/QuizPage'), 'QuizPage');
 const ResultPage = lazyPage(() => import('./quiz/ResultPage'), 'ResultPage');
