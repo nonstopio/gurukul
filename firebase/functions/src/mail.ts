@@ -284,3 +284,26 @@ export function buildRevokedEmail(to: string, courseTitle: string): MailMessage 
       `If you think this is a mistake, write to ${CONTACT} and we will look into it.\n`,
   };
 }
+
+/**
+ * How many emails a batch has in flight at once. Gmail's per-user send quota is per minute (as
+ * low as 60 sends for a new project); `gmail.ts` waits out a 429, so this only sets the pace.
+ */
+export const SEND_CONCURRENCY = 10;
+
+/**
+ * Sends every message, `SEND_CONCURRENCY` at a time, and settles each: one failed send never stops
+ * the rest. The results are in message order, so a caller can tell who was emailed.
+ */
+export async function sendAll(
+  mailer: Mailer,
+  messages: readonly MailMessage[],
+): Promise<PromiseSettledResult<void>[]> {
+  // ponytail: fixed chunks, a chunk waits for its slowest send; a pool if that ever shows.
+  const results: PromiseSettledResult<void>[] = [];
+  for (let i = 0; i < messages.length; i += SEND_CONCURRENCY) {
+    const chunk = messages.slice(i, i + SEND_CONCURRENCY);
+    results.push(...(await Promise.allSettled(chunk.map((m) => mailer.send(m)))));
+  }
+  return results;
+}

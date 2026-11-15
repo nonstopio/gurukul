@@ -2,7 +2,7 @@ import { ApiException } from '@gurukul/schema';
 import { isAdmin, managesTeam, requireAdminOrManager } from './errors.js';
 import type { AuditEntry, Caller, TeamRecord } from './errors.js';
 import { log } from './logging/log.js';
-import { buildDeadlineEmail, buildReminderEmail } from './mail.js';
+import { buildDeadlineEmail, buildReminderEmail, sendAll } from './mail.js';
 import type { Mailer } from './mail.js';
 import { badCount, badField, idField, missing } from './validation.js';
 
@@ -189,34 +189,32 @@ async function deliver(store: ReminderStore, mailer: Mailer, due: PersonDue[]): 
     title: titles[c.courseId] ?? c.courseId,
     dueAt: c.dueAt,
   });
-  // Stamp only the people actually emailed, even if a later send fails: otherwise the next run
-  // mails the earlier ones again and the one-email-a-day limit means nothing.
-  const sent: string[] = [];
-  const noticed: Record<string, Notice> = {};
-  try {
-    for (const person of due) {
-      const { email, assignments, notices } = person;
-      const of = (notice: Notice) => assignments.filter((c) => notices[c.id] === notice);
-      const message =
-        Object.keys(notices).length === 0
-          ? buildReminderEmail(email, assignments.map(course))
-          : buildDeadlineEmail(
-              email,
-              {
-                overdue: of('overdue').map(course),
-                dueSoon: of('dueSoon').map(course),
-                others: assignments.filter((c) => notices[c.id] === undefined).map(course),
-              },
-              ccFor(person, managers),
-            );
-      await mailer.send(message);
-      sent.push(...assignments.map((c) => c.id));
-      Object.assign(noticed, notices);
-    }
-  } finally {
-    if (sent.length > 0) await store.markReminded(sent);
-    if (Object.keys(noticed).length > 0) await store.markNoticed(noticed);
-  }
+  const message = (person: PersonDue) => {
+    const { email, assignments, notices } = person;
+    const of = (notice: Notice) => assignments.filter((c) => notices[c.id] === notice);
+    return Object.keys(notices).length === 0
+      ? buildReminderEmail(email, assignments.map(course))
+      : buildDeadlineEmail(
+          email,
+          {
+            overdue: of('overdue').map(course),
+            dueSoon: of('dueSoon').map(course),
+            others: assignments.filter((c) => notices[c.id] === undefined).map(course),
+          },
+          ccFor(person, managers),
+        );
+  };
+  const results = await sendAll(mailer, due.map(message));
+  // Stamp only the people actually emailed, even if another send failed: otherwise the next run
+  // mails them again and the one-email-a-day limit means nothing.
+  const emailed = due.filter((_, i) => results[i]?.status === 'fulfilled');
+  const sent = emailed.flatMap((p) => p.assignments.map((c) => c.id));
+  const noticed: Record<string, Notice> = Object.assign({}, ...emailed.map((p) => p.notices));
+  if (sent.length > 0) await store.markReminded(sent);
+  if (Object.keys(noticed).length > 0) await store.markNoticed(noticed);
+  // Not dropped silently: the caller (or the daily job's log) sees the first failure.
+  const failure = results.find((r) => r.status === 'rejected');
+  if (failure !== undefined) throw failure.reason;
 }
 
 /**

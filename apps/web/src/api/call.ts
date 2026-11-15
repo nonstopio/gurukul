@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import type { Functions } from 'firebase/functions';
+import type { Functions, HttpsCallableOptions } from 'firebase/functions';
 import { ERROR_CODES, apiErrorSchema, apiResponseSchema } from '@gurukul/schema';
 import type { ApiError, ErrorCodeKey } from '@gurukul/schema';
 import { analytics } from '../analytics';
@@ -102,16 +102,20 @@ export function stopApi(): void {
   stopped = true;
 }
 
-/** Calls the named function and returns the `data` of its success envelope. Throws `ApiClientError`. */
+/**
+ * Calls the named function and returns the `data` of its success envelope. Throws `ApiClientError`.
+ * `options` go to `httpsCallable` as they are, such as a longer `timeout` than its 70 s.
+ */
 export async function callApi<Req, Res>(
   functions: Functions,
   name: string,
   request: Req,
+  options?: HttpsCallableOptions,
 ): Promise<Res> {
   if (stopped) throw reported(synthetic('GEN_5005', `'${name}' was not called: update required.`));
   let body: unknown;
   try {
-    body = (await httpsCallable<Req, unknown>(functions, name)(request)).data;
+    body = (await httpsCallable<Req, unknown>(functions, name, options)(request)).data;
   } catch (e) {
     throw reported(failureOf(e));
   }
