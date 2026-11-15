@@ -203,7 +203,10 @@ describe('index', () => {
     }
     await rollup?.fn();
     expect(runDailyRollup).toHaveBeenCalledWith(expect.anything(), expect.any(Number));
-    expect(reminders?.options).toMatchObject({ secrets: [{ name: 'GMAIL_CREDENTIALS' }] });
+    expect(reminders?.options).toMatchObject({
+      secrets: [{ name: 'GMAIL_CREDENTIALS' }],
+      timeoutSeconds: 1800,
+    });
     await reminders?.fn();
     expect(runDailyReminders).toHaveBeenCalledWith(
       { store: expect.anything(), mailer: expect.anything() },
@@ -357,9 +360,12 @@ describe('index', () => {
       mod.remindLearners,
       mod.sendTestEmail,
     ]);
-    for (const options of callableOptions.values()) {
-      expect(options).toEqual({ secrets: [{ name: 'GMAIL_CREDENTIALS' }] });
-    }
+    const secrets = [{ name: 'GMAIL_CREDENTIALS' }];
+    // The two that email a batch get 30 minutes; the one-email callables keep the default.
+    expect(callableOptions.get(mod.assignCourses)).toEqual({ secrets, timeoutSeconds: 1800 });
+    expect(callableOptions.get(mod.remindLearners)).toEqual({ secrets, timeoutSeconds: 1800 });
+    expect(callableOptions.get(mod.revokeCertificate)).toEqual({ secrets });
+    expect(callableOptions.get(mod.sendTestEmail)).toEqual({ secrets });
   });
 
   it('wires each callable to its handler with the request', async () => {

@@ -18,7 +18,7 @@ import type {
 import { isAdmin, managesTeam, requireAdminOrManager } from './errors.js';
 import type { AuditEntry, Caller, TeamRecord } from './errors.js';
 import { log } from './logging/log.js';
-import { buildAssignedEmail } from './mail.js';
+import { buildAssignedEmail, sendAll } from './mail.js';
 import type { Mailer } from './mail.js';
 import { badCount, badField, invalid } from './validation.js';
 
@@ -321,17 +321,16 @@ export async function assignCourses(
 
   let notified = 0;
   if (req.notify) {
-    for (const [email, courses] of newByEmail) {
+    const messages = [...newByEmail].flatMap(([email, courses]) => {
       const got = courses.filter((c) => !failedIds.has(assignmentId(c.id, emailKey(email))));
-      if (got.length === 0) continue;
-      // The assignments are already saved: a mail failure must not turn the call into a failure,
-      // or a retry would find everything "already assigned" and tell nobody.
-      try {
-        await deps.mailer.send(buildAssignedEmail(email, got, req.dueAt));
-        notified += 1;
-      } catch {
-        log.warn('Assignment email failed', { count: got.length });
-      }
+      return got.length === 0 ? [] : [buildAssignedEmail(email, got, req.dueAt)];
+    });
+    // The assignments are already saved: a mail failure must not turn the call into a failure,
+    // or a retry would find everything "already assigned" and tell nobody.
+    const results = await sendAll(deps.mailer, messages);
+    notified = results.filter((r) => r.status === 'fulfilled').length;
+    if (notified < results.length) {
+      log.warn('Assignment email failed', { count: results.length - notified });
     }
   }
   log.info('Courses assigned', {

@@ -5,6 +5,7 @@ import {
   clientFromCredentials,
   createMailer,
   gmailMailer,
+  RATE_LIMIT_RETRY,
   serviceAccountPort,
   unconfiguredMailer,
 } from '../src/gmail.js';
@@ -88,6 +89,15 @@ describe('serviceAccountPort', () => {
       url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
       method: 'POST',
       data: { raw: 'RAW' },
+      retryConfig: RATE_LIMIT_RETRY,
+    });
+  });
+
+  it('retries only a POST that came back 429, about a minute in all', () => {
+    expect(RATE_LIMIT_RETRY).toMatchObject({
+      noResponseRetries: 0,
+      httpMethodsToRetry: ['POST'],
+      statusCodesToRetry: [[429, 429]],
     });
   });
 });

@@ -432,11 +432,12 @@ describe('runDailyReminders deadline email', () => {
     expect(store.markNoticed).toHaveBeenCalledWith({ soon: 'dueSoon' });
   });
 
-  it('stamps no notice of a person whose email was not sent', async () => {
+  it('stamps no notice of a person whose email was not sent, and still emails the rest', async () => {
     const { store, mailer, deps } = setup({ scheduled: vi.fn().mockResolvedValue(scheduled) });
     mailer.send.mockRejectedValueOnce(new Error('mail down'));
     await expect(runDailyReminders(deps, NOW)).rejects.toThrow('mail down');
-    expect(store.markReminded).not.toHaveBeenCalled();
+    expect(mailer.send).toHaveBeenCalledTimes(2);
+    expect(store.markReminded).toHaveBeenCalledWith(['other']);
     expect(store.markNoticed).not.toHaveBeenCalled();
   });
 });

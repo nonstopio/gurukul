@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiException, apiFail, apiOk } from '@gurukul/schema';
 
 const fns = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
+const opts = vi.hoisted(() => ({}) as Record<string, unknown>);
 vi.mock('firebase/functions', () => ({
-  httpsCallable: (_f: unknown, name: string) => {
+  httpsCallable: (_f: unknown, name: string, options?: unknown) => {
+    opts[name] = options;
     fns[name] ??= vi.fn().mockResolvedValue({ data: apiOk({ from: name }) });
     return fns[name];
   },
@@ -41,6 +43,15 @@ describe('firebaseConsoleService', () => {
     expect(fns.updateAssignment).toHaveBeenCalledWith({ assignmentId: 'a', dueAt: null });
     expect(fns.removeAssignment).toHaveBeenCalledWith({ assignmentId: 'a' });
     expect(fns.revokeCertificate).toHaveBeenCalledWith({ id: 'X' });
+  });
+
+  it('waits 30 minutes for the two callables that email a batch, the default for the rest', async () => {
+    await service.assignCourses({} as never);
+    await service.remindLearners({ courseId: 'git' });
+    await service.setRoles({ uid: 'u' });
+    expect(opts.assignCourses).toEqual({ timeout: 1_800_000 });
+    expect(opts.remindLearners).toEqual({ timeout: 1_800_000 });
+    expect(opts.setRoles).toBeUndefined();
   });
 
   it('throws an ApiClientError carrying the catalog code and friendly text on a failure envelope', async () => {

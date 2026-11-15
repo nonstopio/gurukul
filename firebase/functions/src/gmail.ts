@@ -63,16 +63,39 @@ export function gmailMailer(port: GmailPort, from = SENDER, replyTo = from): Mai
   };
 }
 
+/**
+ * Gmail's per-user send quota is per minute (as low as 60 sends), so a big batch meets a 429: wait
+ * and try again, about a minute in all over seven tries (gaxios backs off 1 s, 0.5 s, 1.5 s, … 31.5 s).
+ * Only a 429, and never a send with no response: a 5xx or a dropped connection may have sent it.
+ */
+export const RATE_LIMIT_RETRY = {
+  retry: 7,
+  retryDelay: 1000,
+  noResponseRetries: 0,
+  httpMethodsToRetry: ['POST'],
+  statusCodesToRetry: [[429, 429]],
+};
+
 /** What the Gmail client does for us: a signed request. `JWT` satisfies it. */
 export interface GmailClient {
-  request(options: { url: string; method: 'POST'; data: { raw: string } }): Promise<unknown>;
+  request(options: {
+    url: string;
+    method: 'POST';
+    data: { raw: string };
+    retryConfig: typeof RATE_LIMIT_RETRY;
+  }): Promise<unknown>;
 }
 
 /** Gmail through a service account with domain-wide delegation, impersonating the sender. */
 export function serviceAccountPort(client: GmailClient): GmailPort {
   return {
     async sendRaw(raw) {
-      await client.request({ url: SEND_URL, method: 'POST', data: { raw } });
+      await client.request({
+        url: SEND_URL,
+        method: 'POST',
+        data: { raw },
+        retryConfig: RATE_LIMIT_RETRY,
+      });
     },
   };
 }

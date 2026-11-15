@@ -93,7 +93,11 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `GmailPort` ports; `createMailer` reads `GMAIL_CREDENTIALS` (service-account key JSON, a Secret Manager secret that
   `index.ts` declares as `MAIL` on every function that sends email; a new one needs it too, or it sends nothing) and,
   without a usable key, sends nothing and logs a `warn`. Links in emails use `SITE_URL` (`mail.ts`; unset falls back to the default site).
-  The `mail` queue is retired; setup is in `docs/operations.md`.
+  The `mail` queue is retired; setup is in `docs/operations.md`. A batch (`assignCourses`, `remindLearners`,
+  `dailyReminders`) sends through `sendAll` in `mail.ts`, 10 at a time, each send settled on its own (a failure never
+  stops the rest); `serviceAccountPort` retries only a 429 (`RATE_LIMIT_RETRY`, about a minute: Gmail's per-user quota is
+  per minute, as low as 60 sends), never a 5xx or a lost connection, which may have sent. Those three functions run up to
+  30 minutes (`BATCH_MAIL` in `index.ts`) and the browser waits as long for the two callables (`console/service.ts`).
 - Analytics counters: `onProgressWritten` keeps `stats/course_{id}` and `stats/org` (chapter completions, weekly
   lessons, finish days and the `finishDaysHistogram` behind the median, certified) by comparing before/after; `onAttemptCreated` adds score sums and
   first-try question counts from the attempt's stored `results` to the course, and score sums and

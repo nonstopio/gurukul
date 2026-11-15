@@ -68,6 +68,13 @@ const MAX_INSTANCES = 5;
  */
 const MAIL = { secrets: [defineSecret('GMAIL_CREDENTIALS')] };
 
+/**
+ * The functions that email a batch (up to 1,000 people) get 30 minutes, not the default 60 s: at
+ * Gmail's slowest per-user quota (60 sends a minute) 1,000 emails take about 17. A timeout partway
+ * would leave people assigned but never told. The browser waits as long (`apps/web/src/console/service.ts`).
+ */
+const BATCH_MAIL = { ...MAIL, timeoutSeconds: 1800 };
+
 setGlobalOptions({ region: 'asia-south1', maxInstances: MAX_INSTANCES });
 initializeApp();
 
@@ -151,7 +158,7 @@ export const dailyRollup = onSchedule(
  * (team Managers in CC), when `config/org.reminders.enabled`.
  */
 export const dailyReminders = onSchedule(
-  { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1', ...MAIL },
+  { schedule: 'every day 04:00', timeZone: 'Etc/UTC', region: 'asia-south1', ...BATCH_MAIL },
   async () => {
     const db = getFirestore();
     await runLogged(
@@ -247,7 +254,7 @@ export const assignCourses = apiCallable((request) => {
     store: firestoreAssignStore(db),
     mailer: createMailer(process.env),
   });
-}, MAIL);
+}, BATCH_MAIL);
 
 /** Admin-only: open a Quiz retake for one learner. */
 export const resetCooldown = apiCallable((request) =>
@@ -262,7 +269,7 @@ export const remindLearners = apiCallable((request) => {
     { store: firestoreReminderStore(db), mailer: createMailer(process.env) },
     Date.now,
   );
-}, MAIL);
+}, BATCH_MAIL);
 
 /** Admin, or the team's Manager: each member's assignments, status, due date and percent. */
 export const teamReport = apiCallable((request) =>

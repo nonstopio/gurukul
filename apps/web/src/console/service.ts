@@ -10,10 +10,17 @@ import type {
   TeamReport,
 } from './types';
 
+/**
+ * Assigning or reminding emails up to 1,000 people, which can take many minutes; the functions run
+ * for up to 30 (`firebase/functions/src/index.ts`), so the browser waits as long instead of
+ * reporting a failure at 70 s while the emails still go out.
+ */
+const BATCH_MAIL = { timeout: 30 * 60 * 1000 };
+
 export function firebaseConsoleService(functions: Functions): ConsoleService {
   return {
     assignCourses: (request) =>
-      callApi<AssignRequest, AssignResult>(functions, 'assignCourses', request),
+      callApi<AssignRequest, AssignResult>(functions, 'assignCourses', request, BATCH_MAIL),
     setRoles: (request) =>
       callApi<SetRolesRequest, { roles: string[] }>(functions, 'setRoles', request),
     async resetCooldown(request) {
@@ -24,6 +31,7 @@ export function firebaseConsoleService(functions: Functions): ConsoleService {
         functions,
         'remindLearners',
         request,
+        BATCH_MAIL,
       ),
     teamReport: (request) =>
       callApi<{ teamId: string }, TeamReport>(functions, 'teamReport', request),

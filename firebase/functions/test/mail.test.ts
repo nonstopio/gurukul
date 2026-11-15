@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildAssignedEmail,
   buildDeadlineEmail,
@@ -6,6 +6,8 @@ import {
   buildRevokedEmail,
   courseLink,
   formatDue,
+  SEND_CONCURRENCY,
+  sendAll,
 } from '../src/mail.js';
 import { escapeHtml } from '../src/mail-html.js';
 
@@ -254,5 +256,34 @@ describe('email html', () => {
     }
     expect(all[0]).toContain('/courses/a%26b"');
     expect(escapeHtml(`'`)).toBe('&#39;');
+  });
+});
+
+describe('sendAll', () => {
+  const msg = (to: string) => ({ to, subject: 's', text: 't', html: 'h' });
+
+  it('sends at most SEND_CONCURRENCY at once and settles each in order, failures included', async () => {
+    let inFlight = 0;
+    let most = 0;
+    const send = vi.fn(async (m: { to: string }) => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      if (m.to === 'bad') throw new Error('mail down');
+    });
+    const messages = Array.from({ length: 25 }, (_, i) => msg(i === 3 ? 'bad' : `p${i}`));
+    const results = await sendAll({ send }, messages);
+    expect(send).toHaveBeenCalledTimes(25);
+    expect(most).toBe(SEND_CONCURRENCY);
+    expect(results.map((r) => r.status)).toEqual(
+      messages.map((m) => (m.to === 'bad' ? 'rejected' : 'fulfilled')),
+    );
+  });
+
+  it('sends nothing for no messages', async () => {
+    const send = vi.fn();
+    expect(await sendAll({ send }, [])).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
   });
 });
