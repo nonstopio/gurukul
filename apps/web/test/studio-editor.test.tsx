@@ -963,7 +963,7 @@ describe('Course editor: publishing', () => {
     const { studio } = await open({ draft: edited() });
     const access = vi.mocked(studio.data.getAccess);
     await ready();
-    access.mockResolvedValueOnce({ visibility: 'teams', visibleTeamIds: ['a', 'b'] });
+    access.mockResolvedValue({ visibility: 'teams', visibleTeamIds: ['a', 'b'] });
     const openDialog = async () => {
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: 'Publish v4' }));
@@ -975,13 +975,13 @@ describe('Course editor: publishing', () => {
       await within(dialog).findByText('Team only: 2 teams. Publishing keeps it.'),
     ).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    access.mockResolvedValueOnce({ visibility: 'staff', visibleTeamIds: [] });
+    access.mockResolvedValue({ visibility: 'staff', visibleTeamIds: [] });
     dialog = await openDialog();
     expect(
       await within(dialog).findByText('Educators and Admins. Publishing keeps it.'),
     ).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    access.mockRejectedValueOnce(new Error('x'));
+    access.mockRejectedValue(new Error('x'));
     dialog = await openDialog();
     await waitFor(() =>
       expect(log.warn).toHaveBeenCalledWith('Reading the course visibility failed', {
