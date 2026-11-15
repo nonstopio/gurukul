@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createMemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
-import { appRoutes } from '../src/routes';
+import { ROUTES, appRoutes } from '../src/routes';
 import { groupByArea, titleFor } from '../src/Shell';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
@@ -329,5 +329,12 @@ describe('accessibility', () => {
     );
     act(() => f.emitUser(null));
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('first download', () => {
+  it('loads the course page on demand, so its Markdown parser is not in the entry chunk', () => {
+    const page = ROUTES['/courses/:courseId'].type as unknown as { $$typeof: symbol };
+    expect(page.$$typeof).toBe(Symbol.for('react.lazy'));
   });
 });
