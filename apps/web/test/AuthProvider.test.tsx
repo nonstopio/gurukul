@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -9,6 +9,7 @@ import {
   useUser,
 } from '../src/auth/AuthProvider';
 import { RequireRole } from '../src/auth/RequireRole';
+import { useAsync } from '../src/data/useAsync';
 import { NONSTOP, fakeAuth } from './fake-auth';
 
 function Probe() {
@@ -184,5 +185,46 @@ describe('AuthProvider', () => {
     console.error = () => {};
     expect(() => render(<Probe />)).toThrow(/inside <AuthProvider>/);
     console.error = spy;
+  });
+
+  describe('kept page values', () => {
+    const load = () => Promise.resolve('kept');
+    const keep = async () => {
+      const h = renderHook(() => useAsync(load, 'k'));
+      await waitFor(() => expect(h.result.current.state).toBe('ready'));
+      h.unmount();
+    };
+    const kept = () => {
+      const h = renderHook(() => useAsync(load, 'k'));
+      const first = h.result.current.state;
+      h.unmount();
+      return first === 'ready';
+    };
+
+    it('are forgotten when the person goes away without signOut being called', async () => {
+      const f = setup();
+      act(() => f.emitUser(NONSTOP));
+      await keep();
+      expect(kept()).toBe(true);
+      act(() => f.emitUser(null));
+      expect(f.service.signOut).not.toHaveBeenCalled();
+      expect(kept()).toBe(false);
+    });
+
+    it('are forgotten when a different person signs in', async () => {
+      const f = setup();
+      act(() => f.emitUser(NONSTOP));
+      await keep();
+      act(() => f.emitUser({ ...NONSTOP, uid: 'u2' }));
+      expect(kept()).toBe(false);
+    });
+
+    it('are forgotten when somebody signs in after nobody', async () => {
+      const f = setup();
+      act(() => f.emitUser(null));
+      await keep();
+      act(() => f.emitUser(NONSTOP));
+      expect(kept()).toBe(false);
+    });
   });
 });

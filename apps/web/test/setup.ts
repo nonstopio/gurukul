@@ -1,5 +1,6 @@
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
+import { forgetAsync } from '../src/data/useAsync';
 import { POLICY_VERSION } from '../src/privacy/policy';
 
 // The app and its editors load lazily, so under a full-suite run the first screen can take longer
@@ -18,6 +19,7 @@ beforeEach(() => {
 // Some files run in the node environment, which has no localStorage.
 afterEach(() => {
   cleanup();
+  forgetAsync();
   globalThis.localStorage?.clear();
 });
 

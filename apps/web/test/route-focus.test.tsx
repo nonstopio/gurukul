@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useAsync } from '../src/data/useAsync';
+import { forgetAsync, useAsync } from '../src/data/useAsync';
 import type { Loadable } from '../src/data/useAsync';
 import { Loaded } from '../src/learn/ui';
 import { focusPageOnArrival, pageStart } from '../src/routeFocus';
@@ -142,5 +143,105 @@ describe('retry on load errors', () => {
     render(<Loaded loadable={{ state: 'error', error: new Error('Gone.') }}>{() => null}</Loaded>);
     expect(screen.getByRole('alert').textContent).toContain('reload the page');
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+});
+
+describe('useAsync with a key', () => {
+  // A load must keep its identity across renders, or the hook runs it again.
+  const ok = (v: string) => () => Promise.resolve(v);
+  const failed = (v: Loadable<string>) => v as Extract<Loadable<string>, { state: 'error' }>;
+
+  it('paints the last result at once on a new mount, then the fresh one', async () => {
+    const first = renderHook(useAsync.bind(null, ok('old'), 'k'));
+    await waitFor(() => expect(first.result.current).toEqual({ state: 'ready', value: 'old' }));
+    first.unmount();
+    const second = renderHook(useAsync.bind(null, ok('new'), 'k'));
+    expect(second.result.current).toEqual({ state: 'ready', value: 'old' });
+    await waitFor(() => expect(second.result.current).toEqual({ state: 'ready', value: 'new' }));
+  });
+
+  it('treats another key as a miss', async () => {
+    const first = renderHook(useAsync.bind(null, ok('a'), 'one'));
+    await waitFor(() => expect(first.result.current.state).toBe('ready'));
+    const other = renderHook(useAsync.bind(null, ok('b'), 'two'));
+    expect(other.result.current).toEqual({ state: 'loading' });
+    await waitFor(() => expect(other.result.current.state).toBe('ready'));
+  });
+
+  it('keeps the shown value when the refresh fails, and a later refresh still works', async () => {
+    const first = renderHook(useAsync.bind(null, ok('old'), 'k'));
+    await waitFor(() => expect(first.result.current.state).toBe('ready'));
+    first.unmount();
+    let fail!: (e: Error) => void;
+    const load = vi.fn(() => new Promise<string>((_, reject) => (fail = reject)));
+    const second = renderHook(useAsync.bind(null, load, 'k'));
+    expect(second.result.current).toEqual({ state: 'ready', value: 'old' });
+    await act(async () => {
+      fail(new Error('offline'));
+    });
+    expect(second.result.current).toEqual({ state: 'ready', value: 'old' });
+    second.unmount();
+    const third = renderHook(useAsync.bind(null, ok('new'), 'k'));
+    expect(third.result.current).toEqual({ state: 'ready', value: 'old' });
+    await waitFor(() => expect(third.result.current).toEqual({ state: 'ready', value: 'new' }));
+  });
+
+  it('stores nothing from a load that lands after the hook unmounted', async () => {
+    let land!: (v: string) => void;
+    const slow = () => new Promise<string>((resolve) => (land = resolve));
+    const first = renderHook(useAsync.bind(null, slow, 'k'));
+    first.unmount();
+    await act(async () => {
+      land('late');
+    });
+    const second = renderHook(useAsync.bind(null, ok('new'), 'k'));
+    expect(second.result.current).toEqual({ state: 'loading' });
+    await waitFor(() => expect(second.result.current.state).toBe('ready'));
+  });
+
+  it('shows the kept value while a new load runs under the same key', async () => {
+    const hook = renderHook(({ load }) => useAsync(load, 'k'), {
+      initialProps: { load: ok('old') },
+    });
+    await waitFor(() => expect(hook.result.current.state).toBe('ready'));
+    hook.rerender({ load: ok('new') });
+    expect(hook.result.current).toEqual({ state: 'ready', value: 'old' });
+    await waitFor(() => expect(hook.result.current).toEqual({ state: 'ready', value: 'new' }));
+  });
+
+  it('ends ready with the load result under StrictMode, and keeps it once', async () => {
+    const load = vi.fn(ok('v'));
+    const first = renderHook(useAsync.bind(null, load, 'k'), { wrapper: StrictMode });
+    await waitFor(() => expect(first.result.current).toEqual({ state: 'ready', value: 'v' }));
+    first.unmount();
+    const second = renderHook(useAsync.bind(null, ok('w'), 'k'));
+    expect(second.result.current).toEqual({ state: 'ready', value: 'v' });
+    await waitFor(() => expect(second.result.current).toEqual({ state: 'ready', value: 'w' }));
+  });
+
+  it('gives an error with retry when nothing was kept', async () => {
+    const bad = () => Promise.reject<string>(new Error('offline'));
+    const { result } = renderHook(() => useAsync(bad, 'k'));
+    await waitFor(() => expect(result.current.state).toBe('error'));
+    expect(failed(result.current).retry).toBeTypeOf('function');
+  });
+
+  it('forgets everything on forgetAsync', async () => {
+    const first = renderHook(useAsync.bind(null, ok('old'), 'k'));
+    await waitFor(() => expect(first.result.current.state).toBe('ready'));
+    first.unmount();
+    forgetAsync();
+    const second = renderHook(useAsync.bind(null, ok('new'), 'k'));
+    expect(second.result.current).toEqual({ state: 'loading' });
+    await waitFor(() => expect(second.result.current.state).toBe('ready'));
+  });
+
+  it('keeps nothing without a key', async () => {
+    const first = renderHook(useAsync.bind(null, ok('old')));
+    await waitFor(() => expect(first.result.current.state).toBe('ready'));
+    first.unmount();
+    const second = renderHook(useAsync.bind(null, ok('new')));
+    expect(second.result.current).toEqual({ state: 'loading' });
+    await waitFor(() => expect(second.result.current.state).toBe('ready'));
   });
 });

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { AuthService, AuthUser, SignInOptions } from './service';
 import { hideBootLoader } from '../boot';
 import { useAnalytics } from '../analytics/react/context';
+import { forgetAsync } from '../data/useAsync';
 import { log } from '../log';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'denied' | 'ready';
@@ -80,6 +81,12 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
   useEffect(() => {
     if (status !== 'loading') hideBootLoader();
   }, [status]);
+
+  // An effect body, not a cleanup: it runs after the commit that unmounted the last person's pages.
+  const uid = user?.uid;
+  useEffect(() => {
+    forgetAsync();
+  }, [uid]);
 
   useEffect(() => {
     service.finishRedirect().catch((e: unknown) => {
