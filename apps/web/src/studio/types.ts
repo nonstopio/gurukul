@@ -51,8 +51,15 @@ export interface BankQuestion {
  * `StudioService`, never through here.
  */
 export interface StudioData {
-  /** Every course the person can see: published and archived ones, plus the drafts they may edit. */
+  /**
+   * Every course the person can see: published and archived ones, plus the drafts they may edit.
+   * Remembered for five minutes per person; `forgetCourses` and `saveDraft` drop it.
+   */
   listCourses(uid: string, admin: boolean): Promise<StudioCourse[]>;
+  /** Only the live course documents: one query, no drafts or stats. Enough for titles. */
+  listLiveCourses(): Promise<Course[]>;
+  /** Drops the remembered `listCourses` lists; called when this tab changes what they show. */
+  forgetCourses(): Promise<void>;
   /** Who may open the live course (`visibility`, `visibleTeamIds`); public when it says nothing. */
   getAccess(courseId: string): Promise<CourseAccess>;
   getDraft(courseId: string): Promise<DraftDoc | null>;

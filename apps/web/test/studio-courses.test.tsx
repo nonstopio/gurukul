@@ -68,7 +68,9 @@ describe('Courses in global search for Educators', () => {
     fireEvent.click(screen.getByRole('button', { name: /Search/ }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
     const option = await screen.findByRole('option', { name: /Brand new.*Studio/ });
-    expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
+    // One query of the live documents: no drafts, no stats.
+    expect(studio.data.listLiveCourses).toHaveBeenCalledTimes(1);
+    expect(studio.data.listCourses).not.toHaveBeenCalled();
     expect(screen.queryByRole('option', { name: /Not mine/ })).toBeNull();
     fireEvent.click(option);
     await waitFor(() => expect(app.router.state.location.pathname).toBe('/studio/courses/new'));
