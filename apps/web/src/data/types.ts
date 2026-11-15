@@ -66,6 +66,7 @@ export interface LearnerData {
   /**
    * Published and archived courses the person may open, newest first, each with its visibility.
    * `audience` is who is asking: the rules answer only a listing made for the person's own teams.
+   * Reused for a few minutes per tab and person, like `getCourse`; a `fresh` course read drops it.
    */
   listCourses(audience?: Audience): Promise<CourseListing[]>;
   /**

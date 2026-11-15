@@ -98,7 +98,7 @@ describe('firebaseLearnerData', () => {
     store.queryDocs = [{ id: 'git', data: () => course() }];
     await data.listCourses({ teamIds: [], staff: false });
     expect(store.queries).toHaveLength(1);
-    store.queries = [];
+    // No audience asks for the same thing, so it is the same read.
     await data.listCourses();
     expect(store.queries).toHaveLength(1);
     store.queries = [];
@@ -107,6 +107,49 @@ describe('firebaseLearnerData', () => {
     const parts = (store.queries[0] as { parts: { where?: unknown[]; orderBy?: unknown }[] }).parts;
     expect(parts.some((p) => p.orderBy)).toBe(true);
     expect(parts.some((p) => p.where?.[0] === 'visibility')).toBe(false);
+  });
+
+  it('reuses a listing for five minutes, then reads it again', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const me = { teamIds: ['qa'], staff: false };
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    const first = await data.listCourses(me);
+    store.queryDocs = [];
+    expect(await data.listCourses({ ...me })).toBe(first);
+    expect(store.queries).toHaveLength(2);
+    now.mockReturnValue(1_000 + COURSE_TTL_MS);
+    expect(await data.listCourses(me)).toEqual([]);
+    expect(store.queries).toHaveLength(4);
+    now.mockRestore();
+  });
+
+  it('never serves one person, or one set of teams, a listing made for another', async () => {
+    let uid = 'ana';
+    const perPerson = firebaseLearnerData({} as never, () => uid);
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    const first = await perPerson.listCourses({ teamIds: ['qa'], staff: false });
+    expect(await perPerson.listCourses({ teamIds: ['ops'], staff: false })).not.toBe(first);
+    expect(await perPerson.listCourses({ teamIds: ['qa'], staff: true })).not.toBe(first);
+    uid = 'ben';
+    expect(await perPerson.listCourses({ teamIds: ['qa'], staff: false })).not.toBe(first);
+  });
+
+  it('drops the listings when Studio reads a fresh course, so a new publish shows at once', async () => {
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    const first = await data.listCourses();
+    await data.getCourse('git');
+    expect(await data.listCourses()).toBe(first);
+    await data.getCourse('git', { fresh: true });
+    expect(await data.listCourses()).not.toBe(first);
+  });
+
+  it('does not keep a failed listing, so Retry asks again', async () => {
+    const getDocs = vi.spyOn(await import('firebase/firestore'), 'getDocs');
+    getDocs.mockRejectedValueOnce(new Error('offline'));
+    await expect(data.listCourses()).rejects.toThrow('offline');
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+    getDocs.mockRestore();
   });
 
   it('gets one course, or null when it is missing', async () => {

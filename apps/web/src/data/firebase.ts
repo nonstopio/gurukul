@@ -1,5 +1,5 @@
 import { accessOf, progressId, readCourse, uploadLimitsSchema } from '@gurukul/schema';
-import type { Course, CourseListing } from '@gurukul/schema';
+import type { Audience, Course, CourseListing } from '@gurukul/schema';
 import {
   arrayUnion,
   collection,
@@ -106,9 +106,24 @@ function listed(courseId: string, raw: unknown): CourseListing | null {
   return course && { ...course, ...accessOf(raw) };
 }
 
-// ponytail: a course read is reused for 5 minutes in this tab, so a new publish reaches a learner
-// within 5 minutes; Studio passes `fresh`. Listen to the document if that ever matters.
+// ponytail: a course read, and a course listing, is reused for 5 minutes in this tab, so a new
+// publish reaches a learner within 5 minutes; Studio passes `fresh`, which also drops the listings.
+// Listen to the documents if that ever matters; a small summary document per course (a plan change
+// in .plan/02-data-model.md) is what makes the listing itself light.
 export const COURSE_TTL_MS = 5 * 60 * 1000;
+
+type Kept<T> = Map<string, { at: number; promise: Promise<T> }>;
+
+/** The read kept under `key` while it is younger than the TTL, else `load()`, kept for the next ask. */
+function reused<T>(kept: Kept<T>, key: string, fresh: boolean, load: () => Promise<T>): Promise<T> {
+  const hit = kept.get(key);
+  if (!fresh && hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise;
+  const promise = load();
+  kept.set(key, { at: Date.now(), promise });
+  // A failed read is not kept, so the next page (or Retry) asks again.
+  promise.catch(() => kept.delete(key));
+  return promise;
+}
 
 /**
  * `who` names the signed-in person: a course is cached per person, so after a sign-out the next
@@ -119,63 +134,65 @@ export function firebaseLearnerData(
   who: () => string | undefined = () => undefined,
 ): LearnerData {
   // The course is the biggest document and every learner page asks for it: one read per hop, not one per page.
-  const courses = new Map<string, { at: number; promise: Promise<Course | null> }>();
-  return {
-    async listCourses(audience) {
-      const live = where('status', 'in', ['published', 'archived']);
-      // Educators and Admins open every course, so one plain query. Everyone else asks for the
-      // public courses and for the courses of their own teams: the rules only answer a listing
-      // that says so, which is how a course outside their reach never leaves the database.
-      const queries = audience?.staff
-        ? [
-            query(
-              collection(db, 'courses'),
-              live,
-              orderBy('publishedAt', 'desc'),
-              limit(COURSE_LIMIT),
-            ),
-          ]
-        : [
-            query(
-              collection(db, 'courses'),
-              live,
-              where('visibility', '==', 'public'),
-              limit(COURSE_LIMIT),
-            ),
-            ...(audience?.teamIds.length
-              ? [
-                  query(
-                    collection(db, 'courses'),
-                    live,
-                    where('visibility', '==', 'teams'),
-                    where(
-                      'visibleTeamIds',
-                      'array-contains-any',
-                      audience.teamIds.slice(0, TEAM_QUERY_LIMIT),
-                    ),
-                    limit(COURSE_LIMIT),
+  const courses: Kept<Course | null> = new Map();
+  // Home, the catalogue, the console and search all draw from the same listing: one read, shared.
+  const listings: Kept<CourseListing[]> = new Map();
+  const list = async (audience: Audience | undefined) => {
+    const live = where('status', 'in', ['published', 'archived']);
+    // Educators and Admins open every course, so one plain query. Everyone else asks for the
+    // public courses and for the courses of their own teams: the rules only answer a listing
+    // that says so, which is how a course outside their reach never leaves the database.
+    const queries = audience?.staff
+      ? [
+          query(
+            collection(db, 'courses'),
+            live,
+            orderBy('publishedAt', 'desc'),
+            limit(COURSE_LIMIT),
+          ),
+        ]
+      : [
+          query(
+            collection(db, 'courses'),
+            live,
+            where('visibility', '==', 'public'),
+            limit(COURSE_LIMIT),
+          ),
+          ...(audience?.teamIds.length
+            ? [
+                query(
+                  collection(db, 'courses'),
+                  live,
+                  where('visibility', '==', 'teams'),
+                  where(
+                    'visibleTeamIds',
+                    'array-contains-any',
+                    audience.teamIds.slice(0, TEAM_QUERY_LIMIT),
                   ),
-                ]
-              : []),
-          ];
-      const snaps = await Promise.all(queries.map((q) => getDocs(q)));
-      const courses = snaps.flatMap((snap) =>
-        snap.docs.flatMap((d) => listed(d.id, d.data()) ?? []),
-      );
-      const millis = (c: CourseListing) => c.publishedAt?.toMillis() ?? 0;
-      return courses.sort((a, b) => millis(b) - millis(a));
+                  limit(COURSE_LIMIT),
+                ),
+              ]
+            : []),
+        ];
+    const snaps = await Promise.all(queries.map((q) => getDocs(q)));
+    const found = snaps.flatMap((snap) => snap.docs.flatMap((d) => listed(d.id, d.data()) ?? []));
+    const millis = (c: CourseListing) => c.publishedAt?.toMillis() ?? 0;
+    return found.sort((a, b) => millis(b) - millis(a));
+  };
+  return {
+    listCourses(audience) {
+      // Keyed by person and by what the queries ask for, so nobody is served another's listing.
+      const key = JSON.stringify([who(), audience?.staff === true, audience?.teamIds ?? []]);
+      return reused(listings, key, false, () => list(audience));
     },
     getCourse(courseId, { fresh = false } = {}) {
-      const key = `${who() ?? ''}/${courseId}`;
-      const hit = courses.get(key);
-      if (!fresh && hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise;
-      const promise = getDoc(doc(db, 'courses', courseId)).then((snap) =>
-        snap.exists() ? readable(snap.id, snap.data()) : null,
+      // Studio asks for a fresh course when it opens or publishes one: the listings are stale too.
+      if (fresh) listings.clear();
+      return reused(courses, `${who() ?? ''}/${courseId}`, fresh, () =>
+        getDoc(doc(db, 'courses', courseId)).then((snap) =>
+          snap.exists() ? readable(snap.id, snap.data()) : null,
+        ),
       );
-      courses.set(key, { at: Date.now(), promise });
-      // A failed read is not kept, so the next page (or Retry) asks again.
-      promise.catch(() => courses.delete(key));
-      return promise;
     },
     async myAssignments(uid) {
       const snap = await getDocs(
