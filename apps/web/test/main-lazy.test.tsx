@@ -11,6 +11,7 @@ interface Captured {
   console: { data: { overview(): Promise<unknown> } };
   service: {
     watchProfile(uid: string, cb: () => void, onError: (e: unknown) => void): () => void;
+    onUser(cb: (user: unknown) => void): () => void;
     signOut(): Promise<void>;
   };
 }
@@ -32,10 +33,19 @@ vi.mock('../src/firebase', () => ({
 const mediaStorage = vi.hoisted(() => vi.fn());
 vi.mock('../src/studio/storage', () => ({ firebaseMediaStorage: mediaStorage }));
 const authSignOut = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const authOnUser = vi.hoisted(() => vi.fn(() => () => {}));
 vi.mock('../src/auth/service', () => ({
-  firebaseAuthService: vi.fn((_fb, watchProfile) => ({ watchProfile, signOut: authSignOut })),
+  firebaseAuthService: vi.fn((_fb, watchProfile) => ({
+    watchProfile,
+    signOut: authSignOut,
+    onUser: authOnUser,
+  })),
 }));
 vi.mock('../src/firestore', () => ({ openFirestore: open }));
+const studioData = vi.hoisted(() => vi.fn());
+const consoleData = vi.hoisted(() => vi.fn());
+vi.mock('../src/studio/firebase', () => ({ firebaseStudioData: studioData }));
+vi.mock('../src/console/firebase', () => ({ firebaseConsoleData: consoleData }));
 vi.mock('../src/performance', () => ({ startPerformance: perf }));
 const checkForNewBuild = vi.hoisted(() => vi.fn());
 vi.mock('../src/boot', () => ({ checkForNewBuild, reloadOnStaleBuild: vi.fn() }));
@@ -56,11 +66,12 @@ describe('main loads Firestore on demand', () => {
     const stop = vi.fn();
     const stores = {
       learner: { listCourses: vi.fn().mockResolvedValue(['c']) },
-      studio: { listCourses: vi.fn().mockResolvedValue(['s']) },
-      console: { overview: vi.fn().mockResolvedValue('o') },
+      db: 'db',
       watchProfile: vi.fn(() => stop),
     };
     open.mockReturnValue(stores);
+    studioData.mockReset().mockReturnValue({ listCourses: vi.fn().mockResolvedValue(['s']) });
+    consoleData.mockReset().mockReturnValue({ overview: vi.fn().mockResolvedValue('o') });
     document.body.innerHTML = '<div id="root"></div>';
     const { mount } = await import('../src/main');
     await new Promise((r) => setTimeout(r, 0));
@@ -77,6 +88,13 @@ describe('main loads Firestore on demand', () => {
     expect(await p.console.data.overview()).toBe('o');
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith('app', true);
+    // Each data module is built once, over the one database, however often it is used.
+    await p.studio.data.listCourses();
+    await p.console.data.overview();
+    expect(studioData).toHaveBeenCalledOnce();
+    expect(studioData).toHaveBeenCalledWith('db');
+    expect(consoleData).toHaveBeenCalledOnce();
+    expect(consoleData).toHaveBeenCalledWith('db');
 
     const onError = vi.fn();
     const off = p.service.watchProfile('u', vi.fn(), onError);
@@ -307,6 +325,107 @@ describe('main loads Firestore on demand', () => {
     await p.service.signOut();
     await expect(read).rejects.toThrow();
     expect(authSignOut).toHaveBeenCalledTimes(1);
+    vi.doUnmock('../src/firestore');
+  });
+
+  it('builds Studio and console data afresh for a new Firestore, and retries a failed download', async () => {
+    vi.resetModules();
+    open.mockReset().mockImplementation(() => ({
+      db: {},
+      learner: {},
+      leave: (signOut: () => Promise<void>) => signOut(),
+    }));
+    vi.doMock('../src/firestore', () => ({ openFirestore: open }));
+    studioData.mockReset().mockImplementation(() => ({ listCourses: async () => 's' }));
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    const p = props.current as Captured;
+    await p.studio.data.listCourses();
+    await p.service.signOut();
+    await p.studio.data.listCourses();
+    expect(studioData).toHaveBeenCalledTimes(2);
+    expect(studioData.mock.calls[0]?.[0]).not.toBe(studioData.mock.calls[1]?.[0]);
+
+    // A chunk that fails to download is forgotten: the next call fetches it again.
+    studioData.mockReset().mockImplementation(() => ({ listCourses: async () => 's' }));
+    vi.doMock('../src/studio/firebase', () => {
+      throw new Error('Failed to fetch dynamically imported module');
+    });
+    vi.doMock('../src/console/firebase', () => ({ firebaseConsoleData: consoleData }));
+    vi.resetModules();
+    const again = await import('../src/main');
+    await act(async () => again.mount(document.getElementById('root'), {}));
+    const q = props.current as Captured;
+    await expect(q.studio.data.listCourses()).rejects.toThrow();
+    vi.doMock('../src/studio/firebase', () => ({ firebaseStudioData: studioData }));
+    expect(await q.studio.data.listCourses()).toBe('s');
+  });
+
+  it('starts Firestore at once for a returning person, and keeps the flag in step with sign-in', async () => {
+    vi.resetModules();
+    localStorage.clear();
+    open.mockReset().mockReturnValue({ db: {}, learner: {}, watchProfile: vi.fn(() => () => {}) });
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    // A first-time visitor downloads nothing.
+    await act(async () => mount(document.getElementById('root'), {}));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(open).not.toHaveBeenCalled();
+
+    // The profile watch of a signed-in person sets the flag.
+    const p = props.current as Captured;
+    p.service.watchProfile('u', vi.fn(), vi.fn());
+    expect(localStorage.getItem('gurukul.signedIn')).toBe('1');
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+
+    // The next visit opens Firestore without waiting for auth.
+    open.mockClear();
+    await act(async () => mount(document.getElementById('root'), {}));
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+
+    // Auth reporting no one (expired session, sign-out) clears it; a user does not.
+    const cb = vi.fn();
+    (props.current as Captured).service.onUser(cb);
+    const report = (authOnUser.mock.calls.at(-1) as unknown as [(u: unknown) => void])[0];
+    report({ uid: 'u' });
+    expect(localStorage.getItem('gurukul.signedIn')).toBe('1');
+    report(null);
+    expect(localStorage.getItem('gurukul.signedIn')).toBeNull();
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it('works with storage blocked, and forgets a failed early start', async () => {
+    vi.resetModules();
+    const blocked = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    open.mockReset().mockReturnValue({ db: {}, learner: {}, watchProfile: vi.fn(() => () => {}) });
+    document.body.innerHTML = '<div id="root"></div>';
+    const { mount } = await import('../src/main');
+    await act(async () => mount(document.getElementById('root'), {}));
+    (props.current as Captured).service.watchProfile('u', vi.fn(), vi.fn());
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+    blocked.mockRestore();
+    vi.restoreAllMocks();
+
+    // The early start fails to download: swallowed, and the profile watch fetches again.
+    vi.resetModules();
+    localStorage.setItem('gurukul.signedIn', '1');
+    vi.doMock('../src/firestore', () => {
+      throw new Error('Failed to fetch dynamically imported module');
+    });
+    const failing = await import('../src/main');
+    await act(async () => failing.mount(document.getElementById('root'), {}));
+    await new Promise((r) => setTimeout(r, 0));
+    const watch = vi.fn(() => () => {});
+    vi.doMock('../src/firestore', () => ({ openFirestore: () => ({ watchProfile: watch }) }));
+    (props.current as Captured).service.watchProfile('u', vi.fn(), vi.fn());
+    await vi.waitFor(() => expect(watch).toHaveBeenCalled());
+    localStorage.clear();
     vi.doUnmock('../src/firestore');
   });
 });

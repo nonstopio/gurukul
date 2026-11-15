@@ -40,8 +40,6 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/auth', () => ({ getAuth: vi.fn(() => ({ currentUser: state.user })) }));
 vi.mock('../src/data/firebase', () => ({ firebaseLearnerData: vi.fn(() => 'learner') }));
-vi.mock('../src/studio/firebase', () => ({ firebaseStudioData: vi.fn(() => 'studio') }));
-vi.mock('../src/console/firebase', () => ({ firebaseConsoleData: vi.fn(() => 'console') }));
 vi.mock('../src/log', () => ({ log: { warn: vi.fn() } }));
 
 import { initializeFirestore } from 'firebase/firestore';
@@ -72,9 +70,10 @@ describe('openFirestore', () => {
     expect(state.calls).toEqual(['db-emulator']);
   });
 
-  it('builds the learner, studio and console data over one database', () => {
+  it('builds the learner data and hands out the database for the other data modules', () => {
     const s = openFirestore({} as never, false);
-    expect([s.learner, s.studio, s.console]).toEqual(['learner', 'studio', 'console']);
+    expect(s.learner).toBe('learner');
+    expect(s.db).toBe(vi.mocked(initializeFirestore).mock.results[0]?.value);
   });
 
   it('stops by terminating its database', async () => {
