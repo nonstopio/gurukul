@@ -21,11 +21,24 @@ import type { AnalyticsEnv } from './analytics';
 import { STORAGE_EMULATOR_HOST } from './studio/emulator';
 import type { FirebaseEnv } from './firebase';
 import type { Firestores } from './firestore';
-import type { MediaStorage } from './studio/types';
+import type { ConsoleData } from './console/types';
+import type { MediaStorage, StudioData } from './studio/types';
 import { appRoutes } from './routes';
 import { stopApi } from './api';
 import { setUpdate } from './update';
 import { REQUIRED_UPDATE } from './version';
+
+/** Set while someone is signed in on this browser, so the next visit can start Firestore early. */
+const SIGNED_IN_KEY = 'gurukul.signedIn';
+
+/** Blocked storage throws on access: that means no early start, and nothing else depends on it. */
+function inStorage<T>(fn: (storage: Storage) => T): T | undefined {
+  try {
+    return fn(localStorage);
+  } catch {
+    return undefined;
+  }
+}
 
 /** Mount the app into `#root`. Exported so the boot path is testable. */
 export function mount(
@@ -37,8 +50,10 @@ export function mount(
   }
   const firebase = initFirebase(env);
   configureAnalytics(env, firebase.app);
-  // The Firestore SDK is its own chunk, fetched the first time something reads data: right after
-  // sign-in (the profile watch), never for a visitor who has not signed in.
+  // The Firestore SDK is its own chunk (learner data only; Studio and console data are chunks of
+  // their own). It is fetched the first time something reads data: right after sign-in (the
+  // profile watch), or at once on a returning person's visit (`SIGNED_IN_KEY`, below), so the
+  // download overlaps the auth restore. Never for a visitor who has not signed in.
   // A failed download is forgotten, so the next sign-in fetches the chunk again.
   // After a required update nothing opens Firestore again (`freeze`).
   let stores: Promise<Firestores> | undefined;
@@ -57,6 +72,7 @@ export function mount(
   const auth = firebaseAuthService(firebase, (uid, cb, onError) => {
     let stop: (() => void) | undefined;
     let left = false;
+    inStorage((s) => s.setItem(SIGNED_IN_KEY, '1'));
     void firestores().then(
       (s) => {
         if (!left) stop = s.watchProfile(uid, cb, onError);
@@ -74,6 +90,12 @@ export function mount(
   // fresh instance. Never opened, or failed to download: there is nothing to delete.
   const service: AuthService = {
     ...auth,
+    // No user (never signed in, expired session, or signed out): forget the early-start flag.
+    onUser: (cb) =>
+      auth.onUser((user) => {
+        if (!user) inStorage((s) => s.removeItem(SIGNED_IN_KEY));
+        cb(user);
+      }),
     async signOut() {
       const open = await stores?.catch(() => undefined);
       if (!open) return auth.signOut();
@@ -84,6 +106,27 @@ export function mount(
       }
     },
   };
+  // The Studio and console data modules load on their first use and are built once per opened
+  // Firestore (the console keeps a roster cache); a new instance after sign-out gets new ones.
+  const dataFor = <T extends object>(build: (db: Firestores['db']) => Promise<T>) => {
+    let built: { s: Firestores; data: Promise<T> } | undefined;
+    return () =>
+      firestores().then((s) => {
+        if (built?.s === s) return built.data;
+        const data = build(s.db).catch((e: unknown) => {
+          built = undefined;
+          throw e;
+        });
+        built = { s, data };
+        return data;
+      });
+  };
+  const studioData = dataFor<StudioData>((db) =>
+    import('./studio/firebase').then((m) => m.firebaseStudioData(db)),
+  );
+  const consoleData = dataFor<ConsoleData>((db) =>
+    import('./console/firebase').then((m) => m.firebaseConsoleData(db)),
+  );
   const data = lazyPort(() => firestores().then((s) => s.learner), ['watchProgress']);
   // The Cloud Storage SDK is its own chunk too, fetched by the first upload, never by a learner.
   // It is started once (connecting an emulator twice throws); a failed download is forgotten.
@@ -107,6 +150,9 @@ export function mount(
       .then((s) => s?.stop())
       .catch(() => {});
   };
+  // A returning person: start the download now instead of after the auth restore. A failure is
+  // forgotten by `firestores`, so the profile watch tries again.
+  if (inStorage((s) => s.getItem(SIGNED_IN_KEY))) firestores().catch(() => {});
   reloadOnStaleBuild();
   checkForNewBuild(env.VITE_BUILD_ID, REQUIRED_UPDATE, (update) => {
     if (update.kind === 'soft') return setUpdate(update);
@@ -119,7 +165,7 @@ export function mount(
         data={data}
         quiz={firebaseQuizService(firebase.functions)}
         studio={{
-          data: lazyPort(() => firestores().then((s) => s.studio)),
+          data: lazyPort(studioData),
           service: firebaseStudioService(firebase.functions),
           storage: lazyPort(mediaStorage),
           checks: {
@@ -128,7 +174,7 @@ export function mount(
           },
         }}
         console={{
-          data: lazyPort(() => firestores().then((s) => s.console)),
+          data: lazyPort(consoleData),
           service: firebaseConsoleService(firebase.functions),
         }}
         router={createBrowserRouter(appRoutes())}

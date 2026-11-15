@@ -14,19 +14,19 @@ import {
   waitForPendingWrites,
 } from 'firebase/firestore';
 import type { ProfileMirror } from './auth/service';
-import { firebaseConsoleData } from './console/firebase';
 import { firebaseLearnerData } from './data/firebase';
 import { log } from './log';
-import { firebaseStudioData } from './studio/firebase';
 
 /** How long sign-out waits for queued writes to reach the server before it deletes them. */
 export const SIGN_OUT_SETTLE_MS = 2000;
 
 /**
  * Everything that needs the Firestore SDK, in one module that `main.tsx` imports dynamically, so
- * the SDK (about 140 KB gzip) is a separate chunk loaded when the app first reads data, not part
- * of the initial bundle. Firestore keeps a persistent local cache, shared across tabs, so the last
- * opened course stays readable offline and progress writes queue until the connection returns.
+ * the SDK is a separate chunk loaded when the app first reads data, not part of the initial
+ * bundle. Only the learner's data code lives here: the Studio and console data modules are their
+ * own chunks (`main.tsx` imports them over `db`), so a plain learner never downloads them.
+ * Firestore keeps a persistent local cache, shared across tabs, so the last opened course stays
+ * readable offline and progress writes queue until the connection returns.
  */
 export function openFirestore(app: FirebaseApp, emulators: boolean) {
   const db = initializeFirestore(app, {
@@ -35,8 +35,8 @@ export function openFirestore(app: FirebaseApp, emulators: boolean) {
   if (emulators) connectFirestoreEmulator(db, '127.0.0.1', 8080);
   return {
     learner: firebaseLearnerData(db, () => getAuth(app).currentUser?.uid),
-    studio: firebaseStudioData(db),
-    console: firebaseConsoleData(db),
+    /** The database, for the Studio and console data modules `main.tsx` loads on demand. */
+    db,
     /**
      * Signs out and forgets this browser's copy: gives queued writes a moment to reach the server,
      * runs `signOut`, shuts this instance down and deletes its local cache, queued writes
