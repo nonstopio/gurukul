@@ -206,6 +206,7 @@ function Learning() {
         certificates: certificates.filter((c) => !c.revoked).length,
       };
     }, [data, uid]),
+    `learning/${uid}`,
   );
   return (
     <Card title="Your learning" actions={<Link to="/certificates">Your certificates</Link>}>

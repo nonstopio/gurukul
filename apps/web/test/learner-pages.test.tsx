@@ -55,8 +55,17 @@ async function open(
       teamIds: profile.teamIds,
     }),
   );
-  return { ...view, router, ...data };
+  return { ...view, router, auth: f, ...data };
 }
+
+/** A promise the test settles by hand, to hold a refresh open. */
+function defer<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+const busy = () => document.querySelector('[aria-busy="true"]');
 
 const assignment = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   id: 'a1',
@@ -75,6 +84,27 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: 'Browse the catalogue' }).getAttribute('href')).toBe(
       '/courses',
     );
+  });
+
+  it('shows Home at once when you come back to it, then the refreshed one', async () => {
+    const d = fakeData();
+    const { router } = await open('/', d);
+    await screen.findByText('Nothing assigned yet');
+    await act(async () => {
+      await router.navigate('/certificates');
+    });
+    const refresh = defer<AssignmentRow[]>();
+    vi.mocked(d.data.myAssignments).mockReturnValueOnce(refresh.promise);
+    await act(async () => {
+      await router.navigate('/');
+    });
+    expect(screen.getByText('Nothing assigned yet')).toBeTruthy();
+    expect(busy()).toBeNull();
+    await act(async () => {
+      refresh.resolve([assignment()]);
+    });
+    expect(await screen.findByRole('heading', { name: 'Pick your next course' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Start Git, the NonStop Way/ })).toBeTruthy();
   });
 
   it('says courses are coming when none are published', async () => {
@@ -244,6 +274,51 @@ describe('Catalogue', () => {
     makeCourse(),
     makeCourse({ id: 'sql', title: 'SQL basics', level: 'advanced', status: 'archived' }),
   ];
+
+  it('shows the catalogue at once when you come back to it, then the refreshed one', async () => {
+    const courses = [makeCourse({ id: 'sql', title: 'SQL basics' })];
+    const d = fakeData({ courses });
+    const { router } = await open('/courses', d);
+    await screen.findByRole('link', { name: 'SQL basics' });
+    await act(async () => {
+      await router.navigate('/certificates');
+    });
+    const refresh = defer<typeof courses>();
+    vi.mocked(d.data.listCourses).mockReturnValueOnce(refresh.promise);
+    await act(async () => {
+      await router.navigate('/courses');
+    });
+    expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
+    expect(busy()).toBeNull();
+    await act(async () => {
+      refresh.resolve([...courses, makeCourse({ id: 'go', title: 'Go basics' })]);
+    });
+    expect(await screen.findByRole('link', { name: 'Go basics' })).toBeTruthy();
+  });
+
+  it('does not paint what was kept for the old team after the team changes', async () => {
+    const courses = [makeCourse({ id: 'sql', title: 'SQL basics' })];
+    const d = fakeData({ courses });
+    const { router, auth } = await open('/courses', d, { teamIds: ['t1'] });
+    await screen.findByRole('link', { name: 'SQL basics' });
+    await act(async () => {
+      await router.navigate('/certificates');
+    });
+    act(() =>
+      auth.emitProfile({ roles: ['learner'], displayName: 'P', team: null, teamIds: ['t2'] }),
+    );
+    const refresh = defer<typeof courses>();
+    vi.mocked(d.data.listCourses).mockReturnValueOnce(refresh.promise);
+    await act(async () => {
+      await router.navigate('/courses');
+    });
+    expect(screen.queryByRole('link', { name: 'SQL basics' })).toBeNull();
+    expect(busy()).not.toBeNull();
+    await act(async () => {
+      refresh.resolve(courses);
+    });
+    expect(await screen.findByRole('link', { name: 'SQL basics' })).toBeTruthy();
+  });
 
   it('lists courses with their visibility, and filters by level and view', async () => {
     await open('/courses', fakeData({ courses, assignments: [assignment()] }));

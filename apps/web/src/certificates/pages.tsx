@@ -227,7 +227,10 @@ export function CertificatesPage() {
   const t = useTerms();
   const uid = useUser().uid;
   const [page, setPage] = useState(1);
-  const result = useAsync(useCallback(() => data.myCertificates(uid), [data, uid]));
+  const result = useAsync(
+    useCallback(() => data.myCertificates(uid), [data, uid]),
+    `certificates/${uid}`,
+  );
   return (
     <Page>
       <PageHeader
@@ -327,6 +330,7 @@ function UpNextCard({ courseId }: { courseId: string }) {
       });
       return nextAssigned(rows, courseId);
     }, [data, uid, courseId, audience]),
+    `up-next/${uid}/${courseId}/${audience.staff}/${audience.teamIds.join(',')}`,
   );
   if (result.state !== 'ready') return null;
   const next = result.value;

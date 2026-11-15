@@ -69,7 +69,7 @@ export function CoursesPage() {
       progress,
     };
   }, [data, uid, teamKey, staff]);
-  const result = useAsync(load);
+  const result = useAsync(load, `courses/${uid}/${staff}/${teamKey}`);
   const shown =
     result.state === 'ready' ? applyQuery(result.value.courses, query, result.value) : [];
   const paged = pageFor(shown, page);

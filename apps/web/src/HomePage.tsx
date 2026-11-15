@@ -66,7 +66,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
       activity: recentActivity(courses, progress, certificates),
     };
   }, [data, uid, audience]);
-  const result = useAsync(load);
+  const result = useAsync(load, `home/${uid}/${audience.staff}/${audience.teamIds.join(',')}`);
   const name = firstName(user.displayName);
   const t = useTerms();
   const current = result.state === 'ready' ? result.value.current : null;
