@@ -717,7 +717,13 @@ export function firestoreTeamReportStore(db: Firestore): TeamReportStore {
       );
       batch.set(
         db.doc('stats/org'),
-        { assignmentsTotal: FieldValue.increment(-1) },
+        {
+          assignmentsTotal: FieldValue.increment(-1),
+          // A finished one was counted as completed too, or the overview shows "5 of 4".
+          ...(assignment.status === 'completed'
+            ? { assignmentsCompleted: FieldValue.increment(-1) }
+            : {}),
+        },
         { merge: true },
       );
       await batch.commit();

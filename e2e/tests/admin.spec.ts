@@ -64,6 +64,22 @@ test.describe('Admin', () => {
         'Pending invite',
       );
     }
+
+    // A wrong assignment is corrected from the person's drawer: a new due date, then removed.
+    const wrong = invitees[0] as string;
+    await table.getByText(wrong).click();
+    const drawer = page.getByRole('dialog', { name: wrong });
+    await drawer.getByRole('button', { name: `Change due date of ${GIT_COURSE.title}` }).click();
+    const due = page.getByRole('dialog', { name: 'Change due date' });
+    await due.getByLabel('Due date').fill('2099-12-31');
+    await due.getByRole('button', { name: 'Save due date' }).click();
+    await expect(drawer.getByText('Due 31 December 2099')).toBeVisible();
+    await drawer.getByRole('button', { name: `Remove ${GIT_COURSE.title}` }).click();
+    await page
+      .getByRole('dialog', { name: `Remove ${GIT_COURSE.title}?` })
+      .getByRole('button', { name: 'Remove course' })
+      .click();
+    await expect(drawer.getByText('No courses assigned or started.')).toBeVisible();
   });
 
   test('creates teams with members and turns reminders on, and both survive a reload', async ({

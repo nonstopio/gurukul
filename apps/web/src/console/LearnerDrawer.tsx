@@ -1,4 +1,14 @@
-import { Avatar, Button, Chip, Dialog, ProgressBar, useToast } from '@gurukul/ui';
+import {
+  Avatar,
+  Button,
+  Chip,
+  ClockIcon,
+  Dialog,
+  IconButton,
+  ProgressBar,
+  TrashIcon,
+  useToast,
+} from '@gurukul/ui';
 import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -7,6 +17,8 @@ import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { log } from '../log';
 import { longDate } from '../quiz/model';
+import { DueDateDialog, RemoveAssignmentDialog } from './AssignmentDialogs';
+import type { AssignmentTarget } from './AssignmentDialogs';
 import { useConsole } from './ConsoleProvider';
 import { drawerCourses } from './model';
 import type { DrawerCourse, LearnerRow } from './model';
@@ -33,6 +45,9 @@ function CourseStatus({ c }: { c: DrawerCourse }) {
  * The learner drawer: every course assigned to this person (started or not, with its due date)
  * and every course they opened, each attempted Quiz by title with its recent attempts, and
  * their certificates. A pending invite shows its assignments. Revoking a certificate asks first.
+ * Each assigned course has Change due date and Remove (`updateAssignment`, `removeAssignment`);
+ * the drawer reloads after either. The table behind keeps what it loaded until the page is opened
+ * again: reloading it would reset its filters and close this drawer.
  */
 export function LearnerDrawer({
   row,
@@ -49,6 +64,8 @@ export function LearnerDrawer({
   const toast = useToast();
   const [reload, setReload] = useState(0);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [dating, setDating] = useState<AssignmentTarget | null>(null);
+  const [removing, setRemoving] = useState<AssignmentTarget | null>(null);
   const result = useAsync(
     useCallback(async () => {
       const uid = row.uid;
@@ -83,6 +100,18 @@ export function LearnerDrawer({
     }
   };
 
+  const targetOf = (c: DrawerCourse): AssignmentTarget => ({
+    assignmentId: c.assignmentId as string,
+    courseTitle: c.title,
+    dueAt: c.dueAt?.getTime() ?? null,
+    name: row.name,
+  });
+  const changed = () => {
+    setDating(null);
+    setRemoving(null);
+    setReload(reload + 1);
+  };
+
   return (
     <Dialog open onClose={onClose} title={row.name} size="drawer">
       <div className="console-flow">
@@ -103,7 +132,28 @@ export function LearnerDrawer({
                 <ul className="console-rows" aria-label="Courses">
                   {list.map((c) => (
                     <li key={c.courseId} className="console-row console-flow">
-                      <strong>{c.title}</strong>
+                      <div className="console-row__head">
+                        <strong className="console-row__text">{c.title}</strong>
+                        {c.assigned ? (
+                          <span className="console-row__chips">
+                            <IconButton
+                              label={`Change due date of ${c.title}`}
+                              tip="Change due date"
+                              onClick={() => setDating(targetOf(c))}
+                            >
+                              <ClockIcon />
+                            </IconButton>
+                            <IconButton
+                              label={`Remove ${c.title}`}
+                              tip="Remove"
+                              tone="danger"
+                              onClick={() => setRemoving(targetOf(c))}
+                            >
+                              <TrashIcon />
+                            </IconButton>
+                          </span>
+                        ) : null}
+                      </div>
                       <span className="console-row__chips">
                         <CourseStatus c={c} />
                         <span className="console-muted">{dueText(c)}</span>
@@ -219,6 +269,16 @@ export function LearnerDrawer({
           )}
         </Loaded>
       </div>
+      {dating ? (
+        <DueDateDialog target={dating} onClose={() => setDating(null)} onSaved={changed} />
+      ) : null}
+      {removing ? (
+        <RemoveAssignmentDialog
+          target={removing}
+          onClose={() => setRemoving(null)}
+          onRemoved={changed}
+        />
+      ) : null}
     </Dialog>
   );
 }

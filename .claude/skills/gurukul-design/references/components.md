@@ -269,7 +269,9 @@ leads the body with the owl's 40px face, for a dialog that alerts: `warning` on 
 does a dialog whose body already has a `Callout` (Studio's roll-back dialog): one owl per dialog. `md` is a centred panel, max
 560px, `lg` 56rem for a grid of cards, `--radius-xl`, `--shadow-float`; `drawer` is full height on the right, 480px, slides in on
 `--dur-slow` (no motion under reduced motion). `footer` is pinned under a hairline, usually buttons.
-The caller owns `open`. One dialog at a time.
+The caller owns `open`. One dialog at a time, except a confirmation or a small form opened from a
+drawer (the learner drawer's Remove and Change due date): the dialog opened last is on top, and only it
+answers Escape and Tab, so Escape closes one at a time and focus returns to the drawer.
 Without `onClose` the dialog is **blocking**: no close button, Escape and the backdrop do nothing, and focus
 starts on the first control (the footer's action) and stays inside. Only for a state the person cannot
 work around, such as a required update; anything they may decline gets a close.

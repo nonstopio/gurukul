@@ -266,6 +266,8 @@ export interface DrawerCourse {
   courseId: string;
   title: string;
   assigned: boolean;
+  /** The assignment's document id, for changing or removing it; null when not assigned. */
+  assignmentId: string | null;
   dueAt: Date | null;
   overdue: boolean;
   mandatory: boolean;
@@ -307,6 +309,7 @@ export function drawerCourses(
         courseId,
         title: course?.title ?? courseId,
         assigned: assignment !== undefined,
+        assignmentId: assignment?.id ?? null,
         dueAt: assignment?.dueAt ?? null,
         overdue: assignment !== undefined && isOverdue(assignment, now),
         mandatory: assignment?.mandatory === true,

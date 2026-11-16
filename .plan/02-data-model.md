@@ -13,7 +13,7 @@ contract; the schema package is the executable one. They change together.
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers, answersChanged? }` (answer keys included, so the author can edit them; `answersChanged: true` marks an answer key edit since the last publish, which removes it) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
 | `courses/{courseId}/private/answers` | Quiz answer keys | never | never |
-| `assignments/{assignmentId}` | Who must take what, by when | the assignee (by uid), Admin | never (function) |
+| `assignments/{assignmentId}` | Who must take what, by when. Removing one (`removeAssignment`) deletes the document; progress and certificates stay | the assignee (by uid), Admin | never (function) |
 | `progress/{uid}_{courseId}` | One learner's state in one course | owner, Admin, granted Educators | owner: append item ids, set `lastItemId` |
 | `progress/{uid}_{courseId}/attempts/{attemptId}` | Each graded Quiz attempt | owner, Admin, granted Educators | never (function) |
 | `certificates/{credentialId}` | Issued certificates | **public** (verification) | never (function) |

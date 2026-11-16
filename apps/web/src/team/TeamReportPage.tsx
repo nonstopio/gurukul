@@ -5,7 +5,6 @@ import {
   DataTable,
   Dialog,
   EmptyState,
-  Input,
   ClockIcon,
   IconButton,
   LockIcon,
@@ -22,6 +21,7 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiClientError } from '../api';
 import { useSession } from '../auth/AuthProvider';
+import { DueDateDialog, RemoveAssignmentDialog } from '../console/AssignmentDialogs';
 import { useConsole } from '../console/ConsoleProvider';
 import { dueDay } from '../console/model';
 import type { TeamReport, TeamReportAssignment } from '../console/types';
@@ -30,11 +30,19 @@ import { toastError } from '../errors';
 import { useTerms } from '../labels/useTerms';
 import { LoadedPage } from '../learn/ui';
 import { pageFor } from '../paging';
-import { dayInput, endOfDay, reportCounts, reportCourses, reportRows, statusOf } from './model';
+import { reportCounts, reportCourses, reportRows, statusOf } from './model';
 import type { ReportRow } from './model';
 
-/** Today as a date field holds it, in the viewer's time zone. */
-const today = () => dayInput(Date.now());
+/** The assignment on a report row, as the shared dialogs take it. */
+const targetOf = (row: ReportRow) => {
+  const a = row.assignment as TeamReportAssignment;
+  return {
+    assignmentId: a.assignmentId,
+    courseTitle: a.courseTitle,
+    dueAt: a.dueAt,
+    name: row.name,
+  };
+};
 
 /** Codes that mean "not a team you may see": missing, or not one you manage. */
 const NOT_YOURS = new Set(['VAL_1003', 'AUTH_2001']);
@@ -87,34 +95,17 @@ export function TeamReportPage() {
 
 function Report({ report, onChanged }: { report: TeamReport; onChanged: () => void }) {
   const t = useTerms();
-  const { service } = useConsole();
   const admin = useSession().roles.includes('admin');
-  const toast = useToast();
   const [now] = useState(() => Date.now());
   const [page, setPage] = useState(1);
   const [dating, setDating] = useState<ReportRow | null>(null);
   const [removing, setRemoving] = useState<ReportRow | null>(null);
   const [reminding, setReminding] = useState(false);
-  const [busy, setBusy] = useState(false);
   const rows = reportRows(report, now);
   const paged = pageFor(rows, page);
   const counts = reportCounts(report, now);
   // A Manager may change only what was assigned through this team; the function checks the same.
   const mayChange = (a: TeamReportAssignment) => admin || a.teamId === report.teamId;
-
-  const remove = async (row: ReportRow) => {
-    const a = row.assignment as TeamReportAssignment;
-    setBusy(true);
-    try {
-      await service.removeAssignment({ assignmentId: a.assignmentId });
-      toast.show(`Removed ${a.courseTitle} from ${row.name}`, { tone: 'success' });
-      setRemoving(null);
-      onChanged();
-    } catch (e) {
-      toastError(toast, e, 'Could not remove the course. Try again.');
-    }
-    setBusy(false);
-  };
 
   return (
     <Page>
@@ -257,7 +248,7 @@ function Report({ report, onChanged }: { report: TeamReport; onChanged: () => vo
       />
       {dating ? (
         <DueDateDialog
-          row={dating}
+          target={targetOf(dating)}
           onClose={() => setDating(null)}
           onSaved={() => {
             setDating(null);
@@ -266,26 +257,14 @@ function Report({ report, onChanged }: { report: TeamReport; onChanged: () => vo
         />
       ) : null}
       {removing ? (
-        <Dialog
-          open
+        <RemoveAssignmentDialog
+          target={targetOf(removing)}
           onClose={() => setRemoving(null)}
-          title={`Remove ${(removing.assignment as TeamReportAssignment).courseTitle}?`}
-          mascot="warning"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setRemoving(null)}>
-                Keep it
-              </Button>
-              <Button variant="danger" loading={busy} onClick={() => void remove(removing)}>
-                Remove course
-              </Button>
-            </>
-          }
-        >
-          <p>
-            {`${removing.name} no longer has to take it, and gets no more reminders about it. Their progress so far is kept.`}
-          </p>
-        </Dialog>
+          onRemoved={() => {
+            setRemoving(null);
+            onChanged();
+          }}
+        />
       ) : null}
       {reminding ? (
         <RemindDialog
@@ -295,74 +274,6 @@ function Report({ report, onChanged }: { report: TeamReport; onChanged: () => vo
         />
       ) : null}
     </Page>
-  );
-}
-
-/** A new due date for one assignment, or none. A date in the past is refused here and by the function. */
-function DueDateDialog({
-  row,
-  onClose,
-  onSaved,
-}: {
-  row: ReportRow;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { service } = useConsole();
-  const toast = useToast();
-  const a = row.assignment as TeamReportAssignment;
-  const [due, setDue] = useState(a.dueAt === null ? '' : dayInput(a.dueAt));
-  const [error, setError] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (due && due < today()) return setError('The due date cannot be in the past.');
-    setSaving(true);
-    try {
-      const dueAt = due ? endOfDay(due) : null;
-      await service.updateAssignment({ assignmentId: a.assignmentId, dueAt });
-      toast.show(
-        dueAt === null
-          ? `${a.courseTitle} has no due date now`
-          : `${a.courseTitle} is due ${dueDay(dueAt)}`,
-        { tone: 'success' },
-      );
-      onSaved();
-    } catch (e) {
-      toastError(toast, e, 'Could not change the due date. Try again.');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog
-      open
-      onClose={onClose}
-      title="Change due date"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button loading={saving} onClick={() => void save()}>
-            Save due date
-          </Button>
-        </>
-      }
-    >
-      <p>
-        <strong>{a.courseTitle}</strong> for {row.name}
-      </p>
-      <Input
-        label="Due date"
-        type="date"
-        min={today()}
-        value={due}
-        error={error}
-        hint="Leave it empty for no due date. A new date gets its own reminder before it and after it passes."
-        onChange={(e) => setDue(e.target.value)}
-      />
-    </Dialog>
   );
 }
 

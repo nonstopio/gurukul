@@ -28,6 +28,30 @@ analytics, Org settings. Handoff: `design-handoff/02-admin-console.md`.
   list grows past a few hundred.
 - Row → learner detail drawer (M4): their courses, progress, attempts,
   certificates, and actions (reset a Quiz cooldown, revoke a certificate).
+- **Correcting an assignment.** Each assigned course in the drawer has two icon buttons, **Change
+  due date** and **Remove**, so an Admin can undo a wrong person, course or date; pending invites
+  have them too. They call the callables the Team report already uses (`updateAssignment`,
+  `removeAssignment`, `21-managers.md`): one way to change an assignment, one audit trail
+  (`assign.update`, `assign.remove`), no third copy of the due-date check. Decisions:
+  - **Remove deletes the assignment document.** There is no "removed" status: every reader
+    (Home, reminders, deadline notices, team reports, counts) would have to skip it, and a delete
+    stops all of them at once. The person's progress, attempts and certificate are other documents
+    and are never touched, so the course stays in the drawer as one they opened ("Not assigned").
+    The id is free again, so `assignCourses` can assign the same course to the same person later.
+  - **A completed assignment can be removed too** (a course assigned to the wrong person who
+    happened to finish it): nothing they earned is lost, only the record that it was asked of them.
+  - **Change due date** takes a day or none; a day in the past is refused by the dialog and by the
+    function (`VAL_1002`). No email is sent: the new date gets its own due-soon and overdue notices
+    because the function clears `dueSoonSentAt` and `overdueSentAt`.
+  - **Who:** the function checks the caller (an Admin any assignment; a Manager only one made
+    through a team they manage). The console is Admin only, so the drawer shows the buttons always.
+  - **Counters:** removing takes one off `stats/course_{id}.assigned` and `stats/org.assignmentsTotal`
+    in the same batch, and off `stats/org.assignmentsCompleted` when it was completed; the daily
+    roll-up recounts all three from the assignments anyway. Course `started` and `completed` count
+    progress documents, not assignments, so they do not move.
+  - Remove asks first in a dialog over the drawer; both actions toast and reload the drawer. The
+    table behind keeps what it loaded until the page is opened again (reloading it would reset its
+    filters and close the drawer).
 
 ## Assigning courses
 
