@@ -1,4 +1,4 @@
-import { accessOf, courseStatsSchema, migrateCourse, readCourse } from '@gurukul/schema';
+import { accessOf, courseStatsSchema, migrateCourse } from '@gurukul/schema';
 import type { AnswerKeys, Course } from '@gurukul/schema';
 import {
   addDoc,
@@ -21,12 +21,11 @@ import { COURSE_TTL_MS, listSummaries } from '../data/firebase';
 import { log } from '../log';
 import { DraftConflictError } from './errors';
 import { sameWork } from './studioModel';
-import type { BankQuestion, DraftDoc, StudioCourse, StudioData, VersionRow } from './types';
+import type { BankQuestion, DraftDoc, StudioData, VersionRow } from './types';
 
 type Ts = { toDate(): Date } | null | undefined;
 const date = (t: Ts): Date | null => t?.toDate() ?? null;
 
-const COURSE_LIMIT = 100;
 const VERSION_LIMIT = 50;
 const BANK_LIMIT = 200;
 
@@ -86,57 +85,52 @@ function toDraft(d: Record<string, unknown>): DraftDoc {
 
 export function firebaseStudioData(db: Firestore): StudioData {
   const draftRef = (courseId: string) => doc(db, 'courses', courseId, 'drafts', 'current');
-  // The list costs about three reads per course, and the Studio list, Media and Question bank
-  // each ask for it: one promise per person is reused for five minutes. Our own changes drop it (see
+  // The Studio list, Media, Question bank and search each ask for the list, and a card for its
+  // facts: one promise each is reused for five minutes. Our own changes drop them (see
   // `forgetCourses`), so only someone else's edit waits.
   // ponytail: someone else's edit shows up within 5 minutes; listen to the courses if that matters.
-  const lists = new Map<string, { at: number; promise: Promise<StudioCourse[]> }>();
-  async function liveCourses(): Promise<Course[]> {
-    const snap = await getDocs(query(collection(db, 'courses'), limit(COURSE_LIMIT)));
-    const live: Course[] = [];
-    for (const d of snap.docs) {
-      const course = readCourse(d.data());
-      if (course === null) log.warn('Unreadable course skipped', { courseId: d.id });
-      else live.push(course);
+  const kept = new Map<string, { at: number; promise: Promise<unknown> }>();
+  function reused<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const hit = kept.get(key);
+    if (hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise as Promise<T>;
+    const promise = load();
+    kept.set(key, { at: Date.now(), promise });
+    // A failed read is not kept, so Retry asks again.
+    promise.catch(() => kept.delete(key));
+    return promise;
+  }
+  /**
+   * Whether the draft was saved after the course was last published: a count of the drafts newer
+   * than `publishedAt`, so one aggregation read and no document (a draft holds the whole course
+   * and its answer keys). A publish leaves the draft's time alone and a rollback stamps both with
+   * one time, so only a save moves it past. Null when it cannot be read.
+   */
+  async function editedSince(courseId: string, publishedAt: unknown): Promise<boolean | null> {
+    try {
+      const snap = await getCountFromServer(
+        query(collection(db, 'courses', courseId, 'drafts'), where('updatedAt', '>', publishedAt)),
+      );
+      return snap.data().count > 0;
+    } catch {
+      log.warn('Reading the draft state failed', { courseId });
+      return null;
     }
-    return live;
   }
   return {
     // Every status: the rules let an Educator or an Admin list every course and summary.
-    listLiveCourses: () => listSummaries(db, [[]]),
-    // Every Educator and Admin sees every course, never-published ones included (the rules allow
-    // it); only the drafts of courses they may edit are read.
-    listCourses(uid, admin) {
-      const key = `${uid}/${admin}`;
-      const hit = lists.get(key);
-      if (hit && Date.now() - hit.at < COURSE_TTL_MS) return hit.promise;
-      const entry = {
-        at: Date.now(),
-        promise: liveCourses().then((live) =>
-          Promise.all(
-            live.map(async (course): Promise<StudioCourse> => {
-              const editable = admin || course.educatorIds.includes(uid);
-              if (!editable) return { live: course, draft: null };
-              const [snap, learners] = await Promise.all([
-                getDoc(draftRef(course.id)),
-                learnersStarted(db, course.id),
-              ]);
-              const row: StudioCourse = {
-                live: course,
-                draft: snap.exists() ? toDraft(snap.data()) : null,
-              };
-              return learners === null ? row : { ...row, learners };
-            }),
-          ),
-        ),
-      };
-      lists.set(key, entry);
-      // A failed read is not kept, so Retry asks again.
-      entry.promise.catch(() => lists.delete(key));
-      return entry.promise;
+    listLiveCourses: () => reused('list', () => listSummaries(db, [[]])),
+    courseFacts(courseId, publishedAt) {
+      return reused(`facts/${courseId}`, async () => {
+        const [edited, learners] = await Promise.all([
+          // Never published: the card says Draft, and there is nothing to compare with.
+          publishedAt === null ? false : editedSince(courseId, publishedAt),
+          learnersStarted(db, courseId),
+        ]);
+        return { edited, learners };
+      });
     },
     async forgetCourses() {
-      lists.clear();
+      kept.clear();
     },
     async getAccess(courseId) {
       return accessOf((await getDoc(doc(db, 'courses', courseId))).data());
@@ -171,7 +165,7 @@ export function firebaseStudioData(db: Firestore): StudioData {
         });
         return baseRev + 1;
       }).then((rev) => {
-        lists.clear();
+        kept.clear();
         return rev;
       });
     },

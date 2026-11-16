@@ -57,7 +57,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   and the summary in one transaction and writes or deletes the summary. Never write a summary from a callable, the seed or a
   script: change the course and the trigger follows. `dailyRollup` first runs `reconcileSummaries` (ids and update times with
   field masks; syncs a missing, older or other-`summaryVersion` summary, deletes an orphan), which is also the backfill;
-  `npm run backfill-summaries` runs it by hand. A new summary field bumps `COURSE_SUMMARY_VERSION`. Rules read the summary's
+  `npm run backfill-summaries` runs it by hand. A new summary field bumps `COURSE_SUMMARY_VERSION`. It is 3: 2 made unreadable access staff-only, 3 added `educatorNames`. Rules read the summary's
   own `status`, `visibility` and `visibleTeamIds` through the same `mayGetCourse`/`mayListCourse` as `courses`.
 - Quiz callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,

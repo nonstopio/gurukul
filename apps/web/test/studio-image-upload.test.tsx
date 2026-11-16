@@ -699,7 +699,7 @@ describe('uploading', () => {
     const { path } = (last() as { upload: { path: string } }).upload;
     expect(path).not.toBe(uploaded.path);
     expect(studio.storage.upload).toHaveBeenCalledOnce();
-    expect(studio.data.listCourses).not.toHaveBeenCalled();
+    expect(studio.data.listLiveCourses).not.toHaveBeenCalled();
   });
 
   it('stops an upload when the editor goes away, without touching the draft', async () => {

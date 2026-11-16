@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import type { BankQuestion, StudioCourse } from '../src/studio/types';
 import { axeViolations } from './axe';
-import { lesson, makeCourse } from './fake-data';
+import { fakeData, lesson, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
 import { choose } from './select';
@@ -111,8 +111,41 @@ describe('question bank table', () => {
     const second = await rowOf('Prompt 2?');
     expect(within(second).getByText('Multiple choice')).toBeTruthy();
     expect(within(second).getByText('—')).toBeTruthy();
-    expect(within(second).getByText('Not used yet')).toBeTruthy();
+    expect(within(second).getByText('Not in this course')).toBeTruthy();
     expect(screen.getByText('Write a question once, then add it to any Quiz.')).toBeTruthy();
+  });
+
+  it('looks for use in one course at a time, and reads another only when it is picked', async () => {
+    const theirs = makeCourse({
+      id: 'zz',
+      title: 'No draft',
+      educatorIds: ['u9'],
+      chapters: [
+        { id: 'p', title: 'P', items: [quiz('q9', 'Their Quiz', ['Prompt 2?'])] as never },
+      ],
+    });
+    const data = fakeData({ courses: [theirs] });
+    const studio = fakeStudio({ bank: [entry('1'), entry('2')], courses: withQuiz() });
+    await openApp('/studio/bank', { roles: ['educator'], studio, data });
+    const first = await rowOf('Prompt 1?');
+    await waitFor(() =>
+      expect(within(first).getByText('Git, the NonStop Way › Quiz I')).toBeTruthy(),
+    );
+    expect(vi.mocked(studio.data.getDraft).mock.calls).toEqual([['git']]);
+    expect(data.data.getCourse).not.toHaveBeenCalled();
+
+    // Someone else's course: its published copy is read, and it offers nothing to import.
+    choose(screen.getByRole('combobox', { name: 'Course to look for use in' }), 'No draft');
+    const second = await rowOf('Prompt 2?');
+    await waitFor(() => expect(within(second).getByText('No draft › Their Quiz')).toBeTruthy());
+    expect(within(await rowOf('Prompt 1?')).getByText('Not in this course')).toBeTruthy();
+    expect(data.data.getCourse).toHaveBeenCalledWith('zz');
+    fireEvent.click(screen.getByRole('button', { name: 'Import from a Quiz' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Import from a Quiz' })).queryByRole('option', {
+        name: /Their Quiz/,
+      }),
+    ).toBeNull();
   });
 
   it('has no accessibility violations', async () => {
@@ -145,7 +178,7 @@ describe('question bank table', () => {
 
   it('shows a dash for "used in" and cannot import when the courses do not load', async () => {
     const studio = fakeStudio({ bank: [entry('1')] });
-    studio.data.listCourses = vi.fn().mockRejectedValue(new Error('x'));
+    studio.data.listLiveCourses = vi.fn().mockRejectedValue(new Error('x'));
     await openApp('/studio/bank', { roles: ['educator'], studio });
     const row = await rowOf('Prompt 1?');
     expect(within(row).getAllByText('—').length).toBeGreaterThan(0);

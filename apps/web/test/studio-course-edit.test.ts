@@ -33,7 +33,6 @@ import {
   nameOf,
   relativeTime,
   tabCounts,
-  unpublishedEdits,
 } from '../src/studio/studioModel';
 import { terms } from '../src/labels/terms';
 import type { Working } from '../src/studio/types';
@@ -245,32 +244,14 @@ describe('studioModel', () => {
 
   it('counts and filters course tabs', () => {
     const rows = [
-      { live: makeCourse({ id: 'a', status: 'published' }), draft: null },
-      { live: makeCourse({ id: 'b', status: 'draft' }), draft: null },
-      { live: makeCourse({ id: 'c', status: 'archived' }), draft: null },
+      makeCourse({ id: 'a', status: 'published' }),
+      makeCourse({ id: 'b', status: 'draft' }),
+      makeCourse({ id: 'c', status: 'archived' }),
     ];
     expect(tabCounts(rows)).toEqual({ all: 3, published: 1, drafts: 1 });
     expect(rows.filter((r) => inTab(r, 'all'))).toHaveLength(3);
-    expect(rows.filter((r) => inTab(r, 'published')).map((r) => r.live.id)).toEqual(['a']);
-    expect(rows.filter((r) => inTab(r, 'drafts')).map((r) => r.live.id)).toEqual(['b']);
-  });
-
-  it('counts unpublished edits only for a published course with a draft', () => {
-    const live = makeCourse();
-    expect(unpublishedEdits({ live, draft: null })).toBeNull();
-    expect(
-      unpublishedEdits({ live: makeCourse({ version: 0 }), draft: draftDoc(live) }),
-    ).toBeNull();
-    expect(unpublishedEdits({ live, draft: draftDoc(live) })).toBe(0);
-    const edited = makeCourse({ title: 'Renamed' });
-    expect(unpublishedEdits({ live, draft: draftDoc(edited) })).toBe(1);
-    expect(unpublishedEdits({ live, draft: draftDoc(live, { answersChanged: true }) })).toBe(1);
-  });
-
-  it('counts no edit when an Admin changed only who may edit the live course', () => {
-    const draft = draftDoc(makeCourse());
-    const live = makeCourse({ educatorIds: ['u1', 'u2'], educatorNames: { u2: 'Asha Rao' } });
-    expect(unpublishedEdits({ live, draft })).toBe(0);
+    expect(rows.filter((r) => inTab(r, 'published')).map((r) => r.id)).toEqual(['a']);
+    expect(rows.filter((r) => inTab(r, 'drafts')).map((r) => r.id)).toEqual(['b']);
   });
 
   it('summarises changes with titles', () => {

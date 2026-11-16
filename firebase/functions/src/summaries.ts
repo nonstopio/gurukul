@@ -31,8 +31,8 @@ function derived(raw: unknown): string {
 /**
  * `courses/{id}` was written: keeps `courseSummaries/{id}` in step. This is the only writer of
  * summaries, so publish, rollback, access changes, archiving, role grants and the seed are all
- * covered without any of them knowing. A write that changes nothing the summary holds (an
- * Educator's name, the description, a lesson's text) returns before reading anything. Otherwise the
+ * covered without any of them knowing. A write that changes nothing the summary holds (the
+ * description, a lesson's text) returns before reading anything. Otherwise the
  * event's own data decides nothing more: triggers deliver at least once and not in order, so the
  * store reads the course as it is now.
  */

@@ -92,6 +92,7 @@ type CourseSummary = {
   cover: { theme: string; glyph: string };
   image?: string;                // the tile's picture: cover image, else the first lesson image
   educatorIds: string[];         // who may edit: Studio's "my courses" and search
+  educatorNames?: Record<string, string>; // uid → display name (v3), for Studio's "View only" line
   status: Course['status']; version: number; publishedAt: Timestamp | null;
   estimatedMinutes: number;
   chapters: number; lessons: number; quizzes: number;   // counts only
@@ -109,7 +110,7 @@ place that derives it; a document `readCourse` cannot read has no summary, as it
   made it: publish, rollback, `setCourseAccess`, archive, a role grant that edits `educatorIds`, the
   seed, a script. No caller writes the summary and no browser can (rules: `write: if false`), so
   there is no code path that updates a course and forgets its summary. A write that changes nothing
-  the summary holds (a description, a lesson's text, an Educator's name) returns before reading
+  the summary holds (a description, a lesson's text) returns before reading
   anything. Otherwise it reads the course **as it is now**, in a transaction with the summary, and
   writes or deletes the summary: events arrive at least once and not in order, and the stored state
   cannot be replayed wrongly. Saving a draft does not wake it (`drafts/current` is a sub-collection).
@@ -141,7 +142,8 @@ place that derives it; a document `readCourse` cannot read has no summary, as it
   lessons in search. A list reads every summary the person may see, up to 1,000, and pages them in
   memory; at 1,000 it says "Not every course is listed". Reading a page at a time with a cursor is
   tracker item `OPS-37`, needed before the catalogue passes a few hundred courses (`11`, "Course
-  lists"). Studio's own list, Media and Question bank still read whole courses and drafts: `OPS-36`.
+  lists"). Studio's course list reads the summaries of every course and no draft; Media and
+  Question bank read one picked course (`08-studio.md`).
 - **A missing summary never hides a course.** Each listing also counts the same query on `courses`
   (one aggregation read). When that finds more courses than summaries came back, or the summaries
   cannot be read, the app reads the whole courses as it did before summaries (100 at most),
@@ -153,6 +155,9 @@ place that derives it; a document `readCourse` cannot read has no summary, as it
 - **A summary's access fails closed.** `public` or no `visibility` is public, as the rules read it;
   a `visibility` this code cannot read (`teams` with no team) is summarised as `staff`
   (`summaryVersion` 2).
+- **Educator names** (`educatorNames`, `summaryVersion` 3, optional) are copied so Studio's list can
+  say "View only: Educator Asha Rao" without the course; a summary written before says only "View
+  only" until the nightly reconcile rewrites it.
 - **What a list can no longer show**, because it is in the course and not the summary: a Quiz's
   title in Home's recent activity (it names the course instead), and an exact percent on a tile
   (counted from the numbers of lessons and Quizzes; a finished lesson the course later dropped

@@ -35,14 +35,15 @@ import {
 } from './questionEdit';
 import type { Keyed } from './questionEdit';
 import { useStudio } from './StudioProvider';
+import { CoursePicker, useStudioCourse } from './useStudioCourse';
 import type { BankQuestion } from './types';
 
 type Entry = Omit<BankQuestion, 'id' | 'createdBy'>;
 
 /**
  * `/studio/bank`: questions written once, reused in any Quiz. Add one, import some from a Quiz,
- * edit or delete one (its creator or an Admin). Where each is used comes from the courses the
- * Studio already loads, matched by the question's text.
+ * edit or delete one (its creator or an Admin). Where each is used, and what can be imported, is
+ * looked up in one course at a time (the picker beside the search), matched by the question's text.
  */
 export function QuestionBankPage() {
   const { data } = useStudio();
@@ -65,8 +66,9 @@ export function QuestionBankPage() {
     }, [data, reload]),
   );
   const admin = roles.includes('admin');
-  const courses = useAsync(useCallback(() => data.listCourses(uid, admin), [data, uid, admin]));
-  const rows = useMemo(() => (courses.state === 'ready' ? courses.value : []), [courses]);
+  // Where a question is used, and the Quizzes to import from, come from one course at a time.
+  const { picked: courses, pick } = useStudioCourse();
+  const rows = useMemo(() => (courses.state === 'ready' ? courses.value.rows : []), [courses]);
 
   const done = (message: string) => {
     toast.show(message, { tone: 'success' });
@@ -189,6 +191,13 @@ export function QuestionBankPage() {
                     setPage(1);
                   }}
                 />
+                {courses.state === 'ready' && courses.value.courses.length > 0 ? (
+                  <CoursePicker
+                    label="Course to look for use in"
+                    picked={courses.value}
+                    onPick={pick}
+                  />
+                ) : null}
               </FilterBar>
               <DataTable
                 caption="Bank questions"
@@ -243,7 +252,7 @@ export function QuestionBankPage() {
                     cell: (e) => {
                       if (courses.state !== 'ready') return '—';
                       const used = bankUsage(e.question.prompt, rows);
-                      return used.length === 0 ? 'Not used yet' : used.join(', ');
+                      return used.length === 0 ? 'Not in this course' : used.join(', ');
                     },
                   },
                   {
