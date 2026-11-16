@@ -1,3 +1,4 @@
+import { AUTOSAVE_MS } from '../src/studio/useDraft';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Course, CourseStats } from '@gurukul/schema';
@@ -468,7 +469,7 @@ describe('Course editor: saving', () => {
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Renamed' } });
     expect(screen.getByRole('heading', { level: 1, name: 'Renamed' })).toBeTruthy();
     await act(async () => {
-      vi.advanceTimersByTime(1100);
+      vi.advanceTimersByTime(AUTOSAVE_MS + 100);
     });
     await waitFor(() => expect(screen.getByText(/^Draft v4 · saved/)).toBeTruthy());
     expect(studio.data.saveDraft).toHaveBeenCalledWith(
@@ -485,7 +486,7 @@ describe('Course editor: saving', () => {
     studio.data.saveDraft = vi.fn().mockRejectedValueOnce(new Error('x'));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'R' } });
     await act(async () => {
-      vi.advanceTimersByTime(1100);
+      vi.advanceTimersByTime(AUTOSAVE_MS + 100);
     });
     const retry = await screen.findByRole('button', { name: 'retry' });
     expect(screen.getByText(/Couldn.t save/)).toBeTruthy();
@@ -502,7 +503,7 @@ describe('Course editor: saving', () => {
     studio.data.saveDraft = vi.fn().mockRejectedValue(new DraftConflictError());
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'R' } });
     await act(async () => {
-      vi.advanceTimersByTime(1100);
+      vi.advanceTimersByTime(AUTOSAVE_MS + 100);
     });
     expect(
       await screen.findByText('Someone else saved this draft. Reload to continue.'),

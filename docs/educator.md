@@ -23,7 +23,7 @@ lesson never loses anyone's work.
   explanation, link the lesson to revisit, and set the pass mark, number shown, retake wait, shuffle
   and when answers are revealed. Good questions can be saved to the **question bank** and imported
   into any Quiz.
-- Your work **autosaves** a second after you stop typing. The course editor names the version the
+- Your work **autosaves** three seconds after you stop typing. The course editor names the version the
   draft will publish as ("Draft v4 · saved just now" while v3 is live), or says "No changes since v3"
   when there is nothing new; the lesson and Quiz editors say "Draft · saved just now". If someone
   else saved the same draft meanwhile you will be told, and asked to reload.
