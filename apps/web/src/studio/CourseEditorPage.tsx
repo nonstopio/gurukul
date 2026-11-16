@@ -30,6 +30,7 @@ import { CertificateTab, LandingTab } from './LandingTab';
 import { PublishDialog } from './PublishDialog';
 import { StructureTab } from './StructureTab';
 import { educatorSummary, canEdit, hasUnpublishedChanges, nameOf } from './studioModel';
+import { SizeNotice } from './SizeNotice';
 import { LeaveGuard, RestoreNotice } from './UnsavedGuard';
 import { useSaveLabel } from './saveLabel';
 import { useDraft } from './useDraft';
@@ -298,6 +299,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
       <LeaveGuard draft={draft} />
       <Page width="wide">
         <RestoreNotice draft={draft} />
+        <SizeNotice draft={draft} />
         {draft.save === 'conflict' ? (
           <Callout tone="warning" title="Someone else saved this draft" role="alert">
             <p>Someone else saved this draft. Reload to continue.</p>

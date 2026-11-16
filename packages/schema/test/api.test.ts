@@ -70,6 +70,11 @@ describe('the course codes', () => {
       ['CRS_1003', 400, "Course 'git' failed the publish checks; see details.issues."],
       ['CRS_2002', 404, "Course 'git' has no version 4."],
       ['CRS_1004', 400, "Course 'git' is archived; it takes no new Quiz attempts."],
+      [
+        'CRS_1005',
+        400,
+        "Course 'git' with its answer keys is about 4 bytes, over the course size limit.",
+      ],
     ] as const;
     for (const [code, status, dev] of cases) {
       const res = apiFail([new ApiException(code, ['git', '4'], { issues: [] })], 't');

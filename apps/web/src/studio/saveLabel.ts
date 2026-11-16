@@ -7,7 +7,7 @@ export const TICK_MS = 30_000;
 
 /**
  * The save state in words, led by `head`: "Draft v4 · saved just now", then "saving…" or
- * "unsaved changes" while the draft is in flight or dirty. The age comes from the draft's last
+ * "unsaved changes" while the draft is in flight or dirty, "too large to save" over the size limit. The age comes from the draft's last
  * save and ticks on its own. A failed or conflicting save returns just the head; the page shows
  * its own wording for those. The head never shows the draft's `rev`: that counts saves, for the
  * conflict check, and is not a version anyone publishes.
@@ -23,6 +23,7 @@ export function useSaveLabel(
   }, []);
   if (draft.save === 'saving') return `${head} · saving…`;
   if (draft.save === 'dirty') return `${head} · unsaved changes`;
+  if (draft.save === 'too-large') return `${head} · too large to save`;
   if (draft.save === 'saved') {
     return draft.savedAt
       ? `${head} · saved ${relativeTime(draft.savedAt, now)}`

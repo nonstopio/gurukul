@@ -1,3 +1,4 @@
+import { COURSE_BYTES_LIMIT, courseBytes } from '@gurukul/schema';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUser } from '../auth/AuthProvider';
 import { log } from '../log';
@@ -7,7 +8,8 @@ import { useStudio } from './StudioProvider';
 import { markAnswerEdits, sameWork } from './studioModel';
 import type { DraftDoc, Working } from './types';
 
-export type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict';
+/** `too-large`: the edits are over `COURSE_BYTES_LIMIT`, kept on the page and this device, not written. */
+export type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict' | 'too-large';
 
 /** Milliseconds after the last edit before autosave fires. */
 export const AUTOSAVE_MS = 1000;
@@ -153,6 +155,14 @@ export function useDraft(courseId: string): DraftApi {
       clearBackup(backupId);
       return true;
     }
+    // Firestore would refuse it with a raw error; the next edit that brings it under saves again.
+    if (courseBytes(current.course, current.answers) > COURSE_BYTES_LIMIT) {
+      log.warn('Draft too large to save', { courseId });
+      writeBackup(backupId, { rev: baseRev, savedAt: Date.now(), work: current });
+      latest.current = { ...latest.current, save: 'too-large' };
+      setSave('too-large');
+      return false;
+    }
     setSave('saving');
     const request = data.saveDraft(courseId, current, baseRev, uid);
     track(courseId, request);
@@ -224,7 +234,8 @@ export function useDraft(courseId: string): DraftApi {
   // Flush on the way out, and ask the browser to confirm closing a tab with unsaved edits.
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (latest.current.save === 'dirty' || latest.current.save === 'error') e.preventDefault();
+      const { save: state } = latest.current;
+      if (state === 'dirty' || state === 'error' || state === 'too-large') e.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => {

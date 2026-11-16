@@ -2,6 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { COURSE_BYTES_LIMIT } from '@gurukul/schema';
+import { backupKey, readBackup } from '../src/studio/draftBackup';
 import { DraftConflictError } from '../src/studio/errors';
 import type { DraftDoc, Working } from '../src/studio/types';
 import { StudioProvider, useStudio } from '../src/studio/StudioProvider';
@@ -319,6 +321,27 @@ describe('useDraft', () => {
       expect(await result.current.saveNow()).toBe(true);
     });
     expect(result.current.save).toBe('saved');
+  });
+
+  it('keeps a draft over the size limit on the page and this device, and saves once it is back under', async () => {
+    const { result, studio } = setup();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => result.current.update(rename('x'.repeat(COURSE_BYTES_LIMIT))));
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(false);
+    });
+    expect(result.current.save).toBe('too-large');
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
+    expect(readBackup(backupKey('u1', 'git'))?.work.course.title).toHaveLength(COURSE_BYTES_LIMIT);
+    const leaving = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leaving);
+    expect(leaving.defaultPrevented).toBe(true);
+    act(() => result.current.update(rename('Short again')));
+    expect(result.current.save).toBe('dirty');
+    await act(async () => {
+      expect(await result.current.saveNow()).toBe(true);
+    });
+    expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
   });
 
   it('asks the browser to confirm leaving with unsaved edits, and flushes on unmount', async () => {
