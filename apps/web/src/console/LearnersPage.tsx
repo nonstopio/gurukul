@@ -330,6 +330,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
       {({ total, nextCursor }) => (
         <DataTable<LearnerRow>
           caption={terms.Learners}
+          stack
           rows={rows}
           rowKey={(r) => r.key}
           rowLabel={(r) => r.name}

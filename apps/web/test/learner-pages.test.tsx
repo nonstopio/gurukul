@@ -1174,7 +1174,9 @@ describe('Lesson player', () => {
   it('groups the rail by chapter, open only on the current one, with state words', async () => {
     await open('/courses/git/learn/l1', fakeData({ watched: started() }));
     const rail = await screen.findByRole('navigation', { name: 'Course outline' });
-    const heads = within(rail).getAllByRole('button');
+    const heads = within(rail)
+      .getAllByRole('button')
+      .filter((b) => b.textContent !== 'Chapters and lessons');
     expect(heads.map((h) => h.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
     expect(within(rail).queryByRole('link', { name: /^Lesson l3/ })).toBeNull();
     expect(within(rail).getAllByText('(Locked)', { exact: false })).toBeTruthy();
@@ -1200,6 +1202,27 @@ describe('Lesson player', () => {
       fakeData({ courses: [course], watched: started({ lastItemId: 'only' }) }),
     );
     expect(await screen.findByText('Hands-on')).toBeTruthy();
+  });
+
+  it('keeps the chapters behind a closed toggle on a phone, and closes it on the next lesson', async () => {
+    const { router } = await open('/courses/git/learn/l1', fakeData({ watched: started() }));
+    const rail = await screen.findByRole('navigation', { name: 'Course outline' });
+    const toggle = within(rail).getByRole('button', { name: 'Chapters and lessons' });
+    const chapters = document.getElementById(toggle.getAttribute('aria-controls') as string);
+    expect(rail.contains(chapters)).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(rail.hasAttribute('data-open')).toBe(false);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(rail.hasAttribute('data-open')).toBe(true);
+    fireEvent.click(within(rail).getByRole('link', { name: /^Lesson l2/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/courses/git/learn/l2'));
+    await screen.findByRole('heading', { level: 1, name: /^Lesson l2/ });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Course outline' }))
+        .getByRole('button', { name: 'Chapters and lessons' })
+        .getAttribute('aria-expanded'),
+    ).toBe('false');
   });
 
   it('highlights the current lesson in the outline rail', async () => {

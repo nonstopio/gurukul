@@ -44,6 +44,11 @@ export interface DataTableProps<T> {
   footer?: ReactNode;
   /** Makes the table body scroll under a sticky header, for example `"60vh"`. */
   maxHeight?: string;
+  /**
+   * Below 640px, draws each row as a block of labelled lines instead of scrolling sideways. Each
+   * cell is labelled with its column's `header`, so give string headers. Default: scroll.
+   */
+  stack?: boolean;
 }
 
 export function DataTable<T>({
@@ -59,6 +64,7 @@ export function DataTable<T>({
   empty,
   footer,
   maxHeight,
+  stack = false,
 }: DataTableProps<T>) {
   const keys = rows.map(rowKey);
   const chosen = keys.filter((k) => selected.includes(k));
@@ -78,17 +84,21 @@ export function DataTable<T>({
     if (e.key === 'Enter' && e.target === e.currentTarget) onRowClick?.(row);
   };
 
+  // Stacked rows are drawn with `display: block`, which drops a table's built-in roles in some
+  // browsers, so the roles are stated outright.
+  const role = (name: string) => (stack ? name : undefined);
+
   const style = maxHeight ? ({ '--table-max-height': maxHeight } as CSSProperties) : undefined;
 
   return (
-    <div className="g-table">
+    <div className={cx('g-table', stack && 'g-table--stack')}>
       <div className="g-table__scroll" style={style}>
-        <table className="g-table__table">
+        <table className="g-table__table" role={role('table')}>
           <caption className="g-table__sr">{caption}</caption>
-          <thead>
-            <tr>
+          <thead role={role('rowgroup')}>
+            <tr role={role('row')}>
               {selectable ? (
-                <th scope="col" className="g-table__check">
+                <th scope="col" className="g-table__check" role={role('columnheader')}>
                   <Checkbox
                     aria-label="Select all rows on this page"
                     checked={all}
@@ -99,13 +109,18 @@ export function DataTable<T>({
                 </th>
               ) : null}
               {columns.map((c) => (
-                <th key={c.id} scope="col" className={cx(c.align === 'end' && 'g-table__end')}>
+                <th
+                  key={c.id}
+                  scope="col"
+                  className={cx(c.align === 'end' && 'g-table__end')}
+                  role={role('columnheader')}
+                >
                   {c.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody role={role('rowgroup')}>
             {rows.map((row) => {
               const key = rowKey(row);
               const isSelected = selected.includes(key);
@@ -113,6 +128,7 @@ export function DataTable<T>({
               return (
                 <tr
                   key={key}
+                  role={role('row')}
                   className={cx(
                     clickable && 'g-table__row--click',
                     isSelected && 'g-table__row--selected',
@@ -123,7 +139,7 @@ export function DataTable<T>({
                   onKeyDown={clickable ? (e) => onRowKeyDown(e, row) : undefined}
                 >
                   {selectable ? (
-                    <td className="g-table__check">
+                    <td className="g-table__check" role={role('cell')}>
                       <Checkbox
                         aria-label={`Select ${rowLabel?.(row) ?? key}`}
                         checked={isSelected}
@@ -139,8 +155,14 @@ export function DataTable<T>({
                         key={c.id}
                         scope={c.rowHeader ? 'row' : undefined}
                         className={cx(c.align === 'end' && 'g-table__end')}
+                        role={role(c.rowHeader ? 'rowheader' : 'cell')}
+                        data-label={stack && typeof c.header === 'string' ? c.header : undefined}
                       >
-                        {c.cell(row)}
+                        {stack ? (
+                          <span className="g-table__value">{c.cell(row)}</span>
+                        ) : (
+                          c.cell(row)
+                        )}
                       </Cell>
                     );
                   })}

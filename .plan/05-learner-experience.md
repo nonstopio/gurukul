@@ -18,6 +18,9 @@ Complete, Certificate. Handoff detail per screen: `design-handoff/01-learner.md`
 4. **Lesson player** renders the lesson's blocks in one centred column (a
    video is a step in the flow, where the author placed it; an unrecorded
    placeholder video is not shown); the outline rail shows where you are.
+   Below 1024px the rail's chapters sit behind a closed "Chapters and lessons"
+   toggle above the lesson, so a phone opens on the lesson, not the chapter
+   list; opening another lesson closes it again.
    "Mark complete" saves and moves to the next item once the lesson's rule is
    met and every check question has had its answer shown. Until then it is
    disabled, and the reason ("Answer the question above to mark this lesson

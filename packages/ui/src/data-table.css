@@ -112,3 +112,66 @@
   display: flex;
   gap: var(--space-2);
 }
+
+/* `stack`: below 640px each row is a block of labelled lines, so a phone never scrolls sideways.
+   The header row stays in the accessibility tree (visually hidden); each cell shows its column's
+   name from `data-label`. The checkbox and the row header share the block's first line. */
+@media (width < 40rem) {
+  .g-table--stack .g-table__table {
+    display: block;
+    min-width: 0;
+  }
+  .g-table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .g-table--stack tbody {
+    display: block;
+  }
+  .g-table--stack tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .g-table--stack tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .g-table--stack tbody td,
+  .g-table--stack tbody th {
+    display: grid;
+    flex: 1 0 100%;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: center;
+    min-height: 0;
+    padding: var(--space-1) var(--space-4);
+    border-bottom: 0;
+    text-align: start;
+  }
+  .g-table--stack tbody td::before {
+    content: attr(data-label);
+    font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+    color: var(--text-muted);
+  }
+  .g-table--stack tbody th {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /* A 44px square tick target at the start of the first line. */
+  .g-table--stack tbody .g-table__check {
+    display: flex;
+    flex: none;
+    width: var(--control-height);
+    margin-inline-start: var(--space-2);
+    padding: 0;
+  }
+  .g-table--stack .g-table__check .g-check {
+    width: 100%;
+  }
+}

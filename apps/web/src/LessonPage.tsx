@@ -3,6 +3,7 @@ import type { Course, ItemState, Lesson, Chapter } from '@gurukul/schema';
 import {
   Button,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   Chip,
   LockIcon,
@@ -388,56 +389,76 @@ function OutlineRail({
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const t = useTerms();
   const isOpen = (p: Chapter) => toggled[p.id] ?? p.items.some((i) => i.id === itemId);
+  // Below 1024px the chapters sit behind this toggle, closed, so the lesson comes first; CSS hides
+  // the toggle and always shows the chapters on wider screens. Opening a lesson closes it again.
+  const [shown, setShown] = useState(false);
+  const [shownFor, setShownFor] = useState(itemId);
+  if (shownFor !== itemId) {
+    setShownFor(itemId);
+    setShown(false);
+  }
   return (
-    <nav className="rail" aria-label="Course outline">
-      {course.chapters.map((p, n) => {
-        const open = isOpen(p);
-        const listId = `rail-${p.id}`;
-        return (
-          <section key={p.id} className="rail__chapter">
-            <button
-              type="button"
-              className="rail__head"
-              aria-expanded={open}
-              aria-controls={listId}
-              onClick={() => setToggled((was) => ({ ...was, [p.id]: !open }))}
-            >
-              <span className="learn-label">
-                {t.Chapter} {n + 1}
-              </span>
-              <span>{p.title}</span>
-            </button>
-            <ol id={listId} hidden={!open}>
-              {p.items.map((i) => {
-                const st = states[i.id] as ItemState;
-                const inner = (
-                  <>
-                    <span aria-hidden="true" className={`rail__icon rail__icon--${st}`}>
-                      {STATE_ICON[st]}
-                    </span>
-                    {i.title}
-                    <span className="sr-only"> ({STATE_WORD[st]})</span>
-                  </>
-                );
-                return (
-                  <li key={i.id}>
-                    {st === 'locked' ? (
-                      <span aria-disabled="true">{inner}</span>
-                    ) : (
-                      <Link
-                        to={`/courses/${course.id}/learn/${i.id}`}
-                        {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
-                      >
-                        {inner}
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        );
-      })}
+    <nav className="rail" aria-label="Course outline" data-open={shown || undefined}>
+      <button
+        type="button"
+        className="rail__toggle"
+        aria-expanded={shown}
+        aria-controls="rail-chapters"
+        onClick={() => setShown(!shown)}
+      >
+        Chapters and lessons
+        <ChevronDownIcon />
+      </button>
+      <div id="rail-chapters" className="rail__chapters">
+        {course.chapters.map((p, n) => {
+          const open = isOpen(p);
+          const listId = `rail-${p.id}`;
+          return (
+            <section key={p.id} className="rail__chapter">
+              <button
+                type="button"
+                className="rail__head"
+                aria-expanded={open}
+                aria-controls={listId}
+                onClick={() => setToggled((was) => ({ ...was, [p.id]: !open }))}
+              >
+                <span className="learn-label">
+                  {t.Chapter} {n + 1}
+                </span>
+                <span>{p.title}</span>
+              </button>
+              <ol id={listId} hidden={!open}>
+                {p.items.map((i) => {
+                  const st = states[i.id] as ItemState;
+                  const inner = (
+                    <>
+                      <span aria-hidden="true" className={`rail__icon rail__icon--${st}`}>
+                        {STATE_ICON[st]}
+                      </span>
+                      {i.title}
+                      <span className="sr-only"> ({STATE_WORD[st]})</span>
+                    </>
+                  );
+                  return (
+                    <li key={i.id}>
+                      {st === 'locked' ? (
+                        <span aria-disabled="true">{inner}</span>
+                      ) : (
+                        <Link
+                          to={`/courses/${course.id}/learn/${i.id}`}
+                          {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
+                        >
+                          {inner}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          );
+        })}
+      </div>
     </nav>
   );
 }
