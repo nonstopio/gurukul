@@ -292,3 +292,37 @@ describe('dailyRollup', () => {
     );
   });
 });
+
+describe('firestoreReminderStore', () => {
+  it('reads every open assignment, past the old 1,000 per course limit, and no completed one', async () => {
+    const { firestoreReminderStore } = await import('../src/stores.js');
+    const writer = db().bulkWriter();
+    for (let i = 0; i < 1001; i++) {
+      writer.set(db().doc(`assignments/a${i}`), {
+        email: `u${i}@example.com`,
+        courseId: 'git-basics',
+        status: i % 2 === 0 ? 'assigned' : 'started',
+        mandatory: true,
+        reminder: 'weekly',
+        assignedAt: at(1),
+      });
+    }
+    writer.set(db().doc('assignments/done'), {
+      email: 'd@example.com',
+      courseId: 'git-basics',
+      status: 'completed',
+      assignedAt: at(1),
+    });
+    writer.set(db().doc('assignments/other'), {
+      email: 'o@example.com',
+      courseId: 'other',
+      status: 'assigned',
+      assignedAt: at(1),
+    });
+    await writer.close();
+
+    const store = firestoreReminderStore(db());
+    expect(await store.forCourse('git-basics')).toHaveLength(1001);
+    expect(await store.scheduled()).toHaveLength(1002);
+  });
+});
