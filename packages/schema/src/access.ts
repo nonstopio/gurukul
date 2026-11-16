@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { Course } from './course';
 
 /**
  * Who may open a published course. Lives on the course document beside the course object, not
@@ -26,9 +25,6 @@ export const courseAccessSchema = z
 export type CourseAccess = z.infer<typeof courseAccessSchema>;
 
 export const PUBLIC_ACCESS: CourseAccess = { visibility: 'public', visibleTeamIds: [] };
-
-/** A course as the catalogue lists it: the course object plus who may open it (absent means public). */
-export type CourseListing = Course & Partial<CourseAccess>;
 
 /** The access stored on a course document; anything missing or unreadable is public. */
 export function accessOf(raw: unknown): CourseAccess {

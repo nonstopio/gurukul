@@ -4,7 +4,7 @@
 // built (`Shell.tsx`). People are too many to load up front, so they are a
 // `RecordLookup` instead: looked up by prefix as the person types.
 
-import type { Course, Lesson } from '@gurukul/schema';
+import type { Audience, Course, CourseListing, Lesson } from '@gurukul/schema';
 import type { ConsoleData, UserRow } from '../console/types';
 import type { LearnerData } from '../data/types';
 import { canEdit } from '../studio/studioModel';
@@ -14,19 +14,23 @@ import { log } from '../log';
 import { allowed } from './catalog';
 import type { Destination, RecordLookup, RecordSource, Role } from './types';
 
-const LEVELS: Record<Course['level'], string> = {
+const LEVELS: Record<CourseListing['level'], string> = {
   foundation: 'Foundation',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
 };
 
 /**
- * Each course, then each of its lessons, as the catalogue shows them. Quizzes are left out:
- * they open from the outline, in order. A lesson still locked opens to its "Locked for now" note.
+ * Each course as the catalogue shows it, then each lesson of the courses in `started` (the whole
+ * courses the person is taking). Quizzes are left out: they open from the outline, in order. A
+ * lesson still locked opens to its "Locked for now" note.
  */
-export function courseDestinations(courses: readonly Course[]): Destination[] {
-  return courses.flatMap((c) => [
-    {
+export function courseDestinations(
+  courses: readonly CourseListing[],
+  started: readonly Course[] = [],
+): Destination[] {
+  return [
+    ...courses.map((c) => ({
       id: `course:${c.id}`,
       path: `/courses/${c.id}`,
       label: c.title,
@@ -34,40 +38,70 @@ export function courseDestinations(courses: readonly Course[]): Destination[] {
       description: c.status === 'archived' ? `${c.summary} · Retired` : c.summary,
       keywords: [LEVELS[c.level], 'course'],
       kind: 'Course',
-    },
-    ...c.chapters.flatMap((p) =>
-      p.items
-        .filter((i): i is Lesson => i.type === 'lesson')
-        .map((l) => ({
-          id: `lesson:${c.id}/${l.id}`,
-          path: `/courses/${c.id}/learn/${l.id}`,
-          label: l.title,
-          areaName: c.title,
-          description: p.title,
-          keywords: l.kindLabel ? [l.kindLabel, 'lesson'] : ['lesson'],
-          kind: 'Lesson',
-        })),
+    })),
+    ...started.flatMap((c) =>
+      c.chapters.flatMap((p) =>
+        p.items
+          .filter((i): i is Lesson => i.type === 'lesson')
+          .map((l) => ({
+            id: `lesson:${c.id}/${l.id}`,
+            path: `/courses/${c.id}/learn/${l.id}`,
+            label: l.title,
+            areaName: c.title,
+            description: p.title,
+            keywords: l.kindLabel ? [l.kindLabel, 'lesson'] : ['lesson'],
+            kind: 'Lesson',
+          })),
+      ),
     ),
-  ]);
+  ];
 }
 
-/** Published and archived courses, from the same bounded query the catalogue makes. */
-export function courseSource(data: Pick<LearnerData, 'listCourses'>): RecordSource {
-  return { id: 'courses', load: async () => courseDestinations(await data.listCourses()) };
+/** Courses whose lessons search offers: the ones the person was last active in. */
+export const LESSON_COURSES = 5;
+
+/**
+ * Every course the person may open, from the summaries the catalogue lists; and the lessons of
+ * the courses they are taking, the most recent `LESSON_COURSES`, read whole (the learner pages
+ * read the same ones). Lessons of a course not started are found by opening the course.
+ */
+export function courseSource(
+  data: Pick<LearnerData, 'listCourses' | 'myProgress' | 'getCourse'>,
+  uid: string,
+  audience?: Audience,
+): RecordSource {
+  return {
+    id: 'courses',
+    load: async () => {
+      const [courses, progress] = await Promise.all([
+        data.listCourses(audience),
+        data.myProgress(uid),
+      ]);
+      const recent = [...progress]
+        .sort((a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0))
+        .filter((p) => courses.some((c) => c.id === p.courseId))
+        .slice(0, LESSON_COURSES);
+      const started = await Promise.all(recent.map((p) => data.getCourse(p.courseId)));
+      return courseDestinations(
+        courses,
+        started.filter((c) => c !== null),
+      );
+    },
+  };
 }
 
-const STATUS: Record<Course['status'], string> = {
+const STATUS: Record<CourseListing['status'], string> = {
   draft: 'Draft',
   published: 'Published',
   archived: 'Archived',
 };
 
 /**
- * Each course this person may edit, opening the course editor. From the live documents: one read,
- * so a draft never published is titled as it was created and a draft's rename waits for a publish.
+ * Each course this person may edit, opening the course editor. From the course summaries, so a
+ * draft never published is titled as it was created and a draft's rename waits for a publish.
  */
 export function editableCourseDestinations(
-  courses: readonly Course[],
+  courses: readonly CourseListing[],
   uid: string,
   admin: boolean,
   t: Terms,
@@ -85,7 +119,7 @@ export function editableCourseDestinations(
     }));
 }
 
-/** For Educators and Admins: the courses they may edit, from the one live-courses query. */
+/** For Educators and Admins: the courses they may edit, from Studio's summaries of every course. */
 export function editableCourseSource(
   data: Pick<StudioData, 'listLiveCourses'>,
   uid: string,

@@ -1,4 +1,4 @@
-import type { AnswerKeys, Course, CourseAccess, Question } from '@gurukul/schema';
+import type { AnswerKeys, Course, CourseAccess, CourseListing, Question } from '@gurukul/schema';
 
 /** `courses/{id}/drafts/current`, with dates as `Date`. */
 export interface DraftDoc {
@@ -56,8 +56,8 @@ export interface StudioData {
    * Remembered for five minutes per person; `forgetCourses` and `saveDraft` drop it.
    */
   listCourses(uid: string, admin: boolean): Promise<StudioCourse[]>;
-  /** Only the live course documents: one query, no drafts or stats. Enough for titles. */
-  listLiveCourses(): Promise<Course[]>;
+  /** The summary of every course, never-published ones included: no course, draft or stats is read. Enough for titles. */
+  listLiveCourses(): Promise<CourseListing[]>;
   /** Drops the remembered `listCourses` lists; called when this tab changes what they show. */
   forgetCourses(): Promise<void>;
   /** Who may open the live course (`visibility`, `visibleTeamIds`); public when it says nothing. */

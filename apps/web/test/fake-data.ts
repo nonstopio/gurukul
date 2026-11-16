@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import type { Course, UploadLimits } from '@gurukul/schema';
+import { summariseCourse } from '@gurukul/schema';
+import type { Course, CourseListing, UploadLimits } from '@gurukul/schema';
 import type {
   AssignmentRow,
   AttemptRow,
@@ -114,6 +115,9 @@ export function makeCourse(over: Partial<Course> = {}): Course {
   } as Course;
 }
 
+/** A course as a list returns it: its summary, as the `onCourseWritten` function would write it. */
+export const listing = (course: Course): CourseListing => summariseCourse(course) as CourseListing;
+
 /** In-memory LearnerData. `emitProgress` pushes a document to every watcher; `failProgress` fails them. */
 export function fakeData(
   init: {
@@ -135,7 +139,7 @@ export function fakeData(
   const watchers: Array<(p: ProgressRow | null) => void> = [];
   const failers: Array<(e: Error) => void> = [];
   const data: LearnerData = {
-    listCourses: vi.fn().mockResolvedValue(courses),
+    listCourses: vi.fn().mockResolvedValue(courses.map(listing)),
     getCourse: vi.fn(async (id: string) => courses.find((c) => c.id === id) ?? null),
     myAssignments: vi.fn().mockResolvedValue(init.assignments ?? []),
     myProgress: vi.fn().mockResolvedValue(init.progress ?? []),

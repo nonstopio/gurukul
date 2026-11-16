@@ -18,7 +18,7 @@ import {
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
 import { teamId } from '@gurukul/schema';
-import type { Course } from '@gurukul/schema';
+import type { CourseListing } from '@gurukul/schema';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -121,7 +121,7 @@ export function LearnersPage() {
 
 interface Meta {
   assignments: AssignmentFull[];
-  courses: Course[];
+  courses: CourseListing[];
   teams: string[];
   total: number;
   /** Everyone in the newest, pending and overdue assignments, and the pending invites among them. */

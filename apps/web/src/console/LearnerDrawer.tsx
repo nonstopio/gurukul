@@ -9,9 +9,9 @@ import {
   TrashIcon,
   useToast,
 } from '@gurukul/ui';
-import type { Course } from '@gurukul/schema';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
+import { useLearnerData } from '../data/DataProvider';
 import type { CertificateRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
@@ -56,11 +56,12 @@ export function LearnerDrawer({
   onClose,
 }: {
   row: LearnerRow;
-  courses: readonly Course[];
+  courses: readonly { id: string; title: string }[];
   now: Date;
   onClose: () => void;
 }) {
   const { data, service } = useConsole();
+  const learner = useLearnerData();
   const toast = useToast();
   const [reload, setReload] = useState(0);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -74,7 +75,16 @@ export function LearnerDrawer({
         uid ? data.progressFor([uid]) : [],
         uid ? data.certificatesFor(uid) : ([] as CertificateRow[]),
       ]);
-      const list = drawerCourses(assignments, progress, courses, now);
+      // Quiz titles are in the course itself: read only the courses this person attempted one in.
+      const attempted = progress.filter((p) => Object.values(p.quiz).some((r) => r.attempts > 0));
+      const outlines = await Promise.all(attempted.map((p) => learner.getCourse(p.courseId)));
+      const list = drawerCourses(
+        assignments,
+        progress,
+        courses,
+        now,
+        outlines.filter((c) => c !== null),
+      );
       const attempts = new Map<string, AttemptSummary[]>();
       await Promise.all(
         list.flatMap((c) =>
@@ -87,7 +97,7 @@ export function LearnerDrawer({
         ),
       );
       return { list, attempts, certificates, reload };
-    }, [data, row.uid, row.email, courses, now, reload]),
+    }, [data, learner, row.uid, row.email, courses, now, reload]),
   );
   const act = async (task: () => Promise<unknown>, done: string, action: string) => {
     try {

@@ -1,17 +1,29 @@
 import { courseImage, isItemDone, itemsOf, progressPercent, resumeItemId } from '@gurukul/schema';
-import type { Course, Item } from '@gurukul/schema';
+import type { Course, CourseListing, Item } from '@gurukul/schema';
 import type { AssignmentRow, CertificateRow, ProgressRow } from '../data/types';
 import type { Terms } from '../labels/terms';
 
 export interface AssignedCourse {
   assignment: AssignmentRow;
-  course: Course;
+  course: CourseListing;
   progress: ProgressRow | null;
 }
 
 /** 0–100 for a course, from the same helper the function uses, so the UI matches what is stored. */
-export function percentFor(course: Course, progress: ProgressRow | null): number {
-  return progress ? progressPercent(course, progress) : 0;
+export function percentFor(course: Course | CourseListing, progress: ProgressRow | null): number {
+  if (!progress) return 0;
+  if (!isListing(course)) return progressPercent(course, progress);
+  // ponytail: a list has the course's counts, not its item ids, so a lesson the learner finished
+  // and the course later dropped still counts here; the course page has the exact figure.
+  const total = course.lessons + course.quizzes;
+  const done =
+    progress.completedItemIds.length + Object.values(progress.quiz).filter((q) => q.passed).length;
+  return total === 0 ? 0 : Math.min(100, Math.round((done / total) * 100));
+}
+
+/** A course as a list has it (its summary: counts, no chapters), not the course object. */
+export function isListing(course: Course | CourseListing): course is CourseListing {
+  return typeof course.chapters === 'number';
 }
 
 /** An archived course: learners keep their progress and certificate, but its Quizzes are closed. */
@@ -23,7 +35,10 @@ export function isRetired(course: Pick<Course, 'status'>): boolean {
  * Finished once, and the course has since gained lessons: the certificate stays, the percent drops
  * below 100 against the current course.
  */
-export function hasNewLessons(course: Course, progress: ProgressRow | null): boolean {
+export function hasNewLessons(
+  course: Course | CourseListing,
+  progress: ProgressRow | null,
+): boolean {
   return progress?.completedAt != null && percentFor(course, progress) < 100;
 }
 
@@ -85,10 +100,10 @@ export function videoMeta(video: {
 }
 
 /** The course to "continue": the most recently active one that is started but not finished. */
-export function continueCourse(
-  courses: readonly Course[],
+export function continueCourse<C extends { id: string }>(
+  courses: readonly C[],
   progress: readonly ProgressRow[],
-): { course: Course; progress: ProgressRow } | null {
+): { course: C; progress: ProgressRow } | null {
   const active = progress
     .filter((p) => p.completedAt === null)
     .sort((a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0));
@@ -139,9 +154,11 @@ export function shownName(displayName: string | null | undefined, email: string)
  * The picture for a course's tile: its cover image, else the first image in its lessons, in reading
  * order. A course with no picture gets none, and its tile shows the course name on its own colour.
  */
-export const courseImageUrl = courseImage;
+export const courseImageUrl = (course: Pick<Course, 'chapters' | 'cover'> | CourseListing) =>
+  'summaryVersion' in course ? course.image : courseImage(course);
 
-export function countItems(course: Pick<Course, 'chapters'>) {
+export function countItems(course: Pick<Course, 'chapters'> | CourseListing) {
+  if ('summaryVersion' in course) return { lessons: course.lessons, quizzes: course.quizzes };
   const items = itemsOf(course);
   return {
     lessons: items.filter((i) => i.type === 'lesson').length,
@@ -187,13 +204,15 @@ export interface Activity {
 }
 
 /**
+ * `quiz` is the person's word for a Quiz.
  * The newest events across my progress and certificates (no separate log in v1): finishing a
  * course, a certificate, a Quiz attempt, last activity in a course still open.
  */
 export function recentActivity(
-  courses: readonly Course[],
+  courses: readonly CourseListing[],
   progress: readonly ProgressRow[],
   certificates: readonly CertificateRow[],
+  quiz: string,
   limit = 5,
 ): Activity[] {
   const events: Activity[] = [];
@@ -223,13 +242,13 @@ export function recentActivity(
         at: p.lastActiveAt,
       });
     }
+    // A list knows the course, not its Quizzes' titles: the event names the course.
     for (const [quizId, result] of Object.entries(p.quiz)) {
-      const title = itemsOf(course).find((i) => i.id === quizId)?.title;
-      if (!title || !result.lastAttemptAt) continue;
+      if (!result.lastAttemptAt) continue;
       events.push({
         id: `quiz-${course.id}-${quizId}`,
         kind: 'quiz',
-        text: `${result.passed ? 'Passed' : 'Attempted'} ${title}`,
+        text: `${result.passed ? 'Passed' : 'Attempted'} a ${quiz} in ${course.title}`,
         at: result.lastAttemptAt,
       });
     }

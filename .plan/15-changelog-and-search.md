@@ -44,15 +44,18 @@ title, and, for Admins, anyone who has signed in, by the start of their name or 
 - `npm run validate:navigation` fails if any route is unclassified or any page points nowhere.
   It runs in the build, in CI and in the `navigation-nudge` hook.
 - The dialog is `CommandPalette` in `packages/ui`, generic and fully keyboard-operable.
-- Records (courses and lessons) come from `RecordSource`s in `navigation/records.ts`, loaded once
-  when the palette first opens from the catalogue's own `listCourses` query, and ranked with the
-  pages. An empty query lists pages only.
+- Records come from `RecordSource`s in `navigation/records.ts`, loaded once when the palette first
+  opens and ranked with the pages. Courses: every course the person may open, team courses
+  included, from the catalogue's own `listCourses` (course summaries, `02-data-model.md`). Lessons:
+  those of the courses the person is taking, the five most recent, each read whole; lessons of a
+  course not started are not in search, because finding them would mean downloading every course.
+  An empty query lists pages only.
 - People (Admins only) come from a `RecordLookup`: the console's `searchUsers` (the roster
   read once per five minutes, matched in memory), run from two characters once typing pauses for 250 ms, newest answer
   only. A person opens `/admin/learners?learner=<uid>`, which opens their learner drawer.
-- Courses someone may edit (Educators and Admins) come from Studio's own `listCourses`,
-  the reads `/studio` makes, loaded with the other sources; drafts never published are included,
-  titled from the draft, and each opens the course editor. An Admin may edit every course, so
+- Courses someone may edit (Educators and Admins) come from the summaries of every course
+  (`listLiveCourses`), loaded with the other sources; drafts never published are included,
+  titled as they were created, and each opens the course editor. An Admin may edit every course, so
   finds every course.
 
 **Later (proposed, needs review):**

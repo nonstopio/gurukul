@@ -8,17 +8,18 @@ import {
   queryParams,
 } from '../src/learn/catalogue';
 import { minutesLeft, suggestions } from '../src/learn/hero';
-import { makeCourse, progressRow } from './fake-data';
+import { listing, makeCourse, progressRow } from './fake-data';
 
+const listed = (over: Parameters<typeof makeCourse>[0] = {}) => listing(makeCourse(over));
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) });
-const a = makeCourse({
+const a = listed({
   id: 'a',
   title: 'Alpha',
   summary: 'Git things',
   estimatedMinutes: 30,
   publishedAt: ts(1),
 });
-const b = makeCourse({
+const b = listed({
   id: 'b',
   title: 'Beta',
   summary: 'SQL',
@@ -89,8 +90,8 @@ describe('home hero helpers', () => {
     expect(minutesLeft(c, progressRow({ completedItemIds: ['l1', 'l2', 'l3', 'l4'] }))).toBe(0);
   });
   it('suggests up to three unstarted published courses, assigned ones first', () => {
-    const cs = ['a', 'b', 'c', 'd', 'e'].map((id) => makeCourse({ id }));
-    const retired = makeCourse({ id: 'r', status: 'archived' });
+    const cs = ['a', 'b', 'c', 'd', 'e'].map((id) => listed({ id }));
+    const retired = listed({ id: 'r', status: 'archived' });
     const assigned = [
       {
         assignment: {

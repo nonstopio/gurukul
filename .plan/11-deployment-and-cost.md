@@ -38,11 +38,15 @@ course and 62 KB for the Educator course, to draw two tiles, once per person eve
 (the list is cached that long), and no list went past 100 courses. Production has 5 courses and is
 expected to reach hundreds or a thousand: at 1,000 courses of about 75 KB that is 7.5 MB and 100
 reads for the first 100, with the other 900 never shown. Each course now also has a 0.5 KB summary
-(`02-data-model.md`, "Course summaries"), kept by a function. A page of 25 summaries is about 13 KB
-and 26 reads (25 documents and one count) whatever the number of courses; 200 people each opening
-Home and two catalogue pages a day is about 16,000 reads, a third of the free quota, and it does not
-grow with the catalogue. The nightly check that keeps summaries right costs two reads per course
-(2,000 at 1,000 courses). The lists move to summaries in tracker item `OPS-35`.
+(`02-data-model.md`, "Course summaries"), kept by a function, and the learner pages, the Admin
+pages and search read those: one read and 0.5 KB per course, plus one count, so 1,000 courses are
+1,001 reads and about 500 KB where 100 whole courses were 7.5 MB. The bytes no longer grow with
+lessons; the reads still grow with courses, as they did before. At 50 people a day each loading the
+list twice, that is 100 reads per course a day: about 400 courses fit in the free daily reads next
+to everything else, and 1,000 courses would cost about USD 0.03 a day. Before the catalogue passes
+a few hundred courses, lists read a page of 25 at a time (26 reads whatever the size): tracker item
+`OPS-37`. The nightly check that keeps summaries right costs two reads per course (2,000 at 1,000
+courses).
 
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
 tiers cover this volume only if stale container images are deleted. The `gcf-artifacts`

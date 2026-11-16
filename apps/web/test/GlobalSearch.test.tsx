@@ -9,6 +9,7 @@ import type {
   Role,
 } from '../src/navigation/types';
 import { fakeConsole, userRow } from './fake-console';
+import { fakeData, progressRow } from './fake-data';
 import { openApp } from './harness';
 import { axeViolations } from './axe';
 
@@ -300,8 +301,8 @@ describe('GlobalSearchProvider people lookups', () => {
 });
 
 describe('global search in the app', () => {
-  it('finds a lesson of a published course and opens it', async () => {
-    const { router, data } = await openApp('/');
+  it('finds a lesson of a course the person is taking and opens it', async () => {
+    const { router, data } = await openApp('/', { data: fakeData({ progress: [progressRow()] }) });
     fireEvent.click(await screen.findByRole('button', { name: /Search/ }));
     await act(async () => {});
     expect(data.data.listCourses).toHaveBeenCalled();

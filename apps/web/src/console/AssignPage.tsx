@@ -31,7 +31,7 @@ import { useAudience } from '../data/useAudience';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { useAnalytics } from '../analytics/react/context';
-import { Loaded } from '../learn/ui';
+import { CourseLimitNotice, Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
 import { LeavePrompt } from './LeavePrompt';
 import type { AssignResult, KnownEmails } from './types';
@@ -127,7 +127,7 @@ export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
         (c) =>
           c.status === 'published' &&
           // A Manager may not assign a staff-only course or the one that makes Educators.
-          (!forTeams || ((c.visibility ?? 'public') !== 'staff' && c.id !== EDUCATOR_COURSE_ID)),
+          (!forTeams || (c.visibility !== 'staff' && c.id !== EDUCATOR_COURSE_ID)),
       );
     }, [learner, audience, forTeams]),
   );
@@ -341,6 +341,7 @@ export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
           setCoursePage(1);
         }}
       />
+      <CourseLimitNotice courses={courses} />
       <Loaded loadable={courseList}>
         {() =>
           courses.length === 0 ? (

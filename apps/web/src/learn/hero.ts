@@ -1,5 +1,5 @@
 import { isItemDone, itemsOf } from '@gurukul/schema';
-import type { Course } from '@gurukul/schema';
+import type { Course, CourseListing } from '@gurukul/schema';
 import type { ProgressRow } from '../data/types';
 import { orderAssigned } from './model';
 import type { AssignedCourse } from './model';
@@ -17,11 +17,11 @@ export function minutesLeft(course: Course, progress: ProgressRow): number {
  * person first (in Home order), then the rest as listed.
  */
 export function suggestions(
-  courses: readonly Course[],
+  courses: readonly CourseListing[],
   assigned: readonly AssignedCourse[],
   progress: readonly ProgressRow[],
   max = 3,
-): Course[] {
+): CourseListing[] {
   const started = new Set(progress.map((p) => p.courseId));
   const first = orderAssigned(assigned).map((a) => a.course);
   const rest = courses.filter((c) => !first.some((f) => f.id === c.id));

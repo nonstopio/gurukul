@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeCourse } from './fake-data';
+import { listing, makeCourse } from './fake-data';
 
 const store = vi.hoisted(() => ({
   docs: new Map<string, unknown>(),
@@ -10,6 +10,10 @@ const store = vi.hoisted(() => ({
   queries: [] as unknown[],
   setError: undefined as unknown,
   createdByRival: false,
+  /** `courseSummaries` documents; `null` means every readable course in `queryDocs` has its summary. */
+  summaries: null as null | Array<{ id: string; data: () => unknown }> | Error,
+  /** What counting `courses` answers; `null` means the number of `queryDocs`. */
+  count: null as null | number | Error,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -21,9 +25,22 @@ vi.mock('firebase/firestore', () => ({
     exists: () => store.docs.has(ref.path),
     data: () => store.docs.get(ref.path),
   }),
-  getDocs: async (q: unknown) => {
+  getCountFromServer: async () => {
+    if (store.count instanceof Error) throw store.count;
+    return { data: () => ({ count: store.count ?? store.queryDocs.length }) };
+  },
+  getDocs: async (q: { parts: Array<{ collection?: string }> }) => {
     store.queries.push(q);
-    return { docs: store.queryDocs };
+    if (q.parts[0]?.collection !== 'courseSummaries') return { docs: store.queryDocs };
+    if (store.summaries instanceof Error) throw store.summaries;
+    return {
+      docs:
+        store.summaries ??
+        store.queryDocs.flatMap((d) => {
+          const summary = summariseCourse(d.data());
+          return summary ? [{ id: d.id, data: () => summary }] : [];
+        }),
+    };
   },
   limit: (n: number) => ({ limit: n }),
   onSnapshot: (_ref: unknown, cb: (s: unknown) => void, onError: (e: Error) => void) => {
@@ -47,7 +64,9 @@ vi.mock('firebase/firestore', () => ({
   where: (f: string, op: string, v: unknown) => ({ where: [f, op, v] }),
 }));
 
+import { summariseCourse } from '@gurukul/schema';
 import { COURSE_TTL_MS, firebaseLearnerData } from '../src/data/firebase';
+import { SUMMARY_LIMIT, isCut } from '../src/data/limits';
 
 let data = firebaseLearnerData({} as never);
 const ts = (ms: number) => ({ toDate: () => new Date(ms), toMillis: () => ms });
@@ -61,6 +80,102 @@ beforeEach(() => {
   store.setError = undefined;
   store.createdByRival = false;
   store.queries = [];
+  store.summaries = null;
+  store.count = null;
+});
+
+const collections = () =>
+  (store.queries as { parts: { collection?: string }[] }[]).map((q) => q.parts[0]?.collection);
+
+describe('course listings read summaries, never whole courses', () => {
+  const git = () => ({ id: 'git', data: () => listing({ ...course(), publishedAt: ts(1) }) });
+
+  it('reads only `courseSummaries` when every course has its summary', async () => {
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    const listed = await data.listCourses();
+    expect(listed).toEqual([expect.objectContaining({ id: 'git', lessons: 4, quizzes: 1 })]);
+    expect(listed[0]).not.toHaveProperty('description');
+    expect(collections()).toEqual(['courseSummaries']);
+  });
+
+  it('reads the whole courses when a summary is missing, so no course goes missing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const sql = { ...course(), id: 'sql', title: 'SQL', publishedAt: ts(9) };
+    store.queryDocs = [
+      { id: 'git', data: () => course() },
+      { id: 'sql', data: () => sql },
+    ];
+    // Before the backfill there is no summary at all; after one publish, only that course's.
+    for (const summaries of [[], [git()]]) {
+      store.queries = [];
+      store.summaries = summaries;
+      const listed = await firebaseLearnerData({} as never).listCourses();
+      expect(listed.map((c) => c.id)).toEqual(['sql', 'git']);
+      expect(collections()).toEqual(['courseSummaries', 'courses']);
+    }
+    expect(warn).toHaveBeenCalledWith('Course summaries incomplete, whole courses read', {
+      count: 1,
+      expected: 2,
+    });
+    warn.mockRestore();
+  });
+
+  it('keeps a summary the whole-course read did not return, and prefers the course over its summary', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const old = listing({ ...course(), id: 'old', title: 'Old', publishedAt: ts(0) });
+    const stale = listing({ ...course(), title: 'Before the rename', publishedAt: ts(1) });
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    store.summaries = [
+      { id: 'old', data: () => old },
+      { id: 'git', data: () => stale },
+    ];
+    store.count = 3;
+    const listed = await data.listCourses();
+    expect(listed.map((c) => [c.id, c.title])).toEqual([
+      ['git', 'Git, the NonStop Way'],
+      ['old', 'Old'],
+    ]);
+    warn.mockRestore();
+  });
+
+  it('reads the whole courses when the summaries cannot be read at all', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    store.summaries = new Error('permission-denied');
+    expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+    expect(warn).toHaveBeenCalledWith('Course summaries incomplete, whole courses read', {
+      count: null,
+      expected: 1,
+    });
+    warn.mockRestore();
+  });
+
+  it('trusts the summaries when the courses cannot be counted (offline)', async () => {
+    store.summaries = [git()];
+    store.count = new Error('unavailable');
+    expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+    expect(collections()).toEqual(['courseSummaries']);
+  });
+
+  it('skips a summary it cannot read, and then reads the whole courses for what is missing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    store.queryDocs = [{ id: 'git', data: () => course() }];
+    store.summaries = [{ id: 'git', data: () => ({ title: 'half a summary' }) }];
+    expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);
+    expect(warn).toHaveBeenCalledWith('Unreadable course summary skipped', { courseId: 'git' });
+    warn.mockRestore();
+  });
+
+  it('does not count past the limit a list reads, and says when a list is cut', async () => {
+    store.summaries = [git()];
+    store.count = SUMMARY_LIMIT + 50;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await data.listCourses();
+    expect(collections()).toEqual(['courseSummaries', 'courses']);
+    warn.mockRestore();
+    expect(isCut(Array.from({ length: SUMMARY_LIMIT }))).toBe(true);
+    expect(isCut([1, 2])).toBe(false);
+  });
 });
 
 describe('firebaseLearnerData', () => {
@@ -147,7 +262,8 @@ describe('firebaseLearnerData', () => {
 
   it('does not keep a failed listing, so Retry asks again', async () => {
     const getDocs = vi.spyOn(await import('firebase/firestore'), 'getDocs');
-    getDocs.mockRejectedValueOnce(new Error('offline'));
+    // The summaries fail, and so do the whole courses read in their place.
+    getDocs.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('offline'));
     await expect(data.listCourses()).rejects.toThrow('offline');
     store.queryDocs = [{ id: 'git', data: () => course() }];
     expect((await data.listCourses()).map((c) => c.id)).toEqual(['git']);

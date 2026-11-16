@@ -3,10 +3,22 @@ import type { Course, ItemState } from '@gurukul/schema';
 import { Link } from 'react-router';
 import { blockerBefore, itemPath, openItemLabel } from '../quiz/model';
 import type { PageWidth } from '@gurukul/ui';
+import { SUMMARY_LIMIT, isCut } from '../data/limits';
 import type { Loadable } from '../data/useAsync';
 import { useTerms } from '../labels/useTerms';
 import { ReportIssueLink } from '../ReportIssueLink';
 import { codesOf } from '../report';
+
+/** Says so when a list of courses reached the most one list reads, so none is left out silently. */
+export function CourseLimitNotice({ courses }: { courses: readonly unknown[] }) {
+  return isCut(courses) ? (
+    <Callout tone="warning" title="Not every course is listed">
+      <p>
+        {`A list holds ${SUMMARY_LIMIT.toLocaleString('en-IN')} courses at most. A course missing here still opens from its link or from an assignment.`}
+      </p>
+    </Callout>
+  ) : null;
+}
 
 /** The shared loading, error and ready handling every data screen uses. */
 export function Loaded<T>({

@@ -108,7 +108,7 @@ describe('firestoreSummaryStore', () => {
         id: 'git-basics',
         title: 'Git basics',
         visibility: 'public',
-        summaryVersion: 1,
+        summaryVersion: 2,
         courseUpdatedAt: expect.objectContaining({ ms: 7 }),
       }),
     );
@@ -116,7 +116,7 @@ describe('firestoreSummaryStore', () => {
   });
 
   it('leaves a summary already derived from this state of the course alone', async () => {
-    const current = snap('git-basics', { summaryVersion: 1, courseUpdatedAt: time(7) });
+    const current = snap('git-basics', { summaryVersion: 2, courseUpdatedAt: time(7) });
     const { db, tx } = dbWith(
       { 'git-basics': snap('git-basics', live(), 7) },
       { 'git-basics': current },
@@ -126,7 +126,7 @@ describe('firestoreSummaryStore', () => {
   });
 
   it('deletes the summary of a course that is gone or unreadable, once', async () => {
-    const stored = snap('gone', { summaryVersion: 1 });
+    const stored = snap('gone', { summaryVersion: 2 });
     const { db, tx } = dbWith({ broken: snap('broken', { title: 'x' }, 1) }, { gone: stored });
     expect(await firestoreSummaryStore(db).sync('gone')).toBe('deleted');
     expect(tx.delete).toHaveBeenCalledWith('courseSummaries/gone');
@@ -145,12 +145,12 @@ describe('firestoreSummaryStore', () => {
         timeless: snap('timeless', {}),
       },
       {
-        fresh: snap('fresh', { summaryVersion: 1, courseUpdatedAt: time(5) }),
-        older: snap('older', { summaryVersion: 1, courseUpdatedAt: time(4) }),
+        fresh: snap('fresh', { summaryVersion: 2, courseUpdatedAt: time(5) }),
+        older: snap('older', { summaryVersion: 2, courseUpdatedAt: time(4) }),
         versioned: snap('versioned', { summaryVersion: 0, courseUpdatedAt: time(5) }),
-        unstamped: snap('unstamped', { summaryVersion: 1 }),
-        timeless: snap('timeless', { summaryVersion: 1, courseUpdatedAt: time(5) }),
-        orphan: snap('orphan', { summaryVersion: 1, courseUpdatedAt: time(5) }),
+        unstamped: snap('unstamped', { summaryVersion: 2 }),
+        timeless: snap('timeless', { summaryVersion: 2, courseUpdatedAt: time(5) }),
+        orphan: snap('orphan', { summaryVersion: 2, courseUpdatedAt: time(5) }),
       },
     );
     expect(await firestoreSummaryStore(db).stale()).toEqual([
