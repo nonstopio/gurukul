@@ -15,7 +15,13 @@ export function LeaveGuard({ draft }: { draft: Pick<DraftApi, 'save' | 'saveNow'
   useEffect(() => {
     current.current = draft.save;
   });
-  const blocker = useBlocker(() => current.current !== 'saved' && current.current !== 'saving');
+  // A move within the same page (the `?tab=` switch) leaves nothing behind, so it never asks.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      currentLocation.pathname !== nextLocation.pathname &&
+      current.current !== 'saved' &&
+      current.current !== 'saving',
+  );
   const [asking, setAsking] = useState(false);
   const { state, proceed } = blocker;
   const { saveNow } = draft;

@@ -130,6 +130,18 @@ describe('Unsaved edits in the course editor', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/studio'));
   });
 
+  it('switches tab without asking when the draft cannot be saved, and keeps the draft', async () => {
+    const { router, studio } = await open();
+    studio.data.saveDraft = vi.fn().mockRejectedValue(new Error('offline'));
+    await edit('Kept here');
+    await screen.findByRole('button', { name: 'retry' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Landing page' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?tab=landing'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Kept here' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
+  });
+
   it('warns as the course nears the size limit and still saves', async () => {
     const { studio } = await open();
     await edit('x'.repeat(COURSE_BYTES_WARN));
