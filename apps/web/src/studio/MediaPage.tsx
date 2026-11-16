@@ -16,19 +16,16 @@ import {
   useToast,
 } from '@gurukul/ui';
 import type { MediaKind } from '@gurukul/ui';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { useSession, useUser } from '../auth/AuthProvider';
-import { useAsync } from '../data/useAsync';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { pageFor } from '../paging';
-import { useStudio } from './StudioProvider';
+import { CoursePicker, useStudioCourse } from './useStudioCourse';
 import {
   UPLOADED,
   collectMedia,
-  courseCount,
   filterMedia,
   galleryKind,
   mediaName,
@@ -45,21 +42,13 @@ const keyOf = (e: MediaEntry) => `${e.kind} ${e.url}`;
  * preview for images, search, a type filter (with Uploaded for files Gurukul hosts, and their size) and a detail drawer to copy the link.
  */
 export function MediaPage() {
-  const { data } = useStudio();
-  const { uid } = useUser();
-  const admin = useSession().roles.includes('admin');
   const toast = useToast();
   const t = useTerms();
   const [search, setSearch] = useState('');
   const [type, setType] = useState<MediaKind | 'all' | typeof UPLOADED>('all');
   const [open, setOpen] = useState<MediaEntry | null>(null);
   const [page, setPage] = useState(1);
-  const result = useAsync(
-    useCallback(
-      () => data.listCourses(uid, admin).then((rows) => collectMedia(rows)),
-      [data, uid, admin],
-    ),
-  );
+  const { picked, pick } = useStudioCourse();
 
   const copy = async (url: string) => {
     try {
@@ -76,7 +65,7 @@ export function MediaPage() {
       <PageHeader
         eyebrow={t.Studio}
         title="Media library"
-        lead="Every video, image, PDF and embed your courses link to, so you can reuse it."
+        lead="Every video, image, PDF and embed a course links to, so you can reuse it. Pick the course to look in."
       />
       <Callout tone="note" title="Add media in a lesson">
         <p>
@@ -84,9 +73,10 @@ export function MediaPage() {
           tagged Uploaded; pick the Uploaded type to see only those.
         </p>
       </Callout>
-      <Loaded loadable={result}>
-        {(entries) => {
-          if (entries.length === 0) {
+      <Loaded loadable={picked}>
+        {(course) => {
+          const entries = collectMedia(course.rows);
+          if (course.courses.length === 0) {
             return (
               <EmptyState
                 title="No media yet"
@@ -116,6 +106,13 @@ export function MediaPage() {
                   setPage(1);
                 }}
               >
+                <CoursePicker
+                  picked={course}
+                  onPick={(id) => {
+                    pick(id);
+                    setPage(1);
+                  }}
+                />
                 <Input
                   label="Search media"
                   hideLabel
@@ -147,7 +144,12 @@ export function MediaPage() {
                   ))}
                 </Select>
               </FilterBar>
-              {found.length === 0 ? (
+              {entries.length === 0 ? (
+                <EmptyState headingAs="h2" title="No media in this course">
+                  Videos, images, embeds and files added to its lessons are listed here. Pick
+                  another course to look there.
+                </EmptyState>
+              ) : found.length === 0 ? (
                 <EmptyState headingAs="h2" title="No media matches">
                   Clear the search or pick another type.
                 </EmptyState>
@@ -194,7 +196,6 @@ function Detail({
   onCopy: (url: string) => Promise<void>;
 }) {
   const kind = galleryKind(entry);
-  const n = courseCount(entry);
   return (
     <Dialog
       open
@@ -210,7 +211,7 @@ function Detail({
       <div className="sc-media__detail">
         <MediaPreview kind={kind} url={entry.url} size="large" />
         <p className="sc-help">
-          {mediaKindName(kind)} · {uploadedText(entry)}used in {n} {n === 1 ? 'course' : 'courses'}
+          {mediaKindName(kind)} · {uploadedText(entry)}used {usedText(entry)}
         </p>
         <p className="sc-media__url">{entry.url}</p>
         <ul className="sc-media__uses" aria-label="Where it is used">

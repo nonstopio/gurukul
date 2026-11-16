@@ -255,10 +255,10 @@ describe('Media library', () => {
     { type: 'file', id: 'z', url: 'https://x.test/data.zip', label: 'Data' },
     { type: 'embed', id: 'e', url: 'https://www.example.com/demo', title: '' },
   ];
+  // The course in hand is the first the person may edit: `two`, listed before `git`.
   const galleryRows = () => [
-    ...rows(),
     {
-      live: makeCourse({ id: 'two', title: 'Two' }),
+      live: makeCourse({ id: 'two', title: 'Two', educatorIds: ['u1'] }),
       draft: draftDoc(
         makeCourse({
           id: 'two',
@@ -268,15 +268,19 @@ describe('Media library', () => {
             {
               id: 'p',
               title: 'P',
-              items: [lesson('l9', { title: 'Nine', blocks: [...blocks, ...gallery] })],
+              items: [
+                lesson('l9', { title: 'Nine', blocks: [...blocks, ...gallery] }),
+                lesson('l10', { title: 'Ten', blocks: [blocks[0]] }),
+              ],
             },
           ],
         }),
       ),
     },
+    ...rows(),
   ];
 
-  it('shows a tile per link with its type and how many courses use it', async () => {
+  it('shows a tile per link of the course in hand, with its type and how many lessons use it', async () => {
     await openApp('/studio/media', {
       roles: ['educator'],
       studio: fakeStudio({ courses: galleryRows() }),
@@ -284,9 +288,9 @@ describe('Media library', () => {
     });
     const tiles = await screen.findByRole('list', { name: 'Media' });
     expect(tiles.querySelectorAll('img')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /youtu\.be\/a.*Video · in 2 courses/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Diagram.*Image · in 2 courses/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Guide.*PDF · in 1 course/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /youtu\.be\/a.*Video · in 2 lessons/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Diagram.*Image · in 1 lesson/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Guide.*PDF · in 1 lesson/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Hello.*Audio/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Data.*File/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /example\.com\/demo.*Embed/ })).toBeTruthy();
@@ -356,7 +360,7 @@ describe('Media library', () => {
     });
     fireEvent.click(await screen.findByRole('button', { name: /Diagram/ }));
     const drawer = screen.getByRole('dialog', { name: 'Diagram' });
-    expect(drawer.textContent).toContain('Image · used in 1 course');
+    expect(drawer.textContent).toContain('Image · used in 1 lesson');
     expect(drawer.textContent).toContain('https://x.test/a.png');
     expect(drawer.querySelector('img')?.getAttribute('src')).toBe('https://x.test/a.png');
     expect(
@@ -367,13 +371,13 @@ describe('Media library', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('says "courses" in the drawer when a link is used in more than one', async () => {
+  it('says "lessons" in the drawer when a link is used in more than one', async () => {
     await openApp('/studio/media', {
       roles: ['educator'],
       studio: fakeStudio({ courses: galleryRows() }),
     });
     fireEvent.click(await screen.findByRole('button', { name: /youtu\.be\/a/ }));
-    expect(screen.getByRole('dialog').textContent).toContain('Video · used in 2 courses');
+    expect(screen.getByRole('dialog').textContent).toContain('Video · used in 2 lessons');
   });
 
   it('copies a link, and reports when it cannot', async () => {
@@ -462,13 +466,13 @@ describe('Media library', () => {
     });
     expect(
       await screen.findByRole('button', {
-        name: /Shot one.*Image · Uploaded · 420 KB · in 1 course/,
+        name: /Shot one.*Image · Uploaded · 420 KB · in 2 lessons/,
       }),
     ).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: /Guide.*PDF · Uploaded · 1\.5 MB · in 1 course/ }),
+      screen.getByRole('button', { name: /Guide.*PDF · Uploaded · 1\.5 MB · in 1 lesson/ }),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Linked.*Image · in 1 course/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Linked.*Image · in 1 lesson/ })).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -484,8 +488,54 @@ describe('Media library', () => {
     expect(screen.getByText('2 of 3')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Shot one/ }));
     expect(screen.getByRole('dialog', { name: 'Shot one' }).textContent).toContain(
-      'Image · Uploaded · 420 KB · used in 1 course',
+      'Image · Uploaded · 420 KB · used in 2 lessons',
     );
+  });
+
+  it('looks in one course at a time: the dropdown picks another, read whole only then', async () => {
+    const seen = makeCourse({
+      id: 'seen',
+      title: 'Seen',
+      educatorIds: ['x'],
+      chapters: [{ id: 'p', title: 'P', items: [lesson('l1', { blocks: [blocks[1]] })] }],
+    });
+    const data = fakeData({ courses: [seen] });
+    const studio = fakeStudio({
+      courses: [
+        ...galleryRows(),
+        { live: seen, draft: null },
+        { live: makeCourse({ id: 'gone', title: 'Gone', educatorIds: ['x'] }), draft: null },
+      ],
+    });
+    const app = await openApp('/studio/media', { roles: ['educator'], studio, data });
+    await screen.findByRole('button', { name: /Guide/ });
+    // Only the course in hand was read: its draft, because this person may edit it.
+    expect(vi.mocked(studio.data.getDraft).mock.calls).toEqual([['two']]);
+    expect(data.data.getCourse).not.toHaveBeenCalled();
+
+    // A course of someone else: the published course is read, not its draft.
+    choose(screen.getByRole('combobox', { name: 'Course' }), 'Seen');
+    expect(
+      await screen.findByRole('button', { name: /Diagram.*Image · in 1 lesson/ }),
+    ).toBeTruthy();
+    expect(app.router.state.location.search).toBe('?course=seen');
+    expect(data.data.getCourse).toHaveBeenCalledWith('seen');
+    expect(studio.data.getDraft).toHaveBeenCalledTimes(1);
+
+    // One that cannot be read shows nothing, and the dropdown is still there to move on.
+    choose(screen.getByRole('combobox', { name: 'Course' }), 'Gone');
+    expect(await screen.findByRole('heading', { name: 'No media in this course' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Course' })).toBeTruthy();
+  });
+
+  it('starts on the first course when the person may edit none', async () => {
+    const seen = makeCourse({ id: 'seen', title: 'Seen', educatorIds: ['x'] });
+    const data = fakeData({ courses: [seen] });
+    const studio = fakeStudio({ courses: [{ live: seen, draft: null }] });
+    await openApp('/studio/media', { roles: ['educator'], studio, data });
+    expect(await screen.findByRole('heading', { name: 'No media in this course' })).toBeTruthy();
+    expect(data.data.getCourse).toHaveBeenCalledWith('seen');
+    expect(studio.data.getDraft).not.toHaveBeenCalled();
   });
 
   it('offers no Uploaded type when nothing is uploaded', async () => {
@@ -499,7 +549,7 @@ describe('Media library', () => {
 
   it('shows a loading state while the library loads', async () => {
     const studio = fakeStudio();
-    studio.data.listCourses = vi.fn().mockReturnValue(new Promise(() => {}));
+    studio.data.listLiveCourses = vi.fn().mockReturnValue(new Promise(() => {}));
     await openApp('/studio/media', { roles: ['educator'], studio });
     expect((await screen.findAllByText('Loading')).length).toBeGreaterThan(0);
   });
@@ -514,7 +564,7 @@ describe('Media library', () => {
 
   it('shows a failure', async () => {
     const studio = fakeStudio();
-    studio.data.listCourses = vi.fn().mockRejectedValue(new Error('x'));
+    studio.data.listLiveCourses = vi.fn().mockRejectedValue(new Error('x'));
     await openApp('/studio/media', { roles: ['educator'], studio });
     expect(await screen.findAllByText('This did not load')).not.toHaveLength(0);
   });

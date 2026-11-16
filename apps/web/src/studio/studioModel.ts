@@ -73,17 +73,17 @@ export function itemEditorPath(courseId: string, item: Pick<Item, 'id' | 'type'>
 
 export type CourseTab = 'all' | 'published' | 'drafts';
 
-export function tabCounts(rows: readonly StudioCourse[]): Record<CourseTab, number> {
+export function tabCounts(rows: readonly Pick<Course, 'status'>[]): Record<CourseTab, number> {
   return {
     all: rows.length,
-    published: rows.filter((r) => r.live.status === 'published').length,
-    drafts: rows.filter((r) => r.live.status === 'draft').length,
+    published: rows.filter((r) => r.status === 'published').length,
+    drafts: rows.filter((r) => r.status === 'draft').length,
   };
 }
 
-export function inTab(row: StudioCourse, tab: CourseTab): boolean {
+export function inTab(row: Pick<Course, 'status'>, tab: CourseTab): boolean {
   if (tab === 'all') return true;
-  return row.live.status === (tab === 'published' ? 'published' : 'draft');
+  return row.status === (tab === 'published' ? 'published' : 'draft');
 }
 
 /**
@@ -128,14 +128,6 @@ export function hasUnpublishedChanges(live: Course | null, work: Working): boole
     live === null ||
     work.answersChanged === true ||
     countUnpublished(diffCourses(live, work.course)) > 0
-  );
-}
-
-/** Edits the draft has that learners cannot see yet; null when there is no draft or nothing was ever published. */
-export function unpublishedEdits(row: StudioCourse): number | null {
-  if (!row.draft || row.live.version === 0) return null;
-  return (
-    countUnpublished(diffCourses(row.live, row.draft.course)) + (row.draft.answersChanged ? 1 : 0)
   );
 }
 
@@ -270,14 +262,10 @@ export function galleryKind(entry: Pick<MediaEntry, 'kind' | 'url' | 'upload'>):
 export const mediaName = (entry: MediaEntry): string =>
   entry.label === entry.url ? entry.url.replace(/^https?:\/\/(www\.)?/, '') : entry.label;
 
-/** In how many different courses an entry is used. */
-export const courseCount = (entry: MediaEntry): number =>
-  new Set(entry.usedIn.map((u) => u.courseId)).size;
-
-/** "in 3 courses" or "in 1 course", for a tile's second line. */
+/** "in 3 lessons" or "in 1 lesson" of the course in hand, for a tile's second line. */
 export function usedText(entry: MediaEntry): string {
-  const n = courseCount(entry);
-  return `in ${n} ${n === 1 ? 'course' : 'courses'}`;
+  const n = entry.usedIn.length;
+  return `in ${n} ${n === 1 ? 'lesson' : 'lessons'}`;
 }
 
 /** The "Uploaded" choice of the type filter: files Gurukul hosts, of any kind. */

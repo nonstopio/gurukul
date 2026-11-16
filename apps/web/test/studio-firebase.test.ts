@@ -6,6 +6,8 @@ const store = vi.hoisted(() => ({
   queue: [] as Array<Array<{ id: string; data: () => unknown }>>,
   queries: [] as unknown[][],
   writes: [] as unknown[][],
+  /** What a count answers: a number, or an error to throw. */
+  count: 7 as number | Error,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -20,7 +22,8 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   getCountFromServer: async (q: { parts: unknown[] }) => {
     store.queries.push(q.parts);
-    return { data: () => ({ count: 7 }) };
+    if (store.count instanceof Error) throw store.count;
+    return { data: () => ({ count: store.count }) };
   },
   getDoc: async (ref: { path: string }) => {
     if (store.docs.get(ref.path) instanceof Error) throw store.docs.get(ref.path);
@@ -74,6 +77,7 @@ const draft = (rev = 3) => ({
 });
 
 beforeEach(() => {
+  store.count = 7;
   data = firebaseStudioData({} as never);
   store.docs.clear();
   store.queue = [];
@@ -118,125 +122,110 @@ describe('listLiveCourses', () => {
   });
 });
 
-describe('listCourses remembered for five minutes', () => {
-  const reads = () => store.queries.length;
-
+describe('the course list remembered for five minutes', () => {
+  const summaries = () => [d('git', listing(live('git', ['u1'])))];
+  // One summaries query and one count of the courses each time the list is really read.
+  const reads = () => store.queries.length / 2;
+  beforeEach(() => {
+    store.count = 1;
+  });
   afterEach(() => vi.useRealTimers());
 
   it('asks once within the time and again after it', async () => {
     vi.useFakeTimers();
-    store.queue = [[d('git', live('git', ['u1']))], [d('git', live('git', ['u1']))]];
-    const first = await data.listCourses('u1', false);
-    expect(await data.listCourses('u1', false)).toBe(first);
+    store.queue = [summaries(), summaries()];
+    const first = await data.listLiveCourses();
+    expect(await data.listLiveCourses()).toBe(first);
     expect(reads()).toBe(1);
     vi.advanceTimersByTime(COURSE_TTL_MS + 1);
-    await data.listCourses('u1', false);
+    await data.listLiveCourses();
     expect(reads()).toBe(2);
-  });
-
-  it('never serves one person or role the list of another', async () => {
-    store.queue = [
-      [d('git', live('git', ['u1']))],
-      [d('git', live('git', ['u1']))],
-      [d('git', live('git', ['u1']))],
-    ];
-    await data.listCourses('u1', false);
-    await data.listCourses('u2', false);
-    await data.listCourses('u1', true);
-    expect(reads()).toBe(3);
   });
 
   it('does not keep a failed read', async () => {
-    store.queue = [[d('git', live('git', ['u1']))]];
-    store.docs.set('courses/git/drafts/current', 'not a draft');
-    await expect(data.listCourses('u1', false)).rejects.toThrow();
-    store.docs.set('courses/git/drafts/current', draft());
-    store.queue = [[d('git', live('git', ['u1']))]];
-    expect((await data.listCourses('u1', false))[0]?.draft?.rev).toBe(3);
-    expect(reads()).toBe(2);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const getDocs = vi.spyOn(await import('firebase/firestore'), 'getDocs');
+    // The summaries fail, and so do the whole courses read in their place.
+    getDocs.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('offline'));
+    await expect(data.listLiveCourses()).rejects.toThrow('offline');
+    getDocs.mockRestore();
+    store.queue = [summaries()];
+    expect((await data.listLiveCourses()).map((c) => c.id)).toEqual(['git']);
+    warn.mockRestore();
   });
 
   it('is dropped by forgetCourses', async () => {
-    store.queue = [[d('git', live('git'))], [d('git', live('git'))]];
-    await data.listCourses('k1', true);
+    store.queue = [summaries(), summaries()];
+    await data.listLiveCourses();
     await data.forgetCourses();
-    await data.listCourses('k1', true);
+    await data.listLiveCourses();
     expect(reads()).toBe(2);
   });
 
   it('is dropped by a saved draft, but not by one that conflicts', async () => {
-    store.queue = [[d('git', live('git'))], [d('git', live('git'))]];
+    store.queue = [summaries(), summaries()];
     store.docs.set('courses/git/drafts/current', draft(3));
-    await data.listCourses('k1', true);
+    await data.listLiveCourses();
     await expect(
       data.saveDraft('git', { course: makeCourse(), answers: {} }, 1, 'u1'),
     ).rejects.toBeInstanceOf(DraftConflictError);
-    await data.listCourses('k1', true);
+    await data.listLiveCourses();
     expect(reads()).toBe(1);
     await data.saveDraft('git', { course: makeCourse(), answers: {} }, 3, 'u1');
-    await data.listCourses('k1', true);
+    await data.listLiveCourses();
     expect(reads()).toBe(2);
+  });
+
+  it('reads the whole courses when a summary is missing, so an Educator never loses a course', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    store.count = 2;
+    store.queue = [
+      summaries(),
+      [d('git', live('git', ['u1'])), d('new', live('new', ['u1'], { status: 'draft' }))],
+    ];
+    expect((await data.listLiveCourses()).map((c) => c.id).sort()).toEqual(['git', 'new']);
+    expect(warn).toHaveBeenCalledWith('Course summaries incomplete, whole courses read', {
+      count: 1,
+      expected: 2,
+    });
+    warn.mockRestore();
   });
 });
 
-describe('listCourses', () => {
-  it('lets an Admin see everything and reads the draft of each course', async () => {
-    store.queue = [[d('git', live('git')), d('sql', live('sql', ['u9']))]];
-    store.docs.set('courses/git/drafts/current', draft());
-    const rows = await data.listCourses('k1', true);
-    expect(rows.map((r) => [r.live.id, r.draft?.rev ?? null])).toEqual([
-      ['git', 3],
-      ['sql', null],
-    ]);
-    expect(store.queries).toHaveLength(1);
-  });
-
-  it('shows an Educator every course, unpublished ones too, reading drafts only where they may edit', async () => {
-    store.queue = [
-      [
-        d('git', live('git', ['u1'])),
-        d('sql', live('sql', ['u9'])),
-        d('mine', live('mine', ['u1'], { status: 'draft' })),
-        d('theirs', live('theirs', ['u9'], { status: 'draft' })),
-      ],
-    ];
-    store.docs.set('courses/git/drafts/current', draft(2));
-    store.docs.set('courses/theirs/drafts/current', draft(5));
-    const rows = await data.listCourses('u1', false);
-    expect(rows.map((r) => r.live.id)).toEqual(['git', 'sql', 'mine', 'theirs']);
-    expect(rows.find((r) => r.live.id === 'git')?.draft?.rev).toBe(2);
-    expect(rows.find((r) => r.live.id === 'sql')?.draft).toBeNull();
-    expect(rows.find((r) => r.live.id === 'mine')?.draft).toBeNull();
-    expect(rows.find((r) => r.live.id === 'theirs')?.draft).toBeNull();
-    expect(store.queries).toHaveLength(1);
-    expect(store.queries[0]).not.toContainEqual(
-      expect.objectContaining({ where: expect.anything() }),
-    );
-  });
-
-  it('adds the learners who started a course the person may edit, and nothing for the rest', async () => {
-    store.queue = [
-      [d('git', live('git', ['u1'])), d('sql', live('sql', ['u9'])), d('new', live('new', ['u1']))],
-    ];
+describe('courseFacts, for one card of a course the person may edit', () => {
+  it('says the draft has unpublished edits from a count, reading no draft, and counts the learners', async () => {
+    store.count = 1;
     store.docs.set('stats/course_git', { started: 9 });
-    const rows = await data.listCourses('u1', false);
-    expect(rows.map((r) => r.learners)).toEqual([9, undefined, 0]);
+    const publishedAt = ts(5);
+    expect(await data.courseFacts('git', publishedAt)).toEqual({ edited: true, learners: 9 });
+    expect(store.queries).toEqual([
+      [{ collection: 'courses/git/drafts' }, { where: ['updatedAt', '>', publishedAt] }],
+    ]);
+    store.count = 0;
+    expect(await data.courseFacts('sql', ts(5))).toEqual({ edited: false, learners: 0 });
   });
 
-  it('leaves the learner count out when the stats cannot be read', async () => {
-    store.queue = [[d('git', live('git', ['u1']))]];
-    store.docs.set('stats/course_git', new Error('denied'));
-    const rows = await data.listCourses('u1', false);
-    expect(rows[0]).not.toHaveProperty('learners');
+  it('asks nothing about the draft of a course never published', async () => {
+    expect(await data.courseFacts('new', null)).toEqual({ edited: false, learners: 0 });
+    expect(store.queries).toEqual([]);
   });
 
-  it('skips a live course it cannot read instead of failing the whole list', async () => {
+  it('gives null for what it cannot read, and still the rest', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    store.queue = [[d('broken', { ...live('broken'), schemaVersion: 0 }), d('git', live('git'))]];
-    const rows = await data.listCourses('k1', true);
-    expect(rows.map((r) => r.live.id)).toEqual(['git']);
-    expect(warn).toHaveBeenCalledWith('Unreadable course skipped', { courseId: 'broken' });
+    store.count = new Error('denied');
+    store.docs.set('stats/course_git', new Error('denied'));
+    expect(await data.courseFacts('git', ts(5))).toEqual({ edited: null, learners: null });
+    expect(warn).toHaveBeenCalledWith('Reading the draft state failed', { courseId: 'git' });
     warn.mockRestore();
+  });
+
+  it('is remembered per course, and dropped with the list', async () => {
+    store.count = 0;
+    const first = data.courseFacts('git', ts(5));
+    expect(data.courseFacts('git', ts(5))).toBe(first);
+    expect(data.courseFacts('sql', ts(5))).not.toBe(first);
+    await data.forgetCourses();
+    expect(data.courseFacts('git', ts(5))).not.toBe(first);
   });
 });
 

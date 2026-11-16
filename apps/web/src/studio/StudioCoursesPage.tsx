@@ -14,22 +14,15 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
-import { countItems, courseImageUrl } from '../learn/model';
-import { Loaded } from '../learn/ui';
+import { courseImageUrl } from '../learn/model';
+import { CourseLimitNotice, Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { pageFor } from '../paging';
 import { useTabParam } from '../useTabParam';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
-import type { StudioCourse } from './types';
-import {
-  educatorSummary,
-  canEdit,
-  inTab,
-  relativeTime,
-  tabCounts,
-  unpublishedEdits,
-} from './studioModel';
+import type { CourseListing } from '@gurukul/schema';
+import { educatorSummary, canEdit, inTab, tabCounts } from './studioModel';
 import type { CourseTab } from './studioModel';
 
 const STATUS = {
@@ -45,10 +38,10 @@ export function StudioCoursesPage() {
   const admin = useSession().roles.includes('admin');
   const [creating, setCreating] = useState(false);
   const t = useTerms();
-  const [now] = useState(() => new Date());
-  const result = useAsync(useCallback(() => data.listCourses(uid, admin), [data, uid, admin]));
+  // Summaries only: no course and no draft is read until an editor opens.
+  const result = useAsync(useCallback(() => data.listLiveCourses(), [data]));
   const rows = result.state === 'ready' ? result.value : [];
-  const editable = rows.filter((r) => canEdit(r.live, uid, admin)).map((r) => r.live);
+  const editable = rows.filter((r) => canEdit(r, uid, admin));
 
   return (
     <Page width="wide">
@@ -60,13 +53,10 @@ export function StudioCoursesPage() {
       />
       <Loaded loadable={result}>
         {(list) => (
-          <CourseTabs
-            rows={list}
-            uid={uid}
-            admin={admin}
-            now={now}
-            onNew={() => setCreating(true)}
-          />
+          <>
+            <CourseLimitNotice courses={list} />
+            <CourseTabs rows={list} uid={uid} admin={admin} onNew={() => setCreating(true)} />
+          </>
         )}
       </Loaded>
       <NewCourseDialog open={creating} onClose={() => setCreating(false)} editable={editable} />
@@ -80,13 +70,11 @@ function CourseTabs({
   rows,
   uid,
   admin,
-  now,
   onNew,
 }: {
-  rows: StudioCourse[];
+  rows: CourseListing[];
   uid: string;
   admin: boolean;
-  now: Date;
   onNew: () => void;
 }) {
   const counts = tabCounts(rows);
@@ -112,7 +100,7 @@ function CourseTabs({
       <>
         <ul className="sc-grid">
           {paged.rows.map((row) => (
-            <CourseCard key={row.live.id} row={row} uid={uid} admin={admin} now={now} />
+            <CourseCard key={row.id} live={row} uid={uid} admin={admin} />
           ))}
           <li className="sc-new">
             <Button variant="secondary" onClick={onNew}>
@@ -147,58 +135,50 @@ function CourseTabs({
   );
 }
 
-function CourseCard({
-  row,
-  uid,
-  admin,
-  now,
-}: {
-  row: StudioCourse;
-  uid: string;
-  admin: boolean;
-  now: Date;
-}) {
-  const { live, draft } = row;
-  const shown = draft?.course ?? live;
+/**
+ * One course, drawn from its summary. For a course the person may edit, and only once its card is
+ * on screen, two small reads add what the summary cannot know: whether the draft has edits not yet
+ * published, and how many learners started it (`courseFacts`).
+ */
+function CourseCard({ live, uid, admin }: { live: CourseListing; uid: string; admin: boolean }) {
+  const { data } = useStudio();
   const status = STATUS[live.status];
   const editing = canEdit(live, uid, admin);
-  const edits = unpublishedEdits(row);
-  const shownCounts = countItems(shown);
   const t = useTerms();
-  const educators = educatorSummary(live, t);
-  const facts = editing
-    ? [
-        row.learners === undefined
-          ? null
-          : `${row.learners} ${row.learners === 1 ? t.learner : t.learners}`,
-        draft?.updatedAt ? `Edited ${relativeTime(draft.updatedAt, now)}` : null,
-      ].filter((f): f is string => f !== null)
-    : [];
+  const { id, publishedAt } = live;
+  const loaded = useAsync(
+    useCallback(
+      async () => (editing ? await data.courseFacts(id, publishedAt) : null),
+      [data, editing, id, publishedAt],
+    ),
+  );
+  const facts = loaded.state === 'ready' ? loaded.value : null;
+  const educators = educatorSummary({ ...live, educatorNames: live.educatorNames ?? {} }, t);
   return (
     <CourseTile
       as="li"
-      title={shown.title}
-      heading={editing ? <Link to={`/studio/courses/${live.id}`}>{shown.title}</Link> : shown.title}
-      image={courseImageUrl(shown)}
+      title={live.title}
+      heading={editing ? <Link to={`/studio/courses/${live.id}`}>{live.title}</Link> : live.title}
+      image={courseImageUrl(live)}
       theme={live.cover.theme}
       chips={
         <>
           <Chip tone={status.tone}>
             {live.status === 'published' ? `${status.label} · v${live.version}` : status.label}
           </Chip>
-          {editing && edits ? (
-            <Chip tone="warning">{`${edits} unpublished ${edits === 1 ? 'edit' : 'edits'}`}</Chip>
-          ) : null}
+          {facts?.edited ? <Chip tone="warning">Unpublished edits</Chip> : null}
         </>
       }
-      summary={`${shown.chapters.length} ${t.chapters} · ${shownCounts.lessons} lessons · ${shownCounts.quizzes} ${t.Quizzes}`}
+      summary={
+        live.status === 'draft'
+          ? 'Not published yet. Open it to see the draft.'
+          : `${live.chapters} ${t.chapters} · ${live.lessons} lessons · ${live.quizzes} ${t.Quizzes}`
+      }
       meta={
         editing ? (
-          facts.length > 0 ? (
+          facts && facts.learners !== null ? (
             <span className="sc-facts">
-              {facts.map((f) => (
-                <span key={f}>{f}</span>
-              ))}
+              <span>{`${facts.learners} ${facts.learners === 1 ? t.learner : t.learners}`}</span>
             </span>
           ) : null
         ) : (

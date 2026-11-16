@@ -71,10 +71,19 @@ worked there (checked in a browser at 768px, 680px and 640px).
   `setCourseAccess`, which applies it to the live course at once without a new version; on a course
   never published it is kept for the first publish. The publish dialog shows the current setting,
   says publishing keeps it, and links to the card. See `02-data-model.md` (Course visibility).
-- "2 unpublished edits" = diff count between draft and published: items added, removed or
-  changed, plus one for any course-level change. Only what publishing would change counts: the
-  draft is compared in today's schema, and the Educator list (always taken from the live course)
-  is ignored.
+- The course list (`/studio`) is drawn from course summaries (`02-data-model.md`, "Course
+  summaries"): it reads no course and no draft. So a card shows the **published** title, picture
+  and counts; a course never published shows the title it was created with and "Not published yet".
+  For each card on screen that the person may edit, two small reads add what a summary cannot know
+  (`courseFacts`): the learners who started it (its stats document) and an **Unpublished edits**
+  chip. The chip is a count of the course's drafts saved after `publishedAt`: one aggregation read,
+  no document, since a draft holds the whole course and its answer keys (for an Educator the rules
+  read the course once more to check they may edit it; an Admin needs no such read). A publish
+  leaves the draft's time alone and a rollback stamps draft and course with one time, so only a save
+  moves the draft past the publish. It says that the draft changed, not how much: the number of
+  edits (items added, removed or changed, plus one for a course-level change) is worked out in the
+  course editor, where both copies are loaded, and Publish there is still disabled when nothing
+  would change.
 - Preview as learner renders the **draft** in the real player, read-only progress.
 - Roll back: publish any snapshot from `versions/` as a new version.
 
@@ -126,10 +135,12 @@ stays in the Cloud Function.
   quiz** (pick a course and a Quiz from a draft the person can read, tick the
   questions, they are copied into the bank with their keys). Its empty state
   says why the bank exists and offers both.
-- It lists entries in a table: question, type, topic, **Used in** (the Quizzes,
-  among the courses the Studio already loaded, that hold a question with the
-  same text; a copy is not linked to its bank entry, so this is a text match,
-  and it costs no extra reads), and row actions Edit and Delete (with confirm).
+- It lists entries in a table: question, type, topic, **Used in** (the Quizzes of **one course**,
+  picked from a Course dropdown beside the search, that hold a question with the same text; a copy
+  is not linked to its bank entry, so this is a text match), and row actions Edit and Delete (with
+  confirm). Only the picked course is read: its draft when the person may edit it, else the
+  published course. Import from a Quiz offers the Quizzes of that same course. Looking across every
+  course at once would mean downloading every course and draft, which the page did before.
 - The creator or an Admin may edit an entry (`question`, `answers`, `tags`
   only) or delete it. A Quiz that already holds a copy keeps it.
 - Inserting a bank question into a Quiz is the Quiz builder's existing
@@ -137,7 +148,9 @@ stays in the Cloud Function.
 
 ## Media library
 
-v1 has no uploads. The "Media library" nav item lists the video and image
-links used across courses, to reuse them. Uploads of images and PDFs are planned in
+The "Media library" nav item lists the video, image and file links used in **one course**,
+picked from a Course dropdown (`?course=`; the first course the person may edit by default), to
+reuse them; each says how many lessons use it. Only that course is read: its draft when the person
+may edit it, else the published course. Uploads of images and PDFs are planned in
 `19-course-media-uploads.md` (Storage cost in `11-deployment-and-cost.md`); the library then
 gains an Uploaded filter and a picker to reuse a course's uploads.

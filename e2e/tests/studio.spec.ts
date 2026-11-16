@@ -46,7 +46,8 @@ test.describe('Educator in Studio', () => {
       .getByRole('link', { name: 'Studio' })
       .click();
     const card = page.getByRole('listitem').filter({ hasText: 'Testing for Everyone' });
-    await expect(card).toContainText('1 chapters · 1 lessons · 0 Quizzes');
+    // A card is drawn from the published course's summary: a draft's contents are read in its editor.
+    await expect(card).toContainText('Not published yet. Open it to see the draft.');
     await expect(card).toContainText('Draft');
     // Reached from the keyboard, the whole tile shows the focus ring (its overflow once clipped it).
     await card.getByRole('link', { name: 'Testing for Everyone' }).focus();

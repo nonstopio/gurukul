@@ -1,6 +1,6 @@
 import type { Course } from '@gurukul/schema';
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fakeConsole } from './fake-console';
 import { fakeData, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
@@ -27,7 +27,9 @@ const gurukul = (path: string, studio: ReturnType<typeof fakeStudio>) =>
 describe('Studio in Gurukul names', () => {
   it('names the courses page and its cards', async () => {
     const live = mine({ educatorIds: ['u1'] });
-    await gurukul('/studio', fakeStudio({ courses: [{ live, draft: null, learners: 1 }] }));
+    const studio = fakeStudio({ courses: [{ live, draft: null }] });
+    studio.data.courseFacts = vi.fn().mockResolvedValue({ edited: false, learners: 1 });
+    await gurukul('/studio', studio);
     expect(await screen.findByText('Build courses Parva by Parva.')).toBeTruthy();
     expect(await screen.findByText('1 Shishya')).toBeTruthy();
     expect(screen.getByText(/2 Parvas · 4 lessons · 1 Parikshas/)).toBeTruthy();

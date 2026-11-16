@@ -11,7 +11,7 @@ import { timestamp } from './timestamp';
  * Bump when `summariseCourse` derives something new or differently: the nightly reconcile rewrites
  * every summary stored at another version, so a deploy needs no hand-run backfill.
  */
-export const COURSE_SUMMARY_VERSION = 2;
+export const COURSE_SUMMARY_VERSION = 3;
 
 /**
  * `courseSummaries/{courseId}`: what a tile, a list row or a search result shows, so a list never
@@ -34,6 +34,8 @@ export const courseSummarySchema = courseSchema
   })
   .extend({
     summaryVersion: z.number().int(),
+    /** Display names by uid (v3), for Studio's "View only: Educator" line; absent on an older summary. */
+    educatorNames: courseSchema.shape.educatorNames.optional(),
     cover: courseSchema.shape.cover.pick({ theme: true, glyph: true }),
     /** The tile's picture: the cover image, else the first image in a lesson; absent when neither. */
     image: z.url().optional(),
@@ -96,6 +98,7 @@ export function summariseCourse(raw: unknown): CourseSummary | null {
     cover: { theme: course.cover.theme, glyph: course.cover.glyph },
     ...(image === undefined ? {} : { image }),
     educatorIds: course.educatorIds,
+    educatorNames: course.educatorNames,
     status: course.status,
     version: course.version,
     publishedAt: course.publishedAt,

@@ -1,7 +1,8 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from './axe';
-import { fakeData, lesson, makeCourse } from './fake-data';
+import type { CourseListing } from '@gurukul/schema';
+import { fakeData, lesson, listing, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
 import { apiFailure } from './studio-fixtures';
@@ -42,9 +43,9 @@ function rows() {
     summary: 'Changed',
   });
   return [
-    { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }), learners: 12 },
+    { live, draft: draftDoc(edited, { updatedAt: hoursAgo(2) }) },
     { live: draftOnly, draft: draftDoc(draftOnly, { updatedAt: null }) },
-    { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }), learners: 1 },
+    { live: one, draft: draftDoc(oneDraft, { updatedAt: hoursAgo(0) }) },
     {
       live: makeCourse({
         id: 'other',
@@ -68,9 +69,9 @@ describe('Courses in global search for Educators', () => {
     fireEvent.click(screen.getByRole('button', { name: /Search/ }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
     const option = await screen.findByRole('option', { name: /Brand new.*Studio/ });
-    // One query of the live documents: no drafts, no stats.
+    // The summaries only: no draft is read to search.
     expect(studio.data.listLiveCourses).toHaveBeenCalledTimes(1);
-    expect(studio.data.listCourses).not.toHaveBeenCalled();
+    expect(studio.data.getDraft).not.toHaveBeenCalled();
     expect(screen.queryByRole('option', { name: /Not mine/ })).toBeNull();
     fireEvent.click(option);
     await waitFor(() => expect(app.router.state.location.pathname).toBe('/studio/courses/new'));
@@ -82,7 +83,7 @@ describe('Courses in global search for Educators', () => {
     fireEvent.click(screen.getByRole('button', { name: /Search/ }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'brand new' } });
     expect(await screen.findByRole('combobox')).toBeTruthy();
-    expect(studio.data.listCourses).not.toHaveBeenCalled();
+    expect(studio.data.listLiveCourses).not.toHaveBeenCalled();
   });
 });
 
@@ -99,22 +100,33 @@ describe('Studio courses page', () => {
 
   it('lists courses with status, edits and view-only cards', async () => {
     const studio = fakeStudio({ courses: rows() });
+    studio.data.courseFacts = vi.fn(async (id: string) => ({
+      edited: id === 'git' ? true : id === 'one' ? null : false,
+      learners: id === 'git' ? 12 : id === 'one' ? 1 : null,
+    }));
     await openApp('/studio', { roles: ['educator'], studio });
     expect(await screen.findByRole('heading', { name: 'Courses' })).toBeTruthy();
     expect(screen.getByText(/chapter by chapter/)).toBeTruthy();
-    expect(studio.data.listCourses).toHaveBeenCalledWith('u1', false);
     expect(await screen.findByRole('tab', { name: 'All (5)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Published (3)' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Drafts (1)' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Git' }).getAttribute('href')).toBe(
       '/studio/courses/git',
     );
-    expect(screen.getByText(/^\d+ unpublished edits$/)).toBeTruthy();
-    expect(screen.getByText('1 unpublished edit')).toBeTruthy();
-    expect(screen.getByText('Edited 2 h ago')).toBeTruthy();
+    // What a summary cannot know is asked per card, only for the courses this person may edit,
+    // and never by reading a draft.
+    expect(await screen.findAllByText('Unpublished edits')).toHaveLength(1);
     expect(screen.getByText('12 learners')).toBeTruthy();
     expect(screen.getByText('1 learner')).toBeTruthy();
-    expect(screen.getByText('Edited just now')).toBeTruthy();
+    expect(
+      vi
+        .mocked(studio.data.courseFacts)
+        .mock.calls.map(([id]) => id)
+        .sort(),
+    ).toEqual(['git', 'new', 'one']);
+    expect(studio.data.courseFacts).toHaveBeenCalledWith('new', null);
+    expect(studio.data.getDraft).not.toHaveBeenCalled();
+    expect(screen.getByText('Not published yet. Open it to see the draft.')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Not mine' })).toBeNull();
     expect(screen.getByText('View only — Educator: Rohan Das')).toBeTruthy();
     expect(screen.getByText('View only')).toBeTruthy();
@@ -157,7 +169,24 @@ describe('Studio courses page', () => {
     expect(screen.getAllByText('Pictured')).toHaveLength(2);
   });
 
-  it("shows the draft's first image on the card, not the published one", async () => {
+  it('says only "View only" for a course summarised before Educator names were kept', async () => {
+    const studio = fakeStudio();
+    const old: Partial<CourseListing> = listing(
+      makeCourse({
+        id: 'old',
+        title: 'Old summary',
+        educatorIds: ['x'],
+        educatorNames: { x: 'Rohan Das' },
+      }),
+    );
+    delete old.educatorNames;
+    studio.data.listLiveCourses = vi.fn().mockResolvedValue([old]);
+    await openApp('/studio', { roles: ['educator'], studio });
+    expect(await screen.findByText('View only')).toBeTruthy();
+    expect(studio.data.courseFacts).not.toHaveBeenCalled();
+  });
+
+  it('draws a card from the published course, and reads no draft for it', async () => {
     const withImage = (url: string) =>
       makeCourse({
         id: 'pic',
@@ -173,13 +202,12 @@ describe('Studio courses page', () => {
       });
     const live = withImage('https://example.com/live.png');
     const draft = draftDoc(withImage('https://example.com/draft.png'), { updatedAt: hoursAgo(1) });
-    await openApp('/studio', {
-      roles: ['educator'],
-      studio: fakeStudio({ courses: [{ live, draft }] }),
-    });
+    const studio = fakeStudio({ courses: [{ live, draft }] });
+    await openApp('/studio', { roles: ['educator'], studio });
     await screen.findByRole('link', { name: 'Pictured' });
-    expect(document.querySelector('img[src="https://example.com/draft.png"]')).toBeTruthy();
-    expect(document.querySelector('img[src="https://example.com/live.png"]')).toBeNull();
+    expect(document.querySelector('img[src="https://example.com/live.png"]')).toBeTruthy();
+    expect(document.querySelector('img[src="https://example.com/draft.png"]')).toBeNull();
+    expect(studio.data.getDraft).not.toHaveBeenCalled();
   });
 
   it('filters by tab and explains an empty tab', async () => {
@@ -215,10 +243,9 @@ describe('Studio courses page', () => {
     await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
     expect(await screen.findByRole('heading', { name: 'No courses yet' })).toBeTruthy();
     const broken = fakeStudio();
-    broken.data.listCourses = vi.fn().mockRejectedValue(new Error('offline'));
+    broken.data.listLiveCourses = vi.fn().mockRejectedValue(new Error('offline'));
     await openApp('/studio', { roles: ['admin'], studio: broken });
     expect(await screen.findAllByText('This did not load')).not.toHaveLength(0);
-    expect(broken.data.listCourses).toHaveBeenCalledWith('u1', true);
   });
 
   async function openDialog(studio = fakeStudio({ courses: rows() })) {

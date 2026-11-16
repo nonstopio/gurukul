@@ -19,6 +19,12 @@ describe('handleCourseWrite', () => {
     const store = storeWith();
     expect(await handleCourseWrite(store, 'git-basics', undefined, live())).toBe('written');
     await handleCourseWrite(store, 'git-basics', live(), live({ title: 'Git, renamed' }));
+    await handleCourseWrite(
+      store,
+      'git-basics',
+      live(),
+      live({ educatorNames: { u1: 'Asha Rao' } }),
+    );
     await handleCourseWrite(store, 'git-basics', live(), {
       ...live(),
       visibility: 'staff',
@@ -26,13 +32,13 @@ describe('handleCourseWrite', () => {
     });
     await handleCourseWrite(store, 'git-basics', live(), { ...live(), publishedAt: ts(2) });
     await handleCourseWrite(store, 'git-basics', live(), undefined);
-    expect(store.sync).toHaveBeenCalledTimes(5);
+    expect(store.sync).toHaveBeenCalledTimes(6);
     expect(store.sync).toHaveBeenCalledWith('git-basics');
   });
 
   it('returns before touching the store when nothing the summary holds changed', async () => {
     const store = storeWith();
-    const renamed = live({ educatorNames: { u1: 'Asha Rao' }, description: 'Longer.' });
+    const renamed = live({ outcomes: ['One more'], description: 'Longer.' });
     expect(await handleCourseWrite(store, 'git-basics', live(), renamed)).toBe('skipped');
     expect(await handleCourseWrite(store, 'x', { broken: 1 }, { broken: 2 })).toBe('skipped');
     const shell = live({ status: 'draft', version: 0 });
@@ -108,7 +114,7 @@ describe('firestoreSummaryStore', () => {
         id: 'git-basics',
         title: 'Git basics',
         visibility: 'public',
-        summaryVersion: 2,
+        summaryVersion: 3,
         courseUpdatedAt: expect.objectContaining({ ms: 7 }),
       }),
     );
@@ -116,7 +122,7 @@ describe('firestoreSummaryStore', () => {
   });
 
   it('leaves a summary already derived from this state of the course alone', async () => {
-    const current = snap('git-basics', { summaryVersion: 2, courseUpdatedAt: time(7) });
+    const current = snap('git-basics', { summaryVersion: 3, courseUpdatedAt: time(7) });
     const { db, tx } = dbWith(
       { 'git-basics': snap('git-basics', live(), 7) },
       { 'git-basics': current },
@@ -126,7 +132,7 @@ describe('firestoreSummaryStore', () => {
   });
 
   it('deletes the summary of a course that is gone or unreadable, once', async () => {
-    const stored = snap('gone', { summaryVersion: 2 });
+    const stored = snap('gone', { summaryVersion: 3 });
     const { db, tx } = dbWith({ broken: snap('broken', { title: 'x' }, 1) }, { gone: stored });
     expect(await firestoreSummaryStore(db).sync('gone')).toBe('deleted');
     expect(tx.delete).toHaveBeenCalledWith('courseSummaries/gone');
@@ -145,12 +151,12 @@ describe('firestoreSummaryStore', () => {
         timeless: snap('timeless', {}),
       },
       {
-        fresh: snap('fresh', { summaryVersion: 2, courseUpdatedAt: time(5) }),
-        older: snap('older', { summaryVersion: 2, courseUpdatedAt: time(4) }),
+        fresh: snap('fresh', { summaryVersion: 3, courseUpdatedAt: time(5) }),
+        older: snap('older', { summaryVersion: 3, courseUpdatedAt: time(4) }),
         versioned: snap('versioned', { summaryVersion: 0, courseUpdatedAt: time(5) }),
-        unstamped: snap('unstamped', { summaryVersion: 2 }),
-        timeless: snap('timeless', { summaryVersion: 2, courseUpdatedAt: time(5) }),
-        orphan: snap('orphan', { summaryVersion: 2, courseUpdatedAt: time(5) }),
+        unstamped: snap('unstamped', { summaryVersion: 3 }),
+        timeless: snap('timeless', { summaryVersion: 3, courseUpdatedAt: time(5) }),
+        orphan: snap('orphan', { summaryVersion: 3, courseUpdatedAt: time(5) }),
       },
     );
     expect(await firestoreSummaryStore(db).stale()).toEqual([

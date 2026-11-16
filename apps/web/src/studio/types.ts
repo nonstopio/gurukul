@@ -22,12 +22,21 @@ export interface Working {
   answersChanged?: true;
 }
 
-/** A course as the Studio lists it: the live document and, where the person may edit it, its draft. */
+/**
+ * One course opened in Studio (Media, Question bank): the copy the person works on. `draft` is set
+ * when they may edit it, and `live` is then the draft's course; otherwise `live` is the published one.
+ */
 export interface StudioCourse {
   live: Course;
   draft: DraftDoc | null;
-  /** Learners who have started the course, from its stats document; absent when the person cannot see it. */
-  learners?: number;
+}
+
+/** What a card on the Studio list adds to the course's summary, for a course the person may edit. */
+export interface CourseFacts {
+  /** The draft was saved after the last publish; false for a course never published; null when it cannot be read. */
+  edited: boolean | null;
+  /** Learners who have started the course, from its stats document; null when it cannot be read. */
+  learners: number | null;
 }
 
 export interface VersionRow {
@@ -52,13 +61,16 @@ export interface BankQuestion {
  */
 export interface StudioData {
   /**
-   * Every course the person can see: published and archived ones, plus the drafts they may edit.
-   * Remembered for five minutes per person; `forgetCourses` and `saveDraft` drop it.
+   * The summary of every course, never-published ones included: no course, draft or stats is read.
+   * Remembered for five minutes; `forgetCourses` and `saveDraft` drop it.
    */
-  listCourses(uid: string, admin: boolean): Promise<StudioCourse[]>;
-  /** The summary of every course, never-published ones included: no course, draft or stats is read. Enough for titles. */
   listLiveCourses(): Promise<CourseListing[]>;
-  /** Drops the remembered `listCourses` lists; called when this tab changes what they show. */
+  /**
+   * For one card of a course the person may edit: whether its draft has edits not yet published
+   * (a count, no document) and how many learners started it. Two reads, remembered like the list.
+   */
+  courseFacts(courseId: string, publishedAt: CourseListing['publishedAt']): Promise<CourseFacts>;
+  /** Drops the remembered list and card facts; called when this tab changes what they show. */
   forgetCourses(): Promise<void>;
   /** Who may open the live course (`visibility`, `visibleTeamIds`); public when it says nothing. */
   getAccess(courseId: string): Promise<CourseAccess>;

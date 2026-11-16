@@ -16,6 +16,7 @@ describe('course summary', () => {
       level: 'foundation',
       cover: { theme: 'forest', glyph: 'G' },
       educatorIds: ['u1'],
+      educatorNames: {},
       status: 'published',
       version: 1,
       publishedAt: course.publishedAt,
