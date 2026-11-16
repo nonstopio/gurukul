@@ -97,6 +97,13 @@ members: the Teams page lists it, and saving it creates its document. Cost: one 
 One document. About 30–80 KB for a course like Git — far below the 1 MiB
 document limit. `schemaVersion` lets the shape evolve with tested migrations.
 
+The draft and each `versions/{n}` snapshot hold the course **and** its answer keys, so they fill
+first. `courseBytes` (`packages/schema/src/size.ts`, the UTF-8 length of their JSON) measures that
+pair against `COURSE_BYTES_LIMIT` (900,000 bytes, leaving room under 1 MiB for Firestore's own
+overhead). Studio warns from `COURSE_BYTES_WARN` (700,000), autosave keeps an oversized draft on
+the page and in the device backup instead of writing it, and `publishCourse` refuses with
+`CRS_1005`. How many versions are kept is not capped.
+
 ```ts
 type Course = {
   schemaVersion: 4;

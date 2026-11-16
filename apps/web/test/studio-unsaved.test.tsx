@@ -1,6 +1,9 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { COURSE_BYTES_LIMIT, COURSE_BYTES_WARN } from '@gurukul/schema';
+import { render } from '@testing-library/react';
 import { backupKey } from '../src/studio/draftBackup';
+import { SizeNotice } from '../src/studio/SizeNotice';
 import { fakeData, makeCourse } from './fake-data';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
@@ -124,5 +127,28 @@ describe('Unsaved edits in the course editor', () => {
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Leave without saving' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/studio'));
+  });
+
+  it('warns as the course nears the size limit and still saves', async () => {
+    const { studio } = await open();
+    await edit('x'.repeat(COURSE_BYTES_WARN));
+    expect(await screen.findByText('This course is nearly full')).toBeTruthy();
+    expect(screen.getByText(/KB of the 900 KB one course can hold/)).toBeTruthy();
+    await waitFor(() => expect(studio.data.saveDraft).toHaveBeenCalledTimes(1));
+  });
+
+  it('says why a course over the size limit is not saved, and writes nothing', async () => {
+    const { studio } = await open();
+    await edit('x'.repeat(COURSE_BYTES_LIMIT));
+    expect(await screen.findByText('This course is too large to save')).toBeTruthy();
+    expect(screen.getByText(/· too large to save$/)).toBeTruthy();
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe('SizeNotice', () => {
+  it('shows nothing before the draft has loaded', () => {
+    const { container } = render(<SizeNotice draft={{ work: null, save: 'saved' }} />);
+    expect(container.textContent).toBe('');
   });
 });

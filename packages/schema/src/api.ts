@@ -196,6 +196,16 @@ export const ERROR_CODES = {
       'This course is retired. Your progress and certificate are kept, but its Quizzes are closed.',
     developerMessage: "Course '%s' is archived; it takes no new Quiz attempts.",
   },
+  CRS_1005: {
+    title: 'Course too large',
+    category: 'COURSE',
+    retryable: false,
+    status: 400,
+    userMessage:
+      'This course is too large to publish. Remove some content or split it into two courses, then publish again.',
+    developerMessage:
+      "Course '%s' with its answer keys is about %s bytes, over the course size limit.",
+  },
   CRS_2001: {
     title: 'Course not found',
     category: 'COURSE',

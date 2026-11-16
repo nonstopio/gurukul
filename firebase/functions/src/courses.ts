@@ -1,9 +1,11 @@
 import {
   ApiException,
+  COURSE_BYTES_LIMIT,
   EDUCATOR_COURSE_ID,
   accessOf,
   blankCourse,
   courseAccessSchema,
+  courseBytes,
   courseSchema,
   estimateMinutes,
   itemsOf,
@@ -273,12 +275,19 @@ export async function publishCourse(
     }
     const next = current.version + 1;
     const course = released(upgraded, current, courseId, next);
+    const answers = restrictAnswers(course, draft.answers);
+    // The version snapshot holds both: over the limit, Firestore would refuse it with a raw error.
+    const bytes = courseBytes(course, answers);
+    if (bytes > COURSE_BYTES_LIMIT) {
+      log.warn('Publish refused', { courseId, reason: 'too large', count: bytes });
+      throw new ApiException('CRS_1005', [courseId, String(bytes)]);
+    }
     // Who may open it is set apart (`setCourseAccess`), so a publish keeps what the course has.
     return {
       version: next,
       course,
       access: accessOf(current),
-      answers: restrictAnswers(course, draft.answers),
+      answers,
       clearAnswersChanged: draft.answersChanged === true,
     };
   });

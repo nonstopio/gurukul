@@ -371,6 +371,35 @@ describe('publishCourse', () => {
     expect(f.audits).toEqual([]);
   });
 
+  it('refuses a draft over the course size limit with CRS_1005, never a raw Firestore error', async () => {
+    // 50 text blocks of 19,000 characters: valid by the schema, about 950 KB stored.
+    const lesson = {
+      type: 'lesson',
+      id: 'big',
+      title: 'Big',
+      minutes: 5,
+      layout: 'stacked',
+      completeWhen: 'manual',
+      blocks: Array.from({ length: 50 }, (_, i) => ({
+        id: `b${i}`,
+        type: 'markdown',
+        md: 'x'.repeat(19_000),
+      })),
+    };
+    const big = validCourse({ chapters: [{ id: 'p1', title: 'P', items: [quiz(), lesson] }] });
+    const f = fake({ draft: draftOf({ course: big }) });
+    const e = (await publishCourse(f.store, asha, { courseId: 'c' }).catch(
+      (x: unknown) => x,
+    )) as ApiException;
+    expect(e.code).toBe('CRS_1005');
+    expect(parses(e)).toMatchObject({
+      status: 400,
+      errors: [{ code: 'CRS_1005', userMessage: ERROR_CODES.CRS_1005.userMessage }],
+    });
+    expect(f.plans).toEqual([]);
+    expect(f.audits).toEqual([]);
+  });
+
   it('refuses a draft with no landing description or fewer than two outcomes', async () => {
     const f = fake({
       draft: draftOf({ course: validCourse({ description: ' ', outcomes: ['Commit', ''] }) }),
