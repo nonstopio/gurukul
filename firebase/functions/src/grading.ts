@@ -87,43 +87,57 @@ export function isCorrect(kind: Question['kind'], selected: string[], key: strin
   return chosen.size === wanted.size && [...chosen].every((id) => wanted.has(id));
 }
 
-/** The published course, its Quiz and that Quiz's answer key. Rejects unknown ids. */
+/**
+ * The published course, its Quiz, the learner's progress and the answer document. Rejects unknown
+ * ids. The team ids, progress and answer document are read together once the course is known; the
+ * key is only interpreted (`loadKey`) after every other check, so error precedence is unchanged.
+ */
 async function load(
   store: GradingStore,
   who: { uid: string; staff: boolean },
   courseId: string,
   quizId: string,
-): Promise<{ course: Course; quiz: Quiz }> {
+): Promise<{ course: Course; quiz: Quiz; progress: unknown; keyDoc: unknown }> {
   const raw = await store.getCourse(courseId);
   if (raw === undefined) throw new ApiException('CRS_2001', [courseId]);
+  // What is wrong with the course or the Quiz id, if anything (no reads). It is thrown only after
+  // the access check below, so a person who cannot open the course learns nothing about it.
+  let problem: ApiException | undefined;
+  let course: Course | undefined;
+  let quiz: Quiz | undefined;
+  try {
+    course = migrateCourse(raw);
+  } catch {
+    problem = new ApiException('CRS_3001', [courseId]);
+  }
+  if (course) {
+    // A retired course keeps its progress and certificates but takes no new attempts.
+    if (course.status === 'archived') problem = new ApiException('CRS_1004', [courseId]);
+    else if (course.status !== 'published') problem = new ApiException('CRS_1001', [courseId]);
+    else {
+      quiz = itemsOf(course).find((i): i is Quiz => i.type === 'quiz' && i.id === quizId);
+      if (!quiz) problem = new ApiException('PRK_2001', [quizId, courseId]);
+    }
+  }
+  // A usable Quiz needs team ids (the access check), progress and the answer document: read them
+  // together. A broken course needs only the team ids, so it reads nothing else.
+  const [teamIds, progress, keyDoc] = await Promise.all([
+    who.staff ? [] : store.getTeamIds(who.uid),
+    problem ? undefined : store.getProgress(who.uid, courseId),
+    problem ? undefined : store.getAnswers(courseId),
+  ]);
   // The same rule the catalogue and the course read follow (`canOpenCourse` in firestore.rules): a
   // person who cannot open a course cannot take its Quizzes either, whatever id they send.
-  const teamIds = who.staff ? [] : await store.getTeamIds(who.uid);
   if (!canOpen(accessOf(raw), { teamIds, staff: who.staff })) {
     log.warn('Course not open to this person', { uid: who.uid, courseId });
     throw new ApiException('AUTH_2001', ['this course']);
   }
-  let course: Course;
-  try {
-    course = migrateCourse(raw);
-  } catch {
-    throw new ApiException('CRS_3001', [courseId]);
-  }
-  // A retired course keeps its progress and certificates but takes no new attempts.
-  if (course.status === 'archived') throw new ApiException('CRS_1004', [courseId]);
-  if (course.status !== 'published') throw new ApiException('CRS_1001', [courseId]);
-  const quiz = itemsOf(course).find((i): i is Quiz => i.type === 'quiz' && i.id === quizId);
-  if (!quiz) throw new ApiException('PRK_2001', [quizId, courseId]);
-  return { course, quiz };
+  if (problem) throw problem;
+  return { course: course as Course, quiz: quiz as Quiz, progress, keyDoc };
 }
 
-async function loadKey(
-  store: GradingStore,
-  courseId: string,
-  quizId: string,
-): Promise<Record<string, unknown>> {
-  const all = (await store.getAnswers(courseId)) as
-    Record<string, Record<string, unknown> | undefined> | undefined;
+function loadKey(keyDoc: unknown, quizId: string): Record<string, unknown> {
+  const all = keyDoc as Record<string, Record<string, unknown> | undefined> | undefined;
   const key = all?.[quizId];
   if (!key) throw new ApiException('PRK_3001', ['Quiz', quizId]);
   return key;
@@ -156,12 +170,12 @@ export async function checkAnswer(
   if (!isStringArray(selected))
     throw badField('selected', selected, 'must be a list of option ids');
   log.debug('Checking an answer', { uid, courseId, quizId, questionId });
-  const { course, quiz } = await load(store, { uid, staff }, courseId, quizId);
+  const { course, quiz, progress, keyDoc } = await load(store, { uid, staff }, courseId, quizId);
   if (quiz.revealAnswers !== 'each') throw new ApiException('PRK_1001', [quizId]);
   const question = quiz.questions.find((q) => q.id === questionId);
   if (!question) throw new ApiException('VAL_1003', ['question', questionId]);
-  checkUnlocked(course, await store.getProgress(uid, courseId), quizId);
-  const correctOptionIds = keyOf(await loadKey(store, courseId, quizId), questionId);
+  checkUnlocked(course, progress, quizId);
+  const correctOptionIds = keyOf(loadKey(keyDoc, quizId), questionId);
   return {
     correct: isCorrect(question.kind, selected, correctOptionIds),
     correctOptionIds,
@@ -239,7 +253,7 @@ export async function gradeAttempt(
   }
   const given = answers as Record<string, string[]>;
   log.debug('Grading started', { uid, courseId, quizId, questionCount: questionIds.length });
-  const { course, quiz } = await load(store, { uid, staff }, courseId, quizId);
+  const { course, quiz, progress, keyDoc } = await load(store, { uid, staff }, courseId, quizId);
 
   const shown = Math.min(quiz.questionsShown, quiz.questions.length);
   const known = new Set(quiz.questions.map((q) => q.id));
@@ -252,12 +266,11 @@ export async function gradeAttempt(
     throw new ApiException('PRK_1002', ['the questions are not this Quiz’s draw']);
   }
 
-  // Cheap rejection first: a learner cooling down costs one progress read, not the answer key.
-  const progress = await store.getProgress(uid, courseId);
+  // Cheap rejection first: the key was read with the progress (in `load`) but is not interpreted yet.
   checkCooldown(progress, courseId, quizId, quiz.cooldownMinutes, now);
   checkUnlocked(course, progress, quizId);
 
-  const key = await loadKey(store, courseId, quizId);
+  const key = loadKey(keyDoc, quizId);
   const byId = new Map(quiz.questions.map((q) => [q.id, q]));
   const graded = questionIds.map((questionId) => {
     const question = byId.get(questionId) as Question;

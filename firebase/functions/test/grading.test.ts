@@ -129,12 +129,31 @@ describe('checkAnswer', () => {
     await rejects(checkAnswer(store(), 'u', { ...data, questionId: 'nope' }), 'VAL_1003');
   });
 
-  it('refuses unless answers are revealed after each one, without reading the key', async () => {
+  it('refuses unless answers are revealed after each one', async () => {
     for (const revealAnswers of ['onPass', 'never']) {
       const s = store({ getCourse: vi.fn().mockResolvedValue(course({ revealAnswers })) });
       await rejects(checkAnswer(s, 'u', data), 'PRK_1001');
-      expect(s.getAnswers).not.toHaveBeenCalled();
     }
+  });
+
+  it('reads team ids, progress and the answer document together once the course is known', async () => {
+    const order: string[] = [];
+    const release: (() => void)[] = [];
+    const slow = (name: string, value: unknown) =>
+      vi.fn(() => {
+        order.push(name);
+        return new Promise((resolve) => release.push(() => resolve(value)));
+      });
+    const s = store({
+      getTeamIds: slow('team', []),
+      getProgress: slow('progress', undefined),
+      getAnswers: slow('answers', undefined),
+    });
+    const done = checkAnswer(s, 'u', data).catch(() => undefined);
+    await vi.waitFor(() => expect(release).toHaveLength(3));
+    expect(order.sort()).toEqual(['answers', 'progress', 'team']);
+    release.forEach((r) => r());
+    await done;
   });
 
   it('fails cleanly when the answer key is missing', async () => {
@@ -201,7 +220,7 @@ describe('checkUnlocked', () => {
     expect(() => checkUnlocked(migrateCourse(course()), undefined, 'pk')).not.toThrow();
   });
 
-  it('keeps checkAnswer and gradeAttempt off a locked Quiz without reading the key', async () => {
+  it('keeps checkAnswer and gradeAttempt off a locked Quiz', async () => {
     const s = store({ getCourse: vi.fn().mockResolvedValue(lockedCourse()) });
     await rejects(
       checkAnswer(s, 'u', {
@@ -213,7 +232,6 @@ describe('checkUnlocked', () => {
       'PRK_1003',
     );
     await rejects(grade(s), 'PRK_1003');
-    expect(s.getAnswers).not.toHaveBeenCalled();
     expect(s.recordAttempt).not.toHaveBeenCalled();
   });
 });
@@ -363,13 +381,12 @@ describe('gradeAttempt', () => {
     }
   });
 
-  it('needs a progress document and respects the cooldown before reading the answer key', async () => {
+  it('needs a progress document and respects the cooldown', async () => {
     const none = store({ getProgress: vi.fn().mockResolvedValue(undefined) });
     await rejects(grade(none), 'PRK_2002');
     const prev = { best: 0.5, passed: false, attempts: 1, lastAttemptAt: ts(NOW - 1000) };
     const cooling = store({ getProgress: vi.fn().mockResolvedValue(progress(prev)) });
     await rejects(grade(cooling), 'PRK_4001');
-    expect(cooling.getAnswers).not.toHaveBeenCalled();
     expect(cooling.recordAttempt).not.toHaveBeenCalled();
   });
 
