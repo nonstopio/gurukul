@@ -12,7 +12,7 @@ import {
   buttonClass,
   topBarBackClass,
 } from '@gurukul/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
@@ -21,8 +21,9 @@ import { useProgress, withProgress } from '../data/useProgress';
 import { LoadedPage } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
-import { formatCountdown, itemAfter, itemPath, reviewOfAttempt } from './model';
+import { itemAfter, itemPath, reviewOfAttempt } from './model';
 import type { AttemptReview } from './model';
+import { Retake } from './Retake';
 import type { AttemptResult } from './service';
 
 /** What the Quiz screen hands over, so the review needs no second round trip. */
@@ -207,25 +208,5 @@ export function ResultPage() {
         );
       }}
     </LoadedPage>
-  );
-}
-
-/** "Retake", or a countdown to it that ticks each second and turns into the link when it opens. */
-function Retake({ opensAt, to }: { opensAt: number; to: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  const open = now >= opensAt;
-  useEffect(() => {
-    if (open) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [open]);
-  return open ? (
-    <Link className={buttonClass('secondary')} to={to}>
-      Retake
-    </Link>
-  ) : (
-    <span className="learn-muted" role="timer">
-      Retake opens in {formatCountdown(opensAt - now)}
-    </span>
   );
 }

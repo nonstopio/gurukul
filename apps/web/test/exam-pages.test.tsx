@@ -1,6 +1,6 @@
 import { analytics } from '../src/analytics';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import { draftKey } from '../src/quiz/draftStore';
 import { CooldownError } from '../src/quiz/service';
@@ -55,6 +55,8 @@ beforeAll(() =>
 );
 
 describe('Quiz screen', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('starts the course when a Quiz is the first thing opened, so grading has progress', async () => {
     const d = data(courseWith(), null as never);
     await openApp(PATH, { data: d, quiz: fakeQuiz() });
@@ -296,6 +298,30 @@ describe('Quiz screen', () => {
     });
     expect(await screen.findByText('Retake not open yet')).toBeTruthy();
     expect(screen.getByText(/You can retake this in 8 minutes/)).toBeTruthy();
+  });
+
+  it('counts the wait down on the Quiz screen and opens the questions when it ends, without a reload', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const recent = new Date(Date.now() - 2 * 60_000);
+    await openApp(PATH, {
+      data: data(
+        courseWith({ cooldownMinutes: 10 }),
+        unlocked({
+          quiz: { q1: { best: 0.2, passed: false, attempts: 1, lastAttemptAt: recent } },
+        }),
+      ),
+    });
+    expect(await screen.findByText(/You can retake this in 8 minutes/)).toBeTruthy();
+    expect(screen.getByRole('timer')).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+    });
+    expect(screen.getByText(/You can retake this in 3 minutes/)).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3 * 60_000 + 2000);
+    });
+    expect(await screen.findByText('Question k1?')).toBeTruthy();
+    expect(screen.queryByText('Retake not open yet')).toBeNull();
   });
 
   it('shows a page skeleton until the progress document arrives, and locks a course that was never started', async () => {
