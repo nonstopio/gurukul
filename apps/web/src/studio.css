@@ -316,6 +316,14 @@
   display: grid;
   gap: var(--space-5);
 }
+/* Stacked, a course outline of thirty lessons would push the editor a screen down: it scrolls
+   inside its card instead. */
+@media (width < 64rem) {
+  .studio-rail nav {
+    max-height: 17.5rem;
+    overflow-y: auto;
+  }
+}
 @media (width >= 64rem) {
   .studio-cols {
     grid-template-columns: 18rem minmax(0, 1fr) 20rem;

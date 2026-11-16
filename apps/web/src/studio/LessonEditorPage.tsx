@@ -34,6 +34,7 @@ import type { Working } from './types';
 import { useStudio } from './StudioProvider';
 import { useDraft } from './useDraft';
 import type { DraftApi } from './useDraft';
+import { scrollIntoRail } from './scrollIntoRail';
 
 const completion = (t: Terms): Array<{ value: Lesson['completeWhen']; label: string }> => [
   { value: 'manual', label: `The ${t.learner} marks it done` },
@@ -199,6 +200,7 @@ function LessonEditor({
                       <Link
                         to={itemEditorPath(courseId, i)}
                         aria-current={i.id === lessonId ? 'page' : undefined}
+                        ref={i.id === lessonId ? scrollIntoRail : undefined}
                       >
                         {i.title ||
                           (i.type === 'lesson' ? 'Untitled lesson' : `Untitled ${terms.Quiz}`)}

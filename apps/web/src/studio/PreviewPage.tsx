@@ -23,6 +23,7 @@ import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { itemEditorPath, nameOf } from './studioModel';
 import { useDraft } from './useDraft';
+import { scrollIntoRail } from './scrollIntoRail';
 
 const previewPath = (courseId: string, itemId: string) =>
   `/studio/courses/${courseId}/preview/${itemId}`;
@@ -124,7 +125,9 @@ export function PreviewPage() {
                   <li key={i.id}>
                     <Link
                       to={previewPath(courseId, i.id)}
-                      {...(i.id === itemId ? { 'aria-current': 'page' as const } : {})}
+                      {...(i.id === itemId
+                        ? { 'aria-current': 'page' as const, ref: scrollIntoRail }
+                        : {})}
                     >
                       {nameOf(i.title, 'Untitled')}
                     </Link>

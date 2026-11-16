@@ -27,7 +27,7 @@ afterEach(() => {
   window.matchMedia = original;
 });
 
-describe('Studio on a small screen', () => {
+describe('Studio below 640px wide', () => {
   it('says it needs a bigger canvas instead of showing the editor', async () => {
     viewport(false);
     await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
@@ -35,9 +35,10 @@ describe('Studio on a small screen', () => {
       await screen.findByRole('heading', { level: 1, name: /needs a bigger canvas/ }),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to Home' })).toBeTruthy();
+    expect(window.matchMedia).toHaveBeenCalledWith('(min-width: 40rem)');
   });
 
-  it('opens the page when the window grows to desktop width', async () => {
+  it('opens the page when the window grows to 640px', async () => {
     const resize = viewport(false);
     await openApp('/studio', { roles: ['educator'], studio: fakeStudio() });
     await screen.findByRole('heading', { level: 1, name: /needs a bigger canvas/ });
