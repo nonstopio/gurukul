@@ -123,6 +123,22 @@ describe('Learners', () => {
     expect(screen.getByLabelText('Course').textContent).toMatch(/^Git/);
   });
 
+  it('keeps the tab in the address: reload lands on it, other parameters stay, unknown falls back', async () => {
+    const c = setup();
+    const app = await openApp('/admin/learners?course=git&tab=overdue', { ...admin, console: c });
+    expect(await screen.findByText('user1@nonstopio.com')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /^Overdue/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /^Pending/ }));
+    expect(app.router.state.location.search).toBe('?course=git&tab=pending');
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }));
+    expect(app.router.state.location.search).toBe('?course=git');
+    await app.router.navigate('/admin/learners?tab=bogus', { replace: true });
+    expect(await screen.findByRole('tab', { name: /^All/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /^All/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
   it('names each role in the row, an Admin included', async () => {
     const boss = userRow(3, { displayName: 'Asha', roles: ['learner', 'admin'] });
     const c = setup({ users: [...users, boss], count: 3 });

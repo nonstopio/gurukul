@@ -562,6 +562,28 @@ describe('Course editor: details, landing page, certificate', () => {
     expect(screen.getByText(/^1 person\./)).toBeTruthy();
   });
 
+  it('keeps the tab in the address, other parameters stay', async () => {
+    const app = await open();
+    await ready();
+    const before = app.router.state.location.pathname;
+    await app.router.navigate(`${before}?x=1&tab=certificate`, { replace: true });
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Certificate' }).getAttribute('aria-selected')).toBe(
+        'true',
+      ),
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
+    expect(app.router.state.location.search).toBe('?x=1&tab=versions');
+    fireEvent.click(screen.getByRole('tab', { name: 'Structure' }));
+    expect(app.router.state.location.search).toBe('?x=1');
+    await app.router.navigate(`${before}?tab=nope`, { replace: true });
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Structure' }).getAttribute('aria-selected')).toBe(
+        'true',
+      ),
+    );
+  });
+
   it('edits the description and outcomes', async () => {
     await open({ live: mine({ outcomes: ['Commit with confidence'] }) });
     await ready();

@@ -37,8 +37,9 @@ import { useDraft } from './useDraft';
 import { VersionsTab } from './VersionsTab';
 import { VISIBILITY_FIELD_ID } from './VisibilityPicker';
 import { ReportIssueLink } from '../ReportIssueLink';
+import { useTabParam } from '../useTabParam';
 
-type TabId = 'structure' | 'landing' | 'certificate' | 'analytics' | 'versions';
+const TAB_IDS = ['structure', 'landing', 'certificate', 'analytics', 'versions'] as const;
 
 /** A course editor state that is not the editor itself: the top bar with its title, then a page. */
 function Frame({ title, children }: { title: string; children: ReactNode }) {
@@ -137,7 +138,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
     draft,
     changed ? `Draft v${live.version + 1}` : `No changes since v${live.version}`,
   );
-  const [tab, setTab] = useState<TabId>('structure');
+  const [tab, setTab] = useTabParam(TAB_IDS);
   const [publishing, setPublishing] = useState(false);
 
   const refreshLive = async (fallback: Partial<Course>) => {
@@ -312,7 +313,7 @@ function Editor({ initial, admin }: { initial: Course; admin: boolean }) {
           label="Course sections"
           tabs={tabs}
           value={tab}
-          onValueChange={(id) => setTab(id as TabId)}
+          onValueChange={(id) => setTab(id as (typeof TAB_IDS)[number])}
         />
       </Page>
       {publishing ? (
