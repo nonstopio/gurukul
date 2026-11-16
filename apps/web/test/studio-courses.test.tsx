@@ -87,6 +87,16 @@ describe('Courses in global search for Educators', () => {
 });
 
 describe('Studio courses page', () => {
+  it('keeps the tab in the address', async () => {
+    const studio = fakeStudio({ courses: rows() });
+    const app = await openApp('/studio?tab=drafts', { roles: ['educator'], studio });
+    expect(
+      (await screen.findByRole('tab', { name: 'Drafts (1)' })).getAttribute('aria-selected'),
+    ).toBe('true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Published (3)' }));
+    expect(app.router.state.location.search).toBe('?tab=published');
+  });
+
   it('lists courses with status, edits and view-only cards', async () => {
     const studio = fakeStudio({ courses: rows() });
     await openApp('/studio', { roles: ['educator'], studio });

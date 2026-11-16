@@ -18,6 +18,7 @@ import { countItems, courseImageUrl } from '../learn/model';
 import { Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { pageFor } from '../paging';
+import { useTabParam } from '../useTabParam';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { StudioCourse } from './types';
@@ -73,6 +74,8 @@ export function StudioCoursesPage() {
   );
 }
 
+const COURSE_TAB_IDS = ['all', 'published', 'drafts'] as const;
+
 function CourseTabs({
   rows,
   uid,
@@ -87,7 +90,7 @@ function CourseTabs({
   onNew: () => void;
 }) {
   const counts = tabCounts(rows);
-  const [tab, setTab] = useState<CourseTab>('all');
+  const [tab, setTab] = useTabParam(COURSE_TAB_IDS);
   const [page, setPage] = useState(1);
   const panel = (id: CourseTab, empty: string) => {
     if (id !== tab) return null;

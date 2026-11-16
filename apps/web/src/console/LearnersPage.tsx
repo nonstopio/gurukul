@@ -31,6 +31,7 @@ import { useTerms } from '../labels/useTerms';
 import { Loaded } from '../learn/ui';
 import { article } from '../labels/terms';
 import { log } from '../log';
+import { useTabParam } from '../useTabParam';
 import { longDate } from '../quiz/model';
 import { useConsole } from './ConsoleProvider';
 import { LearnerDrawer } from './LearnerDrawer';
@@ -69,6 +70,7 @@ function tabItems(
   return [first as TabItem, ...rest];
 }
 
+const LEARNER_TAB_IDS = ['all', 'signedIn', 'pending', 'overdue'] as const;
 const TABS: Array<{ id: LearnerTab; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'signedIn', label: 'Signed in' },
@@ -141,7 +143,7 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
   const me = useUser();
   const [changingRole, setChangingRole] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [tab, setTab] = useState<LearnerTab>('all');
+  const [tab, setTab] = useTabParam(LEARNER_TAB_IDS);
   const [search, setSearch] = useState('');
   const query = useDebounced(search, SEARCH_DELAY_MS);
   const [team, setTeam] = useState('');
@@ -166,7 +168,14 @@ function Learners({ meta, now }: { meta: Meta; now: Date }) {
     data.usersByUid([linked]).then(
       ([user]) => {
         if (!current) return;
-        setParams({}, { replace: true });
+        setParams(
+          (current) => {
+            const rest = new URLSearchParams(current);
+            rest.delete('learner');
+            return rest;
+          },
+          { replace: true },
+        );
         if (user) setOpen(buildLearnerRows([user], [], [], now, false)[0] as LearnerRow);
         else toast.show('That person was not found.', { tone: 'danger' });
       },
