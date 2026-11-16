@@ -80,6 +80,7 @@ export function useTips(uid: string, tips: readonly Tip[] = TIPS) {
       onDismiss: (_, hint) =>
         updateTips(uid, (s) => ({ ...s, done: [...new Set([...s.done, String(hint.id)])] })),
     });
+    const here = tips.filter((t) => t.where.some((p) => matchPath(p, pathname)));
     let shown: [string, Element][] = [];
     let drawn = false;
     let settle = 0;
@@ -94,8 +95,17 @@ export function useTips(uid: string, tips: readonly Tip[] = TIPS) {
         shown = [];
         return;
       }
-      const eligible = tips.flatMap((t): [Tip, Element][] => {
-        if (state.done.includes(t.id) || !t.where.some((p) => matchPath(p, pathname))) return [];
+      // Nothing left to teach on this page: stop watching it until the next page or switch change.
+      // The observer stays on `document.body`, since dialogs and menus that hide tips open there.
+      if (here.every((t) => state.done.includes(t.id))) {
+        observer.disconnect();
+        if (drawn) h.hide();
+        drawn = false;
+        shown = [];
+        return;
+      }
+      const eligible = here.flatMap((t): [Tip, Element][] => {
+        if (state.done.includes(t.id)) return [];
         const node = document.querySelector(t.el);
         return node && onScreen(node) ? [[t, node]] : [];
       });

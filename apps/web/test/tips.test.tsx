@@ -318,6 +318,29 @@ describe('useTips', () => {
     expect(lib.h.setHints).toHaveBeenLastCalledWith([]);
   });
 
+  it('stops watching the page when it has no tip left to show', async () => {
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    mount([ELSEWHERE]);
+    await settle();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(lib.h.setHints).not.toHaveBeenCalled();
+    document.body.insertAdjacentHTML('beforeend', '<p></p>');
+    await settle();
+    expect(lib.h.setHints).not.toHaveBeenCalled();
+  });
+
+  it('hides the dots and stops watching once the last tip here is dismissed', async () => {
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    mount([A]);
+    await settle();
+    expect(shownTips().map((h) => h.id)).toEqual(['a']);
+    fireEvent.click(document.querySelector('#a') as Element);
+    document.body.insertAdjacentHTML('beforeend', '<p></p>');
+    await settle();
+    expect(lib.h.hide).toHaveBeenCalled();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
   it('stops when the switch is turned off in the page without a rerender', async () => {
     mount([A]);
     await settle();
