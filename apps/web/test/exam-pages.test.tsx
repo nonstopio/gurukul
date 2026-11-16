@@ -851,6 +851,43 @@ describe('Course complete', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
   });
 
+  it('says it is finishing up, not failed, while progress loads and until completedAt arrives', async () => {
+    const d = fakeData({ courses: [courseWith()], deferProgress: true });
+    await openApp('/courses/git/complete', { data: d });
+    expect(await screen.findByText('Finishing up…')).toBeTruthy();
+    expect(screen.queryByText('Not finished yet')).toBeNull();
+    // Every item done, but the server has not stamped completedAt yet.
+    const allDone = done({ completedAt: null, certificateId: null });
+    act(() => d.emitProgress(allDone));
+    expect(screen.getByText('Finishing up…')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to the course' })).toBeTruthy();
+    // completedAt arrives: the completion screen replaces it.
+    act(() => d.emitProgress(done()));
+    expect(await screen.findByText('Course complete')).toBeTruthy();
+    expect(screen.queryByText('Finishing up…')).toBeNull();
+  });
+
+  it('says so calmly when finishing up takes a long time', async () => {
+    const d = fakeData({ courses: [courseWith()], deferProgress: true });
+    await openApp('/courses/git/complete', { data: d });
+    try {
+      await screen.findByText('Finishing up…');
+      // Remount the status under fake timers: no progress at all, then every item done.
+      act(() => d.emitProgress(null));
+      await screen.findByText('Not finished yet');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      act(() => d.emitProgress(done({ completedAt: null, certificateId: null })));
+      expect(screen.queryByText(/taking longer than usual/)).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(15_000);
+      });
+      expect(screen.getByText(/taking longer than usual/)).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Back to the course' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('says a course that does not exist cannot be complete', async () => {
     await openApp('/courses/nope/complete', { data: data() });
     expect(await screen.findByText('Not finished yet')).toBeTruthy();

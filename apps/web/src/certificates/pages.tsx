@@ -1,4 +1,4 @@
-import { EDUCATOR_COURSE_ID, estimateMinutes, itemsOf } from '@gurukul/schema';
+import { EDUCATOR_COURSE_ID, estimateMinutes, itemsOf, progressPercent } from '@gurukul/schema';
 import {
   Breadcrumb,
   Button,
@@ -403,6 +403,28 @@ function EducatorWelcome({ certificateId }: { certificateId: string | null }) {
   );
 }
 
+/** How long "Finishing up…" waits for the server to stamp `completedAt` before it says it is slow. */
+const FINISHING_SLOW_MS = 15_000;
+
+/** The server stamps `completedAt` a moment after the last item; until then this is not a failure. */
+function FinishingUp({ courseId }: { courseId: string }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), FINISHING_SLOW_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Callout title="Finishing up…" role="status">
+      {slow
+        ? 'This is taking longer than usual. Your progress is saved; check your connection or come back in a minute.'
+        : 'Saving your progress. This takes a few seconds.'}
+      <Link className={buttonClass('secondary')} to={`/courses/${courseId}`}>
+        Back to the course
+      </Link>
+    </Callout>
+  );
+}
+
 /** `/courses/:courseId/complete`: the Completion screen, reached after the last item. */
 export function CompletePage() {
   const { courseId = '' } = useParams();
@@ -417,6 +439,20 @@ export function CompletePage() {
   return (
     <LoadedPage loadable={result}>
       {(course) => {
+        // Loading, or every item done and the server has not stamped `completedAt` yet.
+        const finishing =
+          !!course &&
+          !progress?.completedAt &&
+          (progress === undefined ||
+            (progress !== null && progressPercent(course, progress) === 100));
+        if (finishing) {
+          return (
+            <Page>
+              <PageHeader title={course.title} />
+              <FinishingUp courseId={courseId} />
+            </Page>
+          );
+        }
         if (!course || !progress?.completedAt) {
           return (
             <Page>
