@@ -140,9 +140,13 @@ export const onAttemptCreated = onDocumentCreated(
   },
 );
 
-/** 03:00 UTC daily: recompute the org counters from source, fixing any drift. */
+/**
+ * 03:00 UTC daily: recount the org totals and the courses with activity since the last run, fixing
+ * any drift. Nine minutes, not the default one: the first run, and a night after a publish, read
+ * every progress document of a course.
+ */
 export const dailyRollup = onSchedule(
-  { schedule: 'every day 03:00', timeZone: 'Etc/UTC', region: 'asia-south1' },
+  { schedule: 'every day 03:00', timeZone: 'Etc/UTC', region: 'asia-south1', timeoutSeconds: 540 },
   async () => {
     await runLogged(
       { done: 'Daily roll-up finished', failed: 'Daily roll-up failed' },

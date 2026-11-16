@@ -771,9 +771,15 @@ export function firestoreAttemptStatsStore(db: Firestore): AttemptStatsStore {
 
 const PAGE = 500;
 
-/** Every document a query matches, read in pages of 500 so no single read holds the whole set. */
-async function readAll(query: Query): Promise<QueryDocumentSnapshot[]> {
-  const ordered = query.orderBy(FieldPath.documentId()).limit(PAGE);
+/**
+ * Every document a query matches, read in pages of 500 so no single read holds the whole set. A
+ * query with a range filter passes the field it filters on as `order`.
+ */
+async function readAll(
+  query: Query,
+  order: string | FieldPath = FieldPath.documentId(),
+): Promise<QueryDocumentSnapshot[]> {
+  const ordered = query.orderBy(order).limit(PAGE);
   const docs: QueryDocumentSnapshot[] = [];
   let page = await ordered.get();
   docs.push(...page.docs);
@@ -784,13 +790,20 @@ async function readAll(query: Query): Promise<QueryDocumentSnapshot[]> {
   return docs;
 }
 
+/** A document's state as a comparable value: its update time, or null when it does not exist. */
+const versionOf = (snap: { updateTime?: { valueOf(): string } }): string | null =>
+  snap.updateTime?.valueOf() ?? null;
+
 /**
  * `RollupStore` over the Admin SDK: count() aggregations (one read per 1000 documents) for the
- * totals, and one read per course, progress and attempt document for the rest.
+ * totals, one read per course, and one per progress document that was active since the last run or
+ * belongs to a course being recounted. `counters/rollup` holds when the last run started.
  */
 export function firestoreRollupStore(db: Firestore): RollupStore {
   const count = async (q: { count(): { get(): Promise<{ data(): { count: number } }> } }) =>
     (await q.count().get()).data().count;
+  const dataOf = async (query: Query, order?: string) =>
+    (await readAll(query, order)).map((d) => d.data());
   return {
     countUsers: () => count(db.collection('users')),
     countActiveSince: (sinceMs) =>
@@ -800,35 +813,65 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
       count(db.collection('assignments').where('status', '==', 'completed')),
     countCourseAssignments: (courseId) =>
       count(db.collection('assignments').where('courseId', '==', courseId)),
+    async lastRun() {
+      const snap = await db.doc('counters/rollup').get();
+      return { ranAt: millis(snap.get('ranAt') as Millis), retry: snap.get('retry') ?? [] };
+    },
+    async finishRun({ ranAt, retry }) {
+      await db.doc('counters/rollup').set({ ranAt: Timestamp.fromMillis(ranAt), retry });
+    },
     async courses() {
-      return (await readAll(db.collection('courses'))).map((d) => ({ id: d.id, data: d.data() }));
-    },
-    async progress() {
-      return (await readAll(db.collection('progress'))).map((d) => d.data());
-    },
-    async attempts() {
-      return (await readAll(db.collectionGroup('attempts'))).map((d) => ({
+      return (await readAll(db.collection('courses'))).map((d) => ({
         id: d.id,
-        createdAtMs: millis(d.get('createdAt') as Millis) ?? 0,
+        publishedAtMs: millis(d.get('publishedAt') as Millis) ?? 0,
         data: d.data(),
       }));
     },
-    async userNames() {
+    progressActiveSince: (sinceMs) =>
+      dataOf(
+        db.collection('progress').where('lastActiveAt', '>=', Timestamp.fromMillis(sinceMs)),
+        'lastActiveAt',
+      ),
+    courseProgress: (courseId) =>
+      dataOf(db.collection('progress').where('courseId', '==', courseId)),
+    learnerProgress: (uid) => dataOf(db.collection('progress').where('uid', '==', uid)),
+    async courseStats(courseId) {
+      const snap = await db.doc(`stats/course_${courseId}`).get();
+      return {
+        started: Number(snap.get('started') ?? 0),
+        completed: Number(snap.get('completed') ?? 0),
+        version: versionOf(snap),
+      };
+    },
+    async userNames(uids) {
       const names = new Map<string, string>();
-      for (const d of await readAll(db.collection('users'))) {
-        const name: unknown = d.get('displayName');
-        if (typeof name === 'string') names.set(d.id, name);
+      for (const part of chunk(uids, 300)) {
+        for (const snap of await db.getAll(...part.map((uid) => db.doc(`users/${uid}`)))) {
+          const name: unknown = snap.get('displayName');
+          if (typeof name === 'string') names.set(snap.id, name);
+        }
       }
       return names;
     },
-    async roster(courseId) {
-      const docs = await readAll(db.collection(`courses/${courseId}/learners`));
-      return new Map(docs.map((d) => [d.id, String(d.get('displayName') ?? '')]));
+    async rosters(entries) {
+      const rosters = new Map<string, Map<string, string>>();
+      for (const part of chunk(entries, 300)) {
+        const snaps = await db.getAll(
+          ...part.map((e) => db.doc(`courses/${e.courseId}/learners/${e.uid}`)),
+        );
+        snaps.forEach((snap, i) => {
+          if (!snap.exists) return;
+          const { courseId, uid } = part[i] as { courseId: string; uid: string };
+          const roster = rosters.get(courseId) ?? new Map<string, string>();
+          rosters.set(courseId, roster.set(uid, String(snap.get('displayName') ?? '')));
+        });
+      }
+      return rosters;
     },
     async writeRoster(writes) {
-      for (let i = 0; i < writes.length; i += PAGE) {
+      for (const part of chunk(writes, PAGE)) {
         const batch = db.batch();
-        for (const { courseId, uid, displayName, startedAt } of writes.slice(i, i + PAGE)) {
+        for (const { courseId, uid, displayName, startedAt } of part) {
           batch.set(
             db.doc(`courses/${courseId}/learners/${uid}`),
             { displayName, startedAt },
@@ -841,9 +884,25 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
     async writeOrgCounts(counts) {
       await db.doc('stats/org').set(counts, { merge: true });
     },
-    async writeCourseCounts(courseId, counts) {
-      // mergeFields replaces each field whole, so a question no longer asked leaves questionFirstTry.
-      await db.doc(`stats/course_${courseId}`).set(counts, { mergeFields: Object.keys(counts) });
+    async writeAssigned(courseId, assigned) {
+      await db.doc(`stats/course_${courseId}`).set({ assigned }, { merge: true });
+    },
+    async writeCourseCounts(courseId, counts, guard) {
+      const ref = db.doc(`stats/course_${courseId}`);
+      return db.runTransaction(async (tx) => {
+        if (versionOf(await tx.get(ref)) !== guard.version) return false;
+        // mergeFields replaces each field whole, so a chapter or a finish day no longer counted goes.
+        tx.set(ref, counts, { mergeFields: Object.keys(counts) });
+        tx.set(
+          db.doc('stats/org'),
+          {
+            started: FieldValue.increment(guard.org.started),
+            completed: FieldValue.increment(guard.org.completed),
+          },
+          { merge: true },
+        );
+        return true;
+      });
     },
   };
 }

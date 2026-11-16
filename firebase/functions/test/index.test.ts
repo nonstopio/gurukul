@@ -201,6 +201,7 @@ describe('index', () => {
     for (const s of [rollup, reminders]) {
       expect(s?.options).toMatchObject({ timeZone: 'Etc/UTC', region: 'asia-south1' });
     }
+    expect(rollup?.options).toMatchObject({ timeoutSeconds: 540 });
     await rollup?.fn();
     expect(runDailyRollup).toHaveBeenCalledWith(expect.anything(), expect.any(Number));
     expect(reminders?.options).toMatchObject({

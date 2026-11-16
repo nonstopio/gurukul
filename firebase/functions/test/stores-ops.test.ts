@@ -649,7 +649,7 @@ describe('firestoreRollupStore', () => {
     get: (field: string) => (data as Record<string, unknown>)[field],
   });
 
-  it('counts with aggregation queries and overwrites the org and course counters', async () => {
+  it('counts with aggregation queries and overwrites the org totals and a course’s assigned', async () => {
     const set = vi.fn().mockResolvedValue(undefined);
     const whereProgress = vi.fn().mockReturnValue(countQuery(80));
     const whereAssignments = vi.fn((field: string) => countQuery(field === 'status' ? 90 : 7));
@@ -678,72 +678,146 @@ describe('firestoreRollupStore', () => {
       activeLearners30d: 2,
       assignmentsTotal: 3,
       assignmentsCompleted: 4,
-      started: 5,
-      completed: 6,
-      quizScoreSum: 7,
-      quizScoreCount: 8,
-      quizFirstTryTotal: 9,
-      quizFirstTryPassed: 10,
     };
     await store.writeOrgCounts(counts);
     expect(doc).toHaveBeenCalledWith('stats/org');
     expect(set).toHaveBeenCalledWith(counts, { merge: true });
-    const course = {
-      assigned: 1,
-      started: 1,
-      completed: 0,
-      certified: 0,
-      scoreSum: 0,
-      scoreCount: 0,
-      chapterCompletions: [],
-      questionFirstTry: {},
-      finishDaysSum: 0,
-      finishDaysHistogram: {},
-    };
-    await store.writeCourseCounts('git', course);
+    await store.writeAssigned('git', 9);
     expect(doc).toHaveBeenCalledWith('stats/course_git');
-    expect(set).toHaveBeenLastCalledWith(course, { mergeFields: Object.keys(course) });
+    expect(set).toHaveBeenLastCalledWith({ assigned: 9 }, { merge: true });
   });
 
-  it('reads every course, progress and attempt document in pages of 500', async () => {
+  it('keeps when the last run started, and what it skipped, on counters/rollup', async () => {
+    const set = vi.fn().mockResolvedValue(undefined);
+    const stored: Record<string, unknown> = {};
+    const doc = vi
+      .fn()
+      .mockReturnValue({ set, get: async () => ({ get: (f: string) => stored[f] }) });
+    const store = firestoreRollupStore({ doc } as never);
+    expect(await store.lastRun()).toEqual({ ranAt: null, retry: [] });
+    Object.assign(stored, { ranAt: ts(42), retry: ['git'] });
+    expect(await store.lastRun()).toEqual({ ranAt: 42, retry: ['git'] });
+    await store.finishRun({ ranAt: 99, retry: ['sql'] });
+    expect(doc).toHaveBeenCalledWith('counters/rollup');
+    expect(set).toHaveBeenCalledWith({ ranAt: 'ts:99', retry: ['sql'] });
+  });
+
+  it('reads every course in pages of 500, and progress by activity, course and learner', async () => {
     const progressDocs = Array.from({ length: 1000 }, (_, i) => snap(`p${i}`, { n: i }));
     const progress = pagedQuery(progressDocs);
-    const courses = pagedQuery([snap('git', { title: 'Git' })]);
-    const attempts = pagedQuery([
-      snap('a1', { score: 1, createdAt: ts(42) }),
-      snap('a2', { score: 0 }),
+    const where = vi.fn().mockReturnValue(progress);
+    const courses = pagedQuery([
+      snap('git', { title: 'Git', publishedAt: ts(7) }),
+      snap('draft', { title: 'Draft' }),
     ]);
-    const db = {
-      collection: (name: string) => (name === 'progress' ? progress : courses),
-      collectionGroup: vi.fn().mockReturnValue(attempts),
-    } as never;
-    const store = firestoreRollupStore(db);
-    const read = await store.progress();
+    const db = { collection: (name: string) => (name === 'progress' ? { where } : courses) };
+    const store = firestoreRollupStore(db as never);
+    const read = await store.progressActiveSince(5000);
+    expect(where).toHaveBeenLastCalledWith('lastActiveAt', '>=', 'ts:5000');
+    expect(progress.orderBy).toHaveBeenLastCalledWith('lastActiveAt');
     expect(read).toHaveLength(1000);
     expect(read[999]).toEqual({ n: 999 });
     expect(progress.calls).toEqual([progressDocs[499], progressDocs[999]]);
-    expect(progress.orderBy).toHaveBeenCalledWith('__name__');
-    expect(await store.courses()).toEqual([{ id: 'git', data: { title: 'Git' } }]);
-    expect(courses.calls).toEqual([]);
-    expect(await store.attempts()).toEqual([
-      { id: 'a1', createdAtMs: 42, data: { score: 1, createdAt: expect.anything() } },
-      { id: 'a2', createdAtMs: 0, data: { score: 0 } },
+    expect(await store.courseProgress('git')).toHaveLength(1000);
+    expect(where).toHaveBeenLastCalledWith('courseId', '==', 'git');
+    expect(progress.orderBy).toHaveBeenLastCalledWith('__name__');
+    expect(await store.learnerProgress('u1')).toHaveLength(1000);
+    expect(where).toHaveBeenLastCalledWith('uid', '==', 'u1');
+    expect(await store.courses()).toEqual([
+      { id: 'git', publishedAtMs: 7, data: { title: 'Git', publishedAt: expect.anything() } },
+      { id: 'draft', publishedAtMs: 0, data: { title: 'Draft' } },
     ]);
+    expect(courses.calls).toEqual([]);
   });
 
-  it('reads profile names and a course roster, skipping a profile without a name', async () => {
-    const users = pagedQuery([snap('u1', { displayName: 'Asha Rao' }), snap('u2', {})]);
-    const learners = pagedQuery([snap('u1', { displayName: 'Asha' }), snap('u2', {})]);
-    const collection = vi.fn((name: string) => (name === 'users' ? users : learners));
-    const store = firestoreRollupStore({ collection } as never);
-    expect(await store.userNames()).toEqual(new Map([['u1', 'Asha Rao']]));
-    expect(await store.roster('git')).toEqual(
+  it('reads the named profiles and roster entries, skipping a missing name or entry', async () => {
+    const docs: Record<string, object | undefined> = {
+      'users/u1': { displayName: 'Asha Rao' },
+      'users/u2': {},
+      'courses/git/learners/u1': { displayName: 'Asha' },
+      'courses/git/learners/u2': {},
+      'courses/sql/learners/u1': undefined,
+    };
+    const getAll = vi.fn(async (...paths: string[]) =>
+      paths.map((p) => ({
+        ...snap(p.split('/').at(-1) as string, docs[p] ?? {}),
+        exists: docs[p] !== undefined,
+      })),
+    );
+    const store = firestoreRollupStore({ doc: (p: string) => p, getAll } as never);
+    expect(await store.userNames(['u1', 'u2'])).toEqual(new Map([['u1', 'Asha Rao']]));
+    expect(getAll).toHaveBeenLastCalledWith('users/u1', 'users/u2');
+    expect(
+      await store.rosters([
+        { courseId: 'git', uid: 'u1' },
+        { courseId: 'git', uid: 'u2' },
+        { courseId: 'sql', uid: 'u1' },
+      ]),
+    ).toEqual(
       new Map([
-        ['u1', 'Asha'],
-        ['u2', ''],
+        [
+          'git',
+          new Map([
+            ['u1', 'Asha'],
+            ['u2', ''],
+          ]),
+        ],
       ]),
     );
-    expect(collection).toHaveBeenCalledWith('courses/git/learners');
+    await store.userNames(Array.from({ length: 301 }, (_, i) => `u${i}`));
+    expect(getAll).toHaveBeenCalledTimes(4);
+  });
+
+  it('writes a recount, and the org’s share of it, only when the counters are unchanged', async () => {
+    const stored = { started: 5, completed: 2 } as Record<string, unknown>;
+    const version = { updateTime: { valueOf: () => '10.5' } };
+    const tx = {
+      get: vi.fn(async () => version),
+      set: vi.fn(),
+    };
+    const db = {
+      doc: vi.fn((p: string) => ({
+        path: p,
+        get: async () => ({ ...version, get: (f: string) => stored[f] }),
+      })),
+      runTransaction: (run: (t: typeof tx) => unknown) => run(tx),
+    };
+    const store = firestoreRollupStore(db as never);
+    expect(await store.courseStats('git')).toEqual({ started: 5, completed: 2, version: '10.5' });
+    const counts = {
+      assigned: 1,
+      started: 6,
+      completed: 2,
+      certified: 0,
+      chapterCompletions: [],
+      finishDaysSum: 0,
+      finishDaysHistogram: {},
+    };
+    const org = { started: 1, completed: 0 };
+    expect(await store.writeCourseCounts('git', counts, { version: '9.0', org })).toBe(false);
+    expect(tx.set).not.toHaveBeenCalled();
+    expect(await store.writeCourseCounts('git', counts, { version: '10.5', org })).toBe(true);
+    expect(tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'stats/course_git' }),
+      counts,
+      {
+        mergeFields: Object.keys(counts),
+      },
+    );
+    expect(tx.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'stats/org' }),
+      { started: '+1', completed: '+0' },
+      { merge: true },
+    );
+  });
+
+  it('reads a course with no counters yet as zero, with no version', async () => {
+    const db = { doc: () => ({ get: async () => ({ get: () => undefined }) }) };
+    expect(await firestoreRollupStore(db as never).courseStats('git')).toEqual({
+      started: 0,
+      completed: 0,
+      version: null,
+    });
   });
 
   it('merges roster entries in batches of 500', async () => {

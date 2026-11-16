@@ -6,7 +6,7 @@ import {
   migrateCourse,
   progressSchema,
 } from '@gurukul/schema';
-import type { Attempt, Course, CourseStats, Progress, ProgressState } from '@gurukul/schema';
+import type { Course, CourseStats, Progress, ProgressState } from '@gurukul/schema';
 import { log } from './logging/log.js';
 
 const DAY_MS = 86_400_000;
@@ -152,72 +152,42 @@ export async function handleAttemptCreated(
   return 'counted';
 }
 
-/** One stored attempt as the roll-up reads it: the raw document, its id and when it was graded. */
-export interface StoredAttempt {
-  id: string;
-  createdAtMs: number;
-  data: unknown;
-}
-
-/** The `stats/course_{id}` counters the roll-up rebuilds from progress and attempts. */
-export type CourseRecount = Omit<CourseStats, 'assigned'>;
-
-/** The `stats/org` counters the roll-up rebuilds from progress and attempts. */
-export interface OrgRecount {
-  started: number;
-  completed: number;
-  quizScoreSum: number;
-  quizScoreCount: number;
-  quizFirstTryTotal: number;
-  quizFirstTryPassed: number;
-}
-
-const emptyCourseRecount = (chapters: number): CourseRecount => ({
-  started: 0,
-  completed: 0,
-  certified: 0,
-  scoreSum: 0,
-  scoreCount: 0,
-  chapterCompletions: Array.from({ length: chapters }, () => 0),
-  questionFirstTry: {},
-  finishDaysSum: 0,
-  finishDaysHistogram: {},
-});
+/** The `stats/course_{id}` counters the roll-up rebuilds from the course's progress documents. */
+export type CourseRecount = Pick<
+  CourseStats,
+  | 'started'
+  | 'completed'
+  | 'certified'
+  | 'chapterCompletions'
+  | 'finishDaysSum'
+  | 'finishDaysHistogram'
+>;
 
 /**
- * Rebuilds the counters the triggers keep, from the source documents, the way the triggers count
- * them: progress and attempts of a course that does not exist are ignored (the progress trigger
- * ignores them too), a chapter counts once every item in it is done in the CURRENT course (an empty
- * chapter never counts), and a first try is a learner's earliest attempt at a Quiz.
+ * Rebuilds the counters the progress trigger keeps for one course, from that course's progress
+ * documents, the way the trigger counts them: a chapter counts once every item in it is done in the
+ * CURRENT course (an empty chapter never counts). The attempt counters (scores, first tries) are
+ * not rebuilt: the attempt trigger alone keeps them.
  */
-export function recountFromSource(
-  courses: ReadonlyMap<string, Pick<Course, 'chapters'>>,
+export function recountCourse(
+  course: Pick<Course, 'chapters'>,
   progressDocs: readonly unknown[],
-  attempts: readonly StoredAttempt[],
-): { org: OrgRecount; courses: Record<string, CourseRecount> } {
-  const org: OrgRecount = {
+): CourseRecount {
+  const c: CourseRecount = {
     started: 0,
     completed: 0,
-    quizScoreSum: 0,
-    quizScoreCount: 0,
-    quizFirstTryTotal: 0,
-    quizFirstTryPassed: 0,
+    certified: 0,
+    chapterCompletions: course.chapters.map(() => 0),
+    finishDaysSum: 0,
+    finishDaysHistogram: {},
   };
-  const out: Record<string, CourseRecount> = {};
-  for (const [id, course] of courses) out[id] = emptyCourseRecount(course.chapters.length);
-
   for (const raw of progressDocs) {
     const parsed = progressSchema.safeParse(raw);
     if (!parsed.success) continue;
     const p = parsed.data;
-    const course = courses.get(p.courseId);
-    const c = out[p.courseId];
-    if (course === undefined || c === undefined) continue;
     c.started += 1;
-    org.started += 1;
     if (p.completedAt !== null) {
       c.completed += 1;
-      org.completed += 1;
       const days = Math.max(0, (p.completedAt.toMillis() - p.startedAt.toMillis()) / DAY_MS);
       c.finishDaysSum += days;
       const bucket = finishDaysBucket(days);
@@ -230,37 +200,7 @@ export function recountFromSource(
       }
     });
   }
-
-  const firsts = new Map<string, { at: number; id: string; attempt: Attempt }>();
-  for (const stored of attempts) {
-    const parsed = attemptSchema.safeParse(stored.data);
-    if (!parsed.success) continue;
-    const a = parsed.data;
-    const c = out[a.courseId];
-    if (c === undefined) continue;
-    c.scoreSum += a.score;
-    c.scoreCount += 1;
-    org.quizScoreSum += a.score;
-    org.quizScoreCount += 1;
-    const key = `${a.uid}\u0000${a.courseId}\u0000${a.quizId}`;
-    const seen = firsts.get(key);
-    const earlier =
-      seen === undefined ||
-      stored.createdAtMs < seen.at ||
-      (stored.createdAtMs === seen.at && stored.id < seen.id);
-    if (earlier) firsts.set(key, { at: stored.createdAtMs, id: stored.id, attempt: a });
-  }
-  for (const { attempt } of firsts.values()) {
-    const c = out[attempt.courseId] as CourseRecount;
-    org.quizFirstTryTotal += 1;
-    if (attempt.passed) org.quizFirstTryPassed += 1;
-    for (const r of attempt.results) {
-      const q = (c.questionFirstTry[r.questionId] ??= { correct: 0, total: 0 });
-      q.total += 1;
-      if (r.correct) q.correct += 1;
-    }
-  }
-  return { org, courses: out };
+  return c;
 }
 
 /** One `courses/{id}/learners/{uid}` entry the roll-up writes (merged): missing, or with an old name. */
@@ -295,12 +235,26 @@ export function planRoster(
   return writes;
 }
 
-/** The counts the daily roll-up recomputes from the source collections. */
-export interface RollupCounts extends OrgRecount {
+/** The org counts the daily roll-up takes from count() aggregations. */
+export interface RollupCounts {
   usersTotal: number;
   activeLearners30d: number;
   assignmentsTotal: number;
   assignmentsCompleted: number;
+}
+
+/** When the last finished run started (null before the first) and the courses it could not write. */
+export interface RollupRun {
+  ranAt: number | null;
+  retry: string[];
+}
+
+/** What the roll-up needs of a stored `stats/course_{id}` before it recounts the course. */
+export interface StoredCourseStats {
+  started: number;
+  completed: number;
+  /** Identifies this state of the document (its update time); null when it does not exist. */
+  version: string | null;
 }
 
 export interface RollupStore {
@@ -311,34 +265,62 @@ export interface RollupStore {
   countCompletedAssignments(): Promise<number>;
   /** Assignments of one course. */
   countCourseAssignments(courseId: string): Promise<number>;
-  /** Every course document, as stored. */
-  courses(): Promise<{ id: string; data: unknown }[]>;
-  /** Every progress document, as stored. */
-  progress(): Promise<unknown[]>;
-  /** Every graded attempt, across every learner. */
-  attempts(): Promise<StoredAttempt[]>;
-  /** Every profile's display name, by uid. */
-  userNames(): Promise<Map<string, string>>;
-  /** One course's `learners` roster: display name by uid. */
-  roster(courseId: string): Promise<Map<string, string>>;
+  lastRun(): Promise<RollupRun>;
+  /** Records a finished run, so the next one looks only at what happened since it started. */
+  finishRun(run: { ranAt: number; retry: string[] }): Promise<void>;
+  /** Every course document, as stored, with when it was last published (0 when never). */
+  courses(): Promise<{ id: string; publishedAtMs: number; data: unknown }[]>;
+  /** The progress documents with `lastActiveAt` at or after `sinceMs`, as stored. */
+  progressActiveSince(sinceMs: number): Promise<unknown[]>;
+  /** Every progress document of one course, as stored. */
+  courseProgress(courseId: string): Promise<unknown[]>;
+  /** Every progress document of one learner, as stored. */
+  learnerProgress(uid: string): Promise<unknown[]>;
+  courseStats(courseId: string): Promise<StoredCourseStats>;
+  /** These profiles' display names, by uid. */
+  userNames(uids: readonly string[]): Promise<Map<string, string>>;
+  /** These learners' roster entries: display name by uid, by course. A missing entry is left out. */
+  rosters(
+    entries: readonly { courseId: string; uid: string }[],
+  ): Promise<Map<string, Map<string, string>>>;
   /** Merges these entries into the course rosters. */
   writeRoster(writes: readonly RosterWrite[]): Promise<void>;
-  /** Overwrites these counters on `stats/org`; `weekly` is left alone. */
+  /** Overwrites these counters on `stats/org`; everything else on it is left alone. */
   writeOrgCounts(counts: RollupCounts): Promise<void>;
-  /** Overwrites every counter on `stats/course_{id}`. */
-  writeCourseCounts(courseId: string, counts: CourseStats): Promise<void>;
+  /** Overwrites `assigned` on `stats/course_{id}`, leaving every other counter alone. */
+  writeAssigned(courseId: string, assigned: number): Promise<void>;
+  /**
+   * Overwrites the recounted counters on `stats/course_{id}` and adds `org` to the same counters on
+   * `stats/org`, in one transaction, only when the document is still at `version`. False, with
+   * nothing written, when a trigger changed it since it was read.
+   */
+  writeCourseCounts(
+    courseId: string,
+    counts: CourseRecount & { assigned: number },
+    guard: { version: string | null; org: { started: number; completed: number } },
+  ): Promise<boolean>;
 }
 
-/** What `dailyRollup` logs: the org counters and how much it read. */
+/** What `dailyRollup` logs: the org counts and how much it read and wrote. */
 export interface RollupSummary extends RollupCounts {
   courses: number;
+  /** Courses whose counters were rebuilt from their progress documents. */
+  recounted: number;
+  /** Courses a trigger wrote to during the recount: left as they were, recounted by the next run. */
+  skipped: number;
+  /** Progress documents read: the active ones, and every one of each recounted course. */
   progressDocs: number;
-  attempts: number;
   rosterWrites: number;
 }
 
 /** The start of the "active in the last 30 days" window. */
 export const activeWindowStart = (now: number): number => now - 30 * DAY_MS;
+
+/**
+ * How far before the last run's start "since the last run" reaches, so a write stamped by a clock
+ * a little behind this one is not missed.
+ */
+const OVERLAP_MS = 5 * 60_000;
 
 /** The courses whose stored document still reads as a course; anything else has no counters. */
 function readableCourses(docs: { id: string; data: unknown }[]): Map<string, Course> {
@@ -354,50 +336,111 @@ function readableCourses(docs: { id: string; data: unknown }[]): Map<string, Cou
 }
 
 /**
- * `dailyRollup`: recomputes every counter the triggers keep, except `weekly` (no lesson stores when
- * it was completed, so a week cannot be rebuilt), and overwrites them, fixing any drift. Counts come
- * from count() aggregations; the rest reads each course, progress, attempt, profile and roster
- * document once, a few thousand reads a day at 200 people. An increment that lands between the read
- * and the write is lost until the next run. It also fills in the course rosters (`planRoster`).
+ * The roster entries owed by the learners active since the last run: a missing one, or a renamed
+ * one, and then every other course of a renamed learner too. A rename therefore reaches the
+ * rosters the night after the learner is next active in any course.
+ */
+async function rosterWritesFor(
+  store: RollupStore,
+  courses: ReadonlyMap<string, unknown>,
+  active: readonly Progress[],
+): Promise<RosterWrite[]> {
+  const entries = active.filter((p) => courses.has(p.courseId));
+  if (entries.length === 0) return [];
+  const [names, rosters] = await Promise.all([
+    store.userNames([...new Set(entries.map((p) => p.uid))]),
+    store.rosters(entries),
+  ]);
+  const owed = planRoster(courses, entries, names, rosters);
+  const renamed = new Set(
+    owed.filter((w) => rosters.get(w.courseId)?.has(w.uid)).map((w) => w.uid),
+  );
+  const writes = owed.filter((w) => !renamed.has(w.uid));
+  for (const uid of renamed) {
+    writes.push(...planRoster(courses, await store.learnerProgress(uid), names, new Map()));
+  }
+  return writes;
+}
+
+/**
+ * `dailyRollup`: the org totals come from count() aggregations and are written at once. A course
+ * is recounted from its progress documents (`recountCourse`) only when it is due: a learner was
+ * active in it or it was published since the last run started, or the last run had to skip it.
+ * The first run has no last run, so every course is due. The recount is written only if no trigger
+ * touched the course's counters meanwhile (`writeCourseCounts`), and the org's `started` and
+ * `completed` move by what the recount changed, so no increment is overwritten. `weekly` (no lesson
+ * stores when it was completed) and the attempt counters are kept by the triggers alone. It also
+ * brings the roster entries of the learners active since the last run up to date.
  */
 export async function runDailyRollup(store: RollupStore, now: number): Promise<RollupSummary> {
-  const [usersTotal, activeLearners30d, assignmentsTotal, assignmentsCompleted] = await Promise.all(
-    [
+  const [usersTotal, activeLearners30d, assignmentsTotal, assignmentsCompleted, last, courseDocs] =
+    await Promise.all([
       store.countUsers(),
       store.countActiveSince(activeWindowStart(now)),
       store.countAssignments(),
       store.countCompletedAssignments(),
-    ],
-  );
-  const [courseDocs, progressDocs, attempts, names] = await Promise.all([
-    store.courses(),
-    store.progress(),
-    store.attempts(),
-    store.userNames(),
-  ]);
-  const courses = readableCourses(courseDocs);
-  const recount = recountFromSource(courses, progressDocs, attempts);
-  const rosters = new Map<string, Map<string, string>>();
-  for (const [courseId, counts] of Object.entries(recount.courses)) {
-    const assigned = await store.countCourseAssignments(courseId);
-    await store.writeCourseCounts(courseId, { assigned, ...counts });
-    rosters.set(courseId, await store.roster(courseId));
-  }
-  const rosterWrites = planRoster(courses, progressDocs, names, rosters);
-  if (rosterWrites.length > 0) await store.writeRoster(rosterWrites);
+      store.lastRun(),
+      store.courses(),
+    ]);
   const counts: RollupCounts = {
     usersTotal,
     activeLearners30d,
     assignmentsTotal,
     assignmentsCompleted,
-    ...recount.org,
   };
   await store.writeOrgCounts(counts);
+
+  const since = last.ranAt === null ? 0 : last.ranAt - OVERLAP_MS;
+  const courses = readableCourses(courseDocs);
+  const active: Progress[] = [];
+  for (const raw of await store.progressActiveSince(since)) {
+    const parsed = progressSchema.safeParse(raw);
+    if (parsed.success) active.push(parsed.data);
+  }
+  const due = new Set([
+    ...last.retry,
+    ...active.map((p) => p.courseId),
+    ...courseDocs.filter((c) => c.publishedAtMs >= since).map((c) => c.id),
+  ]);
+
+  let progressDocs = active.length;
+  let recounted = 0;
+  const skipped: string[] = [];
+  for (const [courseId, course] of courses) {
+    const assigned = await store.countCourseAssignments(courseId);
+    if (!due.has(courseId)) {
+      await store.writeAssigned(courseId, assigned);
+      continue;
+    }
+    // Read before the progress documents: a trigger that counts after this changes the version.
+    const stored = await store.courseStats(courseId);
+    const docs = await store.courseProgress(courseId);
+    progressDocs += docs.length;
+    const recount = recountCourse(course, docs);
+    const written = await store.writeCourseCounts(
+      courseId,
+      { assigned, ...recount },
+      {
+        version: stored.version,
+        org: {
+          started: recount.started - stored.started,
+          completed: recount.completed - stored.completed,
+        },
+      },
+    );
+    if (written) recounted += 1;
+    else skipped.push(courseId);
+  }
+
+  const rosterWrites = await rosterWritesFor(store, courses, active);
+  if (rosterWrites.length > 0) await store.writeRoster(rosterWrites);
+  await store.finishRun({ ranAt: now, retry: skipped });
   return {
     ...counts,
     courses: courses.size,
-    progressDocs: progressDocs.length,
-    attempts: attempts.length,
+    recounted,
+    skipped: skipped.length,
+    progressDocs,
     rosterWrites: rosterWrites.length,
   };
 }

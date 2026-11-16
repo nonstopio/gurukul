@@ -7,7 +7,7 @@ import {
   isEmptyDelta,
   planProgressStats,
   planRoster,
-  recountFromSource,
+  recountCourse,
   runDailyRollup,
 } from '../src/analytics.js';
 import type { AttemptStatsStore, RollupStore } from '../src/analytics.js';
@@ -194,72 +194,35 @@ describe('handleAttemptCreated', () => {
   });
 });
 
-describe('recountFromSource', () => {
-  const courses = new Map([['git', course]]) as never;
-  const attempt = (id: string, at: number, over: object = {}) => ({
-    id,
-    createdAtMs: at,
-    data: {
-      uid: 'u',
-      courseId: 'git',
-      quizId: 'pk',
-      score: 0.5,
-      passed: false,
-      results: [
-        { questionId: 'q1', correct: true },
-        { questionId: 'q2', correct: false },
-      ],
-      ...over,
-    },
-  });
-
-  it('starts every known course at zero, one slot per chapter', () => {
-    const r = recountFromSource(courses, [], []);
-    expect(r.courses).toEqual({
-      git: {
-        started: 0,
-        completed: 0,
-        certified: 0,
-        scoreSum: 0,
-        scoreCount: 0,
-        chapterCompletions: [0, 0, 0],
-        questionFirstTry: {},
-        finishDaysSum: 0,
-        finishDaysHistogram: {},
-      },
-    });
-    expect(r.org).toEqual({
+describe('recountCourse', () => {
+  it('starts at zero, one slot per chapter', () => {
+    expect(recountCourse(course as never, [])).toEqual({
       started: 0,
       completed: 0,
-      quizScoreSum: 0,
-      quizScoreCount: 0,
-      quizFirstTryTotal: 0,
-      quizFirstTryPassed: 0,
+      certified: 0,
+      chapterCompletions: [0, 0, 0],
+      finishDaysSum: 0,
+      finishDaysHistogram: {},
     });
   });
 
   it('counts starts, completions, certificates, finish days and finished chapters from progress', () => {
     const passed = { pk: { best: 1, passed: true, attempts: 1, lastAttemptAt: ts(1) } };
-    const r = recountFromSource(
-      courses,
-      [
-        progress({ completedItemIds: ['l1'] }),
-        progress({ uid: 'v', completedItemIds: ['l1', 'l2'] }),
-        progress({
-          uid: 'w',
-          completedItemIds: ['l1', 'l2', 'l3'],
-          quiz: passed,
-          startedAt: ts(DAY),
-          completedAt: ts(3 * DAY),
-          certificateId: 'NSG-GIT-26-0001',
-        }),
-        progress({ uid: 'x', startedAt: ts(5 * DAY), completedAt: ts(DAY) }),
-        progress({ courseId: 'gone' }),
-        { not: 'progress' },
-      ],
-      [],
-    );
-    expect(r.courses.git).toMatchObject({
+    const r = recountCourse(course as never, [
+      progress({ completedItemIds: ['l1'] }),
+      progress({ uid: 'v', completedItemIds: ['l1', 'l2'] }),
+      progress({
+        uid: 'w',
+        completedItemIds: ['l1', 'l2', 'l3'],
+        quiz: passed,
+        startedAt: ts(DAY),
+        completedAt: ts(3 * DAY),
+        certificateId: 'NSG-GIT-26-0001',
+      }),
+      progress({ uid: 'x', startedAt: ts(5 * DAY), completedAt: ts(DAY) }),
+      { not: 'progress' },
+    ]);
+    expect(r).toEqual({
       started: 4,
       completed: 2,
       certified: 1,
@@ -267,113 +230,170 @@ describe('recountFromSource', () => {
       finishDaysHistogram: { '0': 1, '2': 1 },
       chapterCompletions: [2, 1, 0],
     });
-    expect(r.org).toMatchObject({ started: 4, completed: 2 });
-  });
-
-  it('sums every score and counts each learner’s earliest attempt as their first try', () => {
-    const r = recountFromSource(
-      courses,
-      [],
-      [
-        attempt('b', 20, {
-          score: 1,
-          passed: true,
-          results: [{ questionId: 'q1', correct: true }],
-        }),
-        attempt('a', 10),
-        attempt('h', 30, { score: 0, results: [] }),
-        attempt('d', 10, { uid: 'v', score: 0, results: [] }),
-        attempt('c', 10, { uid: 'v', passed: true }),
-        attempt('z', 10, { uid: 'v', score: 0, results: [] }),
-        attempt('e', 5, { uid: 'v', quizId: 'other', score: 0, results: undefined }),
-        attempt('f', 1, { courseId: 'gone' }),
-        { id: 'g', createdAtMs: 0, data: { nope: 1 } },
-      ],
-    );
-    expect(r.courses.git).toMatchObject({
-      scoreSum: 2,
-      scoreCount: 7,
-      questionFirstTry: { q1: { correct: 2, total: 2 }, q2: { correct: 0, total: 2 } },
-    });
-    expect(r.org).toMatchObject({
-      quizScoreSum: 2,
-      quizScoreCount: 7,
-      quizFirstTryTotal: 3,
-      quizFirstTryPassed: 1,
-    });
   });
 });
 
 describe('runDailyRollup', () => {
+  const NOW = Date.UTC(2026, 9, 27);
+  const LAST = NOW - DAY;
+  const zero = {
+    started: 0,
+    completed: 0,
+    certified: 0,
+    chapterCompletions: [0],
+    finishDaysSum: 0,
+    finishDaysHistogram: {},
+  };
   const store = (over: Partial<RollupStore> = {}): RollupStore => ({
     countUsers: vi.fn().mockResolvedValue(120),
     countActiveSince: vi.fn().mockResolvedValue(80),
     countAssignments: vi.fn().mockResolvedValue(300),
     countCompletedAssignments: vi.fn().mockResolvedValue(90),
     countCourseAssignments: vi.fn().mockResolvedValue(7),
+    lastRun: vi.fn().mockResolvedValue({ ranAt: LAST, retry: [] }),
+    finishRun: vi.fn().mockResolvedValue(undefined),
     courses: vi.fn().mockResolvedValue([
-      { id: 'git-basics', data: fixtureCourse() },
-      { id: 'broken', data: { schemaVersion: 99 } },
+      { id: 'git-basics', publishedAtMs: 1, data: fixtureCourse() },
+      { id: 'quiet', publishedAtMs: 1, data: fixtureCourse() },
+      { id: 'broken', publishedAtMs: 1, data: { schemaVersion: 99 } },
     ]),
-    progress: vi.fn().mockResolvedValue([fixtureProgress()]),
-    attempts: vi.fn().mockResolvedValue([
-      {
-        id: 'a',
-        createdAtMs: 1,
-        data: { uid: 'u', courseId: 'git-basics', quizId: 'pk', score: 1, passed: true },
-      },
-    ]),
-    writeOrgCounts: vi.fn().mockResolvedValue(undefined),
-    writeCourseCounts: vi.fn().mockResolvedValue(undefined),
+    progressActiveSince: vi.fn().mockResolvedValue([fixtureProgress(), { not: 'progress' }]),
+    courseProgress: vi.fn().mockResolvedValue([fixtureProgress(), fixtureProgress()]),
+    learnerProgress: vi.fn().mockResolvedValue([]),
+    courseStats: vi.fn().mockResolvedValue({ started: 5, completed: 1, version: 'v1' }),
     userNames: vi.fn().mockResolvedValue(new Map([['u', 'Asha Rao']])),
-    roster: vi.fn().mockResolvedValue(new Map()),
+    rosters: vi.fn().mockResolvedValue(new Map()),
     writeRoster: vi.fn().mockResolvedValue(undefined),
+    writeOrgCounts: vi.fn().mockResolvedValue(undefined),
+    writeAssigned: vi.fn().mockResolvedValue(undefined),
+    writeCourseCounts: vi.fn().mockResolvedValue(true),
     ...over,
   });
+  const org = {
+    usersTotal: 120,
+    activeLearners30d: 80,
+    assignmentsTotal: 300,
+    assignmentsCompleted: 90,
+  };
 
-  it('recomputes the org and course counters from source and overwrites them', async () => {
-    const now = Date.UTC(2026, 9, 27);
+  it('writes the org totals, then recounts only the course with activity since the last run', async () => {
     const s = store();
-    const summary = await runDailyRollup(s, now);
-    const org = {
-      usersTotal: 120,
-      activeLearners30d: 80,
-      assignmentsTotal: 300,
-      assignmentsCompleted: 90,
-      started: 1,
-      completed: 0,
-      quizScoreSum: 1,
-      quizScoreCount: 1,
-      quizFirstTryTotal: 1,
-      quizFirstTryPassed: 1,
-    };
-    expect(summary).toEqual({ ...org, courses: 1, progressDocs: 1, attempts: 1, rosterWrites: 1 });
-    expect(s.roster).toHaveBeenCalledWith('git-basics');
+    const summary = await runDailyRollup(s, NOW);
+    expect(summary).toEqual({
+      ...org,
+      courses: 2,
+      recounted: 1,
+      skipped: 0,
+      progressDocs: 3,
+      rosterWrites: 1,
+    });
+    expect(s.countActiveSince).toHaveBeenCalledWith(NOW - 30 * DAY);
+    expect(s.writeOrgCounts).toHaveBeenCalledWith(org);
+    expect(s.progressActiveSince).toHaveBeenCalledWith(LAST - 5 * 60_000);
+    expect(s.courseProgress).toHaveBeenCalledTimes(1);
+    expect(s.courseProgress).toHaveBeenCalledWith('git-basics');
+    expect(s.writeCourseCounts).toHaveBeenCalledTimes(1);
+    expect(s.writeCourseCounts).toHaveBeenCalledWith(
+      'git-basics',
+      { assigned: 7, ...zero, started: 2 },
+      { version: 'v1', org: { started: -3, completed: -1 } },
+    );
+    expect(s.writeAssigned).toHaveBeenCalledTimes(1);
+    expect(s.writeAssigned).toHaveBeenCalledWith('quiet', 7);
+    expect(s.userNames).toHaveBeenCalledWith(['u']);
+    expect(s.rosters).toHaveBeenCalledWith([
+      expect.objectContaining({ courseId: 'git-basics', uid: 'u' }),
+    ]);
     expect(s.writeRoster).toHaveBeenCalledWith([
       { courseId: 'git-basics', uid: 'u', displayName: 'Asha Rao', startedAt: expect.anything() },
     ]);
-    expect(s.countActiveSince).toHaveBeenCalledWith(now - 30 * DAY);
-    expect(s.writeOrgCounts).toHaveBeenCalledWith(org);
-    expect(s.countCourseAssignments).toHaveBeenCalledWith('git-basics');
-    expect(s.writeCourseCounts).toHaveBeenCalledTimes(1);
-    expect(s.writeCourseCounts).toHaveBeenCalledWith('git-basics', {
-      assigned: 7,
-      started: 1,
-      completed: 0,
-      certified: 0,
-      scoreSum: 1,
-      scoreCount: 1,
-      chapterCompletions: [0],
-      questionFirstTry: {},
-      finishDaysSum: 0,
-      finishDaysHistogram: {},
-    });
+    expect(s.finishRun).toHaveBeenCalledWith({ ranAt: NOW, retry: [] });
   });
 
-  it('writes no roster entries when every roster is current', async () => {
-    const s = store({ roster: vi.fn().mockResolvedValue(new Map([['u', 'Asha Rao']])) });
-    expect((await runDailyRollup(s, 0)).rosterWrites).toBe(0);
+  it('reads the stored counters before the progress documents', async () => {
+    const s = store();
+    await runDailyRollup(s, NOW);
+    expect(vi.mocked(s.courseStats).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(s.courseProgress).mock.invocationCallOrder[0] as number,
+    );
+  });
+
+  it('recounts every course on the first run', async () => {
+    const s = store({
+      lastRun: vi.fn().mockResolvedValue({ ranAt: null, retry: [] }),
+      progressActiveSince: vi.fn().mockResolvedValue([]),
+      courses: vi
+        .fn()
+        .mockResolvedValue([{ id: 'quiet', publishedAtMs: 0, data: fixtureCourse() }]),
+    });
+    const summary = await runDailyRollup(s, NOW);
+    expect(s.progressActiveSince).toHaveBeenCalledWith(0);
+    expect(summary).toMatchObject({ recounted: 1, progressDocs: 2, rosterWrites: 0 });
+    expect(s.writeAssigned).not.toHaveBeenCalled();
+    expect(s.userNames).not.toHaveBeenCalled();
     expect(s.writeRoster).not.toHaveBeenCalled();
+  });
+
+  it('recounts a course published since the last run and one the last run skipped', async () => {
+    const s = store({
+      lastRun: vi.fn().mockResolvedValue({ ranAt: LAST, retry: ['quiet'] }),
+      progressActiveSince: vi.fn().mockResolvedValue([]),
+      courses: vi.fn().mockResolvedValue([
+        { id: 'git-basics', publishedAtMs: LAST, data: fixtureCourse() },
+        { id: 'quiet', publishedAtMs: 1, data: fixtureCourse() },
+        { id: 'old', publishedAtMs: LAST - 5 * 60_000 - 1, data: fixtureCourse() },
+      ]),
+    });
+    expect((await runDailyRollup(s, NOW)).recounted).toBe(2);
+    expect(vi.mocked(s.courseProgress).mock.calls).toEqual([['git-basics'], ['quiet']]);
+    expect(s.writeAssigned).toHaveBeenCalledWith('old', 7);
+  });
+
+  it('leaves a course a trigger wrote to meanwhile for the next run', async () => {
+    const s = store({ writeCourseCounts: vi.fn().mockResolvedValue(false) });
+    expect(await runDailyRollup(s, NOW)).toMatchObject({ recounted: 0, skipped: 1 });
+    expect(s.finishRun).toHaveBeenCalledWith({ ranAt: NOW, retry: ['git-basics'] });
+  });
+
+  it('writes no roster entries when the active learners are current, or their course is gone', async () => {
+    const s = store({
+      rosters: vi.fn().mockResolvedValue(new Map([['git-basics', new Map([['u', 'Asha Rao']])]])),
+    });
+    expect((await runDailyRollup(s, NOW)).rosterWrites).toBe(0);
+    expect(s.writeRoster).not.toHaveBeenCalled();
+    expect(s.learnerProgress).not.toHaveBeenCalled();
+    const gone = store({
+      progressActiveSince: vi
+        .fn()
+        .mockResolvedValue([fixtureProgress(undefined, { courseId: 'gone' })]),
+    });
+    expect((await runDailyRollup(gone, NOW)).rosterWrites).toBe(0);
+    expect(gone.rosters).not.toHaveBeenCalled();
+  });
+
+  it('copies a rename to every course of the learner, and only adds a missing entry', async () => {
+    const other = fixtureProgress(undefined, { courseId: 'quiet' });
+    const s = store({
+      progressActiveSince: vi
+        .fn()
+        .mockResolvedValue([fixtureProgress(), fixtureProgress(undefined, { uid: 'new' })]),
+      userNames: vi.fn().mockResolvedValue(
+        new Map([
+          ['u', 'Asha Rao'],
+          ['new', 'Meera Iyer'],
+        ]),
+      ),
+      rosters: vi.fn().mockResolvedValue(new Map([['git-basics', new Map([['u', 'Asha']])]])),
+      learnerProgress: vi.fn().mockResolvedValue([fixtureProgress(), other]),
+    });
+    await runDailyRollup(s, NOW);
+    expect(s.learnerProgress).toHaveBeenCalledTimes(1);
+    expect(s.learnerProgress).toHaveBeenCalledWith('u');
+    expect(vi.mocked(s.writeRoster).mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({ courseId: 'git-basics', uid: 'new', displayName: 'Meera Iyer' }),
+      expect.objectContaining({ courseId: 'git-basics', uid: 'u', displayName: 'Asha Rao' }),
+      expect.objectContaining({ courseId: 'quiet', uid: 'u', displayName: 'Asha Rao' }),
+    ]);
   });
 
   it('opens the window 30 days back', () => {
