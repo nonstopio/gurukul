@@ -51,7 +51,9 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
 - **Who is on a team** is `users/{uid}.teamIds`: the `onTeamWritten` function copies each
   `teams/{id}` write onto the profiles of everyone the write listed before or after: each profile is
   reset, in a transaction, to the teams that list its email **now**, never to a diff, so retried or
-  reordered trigger events cannot leave it wrong. `onUserCreated` creates the profile first and
+  reordered trigger events cannot leave it wrong. A write that leaves the member set as it was (a
+  rename) touches no profile, a profile already right is not rewritten, and members run 20 at a
+  time. `onUserCreated` creates the profile first and
   then reconciles it the same way, so a team written in between is not lost (a person with no
   profile yet is skipped by the trigger and picked up there). The `checkAnswer` and `gradeAttempt`
   callables apply the same `canOpen` rule on the server, so an id sent by hand opens nothing. A person cannot write it, so

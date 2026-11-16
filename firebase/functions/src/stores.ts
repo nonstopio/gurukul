@@ -90,33 +90,44 @@ export function firestoreUserStore(db: Firestore): UserStore {
 }
 
 /**
- * Sets `users/{uid}.teamIds` for the profile with `email` to the teams that list it, reading them
- * inside the transaction that writes. Returns false when the email has no profile (yet).
+ * Sets `users/{uid}.teamIds` for the profiles with `email` to the teams that list it, reading both
+ * inside the transaction that writes, and writes only a profile whose ids differ. Returns whether
+ * it changed any profile.
  */
 async function reconcileTeamIds(db: Firestore, email: string): Promise<boolean> {
   // More than one profile can carry an email (an Auth user deleted and made again), and each must
-  // lose a revoked team, so all are updated; five is far more than ever exists.
+  // lose a revoked team, so all are updated; five is far more than ever exists. The query stays
+  // outside the transaction: inside it, parallel reconciles lock each other's profiles and retry.
   const found = await db.collection('users').where('email', '==', email).limit(5).get();
   if (found.docs.length === 0) return false;
   if (found.docs.length > 1) {
     log.warn('Duplicate profiles reconciled', { count: found.docs.length });
   }
-  await db.runTransaction(async (tx) => {
+  return db.runTransaction(async (tx) => {
     const teams = await tx.get(
       db.collection('teams').where('memberEmails', 'array-contains', email),
     );
     const teamIds = teams.docs.map((d) => d.id);
-    for (const profile of found.docs) tx.update(profile.ref, { teamIds });
+    const profiles = await tx.getAll(...found.docs.map((d) => d.ref));
+    const stale = profiles.filter((p) => strings(p.get('teamIds')).join() !== teamIds.join());
+    for (const profile of stale) tx.update(profile.ref, { teamIds });
+    return stale.length > 0;
   });
-  return true;
 }
 
-/** `TeamStore` over the Admin SDK. A team lists at most 500 people, so one write is at most 500 small transactions. */
+/** How many members' transactions a team write runs at once. */
+const RECONCILE_CONCURRENCY = 20;
+
+/** `TeamStore` over the Admin SDK. A team lists at most 500 people: 25 rounds of 20 transactions. */
 export function firestoreTeamStore(db: Firestore): TeamStore {
   return {
     async reconcile(emails) {
       let count = 0;
-      for (const email of emails) if (await reconcileTeamIds(db, email)) count += 1;
+      // ponytail: fixed chunks, a chunk waits for its slowest member; a pool if that ever shows.
+      for (const part of chunk(emails, RECONCILE_CONCURRENCY)) {
+        const changed = await Promise.all(part.map((email) => reconcileTeamIds(db, email)));
+        count += changed.filter(Boolean).length;
+      }
       return count;
     },
   };

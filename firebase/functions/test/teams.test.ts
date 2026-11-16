@@ -52,6 +52,25 @@ describe('handleTeamWrite', () => {
     await handleTeamWrite(w.store, 'qa', { memberEmails: [] }, { memberEmails: ['a@x.com'] });
     expect(w.profiles['a@x.com']).toEqual([]);
   });
+  it('reconciles no one when the member set is unchanged: a rename, or the same people reordered', async () => {
+    const w = world({ qa: ['a@x.com', 'b@x.com'] }, { 'a@x.com': ['qa'], 'b@x.com': ['qa'] });
+    const team = { memberEmails: ['a@x.com', 'b@x.com'] };
+    expect(await handleTeamWrite(w.store, 'qa', team, { ...team })).toEqual({ count: 0 });
+    expect(
+      await handleTeamWrite(w.store, 'qa', team, { memberEmails: ['b@x.com', 'a@x.com'] }),
+    ).toEqual({ count: 0 });
+    expect(w.store.reconcile).not.toHaveBeenCalled();
+  });
+  it('reconciles every member when a team is created or deleted', async () => {
+    const w = world({}, { 'a@x.com': ['qa'] });
+    expect(await handleTeamWrite(w.store, 'qa', { memberEmails: ['a@x.com'] }, undefined)).toEqual({
+      count: 1,
+    });
+    expect(w.profiles['a@x.com']).toEqual([]);
+    w.teams.qa = ['a@x.com'];
+    await handleTeamWrite(w.store, 'qa', undefined, { memberEmails: ['a@x.com'] });
+    expect(w.profiles['a@x.com']).toEqual(['qa']);
+  });
   it('skips a person with no profile yet, and does nothing for an empty write', async () => {
     const w = world({ qa: ['new@x.com'] }, {});
     expect(
