@@ -2,10 +2,12 @@ import type { Auth } from 'firebase-admin/auth';
 import type { Firestore, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import {
+  COURSE_SUMMARY_VERSION,
   DEFAULT_ORG_CONFIG,
   accessOf,
   orgConfigSchema,
   progressId as progressDocId,
+  summariseCourse,
   teamId,
 } from '@gurukul/schema';
 import type { Audience } from '@gurukul/schema';
@@ -27,6 +29,7 @@ import type { Notice, ReminderCandidate, ReminderStore } from './remind.js';
 import type { RoleClaims } from './roles.js';
 import { grantEducatorByCourse } from './set-roles.js';
 import type { RoleAdmin } from './set-roles.js';
+import type { SummaryStore } from './summaries.js';
 import type { TeamStore } from './teams.js';
 import type { ManagedAssignment, TeamReportStore } from './team-report.js';
 
@@ -1063,6 +1066,54 @@ export function firestoreCourseStore(db: Firestore): CourseStore {
     },
     async audit(entry) {
       await writeAudit(db, entry);
+    },
+  };
+}
+
+/** Whether a stored summary was derived, by this code, from the course as last written at `updated`. */
+const isCurrent = (
+  summary: { get(field: string): unknown } | undefined,
+  updated: Timestamp | undefined,
+): boolean =>
+  summary?.get('summaryVersion') === COURSE_SUMMARY_VERSION &&
+  updated !== undefined &&
+  (summary.get('courseUpdatedAt') as Timestamp | undefined)?.isEqual(updated) === true;
+
+/** `SummaryStore` over the Admin SDK: `courseSummaries/{id}` beside `courses/{id}`. */
+export function firestoreSummaryStore(db: Firestore): SummaryStore {
+  return {
+    async sync(courseId) {
+      const courseRef = db.doc(`courses/${courseId}`);
+      const summaryRef = db.doc(`courseSummaries/${courseId}`);
+      return db.runTransaction(async (tx) => {
+        // Both are read, so two syncs of one course cannot interleave: the second to commit is
+        // retried and reads the course again.
+        const course = await tx.get(courseRef);
+        const stored = await tx.get(summaryRef);
+        const summary = summariseCourse(course.data());
+        if (summary === null) {
+          if (!stored.exists) return 'unchanged';
+          tx.delete(summaryRef);
+          return 'deleted';
+        }
+        if (isCurrent(stored, course.updateTime)) return 'unchanged';
+        tx.set(summaryRef, { ...summary, courseUpdatedAt: course.updateTime });
+        return 'written';
+      });
+    },
+    async stale() {
+      // Field masks: each document still costs a read, but no course content crosses the wire.
+      // ponytail: both collections in one go; page them past a few tens of thousands of courses.
+      const [courses, summaries] = await Promise.all([
+        db.collection('courses').select().get(),
+        db.collection('courseSummaries').select('courseUpdatedAt', 'summaryVersion').get(),
+      ]);
+      const stored = new Map(summaries.docs.map((d) => [d.id, d]));
+      const live = new Set(courses.docs.map((d) => d.id));
+      return [
+        ...courses.docs.filter((c) => !isCurrent(stored.get(c.id), c.updateTime)).map((c) => c.id),
+        ...summaries.docs.filter((s) => !live.has(s.id)).map((s) => s.id),
+      ];
     },
   };
 }

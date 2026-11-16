@@ -10,6 +10,7 @@ contract; the schema package is the executable one. They change together.
 |---|---|---|---|
 | `users/{uid}` | Profile and role mirror (see [Users](#users)) | self, Educator, Manager, Admin (they read the roster to pick team members) | self: `displayName`, `nameLower`, `labels` only; `labels` is `generic` or `gurukul`; `nameLower` must equal `displayName` lower-cased; `team` and `teamIds` are never writable from a client |
 | `courses/{courseId}` | **The published course object**, plus `visibility` and `visibleTeamIds` beside it (see [Course visibility](#course-visibility)) | any signed-in user when `published` or `archived` (archived shows as Retired) **and they may open it**: public, or a team they are on; every Educator and Admin in any status, so Studio lists every course (a never-published one is a shell: its content and answer keys are in `drafts/current`) | never (published by function) |
+| `courseSummaries/{courseId}` | What a tile, a list row or a search result shows of a course: about 0.5 KB, no lessons, no questions (see [Course summaries](#course-summaries)) | exactly the people who may read `courses/{courseId}`, by the same rule | never (the `onCourseWritten` function) |
 | `courses/{courseId}/drafts/current` | The draft being edited: `{ rev, updatedAt, updatedBy, course, answers, answersChanged? }` (answer keys included, so the author can edit them; `answersChanged: true` marks an answer key edit since the last publish, which removes it) | Educators granted the course, Admin | same, **update only**, `rev` + 1 per save; created by `createCourse`, never deleted from a client |
 | `courses/{courseId}/versions/{n}` | Snapshot of each published version | granted Educators, Admin | never |
 | `courses/{courseId}/private/answers` | Quiz answer keys | never | never |
@@ -75,6 +76,71 @@ visibleTeamIds: string[];                    // `teamId(name)` of each team, at 
   Limitation: assigning a team-only course to someone outside the team is not blocked; they see it
   on Home but the course page refuses it. The one exception is the Educator course: assigning it adds
   the person to its `Educator candidates` team (`03-auth-and-roles.md`).
+
+## Course summaries
+
+A list never needs a whole course. `courses/{id}` is 30–80 KB (the seeded Git course is 88 KB) and
+may reach 900 KB; drawing its tile takes about 0.5 KB of it. So each course has a second, small
+document, `courseSummaries/{id}`, and "one course, one document" stays true of the course itself:
+the summary is a copy of a few of its fields, never a second place to edit.
+
+```ts
+type CourseSummary = {
+  summaryVersion: number;        // COURSE_SUMMARY_VERSION when it was derived
+  id: string; title: string; summary: string;
+  level: Course['level'];
+  cover: { theme: string; glyph: string };
+  image?: string;                // the tile's picture: cover image, else the first lesson image
+  educatorIds: string[];         // who may edit: Studio's "my courses" and search
+  status: Course['status']; version: number; publishedAt: Timestamp | null;
+  estimatedMinutes: number;
+  chapters: number; lessons: number; quizzes: number;   // counts only
+  certificate: boolean;          // rules.certificate
+  visibility: Visibility; visibleTeamIds: string[];     // copied: the rules read them
+  courseUpdatedAt: Timestamp;    // the course document's update time when this was derived
+};
+```
+
+It holds no description, outcomes, chapter or lesson titles, blocks or questions, and nothing from
+`private/answers` (the function never reads it). `summariseCourse` in `packages/schema` is the one
+place that derives it; a document `readCourse` cannot read has no summary, as it has no tile today.
+
+- **One writer.** The `onCourseWritten` function fires on every write of `courses/{id}`, whoever
+  made it: publish, rollback, `setCourseAccess`, archive, a role grant that edits `educatorIds`, the
+  seed, a script. No caller writes the summary and no browser can (rules: `write: if false`), so
+  there is no code path that updates a course and forgets its summary. A write that changes nothing
+  the summary holds (a description, a lesson's text, an Educator's name) returns before reading
+  anything. Otherwise it reads the course **as it is now**, in a transaction with the summary, and
+  writes or deletes the summary: events arrive at least once and not in order, and the stored state
+  cannot be replayed wrongly. Saving a draft does not wake it (`drafts/current` is a sub-collection).
+- **Self-healing.** The daily roll-up (03:00 UTC) first runs `reconcileSummaries`: it lists the ids
+  and update times of every course and every summary with field masks (two reads per course, almost
+  no bytes) and syncs only a course whose summary is missing, older than the course or of another
+  `summaryVersion`, and deletes a summary with no course. That is the backfill for courses that
+  existed before the function, the repair when an event failed, and the rewrite after the summary
+  gains a field (bump `COURSE_SUMMARY_VERSION`). `npm run backfill-summaries -- --apply` runs the
+  same code at once from the maintainer's machine, for when a night is too long to wait.
+- **Rules.** `courseSummaries/{id}` is read through the same two rule functions as `courses/{id}`
+  (`mayGetCourse`, `mayListCourse`), applied to the summary's own `status`, `visibility` and
+  `visibleTeamIds`: public, or one of the person's teams, or any Educator or Admin; a
+  never-published or `staff` one for Educators and Admins only. A listing must name what it asks for
+  exactly as a course listing does. The rules tests ask every case of both collections. One
+  difference, in the safe direction of nothing: a course written before visibility existed opens by
+  id with no `visibility`; its summary always carries one (`public`), so it can also be listed.
+- **How long a summary can be wrong.** Normally a second or two after the course write (the
+  function's start). If the function fails, until 03:00 UTC. Until then a list may show an old
+  title, and a course just limited to a team may still show its tile (title, one-line summary,
+  cover) to people who can no longer open it: the course document itself is refused at once, since
+  its own rules read its own fields. A new course with no summary yet is missing from lists but opens
+  by its link and from an assignment email.
+- **What reads it.** Home, the catalogue, the Admin pages that name courses, Studio's course list
+  and global search read summaries, a page of 25 at a time where the list can grow
+  (`.claude/rules/pagination.md`); the full course is read when a course, a lesson or an editor
+  opens. That move is tracker item `OPS-35`; until it lands the app still lists whole courses,
+  capped at 100, and nothing reads a summary.
+- **Cost.** One function run per course write (a few a day), one extra document write per change a
+  tile shows, and the nightly check: two reads per course, so 2,000 a night at 1,000 courses (4% of
+  the free daily reads). `11-deployment-and-cost.md` has what the lists save.
 
 ## Teams
 
@@ -281,6 +347,7 @@ the certificate, the course and the date — no email.
 - `assignments`: `uid ASC, dueAt ASC`; `courseId ASC, status ASC`; `email ASC, uid ASC`
 - `progress`: `courseId ASC, percent DESC`; `courseId ASC, lastActiveAt DESC`
 - `certificates`: `uid ASC, issuedAt DESC`
+- `courses` and `courseSummaries`: `status ASC, publishedAt DESC` (staff list every live course, newest first)
 - `attempts` (per progress document): `uid ASC, quizId ASC, createdAt DESC` — the result page's latest attempt
 
 ## Migrations

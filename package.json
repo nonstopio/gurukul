@@ -35,6 +35,7 @@
     "grant-admin": "tsx scripts/grant-admin.mjs",
     "backfill-visibility": "tsx scripts/backfill-visibility.mjs",
     "backfill-teams": "tsx scripts/backfill-teams.mjs",
+    "backfill-summaries": "tsx scripts/backfill-summaries.mjs",
     "seed": "npm run seed -w @gurukul/seed --",
     "check:design": "node scripts/check-design.mjs",
     "check:bundle": "node scripts/check-bundle-size.mjs apps/web/dist 320"

@@ -9,6 +9,7 @@ const captured: {
   onCreate?: (u: unknown) => unknown;
   onWritten?: (e: unknown) => unknown;
   onTeam?: (e: unknown) => unknown;
+  onCourse?: (e: unknown) => unknown;
   onAttempt?: (e: unknown) => unknown;
   schedules: Record<string, { options: unknown; fn: () => unknown }>;
 } = { schedules: {} };
@@ -19,6 +20,8 @@ const handleGradeAttempt = vi.fn();
 const handleRevokeCertificate = vi.fn();
 const handleProgressWrite = vi.fn().mockResolvedValue('updated');
 const handleTeamWrite = vi.fn().mockResolvedValue({ count: 1 });
+const handleCourseWrite = vi.fn().mockResolvedValue('written');
+const reconcileSummaries = vi.fn().mockResolvedValue({ count: 2, changed: 1 });
 const handleAssignCourses = vi.fn();
 const handleResetCooldown = vi.fn();
 const handleRemindLearners = vi.fn();
@@ -65,6 +68,7 @@ vi.mock('firebase-functions/v2/firestore', () => ({
   },
   onDocumentWritten: (path: string, fn: (e: unknown) => unknown) => {
     if (path.startsWith('teams/')) captured.onTeam = fn;
+    else if (path.startsWith('courses/')) captured.onCourse = fn;
     else captured.onWritten = fn;
     return fn;
   },
@@ -101,6 +105,7 @@ vi.mock('firebase-functions/v1', () => ({
 vi.mock('../src/profile.js', () => ({ handleUserCreated }));
 vi.mock('../src/progress.js', () => ({ handleProgressWrite }));
 vi.mock('../src/teams.js', () => ({ handleTeamWrite }));
+vi.mock('../src/summaries.js', () => ({ handleCourseWrite, reconcileSummaries }));
 vi.mock('../src/analytics.js', () => ({ handleAttemptCreated, runDailyRollup }));
 vi.mock('../src/remind.js', () => ({ runDailyReminders }));
 vi.mock('../src/backup.js', () => ({ runWeeklyBackup }));
@@ -192,6 +197,45 @@ describe('index', () => {
     expect(handleAttemptCreated).toHaveBeenCalledWith(expect.anything(), { score: 1 });
     await captured.onAttempt?.({ params: { attemptId: 'a1' }, data: undefined });
     expect(handleAttemptCreated).toHaveBeenLastCalledWith(expect.anything(), undefined);
+  });
+
+  it('wires the course trigger to the summary handler, and logs a skipped write at debug only', async () => {
+    await import('../src/index.js');
+    await captured.onCourse?.({
+      params: { courseId: 'git' },
+      data: { before: { data: () => undefined }, after: { data: () => ({ title: 'Git' }) } },
+    });
+    expect(handleCourseWrite).toHaveBeenCalledWith(expect.anything(), 'git', undefined, {
+      title: 'Git',
+    });
+    expect(logger.info).toHaveBeenCalledWith(
+      'Course summary handled',
+      expect.objectContaining({ courseId: 'git', status: 'written' }),
+    );
+    handleCourseWrite.mockResolvedValueOnce('skipped');
+    await captured.onCourse?.({ params: { courseId: 'git' }, data: undefined });
+    expect(handleCourseWrite).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'git',
+      undefined,
+      undefined,
+    );
+    // The skipped write is a debug line, which deployed functions drop: still one info line.
+    expect(
+      vi.mocked(logger.info).mock.calls.filter(([event]) => event === 'Course summary handled'),
+    ).toHaveLength(1);
+  });
+
+  it('reconciles the course summaries with the roll-up, which still runs when that fails', async () => {
+    await import('../src/index.js');
+    await captured.schedules['every day 03:00']?.fn();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Course summaries reconciled',
+      expect.objectContaining({ count: 2, changed: 1 }),
+    );
+    reconcileSummaries.mockRejectedValueOnce(new Error('down'));
+    await expect(captured.schedules['every day 03:00']?.fn()).rejects.toThrow('down');
+    expect(runDailyRollup).toHaveBeenCalledTimes(2);
   });
 
   it('schedules the roll-up and the reminders once a day, in UTC and in asia-south1', async () => {

@@ -51,6 +51,14 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `educator` claim (`grantEducatorByCourse`: mirror, `roles.course` audit, no token revocation); `assignCourses`
   adds whoever it assigns that course to the `Educator candidates` team, the only team that opens it. A learner's first start also writes `courses/{id}/learners/{uid}` (display name; Admin or that course's
   Educator read, no client writes) for the Studio Analytics learners table.
+- `onCourseWritten` (`summaries.ts`, adapter `firestoreSummaryStore`) is the only writer of `courseSummaries/{id}`
+  (`.plan/02-data-model.md`, "Course summaries"; shape and `summariseCourse` in `packages/schema/src/summary.ts`): a write to
+  `courses/{id}` that changes nothing the summary holds returns before reading anything, any other reads the course as it is now
+  and the summary in one transaction and writes or deletes the summary. Never write a summary from a callable, the seed or a
+  script: change the course and the trigger follows. `dailyRollup` first runs `reconcileSummaries` (ids and update times with
+  field masks; syncs a missing, older or other-`summaryVersion` summary, deletes an orphan), which is also the backfill;
+  `npm run backfill-summaries` runs it by hand. A new summary field bumps `COURSE_SUMMARY_VERSION`. Rules read the summary's
+  own `status`, `visibility` and `visibleTeamIds` through the same `mayGetCourse`/`mayListCourse` as `courses`.
 - Quiz callables: `checkAnswer` (one question, only when `revealAnswers` is `each`, records
   nothing) and `gradeAttempt` (scores against `courses/{id}/private/answers`, enforces the cooldown,
   writes `progress/{id}/attempts/{aid}` and `progress.quiz[id]` in one transaction). Both refuse a

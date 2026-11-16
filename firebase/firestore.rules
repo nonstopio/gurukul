@@ -98,6 +98,26 @@ service cloud.firestore {
         || (course.visibility == 'teams' && course.visibleTeamIds.hasAny(myTeamIds()));
     }
 
+    // One read of a course document. `course` is the stored data: `courses/{id}` itself, or its
+    // summary, which copies `status`, `visibility` and `visibleTeamIds` so the same test applies.
+    function mayGetCourse(course) {
+      return signedIn()
+        && (isAdmin()
+            || request.auth.token.educator == true
+            || (course.status in ['published', 'archived'] && canOpenCourse(course)));
+    }
+
+    // A listing of course documents (or of their summaries); see `list` below for why it is stricter.
+    function mayListCourse(course) {
+      return signedIn()
+        && (isAdmin()
+            || request.auth.token.educator == true
+            || (course.status in ['published', 'archived']
+                && (course.visibility == 'public'
+                    || (course.visibility == 'teams'
+                        && course.visibleTeamIds.hasAny(myTeamIds())))));
+    }
+
     // The published course object. Everyone signed in reads published and archived courses they
     // may open (`canOpenCourse`; archived ones show as "Retired"); a never-published one
     // (`status: 'draft'`) is readable by every Educator and Admin, so Studio lists every course. It
@@ -110,17 +130,8 @@ service cloud.firestore {
     // visibility existed carry `visibility: 'public'` from the one-off backfill
     // (`scripts/backfill-visibility.mjs`); until then they still open by id but are not listed.
     match /courses/{courseId} {
-      allow get: if signedIn()
-        && (isAdmin()
-            || request.auth.token.educator == true
-            || (resource.data.status in ['published', 'archived'] && canOpenCourse(resource.data)));
-      allow list: if signedIn()
-        && (isAdmin()
-            || request.auth.token.educator == true
-            || (resource.data.status in ['published', 'archived']
-                && (resource.data.visibility == 'public'
-                    || (resource.data.visibility == 'teams'
-                        && resource.data.visibleTeamIds.hasAny(myTeamIds())))));
+      allow get: if mayGetCourse(resource.data);
+      allow list: if mayListCourse(resource.data);
       allow write: if false;
 
       // The Studio's working copy: course plus answer keys (an Educator needs them to edit). Saved
@@ -163,6 +174,16 @@ service cloud.firestore {
       match /private/{doc} {
         allow read, write: if false;
       }
+    }
+
+    // What a tile or a list row shows of a course (title, cover, counts; no lessons, no questions):
+    // `.plan/02-data-model.md`, "Course summaries". Readable by exactly the people who may read the
+    // course, by the same two functions, and a listing must say what it asks for in the same way.
+    // The `onCourseWritten` function is the only writer.
+    match /courseSummaries/{courseId} {
+      allow get: if mayGetCourse(resource.data);
+      allow list: if mayListCourse(resource.data);
+      allow write: if false;
     }
 
     // The shared question bank: any Educator or Admin reads and adds; the creator or an Admin

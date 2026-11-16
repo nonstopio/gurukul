@@ -1,4 +1,4 @@
-import { isItemDone, itemsOf, progressPercent, resumeItemId } from '@gurukul/schema';
+import { courseImage, isItemDone, itemsOf, progressPercent, resumeItemId } from '@gurukul/schema';
 import type { Course, Item } from '@gurukul/schema';
 import type { AssignmentRow, CertificateRow, ProgressRow } from '../data/types';
 import type { Terms } from '../labels/terms';
@@ -139,17 +139,7 @@ export function shownName(displayName: string | null | undefined, email: string)
  * The picture for a course's tile: its cover image, else the first image in its lessons, in reading
  * order. A course with no picture gets none, and its tile shows the course name on its own colour.
  */
-export function courseImageUrl(course: Pick<Course, 'chapters' | 'cover'>): string | undefined {
-  if (course.cover.image) return course.cover.image.url;
-  for (const chapter of course.chapters) {
-    for (const item of chapter.items) {
-      if (item.type !== 'lesson') continue;
-      const image = item.blocks.find((b) => b.type === 'image');
-      if (image?.type === 'image') return image.url;
-    }
-  }
-  return undefined;
-}
+export const courseImageUrl = courseImage;
 
 export function countItems(course: Pick<Course, 'chapters'>) {
   const items = itemsOf(course);

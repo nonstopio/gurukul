@@ -37,6 +37,7 @@ import {
 import { runLogged } from './logging/trigger.js';
 import { runDailyReminders } from './remind.js';
 import { handleProgressWrite } from './progress.js';
+import { handleCourseWrite, reconcileSummaries } from './summaries.js';
 import { handleUserCreated } from './profile.js';
 import { handleTeamWrite } from './teams.js';
 import {
@@ -53,6 +54,7 @@ import {
   firestoreProgressStore,
   firestoreReminderStore,
   firestoreRollupStore,
+  firestoreSummaryStore,
   firestoreTeamReportStore,
   firestoreTeamStore,
   firestoreUserStore,
@@ -127,6 +129,26 @@ export const onTeamWritten = onDocumentWritten('teams/{teamId}', async (event) =
   );
 });
 
+/**
+ * A course document was written (publish, rollback, access, archive, a role grant, the seed): keep
+ * its `courseSummaries/{id}`, what lists and tiles read, in step. Sub-collections (drafts, versions)
+ * do not wake it.
+ */
+export const onCourseWritten = onDocumentWritten('courses/{courseId}', async (event) => {
+  await runLogged(
+    { done: 'Course summary handled', failed: 'Course summary failed' },
+    { courseId: event.params.courseId },
+    () =>
+      handleCourseWrite(
+        firestoreSummaryStore(getFirestore()),
+        event.params.courseId,
+        event.data?.before.data(),
+        event.data?.after.data(),
+      ),
+    (outcome) => ({ level: outcome === 'skipped' ? 'debug' : 'info', fields: { status: outcome } }),
+  );
+});
+
 /** Score sums and first-try question counters for Analytics, from each graded attempt. */
 export const onAttemptCreated = onDocumentCreated(
   'progress/{progressId}/attempts/{attemptId}',
@@ -141,19 +163,30 @@ export const onAttemptCreated = onDocumentCreated(
 );
 
 /**
- * 03:00 UTC daily: recount the org totals and the courses with activity since the last run, fixing
+ * 03:00 UTC daily: reconcile the course summaries, then recount the org totals and the courses with activity since the last run, fixing
  * any drift. Nine minutes, not the default one: the first run, and a night after a publish, read
  * every progress document of a course.
  */
 export const dailyRollup = onSchedule(
   { schedule: 'every day 03:00', timeZone: 'Etc/UTC', region: 'asia-south1', timeoutSeconds: 540 },
   async () => {
-    await runLogged(
-      { done: 'Daily roll-up finished', failed: 'Daily roll-up failed' },
-      {},
-      () => runDailyRollup(firestoreRollupStore(getFirestore()), Date.now()),
-      (counts) => ({ fields: { ...counts } }),
-    );
+    try {
+      // First, and small: a course summary that is missing or out of date (`summaries.ts`). A
+      // failure here is logged and thrown only after the roll-up has had its turn.
+      await runLogged(
+        { done: 'Course summaries reconciled', failed: 'Course summaries reconcile failed' },
+        {},
+        () => reconcileSummaries(firestoreSummaryStore(getFirestore())),
+        ({ count, changed }) => ({ fields: { count, changed } }),
+      );
+    } finally {
+      await runLogged(
+        { done: 'Daily roll-up finished', failed: 'Daily roll-up failed' },
+        {},
+        () => runDailyRollup(firestoreRollupStore(getFirestore()), Date.now()),
+        (counts) => ({ fields: { ...counts } }),
+      );
+    }
   },
 );
 
