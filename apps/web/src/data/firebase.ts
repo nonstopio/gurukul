@@ -188,9 +188,17 @@ export function firebaseLearnerData(
     getCourse(courseId, { fresh = false } = {}) {
       // Studio asks for a fresh course when it opens or publishes one: the listings are stale too.
       if (fresh) listings.clear();
-      return reused(courses, `${who() ?? ''}/${courseId}`, fresh, () =>
-        getDoc(doc(db, 'courses', courseId)).then((snap) =>
-          snap.exists() ? readable(snap.id, snap.data()) : null,
+      const key = `${who() ?? ''}/${courseId}`;
+      return reused(courses, key, fresh, () =>
+        getDoc(doc(db, 'courses', courseId)).then(
+          (snap) => (snap.exists() ? readable(snap.id, snap.data()) : null),
+          (e: unknown) => {
+            // The rules refuse a draft, a course for other teams and a missing one alike: to the
+            // person all three are "not available". Not kept, so a course that opens later shows.
+            if ((e as { code?: string }).code !== 'permission-denied') throw e;
+            courses.delete(key);
+            return null;
+          },
         ),
       );
     },

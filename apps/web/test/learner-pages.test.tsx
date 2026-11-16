@@ -616,8 +616,11 @@ describe('Course overview', () => {
 
   it('says a missing course does not exist', async () => {
     await open('/courses/nope');
-    expect(await screen.findByText('This course does not exist')).toBeTruthy();
+    expect(
+      await screen.findByText('This course does not exist or is not open to you'),
+    ).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Course not found' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Browse the catalogue' })).toBeTruthy();
   });
 
   it('does not ask a learner with no team to pick one', async () => {

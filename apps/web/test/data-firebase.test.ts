@@ -187,6 +187,16 @@ describe('firebaseLearnerData', () => {
     expect((await data.getCourse('git', {}))?.title).toBe('Republished');
   });
 
+  it('reads a course the rules refuse as not available, and asks again next time', async () => {
+    const getDoc = vi.spyOn(await import('firebase/firestore'), 'getDoc');
+    getDoc.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
+    expect(await data.getCourse('git')).toBeNull();
+    // It opened since: the refusal was not kept.
+    store.docs.set('courses/git', course());
+    expect((await data.getCourse('git'))?.title).toBe('Git, the NonStop Way');
+    getDoc.mockRestore();
+  });
+
   it('does not keep a failed read, so the next one asks again', async () => {
     const getDoc = vi.spyOn(await import('firebase/firestore'), 'getDoc');
     getDoc.mockRejectedValueOnce(new Error('offline'));
