@@ -49,19 +49,16 @@ export interface ProgressStore {
 /**
  * Reacts to a write on `progress/{id}`: computes the percent from the CURRENT published course
  * (the client never writes it), stamps `completedAt` at 100%, and keeps the stats counters and the
- * assignment status in step (see `analytics.ts` for what a write counts). It writes only when something derived changed, so its own write
- * re-triggers it exactly once and then stops.
+ * assignment status in step (see `analytics.ts` for what a write counts). It writes only when something derived changed.
  */
-/** Every field the trigger derives anything from: all of the document but the resume point. */
+/**
+ * Every field the trigger derives anything from: all of the document but the resume point and the
+ * two fields only this trigger writes, `percent` and `certificateId` (the rules refuse them from a
+ * client). So the trigger's own percent or certificate write wakes it once more and it returns
+ * before reading the course. `completedAt` stays: the run that sees it set counts the completion.
+ */
 function derivedInputs(p: Progress): string {
-  return JSON.stringify([
-    p.completedItemIds,
-    p.quiz,
-    p.courseVersion,
-    p.percent,
-    p.completedAt !== null,
-    p.certificateId,
-  ]);
+  return JSON.stringify([p.completedItemIds, p.quiz, p.courseVersion, p.completedAt !== null]);
 }
 
 export async function handleProgressWrite(

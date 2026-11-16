@@ -40,6 +40,24 @@
         ]
       },
       {
+        "source": "/*.@(svg|png|ico)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
+        ]
+      },
+      {
+        "source": "/courses/**/*.@(svg|png|jpg|webp)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
+        ]
+      },
+      {
         "source": "/index.html",
         "headers": [
           {

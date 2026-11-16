@@ -150,6 +150,21 @@ describe('handleProgressWrite', () => {
     expect(s.course).not.toHaveBeenCalled();
   });
 
+  it('returns before the course read when its own percent write wakes it again', async () => {
+    const s = store();
+    const before = progress({ completedItemIds: ['l1'], percent: 0 });
+    expect(await run(s, 'u_git', before, { ...before, percent: 50 })).toBe('ignored');
+    expect(s.course).not.toHaveBeenCalled();
+  });
+
+  it('returns before the course read when its own certificate write wakes it again', async () => {
+    const s = store();
+    const done = progress({ completedItemIds: ['l1', 'l2'], percent: 100, completedAt: ts(5) });
+    const issued = { ...done, certificateId: 'NSG-GIT-26-0001' };
+    expect(await run(s, 'u_git', done, issued)).toBe('ignored');
+    expect(s.course).not.toHaveBeenCalled();
+  });
+
   it('still reads the course when the resume move comes with a new course version', async () => {
     const s = store();
     const before = progress({ completedItemIds: ['l1'], percent: 50 });
