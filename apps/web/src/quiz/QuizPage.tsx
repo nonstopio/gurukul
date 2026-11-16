@@ -13,6 +13,7 @@ import {
   useToast,
 } from '@gurukul/ui';
 import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useAnalytics } from '../analytics/react/context';
 import { userMessageOf } from '../api';
@@ -34,6 +35,7 @@ import {
   sameAnswer,
 } from './model';
 import { QuestionFields } from './QuestionFields';
+import { useCooldownClock } from './Retake';
 import { useQuizService } from './QuizProvider';
 import { CooldownError } from './service';
 import type { CheckAnswerResult } from './service';
@@ -73,7 +75,8 @@ function Exam({
   quiz: Quiz;
   progress: ProgressRow | null;
 }) {
-  const [now] = useState(() => new Date());
+  // Only the waiting screen ticks; it lifts the gate by calling `setNow` when the cooldown ends.
+  const [now, setNow] = useState(() => new Date());
   const data = useLearnerData();
   const uid = useUser().uid;
   // Grading needs a started course. A Quiz can be the first thing opened (a pre-test, a deep
@@ -124,23 +127,53 @@ function Exam({
   }
   if (wait > 0) {
     return (
-      <>
-        <TopBar title={course.title} titleAs="p" back={back} />
-        <Page width="reading">
-          <PageHeader title={quiz.title} />
-          <Callout tone="note" title="Retake not open yet">
-            <p>{`You can retake this in ${formatWait(wait)}.`}</p>
-          </Callout>
-          <div className="learn-buttons">
-            <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
-              Back to the outline
-            </Link>
-          </div>
-        </Page>
-      </>
+      <Waiting
+        course={course}
+        quiz={quiz}
+        back={back}
+        opensAt={now.getTime() + wait}
+        onOpen={() => setNow(new Date())}
+      />
     );
   }
   return <Questions course={course} quiz={quiz} lastAttemptAt={lastAttemptAt} />;
+}
+
+/** The cooldown screen: counts down, then hands over to the questions without a reload. */
+function Waiting({
+  course,
+  quiz,
+  back,
+  opensAt,
+  onOpen,
+}: {
+  course: Course;
+  quiz: Quiz;
+  back: ReactNode;
+  opensAt: number;
+  onOpen: () => void;
+}) {
+  const now = useCooldownClock(opensAt);
+  const open = now >= opensAt;
+  useEffect(() => {
+    if (open) onOpen();
+  }, [open, onOpen]);
+  return (
+    <>
+      <TopBar title={course.title} titleAs="p" back={back} />
+      <Page width="reading">
+        <PageHeader title={quiz.title} />
+        <Callout tone="note" title="Retake not open yet">
+          <p role="timer">{`You can retake this in ${formatWait(opensAt - now)}.`}</p>
+        </Callout>
+        <div className="learn-buttons">
+          <Link className={buttonClass('secondary')} to={`/courses/${course.id}`}>
+            Back to the outline
+          </Link>
+        </div>
+      </Page>
+    </>
+  );
 }
 
 /** The questions themselves; mounted only once the Quiz is open, so the draw happens once. */
