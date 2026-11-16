@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../src';
@@ -129,6 +129,38 @@ describe('Dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(opener());
+  });
+
+  it('a dialog opened over another takes the keyboard: Escape closes one at a time', () => {
+    const outer = vi.fn();
+    function Nested() {
+      const [inner, setInner] = useState(false);
+      return (
+        <Dialog open onClose={outer} title="Drawer" size="drawer">
+          <button onClick={() => setInner(true)}>Remove</button>
+          <Dialog open={inner} onClose={() => setInner(false)} title="Confirm">
+            <button>Yes</button>
+          </Dialog>
+        </Dialog>
+      );
+    }
+    render(<Nested />);
+    const remove = screen.getByRole('button', { name: 'Remove' });
+    fireEvent.click(remove);
+    const yes = screen.getByRole('button', { name: 'Yes' });
+    expect(document.activeElement).toBe(yes);
+    // Tab from the last control wraps inside the top dialog, not into the drawer under it.
+    const close = within(screen.getByRole('dialog', { name: 'Confirm' })).getByRole('button', {
+      name: 'Close',
+    });
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Confirm' })).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(remove);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(outer).toHaveBeenCalledOnce();
   });
 
   it('locks page scroll while open and restores it after', () => {

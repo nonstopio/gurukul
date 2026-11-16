@@ -232,6 +232,20 @@ describe('firestoreTeamReportStore', () => {
       { merge: true },
     );
     expect(batch.commit).toHaveBeenCalledOnce();
+    await store.deleteAssignment({
+      id: 'a2',
+      email: 'p@nonstopio.com',
+      uid: 'p',
+      courseId: 'git',
+      status: 'completed',
+      dueAt: null,
+      teamId: null,
+    });
+    expect(batch.set).toHaveBeenCalledWith(
+      'stats/org',
+      { assignmentsTotal: '-1', assignmentsCompleted: '-1' },
+      { merge: true },
+    );
     await store.audit({ action: 'assign.remove', by: 'k', detail: {} });
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ at: 'NOW' }));
   });

@@ -5,6 +5,7 @@ import { log } from '../src/log';
 import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
 import { certificateRow, progressRow } from './fake-data';
+import { dayInput, endOfDay } from '../src/team/model';
 import { openApp } from './harness';
 import { choose } from './select';
 
@@ -630,6 +631,79 @@ describe('Learners', () => {
       c.service.revokeCertificate = vi.fn().mockRejectedValue(new Error('x'));
       fireEvent.click(await within(dialog).findByRole('button', { name: 'Restore' }));
       expect(await screen.findByText('That did not work. Try again.')).toBeTruthy();
+    });
+
+    it('offers Change due date and Remove on assigned courses only', async () => {
+      const dialog = await openPriya(detail());
+      expect(within(dialog).getAllByRole('button', { name: /^Change due date of / })).toHaveLength(
+        3,
+      );
+      expect(within(dialog).getAllByRole('button', { name: /^Remove / })).toHaveLength(3);
+      expect(within(dialog).queryByRole('button', { name: 'Remove unknown-course' })).toBeNull();
+    });
+
+    it('changes a due date from the drawer, then reloads the drawer', async () => {
+      const c = detail();
+      const dialog = await openPriya(c);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Change due date of docker' }));
+      const form = screen.getByRole('dialog', { name: 'Change due date' });
+      expect(form.textContent).toContain('docker for Priya');
+      const field = within(form).getByLabelText('Due date') as HTMLInputElement;
+      expect(field.value).toBe(dayInput(soon.getTime()));
+      // Escape closes the form only: the drawer under it stays.
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog', { name: 'Change due date' })).toBeNull();
+      expect(screen.getByRole('dialog', { name: 'Priya' })).toBeTruthy();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Change due date of k8s' }));
+      const again = screen.getByRole('dialog', { name: 'Change due date' });
+      const day = dayInput(Date.now() + 20 * 86_400_000);
+      fireEvent.change(within(again).getByLabelText('Due date'), { target: { value: day } });
+      fireEvent.click(within(again).getByRole('button', { name: 'Save due date' }));
+      await waitFor(() =>
+        expect(c.service.updateAssignment).toHaveBeenCalledWith({
+          assignmentId: 'user1@nonstopio.com-k8s',
+          dueAt: endOfDay(day),
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Change due date' })).toBeNull(),
+      );
+      await waitFor(() => expect(c.data.assignmentsFor).toHaveBeenCalledTimes(2));
+      expect(screen.getByRole('dialog', { name: 'Priya' })).toBeTruthy();
+    });
+
+    it('removes an assignment from the drawer after asking, and keeps it when that fails', async () => {
+      const c = detail();
+      vi.mocked(c.service.removeAssignment).mockRejectedValueOnce(new Error('offline'));
+      const dialog = await openPriya(c);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove docker' }));
+      let confirm = screen.getByRole('dialog', { name: 'Remove docker?' });
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Keep it' }));
+      expect(screen.queryByRole('dialog', { name: 'Remove docker?' })).toBeNull();
+      expect(c.service.removeAssignment).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove docker' }));
+      confirm = screen.getByRole('dialog', { name: 'Remove docker?' });
+      expect(within(confirm).getByText(/Priya no longer has to take it/)).toBeTruthy();
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Remove course' }));
+      expect(await screen.findByText('Could not remove the course. Try again.')).toBeTruthy();
+      expect(c.data.assignmentsFor).toHaveBeenCalledTimes(1);
+      fireEvent.click(
+        within(screen.getByRole('dialog', { name: 'Remove docker?' })).getByRole('button', {
+          name: 'Remove course',
+        }),
+      );
+      await waitFor(() =>
+        expect(c.service.removeAssignment).toHaveBeenLastCalledWith({
+          assignmentId: 'user1@nonstopio.com-docker',
+        }),
+      );
+      expect(await screen.findByText('Removed docker from Priya')).toBeTruthy();
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Remove docker?' })).toBeNull(),
+      );
+      await waitFor(() => expect(c.data.assignmentsFor).toHaveBeenCalledTimes(2));
     });
 
     it('shows a pending invite’s assignments without reading progress, and closes with Escape', async () => {

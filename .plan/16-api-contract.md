@@ -80,7 +80,7 @@ callable in `firebase/functions/src/index.ts` goes through `apiCallable` (a test
 | `remindLearners` | Admin; Manager with `teamId` of their team | `{ sent: number, skipped: number }`; optional `teamId` narrows to that team's members |
 | `teamReport` | Admin, the team's Manager | `{ teamId, name, members: { email, uid \| null, displayName \| null, assignments: { assignmentId, courseId, courseTitle, status, dueAt: ms \| null, percent, teamId \| null }[] }[] }`, no Quiz scores (`VAL_1003` unknown team) |
 | `updateAssignment` | Admin; Manager for an assignment whose `teamId` they manage | `{ assignmentId, dueAt: ms \| null }`; clears the deadline notice stamps (`VAL_1002` for a past date, `VAL_1003` unknown assignment) |
-| `removeAssignment` | Admin; Manager for an assignment whose `teamId` they manage | `{ assignmentId }` |
+| `removeAssignment` | Admin; Manager for an assignment whose `teamId` they manage | `{ assignmentId }`; deletes the assignment, never progress or a certificate; a completed one too (`VAL_1003` unknown assignment). The console's learner drawer and the Team report both call it |
 | `listEmailTemplates` | Admin | `{ id, name, when, subject, body }[]`, every email template filled with sample data |
 | `sendTestEmail` | Admin | `{ to: string[] }`: the one or two `@nonstopio.com` addresses the Admin named, de-duplicated (`GEN_5004` when no Gmail credentials are set) |
 | `createCourse` | Educator, Admin | `{ courseId: string }` (`CRS_1002` when the slug is taken) |

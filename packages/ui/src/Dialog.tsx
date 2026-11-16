@@ -65,6 +65,10 @@ function DialogPanel({
     first.focus();
 
     const onKey = (e: KeyboardEvent) => {
+      // A dialog opened from this one (a confirmation over a drawer) is later in the body: only
+      // the last one answers the keyboard, so Escape closes one at a time and Tab stays in it.
+      const layers = document.querySelectorAll('.g-dialog-layer');
+      if (layers[layers.length - 1] !== (panelRef.current as HTMLElement).parentElement) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         closeFn.current?.();

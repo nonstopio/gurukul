@@ -30,7 +30,10 @@ export interface TeamReportStore {
   courseTitles(ids: string[]): Promise<Record<string, string | undefined>>;
   /** Sets `dueAt` and clears `dueSoonSentAt` and `overdueSentAt`, so the notices go out anew. */
   setDueAt(id: string, dueAt: number | null): Promise<void>;
-  /** Deletes the assignment and takes it off `stats/course_{id}.assigned` and the org total. */
+  /**
+   * Deletes the assignment and takes it off `stats/course_{id}.assigned` and the org total (and
+   * the org's completed count when it was finished).
+   */
   deleteAssignment(assignment: ManagedAssignment): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
 }

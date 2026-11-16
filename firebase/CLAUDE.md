@@ -71,7 +71,7 @@ Read `.claude/rules/firestore-rules.md` and `.claude/rules/firebase-cost.md`; fo
   `firestoreTeamReportStore`): `teamReport` (members with each assignment's course, status, due date and percent,
   never Quiz scores; assignments read by email 30 at a time, progress only for started ones), `updateAssignment`
   (new or no due date, clears `dueSoonSentAt`/`overdueSentAt`, audit `assign.update`) and `removeAssignment`
-  (deletes it and decrements the counters, audit `assign.remove`), where a Manager may touch only an assignment
+  (deletes it and decrements the counters, `assignmentsCompleted` too when it was completed, audit `assign.remove`; the console's learner drawer calls both as well), where a Manager may touch only an assignment
   whose `teamId` they manage (`managesTeam` in `errors.ts`; `educator-candidates` is Admin-only), and
   `listEmailTemplates` and `sendTestEmail` (every template in `email-templates.ts` with sample data; the test goes to the one or two
   `@nonstopio.com` `recipients` named, `[Test]` subject, `GEN_5004` when the mailer is `unconfiguredMailer`; no audit entry), and

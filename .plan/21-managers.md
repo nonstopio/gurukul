@@ -62,6 +62,8 @@ manager can be named before their first sign-in.
 `updateAssignment({ assignmentId, dueAt })` and `removeAssignment({ assignmentId })`: an Admin
 any assignment, a Manager only one whose `teamId` they manage. A new due date clears
 `dueSoonSentAt` and `overdueSentAt`. Both write an audit entry (`assign.update`, `assign.remove`).
+An Admin also reaches both from the learner drawer in the console (`07-admin-console.md`), which is
+the only way to correct an assignment of someone who is on no team.
 
 `remindLearners` takes an optional `teamId`: a Manager must pass one they manage and reaches only
 its members; an Admin may pass one to narrow.
