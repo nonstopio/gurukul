@@ -40,6 +40,7 @@ async function clear(): Promise<void> {
     'counters',
     'users',
     'audit',
+    'teams',
   ])
     await db().recursiveDelete(db().collection(c));
 }
@@ -164,6 +165,38 @@ describe('onProgressWritten, the Educator course', () => {
       'educator',
     );
     expect((await db().doc('users/unassigned').get()).get('roles')).toEqual(['learner']);
+  });
+});
+
+const teamWritten = (before: object | undefined, after: object | undefined) =>
+  index.onTeamWritten.run({
+    params: { teamId: 'qa' },
+    data: { before: snap(before), after: snap(after) },
+  } as never);
+
+describe('onTeamWritten', () => {
+  it('puts a joining member on the team, takes a leaving one off, and leaves a rename alone', async () => {
+    await db()
+      .doc('users/u1')
+      .set({ email: 'a@example.com', teamIds: ['qa'] });
+    await db().doc('users/u2').set({ email: 'b@example.com', teamIds: [] });
+    const before = { name: 'QA', memberEmails: ['a@example.com'] };
+    const after = { name: 'QA', memberEmails: ['b@example.com'] };
+    await db().doc('teams/qa').set(after);
+
+    await teamWritten(before, after);
+
+    expect((await db().doc('users/u1').get()).get('teamIds')).toEqual([]);
+    expect((await db().doc('users/u2').get()).get('teamIds')).toEqual(['qa']);
+
+    // A rename reads and writes no profile: a value planted on one is still there afterwards.
+    await db()
+      .doc('users/u2')
+      .update({ teamIds: ['planted'] });
+    const renamed = { ...after, name: 'Quality' };
+    await db().doc('teams/qa').set(renamed);
+    await teamWritten(after, renamed);
+    expect((await db().doc('users/u2').get()).get('teamIds')).toEqual(['planted']);
   });
 });
 
