@@ -80,7 +80,9 @@ live updates matter: own progress, the editor's draft). No global store in v1.
 rules refuse any token whose email is not a verified `@nonstopio.com` address
 (see `03-auth-and-roles.md`) → `onUserCreated` writes `users/{uid}`, finds `assignments` with
 `email == user.email && uid == null`, stamps the uid. The client waits for the
-profile document before rendering Home, so assignments appear immediately.
+profile document before rendering Home, so assignments appear immediately. If it has not
+arrived after 10 s, the loader gives way to "Still setting up your account" with Retry (reload)
+and Sign out; the profile listener stays attached, so a late document still lets the person in.
 
 **Learning.** Player loads `courses/{id}` (published version) once, and
 subscribes to `progress/{uid}_{courseId}`. "Mark complete" writes
