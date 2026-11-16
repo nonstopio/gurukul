@@ -14,7 +14,7 @@ import {
   personDestinations,
 } from '../src/navigation/records';
 import type { Destination, RecordLookup, RecordSource } from '../src/navigation/types';
-import { lesson, makeCourse } from './fake-data';
+import { lesson, listing, makeCourse, progressRow } from './fake-data';
 
 const GENERIC = terms('generic');
 
@@ -30,7 +30,7 @@ const dest = (id: string): Destination => ({
 
 describe('courseDestinations', () => {
   it('lists each course, then its lessons with their chapter, and leaves Quizzes out', () => {
-    const out = courseDestinations([makeCourse()]);
+    const out = courseDestinations([listing(makeCourse())], [makeCourse()]);
     expect(out.map((d) => d.id)).toEqual([
       'course:git',
       'lesson:git/l1',
@@ -65,7 +65,7 @@ describe('courseDestinations', () => {
       level: 'advanced',
       chapters: [{ id: 'p', title: 'Only', items: [lesson('lab', { kindLabel: 'Lab' })] }],
     });
-    const [c, l] = courseDestinations([course]);
+    const [c, l] = courseDestinations([listing(course)], [course]);
     expect(c).toMatchObject({
       description: 'Version control for teams. · Retired',
       keywords: ['Advanced', 'course'],
@@ -76,11 +76,47 @@ describe('courseDestinations', () => {
 
 describe('courseSource', () => {
   it('reads the catalogue query and is open to everyone', async () => {
-    const listCourses = vi.fn().mockResolvedValue([makeCourse()]);
-    const source = courseSource({ listCourses });
+    const listCourses = vi.fn().mockResolvedValue([listing(makeCourse())]);
+    const me = { teamIds: ['qa'], staff: false };
+    const source = courseSource(
+      { listCourses, myProgress: vi.fn().mockResolvedValue([]), getCourse: vi.fn() },
+      'u1',
+      me,
+    );
     expect(source.roles).toBeUndefined();
-    expect((await source.load()).length).toBe(5);
-    expect(listCourses).toHaveBeenCalledTimes(1);
+    expect((await source.load()).map((d) => d.id)).toEqual(['course:git']);
+    expect(listCourses).toHaveBeenCalledWith(me);
+  });
+
+  it('adds the lessons of the courses the person is taking, the most recent five, read whole', async () => {
+    const ids = ['gone', 'a', 'b', 'c', 'd', 'e', 'f'];
+    const courses = ids.slice(1).map((id) => makeCourse({ id }));
+    const getCourse = vi.fn(async (id: string) =>
+      id === 'b' ? null : (courses.find((c) => c.id === id) ?? null),
+    );
+    const source = courseSource(
+      {
+        listCourses: vi.fn().mockResolvedValue(courses.map(listing)),
+        // `gone` is not listed and, like `f`, has no activity date; `a` is the oldest of the rest.
+        myProgress: vi.fn().mockResolvedValue(
+          ids.map((courseId, i) =>
+            progressRow({
+              courseId,
+              lastActiveAt: courseId === 'f' || courseId === 'gone' ? null : new Date(i + 1),
+            }),
+          ),
+        ),
+        getCourse,
+      },
+      'u1',
+    );
+    const found = (await source.load()).map((d) => d.id);
+    expect(getCourse.mock.calls.map(([id]) => id)).toEqual(['e', 'd', 'c', 'b', 'a']);
+    expect(found.filter((id) => id.startsWith('course:'))).toHaveLength(6);
+    expect(found).toContain('lesson:e/l1');
+    expect(found.some((id) => id.startsWith('lesson:b/') || id.startsWith('lesson:f/'))).toBe(
+      false,
+    );
   });
 });
 
@@ -95,7 +131,7 @@ describe('editableCourseDestinations', () => {
     }),
     makeCourse({ educatorIds: ['u1'] }),
     makeCourse({ id: 'other', title: 'Not mine', educatorIds: ['x'] }),
-  ];
+  ].map(listing);
 
   it('lists the courses this Educator edits, titled from the live course, opening the editor', () => {
     const out = editableCourseDestinations(courses, 'u1', false, GENERIC);
@@ -128,7 +164,7 @@ describe('editableCourseDestinations', () => {
 
 describe('editableCourseSource', () => {
   it('is for Educators and Admins and reads only the live courses', async () => {
-    const listLiveCourses = vi.fn().mockResolvedValue([makeCourse()]);
+    const listLiveCourses = vi.fn().mockResolvedValue([listing(makeCourse())]);
     const source = editableCourseSource({ listLiveCourses }, 'u1', true, GENERIC);
     expect(source.roles).toEqual(['educator', 'admin']);
     expect((await source.load()).map((d) => d.path)).toEqual(['/studio/courses/git']);

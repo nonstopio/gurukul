@@ -1,4 +1,4 @@
-import type { Course } from '@gurukul/schema';
+import type { Course, CourseListing } from '@gurukul/schema';
 import { Chip, CourseTile } from '@gurukul/ui';
 import type { ReactNode } from 'react';
 import { countItems, courseImageUrl } from '../learn/model';
@@ -11,7 +11,7 @@ export function CourseChoice({
   note,
   label,
 }: {
-  course: Course;
+  course: Course | CourseListing;
   selected: boolean;
   onChange: (next: boolean) => void;
   /** A status word shown as a chip, e.g. "Draft". */

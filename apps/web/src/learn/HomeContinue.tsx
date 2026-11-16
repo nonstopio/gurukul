@@ -1,6 +1,6 @@
 import { Card, Chip, CourseTile, ProgressRing, buttonClass } from '@gurukul/ui';
 import { resumeItemId } from '@gurukul/schema';
-import type { Course } from '@gurukul/schema';
+import type { Course, CourseListing } from '@gurukul/schema';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
@@ -127,7 +127,7 @@ export function PickNextCourse({
   courses,
   dueOf,
 }: {
-  courses: Course[];
+  courses: CourseListing[];
   dueOf: (id: string) => string | null;
 }) {
   return (

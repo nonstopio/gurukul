@@ -133,11 +133,30 @@ place that derives it; a document `readCourse` cannot read has no summary, as it
   cover) to people who can no longer open it: the course document itself is refused at once, since
   its own rules read its own fields. A new course with no summary yet is missing from lists but opens
   by its link and from an assignment email.
-- **What reads it.** Home, the catalogue, the Admin pages that name courses, Studio's course list
-  and global search read summaries, a page of 25 at a time where the list can grow
-  (`.claude/rules/pagination.md`); the full course is read when a course, a lesson or an editor
-  opens. That move is tracker item `OPS-35`; until it lands the app still lists whole courses,
-  capped at 100, and nothing reads a summary.
+- **What reads it.** Home, the catalogue, the certificate page's "up next", the Admin Overview,
+  Assign and Learners pages and global search read summaries (`listCourses`, cached five minutes per
+  person). The whole course is read only when a course or lesson opens, plus: the one course Home
+  offers to continue, the courses someone failed a Quiz in (Overview) or attempted one in (the
+  learner drawer), for the Quiz titles, and up to five courses the person is taking, for their
+  lessons in search. A list reads every summary the person may see, up to 1,000, and pages them in
+  memory; at 1,000 it says "Not every course is listed". Reading a page at a time with a cursor is
+  tracker item `OPS-37`, needed before the catalogue passes a few hundred courses (`11`, "Course
+  lists"). Studio's own list, Media and Question bank still read whole courses and drafts: `OPS-36`.
+- **A missing summary never hides a course.** Each listing also counts the same query on `courses`
+  (one aggregation read). When that finds more courses than summaries came back, or the summaries
+  cannot be read, the app reads the whole courses as it did before summaries (100 at most),
+  summarises them in the browser and logs a warning. That covers a deploy that reaches production
+  before the nightly backfill, a summary whose function failed, and a course published seconds ago.
+  The course document's fields win over a stored summary of the same course. Offline, a count has
+  no answer and the cached summaries are trusted. One cost: a course document nothing can read
+  counts too, and would make every list take the slow path until it is repaired.
+- **A summary's access fails closed.** `public` or no `visibility` is public, as the rules read it;
+  a `visibility` this code cannot read (`teams` with no team) is summarised as `staff`
+  (`summaryVersion` 2).
+- **What a list can no longer show**, because it is in the course and not the summary: a Quiz's
+  title in Home's recent activity (it names the course instead), and an exact percent on a tile
+  (counted from the numbers of lessons and Quizzes; a finished lesson the course later dropped
+  still counts, capped at 100, and the course page has the exact figure).
 - **Cost.** One function run per course write (a few a day), one extra document write per change a
   tile shows, and the nightly check: two reads per course, so 2,000 a night at 1,000 courses (4% of
   the free daily reads). `11-deployment-and-cost.md` has what the lists save.

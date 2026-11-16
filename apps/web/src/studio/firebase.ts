@@ -17,7 +17,7 @@ import {
   where,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
-import { COURSE_TTL_MS } from '../data/firebase';
+import { COURSE_TTL_MS, listSummaries } from '../data/firebase';
 import { log } from '../log';
 import { DraftConflictError } from './errors';
 import { sameWork } from './studioModel';
@@ -102,7 +102,8 @@ export function firebaseStudioData(db: Firestore): StudioData {
     return live;
   }
   return {
-    listLiveCourses: liveCourses,
+    // Every status: the rules let an Educator or an Admin list every course and summary.
+    listLiveCourses: () => listSummaries(db, [[]]),
     // Every Educator and Admin sees every course, never-published ones included (the rules allow
     // it); only the drafts of courses they may edit are read.
     listCourses(uid, admin) {

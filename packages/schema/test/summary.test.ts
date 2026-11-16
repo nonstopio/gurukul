@@ -41,6 +41,20 @@ describe('course summary', () => {
     });
   });
 
+  it('keeps a course whose access it cannot read to staff, never wider than the rules do', () => {
+    expect(summariseCourse({ ...makeCourse(), visibility: 'public' })).toMatchObject({
+      visibility: 'public',
+      visibleTeamIds: [],
+    });
+    expect(summariseCourse({ ...makeCourse(), visibility: 'staff' })).toMatchObject({
+      visibility: 'staff',
+      visibleTeamIds: [],
+    });
+    expect(
+      summariseCourse({ ...makeCourse(), visibility: 'teams', visibleTeamIds: [] }),
+    ).toMatchObject({ visibility: 'staff' });
+  });
+
   it('summarises a course never published', () => {
     const shell = makeCourse({ status: 'draft', version: 0, publishedAt: null, chapters: [] });
     expect(summariseCourse(shell)).toMatchObject({

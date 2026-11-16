@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import type { AssignmentRow, ProgressRow } from '../src/data/types';
 import { terms } from '../src/labels/terms';
+import { listing, makeCourse } from './fake-data';
 import {
   agoLabel,
   recentActivity,
@@ -20,6 +21,7 @@ import {
   durationLabel,
   videoMeta,
   percentFor,
+  isListing,
 } from '../src/learn/model';
 
 const course = (id: string, title = id): Course =>
@@ -38,6 +40,7 @@ const course = (id: string, title = id): Course =>
       },
     ],
   }) as unknown as Course;
+const listed = (id: string, title = id) => listing(makeCourse({ id, title }));
 const assignment = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   id: 'a',
   courseId: 'x',
@@ -66,12 +69,36 @@ describe('percentFor and countItems', () => {
     expect(percentFor(course('x'), progress({ completedItemIds: ['x-l1'] }))).toBe(33);
     expect(countItems(course('x'))).toEqual({ lessons: 2, quizzes: 1 });
   });
+
+  it('works from a listed course’s counts: a list has no chapters to walk', () => {
+    const git = listed('git');
+    expect(isListing(git)).toBe(true);
+    expect(isListing(makeCourse())).toBe(false);
+    expect(countItems(git)).toEqual({ lessons: 4, quizzes: 1 });
+    expect(percentFor(git, null)).toBe(0);
+    const passed = { best: 1, passed: true, attempts: 1, lastAttemptAt: null };
+    const failed = { ...passed, passed: false };
+    expect(
+      percentFor(git, progress({ completedItemIds: ['l1'], quiz: { q1: passed, q2: failed } })),
+    ).toBe(40);
+    // A finished lesson the course later dropped still counts, so the figure is capped.
+    const all = ['l1', 'l2', 'l3', 'l4', 'old', 'older'];
+    expect(percentFor(git, progress({ completedItemIds: all }))).toBe(100);
+    expect(percentFor(listing(makeCourse({ chapters: [] })), progress())).toBe(0);
+    expect(
+      hasNewLessons(git, progress({ completedAt: new Date(1), completedItemIds: ['l1'] })),
+    ).toBe(true);
+    expect(courseImageUrl(git)).toBeUndefined();
+    expect(courseImageUrl({ ...git, image: 'https://example.com/1.png' })).toBe(
+      'https://example.com/1.png',
+    );
+  });
 });
 
 describe('orderAssigned', () => {
   const row = (title: string, a: Partial<AssignmentRow>, p: ProgressRow | null = null) => ({
     assignment: assignment(a),
-    course: course(title),
+    course: listing(makeCourse({ id: title, title })),
     progress: p,
   });
   it('puts unfinished first, then mandatory, then earliest due, then title', () => {
@@ -99,7 +126,7 @@ describe('orderAssigned', () => {
 describe('nextAssigned and durationLabel', () => {
   const row = (id: string, a: Partial<AssignmentRow>, p: ProgressRow | null = null) => ({
     assignment: assignment(a),
-    course: course(id),
+    course: listing(makeCourse({ id })),
     progress: p,
   });
   it('skips the current course and finished ones, and is null when nothing is left', () => {
@@ -256,7 +283,7 @@ describe('Home status, up next and recent activity', () => {
 
   it('merges certificates, completions, Quiz attempts and activity, newest first', () => {
     const events = recentActivity(
-      [c, { ...c, id: 'sql', title: 'SQL' } as Course],
+      [listed('git', 'Git'), listed('sql', 'SQL')],
       [
         p({
           quiz: {
@@ -269,14 +296,16 @@ describe('Home status, up next and recent activity', () => {
         p({ courseId: 'missing' }),
       ],
       [{ id: 'c1', courseTitle: 'SQL', issuedAt: new Date('2026-01-10') } as never],
+      'quiz',
     );
     expect(events.map((e) => e.text)).toEqual([
       'Certificate issued for SQL',
       'Finished SQL',
-      'Passed Check',
+      'Attempted a quiz in Git',
+      'Passed a quiz in Git',
       'Worked on Git',
     ]);
-    expect(recentActivity([c], [p()], [], 0)).toEqual([]);
+    expect(recentActivity([listed('git', 'Git')], [p()], [], 'quiz', 0)).toEqual([]);
   });
 
   it('finds the chapter of an item in a later chapter, and words failed and untimed events', () => {
@@ -289,7 +318,7 @@ describe('Home status, up next and recent activity', () => {
     } as unknown as Course;
     expect(upNext(two, p({ lastItemId: 'l9' }))?.chapter.title).toBe('More');
     const events = recentActivity(
-      [c],
+      [listed('git', 'Git')],
       [
         p({
           lastActiveAt: null,
@@ -297,8 +326,9 @@ describe('Home status, up next and recent activity', () => {
         }),
       ],
       [],
+      'Pariksha',
     );
-    expect(events.map((e) => e.text)).toEqual(['Attempted Check']);
+    expect(events.map((e) => e.text)).toEqual(['Attempted a Pariksha in Git']);
   });
 
   it('says how long ago', () => {

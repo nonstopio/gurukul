@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { listing } from './fake-data';
 import type { Course } from '@gurukul/schema';
 import type {
   BankQuestion,
@@ -34,7 +35,7 @@ export function fakeStudio(
 ) {
   const data: StudioData = {
     listCourses: vi.fn().mockResolvedValue(init.courses ?? []),
-    listLiveCourses: vi.fn().mockResolvedValue((init.courses ?? []).map((c) => c.live)),
+    listLiveCourses: vi.fn().mockResolvedValue((init.courses ?? []).map((c) => listing(c.live))),
     forgetCourses: vi.fn().mockResolvedValue(undefined),
     getDraft: vi.fn().mockResolvedValue(init.draft === undefined ? null : init.draft),
     saveDraft: vi.fn(async (_id: string, _work: unknown, baseRev: number) => baseRev + 1),

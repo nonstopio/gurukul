@@ -28,7 +28,7 @@ import {
 } from './learn/catalogue';
 import type { CatalogueQuery, CatalogueSort, CatalogueView } from './learn/catalogue';
 import { LEVEL_LABELS, countItems, courseImageUrl, isRetired } from './learn/model';
-import { Loaded } from './learn/ui';
+import { CourseLimitNotice, Loaded } from './learn/ui';
 import { useTerms } from './labels/useTerms';
 import { pageFor } from './paging';
 
@@ -155,6 +155,7 @@ export function CoursesPage() {
         }
         onClear={clear}
       />
+      {result.state === 'ready' ? <CourseLimitNotice courses={result.value.courses} /> : null}
       <Loaded loadable={result}>
         {({ courses, assignedIds, progress }) =>
           courses.length === 0 ? (
@@ -191,7 +192,7 @@ export function CoursesPage() {
                         <>
                           <Chip tone="neutral">{LEVEL_LABELS[c.level]}</Chip>
                           <Chip tone={c.visibility === 'public' ? 'neutral' : 'info'}>
-                            {VISIBILITY_LABELS[c.visibility ?? 'public']}
+                            {VISIBILITY_LABELS[c.visibility]}
                           </Chip>
                           {isRetired(c) ? <Chip tone="warning">Retired</Chip> : null}
                           {assignedIds.has(c.id) ? <Chip tone="accent">Assigned</Chip> : null}

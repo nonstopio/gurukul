@@ -252,7 +252,7 @@ describe('onCourseWritten', () => {
       .doc('courses/second')
       .set({ ...liveCourse(), id: 'second', title: 'Second' });
     await db().doc('courses/broken').set({ title: 'not a course' });
-    await db().doc('courseSummaries/orphan').set({ id: 'orphan', summaryVersion: 1 });
+    await db().doc('courseSummaries/orphan').set({ id: 'orphan', summaryVersion: 2 });
 
     expect(await reconcileSummaries(store)).toEqual({ count: 4, changed: 3 });
     expect(await summary()).toMatchObject({ title: 'Git basics' });

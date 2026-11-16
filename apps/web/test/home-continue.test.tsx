@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HomeContinue, useAnimatedPercent } from '../src/learn/HomeContinue';
 import { axeViolations } from './axe';
-import { makeCourse, progressRow } from './fake-data';
+import { listing, makeCourse, progressRow } from './fake-data';
 
 afterEach(() => {
   window.localStorage.clear();
@@ -19,7 +19,7 @@ const asAssigned = (title: string) => ({
     status: 'assigned' as const,
     assignedByName: null,
   },
-  course: makeCourse({ id: 'sql', title }),
+  course: listing(makeCourse({ id: 'sql', title })),
   progress: null,
 });
 

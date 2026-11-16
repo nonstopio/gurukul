@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { accessOf, MAX_VISIBLE_TEAMS, visibilitySchema } from './access';
+import { courseAccessSchema, MAX_VISIBLE_TEAMS, PUBLIC_ACCESS, visibilitySchema } from './access';
+import type { CourseAccess } from './access';
 import { courseSchema } from './course';
 import type { Course } from './course';
 import { readCourse } from './migrations';
@@ -10,7 +11,7 @@ import { timestamp } from './timestamp';
  * Bump when `summariseCourse` derives something new or differently: the nightly reconcile rewrites
  * every summary stored at another version, so a deploy needs no hand-run backfill.
  */
-export const COURSE_SUMMARY_VERSION = 1;
+export const COURSE_SUMMARY_VERSION = 2;
 
 /**
  * `courseSummaries/{courseId}`: what a tile, a list row or a search result shows, so a list never
@@ -47,6 +48,8 @@ export const courseSummarySchema = courseSchema
     courseUpdatedAt: timestamp.optional(),
   });
 export type CourseSummary = z.infer<typeof courseSummarySchema>;
+/** A course as a list shows it: its summary, never the course object. */
+export type CourseListing = CourseSummary;
 
 /**
  * A course's picture for a tile: its cover image, else the first image in its lessons, in course
@@ -60,6 +63,19 @@ export function courseImage(course: Pick<Course, 'chapters' | 'cover'>): string 
     if (image?.type === 'image') return image.url;
   }
   return undefined;
+}
+
+/**
+ * Who may read the summary: what the rules decide for the course itself. No `visibility`, or
+ * `public`, is public. Anything else this code cannot read (`teams` with no team, a value it does
+ * not know) is summarised as staff-only: the rules refuse such a course to learners, and its
+ * summary must not open wider.
+ */
+function summaryAccess(raw: unknown): CourseAccess {
+  const parsed = courseAccessSchema.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  const visibility = (raw as { visibility?: unknown }).visibility ?? 'public';
+  return visibility === 'public' ? PUBLIC_ACCESS : { visibility: 'staff', visibleTeamIds: [] };
 }
 
 /**
@@ -88,6 +104,6 @@ export function summariseCourse(raw: unknown): CourseSummary | null {
     lessons: items.filter((i) => i.type === 'lesson').length,
     quizzes: items.filter((i) => i.type === 'quiz').length,
     certificate: course.rules.certificate,
-    ...accessOf(raw),
+    ...summaryAccess(raw),
   };
 }

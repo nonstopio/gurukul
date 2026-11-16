@@ -68,13 +68,19 @@ export function OverviewPage() {
         u,
       ]),
     );
+    // Quiz titles are in the course itself: read only the courses someone failed a Quiz in.
+    const outlines = (
+      await Promise.all(
+        [...new Set(failed.map((f) => f.courseId))].map((id) => learner.getCourse(id)),
+      )
+    ).filter((c) => c !== null);
     const attention: AttentionInput = {
       open,
       failed,
       people,
       courseTitles: new Map(courses.map((c) => [c.id, c.title])),
       quizTitles: new Map(
-        courses.flatMap((c) =>
+        outlines.flatMap((c) =>
           itemsOf(c)
             .filter((i) => i.type === 'quiz')
             .map((i) => [`${c.id}/${i.id}`, (i as { title: string }).title] as const),
@@ -248,7 +254,9 @@ export function OverviewPage() {
                         cell: ({ course }) => (
                           <span className="console-row__text">
                             <Link to={`/admin/courses/${course.id}`}>{course.title}</Link>
-                            <span className="console-muted">{itemsOf(course).length} items</span>
+                            <span className="console-muted">
+                              {course.lessons + course.quizzes} items
+                            </span>
                           </span>
                         ),
                       },

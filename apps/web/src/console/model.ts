@@ -293,8 +293,10 @@ export function quizTitle(course: Pick<Course, 'chapters'> | undefined, id: stri
 export function drawerCourses(
   assignments: readonly AssignmentFull[],
   progress: readonly ProgressRow[],
-  courses: readonly Course[],
+  courses: readonly { id: string; title: string }[],
   now: Date,
+  /** The whole course of each one with a Quiz attempt: a list does not hold Quiz titles. */
+  outlines: readonly Pick<Course, 'id' | 'chapters'>[] = [],
 ): DrawerCourse[] {
   const ids = [
     ...new Set([...assignments.map((a) => a.courseId), ...progress.map((p) => p.courseId)]),
@@ -319,7 +321,11 @@ export function drawerCourses(
           .filter(([, r]) => r.attempts > 0)
           .map(([id, r]) => ({
             id,
-            title: quizTitle(course, id) ?? id,
+            title:
+              quizTitle(
+                outlines.find((c) => c.id === courseId),
+                id,
+              ) ?? id,
             attempts: r.attempts,
             best: r.best,
             passed: r.passed,

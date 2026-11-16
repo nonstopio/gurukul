@@ -45,6 +45,7 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
   const data = useLearnerData();
   const uid = user.uid;
   const audience = useAudience();
+  const t = useTerms();
   const load = useCallback(async () => {
     const [assignments, progress, courses, certificates] = await Promise.all([
       data.myAssignments(uid),
@@ -58,17 +59,19 @@ export function HomePage({ now = () => new Date() }: { now?: () => Date }) {
         ? [{ assignment, course, progress: progress.find((p) => p.courseId === course.id) ?? null }]
         : [];
     });
+    // The list holds summaries; the one course in progress is read whole, for where to resume.
+    const picked = continueCourse(courses, progress);
+    const course = picked ? await data.getCourse(picked.course.id) : null;
     return {
       assigned: orderAssigned(assigned),
       courses,
       progress,
-      current: continueCourse(courses, progress),
-      activity: recentActivity(courses, progress, certificates),
+      current: picked && course ? { course, progress: picked.progress } : null,
+      activity: recentActivity(courses, progress, certificates, t.quiz),
     };
-  }, [data, uid, audience]);
+  }, [data, uid, audience, t]);
   const result = useAsync(load, `home/${uid}/${audience.staff}/${audience.teamIds.join(',')}`);
   const name = firstName(user.displayName);
-  const t = useTerms();
   const current = result.state === 'ready' ? result.value.current : null;
 
   return (

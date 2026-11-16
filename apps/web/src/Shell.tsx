@@ -35,6 +35,7 @@ import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
+import { useAudience } from './data/useAudience';
 import { shownName } from './learn/model';
 import { PageLoading } from './learn/ui';
 import { useSaveLabels } from './labels/LabelChoice';
@@ -97,12 +98,14 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   const data = useLearnerData();
   const { data: studioData } = useStudio();
   const admin = roles.includes('admin');
-  // Courses and lessons in search, from the catalogue's own query, made only once search opens;
+  // Courses in search, from the catalogue's own summaries, and the lessons of the courses the
+  // person is taking, read only once search opens;
   // for Educators and Admins also the courses they may edit, from Studio's own list.
   const t = useTerms();
+  const audience = useAudience();
   const sources = useMemo(
-    () => [courseSource(data), editableCourseSource(studioData, uid, admin, t)],
-    [data, studioData, uid, admin, t],
+    () => [courseSource(data, uid, audience), editableCourseSource(studioData, uid, admin, t)],
+    [data, studioData, uid, admin, t, audience],
   );
   // People for Admins, by the Learners page's own prefix search, as they type.
   const { data: consoleData } = useConsole();

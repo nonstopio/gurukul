@@ -15,7 +15,8 @@ import { fakeConsole } from './fake-console';
 import { fakeStudio } from './fake-studio';
 import { axeViolations } from './axe';
 import { NONSTOP, fakeAuth } from './fake-auth';
-import { fakeData, lesson, makeCourse, progressRow } from './fake-data';
+import type { CourseListing } from '@gurukul/schema';
+import { fakeData, lesson, listing, makeCourse, progressRow } from './fake-data';
 import { isTyping } from '../src/LessonPage';
 import { log } from '../src/log';
 import { fakeQuiz } from './fake-quiz';
@@ -283,7 +284,7 @@ describe('Catalogue', () => {
     await act(async () => {
       await router.navigate('/certificates');
     });
-    const refresh = defer<typeof courses>();
+    const refresh = defer<CourseListing[]>();
     vi.mocked(d.data.listCourses).mockReturnValueOnce(refresh.promise);
     await act(async () => {
       await router.navigate('/courses');
@@ -291,7 +292,7 @@ describe('Catalogue', () => {
     expect(screen.getByRole('link', { name: 'SQL basics' })).toBeTruthy();
     expect(busy()).toBeNull();
     await act(async () => {
-      refresh.resolve([...courses, makeCourse({ id: 'go', title: 'Go basics' })]);
+      refresh.resolve([...courses, makeCourse({ id: 'go', title: 'Go basics' })].map(listing));
     });
     expect(await screen.findByRole('link', { name: 'Go basics' })).toBeTruthy();
   });
@@ -307,7 +308,7 @@ describe('Catalogue', () => {
     act(() =>
       auth.emitProfile({ roles: ['learner'], displayName: 'P', team: null, teamIds: ['t2'] }),
     );
-    const refresh = defer<typeof courses>();
+    const refresh = defer<CourseListing[]>();
     vi.mocked(d.data.listCourses).mockReturnValueOnce(refresh.promise);
     await act(async () => {
       await router.navigate('/courses');
@@ -315,7 +316,7 @@ describe('Catalogue', () => {
     expect(screen.queryByRole('link', { name: 'SQL basics' })).toBeNull();
     expect(busy()).not.toBeNull();
     await act(async () => {
-      refresh.resolve(courses);
+      refresh.resolve(courses.map(listing));
     });
     expect(await screen.findByRole('link', { name: 'SQL basics' })).toBeTruthy();
   });

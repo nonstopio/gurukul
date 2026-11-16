@@ -24,20 +24,21 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Studio | 20 | 0 | 0 | 0 |
 | Design system | 9 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
-| Platform, CI and operations | 23 | 1 | 0 | 11 |
+| Platform, CI and operations | 24 | 2 | 0 | 11 |
 | First course: Git | 6 | 0 | 0 | 2 |
 | Redesign | 17 | 0 | 0 | 0 |
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| **Total** | 188 | 1 | 0 | 14 |
+| **Total** | 189 | 2 | 0 | 14 |
 
 ## Pick order
 
 Correctness and cost first, then what learners meet, then the console and Studio, then polish.
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
 
-1. `OPS-35` — lists, tiles and search read course summaries (cost, and no list stopping at 100)
+1. `OPS-36` — Studio's course list, Media and Question bank stop reading every course and draft
+2. `OPS-37` — course lists read a page at a time, before the catalogue passes a few hundred courses
 
 
 
@@ -259,7 +260,9 @@ Plan: `01-architecture.md`, `02-data-model.md`, `10-testing-and-ci.md`, `11-depl
 | `OPS-32` | Turn on GA4 for production | maintainer | `OPS-31` | Set `VITE_FIREBASE_MEASUREMENT_ID` for the production build, register the custom dimensions and set data retention in GA4 (`docs/analytics.md`, "Console steps") |
 | `OPS-33` | Search engines and link previews | done | — | `apps/web/public/robots.txt` (front door, privacy and verify only), Open Graph and Twitter tags in `apps/web/index.html`, preview image from `VITE_SITE_URL` (`apps/web/src/seo/shareImage.ts`, `vite.config.ts`); tests in `apps/web/test/robots.test.ts`, `share-image.test.ts`; Lighthouse SEO gate in `lighthouserc.json`; `11-deployment-and-cost.md` |
 | `OPS-34` | Course summaries: a small document per course, kept by a function | done | — | `packages/schema/src/summary.ts` (`summariseCourse`), `firebase/functions/src/summaries.ts` (`onCourseWritten`, nightly `reconcileSummaries` in `dailyRollup`), `firestoreSummaryStore` in `stores.ts`, `firebase/firestore.rules` (`courseSummaries`, same two functions as `courses`), `scripts/backfill-summaries.mjs`; tests in `firebase/rules/test/course-summaries.test.ts`, `firebase/functions/emulator-test/triggers.test.ts`; `02-data-model.md` "Course summaries". Nothing reads a summary yet: `OPS-35` |
-| `OPS-35` | Lists, tiles and search read course summaries; no list stops at 100 | todo | `OPS-34` | Done means: Home, the catalogue, the Admin pages that name courses, Studio's course list and global search read `courseSummaries`, 25 to a page with a cursor and a count where the list can grow; a full course is read only when a course, lesson or editor opens (Home's "continue" course, a draft when its editor opens); search finds any course, not the first 100; Media and Question bank no longer load every draft. Needs every production course to have a summary first (the night after `OPS-34` deploys, or `npm run backfill-summaries -- --apply`) |
+| `OPS-35` | Learner pages, Admin pages and search read course summaries | done | `OPS-34` | `apps/web/src/data/firebase.ts` (`listSummaries`: summaries, a count of the same query on `courses`, and the whole courses when a summary is missing), `data/limits.ts` (1,000, `CourseLimitNotice`), `learn/model.ts`, `navigation/records.ts` (every course, lessons of the courses being taken), `console/OverviewPage.tsx`, `LearnerDrawer.tsx`; `02-data-model.md` "Course summaries" |
+| `OPS-36` | Studio's list, Media and Question bank read summaries | todo | `OPS-35` | Done means: `/studio` lists from `courseSummaries` and reads no draft or whole course until an editor opens (an "unpublished edits" mark for the rows on screen from a count of `drafts` saved after `publishedAt`, one read a row, no document); Media and Question bank read the courses of one picked course, or of the person's own, not every course and draft |
+| `OPS-37` | Course lists read a page at a time | todo | `OPS-35` | Done means: the catalogue, Assign and Studio's list read 25 summaries with a cursor and a count (`.claude/rules/pagination.md`), search asks Firestore for matching courses as the person types, Home reads the summaries of the person's own courses by id, and no screen reads every summary. Needed before a few hundred courses (`11`, "Course lists"); until then lists read up to 1,000 and say so at the limit |
 
 ## First course: Git
 

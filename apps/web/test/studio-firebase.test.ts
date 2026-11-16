@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeCourse } from './fake-data';
+import { listing, makeCourse } from './fake-data';
 
 const store = vi.hoisted(() => ({
   docs: new Map<string, unknown>(),
@@ -104,16 +104,17 @@ describe('cleanForFirestore', () => {
 });
 
 describe('listLiveCourses', () => {
-  it('makes the one courses query and reads no draft or stats document', async () => {
-    store.queue = [
-      [d('git', live('git', ['u1'])), d('broken', { ...live('broken'), schemaVersion: 0 })],
-    ];
-    store.docs.set('courses/git/drafts/current', draft());
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it('reads the summary of every course, and no course, draft or stats document', async () => {
+    store.queue = [Array.from({ length: 7 }, (_, i) => d(`c${i}`, listing(live(`c${i}`, ['u1']))))];
+    store.docs.set('courses/c1/drafts/current', draft());
     const rows = await data.listLiveCourses();
-    expect(rows.map((c) => c.id)).toEqual(['git']);
-    expect(store.queries).toHaveLength(1);
-    warn.mockRestore();
+    expect(rows).toHaveLength(7);
+    expect(rows[0]).not.toHaveProperty('description');
+    // One query of the summaries and one count of the courses: no filter, so drafts are included.
+    expect(store.queries).toEqual([
+      [{ collection: 'courseSummaries' }, { limit: 1000 }],
+      [{ collection: 'courses' }],
+    ]);
   });
 });
 

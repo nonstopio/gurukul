@@ -483,6 +483,7 @@ describe('drawerCourses', () => {
       ],
       [course],
       now,
+      [course],
     );
     expect(git?.quizzes).toEqual([
       { id: 'q1', title: 'Quiz I', attempts: 1, best: 0.8, passed: true },
