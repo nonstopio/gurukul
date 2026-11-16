@@ -3,6 +3,21 @@
 Screens: Courses, Course editor (structure), Lesson editor (blocks), Quiz
 builder. Handoff: `design-handoff/03-studio.md`.
 
+## Screen width
+
+Studio works from **640px (40rem) wide** up: a tablet in portrait (768px) and a laptop window
+split in half both edit everything. This applies to every Studio page behind `DesktopOnly`
+(`routes.tsx`): Courses, the course editor, lesson editor, Quiz builder, preview, question bank
+and media library. Below 1024px their columns stack (rail, canvas, settings), and the lesson
+outline in the lesson editor and preview scrolls inside its card, holding the current item in
+view, so a long course does not push the editor a screen down. Reordering is a drag list with
+touch and keyboard support, so nothing needs a mouse.
+
+Below 640px each of those pages says it needs a wider window, with a link back to Home. Phone-width
+editing is not planned: authoring a course needs the room, and Educators build on laptops. The
+gate used to be 1024px, which blocked tablets and split-screen windows although every page already
+worked there (checked in a browser at 768px, 680px and 640px).
+
 ## Who can do what
 
 - Educators see every course; they can edit only those whose `educatorIds`

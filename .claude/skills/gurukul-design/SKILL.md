@@ -257,8 +257,9 @@ with `display=swap`.
 - Spacing is a 4px grid (`--space-*`). Lay out siblings with flex or grid and `gap`; no margins
   between siblings.
 - Breakpoints: 1024px (sidebar ↔ drawer, aside stacks), 640px (titles step down, button rows
-  wrap). Check every change at 1280 and 390. Wide tables scroll inside their card; the page
-  never scrolls sideways.
+  wrap). Studio pages sit behind `DesktopOnly`, which asks for a wider window below 640px;
+  they must keep working from 640px up (`.plan/08-studio.md`). Check every change at 1280
+  and 390. Wide tables scroll inside their card; the page never scrolls sideways.
 
 ## New components
 

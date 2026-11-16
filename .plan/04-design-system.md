@@ -47,6 +47,13 @@ WCAG 2.1 AA. Automated: axe-core (`test/axe.ts` helper) in component and page te
 Playwright axe scan on every route (M6). Manual per release: keyboard-only
 walkthrough of the learner path and Studio, VoiceOver spot check.
 
+## Screen widths
+
+Two breakpoints: 1024px (64rem: sidebar becomes a drawer, side columns stack) and 640px (40rem:
+titles step down, button rows wrap). Studio is the one area with a minimum width: it works from
+640px up and below that shows a "needs a wider window" page with a link Home (`08-studio.md`,
+Screen width).
+
 ## Dark mode and motion
 
 Roles keep their names; `tokens.css` declares Light values in `:root` and Dark values in
