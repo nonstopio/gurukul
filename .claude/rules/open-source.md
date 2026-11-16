@@ -13,4 +13,5 @@ This repository is public. Before every commit:
 - Internal NonStop process (salaries, reviews, client names) does not belong in
   course content, issues or the plan.
 - Licence is MIT. New dependencies must be compatible (MIT, Apache-2.0, BSD,
-  ISC). Check before adding one.
+  ISC). Check before adding one. Font files (and font packages that only ship them) may be
+  SIL OFL 1.1; code dependencies stay MIT, Apache-2.0, BSD or ISC.

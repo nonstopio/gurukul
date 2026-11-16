@@ -21,7 +21,8 @@ light-tinted sidebar that follows the theme (no permanent dark slab). Dark: deep
 ground. NonStop green is the one accent (`#0A6A46` in Light, `#46D39B` in Dark); saffron is a
 highlight fill (streaks, new), never text on a surface. Body text holds 11:1 or
 more, the palest text 5:1 or more, control edges 3:1 or more, in both themes. Inter for UI,
-Fraunces for titles and ceremony, JetBrains Mono for code. The certificate is the one "paper and
+Fraunces for titles and ceremony, JetBrains Mono for code, all three served from Gurukul's own
+Hosting (`@fontsource-variable` woff2, Latin and Latin Extended, no third-party font host). The certificate is the one "paper and
 gold" surface. The full system, with live previews, is the "Gurukul Design System" artifact
 (palette, motion, states, flows, where things go); this file is what the code follows.
 

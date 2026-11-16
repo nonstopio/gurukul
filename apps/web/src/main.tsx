@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter } from 'react-router';
+import './fonts.css';
 import '@gurukul/ui/tokens.css';
 import './styles.css';
 import './learn.css';

@@ -247,8 +247,10 @@ Two kinds of surface, and one for ceremony:
 | Micro labels (`CHAPTER 3`) | Inter 600, uppercase, `--tracking-label` | `--text-xs`                                                |
 | Code                       | JetBrains Mono 400                       | 13–14px                                                    |
 
-Weights 400, 500, 600 and 700 only. Load all three families from one Google Fonts `css2` link
-with `display=swap`.
+Weights 400, 500, 600 and 700 only. All three families are served from Gurukul's own hosting:
+`apps/web/src/fonts.css` declares the `@fontsource-variable` woff2 files (Latin and Latin
+Extended, `unicode-range`, `font-display: swap`; why there is no preload is in that file). Never
+add a third-party font host.
 
 ## Shape and space
 

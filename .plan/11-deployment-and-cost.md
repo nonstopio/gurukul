@@ -27,6 +27,9 @@ roles depend on. Blaze keeps the same free quotas and bills only above them.
 | Cloud Storage (planned course media, US bucket) | 5 GB stored, 100 GB egress / month | ~200 MB stored, < 10 GB / month |
 | Auth (Google) | free | free |
 
+The web fonts are Hosting files too (about 470 KB of woff2 per release; a first visit downloads
+the Latin Inter and Fraunces files, about 115 KB, and keeps them a year under `/assets/**`).
+
 The one job whose reads grow with people x courses is the daily roll-up. It recounts only the
 courses with activity since its last run and no longer reads attempts: about 1,150 reads on its
 worst night at 200 people and 5 courses (5,200 before), and about 16,000 at 1,500 people and 10

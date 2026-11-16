@@ -76,9 +76,9 @@ describe('index.html', () => {
     expect(INDEX_HTML).not.toContain('property="og:url"');
   });
 
-  it('loads no stylesheet that would block first paint and the boot loader', () => {
-    const stylesheets = INDEX_HTML.match(/<link[^>]*rel="stylesheet"[^>]*>/g) ?? [];
-    expect(stylesheets.length).toBeGreaterThan(0);
-    for (const link of stylesheets) expect(link).toContain('media="print"');
+  it('loads no stylesheet that would block first paint, and no font from another host', () => {
+    // The fonts are declared in src/fonts.css and served with the app (issue #131).
+    expect(INDEX_HTML).not.toMatch(/<link[^>]*rel="stylesheet"/);
+    expect(INDEX_HTML).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
   });
 });
