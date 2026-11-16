@@ -358,6 +358,19 @@ describe('useDraft', () => {
     await waitFor(() => expect(studio.data.saveDraft).toHaveBeenCalledTimes(1));
   });
 
+  it('keeps unsaved edits on this device when the page goes away inside the autosave window', async () => {
+    const { result, studio } = setup();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    window.dispatchEvent(new Event('pagehide'));
+    expect(readBackup(backupKey('u1', 'git'))).toBeNull();
+    act(() => result.current.update(rename('Typed just now')));
+    window.dispatchEvent(new Event('pagehide'));
+    expect(readBackup(backupKey('u1', 'git'))?.work.course.title).toBe('Typed just now');
+    expect(studio.data.saveDraft).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event('beforeunload', { cancelable: true }));
+    expect(readBackup(backupKey('u1', 'git'))?.work.course.title).toBe('Typed just now');
+  });
+
   it('waits for a save in flight before the next page loads the draft', async () => {
     const studio = fakeStudio({ draft: draftDoc(makeCourse(), { rev: 4 }) });
     let finish: (rev: number) => void = () => undefined;

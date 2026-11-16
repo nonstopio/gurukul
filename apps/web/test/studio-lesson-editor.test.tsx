@@ -1,3 +1,4 @@
+import { AUTOSAVE_MS } from '../src/studio/useDraft';
 import type { Block, Course, Lesson } from '@gurukul/schema';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -400,13 +401,13 @@ describe('lesson editor: blocks', () => {
 });
 
 describe('lesson editor: saving', () => {
-  it('autosaves a second after the last edit', async () => {
+  it('autosaves three seconds after the last edit', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { studio } = await open();
     fireEvent.change(await screen.findByLabelText('Lesson title'), { target: { value: 'Auto' } });
     expect(studio.data.saveDraft).not.toHaveBeenCalled();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1100);
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_MS + 100);
     });
     expect(studio.data.saveDraft).toHaveBeenCalledTimes(1);
     expect(savedLesson(studio).title).toBe('Auto');

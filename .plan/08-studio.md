@@ -15,7 +15,7 @@ builder. Handoff: `design-handoff/03-studio.md`.
 
 ## Drafts and publishing
 
-- Editing writes `courses/{id}/drafts/current` (debounced autosave, ~1s, with
+- Editing writes `courses/{id}/drafts/current` (debounced autosave, 3s after the last edit, with
   a "Draft v4 · saved just now" indicator and a conflict warning if another editor saved
   in between — last-write-wins with a `rev` check). The draft is one working copy: its version is
   the one it becomes when published (live v3 → "Draft v4", however many saves), never its `rev`,

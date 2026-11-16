@@ -1,3 +1,4 @@
+import { AUTOSAVE_MS } from '../src/studio/useDraft';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COURSE_BYTES_LIMIT, COURSE_BYTES_WARN } from '@gurukul/schema';
@@ -27,7 +28,7 @@ async function open(rev = 5) {
 const edit = async (title: string) => {
   fireEvent.change(screen.getByLabelText('Title'), { target: { value: title } });
   await act(async () => {
-    vi.advanceTimersByTime(1100);
+    vi.advanceTimersByTime(AUTOSAVE_MS + 100);
   });
 };
 
@@ -71,7 +72,7 @@ describe('Unsaved edits in the course editor', () => {
     expect(screen.queryByText('Unsaved edits from this device')).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Kept' })).toBeTruthy();
     await act(async () => {
-      vi.advanceTimersByTime(1100);
+      vi.advanceTimersByTime(AUTOSAVE_MS + 100);
     });
     await waitFor(() => expect(screen.getByText('Draft v4 · saved just now')).toBeTruthy());
     expect(localStorage.getItem(backupKey('u1', live.id))).toBeNull();

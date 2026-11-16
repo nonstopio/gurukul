@@ -54,7 +54,7 @@ settings panel (`flex 1 1 300px`, white, left border).
 | Add a block | Dashed box, 8-tile palette grid (`minmax(84px,1fr)`): Text, Video, Code, Callout, Image, Embed, File, Check. Also "/" command in a text block opens the same palette |
 | Settings | Rendering: 3 layout tiles with mini diagrams (Stacked, Split, Article), `aria-pressed`; estimated time; completion rule; type label; note "Every block is plain JSON…" |
 
-**Autosave:** 1s after the last keystroke; failed save keeps edits locally
+**Autosave:** 3s after the last keystroke; failed save keeps edits locally
 (IndexedDB) and shows retry. Leaving with unsaved edits prompts.
 
 **Validation inline:** red-bordered block + message under its header; the

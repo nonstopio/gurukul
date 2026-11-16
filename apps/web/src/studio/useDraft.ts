@@ -11,8 +11,12 @@ import type { DraftDoc, Working } from './types';
 /** `too-large`: the edits are over `COURSE_BYTES_LIMIT`, kept on the page and this device, not written. */
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict' | 'too-large';
 
-/** Milliseconds after the last edit before autosave fires. */
-export const AUTOSAVE_MS = 1000;
+/**
+ * Milliseconds after the last edit before autosave fires. Each save rewrites the whole draft, so a
+ * pause (not each keystroke) is the unit; 3 s is the short end of what a pause is, and the unsaved
+ * window is covered by the exit backup, the leave warning and the flush on unmount.
+ */
+export const AUTOSAVE_MS = 3000;
 
 export interface DraftApi {
   status: 'loading' | 'ready' | 'missing' | 'error';
@@ -70,7 +74,7 @@ const waitFor = (courseId: string, pending: Promise<unknown>): Promise<unknown> 
   ]);
 
 /**
- * The editing session for one course's draft: loads it, applies edits locally, autosaves a second
+ * The editing session for one course's draft: loads it, applies edits locally, autosaves a few seconds
  * after the last one with an optimistic `rev` check, flushes when the page closes, and warns the
  * browser if edits are unsaved. Every Studio editor page uses it, so they all behave the same.
  */
@@ -233,17 +237,28 @@ export function useDraft(courseId: string): DraftApi {
 
   // Flush on the way out, and ask the browser to confirm closing a tab with unsaved edits.
   useEffect(() => {
+    // Unsaved edits are kept on this device the moment the page is going away, so closing the tab
+    // inside the autosave window loses nothing: the next visit offers them back.
+    const keep = () => {
+      const { work: current, rev: baseRev, save: state } = latest.current;
+      if (current && (state === 'dirty' || state === 'error' || state === 'too-large')) {
+        writeBackup(backupId, { rev: baseRev, savedAt: Date.now(), work: current });
+      }
+    };
     const warn = (e: BeforeUnloadEvent) => {
       const { save: state } = latest.current;
       if (state === 'dirty' || state === 'error' || state === 'too-large') e.preventDefault();
+      keep();
     };
     window.addEventListener('beforeunload', warn);
+    window.addEventListener('pagehide', keep);
     return () => {
       window.removeEventListener('beforeunload', warn);
+      window.removeEventListener('pagehide', keep);
       clearTimeout(timer.current);
       if (latest.current.save === 'dirty') void saveNow();
     };
-  }, [saveNow]);
+  }, [saveNow, backupId]);
 
   const restoreBackup = () => {
     if (backup) update(() => backup.work);
