@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from './axe';
 import { fakeConsole, userRow } from './fake-console';
@@ -876,5 +876,93 @@ describe('Assign: results and failures', () => {
     expect(
       await screen.findByText('1 assignment could not be saved. The rest went through.'),
     ).toBeTruthy();
+  });
+});
+
+describe('Assign: leaving with input', () => {
+  const unload = () => {
+    const e = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+  const leave = (router: { navigate: (to: string) => Promise<void> }, to = '/admin') =>
+    act(async () => {
+      await router.navigate(to);
+    });
+  const asking = () => screen.queryByRole('heading', { name: 'Leave without assigning?' });
+
+  it('asks before leaving, keeps everything on Cancel and leaves on Leave', async () => {
+    const { router } = await open();
+    await pick(/Git, the NonStop Way/);
+    expect(unload()).toBe(true);
+    await leave(router);
+    expect(asking()).toBeTruthy();
+    expect(router.state.location.pathname).toBe(PATH);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(asking()).toBeNull());
+    expect((screen.getByLabelText(/Git, the NonStop Way/) as HTMLInputElement).checked).toBe(true);
+    // The same page with another query is not leaving.
+    await leave(router, `${PATH}?x=1`);
+    expect(asking()).toBeNull();
+    await leave(router);
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+  });
+
+  it('does not ask when the wizard is empty', async () => {
+    const { router } = await open();
+    await screen.findByLabelText(/Git, the NonStop Way/);
+    expect(unload()).toBe(false);
+    await leave(router);
+    expect(router.state.location.pathname).toBe('/admin');
+  });
+
+  it('stops asking once the assignment went through', async () => {
+    const c = setup();
+    c.service.assignCourses = vi.fn().mockResolvedValue(OK);
+    const { router } = await open(c);
+    await toReview('a@nonstopio.com');
+    expect(unload()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /^Assign to/ }));
+    await screen.findByRole('button', { name: 'Assign more' });
+    expect(unload()).toBe(false);
+    await leave(router);
+    expect(router.state.location.pathname).toBe('/admin');
+  });
+
+  it('counts people alone as input', async () => {
+    await open(setup(), data(), { emails: ['a@nonstopio.com'] });
+    await screen.findByLabelText(/Git, the NonStop Way/);
+    expect(unload()).toBe(true);
+  });
+
+  it('counts a team alone as input', async () => {
+    await open(setup({ teamList: [PLATFORM] }));
+    await toAudience();
+    fireEvent.click(screen.getByLabelText('Platform'));
+    await screen.findByText(/will be assigned\. From 1 team/);
+    back();
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    expect(unload()).toBe(true);
+  });
+
+  it('counts a due date alone as input', async () => {
+    await open();
+    await pick(/Git, the NonStop Way/);
+    next();
+    await heading('Who is it for?');
+    people();
+    await addEmails('a@nonstopio.com');
+    await waitFor(() => expect(screen.getByText(/will be assigned\./)).toBeTruthy());
+    next();
+    await heading('Set the deadline');
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2100-12-01' } });
+    // Take everything else away again: only the date is left.
+    back();
+    await heading('Who is it for?');
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    back();
+    fireEvent.click(await screen.findByLabelText(/Git, the NonStop Way/));
+    expect(unload()).toBe(true);
   });
 });

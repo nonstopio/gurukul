@@ -53,7 +53,7 @@ submitting by running the same pure classifier client-side; with several courses
 already-assigned people per course.
 Courses show twelve to a page with their picture, lesson count and minutes, search covers all of them, and the
 step buttons stay pinned to the bottom of the window. The CSV box takes a dropped
-file. After assigning exactly one course the console opens Learners filtered to it
+file. While anything is chosen (courses, people, a team or a due date) and the assignment has not gone through, leaving the page (a link, Back, search, refresh or closing the tab) asks first (`LeavePrompt`); nothing is stored, since the emails are personal data. After assigning exactly one course the console opens Learners filtered to it
 (`/admin/learners?course=<id>`).
 
 ## Email notifications
