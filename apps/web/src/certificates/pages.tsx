@@ -19,8 +19,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
-import type { CertificateRow, ProgressRow } from '../data/types';
+import type { CertificateRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
+import { useProgress, withProgress } from '../data/useProgress';
 import { durationLabel, nextAssigned } from '../learn/model';
 import type { AssignedCourse } from '../learn/model';
 import { Loaded, LoadedPage } from '../learn/ui';
@@ -432,19 +433,19 @@ export function CompletePage() {
   const uid = useUser().uid;
   const copy = useCopyVerifyLink();
   const t = useTerms();
-  const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
-  const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
-  useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
+  const course = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
+  const progress = useProgress(data, uid, courseId);
 
+  // Waits for progress too: a failed read shows Retry, not "Finishing up…" for ever.
   return (
-    <LoadedPage loadable={result}>
-      {(course) => {
-        // Loading, or every item done and the server has not stamped `completedAt` yet.
+    <LoadedPage loadable={withProgress(course, progress)}>
+      {([course, progress]) => {
+        // Every item done and the server has not stamped `completedAt` yet.
         const finishing =
           !!course &&
-          !progress?.completedAt &&
-          (progress === undefined ||
-            (progress !== null && progressPercent(course, progress) === 100));
+          !!progress &&
+          !progress.completedAt &&
+          progressPercent(course, progress) === 100;
         if (finishing) {
           return (
             <Page>

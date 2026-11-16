@@ -114,7 +114,7 @@ export function makeCourse(over: Partial<Course> = {}): Course {
   } as Course;
 }
 
-/** In-memory LearnerData. `emitProgress` pushes a document to every watcher. */
+/** In-memory LearnerData. `emitProgress` pushes a document to every watcher; `failProgress` fails them. */
 export function fakeData(
   init: {
     courses?: Course[];
@@ -133,13 +133,15 @@ export function fakeData(
 ) {
   const courses = init.courses ?? [makeCourse()];
   const watchers: Array<(p: ProgressRow | null) => void> = [];
+  const failers: Array<(e: Error) => void> = [];
   const data: LearnerData = {
     listCourses: vi.fn().mockResolvedValue(courses),
     getCourse: vi.fn(async (id: string) => courses.find((c) => c.id === id) ?? null),
     myAssignments: vi.fn().mockResolvedValue(init.assignments ?? []),
     myProgress: vi.fn().mockResolvedValue(init.progress ?? []),
-    watchProgress: vi.fn((_uid, _course, cb) => {
+    watchProgress: vi.fn((_uid, _course, cb, onError) => {
       watchers.push(cb);
+      failers.push(onError);
       if (!init.deferProgress) cb(init.watched === undefined ? null : init.watched);
       return () => {};
     }),
@@ -155,5 +157,13 @@ export function fakeData(
     uploadLimits: vi.fn().mockResolvedValue(init.uploadLimits),
     setLabels: vi.fn().mockResolvedValue(undefined),
   };
-  return { data, emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)) };
+  return {
+    data,
+    emitProgress: (p: ProgressRow | null) => watchers.forEach((w) => w(p)),
+    /** Fails every progress listener opened so far, as Firestore does (it then stops). */
+    failProgress: (e = new Error('permission-denied')) => {
+      failers.splice(0).forEach((f) => f(e));
+      watchers.splice(0);
+    },
+  };
 }

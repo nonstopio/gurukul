@@ -5,6 +5,7 @@ const store = vi.hoisted(() => ({
   docs: new Map<string, unknown>(),
   queryDocs: [] as Array<{ id: string; data: () => unknown }>,
   snapCb: undefined as undefined | ((s: unknown) => void),
+  snapErr: undefined as undefined | ((e: Error) => void),
   calls: [] as unknown[][],
   queries: [] as unknown[],
   setError: undefined as unknown,
@@ -25,8 +26,9 @@ vi.mock('firebase/firestore', () => ({
     return { docs: store.queryDocs };
   },
   limit: (n: number) => ({ limit: n }),
-  onSnapshot: (_ref: unknown, cb: (s: unknown) => void) => {
+  onSnapshot: (_ref: unknown, cb: (s: unknown) => void, onError: (e: Error) => void) => {
     store.snapCb = cb;
+    store.snapErr = onError;
     return () => {};
   },
   orderBy: (f: string, d: string) => ({ orderBy: [f, d] }),
@@ -305,11 +307,15 @@ describe('firebaseLearnerData', () => {
 
   it('watches one progress document, reporting null when it does not exist', () => {
     const cb = vi.fn();
-    data.watchProgress('u', 'git', cb);
+    const onError = vi.fn();
+    data.watchProgress('u', 'git', cb, onError);
     store.snapCb?.({ exists: () => false });
     store.snapCb?.({ exists: () => true, data: () => ({ courseId: 'git' }) });
     expect(cb).toHaveBeenNthCalledWith(1, null);
     expect(cb.mock.calls[1]?.[0]).toMatchObject({ courseId: 'git' });
+    const failure = new Error('permission-denied');
+    store.snapErr?.(failure);
+    expect(onError).toHaveBeenCalledWith(failure);
   });
 
   it('reads one certificate, or null, and lists mine with defaults filled', async () => {

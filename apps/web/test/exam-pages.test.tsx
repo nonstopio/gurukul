@@ -298,7 +298,7 @@ describe('Quiz screen', () => {
     expect(screen.getByText(/You can retake this in 8 minutes/)).toBeTruthy();
   });
 
-  it('shows nothing until the progress document arrives, and locks a course that was never started', async () => {
+  it('shows a page skeleton until the progress document arrives, and locks a course that was never started', async () => {
     const d = fakeData({ courses: [courseWith()], deferProgress: true });
     await openApp(PATH, { data: d });
     await waitFor(() => expect(d.data.getCourse).toHaveBeenCalled());
@@ -306,7 +306,9 @@ describe('Quiz screen', () => {
     await act(async () => {
       await vi.mocked(d.data.getCourse).mock.results[0]?.value;
     });
+    expect(screen.getByText('Loading')).toBeTruthy();
     expect(screen.queryByText(/Question 1/)).toBeNull();
+    expect(screen.queryByText('Locked for now')).toBeNull();
     act(() => d.emitProgress(null));
     expect(await screen.findByText('Locked for now')).toBeTruthy();
   });
@@ -851,15 +853,20 @@ describe('Course complete', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Git, the NonStop Way' })).toBeTruthy();
   });
 
-  it('says it is finishing up, not failed, while progress loads and until completedAt arrives', async () => {
+  it('shows a skeleton while progress loads, then finishing up until completedAt arrives', async () => {
     const d = fakeData({ courses: [courseWith()], deferProgress: true });
     await openApp('/courses/git/complete', { data: d });
-    expect(await screen.findByText('Finishing up…')).toBeTruthy();
+    await waitFor(() => expect(d.data.getCourse).toHaveBeenCalled());
+    await act(async () => {
+      await vi.mocked(d.data.getCourse).mock.results[0]?.value;
+    });
+    expect(screen.getByText('Loading')).toBeTruthy();
     expect(screen.queryByText('Not finished yet')).toBeNull();
+    expect(screen.queryByText('Finishing up…')).toBeNull();
     // Every item done, but the server has not stamped completedAt yet.
     const allDone = done({ completedAt: null, certificateId: null });
     act(() => d.emitProgress(allDone));
-    expect(screen.getByText('Finishing up…')).toBeTruthy();
+    expect(await screen.findByText('Finishing up…')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to the course' })).toBeTruthy();
     // completedAt arrives: the completion screen replaces it.
     act(() => d.emitProgress(done()));
@@ -871,8 +878,8 @@ describe('Course complete', () => {
     const d = fakeData({ courses: [courseWith()], deferProgress: true });
     await openApp('/courses/git/complete', { data: d });
     try {
-      await screen.findByText('Finishing up…');
-      // Remount the status under fake timers: no progress at all, then every item done.
+      await waitFor(() => expect(d.data.watchProgress).toHaveBeenCalled());
+      // Mount the status under fake timers: no progress at all, then every item done.
       act(() => d.emitProgress(null));
       await screen.findByText('Not finished yet');
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
