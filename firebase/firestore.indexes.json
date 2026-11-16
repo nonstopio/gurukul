@@ -33,6 +33,20 @@
       ]
     },
     {
+      "collectionGroup": "courseSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "certificates",
       "queryScope": "COLLECTION",
       "fields": [

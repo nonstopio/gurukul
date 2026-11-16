@@ -41,6 +41,7 @@ async function clear(): Promise<void> {
     'users',
     'audit',
     'teams',
+    'courseSummaries',
   ])
     await db().recursiveDelete(db().collection(c));
 }
@@ -197,6 +198,73 @@ describe('onTeamWritten', () => {
     await db().doc('teams/qa').set(renamed);
     await teamWritten(after, renamed);
     expect((await db().doc('users/u2').get()).get('teamIds')).toEqual(['planted']);
+  });
+});
+
+describe('onCourseWritten', () => {
+  const courseWritten = (before: object | undefined, after: object | undefined) =>
+    index.onCourseWritten.run({
+      params: { courseId: 'git-basics' },
+      data: { before: snap(before), after: snap(after) },
+    } as never);
+  const summary = async () => (await db().doc('courseSummaries/git-basics').get()).data();
+
+  it('writes the summary on publish, follows an access change, and removes it with the course', async () => {
+    const live = { ...liveCourse(), visibility: 'public', visibleTeamIds: [] };
+    await db().doc('courses/git-basics').set(live);
+    await courseWritten(undefined, live);
+    expect(await summary()).toMatchObject({
+      id: 'git-basics',
+      title: 'Git basics',
+      status: 'published',
+      visibility: 'public',
+      lessons: 0,
+      quizzes: 1,
+      certificate: true,
+    });
+    expect(await summary()).not.toHaveProperty('chapters.0');
+    const first = (await db().doc('courseSummaries/git-basics').get()).updateTime;
+
+    // The same event again (at-least-once delivery), then a write the summary does not show.
+    await courseWritten(undefined, live);
+    await courseWritten(live, { ...live, description: 'More words.' });
+    expect((await db().doc('courseSummaries/git-basics').get()).updateTime).toEqual(first);
+
+    // The event is stale on purpose: the trigger reads the course as it is now.
+    const staff = { ...live, visibility: 'staff' };
+    await db()
+      .doc('courses/git-basics')
+      .set({ ...staff, title: 'Git, again' });
+    await courseWritten(live, staff);
+    expect(await summary()).toMatchObject({ visibility: 'staff', title: 'Git, again' });
+
+    await db().doc('courses/git-basics').delete();
+    await courseWritten(staff, undefined);
+    expect(await summary()).toBeUndefined();
+  });
+
+  it('is backfilled and repaired by the reconcile, which then finds nothing to do', async () => {
+    const { reconcileSummaries } = await import('../src/summaries.js');
+    const { firestoreSummaryStore } = await import('../src/stores.js');
+    const store = firestoreSummaryStore(db());
+    await db().doc('courses/git-basics').set(liveCourse());
+    await db()
+      .doc('courses/second')
+      .set({ ...liveCourse(), id: 'second', title: 'Second' });
+    await db().doc('courses/broken').set({ title: 'not a course' });
+    await db().doc('courseSummaries/orphan').set({ id: 'orphan', summaryVersion: 1 });
+
+    expect(await reconcileSummaries(store)).toEqual({ count: 4, changed: 3 });
+    expect(await summary()).toMatchObject({ title: 'Git basics' });
+    expect((await db().doc('courseSummaries/second').get()).get('title')).toBe('Second');
+    expect((await db().doc('courseSummaries/orphan').get()).exists).toBe(false);
+    // Only the unreadable course is looked at again, and nothing is written for it.
+    expect(await reconcileSummaries(store)).toEqual({ count: 1, changed: 0 });
+
+    // A course changed with no event handled (a failed trigger) is caught by its update time.
+    await db().doc('courses/second').update({ title: 'Second, renamed' });
+    expect(await reconcileSummaries(store)).toEqual({ count: 2, changed: 1 });
+    expect((await db().doc('courseSummaries/second').get()).get('title')).toBe('Second, renamed');
   });
 });
 

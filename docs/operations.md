@@ -23,6 +23,12 @@ For the maintainer. The deployment itself is described in `.plan/11-deployment-a
    snapshot), and keeps the course's visibility, its Educators and an archived status. The Studio
    draft is updated only if nobody has edited it since the last seed; the seed prints `kept` when an
    Educator has, and their draft then lacks the change until they fold it in and publish.
+7. Course summaries (`courseSummaries/`, what lists and tiles read) need no step: a function writes
+   one whenever a course document changes, and the 03:00 UTC roll-up fills in any that are missing.
+   To not wait for the night after the first deploy that has them, run
+   `npm run backfill-summaries` (a dry run that lists the courses), then
+   `npm run backfill-summaries -- --apply`, with an admin credential and `GCLOUD_PROJECT` set, as
+   for the seed. Safe to run again: a second run finds nothing to do.
 
 ## Email
 

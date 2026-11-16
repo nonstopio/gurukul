@@ -33,6 +33,17 @@ worst night at 200 people and 5 courses (5,200 before), and about 16,000 at 1,50
 courses (76,500 before, over the quota by itself). The sums and the ceiling that is left are in
 `09-analytics.md`.
 
+**Course lists.** A list of courses used to download each course whole: 88 KB for the seeded Git
+course and 62 KB for the Educator course, to draw two tiles, once per person every five minutes
+(the list is cached that long), and no list went past 100 courses. Production has 5 courses and is
+expected to reach hundreds or a thousand: at 1,000 courses of about 75 KB that is 7.5 MB and 100
+reads for the first 100, with the other 900 never shown. Each course now also has a 0.5 KB summary
+(`02-data-model.md`, "Course summaries"), kept by a function. A page of 25 summaries is about 13 KB
+and 26 reads (25 documents and one count) whatever the number of courses; 200 people each opening
+Home and two catalogue pages a day is about 16,000 reads, a third of the free quota, and it does not
+grow with the catalogue. The nightly check that keeps summaries right costs two reads per course
+(2,000 at 1,000 courses). The lists move to summaries in tracker item `OPS-35`.
+
 Note: Functions deploys also use Cloud Build and Artifact Registry; their free
 tiers cover this volume only if stale container images are deleted. The `gcf-artifacts`
 repository keeps only the newest image of each function package (`firebase/artifact-cleanup-policy.json`):
