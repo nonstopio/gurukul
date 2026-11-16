@@ -438,12 +438,24 @@ describe('firestoreReminderStore', () => {
     overdueSentAt: null,
   };
 
-  it('lists a course’s open assignments, reading times as milliseconds', async () => {
-    const get = vi.fn().mockResolvedValue({
-      docs: [snap('x'), snap('y', { dueAt: null, lastRemindedAt: undefined, mandatory: false })],
+  /** A query over `docs` that pages the way readAll asks: orderBy, limit, startAfter. */
+  const paged = (docs: object[]) => {
+    const pageFrom = (start: number, size: number) => ({
+      get: async () => {
+        const page = docs.slice(start, start + size);
+        return { docs: page, size: page.length };
+      },
+      startAfter: (last: object) => pageFrom(docs.indexOf(last) + 1, size),
     });
-    const limit = vi.fn().mockReturnValue({ get });
-    const where2 = vi.fn().mockReturnValue({ limit });
+    return { orderBy: vi.fn().mockReturnValue({ limit: (size: number) => pageFrom(0, size) }) };
+  };
+
+  it('lists a course’s open assignments, reading times as milliseconds', async () => {
+    const query = paged([
+      snap('x'),
+      snap('y', { dueAt: null, lastRemindedAt: undefined, mandatory: false }),
+    ]);
+    const where2 = vi.fn().mockReturnValue(query);
     const where1 = vi.fn().mockReturnValue({ where: where2 });
     const db = { collection: vi.fn().mockReturnValue({ where: where1 }) } as never;
     const out = await firestoreReminderStore(db).forCourse('git');
@@ -454,16 +466,27 @@ describe('firestoreReminderStore', () => {
   });
 
   it('reads the team and the deadline notice stamps', async () => {
-    const get = vi.fn().mockResolvedValue({
-      docs: [snap('x', { teamId: 'sales', dueSoonSentAt: ts(40), overdueSentAt: ts(50) })],
-    });
-    const limit = vi.fn().mockReturnValue({ get });
-    const where = vi.fn().mockReturnValue({ limit });
+    const query = paged([
+      snap('x', { teamId: 'sales', dueSoonSentAt: ts(40), overdueSentAt: ts(50) }),
+    ]);
+    const where = vi.fn().mockReturnValue(query);
     const db = { collection: vi.fn().mockReturnValue({ where }) } as never;
     expect(await firestoreReminderStore(db).scheduled()).toEqual([
       { ...expected, teamId: 'sales', dueSoonSentAt: 40, overdueSentAt: 50 },
     ]);
   });
+
+  it.each([1000, 2000, 2001])(
+    'reads every open assignment of a course and of the org when there are %i',
+    async (n) => {
+      const docs = Array.from({ length: n }, (_, i) => snap(`a${i}`));
+      const where2 = vi.fn().mockReturnValue(paged(docs));
+      const byCourse = { collection: () => ({ where: () => ({ where: where2 }) }) } as never;
+      const org = { collection: () => ({ where: () => paged(docs) }) } as never;
+      expect(await firestoreReminderStore(byCourse).forCourse('git')).toHaveLength(n);
+      expect(await firestoreReminderStore(org).scheduled()).toHaveLength(n);
+    },
+  );
 
   it('lists the assignments of emails in chunks of 30', async () => {
     const emails = Array.from({ length: 31 }, (_, i) => `u${i}@nonstopio.com`);
@@ -479,14 +502,11 @@ describe('firestoreReminderStore', () => {
   });
 
   it('lists every open assignment for the daily run', async () => {
-    const get = vi.fn().mockResolvedValue({ docs: [snap('x')] });
-    const limit = vi.fn().mockReturnValue({ get });
-    const where = vi.fn().mockReturnValue({ limit });
+    const where = vi.fn().mockReturnValue(paged([snap('x')]));
     const db = { collection: vi.fn().mockReturnValue({ where }) } as never;
     expect(await firestoreReminderStore(db).scheduled()).toEqual([expected]);
     expect(where).toHaveBeenCalledOnce();
     expect(where).toHaveBeenCalledWith('status', 'in', ['assigned', 'started']);
-    expect(limit).toHaveBeenCalledWith(2000);
   });
 
   it('reads course titles, none when there are no ids', async () => {

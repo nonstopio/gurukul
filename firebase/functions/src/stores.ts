@@ -570,13 +570,10 @@ const OPEN = ['assigned', 'started'];
 export function firestoreReminderStore(db: Firestore): ReminderStore {
   return {
     async forCourse(courseId) {
-      const snap = await db
-        .collection('assignments')
-        .where('courseId', '==', courseId)
-        .where('status', 'in', OPEN)
-        .limit(1000)
-        .get();
-      return snap.docs.map(toCandidate);
+      const docs = await readAll(
+        db.collection('assignments').where('courseId', '==', courseId).where('status', 'in', OPEN),
+      );
+      return docs.map(toCandidate);
     },
     async forEmails(emails) {
       const out: ReminderCandidate[] = [];
@@ -587,8 +584,8 @@ export function firestoreReminderStore(db: Firestore): ReminderStore {
       return out;
     },
     async scheduled() {
-      const snap = await db.collection('assignments').where('status', 'in', OPEN).limit(2000).get();
-      return snap.docs.map(toCandidate);
+      const docs = await readAll(db.collection('assignments').where('status', 'in', OPEN));
+      return docs.map(toCandidate);
     },
     async courseTitles(ids) {
       const snaps =
