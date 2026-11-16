@@ -11,13 +11,14 @@ import {
   ProgressRing,
   buttonClass,
 } from '@gurukul/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { TrackClick } from './analytics/react/Track';
 import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
+import { useProgress, withProgress } from './data/useProgress';
 import {
   LEVEL_LABELS,
   countItems,
@@ -46,9 +47,8 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
   const { courseId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
-  const [progress, setProgress] = useState<ProgressRow | null>(null);
-  const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
-  useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
+  const course = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
+  const progress = useProgress(data, uid, courseId);
   // The due date is a nicety: if assignments fail to load the overview still opens without it.
   const assignments = useAsync(
     useCallback(() => data.myAssignments(uid).catch(() => []), [data, uid]),
@@ -59,8 +59,8 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
       : null;
 
   return (
-    <LoadedPage loadable={result}>
-      {(course) =>
+    <LoadedPage loadable={withProgress(course, progress)}>
+      {([course, progress]) =>
         course ? (
           <Overview course={course} progress={progress} uid={uid} dueAt={dueAt} now={now} />
         ) : (

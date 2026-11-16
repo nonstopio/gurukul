@@ -20,6 +20,7 @@ import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
 import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
+import { useProgress, withProgress } from '../data/useProgress';
 import { isRetired } from '../learn/model';
 import { LoadedPage, LockedNote, RetiredNote } from '../learn/ui';
 import { clearDraft, draftKey, readDraft, writeDraft } from './draftStore';
@@ -49,18 +50,15 @@ export function QuizPage() {
   const { courseId = '', quizId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
-  const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
-  const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
-  useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
+  const course = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
+  const progress = useProgress(data, uid, courseId);
 
   return (
-    <LoadedPage loadable={result} width="reading">
-      {(course) => {
+    <LoadedPage loadable={withProgress(course, progress)} width="reading">
+      {([course, progress]) => {
         const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
         if (!course || quiz?.type !== 'quiz') return <Navigate to="/courses" replace />;
-        return progress === undefined ? null : (
-          <Exam course={course} quiz={quiz} progress={progress} />
-        );
+        return <Exam course={course} quiz={quiz} progress={progress} />;
       }}
     </LoadedPage>
   );

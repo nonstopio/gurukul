@@ -23,6 +23,7 @@ import { useUser } from './auth/AuthProvider';
 import { useLearnerData } from './data/DataProvider';
 import type { ProgressRow } from './data/types';
 import { useAsync } from './data/useAsync';
+import { useProgress, withProgress } from './data/useProgress';
 import { isRetired, percentFor } from './learn/model';
 import { blockerBefore, itemPath, openItemLabel } from './quiz/model';
 import { LoadedPage, LockedNote, RetiredNote } from './learn/ui';
@@ -59,13 +60,13 @@ export function LessonPage() {
   const { courseId = '', itemId = '' } = useParams();
   const data = useLearnerData();
   const uid = useUser().uid;
-  const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
-  const result = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
-  useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
+  const course = useAsync(useCallback(() => data.getCourse(courseId), [data, courseId]));
+  const progress = useProgress(data, uid, courseId);
 
+  // Waits for progress too, so a later lesson never flashes "Locked" before it arrives.
   return (
-    <LoadedPage loadable={result} width="reading">
-      {(course) =>
+    <LoadedPage loadable={withProgress(course, progress)} width="reading">
+      {([course, progress]) =>
         course === null ? (
           <Navigate to="/courses" replace />
         ) : (
@@ -84,7 +85,7 @@ function Player({
 }: {
   course: Course;
   itemId: string;
-  progress: ProgressRow | null | undefined;
+  progress: ProgressRow | null;
   uid: string;
 }) {
   const data = useLearnerData();
@@ -178,7 +179,7 @@ function Player({
   }
   const s = states[itemId] as ItemState;
   const finishedCount = items.filter((i) => states[i.id] === 'done').length;
-  const percent = percentFor(course, progress ?? null);
+  const percent = percentFor(course, progress);
   const back = (
     <Link className={topBarBackClass} to={`/courses/${course.id}`}>
       Course outline

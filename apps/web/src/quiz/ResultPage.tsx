@@ -16,8 +16,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useUser } from '../auth/AuthProvider';
 import { useLearnerData } from '../data/DataProvider';
-import type { ProgressRow } from '../data/types';
 import { useAsync } from '../data/useAsync';
+import { useProgress, withProgress } from '../data/useProgress';
 import { LoadedPage } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
@@ -46,7 +46,7 @@ export function ResultPage() {
   const data = useLearnerData();
   const uid = useUser().uid;
   const t = useTerms();
-  const [progress, setProgress] = useState<ProgressRow | null | undefined>(undefined);
+  const progress = useProgress(data, uid, courseId);
   const result = useAsync(
     useCallback(
       () =>
@@ -65,11 +65,10 @@ export function ResultPage() {
       [data, uid, courseId, quizId, state],
     ),
   );
-  useEffect(() => data.watchProgress(uid, courseId, setProgress), [data, uid, courseId]);
 
   return (
-    <LoadedPage loadable={result} width="reading">
-      {([course, attempt]) => {
+    <LoadedPage loadable={withProgress(result, progress)} width="reading">
+      {([[course, attempt], progress]) => {
         const quiz = course ? itemsOf(course).find((i) => i.id === quizId) : undefined;
         if (!course || quiz?.type !== 'quiz') {
           return (

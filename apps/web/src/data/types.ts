@@ -76,11 +76,16 @@ export interface LearnerData {
   getCourse(courseId: string, options?: { fresh?: boolean }): Promise<Course | null>;
   myAssignments(uid: string): Promise<AssignmentRow[]>;
   myProgress(uid: string): Promise<ProgressRow[]>;
-  /** Live updates of one progress document: `null` until the learner starts the course. */
+  /**
+   * Live updates of one progress document: `null` until the learner starts the course. `onError`
+   * runs if the listener fails (rules, expired sign-in, network); it then stops for good. Pages
+   * use `useProgress`, not this.
+   */
   watchProgress(
     uid: string,
     courseId: string,
     cb: (progress: ProgressRow | null) => void,
+    onError: (error: Error) => void,
   ): () => void;
   /** My most recent graded attempt at one Quiz, or `null` before the first. */
   latestAttempt(uid: string, courseId: string, quizId: string): Promise<AttemptRow | null>;

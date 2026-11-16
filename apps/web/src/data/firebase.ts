@@ -224,9 +224,11 @@ export function firebaseLearnerData(
       );
       return snap.docs.map((d) => toProgress(d.data()));
     },
-    watchProgress(uid, courseId, cb) {
-      return onSnapshot(doc(db, 'progress', progressId(uid, courseId)), (snap) =>
-        cb(snap.exists() ? toProgress(snap.data()) : null),
+    watchProgress(uid, courseId, cb, onError) {
+      return onSnapshot(
+        doc(db, 'progress', progressId(uid, courseId)),
+        (snap) => cb(snap.exists() ? toProgress(snap.data()) : null),
+        onError,
       );
     },
     async latestAttempt(uid, courseId, quizId) {
