@@ -33,6 +33,7 @@ import { useTerms } from '../labels/useTerms';
 import { useAnalytics } from '../analytics/react/context';
 import { Loaded } from '../learn/ui';
 import { useConsole } from './ConsoleProvider';
+import { LeavePrompt } from './LeavePrompt';
 import type { AssignResult, KnownEmails } from './types';
 
 const peopleLabel = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
@@ -541,11 +542,19 @@ export function AssignPage({ scope = 'admin' }: { scope?: AssignScope }) {
     </>
   );
 
+  // Input that nothing has sent yet; once the assignment went through there is nothing to lose.
+  const unsent =
+    !done && (courseIds.length > 0 || emails.length > 0 || teamNames.length > 0 || due !== '');
+
   const bodies = [courseStep, audienceStep, scheduleStep, reviewStep];
   const last = step === STEPS.length - 1;
 
   return (
     <Page>
+      <LeavePrompt when={unsent} title="Leave without assigning?">
+        Nothing has been assigned yet. If you leave, the courses, people and dates you chose are
+        lost.
+      </LeavePrompt>
       <PageHeader
         eyebrow={forTeams ? 'Team' : t.Admin}
         title="Assign courses"
