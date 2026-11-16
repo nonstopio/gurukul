@@ -241,3 +241,54 @@ describe('onAttemptCreated', () => {
     expect((await db().doc('stats/org').get()).exists).toBe(false);
   });
 });
+
+describe('dailyRollup', () => {
+  const stats = async (scope: string) => (await db().doc(`stats/${scope}`).get()).data();
+  const run = () => index.dailyRollup.run({} as never);
+
+  it('recounts everything once, then only a course with activity, keeping the attempt counters', async () => {
+    await db().doc('courses/git-basics').set(liveCourse());
+    await db().doc(`progress/${ID}`).set(progress());
+    await db()
+      .doc('progress/u2_git-basics')
+      .set(progress({ uid: 'u2' }));
+    await db().doc('users/u1').set({ displayName: 'Asha Rao' });
+    await db().doc('stats/course_git-basics').set({ started: 5, completed: 0, scoreSum: 3 });
+    await db().doc('stats/org').set({ started: 9, completed: 1, quizScoreCount: 4 });
+
+    await run();
+
+    expect(await stats('course_git-basics')).toMatchObject({
+      assigned: 0,
+      started: 2,
+      completed: 0,
+      scoreSum: 3,
+    });
+    expect(await stats('org')).toMatchObject({
+      usersTotal: 1,
+      started: 6,
+      completed: 1,
+      quizScoreCount: 4,
+    });
+    const roster = await db().collection('courses/git-basics/learners').get();
+    expect(Object.fromEntries(roster.docs.map((d) => [d.id, d.get('displayName')]))).toEqual({
+      u1: 'Asha Rao',
+      u2: '',
+    });
+    expect((await db().doc('counters/rollup').get()).get('retry')).toEqual([]);
+
+    // Nothing happened since: drift in a quiet course is left for the night it next has activity.
+    await db().doc('stats/course_git-basics').update({ started: 7 });
+    await run();
+    expect(await stats('course_git-basics')).toMatchObject({ started: 7 });
+
+    await db().doc(`progress/${ID}`).update({ lastActiveAt: Timestamp.now() });
+    await db().doc('users/u1').update({ displayName: 'Asha R' });
+    await run();
+    expect(await stats('course_git-basics')).toMatchObject({ started: 2, scoreSum: 3 });
+    expect(await stats('org')).toMatchObject({ started: 1 });
+    expect((await db().doc('courses/git-basics/learners/u1').get()).get('displayName')).toBe(
+      'Asha R',
+    );
+  });
+});
