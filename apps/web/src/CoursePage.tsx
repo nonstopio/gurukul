@@ -67,7 +67,7 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
           <Page>
             <PageHeader title="Course not found" />
             <EmptyState
-              title="This course does not exist"
+              title="This course does not exist or is not open to you"
               mascot="notFound"
               headingAs="h2"
               action={
@@ -76,7 +76,8 @@ export function CoursePage({ now = () => new Date() }: { now?: () => Date }) {
                 </Link>
               }
             >
-              It may have been removed, or the address is wrong.
+              It may have been removed, not published yet, limited to other teams, or the address is
+              wrong.
             </EmptyState>
           </Page>
         )
