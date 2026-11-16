@@ -116,6 +116,18 @@ describe('Learners', () => {
     );
   });
 
+  it('stacks its rows on a phone, each line labelled with its column', async () => {
+    await openApp('/admin/learners', { ...admin, console: setup() });
+    const table = await screen.findByRole('table', { name: 'Learners' });
+    const row = (await within(table).findByText('Rohan')).closest('tr') as HTMLElement;
+    expect(
+      within(row)
+        .getAllByRole('cell')
+        .map((c) => c.getAttribute('data-label'))
+        .filter(Boolean),
+    ).toEqual(['Team', 'Role', 'Courses', 'Progress', 'Last active', 'Status']);
+  });
+
   it('opens already filtered to the course in the address', async () => {
     const c = setup();
     await openApp('/admin/learners?course=git', { ...admin, console: c });

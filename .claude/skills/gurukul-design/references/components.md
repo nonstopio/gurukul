@@ -171,7 +171,10 @@ it is the table's name) in a `--radius-xl` hairline card. Header row 12px/600 `-
 `--surface-sunken`, sticky inside the scroll box (give `maxHeight` for a vertical scroll); rows 14px,
 1px `--border` separators; `align: 'end'` right-aligns numbers (tabular figures). A plain link in a cell
 (a record that opens its page) is `--accent` 600; one styled as a button keeps its own look. The table is 640px wide
-at least and scrolls horizontally inside its card on a phone.
+at least and scrolls horizontally inside its card on a phone, unless it has `stack`: then below 640px each row
+is a block of lines, the checkbox and row header first, every other cell labelled with its column's `header`
+(`data-label`, so give string headers); the header row stays for screen readers and the table states its roles
+outright. Learners uses it; Audit, Roles and the analytics tables keep scrolling.
 
 Selection is controlled (`selected` is a list of row keys). The header checkbox is "Select all rows on
 this page": it adds or removes only the rows passed in, keeps keys from other pages, shows

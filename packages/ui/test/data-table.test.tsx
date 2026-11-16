@@ -45,6 +45,42 @@ const header = () =>
   screen.getByRole('checkbox', { name: 'Select all rows on this page' }) as HTMLInputElement;
 
 describe('DataTable', () => {
+  it('stacks rows on a phone only when asked, labelling each cell with its column', async () => {
+    const { container, rerender } = render(
+      <DataTable caption="Learners" columns={columns} rows={people} rowKey={(p) => p.id} />,
+    );
+    expect(container.querySelector('.g-table--stack')).toBeNull();
+    expect(container.querySelector('[data-label]')).toBeNull();
+    expect(screen.getByRole('table').getAttribute('role')).toBeNull();
+
+    const withNode: DataTableColumn<Person>[] = [
+      { id: 'name', header: 'Learner', cell: (p) => p.name, rowHeader: true },
+      { id: 'courses', header: 'Courses', cell: (p) => p.courses, align: 'end' },
+      { id: 'more', header: <span>More</span>, cell: () => 'x' },
+    ];
+    rerender(
+      <DataTable
+        caption="Learners"
+        columns={withNode}
+        rows={people}
+        rowKey={(p) => p.id}
+        selectable
+        rowLabel={(p) => p.name}
+        stack
+      />,
+    );
+    expect(container.querySelector('.g-table--stack')).not.toBeNull();
+    const table = screen.getByRole('table', { name: 'Learners' });
+    expect(table.getAttribute('role')).toBe('table');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
+    const first = within(table).getAllByRole('row')[1] as HTMLElement;
+    expect(within(first).getByRole('rowheader').textContent).toBe('Asha Rao');
+    const cells = within(first).getAllByRole('cell');
+    expect(cells.map((c) => c.getAttribute('data-label'))).toEqual([null, 'Courses', null]);
+    expect(cells[1]?.textContent).toBe('3');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('renders a captioned table with headers, cells and alignment', () => {
     render(<DataTable caption="Learners" columns={columns} rows={people} rowKey={(p) => p.id} />);
     const table = screen.getByRole('table', { name: 'Learners' });

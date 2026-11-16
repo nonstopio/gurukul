@@ -231,6 +231,7 @@ a.items__row:hover {
 .items__row:focus-visible,
 .chapter__toggle:focus-visible,
 .rail__head:focus-visible,
+.rail__toggle:focus-visible,
 .rail a:focus-visible,
 .certificate-thumb:focus-visible {
   outline: none;
@@ -307,8 +308,32 @@ a.items__row:hover {
   text-align: left;
   cursor: pointer;
 }
-.rail__head:hover {
+.rail__head:hover,
+.rail__toggle:hover {
   background: var(--surface-sunken);
+}
+/* The phone's "Chapters and lessons" toggle: shown below 1024px only. */
+.rail__toggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  cursor: pointer;
+}
+.rail__toggle svg {
+  flex: none;
+  transition: transform var(--dur-base) var(--ease);
+}
+.rail[data-open] .rail__toggle svg {
+  transform: rotate(180deg);
 }
 .rail__icon {
   display: inline-flex;
@@ -357,8 +382,18 @@ a.items__row:hover {
     grid-template-columns: minmax(0, 1fr);
   }
   .rail {
+    padding: var(--space-2) var(--space-4);
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+  .rail__toggle {
+    display: flex;
+  }
+  .rail[data-open] .rail__toggle {
+    margin-bottom: var(--space-2);
+  }
+  .rail:not([data-open]) .rail__chapters {
+    display: none;
   }
 }
 
