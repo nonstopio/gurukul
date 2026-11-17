@@ -217,6 +217,7 @@ function LessonEditor({
           <section className="studio-canvas" aria-label="Lesson content">
             <Input
               label="Lesson title"
+              placeholder="Untitled lesson"
               value={lesson.title}
               error={titleIssue?.message}
               onChange={(e) => edit((l) => ({ ...l, title: e.target.value }))}

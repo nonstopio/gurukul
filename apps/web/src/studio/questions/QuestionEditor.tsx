@@ -82,6 +82,7 @@ export function QuestionEditor({
       <Textarea
         label="Question (Markdown)"
         rows={3}
+        placeholder="Type the question"
         value={question.prompt}
         error={messages(issues, 'question.prompt')}
         onChange={(e) => edit((q) => ({ ...q, prompt: e.target.value }))}
@@ -116,6 +117,7 @@ export function QuestionEditor({
               />
               <Input
                 label={`Answer ${i + 1}`}
+                placeholder="Type an answer"
                 value={option.text}
                 readOnly={locked}
                 onChange={(e) => edit((q) => setAnswerText(q, option.id, e.target.value))}

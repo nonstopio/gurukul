@@ -155,9 +155,9 @@ describe('Quiz builder: states', () => {
     expect(await screen.findByRole('heading', { name: 'No questions yet' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Add the first question' }));
     expect(screen.getByRole('heading', { name: '1 question' })).toBeTruthy();
-    expect((screen.getByLabelText('Question (Markdown)') as HTMLTextAreaElement).value).toBe(
-      'New question',
-    );
+    const prompt = screen.getByLabelText('Question (Markdown)') as HTMLTextAreaElement;
+    expect(prompt.value).toBe('');
+    expect(prompt.placeholder).toBe('Type the question');
     await saveNow();
     const { p, keys } = saved(studio);
     expect(p.questions).toHaveLength(1);
@@ -316,9 +316,9 @@ describe('Quiz builder: the question list', () => {
     const { studio } = await open();
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByRole('heading', { name: '4 questions' })).toBeTruthy();
-    expect((screen.getByLabelText('Question (Markdown)') as HTMLTextAreaElement).value).toBe(
-      'New question',
-    );
+    const prompt = screen.getByLabelText('Question (Markdown)') as HTMLTextAreaElement;
+    expect(prompt.value).toBe('');
+    expect(prompt.placeholder).toBe('Type the question');
     await saveNow();
     expect(saved(studio).p.questions).toHaveLength(4);
   });

@@ -200,7 +200,7 @@ function Builder({
               label="Questions"
               items={quiz.questions}
               itemKey={(q) => q.id}
-              itemLabel={(q) => `question: ${q.prompt.slice(0, 40)}`}
+              itemLabel={(q) => `question: ${nameOf(q.prompt, 'New question').slice(0, 40)}`}
               onMove={(from, to) => draft.update((w) => moveQuestion(w, quizId, from, to))}
               renderItem={(q, { index, handle }) => (
                 <div className="studio-qrow" data-current={q.id === current?.id || undefined}>
@@ -212,7 +212,7 @@ function Builder({
                     onClick={() => setSelectedId(q.id)}
                   >
                     <span className="studio-qrow__num">{index + 1}</span>{' '}
-                    <span className="studio-qrow__text">{q.prompt}</span>
+                    <span className="studio-qrow__text">{nameOf(q.prompt, 'New question')}</span>
                   </button>
                   {firstTryPercent(firstTry, q.id) !== null ? (
                     <span

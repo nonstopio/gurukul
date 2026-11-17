@@ -59,9 +59,17 @@ describe('syncKey', () => {
 });
 
 describe('a new question', () => {
-  it('is single choice with two answers, the first correct, and valid for the schema', () => {
+  it('is single choice with two empty answers, the first correct, valid once written', () => {
     const made = newQuestion();
-    expect(questionSchema.safeParse(made.question).success).toBe(true);
+    expect(made.question.prompt).toBe('');
+    expect(made.question.options.map((o) => o.text)).toEqual(['', '']);
+    expect(made.question.kind).toBe('single');
+    const written = {
+      ...made.question,
+      prompt: 'What does git add do?',
+      options: made.question.options.map((o, i) => ({ ...o, text: `Answer ${i + 1}` })),
+    };
+    expect(questionSchema.safeParse(written).success).toBe(true);
     expect(made.question.options).toHaveLength(2);
     expect(made.key).toEqual([made.question.options[0]?.id]);
     expect(made.question.id).toMatch(/^q-[0-9a-f]{8}$/);

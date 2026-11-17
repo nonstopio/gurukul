@@ -318,9 +318,9 @@ describe('Course editor: structure', () => {
     ).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
     expect(screen.queryByRole('link', { name: 'Quiz I' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete chapter New chapter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chapter Untitled chapter' }));
     expect(
-      within(screen.getByRole('dialog')).getByText(/^“New chapter” will be removed/),
+      within(screen.getByRole('dialog')).getByText(/^“Untitled chapter” will be removed/),
     ).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
     expect(screen.queryByRole('textbox', { name: 'Title of chapter 2' })).toBeNull();
@@ -332,12 +332,24 @@ describe('Course editor: structure', () => {
     });
     await ready();
     expect(screen.getByRole('button', { name: 'Delete chapter Untitled chapter' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Untitled' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Untitled lesson' })).toBeTruthy();
     expect(screen.getByText('1 item · 5 min')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Untitled lesson' }));
+    expect(
+      within(screen.getByRole('dialog')).getByText(/^“Untitled lesson” will be removed/),
+    ).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keep it' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete chapter Untitled chapter' }));
     expect(
       within(screen.getByRole('dialog')).getByText(/and its 1 item will be removed/),
     ).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keep it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz in chapter 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Untitled Quiz' }));
+    expect(
+      within(screen.getByRole('dialog')).getByText(/^“Untitled Quiz” will be removed/),
+    ).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Keep it' }));
   });
 
   it('numbers each item and keeps its icon actions apart from the link that opens it', async () => {

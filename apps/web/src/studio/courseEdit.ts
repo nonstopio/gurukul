@@ -78,7 +78,7 @@ export function removeOutcome(w: Working, index: number): Working {
 }
 
 export function addChapter(w: Working, id: string): Working {
-  return withChapters(w, [...w.course.chapters, { id, title: 'New chapter', items: [] }]);
+  return withChapters(w, [...w.course.chapters, { id, title: '', items: [] }]);
 }
 
 export function renameChapter(w: Working, chapterId: string, title: string): Working {
@@ -113,7 +113,7 @@ export function addLesson(w: Working, chapterId: string, id: string): Working {
   const lesson: Lesson = {
     type: 'lesson',
     id,
-    title: 'Untitled lesson',
+    title: '',
     minutes: 5,
     layout: 'stacked',
     completeWhen: 'manual',
@@ -127,7 +127,7 @@ export function addQuiz(w: Working, chapterId: string, id: string): Working {
   const quiz: Quiz = {
     type: 'quiz',
     id,
-    title: 'Untitled Quiz',
+    title: '',
     questionsShown: 1,
     shuffleOptions: true,
     cooldownMinutes: 10,
