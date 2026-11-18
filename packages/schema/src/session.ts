@@ -14,7 +14,7 @@ export const SESSION_FILES_DAYS = 30;
 const id = z.string().min(1).max(80);
 
 /** A moment as an ISO-8601 string: sessions are local files, not Firestore documents. */
-const at = z.iso.datetime();
+const at = z.iso.datetime({ offset: true });
 
 /**
  * The working copy an editor changes: a course and its answer keys. Same shape as the Studio's own
@@ -35,8 +35,11 @@ export const turnSchema = z.object({
   by: z.enum(['agent', 'educator']),
   /** One line, for the timeline. */
   summary: z.string().max(300),
-  /** File name inside the session's `checkpoints/` folder, e.g. `<turnId>.json`. */
-  checkpoint: z.string().min(1).max(200),
+  /** File name inside the session's `checkpoints/` folder, e.g. `<turnId>.json`; never a path. */
+  checkpoint: z
+    .string()
+    .max(200)
+    .regex(/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/, 'a plain file name, without folders'),
   /** How many Review rows (`courseChanges` against the turn before) this turn changed: "Turn 4 · 4 changes". */
   changes: z.number().int().min(0),
 });
@@ -91,7 +94,7 @@ export const authoringSessionSchema = z
     work: workingSchema,
     turns: z.array(turnSchema).max(10_000),
     todos: z.array(todoSchema).max(100),
-    /** Ids of the rows the Educator ticked as viewed in Review. */
+    /** Keys of the Review rows the Educator ticked as viewed (`ChangeRow.key`, e.g. `lesson:l2`). */
     viewed: z.array(id).max(10_000),
     /** The Claude Code session to resume; null before the first turn. */
     agentSessionId: z.string().min(1).max(200).nullable(),
@@ -107,6 +110,10 @@ export const authoringSessionSchema = z
       fail('An edit session starts from a stored draft.', ['base']);
     if (s.base !== null && s.courseId === null)
       fail('A base is the stored draft of a known course.', ['courseId']);
+    if (s.kind === 'new' && s.courseId !== null && s.base === null)
+      fail('A new course gains its course and its base together, at its first save.', ['base']);
+    if (s.base !== null && s.courseId !== null && s.base.work.course.id !== s.courseId)
+      fail('The base is a draft of another course.', ['base', 'work', 'course', 'id']);
     if (s.courseId !== null && s.work.course.id !== s.courseId)
       fail('The working course is not the course of this session.', ['work', 'course', 'id']);
     const turn = duplicate(s.turns.map((t) => t.id));

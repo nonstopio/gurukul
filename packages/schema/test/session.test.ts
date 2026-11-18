@@ -63,6 +63,7 @@ describe('authoringSessionSchema accepts', () => {
       'a saved session with answersChanged',
       session({ status: 'saved', work: { ...work, answersChanged: true } }),
     ],
+    ['dates with a UTC offset', session({ createdAt: '2026-05-01T15:30:00+05:30' })],
   ])('%s', (_name, value) => {
     const parsed = authoringSessionSchema.safeParse(value);
     expect(parsed.success).toBe(true);
@@ -90,6 +91,22 @@ describe('authoringSessionSchema rejects', () => {
     ['an edit without a course', { courseId: null, base: null }, ['courseId']],
     ['a base without a course', { kind: 'new', courseId: null }, ['courseId']],
     ['a course that is not the working one', { courseId: 'other' }, ['work', 'course', 'id']],
+    [
+      'a base from another course',
+      { base: { rev: 3, savedAt: NOW, work: { ...work, course: makeCourse({ id: 'other' }) } } },
+      ['base', 'work', 'course', 'id'],
+    ],
+    ['a new session with a course but no base', { kind: 'new', base: null }, ['base']],
+    [
+      'a checkpoint outside the session folder',
+      { turns: [{ ...turn('t1'), checkpoint: '../../x.json' }] },
+      ['turns', 0, 'checkpoint'],
+    ],
+    [
+      'an empty checkpoint name',
+      { turns: [{ ...turn('t1'), checkpoint: '' }] },
+      ['turns', 0, 'checkpoint'],
+    ],
   ])('%s', (_name, over, path) => {
     const parsed = authoringSessionSchema.safeParse(session(over));
     expect(parsed.success).toBe(false);

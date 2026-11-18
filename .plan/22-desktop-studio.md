@@ -206,7 +206,7 @@ interface AuthoringSession {
   work: WorkingCopy; // course + answer keys, as changed
   turns: Turn[]; // id, at, by (agent or educator), one-line summary, checkpoint file, changes (row count)
   todos: SessionTodo[]; // things left for the Educator ("add a screenshot of the diff view"), done or not
-  viewed: string[]; // Review row ids ticked as viewed
+  viewed: string[]; // keys of the Review rows ticked as viewed (`lesson:l2`)
   agentSessionId: string | null; // for --resume
   createdAt: string; // ISO-8601: a local file, not a Firestore document
   updatedAt: string;
@@ -218,9 +218,10 @@ interface AuthoringSession {
 not strings, because Review ticks each one and `set_summary` sets "goals with done or not".
 
 The schema also holds the rules a file must keep: an edit session has a course and a base; a base
-always belongs to a known course (a new-course session gains both at its first save and keeps
-`kind: 'new'`); the working course's id is the session's `courseId`; turn and to-do ids are
-unique.
+always belongs to a known course, and a new-course session gains both together at its first save
+(keeping `kind: 'new'`); the working course's id and the base's are the session's `courseId`;
+checkpoints are plain file names, so a session file cannot point outside its folder; turn and
+to-do ids are unique.
 
 ### Where it is kept
 
