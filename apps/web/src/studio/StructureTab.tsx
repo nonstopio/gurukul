@@ -70,7 +70,13 @@ export function StructureTab({
 
   /** A lesson that learners can already have completed: ask how many, once, when the dialog opens. */
   const askDelete = (item: Item) => {
-    setConfirm({ kind: 'item', id: item.id, title: item.title, count: 0, learners: null });
+    setConfirm({
+      kind: 'item',
+      id: item.id,
+      title: nameOf(item.title, item.type === 'lesson' ? 'Untitled lesson' : `Untitled ${t.Quiz}`),
+      count: 0,
+      learners: null,
+    });
     if (item.type !== 'lesson' || !live || !itemsOf(live).some((i) => i.id === item.id)) return;
     data
       .completedCount(course.id, item.id)
@@ -132,12 +138,15 @@ export function StructureTab({
                       className="sc-chapter__input"
                       label={`Title of ${t.chapter} ${index + 1}`}
                       hideLabel
+                      placeholder={`Untitled ${t.chapter}`}
                       value={chapter.title}
                       maxLength={160}
                       onChange={(e) => update((w) => renameChapter(w, chapter.id, e.target.value))}
                     />
                   ) : (
-                    <span className="sc-chapter__title">{chapter.title}</span>
+                    <span className="sc-chapter__title">
+                      {nameOf(chapter.title, `Untitled ${t.chapter}`)}
+                    </span>
                   )}
                   <span className="sc-chapter__meta">
                     {chapter.items.length} {chapter.items.length === 1 ? 'item' : 'items'} ·{' '}
@@ -160,7 +169,7 @@ export function StructureTab({
                       setConfirm({
                         kind: 'chapter',
                         id: chapter.id,
-                        title: chapter.title,
+                        title: nameOf(chapter.title, `Untitled ${t.chapter}`),
                         count: chapter.items.length,
                         learners: null,
                       })
@@ -281,7 +290,10 @@ function ItemRow({
   onDelete: () => void;
 }) {
   const t = useTerms();
-  const title = nameOf(item.title, 'Untitled');
+  const title = nameOf(
+    item.title,
+    item.type === 'lesson' ? 'Untitled lesson' : `Untitled ${t.Quiz}`,
+  );
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="sc-item">

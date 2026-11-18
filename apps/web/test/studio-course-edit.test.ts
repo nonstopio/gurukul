@@ -88,7 +88,7 @@ describe('courseEdit', () => {
   it('adds, renames and moves chapters', () => {
     const added = addChapter(work(), 'chapter-1');
     expect(added.course.chapters.map((p) => p.id)).toEqual(['p1', 'p2', 'chapter-1']);
-    expect(added.course.chapters[2]).toEqual({ id: 'chapter-1', title: 'New chapter', items: [] });
+    expect(added.course.chapters[2]).toEqual({ id: 'chapter-1', title: '', items: [] });
     expect(renameChapter(added, 'p2', 'Past').course.chapters[1]?.title).toBe('Past');
     expect(renameChapter(added, 'p1', 'Start').course.chapters[1]?.title).toBe('History');
     expect(moveChapter(added, 2, 0).course.chapters.map((p) => p.id)).toEqual([
@@ -121,7 +121,7 @@ describe('courseEdit', () => {
     expect(withLesson.course.chapters[0]?.items.at(-1)).toEqual({
       type: 'lesson',
       id: 'lesson-9',
-      title: 'Untitled lesson',
+      title: '',
       minutes: 5,
       layout: 'stacked',
       completeWhen: 'manual',

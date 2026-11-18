@@ -26,6 +26,7 @@ export function QuizSettings({
     <div className="studio-fields">
       <Input
         label={`${t.Quiz} title`}
+        placeholder={`Untitled ${t.Quiz}`}
         value={quiz.title}
         onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
       />

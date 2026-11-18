@@ -43,17 +43,20 @@ export function syncKey(kind: QuestionKind, options: Option[], key: readonly str
   return kind === 'multiple' ? kept : kept.slice(0, 1);
 }
 
-/** A fresh single-choice question with two answers and the first marked correct. */
+/**
+ * A fresh single-choice question with two empty answers and the first marked correct. The texts
+ * start empty, never as placeholder words the Educator has to delete; the fields show hints instead.
+ */
 export function newQuestion(random: () => number = Math.random): Keyed {
   const options = [
-    { id: newId('o', random), text: 'Answer 1' },
-    { id: newId('o', random), text: 'Answer 2' },
+    { id: newId('o', random), text: '' },
+    { id: newId('o', random), text: '' },
   ];
   return {
     question: {
       id: newId('q', random),
       kind: 'single',
-      prompt: 'New question',
+      prompt: '',
       options,
       explanation: '',
     },
