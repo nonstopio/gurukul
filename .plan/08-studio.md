@@ -3,6 +3,9 @@
 Screens: Courses, Course editor (structure), Lesson editor (blocks), Quiz
 builder. Handoff: `design-handoff/03-studio.md`.
 
+Planned beside these: AI authoring sessions in a desktop app, which change a local copy and save
+to the same draft in one reviewed step (`22-desktop-studio.md`). Nothing below changes for it.
+
 ## Screen width
 
 Studio works from **640px (40rem) wide** up: a tablet in portrait (768px) and a laptop window

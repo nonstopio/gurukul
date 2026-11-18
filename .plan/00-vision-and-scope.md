@@ -15,7 +15,7 @@ certificate at the end — built for NonStop and open-sourced.
 | Who | Can |
 |---|---|
 | **Learner** (every NonStopian) | Sign in with Google, see assigned courses, learn lesson by lesson, resume where they left off, clear Quizzes, earn and share certificates |
-| **Educator** | Create and edit the courses an Admin grants them, entirely in the browser: chapters, lessons, content blocks, Quizzes; publish new versions; see their courses' analytics |
+| **Educator** | Create and edit the courses an Admin grants them, entirely in the browser: chapters, lessons, content blocks, Quizzes; publish new versions; see their courses' analytics. Planned: build or edit a course by chatting with an AI agent in a desktop app, reviewed as one set before it is saved to the draft (`22-desktop-studio.md`) |
 | **Admin** | Everything an Educator can, on every course; assign courses to people or to emails not yet signed in, in bulk; grant roles; see organisation analytics |
 
 ## Labels: two label sets
@@ -82,7 +82,7 @@ changelog's history use the generic names. "Gurukul" stays the product's name in
 |---|---|
 | "AVB" (mentioned in the brief, meaning unclear) | Needs definition — see open questions |
 | Arjuna leaderboard | Competition is a product decision, not a default |
-| Sarathi AI mentor | Needs Claude API budget and a policy decision |
+| Sarathi AI mentor | Needs Claude API budget and a policy decision. Unrelated to the desktop Studio's authoring agent, which runs on each Educator's own Claude plan (`22-desktop-studio.md`) |
 | Video upload / hosting | Video is large and costly to serve; YouTube unlisted / Loom / Drive links cover it. Small images and PDFs are uploadable (`19-course-media-uploads.md`) |
 | Learning paths (course sequences) | Assignments of several courses cover v1 |
 | Discussion / comments on lessons | Moderation burden; Slack exists |

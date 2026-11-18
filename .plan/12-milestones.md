@@ -90,3 +90,20 @@ account is refused; an Admin sees the console nav; rules tests cover every rule.
 bill stays $0.
 
 **Status:** planned (tracker section Course media uploads).
+
+## M8 · Desktop Studio (~10 weeks)
+
+- A downloadable Electron app that loads the web app and starts the Claude Code installed on the
+  Educator's laptop, signed in with the Educator's own Claude plan. Gurukul never holds a Claude
+  credential.
+- Authoring sessions: the agent changes a local working copy through course tools; the Educator
+  previews it, reviews every difference against the draft on one screen, and saves it to the draft
+  with one button. Publishing stays manual.
+- A humanizer (style prompt, rewrite skill, writing lint) and a second opinion on Quiz answers.
+  Plan: `22-desktop-studio.md`.
+
+**Exit:** an Educator installs the app, builds a course of at least three chapters by chatting,
+reviews it on one screen, saves it to the draft with one button and publishes it from Studio, with
+no Firestore write before the save and a Firebase bill of $0.
+
+**Status:** planned (tracker section Desktop Studio).
