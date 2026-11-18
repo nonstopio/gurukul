@@ -35,6 +35,7 @@ assignments, publishing) goes through a function using the Admin SDK.
 | `packages/schema` (M1) | `@gurukul/schema` | zod schemas + types + pure helpers (progress %, migrations) |
 | `firebase/functions` | `@gurukul/functions` | firebase-functions v7, firebase-admin |
 | `firebase/rules` | `@gurukul/rules-tests` | @firebase/rules-unit-testing |
+| `apps/desktop` (M8, planned) | `@gurukul/desktop` | Electron shell that loads the web app and starts the Educator's own Claude Code (`22-desktop-studio.md`) |
 
 npm workspaces, one lockfile. `@gurukul/schema` is the contract shared by the
 app and the functions, so a shape is defined exactly once.

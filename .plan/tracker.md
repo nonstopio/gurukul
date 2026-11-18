@@ -30,7 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| **Total** | 190 | 1 | 0 | 14 |
+| Desktop Studio | 0 | 22 | 0 | 3 |
+| **Total** | 190 | 23 | 0 | 17 |
 
 ## Pick order
 
@@ -38,6 +39,32 @@ Correctness and cost first, then what learners meet, then the console and Studio
 Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the maintainer's bucket.
 
 1. `OPS-37` — course lists read a page at a time, before the catalogue passes a few hundred courses
+
+Desktop Studio (`22-desktop-studio.md`) goes foundations, shell, sessions, review and save, then
+shipping. The pure pieces (`DSK-05` to `DSK-07`) need nothing and can start at once.
+
+2. `DSK-04` — spike: drive Claude Code from Electron, so the bridge is built on facts
+3. `DSK-05` — session shape and the change engine every later screen reads
+4. `DSK-06` — three-way merge
+5. `DSK-07` — writing lint
+6. `DSK-08` — the shell, its bridge and the `desktop` commit scope
+7. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
+8. `DSK-09` — Google sign-in through the system browser
+9. `DSK-10` — agent bridge
+10. `DSK-11` — sessions in the web app: facade, store, start
+11. `DSK-12` — course tools
+12. `DSK-13` — session workspace: chat and live preview
+13. `DSK-17` — system prompt and skills
+14. `DSK-14` — Review
+15. `DSK-15` — Save to draft
+16. `DSK-16` — new course
+17. `DSK-18` — second opinion on answers
+18. `DSK-19` — hand edits inside a session
+19. `DSK-20` — click a block, Sources folder
+20. `DSK-24` — end-to-end with a fake Claude Code
+21. `DSK-25` — download card in Studio
+22. `DSK-22` — Windows signing
+23. `DSK-23` — guides, privacy note, analytics events
 
 
 
@@ -341,3 +368,35 @@ Plan: `21-managers.md`, decided with the maintainer on 2026-11-05.
 | `MGR-04` | Due-soon (5 days) and overdue notices with the team's managers in CC                  | done   | `MGR-02` | `firebase/functions/src/remind.ts` (`noticeFor`, `ccFor`), `mail.ts` (`buildDeadlineEmail`), `gmail.ts` (`Cc:`), `email-templates.ts` |
 | `MGR-05` | Team area: My teams, Team report, Assign for Managers                                 | done   | `MGR-03` | `apps/web/src/team/` (`TeamHomePage`, `TeamReportPage`, `useMyTeams`, `model.ts`), `console/AssignPage.tsx` (`TeamAssignPage`, `scope="team"`), `AudienceStep.tsx` (`teamsOnly`), `console/firebase.ts` (`managedTeams`), `navigation/areas/team.ts`, `Shell.tsx` (Team area), `tips/registry.ts`, `e2e/tests/manager.spec.ts` |
 | `MGR-06` | Admin: Managers on the Teams page, "No manager" marker, Manager in Roles & access      | done   | `MGR-01` | `apps/web/src/console/TeamsPage.tsx` (Educators read-only), `TeamDialog.tsx` (Managers field), `RolesPage.tsx` (Manager switch, card, matrix column, Managers list), `LearnersPage.tsx` (role column, filter, bulk dialog), `model.ts` (audit words) |
+
+## Desktop Studio
+
+Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
+
+| ID       | Item | Status | Depends | Notes |
+| -------- | ---- | ------ | ------- | ----- |
+| `DSK-01` | Anthropic confirms the design in writing; NonStop accepts the Commercial Terms | maintainer | — | Open question 18. Needed before public installers, not before building. `22-desktop-studio.md` (What Anthropic allows) |
+| `DSK-02` | Google "Desktop" OAuth client for sign-in from the app | maintainer | — | Google Cloud console, same project; client id and secret go to GitHub Actions secrets (open question 22) |
+| `DSK-03` | Signing: Apple Developer ID and notarisation secrets | maintainer | — | The five secrets Morph's pipeline uses (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) as GitHub Actions secrets on this repository; an existing Developer ID certificate can be reused. Steps: Morph's `docs/release-setup.md` |
+| `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | todo | — | Done when a throwaway script proves, on macOS and Windows: stream input and output, the MCP proxy round trip, stop and resume, how to detect a missing sign-in without spending usage, and how to keep personal Claude Code config out while keeping the subscription sign-in; findings written into `22-desktop-studio.md` (Starting Claude Code). No product code |
+| `DSK-05` | Session shape and the change engine | todo | — | Done when `packages/schema/src/session.ts` (zod) and `changes.ts` (`courseChanges(base, work)`: rows for course details, landing page, chapters, lessons, Quizzes with Added, Changed, Removed, Moved; block, question and field detail; word and line differences; changed answer keys called out) exist with table tests for every block type and status. `diffCourses` stays as it is |
+| `DSK-06` | Three-way merge of working copies | todo | `DSK-05` | Done when `packages/schema/src/merge.ts` `mergeWorking(base, mine, theirs)` takes one-sided changes, reports items changed on both sides as conflicts, keeps the session's order, and moves answer keys with their question |
+| `DSK-07` | Writing lint | todo | — | Done when `packages/schema/src/writingLint.ts` returns findings (item, field, rule, excerpt) for the rules in `22-desktop-studio.md` (Writing quality), pure and without AI |
+| `DSK-08` | Desktop shell: window, origin lock, bridge v1, session files, CI | todo | `DSK-04` | Done when `apps/desktop` (`@gurukul/desktop`) loads the web app with context isolation and sandbox on, exposes `window.gurukulDesktop` (`info`, `store.*`) to the allowed origin only, opens other links in the system browser, is in `npm run check` at 100% coverage, and `desktop` is a commit scope in `commitlint.config.mjs`, the PR-title check and the commit-message skill. CLAUDE.md map gains the workspace |
+| `DSK-09` | Google sign-in through the system browser | todo | `DSK-02`, `DSK-08` | Done when `auth.googleSignIn()` runs OAuth with PKCE and a loopback redirect and the web app signs in with `signInWithCredential`; the domain check stays in the rules; no secret in the repository |
+| `DSK-10` | Agent bridge: find, start, stream, stop and resume Claude Code; MCP proxy | todo | `DSK-04`, `DSK-08` | Done when `agent.*` in the bridge starts the unmodified `claude` with the pinned flags, streams events, forwards tool calls to the window and back, and reports not installed, too old, not signed in and plan limit reached as distinct events. Never reads or stores a Claude credential |
+| `DSK-11` | Sessions in the web app: bridge facade, store, list and start | todo | `DSK-05`, `DSK-08` | Done when `apps/web/src/desktop/bridge.ts` is the only reader of the bridge, the session store saves after every turn and restores after a restart, the Studio course list offers New course with AI and Edit with AI in the desktop app only, one open session per course is enforced, files are removed after 30 days, and the route is classified in `navigation/areas/` |
+| `DSK-12` | Course tools the agent calls | todo | `DSK-05` | Done when every tool in `22-desktop-studio.md` (The agent's tools) runs against the working copy through Studio's edit helpers, validates with the course schema and size limit, makes ids itself, and refuses with a sentence the model can act on. No tool reaches learners, publishing, access or another course |
+| `DSK-13` | Session workspace: chat, live preview, turns and undo | todo | `DSK-10`, `DSK-11`, `DSK-12` | Done when `/studio/sessions/:sessionId` shows the chat (streaming, plain-word activity, Stop), the real player drawing the working copy with changed blocks marked, the outline with badges, a checkpoint per turn and Undo of the newest turn; side by side from 1024px, chat as a drawer from 640px. No Firestore write |
+| `DSK-14` | Review: every change on one screen | todo | `DSK-07`, `DSK-13` | Done when the Review tab shows the editable summary and goals, the change tree with filters by turn, Side by side, Inline and As a learner views, the comparisons in `22-desktop-studio.md` (Review), Viewed ticks, Ask for a change, Undo this item, and the checks panel. Difference never shown by colour alone; both themes at 4.5:1 |
+| `DSK-15` | Save to draft, with the merge when the draft moved | todo | `DSK-06`, `DSK-14` | Done when Save writes `drafts/current` once through Studio's existing save (same `rev` check and `answersChanged` marking), a stale draft offers Bring in their changes with per-item conflict choices, and success links to the course editor and the publish dialog. No overwrite without the merge |
+| `DSK-16` | New course from a session | todo | `DSK-15` | Done when a new-course session asks for title and slug at its first save, calls `createCourse`, saves the draft, and recovers without creating twice if the save fails |
+| `DSK-17` | System prompt and skills: outline, lesson, quiz, humanize | todo | `DSK-07`, `DSK-12` | Done when the prompt and the four skills ship with the web app, the agent agrees an outline before writing lessons, runs humanize and `lint_writing` before writing text, uses `add_todo` instead of inventing media, and keeps the session summary current |
+| `DSK-18` | Second opinion on Quiz answers | todo | `DSK-14`, `DSK-17` | Done when each question added or changed in a session is answered by a separate run that never sees the key, disagreements show Check this answer in Review, results are cached per question, and Skip answer check exists |
+| `DSK-19` | Hand edits inside a session | todo | `DSK-13` | Done when Open in editor binds Studio's lesson and Quiz editors to the session's working copy through a second `DraftApi` source, and the edits become a turn by the Educator |
+| `DSK-20` | Click a block to attach it; Sources folder | todo | `DSK-13` | Done when a block clicked in the preview is attached to the next message, and `sources.*` lets the Educator pick files the agent may read, with the notice about what is sent to Anthropic |
+| `DSK-21` | Release pipeline: versions from commits, signed installers, self-update | todo | `DSK-03`, `DSK-08` | Done when `.github/workflows/desktop-release.yml` (adapted from Morph's `release.yml`) runs after CI on a push to `main` that touches `apps/desktop/`, computes `desktop-vX.Y.Z` from commit subjects since the last `desktop-v*` tag, stamps it without committing, builds signed and notarised macOS (arm64 and x64, DMG and ZIP) and Windows x64 (NSIS, unsigned) installers and publishes one GitHub Release with update metadata; `apps/desktop/src/updates.ts` (from Morph's `updates.ts`) checks at launch and every six hours, downloads silently, and the sidebar's Update ready item or a Quit installs it; `docs/desktop-release-setup.md` exists; an upgrade between two released versions was checked by hand. `22-desktop-studio.md` (Releases, versions and updates) |
+| `DSK-22` | Windows: signed installer and the agent bridge proven there | todo | `DSK-10`, `DSK-21` | Done when the Windows installer is signed (certificate from the maintainer, open question 23), installs without a SmartScreen warning, updates itself, and the agent bridge passes its tests on Windows |
+| `DSK-23` | Guides, privacy note and analytics events | todo | `DSK-15` | Done when `docs/` has an Educator guide (install, sign in to Claude Code, a first session), the privacy page says what a session sends to Anthropic, and `session_started`, `session_saved`, `session_discarded` are typed events with counts only |
+| `DSK-24` | End-to-end with a fake Claude Code | todo | `DSK-15` | Done when Playwright drives the built shell against the emulators with a script that replays recorded agent output: a session, a turn, Review, Save to draft, a new course, and a stale draft with a merge. No test calls Anthropic |
+| `DSK-25` | Download card in Studio | todo | `DSK-01`, `DSK-21` | Done when the browser Studio's course list shows the card that reads the latest GitHub Release, offers the installer for the visitor's system first (Apple Silicon, Intel, Windows) with its version and install steps, falls back to the releases page, and has a feature tip; in the desktop app the session buttons show instead. Waits for Anthropic's answer because it is the announcement to Educators |
