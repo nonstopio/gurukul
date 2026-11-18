@@ -60,7 +60,8 @@ The design follows Anthropic's published rules for Claude Code
 So the desktop app **never sees a Claude credential**. It starts the `claude` program and reads
 its output. The app is called Gurukul Studio; its screens may say "runs Claude Code" in plain
 text and nothing more. Written confirmation from Anthropic is a maintainer item (`DSK-01`) and is
-required before public installers ship (`DSK-21`), not before building.
+required before the app is offered to Educators (the download card, `DSK-25`), not before
+building or releasing early versions.
 
 ## Architecture
 
@@ -138,7 +139,7 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
 | `sources.choose / list / reveal` | The session's Sources folder |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
-| `app.checkForUpdate()` | Asks the updater |
+| `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
 The web app reads the bridge only through `apps/web/src/desktop/bridge.ts`. In a browser that
 facade reports "not the desktop app" and every session page shows a card that says so, with the
@@ -523,20 +524,105 @@ Educator's, which is why nothing is saved without Review.
   function, no Storage. `11-deployment-and-cost.md` is unaffected.
 - **AI: nothing for NonStop.** Each Educator uses their own Claude plan. When a plan's limit is
   reached the chat says so and the session waits.
-- **Installers:** Apple's developer programme is $99 a year. A Windows signing certificate is a
-  separate yearly cost to be quoted (`DSK-03`). Builds are hosted free on GitHub Releases.
+- **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
+  first, as Morph does, which shows a SmartScreen warning; a certificate is a separate yearly cost
+  to be quoted (`DSK-22`). Builds and update files are hosted free on GitHub Releases.
 
-## Releases
+## Releases, versions and updates: from the first build
 
-- `apps/desktop` is built by a new CI workflow on a `desktop-v*` tag: macOS first (signed and
-  notarised), Windows after (`DSK-22`). Artifacts go to GitHub Releases; `electron-updater` reads
-  them.
-- The Studio course list in the browser shows a card, "Build a course by chatting", with the
-  download link and the platforms available; in the desktop app the same place shows the session
-  buttons. One feature tip points at it (`adding-feature-tips`).
+The shell is versioned, released and self-updating from its first merged pull request, not at the
+end. The pipeline is the one already running in the maintainer's Morph app
+(`github.com/ProjectAJ14/Morph`: `.github/workflows/release.yml`, `electron-builder.yml`,
+`electron/updates.ts`, `docs/release-setup.md`, `docs/index.html`), read on 2026-11-18 and
+adapted to this monorepo. Morph has no licence file; the maintainer owns it and brings the code
+across under this repository's MIT licence.
+
+### Versions: nobody types one
+
+- **Git tags are the version.** `apps/desktop/package.json` holds a placeholder (`0.0.0`); CI
+  stamps the real version into the build and never commits it back. Same rule as Morph.
+- **The bump comes from commit subjects** since the last desktop tag: a `!` after the type or a
+  `BREAKING CHANGE:` line is major, `feat` is minor, anything else is patch. Pull requests are
+  squash-merged, so the subject is the PR title the `pr-title` check already enforces.
+- **Monorepo differences from Morph.** Tags are `desktop-vMAJOR.MINOR.PATCH`, so they never
+  collide with the web app's `release-*` tags (the last one is found with
+  `git describe --tags --match 'desktop-v*'`). Only commits that touch `apps/desktop/` are read
+  for the bump, and only a push to `main` that touches `apps/desktop/` releases. A web-only change
+  ships through `deploy.yml` as today and reaches the desktop app with no new installer, which is
+  the point of the thin shell.
+- First release: `desktop-v0.1.0`. The app shows its version in Settings and reports it through
+  `info()`.
+
+### The release workflow (`.github/workflows/desktop-release.yml`)
+
+Runs after CI has passed on that commit on `main`, the way `deploy.yml` waits for CI. Pull
+requests never build installers; `npm run check` in CI covers the workspace.
+
+| Job | Does | From Morph |
+|---|---|---|
+| Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
+| Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
+| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user | Same; unsigned until `DSK-22` |
+| Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests | Same |
+
+Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
+reinstalls), Node 22 from `.nvmrc`, one release at a time through a concurrency group.
+
+Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`). `docs/desktop-release-setup.md` is
+Morph's step-by-step guide with the names changed.
+
+Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
+`Gurukul-Studio-Setup-{version}.exe`. App id `com.nonstopio.gurukul.studio`.
+
+### Updates (`apps/desktop/src/updates.ts`, from Morph's `electron/updates.ts`)
+
+- Packaged macOS and Windows builds only; development builds never check.
+- Checks at launch and every six hours, downloads in the background, **never opens a dialog on
+  its own**.
+- When a download finishes the shell tells the window (`app.onUpdateReady(version)`) and Studio's
+  sidebar shows an "Update ready" item. Clicking it restarts and installs; a normal Quit installs
+  it too. If the install fails the app stays open, the item goes away and the next check tries
+  again.
+- **Check for updates…** in the app menu checks on demand and says "up to date", "already
+  checking", or points at the sidebar item.
+- An open session is safe across the restart: it is written to disk after every turn.
+- Two kinds of "out of date" stay separate. A new **shell** arrives through this updater. A new
+  **web app** arrives with a normal deploy; if it needs a newer bridge than the installed shell
+  has, the page says "Update the app" and offers Check for updates.
+- Changes from Morph: the `log` helper instead of `console.warn`, wording in Gurukul's voice, and
+  the logic tested in Vitest at 100% with the updater, dialog and timer injected (Morph's
+  `scripts/check-updates.cjs` cases, ported).
+- The updater reads GitHub Releases of this repository. The web app pushes tags but creates no
+  GitHub Releases, so "latest release" is always a desktop one; that must stay true. To confirm
+  when building: that `electron-updater`'s GitHub provider accepts the `desktop-v` tag prefix. If
+  it does not, use its generic provider pointed at
+  `github.com/nonstopio/gurukul/releases/latest/download/`.
+
+### Download
+
+Morph's landing page asks GitHub for the latest release, picks the installer for the visitor's
+system and falls back to the releases page. Gurukul does the same inside Studio:
+
+- The Studio course list in the browser shows a card, "Build a course by chatting". It reads
+  `api.github.com/repos/nonstopio/gurukul/releases/latest` (public, no key), finds the Apple
+  Silicon DMG, the Intel DMG and the Windows installer by file name, puts the visitor's own system
+  first, shows the version and the three install steps for that system, and links to all
+  releases. If the request fails it links to the releases page.
+- In the desktop app the same place shows the session buttons instead. One feature tip points at
+  the card (`adding-feature-tips`).
+- The card is the announcement to Educators, so it waits for Anthropic's answer (`DSK-01`). The
+  pipeline and the updater do not: early releases are on GitHub for the people building the app.
+
+### Housekeeping
+
 - Commit scope `desktop` is added to `commitlint.config.mjs`, the PR-title check and the
   commit-message skill's table together.
-- Each piece a person would notice gets a changelog entry in its own pull request.
+- Each piece a person would notice gets a changelog entry in its own pull request. Desktop
+  versions do not appear in `/changelog`; that page keeps deriving releases from `release-*` tags.
+- Upgrade testing needs two signed releases: install the older, release the newer, confirm the
+  sidebar item, restart, and check the version and an open session survive. On Apple Silicon,
+  Intel and Windows.
 
 ## Testing
 
@@ -558,16 +644,16 @@ Estimates are judgment for one developer at this repository's bar, not measureme
 | Phase | Items | Roughly |
 |---|---|---|
 | A · Foundations | Spike, session shape, change engine, merge, writing lint | 1.5 weeks |
-| B · The shell | Window and bridge, Google sign-in, agent bridge | 2 weeks |
+| B · The shell | Window and bridge, release pipeline with versions and updates, Google sign-in, agent bridge | 2.5 weeks |
 | C · Sessions | Session store and start, course tools, workspace, prompts and skills | 2.5 weeks |
 | D · Review and save | Review screen, Save to draft with merge, new course, answer check | 2 weeks |
-| E · Finish and ship | Hand edits, click a block, Sources, installers, Windows, docs, end-to-end | 2 weeks |
+| E · Finish and ship | Hand edits, click a block, Sources, download card, Windows signing, docs, end-to-end | 1.5 weeks |
 
 **Exit:** an Educator installs the app, builds a course of at least three chapters by chatting,
 reviews it on one screen, saves it to the draft with one button and publishes it from Studio,
 with no Firestore write before the save and a Firebase bill of $0.
 
-Item by item: tracker section **Desktop Studio** (`DSK-01` to `DSK-24`).
+Item by item: tracker section **Desktop Studio** (`DSK-01` to `DSK-25`).
 
 ## Not in v1
 
