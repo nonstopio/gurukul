@@ -11,6 +11,9 @@ import { timestamp } from './timestamp';
 /** Quiz answer keys as the Studio keeps them in a draft: `{ [quizId]: { [questionId]: optionIds } }`. */
 export type AnswerKeys = Record<string, Record<string, string[]>>;
 
+/** The zod shape of `AnswerKeys`, shared by the draft document and the Desktop Studio session. */
+export const answerKeysSchema = z.record(z.string(), z.record(z.string(), z.array(z.string())));
+
 /**
  * `courses/{id}/drafts/current`: the course being edited plus its answer keys (Educators need them
  * to edit). `rev` goes up by one on every save; a save that does not carry the current rev is a
@@ -21,7 +24,7 @@ export const draftSchema = z.object({
   updatedAt: timestamp,
   updatedBy: z.string().min(1),
   course: courseSchema,
-  answers: z.record(z.string(), z.record(z.string(), z.array(z.string()))),
+  answers: answerKeysSchema,
   /**
    * Set when an answer key was edited since the last publish: the browser cannot read the
    * published keys to compare, so this is how Studio knows there is something to publish. The

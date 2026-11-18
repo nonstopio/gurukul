@@ -113,7 +113,7 @@ Four decisions shape it:
 | `apps/web/src/desktop/` | The one facade over `window.gurukulDesktop`; nothing else touches it (the pattern `analytics/` uses for `firebase/analytics`) | yes |
 | `apps/web/src/studio/session/` | Session store, course tools, chat panel, workspace, review screen, prompts and skills | yes |
 | `packages/schema/src/session.ts` | The session shape (zod) | yes |
-| `packages/schema/src/changes.ts` | The change engine: what differs between two working copies, down to the field | yes |
+| `packages/schema/src/changes.ts` | The change engine: what differs between two working copies, down to the field. Imported as `@gurukul/schema/changes`, not from the package index, so its `diff` dependency stays out of the chunk every learner loads | yes |
 | `packages/schema/src/merge.ts` | Three-way merge of working copies | yes |
 | `packages/schema/src/writingLint.ts` | The writing lint (pure, no AI) | yes |
 | `apps/web/src/studio/` editors, preview, publish dialog | Reused as they are | no |
@@ -189,7 +189,7 @@ tripping the secret guard is open question 22.
 
 ### Shape
 
-`packages/schema/src/session.ts`:
+`packages/schema/src/session.ts` (`authoringSessionSchema`, zod):
 
 ```ts
 interface AuthoringSession {
@@ -199,21 +199,28 @@ interface AuthoringSession {
   kind: 'new' | 'edit';
   courseId: string | null; // null until a new course is created at the first save
   title: string; // "Simplify the rebase chapter"
-  goals: string[]; // what the Educator asked for, kept current by the agent
+  goals: { text: string; done: boolean }[]; // what the Educator asked for, ticked by the agent
   summary: string; // what the session did, written by the agent, editable in Review
   status: 'open' | 'saved' | 'discarded';
-  base: { rev: number; savedAt: string | null; work: Working } | null; // null for a new course
-  work: Working; // course + answer keys, as changed
-  turns: Turn[]; // id, time, who (agent or educator), one-line summary, checkpoint file
-  todos: Todo[]; // things the agent left for the Educator ("add a screenshot of the diff view")
-  viewed: string[]; // item ids ticked as viewed in Review
+  base: { rev: number; savedAt: string | null; work: WorkingCopy } | null; // null until a stored draft exists
+  work: WorkingCopy; // course + answer keys, as changed
+  turns: Turn[]; // id, at, by (agent or educator), one-line summary, checkpoint file, changes (row count)
+  todos: SessionTodo[]; // things left for the Educator ("add a screenshot of the diff view"), done or not
+  viewed: string[]; // Review row ids ticked as viewed
   agentSessionId: string | null; // for --resume
-  createdAt: string;
+  createdAt: string; // ISO-8601: a local file, not a Firestore document
   updatedAt: string;
 }
 ```
 
-`Working` is Studio's existing working copy (`course`, `answers`, `answersChanged`).
+`WorkingCopy` (`workingSchema`) has the same shape as Studio's existing working copy (`course`,
+`answers`, `answersChanged`), so one is handed to the other without conversion. Goals are objects,
+not strings, because Review ticks each one and `set_summary` sets "goals with done or not".
+
+The schema also holds the rules a file must keep: an edit session has a course and a base; a base
+always belongs to a known course (a new-course session gains both at its first save and keeps
+`kind: 'new'`); the working course's id is the session's `courseId`; turn and to-do ids are
+unique.
 
 ### Where it is kept
 
@@ -339,9 +346,27 @@ One row per thing an Educator thinks of as a unit:
 | Lesson | Added, Changed, Removed, Moved | Settings table, then its blocks |
 | Quiz | Added, Changed, Removed, Moved | Settings table, then its questions |
 
-Moved means the same id in a different chapter or position; a moved and edited item shows both
-badges. The header count is the number of rows. Rows are grouped under their chapter in course
-order, with removed items shown where they used to be.
+Moved means the same id in a different chapter, or out of order among the entries both copies
+share; a moved and edited item shows both badges. "Out of order" is decided by the longest run of
+shared ids that keeps its order (longest common subsequence), not by index, so inserting a lesson
+at the top of a chapter marks only that lesson Added, not every lesson after it Moved. The same
+rule applies to chapters, blocks, questions and options. The header count is the number of rows.
+Rows are grouped under their chapter in course order, with removed items shown where they used to
+be: right after the nearest entry before them in the base that is still there and not moved.
+
+`courseChanges(base, work)` (`packages/schema/src/changes.ts`) computes all of this, pure and
+without I/O; Review, the turn chips' counts and the outline badges read it. Found while building
+it:
+
+- Outcomes and a check block's options have no ids, so they are matched on exact text: a reworded
+  entry between two unchanged ones is Changed with a word difference, and a reordered one shows
+  as removed and added. They are never Moved.
+- A changed answer key is compared as a set (reordering the same correct options is no change)
+  and is listed on its own (`answerChanges`) as well as on its question. A new question shows its
+  key, but only questions on both sides count as a changed answer.
+- A lesson turned into a Quiz under the same id is two rows (the lesson removed, the Quiz added),
+  so the UI keys rows on kind and id. A question moved from one Quiz to another shows as removed
+  from one and added to the other.
 
 ### How each kind of content is compared
 

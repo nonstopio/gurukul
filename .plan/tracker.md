@@ -30,8 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| Desktop Studio | 0 | 22 | 0 | 3 |
-| **Total** | 190 | 23 | 0 | 17 |
+| Desktop Studio | 1 | 21 | 0 | 3 |
+| **Total** | 191 | 22 | 0 | 17 |
 
 ## Pick order
 
@@ -44,27 +44,26 @@ Desktop Studio (`22-desktop-studio.md`) goes foundations, shell, sessions, revie
 shipping. The pure pieces (`DSK-05` to `DSK-07`) need nothing and can start at once.
 
 2. `DSK-04` — spike: drive Claude Code from Electron, so the bridge is built on facts
-3. `DSK-05` — session shape and the change engine every later screen reads
-4. `DSK-06` — three-way merge
-5. `DSK-07` — writing lint
-6. `DSK-08` — the shell, its bridge and the `desktop` commit scope
-7. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
-8. `DSK-09` — Google sign-in through the system browser
-9. `DSK-10` — agent bridge
-10. `DSK-11` — sessions in the web app: facade, store, start
-11. `DSK-12` — course tools
-12. `DSK-13` — session workspace: chat and live preview
-13. `DSK-17` — system prompt and skills
-14. `DSK-14` — Review
-15. `DSK-15` — Save to draft
-16. `DSK-16` — new course
-17. `DSK-18` — second opinion on answers
-18. `DSK-19` — hand edits inside a session
-19. `DSK-20` — click a block, Sources folder
-20. `DSK-24` — end-to-end with a fake Claude Code
-21. `DSK-25` — download card in Studio
-22. `DSK-22` — Windows signing
-23. `DSK-23` — guides, privacy note, analytics events
+3. `DSK-06` — three-way merge
+4. `DSK-07` — writing lint
+5. `DSK-08` — the shell, its bridge and the `desktop` commit scope
+6. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
+7. `DSK-09` — Google sign-in through the system browser
+8. `DSK-10` — agent bridge
+9. `DSK-11` — sessions in the web app: facade, store, start
+10. `DSK-12` — course tools
+11. `DSK-13` — session workspace: chat and live preview
+12. `DSK-17` — system prompt and skills
+13. `DSK-14` — Review
+14. `DSK-15` — Save to draft
+15. `DSK-16` — new course
+16. `DSK-18` — second opinion on answers
+17. `DSK-19` — hand edits inside a session
+18. `DSK-20` — click a block, Sources folder
+19. `DSK-24` — end-to-end with a fake Claude Code
+20. `DSK-25` — download card in Studio
+21. `DSK-22` — Windows signing
+22. `DSK-23` — guides, privacy note, analytics events
 
 
 
@@ -379,7 +378,7 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-02` | Google "Desktop" OAuth client for sign-in from the app | maintainer | — | Google Cloud console, same project; client id and secret go to GitHub Actions secrets (open question 22) |
 | `DSK-03` | Signing: Apple Developer ID and notarisation secrets | maintainer | — | The five secrets Morph's pipeline uses (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) as GitHub Actions secrets on this repository; an existing Developer ID certificate can be reused. Steps: Morph's `docs/release-setup.md` |
 | `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | todo | — | Done when a throwaway script proves, on macOS and Windows: stream input and output, the MCP proxy round trip, stop and resume, how to detect a missing sign-in without spending usage, and how to keep personal Claude Code config out while keeping the subscription sign-in; findings written into `22-desktop-studio.md` (Starting Claude Code). No product code |
-| `DSK-05` | Session shape and the change engine | todo | — | Done when `packages/schema/src/session.ts` (zod) and `changes.ts` (`courseChanges(base, work)`: rows for course details, landing page, chapters, lessons, Quizzes with Added, Changed, Removed, Moved; block, question and field detail; word and line differences; changed answer keys called out) exist with table tests for every block type and status. `diffCourses` stays as it is |
+| `DSK-05` | Session shape and the change engine | done | — | `packages/schema/src/session.ts` (`authoringSessionSchema`, `workingSchema`, goals as `{ text, done }`), `packages/schema/src/changes.ts` (`courseChanges`, `wordDiff`, `lineDiff`; imported as `@gurukul/schema/changes` so `diff` stays out of the learner chunk), tests in `packages/schema/test/session.test.ts` and `changes.test.ts`; `answerKeysSchema` shared from `draft.ts`. `diffCourses` unchanged |
 | `DSK-06` | Three-way merge of working copies | todo | `DSK-05` | Done when `packages/schema/src/merge.ts` `mergeWorking(base, mine, theirs)` takes one-sided changes, reports items changed on both sides as conflicts, keeps the session's order, and moves answer keys with their question |
 | `DSK-07` | Writing lint | todo | — | Done when `packages/schema/src/writingLint.ts` returns findings (item, field, rule, excerpt) for the rules in `22-desktop-studio.md` (Writing quality), pure and without AI |
 | `DSK-08` | Desktop shell: window, origin lock, bridge v1, session files, CI | todo | `DSK-04` | Done when `apps/desktop` (`@gurukul/desktop`) loads the web app with context isolation and sandbox on, exposes `window.gurukulDesktop` (`info`, `store.*`) to the allowed origin only, opens other links in the system browser, is in `npm run check` at 100% coverage, and `desktop` is a commit scope in `commitlint.config.mjs`, the PR-title check and the commit-message skill. CLAUDE.md map gains the workspace |
