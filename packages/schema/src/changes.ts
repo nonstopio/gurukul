@@ -33,17 +33,40 @@ export interface DiffPart {
   text: string;
 }
 
-const toParts = (changes: Change[]): DiffPart[] =>
-  changes.map((c) => ({ op: c.added ? 'added' : c.removed ? 'removed' : 'same', text: c.value }));
+/**
+ * The most edits (tokens added or removed) a text difference looks for before giving up. A count,
+ * not a time limit, so the answer never depends on the machine. Two unrelated 20,000-character
+ * texts (the largest markdown block) give up in about 60 ms; similar texts finish in a few.
+ */
+const MAX_EDITS = 1000;
 
-/** Word-level difference for prose (titles, captions, markdown). Spaces and line breaks are kept. */
-export function wordDiff(before: string, after: string): DiffPart[] {
-  return toParts(diffWordsWithSpace(before, after));
+/** jsdiff's runs as parts; when it gave up, the whole text removed and the whole text added. */
+function toParts(changes: Change[] | undefined, before: string, after: string): DiffPart[] {
+  if (changes)
+    return changes.map((c) => ({
+      op: c.added ? 'added' : c.removed ? 'removed' : 'same',
+      text: c.value,
+    }));
+  const out: DiffPart[] = [];
+  if (before) out.push({ op: 'removed', text: before });
+  if (after) out.push({ op: 'added', text: after });
+  return out;
 }
 
-/** Line-level difference for code: one part per run of kept, added or removed lines. */
+/**
+ * Word-level difference for prose (titles, captions, markdown). Spaces and line breaks are kept.
+ * Texts too different to compare within the edit bound come back as one removed and one added part.
+ */
+export function wordDiff(before: string, after: string): DiffPart[] {
+  return toParts(diffWordsWithSpace(before, after, { maxEditLength: MAX_EDITS }), before, after);
+}
+
+/**
+ * Line-level difference for code: one part per run of kept, added or removed lines. Code too
+ * different to compare within the edit bound comes back as one removed and one added part.
+ */
 export function lineDiff(before: string, after: string): DiffPart[] {
-  return toParts(diffLines(before, after));
+  return toParts(diffLines(before, after, { maxEditLength: MAX_EDITS }), before, after);
 }
 
 /** A field's value as the Review shows it; null means absent (not set). */
@@ -59,9 +82,12 @@ export interface FieldChange {
   field: string;
   before: FieldValue;
   after: FieldValue;
-  /** Word difference, on prose fields (titles, summaries, captions, alt, labels, markdown, prompts). */
+  /**
+   * Word difference, on prose fields (titles, summaries, captions, alt, labels, markdown, prompts),
+   * when both sides are text. A field set or cleared (one side null) has none: before → after says it.
+   */
   words?: DiffPart[];
-  /** Line difference, on code (a code block's `code`, a question's `code`). */
+  /** Line difference, on code (a code block's `code`, a question's `code`), when both sides are text. */
   lines?: DiffPart[];
 }
 
@@ -115,10 +141,16 @@ export interface QuestionChange extends ListEntryChange {
   answer?: AnswerChange;
 }
 
-/** One row of the Review list. Lesson and Quiz rows name their chapter so the list can group them. */
+/**
+ * One row of the Review list. `key` is the row's unique id, `<kind>:<id>` (`course:course`,
+ * `chapter:p1`, `lesson:l2`, `quiz:l2`): what the Review's Viewed ticks store. A repeated id within
+ * a kind (the schema allows one) gets `#2`, `#3`… on its later rows, in display order. Lesson and
+ * Quiz rows name their chapter so the list can group them.
+ */
 export type ChangeRow =
-  | { kind: 'course'; id: 'course'; statuses: RowStatus[]; fields: FieldChange[] }
+  | { key: string; kind: 'course'; id: 'course'; statuses: RowStatus[]; fields: FieldChange[] }
   | {
+      key: string;
       kind: 'landing';
       id: 'landing';
       statuses: RowStatus[];
@@ -126,6 +158,7 @@ export type ChangeRow =
       outcomes: ListEntryChange[];
     }
   | {
+      key: string;
       kind: 'chapter';
       id: string;
       statuses: RowStatus[];
@@ -135,6 +168,7 @@ export type ChangeRow =
       move?: { fromIndex: number; toIndex: number };
     }
   | {
+      key: string;
       kind: 'lesson';
       id: string;
       chapterId: string;
@@ -146,6 +180,7 @@ export type ChangeRow =
       move?: Move;
     }
   | {
+      key: string;
       kind: 'quiz';
       id: string;
       chapterId: string;
@@ -157,15 +192,31 @@ export type ChangeRow =
       move?: Move;
     };
 
+/**
+ * A correct answer that changed on something present before and after: a Quiz question
+ * (`itemId` is the Quiz) or a check block (`itemId` is the lesson). Added and removed ones are not
+ * listed; their rows already say so.
+ */
+export interface ChangedAnswer {
+  kind: 'question' | 'check';
+  itemId: string;
+  /** The question's or the block's id. */
+  id: string;
+}
+
 /** Everything a session changed, in display order. */
 export interface CourseChanges {
   /** Only rows with at least one status, in the order the Review lists them. */
   rows: ChangeRow[];
   /** `rows.length`: the header's "11 changes". */
   count: number;
-  /** Every question, present before and after, whose answer key differs. */
-  answerChanges: { quizId: string; questionId: string }[];
+  /** Every changed correct answer, in row order, called out apart from the rows. */
+  answerChanges: ChangedAnswer[];
 }
+
+type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+/** A row before its key is given. */
+type RowBody = Without<ChangeRow, 'key'>;
 
 // ─── Fields ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -194,7 +245,7 @@ function shown(value: unknown): FieldValue {
   return typeof o.url === 'string' ? o.url : typeof o.path === 'string' ? o.path : stable(value);
 }
 
-const prose = (value: unknown) => (typeof value === 'string' ? value : '');
+const TEXT_DIFFS = { words: wordDiff, lines: lineDiff } as const;
 
 /** The fields in `spec` that differ between two versions of the same thing (either may be null). */
 function fieldChanges(spec: FieldSpec, before: unknown, after: unknown): FieldChange[] {
@@ -204,8 +255,8 @@ function fieldChanges(spec: FieldSpec, before: unknown, after: unknown): FieldCh
     const a = read(after, field);
     if (stable(b) === stable(a)) continue;
     const change: FieldChange = { field, before: shown(b), after: shown(a) };
-    if (kind === 'words') change.words = wordDiff(prose(b), prose(a));
-    if (kind === 'lines') change.lines = lineDiff(prose(b), prose(a));
+    if (kind !== 'plain' && typeof b === 'string' && typeof a === 'string')
+      change[kind] = TEXT_DIFFS[kind](b, a);
     out.push(change);
   }
   return out;
@@ -304,7 +355,10 @@ const BLOCK_FIELDS: Record<BlockType, FieldSpec> = {
 
 /** One entry of two aligned lists. `value` is `after`, or `before` when the entry was removed. */
 interface Paired<T> {
+  /** What the two sides were matched on; unique within the list. */
   key: string;
+  /** The entry's own id (or `#<index>` for text), as reported. */
+  id: string;
   value: T;
   before: T | null;
   after: T | null;
@@ -314,6 +368,27 @@ interface Paired<T> {
   afterIndex: number;
   /** On both sides, but out of the order the two sides share. */
   moved: boolean;
+}
+
+interface Keyed<T> {
+  key: string;
+  entry: T;
+  index: number;
+}
+
+/**
+ * Each entry with a key unique in its list. The schema allows a repeated id (only publishing
+ * refuses one), so the n-th entry with an id is matched with the n-th on the other side: the
+ * second `l2` is keyed `l2`, NUL, `2`.
+ */
+function keyed<T>(list: readonly T[], key: (entry: T) => string): Keyed<T>[] {
+  const seen = new Map<string, number>();
+  return list.map((entry, index) => {
+    const k = key(entry);
+    const n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    return { key: n === 1 ? k : `${k}\u0000${n}`, entry, index };
+  });
 }
 
 /** Index pairs of one longest common subsequence of `a` and `b`; ties keep the earlier `a` entry. */
@@ -334,31 +409,34 @@ function lcs(a: readonly string[], b: readonly string[]): [number, number][] {
 }
 
 /**
- * Aligns two lists by key (the id by default). Entries on both sides are moved when they fall
- * outside the longest common subsequence of the shared keys' order. Output follows the working
- * list; each removed entry comes right after the nearest entry before it in the base that is still
- * there and not moved (or first, when there is none), several in their base order.
+ * Aligns two lists by key (the id by default; repeats paired in order, see `keyed`). Entries on
+ * both sides are moved when they fall outside the longest common subsequence of the shared keys'
+ * order. Output follows the working list; each removed entry comes right after the nearest entry
+ * before it in the base that is still there and not moved (or first, when there is none), several
+ * in their base order.
  */
 function alignById<T extends { id: string }>(
   before: readonly T[],
   after: readonly T[],
   key: (entry: T) => string = (entry) => entry.id,
 ): Paired<T>[] {
-  const was = new Map(before.map((entry, index) => [key(entry), { entry, index }]));
-  const now = new Set(after.map(key));
-  const sharedBefore = before.map(key).filter((k) => now.has(k));
-  const sharedAfter = after.map(key).filter((k) => was.has(k));
+  const was = keyed(before, key);
+  const now = keyed(after, key);
+  const wasByKey = new Map(was.map((k) => [k.key, k]));
+  const nowKeys = new Set(now.map((k) => k.key));
+  const sharedBefore = was.map((k) => k.key).filter((k) => nowKeys.has(k));
+  const sharedAfter = now.map((k) => k.key).filter((k) => wasByKey.has(k));
   const kept = new Set(lcs(sharedBefore, sharedAfter).map(([i]) => sharedBefore[i]));
 
   const removedAfter = new Map<string | null, Paired<T>[]>();
   let anchor: string | null = null;
-  for (const [index, entry] of before.entries()) {
-    const k = key(entry);
+  for (const { key: k, entry, index } of was) {
     if (kept.has(k)) anchor = k;
-    else if (!now.has(k)) {
+    else if (!nowKeys.has(k)) {
       const group = removedAfter.get(anchor) ?? [];
       group.push({
         key: k,
+        id: entry.id,
         value: entry,
         before: entry,
         after: null,
@@ -371,11 +449,11 @@ function alignById<T extends { id: string }>(
   }
 
   const out = [...(removedAfter.get(null) ?? [])];
-  for (const [index, entry] of after.entries()) {
-    const k = key(entry);
-    const old = was.get(k);
+  for (const { key: k, entry, index } of now) {
+    const old = wasByKey.get(k);
     out.push({
       key: k,
+      id: entry.id,
       value: entry,
       before: old ? old.entry : null,
       after: entry,
@@ -397,8 +475,10 @@ function alignByText(before: readonly string[], after: readonly string[]): Paire
   const pair = (bi: number, aj: number): Paired<string> => {
     const b = before[bi] ?? null;
     const a = after[aj] ?? null;
+    const id = aj >= 0 ? `#${aj}` : `removed#${bi}`;
     return {
-      key: aj >= 0 ? `#${aj}` : `removed#${bi}`,
+      key: id,
+      id,
       value: a ?? (b as string),
       before: b,
       after: a,
@@ -440,7 +520,7 @@ function entry<T extends string | object>(
   innerChanged: boolean,
 ): ListEntryChange {
   return {
-    id: p.key,
+    id: p.id,
     statuses: statusesOf(p, fields.length > 0 || innerChanged, 'changed', p.moved),
     before: p.before,
     after: p.after,
@@ -451,8 +531,9 @@ function entry<T extends string | object>(
 const touched = (entries: readonly { statuses: readonly string[] }[]) =>
   entries.some((e) => e.statuses.length > 0);
 
+/** Same ids, ignoring order and repeats. */
 const sameSet = (a: readonly string[], b: readonly string[]) =>
-  stable([...a].sort()) === stable([...b].sort());
+  stable([...new Set(a)].sort()) === stable([...new Set(b)].sort());
 
 function textEntries(pairs: readonly Paired<string>[]): ListEntryChange[] {
   return pairs.map((p) =>
@@ -460,16 +541,28 @@ function textEntries(pairs: readonly Paired<string>[]): ListEntryChange[] {
   );
 }
 
-/** A check block's right answer, as entry ids: the base's right option, followed through rewording. */
+type CheckBlock = Extract<Block, { type: 'check' }>;
+
+/** The text of a check block's right option; undefined when none is marked (or the mark is stale). */
+const rightText = (check: CheckBlock | null) =>
+  check?.correct === undefined ? undefined : check.options[check.correct];
+
+/**
+ * A check block's right answer changed when the text of its right option differs, or one side has
+ * none: moving the same option elsewhere is not a change, rewording the right one is. Reported as
+ * the entry ids of `options`.
+ */
 function checkAnswer(
   pairs: readonly Paired<string>[],
-  before: number | undefined,
-  after: number | undefined,
+  was: CheckBlock | null,
+  now: CheckBlock | null,
 ): AnswerChange | undefined {
-  const ids = (pick: (p: Paired<string>) => boolean) => pairs.filter(pick).map((p) => p.key);
-  const was = ids((p) => p.beforeIndex === before);
-  const now = ids((p) => p.afterIndex === after);
-  return sameSet(was, now) ? undefined : { before: was, after: now };
+  if (rightText(was) === rightText(now)) return undefined;
+  const ids = (pick: (p: Paired<string>) => boolean) => pairs.filter(pick).map((p) => p.id);
+  return {
+    before: ids((p) => p.beforeIndex === was?.correct),
+    after: ids((p) => p.afterIndex === now?.correct),
+  };
 }
 
 /** A block type this version does not know (a malformed working copy) has no fields to compare. */
@@ -493,7 +586,7 @@ function blockEntries(before: readonly Block[], after: readonly Block[]): BlockC
     if (!was && !now) return { ...entry(p, fields, false), type: p.value.type };
     const pairs = alignByText(was?.options ?? [], now?.options ?? []);
     const options = textEntries(pairs);
-    const answer = checkAnswer(pairs, was?.correct, now?.correct);
+    const answer = checkAnswer(pairs, was, now);
     return {
       ...entry(p, fields, touched(options) || answer !== undefined),
       type: p.value.type,
@@ -532,13 +625,13 @@ function questionEntries(
 
 // ─── Rows ────────────────────────────────────────────────────────────────────────────────────────
 
-function courseRow(was: Course | null, now: Course): ChangeRow {
+function courseRow(was: Course | null, now: Course): RowBody {
   const fields = fieldChanges(COURSE_FIELDS, was, now);
   const statuses = statusesOf({ before: was, after: now }, fields.length > 0, 'changed', false);
   return { kind: 'course', id: 'course', statuses, fields };
 }
 
-function landingRow(was: Course | null, now: Course): ChangeRow {
+function landingRow(was: Course | null, now: Course): RowBody {
   const fields = fieldChanges(LANDING_FIELDS, was, now);
   const outcomes = textEntries(alignByText(was?.outcomes ?? [], now.outcomes));
   const edited = fields.length > 0 || touched(outcomes);
@@ -546,11 +639,11 @@ function landingRow(was: Course | null, now: Course): ChangeRow {
   return { kind: 'landing', id: 'landing', statuses, fields, outcomes };
 }
 
-function chapterRow(p: Paired<Chapter>): ChangeRow {
+function chapterRow(p: Paired<Chapter>): RowBody {
   const fields = fieldChanges(TITLE_FIELDS, p.before, p.after);
   return {
     kind: 'chapter',
-    id: p.key,
+    id: p.id,
     statuses: statusesOf(p, fields.length > 0, 'renamed', p.moved),
     before: p.before,
     after: p.after,
@@ -609,33 +702,41 @@ function quizRow(before: Quiz | null, after: Quiz | null, id: string, cx: ItemCo
   };
 }
 
+/** Where an item sits in one copy. `key` is unique in the course; `chapterKey` names its chapter. */
 interface Location {
+  id: string;
+  key: string;
+  chapterKey: string;
   chapterId: string;
   index: number;
   item: Item;
 }
 
 /**
- * Items are matched by type and id, so a lesson turned into a Quiz under the same id reads as one
- * removed and one added: their rows share the id and differ in `kind`.
+ * Every item of a course with where it sits. Items are matched by type and id, so a lesson turned
+ * into a Quiz under the same id reads as one removed and one added (rows `lesson:x` and `quiz:x`).
+ * Repeated ids are numbered across the whole course, chapters by the same rule as `alignById`.
  */
-const itemKey = (item: Item) => `${item.type}:${item.id}`;
-
-function locate(course: Course | null): Map<string, Location> {
-  return new Map(
-    (course?.chapters ?? []).flatMap((chapter) =>
-      chapter.items.map((item, index) => [itemKey(item), { chapterId: chapter.id, index, item }]),
-    ),
+function locate(course: Course | null): Location[] {
+  const chapters = keyed(course?.chapters ?? [], (chapter) => chapter.id);
+  const items = chapters.flatMap(({ key: chapterKey, entry: chapter }) =>
+    chapter.items.map((item, index) => ({ chapterKey, chapterId: chapter.id, index, item })),
   );
+  return keyed(items, (at) => `${at.item.type}:${at.item.id}`).map(({ key, entry }) => ({
+    ...entry,
+    key,
+    id: entry.item.id,
+  }));
 }
 
 /** Moved: in another chapter in the base, or out of the shared order within the same chapter. */
-function moveOf(origin: Location | undefined, p: Paired<Item>, chapterId: string) {
-  if (!origin || p.after === null || (origin.chapterId === chapterId && !p.moved)) return undefined;
+function moveOf(origin: Location | undefined, p: Paired<Location>, chapter: Paired<Chapter>) {
+  if (!origin || p.after === null || (origin.chapterKey === chapter.key && !p.moved))
+    return undefined;
   return {
     fromChapterId: origin.chapterId,
     fromIndex: origin.index,
-    toChapterId: chapterId,
+    toChapterId: chapter.id,
     toIndex: p.afterIndex,
   };
 }
@@ -651,32 +752,62 @@ function chapterRows(
   now: Course,
   baseKeys: AnswerKeys,
   workKeys: AnswerKeys,
-): ChangeRow[] {
-  const from = locate(was);
-  const to = locate(now);
-  const rows: ChangeRow[] = [];
+): RowBody[] {
+  const fromList = locate(was);
+  const toList = locate(now);
+  const from = new Map(fromList.map((at) => [at.key, at]));
+  const to = new Map(toList.map((at) => [at.key, at]));
+  const rows: RowBody[] = [];
   for (const chapter of alignById(was?.chapters ?? [], now.chapters)) {
     rows.push(chapterRow(chapter));
-    const stays = (chapter.before?.items ?? []).filter(
-      (item) => (to.get(itemKey(item))?.chapterId ?? chapter.key) === chapter.key,
+    const stays = fromList.filter(
+      (at) =>
+        at.chapterKey === chapter.key &&
+        (to.get(at.key)?.chapterKey ?? chapter.key) === chapter.key,
     );
-    for (const p of alignById(stays, chapter.after?.items ?? [], itemKey)) {
+    const here = toList.filter((at) => at.chapterKey === chapter.key);
+    for (const p of alignById(stays, here, (at) => at.key)) {
       const origin = from.get(p.key);
       const before = origin ? origin.item : null;
-      const cx = {
-        chapterId: chapter.key,
-        move: moveOf(origin, p, chapter.key),
-        baseKeys,
-        workKeys,
-      };
+      const after = p.after ? p.after.item : null;
+      const cx = { chapterId: chapter.id, move: moveOf(origin, p, chapter), baseKeys, workKeys };
       rows.push(
-        p.value.type === 'lesson'
-          ? lessonRow(asLesson(before), asLesson(p.after), p.value.id, cx)
-          : quizRow(asQuiz(before), asQuiz(p.after), p.value.id, cx),
+        p.value.item.type === 'lesson'
+          ? lessonRow(asLesson(before), asLesson(after), p.id, cx)
+          : quizRow(asQuiz(before), asQuiz(after), p.id, cx),
       );
     }
   }
   return rows;
+}
+
+/** Gives each row its key, `<kind>:<id>`, with `#2`, `#3`… on later rows that would repeat one. */
+function withKeys(rows: readonly RowBody[]): ChangeRow[] {
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const key = `${row.kind}:${row.id}`;
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    return { ...row, key: n === 1 ? key : `${key}#${n}` };
+  });
+}
+
+/** On both sides, with an answer that differs. */
+const answerChanged = (e: { answer?: AnswerChange; before: unknown; after: unknown }) =>
+  e.answer !== undefined && e.before !== null && e.after !== null;
+
+function answerChangesOf(rows: readonly ChangeRow[]): ChangedAnswer[] {
+  return rows.flatMap((row): ChangedAnswer[] => {
+    if (row.kind === 'quiz')
+      return row.questions
+        .filter(answerChanged)
+        .map((q) => ({ kind: 'question', itemId: row.id, id: q.id }));
+    if (row.kind === 'lesson')
+      return row.blocks
+        .filter((b) => answerChanged(b) && b.type === 'check' && asCheck(b.before as Block))
+        .map((b) => ({ kind: 'check', itemId: row.id, id: b.id }));
+    return [];
+  });
 }
 
 /**
@@ -685,21 +816,16 @@ function chapterRows(
  * Landing page, then each chapter in the working copy's order followed by its lessons and Quizzes.
  * A removed chapter or item is listed where it used to be: right after the nearest entry before it
  * in the base that is still in the same list and not moved, or first when there is none. Only rows
- * with a status are returned; changed answer keys are also listed in `answerChanges`.
+ * with a status are returned; changed correct answers are also listed in `answerChanges`.
  */
 export function courseChanges(base: CourseCopy | null, work: CourseCopy): CourseChanges {
   const was = base ? base.course : null;
-  const rows = [
-    courseRow(was, work.course),
-    landingRow(was, work.course),
-    ...chapterRows(was, work.course, base ? base.answers : {}, work.answers),
-  ].filter((row) => row.statuses.length > 0);
-  const answerChanges = rows.flatMap((row) =>
-    row.kind === 'quiz'
-      ? row.questions
-          .filter((q) => q.answer && q.before !== null && q.after !== null)
-          .map((q) => ({ quizId: row.id, questionId: q.id }))
-      : [],
+  const rows = withKeys(
+    [
+      courseRow(was, work.course),
+      landingRow(was, work.course),
+      ...chapterRows(was, work.course, base ? base.answers : {}, work.answers),
+    ].filter((row) => row.statuses.length > 0),
   );
-  return { rows, count: rows.length, answerChanges };
+  return { rows, count: rows.length, answerChanges: answerChangesOf(rows) };
 }

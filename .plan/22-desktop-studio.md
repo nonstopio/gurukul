@@ -363,11 +363,18 @@ it:
   entry between two unchanged ones is Changed with a word difference, and a reordered one shows
   as removed and added. They are never Moved.
 - A changed answer key is compared as a set (reordering the same correct options is no change)
-  and is listed on its own (`answerChanges`) as well as on its question. A new question shows its
-  key, but only questions on both sides count as a changed answer.
-- A lesson turned into a Quiz under the same id is two rows (the lesson removed, the Quiz added),
-  so the UI keys rows on kind and id. A question moved from one Quiz to another shows as removed
-  from one and added to the other.
+  and is listed on its own (`answerChanges`) as well as on its question. A check block's answer
+  is compared by the text of its correct option, so reordering its options is no change either;
+  check blocks are listed in `answerChanges` too. A new question shows its key, but only questions
+  and check blocks on both sides count as a changed answer.
+- Every row has a `key` (`lesson:l2`), unique within the result; Viewed ticks store it. A lesson
+  turned into a Quiz under the same id is two rows (`lesson:l2` removed, `quiz:l2` added). A
+  question moved from one Quiz to another shows as removed from one and added to the other.
+- Ids repeated by mistake (the schema allows them; publishing refuses them) are paired in order
+  of occurrence, so an unchanged copy never shows a change.
+- Word and line differences give up after 1,000 edits and show the text as all removed, all added:
+  rewriting a 20,000-character block then costs about 60 ms instead of over a second, and every
+  turn's change count runs this.
 
 ### How each kind of content is compared
 

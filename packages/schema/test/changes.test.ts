@@ -172,7 +172,7 @@ describe('courseChanges: nothing and everything', () => {
       'certificate.title',
     ]);
     expect(course.fields.every((f) => f.before === null)).toBe(true);
-    expect(course.fields[0]?.words).toEqual([{ op: 'added', text: 'Git' }]);
+    expect(course.fields[0]).toEqual({ field: 'title', before: null, after: 'Git' });
     const landing = row(c, 'landing', 'landing');
     expect(landing.outcomes.map((o) => [o.id, o.statuses])).toEqual([
       ['#0', ['added']],
@@ -191,7 +191,7 @@ describe('courseChanges: nothing and everything', () => {
     const c = courseChanges(null, copy(work, {}));
     expect(summary(c)).toEqual(['course:course:added', 'landing:landing:added']);
     expect(row(c, 'landing', 'landing').fields).toEqual([
-      { field: 'description', before: null, after: '', words: [] },
+      { field: 'description', before: null, after: '' },
     ]);
   });
 });
@@ -571,6 +571,8 @@ describe('courseChanges: blocks', () => {
     const c = changes(withBlocks(b1), withBlocks(check));
     const entry = block(c, 'b1');
     expect(fieldsOf(entry)).toEqual(['type', 'prompt', 'explanation', 'md']);
+    // Cleared on one side: before → after, no word difference.
+    expect(entry.fields[2]).toEqual({ field: 'explanation', before: 'B', after: null });
     expect(entry.options?.map((o) => [o.id, o.statuses])).toEqual([
       ['removed#0', ['removed']],
       ['removed#1', ['removed']],
@@ -586,8 +588,10 @@ describe('courseChanges: blocks', () => {
   });
 });
 
+type CheckBlock = Extract<Block, { type: 'check' }>;
+
 describe('courseChanges: check blocks', () => {
-  const check = (over: Partial<Extract<Block, { type: 'check' }>> = {}): Block => ({
+  const check = (over: Partial<CheckBlock> = {}): CheckBlock => ({
     type: 'check',
     id: 'x',
     prompt: 'Which?',
@@ -641,20 +645,68 @@ describe('courseChanges: check blocks', () => {
     expect(entry.answer).toBeUndefined();
   });
 
-  it('calls out a changed correct answer on its own', () => {
-    const entry = run(check(), check({ correct: 2 }));
+  it('calls out a changed correct answer on its own and lists it', () => {
+    const c = changes(
+      (w) => (lesson(w, 0).blocks = [check({ correct: 2 })]),
+      (s) => (lesson(s, 0).blocks = [check()]),
+    );
+    const entry = block(c, 'x');
     expect(entry).toMatchObject({ statuses: ['changed'], fields: [] });
     expect(entry.answer).toEqual({ before: ['#0'], after: ['#2'] });
+    expect(c.answerChanges).toEqual([{ kind: 'check', itemId: 'l1', id: 'x' }]);
+  });
+
+  it.each<[string, Block[], Block[]]>([
+    ['added', [], [check()]],
+    ['removed', [check()], []],
+    ['turned into a check', [{ type: 'markdown', id: 'x', md: 'A' }], [check()]],
+    ['turned into text', [check()], [{ type: 'markdown', id: 'x', md: 'A' }]],
+  ])('does not list the answer of a check block %s', (_name, before, after) => {
+    const c = changes(
+      (w) => (lesson(w, 0).blocks = after),
+      (s) => (lesson(s, 0).blocks = before),
+    );
+    expect(block(c, 'x').answer).toBeDefined();
+    expect(c.answerChanges).toEqual([]);
   });
 
   it('calls out a correct answer set for the first time', () => {
-    const unset = check() as Extract<Block, { type: 'check' }>;
+    const unset = check();
     delete unset.correct;
     expect(run(unset, check()).answer).toEqual({ before: [], after: ['#0'] });
   });
 
-  it('follows the right option through a rewording and a reorder', () => {
-    expect(run(check(), check({ options: ['Ay', 'B', 'C'] })).answer).toBeUndefined();
+  it.each<[string, Partial<CheckBlock>, Partial<CheckBlock>]>([
+    ['moved down', { correct: 0 }, { options: ['B', 'A', 'C'], correct: 1 }],
+    ['moved to the top', { correct: 2 }, { options: ['C', 'A', 'B'], correct: 0 }],
+    ['moved, another option reworded', { correct: 0 }, { options: ['Bee', 'A', 'C'], correct: 1 }],
+  ])('does not call a right option %s an answer change', (_name, before, after) => {
+    expect(run(check(before), check(after)).answer).toBeUndefined();
+  });
+
+  it('finds nothing when only the mark moves between equal texts, or both marks are stale', () => {
+    const same = (before: Partial<CheckBlock>, after: Partial<CheckBlock>) =>
+      changes(
+        (w) => (lesson(w, 0).blocks = [check(after)]),
+        (s) => (lesson(s, 0).blocks = [check(before)]),
+      ).count;
+    expect(same({ options: ['A', 'A'], correct: 0 }, { options: ['A', 'A'], correct: 1 })).toBe(0);
+    expect(same({ correct: 5 }, { correct: 4 })).toBe(0);
+  });
+
+  it('calls a reworded right option an answer change', () => {
+    const entry = run(check(), check({ options: ['Ay', 'B', 'C'] }));
+    expect(entry.answer).toEqual({ before: ['#0'], after: ['#0'] });
+    expect(entry.options?.[0]).toMatchObject({ before: 'A', after: 'Ay', statuses: ['changed'] });
+  });
+
+  it('calls a cleared right answer an answer change', () => {
+    const unset = check() as CheckBlock;
+    delete unset.correct;
+    expect(run(check(), unset).answer).toEqual({ before: ['#0'], after: [] });
+  });
+
+  it('keeps the option list aligned when the right option moves', () => {
     const reordered = run(check({ correct: 1 }), check({ options: ['B', 'A', 'C'], correct: 0 }));
     expect(reordered.answer).toBeUndefined();
     expect(reordered.options?.map((o) => [o.id, o.statuses])).toEqual([
@@ -731,17 +783,27 @@ describe('courseChanges: Quiz questions and answer keys', () => {
   });
 
   it('gives question code a line difference and the prompt a word difference', () => {
-    const c = changes((w) => {
-      question(w).code = 'git log\n';
-      question(w).prompt = 'Which one?';
-    });
+    const c = changes(
+      (w) => {
+        question(w).code = 'git log\n';
+        question(w).prompt = 'Which one?';
+      },
+      (s) => (question(s).code = 'git status\n'),
+    );
     const [prompt, code] = row(c, 'quiz', 'q1').questions[0]?.fields ?? [];
     expect(prompt?.words).toEqual([
       { op: 'same', text: 'Which' },
       { op: 'added', text: ' one' },
       { op: 'same', text: '?' },
     ]);
-    expect(code?.lines).toEqual([{ op: 'added', text: 'git log\n' }]);
+    expect(code?.lines).toEqual([
+      { op: 'removed', text: 'git status\n' },
+      { op: 'added', text: 'git log\n' },
+    ]);
+    const added = changes((w) => (question(w).code = 'git log\n'));
+    expect(row(added, 'quiz', 'q1').questions[0]?.fields).toEqual([
+      { field: 'code', before: null, after: 'git log\n' },
+    ]);
   });
 
   it('marks swapped questions: one moved, not both', () => {
@@ -820,7 +882,7 @@ describe('courseChanges: Quiz questions and answer keys', () => {
       fields: [],
       answer: { before: ['a'], after: ['b'] },
     });
-    expect(c.answerChanges).toEqual([{ quizId: 'q1', questionId: 'k1' }]);
+    expect(c.answerChanges).toEqual([{ kind: 'question', itemId: 'q1', id: 'k1' }]);
   });
 
   it('treats a missing key as no answer', () => {
@@ -829,7 +891,7 @@ describe('courseChanges: Quiz questions and answer keys', () => {
       (_c, keys) => delete keys.q1,
     );
     expect(row(c, 'quiz', 'q1').questions[0]?.answer).toEqual({ before: [], after: ['a'] });
-    expect(c.answerChanges).toEqual([{ quizId: 'q1', questionId: 'k1' }]);
+    expect(c.answerChanges).toEqual([{ kind: 'question', itemId: 'q1', id: 'k1' }]);
     const gone = changes((_w, keys) => (keys.q1 = {}));
     expect(row(gone, 'quiz', 'q1').questions[0]?.answer).toEqual({ before: ['a'], after: [] });
   });
@@ -849,7 +911,7 @@ describe('courseChanges: Quiz questions and answer keys', () => {
       keys.q1 = { k1: ['b'] };
     });
     expect(summary(c)).toEqual(['quiz:q1:changed+moved']);
-    expect(c.answerChanges).toEqual([{ quizId: 'q1', questionId: 'k1' }]);
+    expect(c.answerChanges).toEqual([{ kind: 'question', itemId: 'q1', id: 'k1' }]);
   });
 
   it('does not list the keys of a removed Quiz as answer changes', () => {
@@ -1058,6 +1120,126 @@ describe('courseChanges: display order', () => {
       'course:course:changed',
       'landing:landing:changed',
       'chapter:p1:renamed',
+    ]);
+  });
+});
+
+describe('courseChanges: repeated ids (allowed by the schema, refused only on publish)', () => {
+  const twin = (id: string, title = id) => newLesson(id, { title });
+  const blocksX: Block[] = [
+    { type: 'markdown', id: 'x', md: 'one' },
+    { type: 'markdown', id: 'x', md: 'two' },
+  ];
+
+  it.each<[string, (c: Course) => void]>([
+    [
+      'two lessons in different chapters',
+      (c) => c.chapters.push({ id: 'p2', title: 'More', items: [twin('l2', 'Other')] }),
+    ],
+    ['two lessons in one chapter', (c) => chapterAt(c, 0).items.push(twin('l2', 'Again'))],
+    ['two blocks in one lesson', (c) => (lesson(c, 0).blocks = blocksX)],
+    ['two questions in one Quiz', (c) => quiz(c).questions.push({ ...k2, id: 'k1' })],
+    ['two options in one question', (c) => question(c).options.push({ id: 'a', text: 'A again' })],
+    ['two chapters', (c) => c.chapters.push({ id: 'p1', title: 'Basics, again', items: [] })],
+  ])('finds nothing between identical copies with %s', (_name, setup) => {
+    expect(changes(() => undefined, setup)).toEqual({ rows: [], count: 0, answerChanges: [] });
+  });
+
+  it('pairs repeats in order, so an edit lands on the right one', () => {
+    const c = changes(
+      (w) => {
+        const second = chapterAt(w, 1).items[0] as Lesson;
+        second.title = 'Other, edited';
+      },
+      (s) => s.chapters.push({ id: 'p2', title: 'More', items: [twin('l2', 'Other')] }),
+    );
+    expect(summary(c)).toEqual(['lesson:l2:changed']);
+    expect(row(c, 'lesson', 'l2')).toMatchObject({ key: 'lesson:l2', chapterId: 'p2' });
+  });
+
+  it('gives the later of two rows with the same kind and id a numbered key', () => {
+    const c = changes(
+      (w) => {
+        lesson(w, 2).title = 'Commit, edited';
+        (chapterAt(w, 1).items[0] as Lesson).title = 'Other, edited';
+      },
+      (s) => s.chapters.push({ id: 'p2', title: 'More', items: [twin('l2', 'Other')] }),
+    );
+    expect(c.rows.map((r) => [r.key, 'chapterId' in r ? r.chapterId : null])).toEqual([
+      ['lesson:l2', 'p1'],
+      ['lesson:l2#2', 'p2'],
+    ]);
+  });
+
+  it('matches a repeated block by order of occurrence', () => {
+    const c = changes(
+      (w) =>
+        (lesson(w, 0).blocks = [blocksX[0] as Block, { type: 'markdown', id: 'x', md: 'too' }]),
+      (s) => (lesson(s, 0).blocks = blocksX),
+    );
+    expect(row(c, 'lesson', 'l1').blocks.map((b) => [b.id, b.statuses])).toEqual([
+      ['x', []],
+      ['x', ['changed']],
+    ]);
+  });
+});
+
+describe('courseChanges: row keys', () => {
+  it('keys every row by kind and id, so equal ids of different kinds stay apart', () => {
+    const c = changes((w) => {
+      w.title = 'Git, simply';
+      w.outcomes = ['Commit'];
+      w.chapters.push({ id: 'course', title: 'Course', items: [] });
+      chapterAt(w, 0).items[2] = { ...quiz(w), id: 'l2' };
+    });
+    expect(c.rows.map((r) => r.key)).toEqual([
+      'course:course',
+      'landing:landing',
+      'lesson:l2',
+      'quiz:l2',
+      'chapter:course',
+    ]);
+    expect(new Set(c.rows.map((r) => r.key)).size).toBe(c.count);
+  });
+});
+
+describe('courseChanges: answer keys as sets', () => {
+  it('ignores a repeated id in a key', () => {
+    const c = changes(
+      (_w, keys) => (keys.q1 = { k1: ['a', 'a', 'b'] }),
+      (_c, keys) => (keys.q1 = { k1: ['a', 'b'] }),
+    );
+    expect(c.count).toBe(0);
+  });
+});
+
+describe('wordDiff and lineDiff: texts too different to compare', () => {
+  const unrelated = (prefix: string, sep: string) =>
+    Array.from({ length: 1500 }, (_, i) => `${prefix}${i}`).join(sep);
+
+  it.each([
+    ['words', wordDiff, ' '],
+    ['lines', lineDiff, '\n'],
+  ] as const)(
+    'gives up on %s past the edit bound: all removed, then all added',
+    (_n, diff, sep) => {
+      const a = unrelated('a', sep);
+      const b = unrelated('b', sep);
+      expect(diff(a, b)).toEqual([
+        { op: 'removed', text: a },
+        { op: 'added', text: b },
+      ]);
+      expect(diff('', b)).toEqual([{ op: 'added', text: b }]);
+      expect(diff(a, '')).toEqual([{ op: 'removed', text: a }]);
+    },
+  );
+
+  it('still compares similar long texts word by word', () => {
+    const a = unrelated('a', ' ');
+    const parts = wordDiff(a, `${a} end`);
+    expect(parts).toEqual([
+      { op: 'same', text: a },
+      { op: 'added', text: ' end' },
     ]);
   });
 });
