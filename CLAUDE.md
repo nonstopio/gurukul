@@ -119,8 +119,8 @@ one; if a hook cannot run, say so. Check they are on with `git config core.hooks
 - Open source: no secrets, no real learner data, MIT-compatible dependencies.
   See `.claude/rules/open-source.md`.
 - Conventional Commits with a required area scope, no ticket ids: `type(scope): description`,
-  scope one of `web` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps`
-  `repo`. No trailers. `.husky/commit-msg` (commitlint) and CI's PR-title check enforce it.
+  scope one of `web` `desktop` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude`
+  `deps` `repo`. No trailers. `.husky/commit-msg` (commitlint) and CI's PR-title check enforce it.
   Skill: `writing-commit-messages`.
 - Production deploys only from `main`, through `.github/workflows/deploy.yml`, and only after CI
   has passed on that commit. Never run `firebase deploy` against `nonstop-gurukul` from a laptop.
