@@ -45,7 +45,7 @@ export const setCourseDetails = defineTool({
 export const setLanding = defineTool({
   name: 'set_landing',
   description:
-    'Changes the landing page: the description (markdown) and the learning outcomes. Outcomes are replaced as a whole list, in order; give the full list.',
+    'Changes the landing page: the description (markdown) and the learning outcomes. Outcomes are replaced as a whole list, in order; give the full list. Pictures are media: leave them to the Educator (add_todo).',
   input: z.strictObject({
     description: z.string().max(10_000).optional(),
     outcomes: z

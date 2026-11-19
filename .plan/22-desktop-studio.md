@@ -484,7 +484,11 @@ Rules every tool follows:
   the agent and the editors cannot disagree about what a valid edit is.
 - **The agent never invents a media address.** For a picture, video or file it calls `add_todo`
   ("Screenshot of the rebase conflict screen, after block 3"). To-dos show in Review as
-  "Left for you" and the Educator adds the media by hand.
+  "Left for you" and the Educator adds the media by hand. Markdown text is held to the same rule:
+  a change that adds a picture (`![…](…)`, a reference picture, or raw media HTML) to a text or
+  callout block, the course description, a check or a Quiz question is refused, read with the
+  parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
+  so the agent can still edit the words around it.
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 

@@ -8,6 +8,7 @@ import {
 } from '@gurukul/schema';
 
 import { z } from 'zod';
+import { pictureProblem } from './pictures';
 import type { SessionState } from './types';
 
 /** A zod issue, read loosely: only what the sentences below need. */
@@ -133,8 +134,8 @@ const fixedOf = (w: Working) => JSON.stringify(FIXED.map((k) => w.course[k]));
 
 /**
  * Why the edited working copy cannot replace the one before, or null when it can. It must keep the
- * course's id, Educators and publishing fields, pass the course schema and stay within the size
- * limit. A draft that was already invalid or too big does not block the agent: only problems the
+ * course's id, Educators and publishing fields, pass the course schema, add no picture to
+ * Markdown text and stay within the size limit. A draft that was already invalid or too big does not block the agent: only problems the
  * edit adds, and growth past the limit, are refused.
  */
 export function workProblem(before: Working, after: Working): string | null {
@@ -148,6 +149,8 @@ export function workProblem(before: Working, after: Working): string | null {
     const added = parsed.error.issues.filter((i) => !known.has(issueKey(after, i)));
     if (added.length > 0) return `Nothing was changed. ${describeIssues(after, added)}`;
   }
+  const picture = pictureProblem(before, after);
+  if (picture) return picture;
   const bytes = courseBytes(after.course, after.answers);
   if (bytes > COURSE_BYTES_LIMIT && bytes > courseBytes(before.course, before.answers))
     return `Nothing was changed: the course would be ${formatBytes(bytes)}, over the limit of ${formatBytes(COURSE_BYTES_LIMIT)}. Make lessons shorter or remove content first.`;
