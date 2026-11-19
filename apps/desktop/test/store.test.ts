@@ -103,7 +103,19 @@ describe('session store', () => {
     expect(await store.list({ uid: 'u1' })).toEqual([]);
   });
 
-  it.each(['prompt.md', 'mcp.json', 'skills/humanize/SKILL.md', 'skills', 'workdir/CLAUDE.md'])(
+  it.each([
+    'prompt.md',
+    'mcp.json',
+    'skills/humanize/SKILL.md',
+    'skills',
+    'workdir/CLAUDE.md',
+    // macOS and Windows ignore case: these are the same files there.
+    'MCP.json',
+    'Mcp.Json',
+    'Prompt.md',
+    'Skills/hooks/hooks.json',
+    'WorkDir/x.txt',
+  ])(
     'leaves %s to the agent bridge: the window may read it but not write or remove it',
     async (name) => {
       await expect(store.write(file(name), 'x')).rejects.toThrow('Reserved session file name');

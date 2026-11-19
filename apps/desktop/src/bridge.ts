@@ -60,7 +60,7 @@ export interface SessionRef {
 export interface SessionFileRef extends SessionRef {
   /**
    * Relative, `/`-separated, at most `MAX_PATH_SEGMENTS` deep: `session.json`, `checkpoints/t4.json`.
-   * `store.write` and `store.remove` refuse a path under one of `AGENT_SESSION_NAMES`.
+   * `store.write` and `store.remove` refuse a path under one of `AGENT_SESSION_NAMES`, in any case.
    */
   path: string;
 }

@@ -259,7 +259,8 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
 - **The session folder's agent files are the shell's.** `prompt.md`, `skills/`, `mcp.json` and the
   empty working folder `workdir/` (used until `DSK-20` gives a Sources folder, or when the chosen
   one has gone) are `AGENT_SESSION_NAMES` in `bridge.ts`: `store.write` and `store.remove` refuse
-  them, because a plugin folder can carry hooks and `mcp.json` can name a program to run.
+  them in any case (`MCP.json` is `mcp.json` on macOS and Windows), because a plugin folder can
+  carry hooks and `mcp.json` can name a program to run.
 - **Events.** Without `--include-partial-messages` (not pinned) text arrives a whole assistant
   text block at a time, each a `text` event. Thinking and the `Skill` tool become `activity`
   ("Thinking", "Loading the humanize skill"); a course tool's `tool_call` event comes from the
@@ -273,7 +274,9 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
   model gets a sentence saying so. Only the tools `agent.start` listed are offered or run. The SDK's
   stateless transport answers with its default (SSE), as in the spike.
 - **Closing** closes `claude`'s input, SIGTERM after 5 seconds, SIGKILL 5 seconds later. Quitting
-  the app closes every session at once.
+  the app ends every `claude`, a starting one too, by closing its input and sending SIGTERM in the
+  same moment: no timer outlives the app, and a `claude` with only its input closed would finish
+  its turn after the app had gone.
 - **`agent.forget(id)`** deletes `projects/*/{id}.jsonl` and a `{id}` folder beside it under
   `CLAUDE_CONFIG_DIR` (else `~/.claude`), reading no other file there.
 - **Windows** is started through `cross-spawn` (MIT), which runs `claude.cmd` via `cmd.exe` with

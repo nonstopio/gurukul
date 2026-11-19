@@ -46,10 +46,14 @@ export function sessionFolder(root: string, uid: string, sessionId: string): str
   return folderOf(root, uid, sessionId);
 }
 
-/** A path the window may write or remove: not under one of the shell's `AGENT_SESSION_NAMES`. */
+/**
+ * A path the window may write or remove: not under one of the shell's `AGENT_SESSION_NAMES`, in any
+ * case. macOS and Windows file systems ignore case by default, so `MCP.json` there is `mcp.json`.
+ */
 function writableFileOf(root: string, file: SessionFileRef): string {
   const target = fileOf(root, file);
-  const first = file.path.split('/')[0] as string;
+  // Safe names are ASCII only (`isSafeSegment`), so lower-casing is the whole case folding.
+  const first = (file.path.split('/')[0] as string).toLowerCase();
   if ((AGENT_SESSION_NAMES as readonly string[]).includes(first)) {
     throw new SessionFileError('Reserved session file name');
   }

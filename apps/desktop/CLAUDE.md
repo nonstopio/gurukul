@@ -59,8 +59,8 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   Errors reach the window as `store.write failed (EACCES)`; Node's messages carry home-folder paths.
 - **The agent's session files are the shell's.** `prompt.md`, `skills/`, `mcp.json` and `workdir/`
   (`AGENT_SESSION_NAMES`) are written by `agent/files.ts` at every start; `store.write` and
-  `store.remove` refuse them, because a plugin folder can carry hooks and `mcp.json` can name a
-  program.
+  `store.remove` refuse them in any case (macOS and Windows ignore it: `MCP.json` is `mcp.json`),
+  because a plugin folder can carry hooks and `mcp.json` can name a program.
 - **`claude` starts with the pinned flags and `childEnv`'s allow-list only** (`agent/launch.ts`,
   tested as constants). Changing either changes `.plan/22-desktop-studio.md` (Starting Claude Code)
   in the same commit. The endpoint's token is only in `claude`'s environment and in memory; never
