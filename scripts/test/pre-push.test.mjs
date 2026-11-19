@@ -92,6 +92,12 @@ describe('pre-push.sh', () => {
     ]);
   });
 
+  it('runs only the desktop coverage for a desktop shell change', () => {
+    const { res, calls } = push({ 'apps/desktop/src/window.ts': 'x' });
+    assert.equal(res.status, 0, res.stderr);
+    assert.deepEqual(calls.slice(2), ['run -s coverage -w @gurukul/desktop']);
+  });
+
   it('runs the rules tests and the end-to-end specs for a rules change', () => {
     const { res, calls } = push({ 'firebase/firestore.rules': 'x' });
     assert.equal(res.status, 0, res.stderr);
