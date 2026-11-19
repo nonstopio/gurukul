@@ -12,7 +12,7 @@ export default {
     'prompt interrupting the work.',
   detail: [
     'The app looks for a new version when it starts and every six hours, and downloads it quietly.',
-    'When one is ready, the sidebar shows Update ready: choose it to restart into the new version, or it installs the next time you quit. Check for updates… in the app menu asks straight away.',
+    'When one is ready, the sidebar shows Update ready: choose it to restart into the new version, or it installs the next time you quit. With unsaved work on the page it asks you to save first instead of restarting. Check for updates… in the app menu asks straight away.',
     'If this site ever needs a newer app than the one installed, the sidebar says Update the app.',
     'Nothing changes in the browser.',
   ],

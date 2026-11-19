@@ -51,6 +51,18 @@ export function watchUpdates(desktop: GurukulDesktop): UpdateWatch {
   return watch;
 }
 
+/**
+ * Whether leaving this page now would lose work: Studio's unsaved draft and the console's unsaved
+ * forms ask to stay with `beforeunload`. The page asks its own listeners the same question, with a
+ * cancelable event that leaves nothing. Asked before a restart into an update, which the shell
+ * then does without asking the page again (`.plan/22-desktop-studio.md`, Updates).
+ */
+export function unsavedWork(): boolean {
+  const event = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
 /** What a toast says after "Update the app" asked the shell for a new version. */
 export function checkMessage(result: UpdateCheck): { tone: 'info' | 'warning'; text: string } {
   switch (result.state) {

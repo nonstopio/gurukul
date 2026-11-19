@@ -125,6 +125,29 @@ describe('DesktopUpdateItem', () => {
     expect(await screen.findByRole('button', { name: 'Update ready' })).toBeTruthy();
   });
 
+  it('asks for the work to be saved first when the page holds unsaved work', async () => {
+    const { desktop } = fakeDesktop({
+      check: async () => ({ state: 'ready', version: '0.2.0' }),
+    });
+    // What Studio's draft and the console's unsaved forms do on the way out.
+    const stay = (e: Event) => e.preventDefault();
+    window.addEventListener('beforeunload', stay);
+    try {
+      show(desktop);
+      fireEvent.click(await screen.findByRole('button', { name: 'Update ready' }));
+      expect(await screen.findByText('Save your work first')).toBeTruthy();
+      expect(desktop.app.installUpdate).not.toHaveBeenCalled();
+      // The update still waits: once the work is saved, the same item installs it.
+      window.removeEventListener('beforeunload', stay);
+      const button = screen.getByRole('button', { name: 'Update ready' });
+      await waitFor(() => expect(button.hasAttribute('aria-busy')).toBe(false));
+      fireEvent.click(button);
+      await waitFor(() => expect(desktop.app.installUpdate).toHaveBeenCalledTimes(1));
+    } finally {
+      window.removeEventListener('beforeunload', stay);
+    }
+  });
+
   it('says so when the install call fails', async () => {
     const { desktop } = fakeDesktop({
       check: async () => ({ state: 'ready', version: '0.2.0' }),
@@ -183,6 +206,48 @@ describe('DesktopUpdateItem in an app older than this site', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Update the app' }));
     await waitFor(() => expect(desktop.app.installUpdate).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('The update was not installed')).toBeTruthy();
+  });
+
+  it('turns into Update ready once the update it asked for has downloaded', async () => {
+    const { desktop, downloaded } = fakeDesktop({
+      info: old,
+      check: async () => ({ state: 'downloading', version: '0.2.0' }),
+    });
+    show(desktop);
+    fireEvent.click(await screen.findByRole('button', { name: 'Update the app' }));
+    expect(await screen.findByText(/Update ready appears here/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Update the app' })).toBeTruthy();
+    downloaded('0.2.0');
+    const ready = await screen.findByRole('button', {
+      name: 'Update ready',
+      description: 'Restart to install 0.2.0',
+    });
+    expect(screen.queryByRole('button', { name: 'Update the app' })).toBeNull();
+    fireEvent.click(ready);
+    await waitFor(() => expect(desktop.app.installUpdate).toHaveBeenCalledTimes(1));
+    // The install did not happen: back to Update the app, to ask again.
+    expect(await screen.findByRole('button', { name: 'Update the app' })).toBeTruthy();
+  });
+
+  it('asks for unsaved work to be saved instead of restarting, and keeps the update', async () => {
+    const { desktop } = fakeDesktop({
+      info: old,
+      check: async () => ({ state: 'ready', version: '0.2.0' }),
+    });
+    const stay = (e: Event) => e.preventDefault();
+    window.addEventListener('beforeunload', stay);
+    try {
+      show(desktop);
+      fireEvent.click(await screen.findByRole('button', { name: 'Update the app' }));
+      expect(await screen.findByText('Save your work first')).toBeTruthy();
+      expect(screen.queryByText('Gurukul Studio is restarting to update.')).toBeNull();
+      expect(desktop.app.installUpdate).not.toHaveBeenCalled();
+      expect(
+        await screen.findByRole('button', { description: 'Restart to install 0.2.0' }),
+      ).toBeTruthy();
+    } finally {
+      window.removeEventListener('beforeunload', stay);
+    }
   });
 
   it('says so when the shell cannot check', async () => {
