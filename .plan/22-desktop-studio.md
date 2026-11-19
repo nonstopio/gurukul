@@ -145,6 +145,31 @@ The web app reads the bridge only through `apps/web/src/desktop/bridge.ts`. In a
 facade reports "not the desktop app" and every session page shows a card that says so, with the
 download link.
 
+As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
+
+- **Types live in the shell, importable without Electron.** `apps/desktop/src/bridge.ts` holds the
+  call names, argument and result types and the safe-name rule, and imports nothing; the web app
+  imports it as `@gurukul/desktop/bridge`. Not in `packages/schema`: these are not Firestore
+  shapes, and the schema package is in every learner's chunk.
+- **Every call returns a promise**, `info()` included: each one crosses to the main process.
+- **One gate for every call.** The main process registers a typed handler per call; before any
+  runs it checks that the sender is a top frame (no parent) on an allowed origin and that the
+  arguments pass the handler's zod schema. The preload also exposes the object only to the top
+  frame of an allowed origin, which reaches the sandboxed preload as a command-line flag.
+- **`store.*` takes `{ uid, sessionId, path }`.** `path` is relative and `/`-separated, at most four
+  names deep (`checkpoints/t4.json`). Every name is letters, digits, `.`, `_` or `-`, does not start
+  or end with a dot and is not a Windows device name, so no path can leave the session folder.
+  Writes go to a temporary file and are renamed into place; a file is at most 16 MB. `list({ uid })`
+  gives the person's session ids, `list({ uid, sessionId })` the session's files;
+  `remove` without `path` removes the whole session.
+- **Errors say little.** A refused call reaches the window as "Not allowed" or "Invalid
+  arguments"; a disk failure as `store.write failed (EACCES)`. Node's own messages are not passed
+  on or logged, because they hold home-folder paths.
+- **Permissions:** full screen (a lesson's video) and clipboard writes from Gurukul; everything
+  else (camera, microphone, location, notifications) is refused.
+- **The window** opens `/studio`, tries the page again every two seconds when it cannot load
+  (no network, dev server not started), and is single-instance: starting the app again focuses it.
+
 ### Starting Claude Code
 
 One long-lived process per open session:
