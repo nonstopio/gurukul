@@ -19,14 +19,18 @@ export interface SessionState {
 
 /**
  * One finding of the writing lint (`DSK-07`, `packages/schema/src/writingLint.ts`), as the tools
- * need it. The integrator adapts the lint's own finding to this shape if the two differ.
+ * need it. The lint's own `WritingFinding` fits this shape as it is (`context.ts`).
  */
 export interface WritingFinding {
+  /** Set for a chapter title finding. */
+  chapterId?: string | undefined;
   itemId?: string | undefined;
   blockId?: string | undefined;
   questionId?: string | undefined;
   /** The field the text is in: `md`, `prompt`, `description`… */
   field: string;
+  /** Which outcome or option, for a finding on one entry of a list. */
+  index?: number | undefined;
   /** The rule's stable name, e.g. `worn-phrase`. */
   rule: string;
   /** The words that tripped the rule. */

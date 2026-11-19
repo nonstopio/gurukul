@@ -19,6 +19,7 @@ import type { SessionState, Tool, ToolContext, ToolResult } from './types';
  * any other course. Loaded only by the desktop session chunk, never by an eager route.
  */
 
+export { defaultToolContext, lintWorkingCopy } from './context';
 export type {
   SessionSources,
   SessionState,

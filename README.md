@@ -30,6 +30,7 @@ npm workspaces. 100% test coverage in every workspace, enforced in CI.
 
 ```
 apps/web/            the app
+apps/desktop/        Gurukul Studio desktop shell (Electron)
 packages/ui/         design system (tokens + components)
 firebase/            rules, indexes, rules tests, Cloud Functions
 .plan/               product and engineering plan

@@ -30,8 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| Desktop Studio | 2 | 20 | 0 | 4 |
-| **Total** | 192 | 21 | 0 | 18 |
+| Desktop Studio | 6 | 16 | 0 | 4 |
+| **Total** | 196 | 17 | 0 | 18 |
 
 ## Pick order
 
@@ -41,28 +41,24 @@ Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the mai
 1. `OPS-37` — course lists read a page at a time, before the catalogue passes a few hundred courses
 
 Desktop Studio (`22-desktop-studio.md`) goes foundations, shell, sessions, review and save, then
-shipping. The pure pieces (`DSK-05` to `DSK-07`) need nothing and can start at once.
+shipping.
 
-2. `DSK-06` — three-way merge
-3. `DSK-07` — writing lint
-4. `DSK-08` — the shell, its bridge and the `desktop` commit scope
-5. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
-6. `DSK-09` — Google sign-in through the system browser
-7. `DSK-10` — agent bridge
-8. `DSK-11` — sessions in the web app: facade, store, start
-9. `DSK-12` — course tools
-10. `DSK-13` — session workspace: chat and live preview
-11. `DSK-17` — system prompt and skills
-12. `DSK-14` — Review
-13. `DSK-15` — Save to draft
-14. `DSK-16` — new course
-15. `DSK-18` — second opinion on answers
-16. `DSK-19` — hand edits inside a session
-17. `DSK-20` — click a block, Sources folder
-18. `DSK-24` — end-to-end with a fake Claude Code
-19. `DSK-25` — download card in Studio
-20. `DSK-22` — Windows signing
-21. `DSK-23` — guides, privacy note, analytics events
+2. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
+3. `DSK-09` — Google sign-in through the system browser
+4. `DSK-10` — agent bridge
+5. `DSK-11` — sessions in the web app: facade, store, start
+6. `DSK-13` — session workspace: chat and live preview
+7. `DSK-17` — system prompt and skills
+8. `DSK-14` — Review
+9. `DSK-15` — Save to draft
+10. `DSK-16` — new course
+11. `DSK-18` — second opinion on answers
+12. `DSK-19` — hand edits inside a session
+13. `DSK-20` — click a block, Sources folder
+14. `DSK-24` — end-to-end with a fake Claude Code
+15. `DSK-25` — download card in Studio
+16. `DSK-22` — Windows signing
+17. `DSK-23` — guides, privacy note, analytics events
 
 
 
@@ -379,13 +375,13 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | done | — | Linux slice, signed out, no usage spent: `22-desktop-studio.md` (Starting Claude Code, Spike findings) pins the launch flags (`--setting-sources ""`, `--strict-mcp-config`, `--tools Skill`, `--system-prompt-snapshot off`, `--session-id` then `--resume`), the allow-listed environment, the not-signed-in signals, Stop as the `interrupt` control request, and the agent's tools as an HTTP MCP endpoint in the main process with the stdio proxy as fallback. The signed-in macOS and Windows half is `DSK-26` |
 | `DSK-26` | Signed-in check of the pinned launch on macOS and Windows | maintainer | `DSK-04` | Needs signed-in Macs and Windows PCs, so the maintainer runs it (a throwaway script from `DSK-04` is enough). Done when, with the flags and allow-listed environment in `22-desktop-studio.md` (Starting Claude Code), a Claude plan sign-in still works under `--setting-sources ""` and `auth status` and `initialize` report it; a real round trip (one message, one `gurukul` tool call over the HTTP endpoint, a skill, Stop, resume) works; a real plan limit is recorded as it arrives in the stream; `claude.exe` and `claude.cmd` both start on Windows, with paths that have spaces; the packaged, hardened macOS app with its fuses set serves the endpoint without a firewall prompt; and where the transcript lands on each. If the HTTP endpoint fails, the stdio proxy is checked instead (named pipes, socket path length, hardened runtime with `RunAsNode`) and the trade-off recorded in Privacy and security. Findings go back into Spike findings |
 | `DSK-05` | Session shape and the change engine | done | — | `packages/schema/src/session.ts` (`authoringSessionSchema`, `workingSchema`, goals as `{ text, done }`), `packages/schema/src/changes.ts` (`courseChanges`, `wordDiff`, `lineDiff`; imported as `@gurukul/schema/changes` so `diff` stays out of the learner chunk), tests in `packages/schema/test/session.test.ts` and `changes.test.ts`; `answerKeysSchema` shared from `draft.ts`. `diffCourses` unchanged |
-| `DSK-06` | Three-way merge of working copies | todo | `DSK-05` | Done when `packages/schema/src/merge.ts` `mergeWorking(base, mine, theirs)` takes one-sided changes, reports items changed on both sides as conflicts, keeps the session's order, and moves answer keys with their question |
-| `DSK-07` | Writing lint | todo | — | Done when `packages/schema/src/writingLint.ts` returns findings (item, field, rule, excerpt) for the rules in `22-desktop-studio.md` (Writing quality), pure and without AI |
-| `DSK-08` | Desktop shell: window, origin lock, bridge v1, session files, CI | todo | `DSK-04` | Done when `apps/desktop` (`@gurukul/desktop`) loads the web app with context isolation and sandbox on, exposes `window.gurukulDesktop` (`info`, `store.*`) to the allowed origin only, opens other links in the system browser, is in `npm run check` at 100% coverage, and `desktop` is a commit scope in `commitlint.config.mjs`, the PR-title check and the commit-message skill. CLAUDE.md map gains the workspace |
+| `DSK-06` | Three-way merge of working copies | done | `DSK-05` | `packages/schema/src/merge.ts` (`mergeWorking`, `resolveConflicts`), imported as `@gurukul/schema/merge`; field-by-field for course and landing fields, whole items by id, the session's order kept with an `orderKept` note, answer keys with the Quiz kept, a lesson and a Quiz under one id settled as one conflict. Tests in `packages/schema/test/merge.test.ts` |
+| `DSK-07` | Writing lint | done | — | `packages/schema/src/writingLint.ts` (`lintText`, `lintCourse`, `WORN_PHRASES`), imported as `@gurukul/schema/writingLint`; pure, no AI. Tests in `packages/schema/test/writingLint.test.ts`. The course tools' `lint_writing` runs it through `defaultToolContext` (`apps/web/src/studio/session/tools/context.ts`) |
+| `DSK-08` | Desktop shell: window, origin lock, bridge v1, session files, CI | done | `DSK-04` | `apps/desktop` (`@gurukul/desktop`, see its `CLAUDE.md`): context isolation and sandbox on, Node off; `window.gurukulDesktop` (`info`, `store.*`) only in the top frame of an allowed origin, checked again in the main process; other links open in the system browser; session files under `{userData}/sessions/`. The web app imports the bridge types from `@gurukul/desktop/bridge` (`apps/desktop/src/bridge.ts`). In `npm run check` at 100% coverage; `desktop` is a commit scope |
 | `DSK-09` | Google sign-in through the system browser | todo | `DSK-02`, `DSK-08` | Done when `auth.googleSignIn()` runs OAuth with PKCE and a loopback redirect and the web app signs in with `signInWithCredential`; the domain check stays in the rules; no secret in the repository |
 | `DSK-10` | Agent bridge: find, start, stream, stop and resume Claude Code; MCP endpoint | todo | `DSK-04`, `DSK-08`, `DSK-26` | Done when `agent.*` in the bridge starts the unmodified `claude` with the pinned flags, streams events, forwards tool calls to the window and back, and reports not installed, too old, not signed in and plan limit reached as distinct events, starts `claude` with the allow-listed environment, and removes Claude Code's own transcript of a session (`<config>/projects/*/<id>.jsonl`, not `claude purge`) with the session's 30-day clean-up. Never reads or stores a Claude credential |
 | `DSK-11` | Sessions in the web app: bridge facade, store, list and start | todo | `DSK-05`, `DSK-08` | Done when `apps/web/src/desktop/bridge.ts` is the only reader of the bridge, the session store saves after every turn and restores after a restart, the Studio course list offers New course with AI and Edit with AI in the desktop app only, one open session per course is enforced, files are removed after 30 days, and the route is classified in `navigation/areas/` |
-| `DSK-12` | Course tools the agent calls | todo | `DSK-05` | Done when every tool in `22-desktop-studio.md` (The agent's tools) runs against the working copy through Studio's edit helpers, validates with the course schema and size limit, makes ids itself, and refuses with a sentence the model can act on. No tool reaches learners, publishing, access or another course |
+| `DSK-12` | Course tools the agent calls | done | `DSK-05` | `apps/web/src/studio/session/tools/`: 33 tools (`TOOLS`, `toolList`, `runTool`) through Studio's edit helpers; every change checked against the course schema, size limit and the course's fixed fields; ids made by `newId`; no picture address the working copy did not hold; refusals in plain sentences. `defaultToolContext` wires in the writing lint. Not yet loaded by any screen (`DSK-13`). Tests in `apps/web/test/session-tools*.test.ts` |
 | `DSK-13` | Session workspace: chat, live preview, turns and undo | todo | `DSK-10`, `DSK-11`, `DSK-12` | Done when `/studio/sessions/:sessionId` shows the chat (streaming, plain-word activity, Stop), the real player drawing the working copy with changed blocks marked, the outline with badges, a checkpoint per turn and Undo of the newest turn; side by side from 1024px, chat as a drawer from 640px. No Firestore write |
 | `DSK-14` | Review: every change on one screen | todo | `DSK-07`, `DSK-13` | Done when the Review tab shows the editable summary and goals, the change tree with filters by turn, Side by side, Inline and As a learner views, the comparisons in `22-desktop-studio.md` (Review), Viewed ticks, Ask for a change, Undo this item, and the checks panel. Difference never shown by colour alone; both themes at 4.5:1 |
 | `DSK-15` | Save to draft, with the merge when the draft moved | todo | `DSK-06`, `DSK-14` | Done when Save writes `drafts/current` once through Studio's existing save (same `rev` check and `answersChanged` marking), a stale draft offers Bring in their changes with per-item conflict choices, and success links to the course editor and the publish dialog. No overwrite without the merge |
