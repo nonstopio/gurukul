@@ -180,7 +180,9 @@ npm run check:claude -w @gurukul/desktop             # asks first; --yes skips t
 
 It runs `claude --version` and `claude auth status`, starts a session in a temporary folder whose
 path has spaces, sends one message that loads a test skill and calls a `ping` tool, stops the next
-turn mid-way, resumes the chat with `--resume` and asks what `ping` returned, records any plan-limit
+turn mid-way (holding that turn's `ping` call unanswered, so Stop meets a pending `gurukul` call;
+the Stop step says whether the turn ended without the answer), resumes the chat with `--resume`
+and asks what `ping` returned, records any plan-limit
 event, then shows where Claude Code wrote its transcript and removes it as the 30-day clean-up
 would. Each step prints `PASS`, `FAIL`, `INFO` or `SKIP`; the block between `paste from here` and
 `to here` goes into the checklist note. It prints no credential, token or account name, and no chat

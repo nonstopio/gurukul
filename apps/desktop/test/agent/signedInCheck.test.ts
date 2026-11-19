@@ -76,7 +76,7 @@ async function silentHome(mode: Record<string, unknown> = {}) {
   return h;
 }
 
-const FAST: CheckTimeouts = { turnMs: 600, stopAfterMs: 150 };
+const FAST: CheckTimeouts = { turnMs: 600, stopAfterMs: 150, holdMs: 150 };
 
 async function check(
   h: Awaited<ReturnType<typeof home>>,
@@ -109,7 +109,8 @@ async function check(
   return { report, text, status, details };
 }
 
-describe('the signed-in check against a fake claude', () => {
+// Each run starts some eight node processes in turn: seconds on a loaded machine, past vitest's 5 s.
+describe('the signed-in check against a fake claude', { timeout: 20_000 }, () => {
   it('passes every step and prints a summary to paste', async () => {
     const h = await home({ ...GOOD, apiKeySource: 'none' });
     const { report, text, status, details } = await check(h, {
@@ -141,6 +142,10 @@ describe('the signed-in check against a fake claude', () => {
     expect(details(STEP_TITLES.roundTrip)).toContain(`reply: "tool: ${PING_WORD}" (has the word)`);
     expect(details(STEP_TITLES.skill)).toContain('loaded during the turn: yes');
     expect(details(STEP_TITLES.stop)).toContain('on the ping call');
+    // Stop lands while the ping call is held, not in a race with its answer.
+    expect(details(STEP_TITLES.stop)).toContain(
+      'a gurukul call was pending at Stop; the turn ended with it still unanswered',
+    );
     expect(details(STEP_TITLES.stop)).toContain('process kept for the next message: yes');
     expect(details(STEP_TITLES.resume)).toContain('started again with --resume and no tools');
     expect(details(STEP_TITLES.resume)).toContain('same Claude session id: yes');
@@ -249,6 +254,15 @@ describe('the signed-in check against a fake claude', () => {
     expect(details('Bridge warnings')).toBe('Agent not started crashed');
   });
 
+  it('fails the start when initialize reports no sign-in at all', async () => {
+    const h = await silentHome({ noAccount: true });
+    const { report, details } = await check(h, { timeouts: FAST });
+    expect(status(report, STEP_TITLES.start)).toBe('FAIL');
+    expect(details(STEP_TITLES.start)).toContain('started\ninitialize: tokenSource not reported');
+    expect(report.steps.slice(5, 11).map((s) => s.status)).toEqual(Array(6).fill('SKIP'));
+    expect(report.passed).toBe(false);
+  });
+
   it('times out a claude that never answers, and reports what it could not remove', async () => {
     const h = await silentHome({ stuckTranscript: true });
     const { report, details } = await check(h, { timeouts: FAST });
@@ -296,6 +310,22 @@ describe('the signed-in check against a fake claude', () => {
       'the app was told: { code: crashed, exitCode: 3 }',
     );
     expect(details(STEP_TITLES.stop)).toContain('not sent: the session was not running');
+  });
+
+  it('answers a held call after a while when claude waits for it before ending the turn', async () => {
+    const turns = GOOD.turns ?? [];
+    const h = await home({
+      ...GOOD,
+      turns: [turns[0] ?? [], [{ tool: 'ping', waitsForAnswer: true }, { text: 'More.' }]],
+    });
+    const { details, report } = await check(h, {
+      timeouts: { turnMs: 5_000, stopAfterMs: 3_000, holdMs: 300 },
+    });
+    expect(details(STEP_TITLES.stop)).toContain(
+      'a gurukul call was pending at Stop; the turn had not ended 0.3 s later, so it was answered then',
+    );
+    expect(details(STEP_TITLES.stop)).toContain('turn: stopped');
+    expect(status(report, STEP_TITLES.stop)).toBe('PASS');
   });
 
   it('fails Stop when the turn ended first', async () => {
@@ -598,6 +628,6 @@ describe('the check’s small pieces', () => {
   });
 
   it('waits long enough for a real turn by default', () => {
-    expect(CHECK_TIMEOUTS).toEqual({ turnMs: 180_000, stopAfterMs: 3_000 });
+    expect(CHECK_TIMEOUTS).toEqual({ turnMs: 180_000, stopAfterMs: 3_000, holdMs: 10_000 });
   });
 });

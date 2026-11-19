@@ -6,6 +6,7 @@
 //     { "version": "<what --version prints>", "auth": "<what auth status prints>",
 //       "failStart": true,        a session start exits 1 at once
 //       "failResume": true,       a --resume start exits 1 at once
+//       "noAccount": true,        `initialize` answers with no `account`, so no tokenSource
 //       "stuckTranscript": true } makes `projects/silent/<id>.jsonl` a folder, which forget cannot remove
 // It never calls Anthropic.
 
@@ -38,7 +39,7 @@ readline
   .on('line', (line) => {
     const msg = JSON.parse(line);
     if (msg.type === 'control_request' && msg.request.subtype === 'initialize') {
-      const response = { account: { tokenSource: 'claude.ai' } };
+      const response = mode.noAccount ? {} : { account: { tokenSource: 'claude.ai' } };
       const answer = { subtype: 'success', request_id: msg.request_id, response };
       process.stdout.write(`${JSON.stringify({ type: 'control_response', response: answer })}\n`);
     }

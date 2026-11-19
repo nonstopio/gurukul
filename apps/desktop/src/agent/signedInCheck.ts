@@ -87,9 +87,18 @@ export interface CheckTimeouts {
   turnMs: number;
   /** In the Stop step: when nothing has happened yet in the turn, Stop is sent after this long. */
   stopAfterMs: number;
+  /**
+   * In the Stop step: how long a held `ping` call stays unanswered after Stop while the turn has
+   * not ended. Then it is answered, as the app's window would answer it.
+   */
+  holdMs: number;
 }
 
-export const CHECK_TIMEOUTS: CheckTimeouts = { turnMs: 180_000, stopAfterMs: 3_000 };
+export const CHECK_TIMEOUTS: CheckTimeouts = {
+  turnMs: 180_000,
+  stopAfterMs: 3_000,
+  holdMs: 10_000,
+};
 
 export type StepStatus = 'PASS' | 'FAIL' | 'INFO' | 'SKIP';
 
@@ -402,7 +411,17 @@ interface TurnRecord {
   /** Milliseconds from the message to the first tool call, to the end; to Stop and its end. */
   firstToolMs: number | null;
   endMs: number;
-  stop: { atMs: number; on: string; endedAfterMs: number } | null;
+  /**
+   * `pending`: a held call was unanswered when Stop was sent; `endedHeld`: the turn ended within
+   * `holdMs` of Stop, before any held call was answered.
+   */
+  stop: {
+    atMs: number;
+    on: string;
+    endedAfterMs: number;
+    pending: boolean;
+    endedHeld: boolean;
+  } | null;
 }
 
 /** The window's half, as the check plays it: events in a list, `ping` answered, or held. */
@@ -466,6 +485,8 @@ function createWindow(clock: AgentPlatform['clock'], now: () => number) {
     hold() {
       holding = true;
     },
+    /** How many calls are held unanswered. */
+    held: () => held.length,
     release() {
       holding = false;
       held.splice(0).forEach(answer);
@@ -489,6 +510,8 @@ async function runTurn(
   let stop: TurnRecord['stop'] = null;
   let stopAt = 0;
   let stopOn = '';
+  let pending = false;
+  let endedHeld = false;
   if (options.stop) window.hold();
   const record = (outcome: TurnRecord['outcome']): TurnRecord => {
     const slice = window.events.slice(from);
@@ -500,7 +523,13 @@ async function runTurn(
     const firstTool = of('tool_call')[0];
     const end = of('turn_end')[0];
     if (stopOn !== '') {
-      stop = { atMs: stopAt - started, on: stopOn, endedAfterMs: (end?.at ?? now()) - stopAt };
+      stop = {
+        atMs: stopAt - started,
+        on: stopOn,
+        endedAfterMs: (end?.at ?? now()) - stopAt,
+        pending,
+        endedHeld,
+      };
     }
     return {
       outcome,
@@ -530,9 +559,12 @@ async function runTurn(
           : first.event.type === 'tool_call'
             ? `the ${first.event.name} call`
             : `the first ${first.event.type}`;
+      pending = window.held() > 0;
       manager.stop(CHECK_SESSION.sessionId);
+      // `stop` only writes the interrupt. A held call stays unanswered until the turn ends (or for
+      // `holdMs`), so Stop lands while a gurukul call is pending instead of racing its answer.
+      endedHeld = (await window.wait(isEnd, from, timeouts.holdMs)) !== null;
     }
-    // A held call answered now goes nowhere when Stop ended the request, as in the app.
     window.release();
   }
   const end = await window.wait(isEnd, from, timeouts.turnMs);
@@ -542,6 +574,14 @@ async function runTurn(
     return record('timeout');
   }
   return record((end.event as Extract<AgentEvent, { type: 'turn_end' }>).outcome);
+}
+
+/** Which case Stop met: a gurukul call pending or not, and whether the turn ended without its answer. */
+function heldCall(stop: NonNullable<TurnRecord['stop']>, holdMs: number): string {
+  if (!stop.pending) return 'no gurukul call was pending at Stop';
+  return stop.endedHeld
+    ? 'a gurukul call was pending at Stop; the turn ended with it still unanswered'
+    : `a gurukul call was pending at Stop; the turn had not ended ${seconds(holdMs)} later, so it was answered then`;
 }
 
 function turnDetails(turn: TurnRecord): string[] {
@@ -754,10 +794,13 @@ async function sessionSteps(ctx: SessionContext): Promise<void> {
 
   const started = await manager.start(request);
   const args = record.sessionArgs.flat();
+  // The app takes a missing tokenSource as signed in; the check does not, so a changed
+  // `initialize` answer shows here instead of passing unseen.
+  const signedIn = record.tokenSource !== null && record.tokenSource !== 'none';
   if (
     !add({
       title: STEP_TITLES.start,
-      status: started.ok && record.tokenSource !== 'none' ? 'PASS' : 'FAIL',
+      status: started.ok && signedIn ? 'PASS' : 'FAIL',
       details: [
         started.ok ? 'started' : `not started: ${shape(started.error)}`,
         `initialize: tokenSource ${record.tokenSource ?? 'not reported'}${record.apiKeySource === null ? '' : `, apiKeySource ${record.apiKeySource}`}`,
@@ -811,6 +854,7 @@ async function sessionSteps(ctx: SessionContext): Promise<void> {
         stopped.stop === null
           ? 'the turn ended before Stop was sent'
           : `Stop sent ${seconds(stopped.stop.atMs)} into the turn, on ${stopped.stop.on}; the turn ended ${seconds(stopped.stop.endedAfterMs)} later`,
+        ...(stopped.stop === null ? [] : [heldCall(stopped.stop, timeouts.holdMs)]),
         ...turnDetails(stopped),
         `process kept for the next message: ${kept ? 'yes' : 'no'}`,
       ],

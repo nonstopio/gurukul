@@ -59,7 +59,8 @@ describe('askToContinue', () => {
   });
 });
 
-describe('checkClaudeMain', () => {
+// A run that goes on starts the fake claude some eight times: seconds on a loaded machine.
+describe('checkClaudeMain', { timeout: 20_000 }, () => {
   async function main(argv: string[], answer: string | null = null) {
     const h = await fakeClaudeHome({
       turns: [[{ skill: 'signed-in-check' }, { tool: 'ping' }], [{ tool: 'ping' }]],

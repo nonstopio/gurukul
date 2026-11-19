@@ -19,7 +19,11 @@
 //   { "thinking": true }            a thinking block
 //   { "skill": "humanize" }         the Skill tool loading gurukul:humanize
 //   { "tool": "get_course", "input": {…} }  a call through the MCP endpoint; the answer's text is
-//                                    then said back as "tool: <text>" (or "tool error: <text>")
+//                                    then said back as "tool: <text>" (or "tool error: <text>").
+//                                    An interrupt while the call is pending cancels the request
+//                                    and ends the turn; with "waitsForAnswer": true the turn
+//                                    ends only once the answer is in. Which of the two the real
+//                                    `claude` does is for the signed-in check (DSK-26) to find.
 //   { "listTools": true }           says the endpoint's tool names, comma-separated
 //   { "waitForInterrupt": true }    waits until an `interrupt` control request ends the turn
 //   { "apiRetry": "rate_limit" }    api_retry events every 20 ms until interrupted (10, then fails)
@@ -200,7 +204,18 @@ async function runStep(step, state) {
     assistant([
       { type: 'tool_use', id, name: `mcp__gurukul__${step.tool}`, input: step.input ?? {} },
     ]);
-    const answer = await mcp.callTool({ name: step.tool, arguments: step.input ?? {} });
+    const request = new AbortController();
+    const call = mcp.callTool({ name: step.tool, arguments: step.input ?? {} }, undefined, {
+      signal: request.signal,
+    });
+    const answer = step.waitsForAnswer
+      ? await call
+      : await Promise.race([call, new Promise((resolve) => (interrupted = () => resolve(null)))]);
+    if (answer === null) {
+      request.abort();
+      state.aborted = true;
+      return;
+    }
     const text = answer.content.map((c) => c.text).join('');
     print({
       type: 'user',
