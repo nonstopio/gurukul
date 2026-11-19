@@ -271,6 +271,30 @@ describe('list_sources and read_source', () => {
     expect(rest['next']).toBeUndefined();
   });
 
+  it('reads only a plain file name the folder lists, never a path', async () => {
+    const folder = sources({ 'notes.md': 'Rebase notes' });
+    folder.read.mockImplementation(async () => 'secret');
+    const ctx = toolCtx({ sources: folder });
+    const read = (name: string) => refused(call(toolState(), 'read_source', { name }, ctx));
+    const noPath = 'Give a file name exactly as list_sources gives it, without a path.';
+    for (const name of ['../../.ssh/id_rsa', 'sub/notes.md', '..\\notes.md', '..', '.'])
+      expect(await read(name)).toBe(noPath);
+    expect(folder.list).not.toHaveBeenCalled();
+    expect(await read('id_rsa')).toBe(
+      'There is no file called "id_rsa" in the Sources folder. Call list_sources.',
+    );
+    expect(folder.read).not.toHaveBeenCalled();
+  });
+
+  it('refuses a listed file that is gone by the time it is read', async () => {
+    const folder = sources({ 'notes.md': 'Rebase notes' });
+    folder.read.mockImplementation(async () => null);
+    const ctx = toolCtx({ sources: folder });
+    expect(await refused(call(toolState(), 'read_source', { name: 'notes.md' }, ctx))).toBe(
+      'There is no file called "notes.md" in the Sources folder. Call list_sources.',
+    );
+  });
+
   it('refuses a file that is not there', async () => {
     const ctx = toolCtx({ sources: sources({}) });
     expect(await refused(call(toolState(), 'read_source', { name: 'gone.md' }, ctx))).toBe(

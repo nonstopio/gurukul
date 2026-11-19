@@ -44,7 +44,12 @@ export interface SourceFile {
 /** The session's Sources folder, read through the desktop bridge (`DSK-20`). */
 export interface SessionSources {
   list(): Promise<readonly SourceFile[]>;
-  /** The file's text, or null when there is no such file. */
+  /**
+   * The text of the listed file with this plain name, or null when there is no such file. It takes
+   * a file name, never a path, and must never resolve a name to anything outside the folder
+   * (`read_source` also refuses a name with `/` or `\`, the names `.` and `..`, and any name `list`
+   * does not give).
+   */
   read(name: string): Promise<string | null>;
 }
 

@@ -520,6 +520,9 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   is for changing a few), or a block without one to add it.
 - `update_question` keeps answers by id (`{ id, text }`) so a reworded answer stays the same
   answer, and keeps the right answers marked when `correct` is left out.
+- `read_source` reads only a plain file name that the Sources folder lists: a name with `/` or
+  `\`, `.` or `..`, or one `list` does not give is refused before the bridge is asked. The bridge's
+  read takes that name and never resolves it outside the folder.
 
 ## Writing quality: the humanizer
 

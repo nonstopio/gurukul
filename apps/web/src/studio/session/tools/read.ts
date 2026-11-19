@@ -260,9 +260,14 @@ export const readSource = defineTool({
   }),
   run: async (state, { name, offset = 0 }, ctx) => {
     if (!ctx.sources) return refuse(NO_SOURCES);
+    const missing = `There is no file called "${name}" in the Sources folder. Call list_sources.`;
+    // Only a plain name the folder lists is read: a path could reach outside the folder.
+    if (/[/\\]/.test(name) || name === '.' || name === '..')
+      return refuse('Give a file name exactly as list_sources gives it, without a path.');
+    const listed = await ctx.sources.list();
+    if (!listed.some((f) => f.name === name)) return refuse(missing);
     const text = await ctx.sources.read(name);
-    if (text === null)
-      return refuse(`There is no file called "${name}" in the Sources folder. Call list_sources.`);
+    if (text === null) return refuse(missing);
     const end = Math.min(text.length, offset + SOURCE_CHUNK);
     return answer(state, {
       name,
