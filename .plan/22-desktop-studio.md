@@ -506,7 +506,8 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   the last question and points at `remove_item`.
 - Right answers are indexes from 0 into the options given (`correct`); a True or False question
   always has the answers True and False. Changing a multiple-choice question to single choice
-  without saying which answer is right is refused, never trimmed to the first.
+  without saying which answer is right is refused, never trimmed to the first; so is turning a
+  question into True or False without `correct`, since its old answers become True and False.
 - `add_block` and `set_blocks` write only text, code, callout and check blocks. `update_block`
   changes only the words of a media block (alt, caption, title, label), never an address or an
   upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep

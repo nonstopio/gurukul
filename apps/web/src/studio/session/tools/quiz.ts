@@ -64,6 +64,7 @@ type QuestionInput = z.output<typeof questionInput>;
 const TRUE_FALSE = ['True', 'False'];
 const KEEP_TRUE_FALSE =
   'A true or false question has the answers True and False; leave options out.';
+const SAY_TRUE_OR_FALSE = 'Say which is right: give correct as [0] for True or [1] for False.';
 
 /** The right answers' option ids from indexes, or why they are wrong. */
 function keyFrom(
@@ -218,7 +219,7 @@ const optionEdit = z.strictObject({
 export const updateQuestion = defineTool({
   name: 'update_question',
   description:
-    'Changes one question: kind, prompt, code, answers, right answers, explanation or the lesson it revisits. Give only what changes. To reword an answer keep its id, so the Review shows it as reworded rather than replaced. When answers change and correct is left out, the answers already marked right stay marked.',
+    'Changes one question: kind, prompt, code, answers, right answers, explanation or the lesson it revisits. Give only what changes. To reword an answer keep its id, so the Review shows it as reworded rather than replaced. When answers change and correct is left out, the answers already marked right stay marked. Changing kind to trueFalse needs correct: [0] for True or [1] for False.',
   input: z.strictObject({
     quizId,
     questionId,
@@ -252,6 +253,10 @@ export const updateQuestion = defineTool({
       const makeId = idMaker(ctx, state.work);
       options = edit.options.map((o) => ({ id: o.id ?? makeId('o'), text: o.text }));
     }
+    // Turning a question into true or false replaces its answers with True and False, so the old
+    // right answer means nothing any more: which one is right must be said, never guessed.
+    if (kindOf === 'trueFalse' && old.kind !== 'trueFalse' && !edit.correct)
+      return refuse(SAY_TRUE_OR_FALSE);
     let key: string[] | string;
     if (edit.correct) key = keyFrom(kindOf, options, edit.correct);
     else {

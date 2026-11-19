@@ -212,7 +212,13 @@ describe('update_question', () => {
 
   it('changes kind: to true or false keeps option ids, and single choice needs one answer', async () => {
     const tf = await ok(
-      call(toolState(), 'update_question', { quizId: 'q1', questionId: 'k1', kind: 'trueFalse' }),
+      call(toolState(), 'update_question', {
+        quizId: 'q1',
+        questionId: 'k1',
+        kind: 'trueFalse',
+        prompt: 'Rebase rewrites history.',
+        correct: [0],
+      }),
     );
     expect(questionOf(tf.state, 'k1').options).toEqual([
       { id: 'a', text: 'True' },
@@ -233,6 +239,32 @@ describe('update_question', () => {
       }),
     );
     expect(keyOf(single.state, 'k2')).toEqual(['d']);
+  });
+
+  it('refuses to turn a question into true or false without saying which is right', async () => {
+    // The old right answer was in position 1 or 2 by chance; it must not become True or False.
+    const say = 'Say which is right: give correct as [0] for True or [1] for False.';
+    for (const questionId of ['k1', 'k2'])
+      expect(
+        await refused(
+          call(toolState(), 'update_question', { quizId: 'q1', questionId, kind: 'trueFalse' }),
+        ),
+      ).toBe(say);
+    const state = (
+      await ok(
+        call(toolState(), 'update_question', {
+          quizId: 'q1',
+          questionId: 'k1',
+          kind: 'trueFalse',
+          correct: [1],
+        }),
+      )
+    ).state;
+    // Already true or false: the stored answer stays when correct is left out.
+    const again = await ok(
+      call(state, 'update_question', { quizId: 'q1', questionId: 'k1', kind: 'trueFalse' }),
+    );
+    expect(keyOf(again.state, 'k1')).toEqual(['b']);
   });
 
   it('works on a question with no key stored yet when correct is given', async () => {
