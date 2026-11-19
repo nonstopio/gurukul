@@ -10,6 +10,8 @@ import {
   type IpcLike,
 } from '../src/ipc';
 import { createLogger } from '../src/log';
+import type { AgentManager } from '../src/agent/manager';
+import { AgentNotRunningError } from '../src/agent/run';
 import { SessionFileError, type SessionStore } from '../src/store';
 
 const ORIGINS = ['https://gurukul.nonstopio.com'];
@@ -27,13 +29,27 @@ function fakeStore(overrides: Partial<SessionStore> = {}): SessionStore {
   };
 }
 
-function setup(store = fakeStore()) {
+function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
+  return {
+    status: vi.fn(async () => ({ state: 'not_installed' as const })),
+    start: vi.fn(async () => ({ ok: true as const, agentSessionId: 'a1' })),
+    send: vi.fn(),
+    stop: vi.fn(),
+    close: vi.fn(async () => undefined),
+    forget: vi.fn(async () => undefined),
+    toolResult: vi.fn(),
+    closeAll: vi.fn(),
+    ...overrides,
+  };
+}
+
+function setup(store = fakeStore(), agent = fakeAgent()) {
   const listeners = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
   const ipc: IpcLike = { handle: (name, listener) => void listeners.set(name, listener) };
   const sink = vi.fn();
   registerHandlers(
     ipc,
-    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store }),
+    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store, agent }),
     ORIGINS,
     createLogger({ sink }),
   );
@@ -42,7 +58,7 @@ function setup(store = fakeStore()) {
     if (!listener) throw new Error('no listener');
     return listener(event, ...args) as Promise<unknown>;
   };
-  return { listeners, call, sink, store };
+  return { listeners, call, sink, store, agent };
 }
 
 describe('checkSender', () => {
@@ -193,16 +209,50 @@ describe('calls a later item builds', () => {
     resumeId: null,
   };
 
+  const agentCalls: [string, unknown[], keyof AgentManager][] = [
+    ['agent.status', [], 'status'],
+    ['agent.start', [start], 'start'],
+    ['agent.start', [{ ...start, resumeId: uuid }], 'start'],
+    ['agent.send', ['s1', 'Simplify the rebase chapter'], 'send'],
+    ['agent.stop', ['s1'], 'stop'],
+    ['agent.close', ['s1'], 'close'],
+    ['agent.forget', [uuid], 'forget'],
+    ['agent.toolResult', ['s1', 'call-1', { text: '{}' }], 'toolResult'],
+    [
+      'agent.toolResult',
+      ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }],
+      'toolResult',
+    ],
+  ];
+
+  it.each(agentCalls)('passes %s through to the agent bridge', async (name, args, method) => {
+    const { call, agent } = setup();
+    await call(name, top(), ...args);
+    expect(agent[method]).toHaveBeenCalledWith(...args);
+  });
+
+  it('answers agent.start and agent.status with the agent bridge’s result', async () => {
+    const { call } = setup();
+    await expect(call('agent.start', top(), start)).resolves.toEqual({
+      ok: true,
+      agentSessionId: 'a1',
+    });
+    await expect(call('agent.status', top())).resolves.toEqual({ state: 'not_installed' });
+  });
+
+  it('says agent.send failed (not_running) for a session with no process', async () => {
+    const agent = fakeAgent({
+      send: vi.fn(() => {
+        throw new AgentNotRunningError('Not running');
+      }),
+    });
+    const { call } = setup(fakeStore(), agent);
+    await expect(call('agent.send', top(), 's1', 'Hello')).rejects.toThrow(
+      /^agent\.send failed \(not_running\)$/,
+    );
+  });
+
   const valid: [string, unknown[]][] = [
-    ['agent.status', []],
-    ['agent.start', [start]],
-    ['agent.start', [{ ...start, resumeId: uuid }]],
-    ['agent.send', ['s1', 'Simplify the rebase chapter']],
-    ['agent.stop', ['s1']],
-    ['agent.close', ['s1']],
-    ['agent.forget', [uuid]],
-    ['agent.toolResult', ['s1', 'call-1', { text: '{}' }]],
-    ['agent.toolResult', ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }]],
     ['sources.choose', [ref]],
     ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }]],
     ['sources.list', [ref]],
@@ -224,7 +274,7 @@ describe('calls a later item builds', () => {
 
   it('covers every call that is not info or store', () => {
     const later = CALLS.filter((n) => n !== 'info' && !n.startsWith('store.'));
-    expect(new Set(valid.map(([n]) => n))).toEqual(new Set(later));
+    expect(new Set([...agentCalls, ...valid].map(([n]) => n))).toEqual(new Set(later));
   });
 
   it.each([

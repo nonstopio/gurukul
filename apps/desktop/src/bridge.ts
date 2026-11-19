@@ -58,9 +58,21 @@ export interface SessionRef {
 
 /** One file of one session: `sessions/{uid}/{sessionId}/{path}` under the app's data folder. */
 export interface SessionFileRef extends SessionRef {
-  /** Relative, `/`-separated, at most `MAX_PATH_SEGMENTS` deep: `session.json`, `checkpoints/t4.json`. */
+  /**
+   * Relative, `/`-separated, at most `MAX_PATH_SEGMENTS` deep: `session.json`, `checkpoints/t4.json`.
+   * `store.write` and `store.remove` refuse a path under one of `AGENT_SESSION_NAMES`.
+   */
   path: string;
 }
+
+/**
+ * The names in a session folder that only the shell writes: what `agent.start` hands Claude Code
+ * (`prompt.md`, the `skills` plugin folder, `mcp.json`) and the empty working folder used when no
+ * Sources folder was chosen. The window can read them but never write or remove one: a plugin
+ * folder can carry hooks and `mcp.json` can name a program, so a page that could write them could
+ * make Claude Code run a command. Removing the whole session still removes them.
+ */
+export const AGENT_SESSION_NAMES = ['prompt.md', 'skills', 'mcp.json', 'workdir'] as const;
 
 /** `{ uid }` lists that person's session ids; `{ uid, sessionId }` lists the session's files. */
 export interface SessionListRef {

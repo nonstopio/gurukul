@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  AGENT_SESSION_NAMES,
   MAX_FILE_BYTES,
   MAX_PATH_SEGMENTS,
   isSafePath,
@@ -38,6 +39,21 @@ function folderOf(root: string, uid: string, sessionId?: string): string {
   if (sessionId === undefined) return path.join(root, uid);
   if (!isSafeSegment(sessionId)) throw new SessionFileError('Invalid session id');
   return path.join(root, uid, sessionId);
+}
+
+/** The folder of one session, its names checked. The agent bridge writes its own files there. */
+export function sessionFolder(root: string, uid: string, sessionId: string): string {
+  return folderOf(root, uid, sessionId);
+}
+
+/** A path the window may write or remove: not under one of the shell's `AGENT_SESSION_NAMES`. */
+function writableFileOf(root: string, file: SessionFileRef): string {
+  const target = fileOf(root, file);
+  const first = file.path.split('/')[0] as string;
+  if ((AGENT_SESSION_NAMES as readonly string[]).includes(first)) {
+    throw new SessionFileError('Reserved session file name');
+  }
+  return target;
 }
 
 function fileOf(root: string, file: SessionFileRef): string {
@@ -81,7 +97,7 @@ export function createSessionStore(root: string): SessionStore {
     },
 
     async write(file, data) {
-      const target = fileOf(root, file);
+      const target = writableFileOf(root, file);
       if (Buffer.byteLength(data, 'utf8') > MAX_FILE_BYTES) {
         throw new SessionFileError('Session file too large');
       }
@@ -112,7 +128,7 @@ export function createSessionStore(root: string): SessionStore {
       const target =
         ref.path === undefined
           ? folderOf(root, ref.uid, ref.sessionId)
-          : fileOf(root, { uid: ref.uid, sessionId: ref.sessionId, path: ref.path });
+          : writableFileOf(root, { uid: ref.uid, sessionId: ref.sessionId, path: ref.path });
       await rm(target, { recursive: ref.path === undefined, force: true });
     },
   };

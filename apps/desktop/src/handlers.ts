@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AgentManager } from './agent/manager';
 import { agentCalls } from './agentCalls';
 import { appCalls } from './appCalls';
 import { id, relativePath } from './args';
@@ -10,8 +11,8 @@ import { sourcesCalls } from './sourcesCalls';
 
 /**
  * Every handler of bridge version 1, one area per file: `info` and `store.*` here, then
- * `agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts` and `appCalls.ts`, whose calls are refused as
- * not available until their items build them. Each has a zod schema for its arguments. The store's
+ * `agentCalls.ts` (over `agent/manager.ts`), `sourcesCalls.ts`, `authCalls.ts` and `appCalls.ts`;
+ * a call whose item is not built yet is refused as not available. Each has a zod schema for its arguments. The store's
  * schemas check shape and length only; `store.ts` decides which names are safe, so the rule lives in
  * one place.
  */
@@ -25,6 +26,7 @@ export interface HandlerDeps {
   appVersion: string;
   platform: string;
   store: SessionStore;
+  agent: AgentManager;
 }
 
 type CoreHandlers = Pick<Handlers, 'info'> & AreaHandlers<'store'>;
@@ -51,7 +53,7 @@ function coreCalls({ appVersion, platform, store }: HandlerDeps): CoreHandlers {
 export function createHandlers(deps: HandlerDeps): Handlers {
   return {
     ...coreCalls(deps),
-    ...agentCalls(),
+    ...agentCalls(deps.agent),
     ...sourcesCalls(),
     ...authCalls(),
     ...appCalls(),
