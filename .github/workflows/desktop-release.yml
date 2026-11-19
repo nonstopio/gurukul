@@ -111,8 +111,13 @@ jobs:
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: npm pkg set version="$VERSION" -w @gurukul/desktop
+      # The Desktop OAuth client is written into the bundle here (scripts/bundle.ts); never committed
+      # (.plan/13-open-questions.md, question 22). Left unset, the app opens but cannot sign in.
       - name: Typecheck and bundle
         run: npm run build -w @gurukul/desktop
+        env:
+          GURUKUL_DESKTOP_GOOGLE_CLIENT_ID: ${{ secrets.GURUKUL_DESKTOP_GOOGLE_CLIENT_ID }}
+          GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET: ${{ secrets.GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET }}
       - name: Check the macOS signing and notarisation secrets
         if: matrix.platform == 'mac'
         env:
