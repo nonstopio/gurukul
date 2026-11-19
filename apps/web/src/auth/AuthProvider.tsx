@@ -2,6 +2,7 @@ import { isAllowedEmail, rolesFromClaims } from '@gurukul/schema';
 import type { LabelSet, Role } from '@gurukul/schema';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { SignInProblem } from './service';
 import type { AuthService, AuthUser, SignInOptions } from './service';
 import { hideBootLoader } from '../boot';
 import { useAnalytics } from '../analytics/react/context';
@@ -50,7 +51,7 @@ export function useUser(): AuthUser {
   return user;
 }
 
-const ACCOUNT_HINT =
+export const ACCOUNT_HINT =
   'Gurukul is for NonStop io accounts: choose your @nonstopio.com Google account.';
 
 /** Names the account Google returned, so someone signed in to several can see which one it used. */
@@ -170,6 +171,12 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
         try {
           await service.signIn(options);
         } catch (e) {
+          // A problem the person can act on (desktop app: timed out, update the app) says what to do.
+          if (e instanceof SignInProblem) {
+            log.warn('Sign-in failed', { reason: e.reason });
+            setError(e.message);
+            return;
+          }
           log.error('Sign-in failed', e);
           setError(RETRY_MESSAGE);
         }

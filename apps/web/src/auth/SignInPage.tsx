@@ -1,9 +1,10 @@
 import { Button, Callout, CheckIcon, Checkbox, GridIcon, PageHeader, StarIcon } from '@gurukul/ui';
 import { Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
-import { RETRY_MESSAGE, useSession } from './AuthProvider';
+import { ACCOUNT_HINT, useSession } from './AuthProvider';
 import { SignInArt, rise } from './SignInArt';
 import { markSignInStarted } from '../analytics/react/AnalyticsSession';
+import { isDesktop } from '../desktop/bridge';
 import { acceptPolicy, usePolicyAccepted } from '../privacy/policy';
 import { Logo } from '../Logo';
 import { ShellFooter } from '../ShellFooter';
@@ -78,7 +79,7 @@ export function SignInPage() {
           <Callout
             ref={alert}
             tone="warning"
-            mascot={error === RETRY_MESSAGE ? 'error' : 'validation'}
+            mascot={error.endsWith(ACCOUNT_HINT) ? 'validation' : 'error'}
             title={error}
             role="alert"
             className="rise"
@@ -113,6 +114,15 @@ export function SignInPage() {
           >
             {wrongAccount ? 'Try another account' : 'Sign in with Google'}
           </Button>
+          {/* The desktop app signs in through the system browser; the region is there from the
+              start so a screen reader announces the hint when it appears. */}
+          {isDesktop() ? (
+            <p className="learn-meta" role="status">
+              {pending
+                ? 'Google sign-in opened in your browser. Finish there, then come back here.'
+                : null}
+            </p>
+          ) : null}
           <p className="learn-meta">
             Only @nonstopio.com Google accounts can sign in. Assigned a course before you joined?
             Use the same work email and it is waiting for you.
