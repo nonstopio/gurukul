@@ -503,6 +503,15 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   Claude session id still to forget), removes every other file with `session.json` last, so a
   crash midway is retried whole, then calls `agent.forget`. A forget that fails ("Not available in
   this version" until `DSK-10`) stays in `history.json` and is tried again on the next visit.
+- **A folder the app cannot read** (a `session.json` that is damaged or written by a newer app, or
+  neither a session nor a history) still holds answer keys, and its closing date cannot be read.
+  The first sweep that finds it writes `unreadable.json` with that day and logs it at warn; the
+  sweep 30 days later removes the whole folder, keeping no history (its title is in the file that
+  cannot be read). A history still beside it is forgotten as usual first. Such a session cannot be
+  opened, so it does not count as the open session on its course: starting another is allowed,
+  rather than offering a session that would not open. A bump of `SESSION_SCHEMA_VERSION` must
+  therefore ship a migration of older files in `read`, or every older session becomes unreadable
+  and is removed 30 days later.
 - **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
   `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
   app, `/studio/sessions/:sessionId` uses the focused layout and for now shows the title, the goal

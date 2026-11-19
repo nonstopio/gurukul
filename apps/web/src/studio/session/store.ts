@@ -22,6 +22,7 @@ import type { DraftDoc } from '../types';
  *   sessions/{uid}/{sessionId}/session.json            the session (`authoringSessionSchema`)
  *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
+ *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
  * The files hold answer keys: nothing here logs a title, a goal, course text or a key, only ids,
  * counts and reasons.
@@ -34,6 +35,12 @@ export const sessionPath = (sessionId: string) => `/studio/sessions/${sessionId}
 export const SESSION_FILE = 'session.json';
 /** What stays of a session once its files are removed: title, summary and counts. */
 export const HISTORY_FILE = 'history.json';
+/**
+ * When `sweep` first found a folder it cannot read (a `session.json` that is damaged or from a newer
+ * app, or neither a session nor a history): the whole folder goes 30 days later, because its
+ * checkpoints hold answer keys.
+ */
+export const UNREADABLE_FILE = 'unreadable.json';
 /** Where a turn's checkpoint lives, inside the session's folder. */
 export const checkpointPath = (file: string) => `checkpoints/${file}`;
 
@@ -70,6 +77,17 @@ export const sessionHistorySchema = z.object({
   forgetPending: z.string().min(1).max(200).nullable(),
 });
 export type SessionHistory = z.infer<typeof sessionHistorySchema>;
+
+const unreadableSchema = z.object({ since: at });
+
+/**
+ * Was this file written by a newer app (a `schemaVersion` above this one's)? Only the log says so:
+ * this app cannot read it either way, and sweeps it as it sweeps any unreadable folder.
+ */
+function isNewer(data: unknown): boolean {
+  const version = (data as { schemaVersion?: unknown } | null)?.schemaVersion;
+  return typeof version === 'number' && version > SESSION_SCHEMA_VERSION;
+}
 
 /** What a session is started from: a goal, and for an edit session the course. */
 export type StartRequest =
@@ -190,7 +208,7 @@ function parse<T>(
   }
   const result = schema.safeParse(data);
   if (result.success) return result.data;
-  log.warn('Session file unreadable', { ...fields, reason: 'schema' });
+  log.warn('Session file unreadable', { ...fields, reason: isNewer(data) ? 'newer' : 'schema' });
   return null;
 }
 
@@ -210,11 +228,11 @@ export function createSessionStore({
     return valid;
   };
 
+  const parseSession = (sessionId: string, text: string | null) =>
+    parse(text, authoringSessionSchema, { sessionId, file: 'session' });
+
   const read: SessionStore['read'] = async (sessionId) =>
-    parse(await store.read(file(sessionId, SESSION_FILE)), authoringSessionSchema, {
-      sessionId,
-      file: 'session',
-    });
+    parseSession(sessionId, await store.read(file(sessionId, SESSION_FILE)));
 
   const readHistory = async (sessionId: string) =>
     parse(await store.read(file(sessionId, HISTORY_FILE)), sessionHistorySchema, {
@@ -272,6 +290,31 @@ export function createSessionStore({
     await Promise.all(others.map((path) => store.remove({ uid, sessionId: session.id, path })));
     await store.remove({ uid, sessionId: session.id, path: SESSION_FILE });
     await forget(history);
+  };
+
+  /**
+   * A folder this app cannot read: the first sweep notes the day in `unreadable.json`, and the
+   * sweep 30 days later removes the whole folder, so no answer keys outlive the 30 days the plan
+   * allows. Nothing in it can be shown as history: its title is in the file that cannot be read.
+   * Answers whether it was removed.
+   */
+  const retireUnreadable = async (sessionId: string, moment: Date) => {
+    const since = parse(await store.read(file(sessionId, UNREADABLE_FILE)), unreadableSchema, {
+      sessionId,
+      file: 'unreadable',
+    })?.since;
+    if (since === undefined) {
+      await store.write(
+        file(sessionId, UNREADABLE_FILE),
+        JSON.stringify({ since: moment.toISOString() }),
+      );
+      log.warn('Session folder unreadable', { sessionId, removeInDays: SESSION_FILES_DAYS });
+      return false;
+    }
+    if (moment.getTime() - Date.parse(since) < SESSION_FILES_DAYS * DAY_MS) return false;
+    await store.remove({ uid, sessionId });
+    log.warn('Unreadable session folder removed', { sessionId });
+    return true;
   };
 
   return {
@@ -372,15 +415,19 @@ export function createSessionStore({
       let removed = 0;
       for (const id of await store.list({ uid })) {
         try {
-          const session = await read(id);
+          const text = await store.read(file(id, SESSION_FILE));
+          const session = parseSession(id, text);
           if (session) {
             if (!isDue(session, moment)) continue;
             await retire(session);
             removed += 1;
-          } else {
-            const past = await readHistory(id);
-            if (past) await forget(past);
+            continue;
           }
+          const past = await readHistory(id);
+          if (past) await forget(past);
+          // A retired session: its history is all that is left.
+          if (past && text === null) continue;
+          if (await retireUnreadable(id, moment)) removed += 1;
         } catch (error) {
           log.error('Session clean-up failed', error, { sessionId: id });
         }

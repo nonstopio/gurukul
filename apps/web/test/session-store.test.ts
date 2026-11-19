@@ -5,6 +5,7 @@ import {
   HISTORY_FILE,
   NEW_COURSE_ID,
   SESSION_FILE,
+  UNREADABLE_FILE,
   checkpointPath,
   createSessionStore,
   historyOf,
@@ -445,5 +446,101 @@ describe('sweep', () => {
     expect(await s.store.sweep()).toBe(0);
     expect(log.error).toHaveBeenCalledWith('Session clean-up failed', failure, { sessionId: 's1' });
     expect(s.files.has(`u1/s1/${SESSION_FILE}`)).toBe(true);
+  });
+});
+
+describe('sweep of folders it cannot read', () => {
+  const CLAUDE_ID = '7a3c1b52-1f0e-4f3c-9d2a-0b1c2d3e4f50';
+  const days = (n: number) => new Date(T0.getTime() + n * DAY);
+
+  async function discardedWithCheckpoint(s: ReturnType<typeof setup>) {
+    const session = await editSession(s);
+    const after = await s.store.saveTurn(session, turn('t1'), session.work);
+    await s.store.close(after, 'discarded');
+  }
+
+  it('removes the whole folder 30 days after it was first found unreadable', async () => {
+    const s = setup();
+    await discardedWithCheckpoint(s);
+    // A file from a newer app reads no better than a damaged one: its keys must still go.
+    s.files.set(`u1/s1/${SESSION_FILE}`, '{"schemaVersion":2}');
+    s.at(days(60));
+    expect(await s.store.sweep()).toBe(0);
+    expect(log.warn).toHaveBeenCalledWith('Session file unreadable', {
+      sessionId: 's1',
+      file: 'session',
+      reason: 'newer',
+    });
+    expect(log.warn).toHaveBeenCalledWith('Session folder unreadable', {
+      sessionId: 's1',
+      removeInDays: 30,
+    });
+    expect(JSON.parse(s.files.get(`u1/s1/${UNREADABLE_FILE}`) as string)).toEqual({
+      since: days(60).toISOString(),
+    });
+    expect(s.files.has(`u1/s1/${checkpointPath('t1.json')}`)).toBe(true);
+
+    // Later sweeps keep the first date, and the folder, until its 30 days are up.
+    s.at(days(89));
+    expect(await s.store.sweep()).toBe(0);
+    expect(JSON.parse(s.files.get(`u1/s1/${UNREADABLE_FILE}`) as string).since).toBe(
+      days(60).toISOString(),
+    );
+    expect(s.files.has(`u1/s1/${checkpointPath('t1.json')}`)).toBe(true);
+
+    s.at(days(90));
+    expect(await s.store.sweep()).toBe(1);
+    expect([...s.files.keys()]).toEqual([]);
+    expect(s.desktop.store.remove).toHaveBeenLastCalledWith({ uid: 'u1', sessionId: 's1' });
+    expect(log.warn).toHaveBeenCalledWith('Unreadable session folder removed', { sessionId: 's1' });
+    expect(log.info).toHaveBeenCalledWith('Session files removed', { count: 1 });
+  });
+
+  it('treats an open session that is not JSON, and stray files with no session, the same', async () => {
+    const s = setup();
+    await editSession(s);
+    s.files.set(`u1/s1/${SESSION_FILE}`, 'not json');
+    s.files.set(`u1/stray/${checkpointPath('t9.json')}`, '{}');
+    await s.store.sweep();
+    expect(s.files.has(`u1/s1/${UNREADABLE_FILE}`)).toBe(true);
+    expect(s.files.has(`u1/stray/${UNREADABLE_FILE}`)).toBe(true);
+    s.at(days(30));
+    expect(await s.store.sweep()).toBe(2);
+    expect([...s.files.keys()]).toEqual([]);
+  });
+
+  it('starts the 30 days again when its own note cannot be read', async () => {
+    const s = setup();
+    s.files.set(`u1/s1/${SESSION_FILE}`, '{oops');
+    s.files.set(`u1/s1/${UNREADABLE_FILE}`, '{"since":"yesterday"}');
+    s.at(days(45));
+    expect(await s.store.sweep()).toBe(0);
+    expect(JSON.parse(s.files.get(`u1/s1/${UNREADABLE_FILE}`) as string).since).toBe(
+      days(45).toISOString(),
+    );
+  });
+
+  it('still forgets Claude Code’s copy when a retired session’s folder was damaged', async () => {
+    const s = setup();
+    const session = await editSession(s);
+    const history = historyOf(
+      { ...session, status: 'saved', agentSessionId: CLAUDE_ID },
+      T0.toISOString(),
+    );
+    s.files.clear();
+    s.files.set(`u1/s1/${HISTORY_FILE}`, JSON.stringify(history));
+    s.files.set(`u1/s1/${SESSION_FILE}`, '{oops');
+    await s.store.sweep();
+    expect(s.desktop.agent.forget).toHaveBeenCalledWith(CLAUDE_ID);
+    expect(s.files.has(`u1/s1/${UNREADABLE_FILE}`)).toBe(true);
+  });
+
+  it('does not let an unreadable session block a new one on its course', async () => {
+    // It cannot be opened, so offering to open it would be a dead end.
+    const s = setup();
+    await editSession(s);
+    s.files.set(`u1/s1/${SESSION_FILE}`, 'not json');
+    const second = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'Again.' }, getDraft);
+    expect(second.status).toBe('started');
   });
 });
