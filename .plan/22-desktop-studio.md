@@ -515,7 +515,17 @@ way past it. First rules:
   lesson; a heading in Title Case.
 - Quiz: "all of the above" or "none of the above"; the longest option more than twice the median
   length (the long one is usually the right one); an explanation that is empty or only says the
-  option "is correct"; a negative question ("Which is NOT…") without the negative marked.
+  option "is correct"; an explanation that names an option by letter or number ("Option B"),
+  which means nothing once options are shuffled; a negative question ("Which is NOT…") without
+  the negative marked. The Quiz rules apply to a lesson's check blocks too.
+
+Markdown code (fenced and inline), link targets and addresses are never linted, and spelling is
+not linted. A heading may capitalise names: Gurukul's own terms and a short list of common tool
+names are kept in the file, and acronyms and mixed-case names (GitHub) pass by their shape.
+`lintText(text, field)` lints one text for `lint_writing`; `lintCourse(work, scope?)` lints a
+course, limited by `scope` to the ids of `courseChanges` rows (`course`, `landing`, a chapter, a
+lesson or Quiz) for the Writing check. Exclamation marks are counted over a whole lesson there,
+and the finding sits on the text holding the first one too many.
 
 Example of what the layers are for:
 
