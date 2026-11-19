@@ -33,6 +33,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
+import { DesktopUpdateItem } from './desktop/DesktopUpdateItem';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAudience } from './data/useAudience';
@@ -318,6 +319,8 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               })}
             </SidebarGroup>
           ))}
+          {/* Inside the desktop app only: its "Update ready" item. Nothing in a browser. */}
+          <DesktopUpdateItem />
         </Sidebar>
       }
     >
