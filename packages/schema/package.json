@@ -7,7 +7,8 @@
   "license": "MIT",
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./changes": "./src/changes.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -15,6 +16,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "diff": "^8.0.4",
     "zod": "^4.6.7"
   }
 }
