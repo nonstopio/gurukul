@@ -31,7 +31,7 @@ export type WritingRule =
   | 'empty-explanation'
   /** An explanation that only says the answer "is correct". */
   | 'bare-explanation'
-  /** An explanation that names an option by letter or number, which shuffling makes meaningless. */
+  /** An explanation that names an option by letter, number or position, which shuffling breaks. */
   | 'option-by-letter'
   /** A "Which… not" question whose negative is not marked (NOT, **not**). */
   | 'unmarked-negative';
@@ -545,8 +545,17 @@ const FILLER_WORDS = new Set(
     'correctly right true yes exactly indeed because so here well done good job great'
   ).split(' '),
 );
-const OPTION_BY_LETTER =
-  /(?<![\p{L}])(?:[Oo]ption|[Aa]nswer|[Cc]hoice|OPTION|ANSWER|CHOICE)\s+\(?(?:[A-H]|[1-8])\)?(?![\p{L}\p{N}])/u;
+/**
+ * Ways to name an option by where it sits, all meaningless once options are shuffled: "Option B",
+ * "Answer 2", a sentence that opens with a bare letter ("B is correct", "(C) was"), and a position
+ * ("the second option", "the last one"). "A rebase is correct" is not one: after the letter comes
+ * a word, not the verb.
+ */
+const OPTION_BY_LETTER = [
+  /(?<![\p{L}])(?:[Oo]ption|[Aa]nswer|[Cc]hoice|OPTION|ANSWER|CHOICE)\s+\(?(?:[A-H]|[1-8])\)?(?![\p{L}\p{N}])/u,
+  /(?:^|(?<=[.!?:;]))\s*\(?[A-H]\)?[.):]?\s+(?:is|was|are|were|isn't|wasn't)(?![\p{L}])/u,
+  /(?<![\p{L}])(?:first|second|third|fourth|fifth|last|final|1st|2nd|3rd|4th|5th)\s+(?:option|one|answer|choice)s?(?![\p{L}])/iu,
+];
 
 /**
  * Empty, or nothing but "correct" talk ("Option B is correct.", "That's right!"). Option texts
@@ -580,13 +589,13 @@ function explanationRules(text: string, masked: string, options: readonly string
       message: 'Say why the answer is right, not only that it is.',
     });
   }
-  const letter = OPTION_BY_LETTER.exec(masked);
+  const letter = OPTION_BY_LETTER.map((re) => re.exec(masked)).find((m) => m !== null);
   if (letter) {
     notes.push({
       rule: 'option-by-letter',
       excerpt: excerptOf(letter[0]),
       message:
-        'Options are shuffled, so a letter or number names nothing. Say what the answer does instead.',
+        'Options are shuffled, so a letter, number or position names nothing. Say what the answer does instead.',
     });
   }
   return notes;
@@ -691,10 +700,15 @@ const optionList = (options: readonly string[], base: Omit<Where, 'field'>): Tex
     where: { ...base, field: 'option', index },
   }));
 
-/** The longest option against the median: one finding when it is more than twice as long. */
+/**
+ * The longest option against the median: one finding when it is more than twice as long. Blank
+ * options (a draft may hold them) are left out of the median, and with fewer than two options that
+ * have text there is nothing to compare.
+ */
 function longOption(options: readonly string[], base: Omit<Where, 'field'>): WritingFinding[] {
   const lengths = options.map((o) => o.trim().length);
-  const sorted = [...lengths].sort((a, b) => a - b);
+  const sorted = lengths.filter((n) => n > 0).sort((a, b) => a - b);
+  if (sorted.length < 2) return [];
   const mid = Math.floor(sorted.length / 2);
   const median =
     sorted.length % 2 === 1

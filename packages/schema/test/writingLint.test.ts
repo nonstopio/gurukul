@@ -289,7 +289,7 @@ describe('explanations', () => {
     ['Correct.', ['bare-explanation']],
     ["That's right!", ['bare-explanation']],
     ['That’s right.', ['bare-explanation']],
-    ['B is correct.', ['bare-explanation']],
+    ['B is correct.', ['bare-explanation', 'option-by-letter']],
     ['This is the correct answer.', ['bare-explanation']],
     ['`git rebase` is the correct answer.', ['bare-explanation']],
     [
@@ -299,6 +299,16 @@ describe('explanations', () => {
     ['Option B is correct.', ['bare-explanation', 'option-by-letter']],
     ['Answer 2 is wrong: it deletes the branch.', ['option-by-letter']],
     ['(Choice C) keeps history.', ['option-by-letter']],
+    ['B is correct because rebasing is the best practice in this scenario.', ['option-by-letter']],
+    ['(C) was the trap: reset drops the commits.', ['option-by-letter']],
+    ['Reset drops commits. D is wrong for that reason.', ['option-by-letter']],
+    ['Answer: B is right, rebase keeps history linear.', ['option-by-letter']],
+    ['The second option is correct because rebasing keeps history linear.', ['option-by-letter']],
+    ['The first one is right: it keeps history linear.', ['option-by-letter']],
+    ['The last answer deletes the branch.', ['option-by-letter']],
+    ['A rebase is correct here because it keeps history linear.', []],
+    ['Rebase keeps history linear. A merge is fine too.', []],
+    ['Push the first commit after the rebase.', []],
     [
       'Rebase puts your commits after the newest ones on main. Merge also works, but it adds a merge commit the reviewer has to read past.',
       [],
@@ -559,6 +569,9 @@ describe('lintCourse', () => {
     ['four options, one long', ['abc', 'abcd', 'abcde', 'a very long option text'], 3],
     ['three options of similar length', ['Rebase', 'Merge', 'Cherry-pick'], null],
     ['two options', ['Yes', 'No, because it rewrites every commit'], null],
+    ['blank options left out of the median', ['', '', 'Rebase'], null],
+    ['one option with text', ['', 'Rebase'], null],
+    ['blank options with a long one', ['', 'Ab', 'Cd', 'Efghij'], 3],
   ])('long option: %s', (_, texts, index) => {
     const q = question('k1', {
       options: (texts as string[]).map((text, i) => ({ id: `o${i}`, text })),

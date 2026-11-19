@@ -515,8 +515,8 @@ way past it. First rules:
   lesson; a heading in Title Case.
 - Quiz: "all of the above" or "none of the above"; the longest option more than twice the median
   length (the long one is usually the right one); an explanation that is empty or only says the
-  option "is correct"; an explanation that names an option by letter or number ("Option B"),
-  which means nothing once options are shuffled; a negative question ("Which is NOT…") without
+  option "is correct"; an explanation that names an option by letter, number or position
+  ("Option B", "B is correct", "the second one"), which means nothing once options are shuffled; a negative question ("Which is NOT…") without
   the negative marked. The Quiz rules apply to a lesson's check blocks too.
 
 Markdown code (fenced and inline), link targets and addresses are never linted, and spelling is
