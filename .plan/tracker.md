@@ -30,8 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| Desktop Studio | 1 | 21 | 0 | 3 |
-| **Total** | 191 | 22 | 0 | 17 |
+| Desktop Studio | 2 | 20 | 0 | 4 |
+| **Total** | 192 | 21 | 0 | 18 |
 
 ## Pick order
 
@@ -43,27 +43,26 @@ Media uploads go schema, player, Storage, then Studio; `MED-04` waits on the mai
 Desktop Studio (`22-desktop-studio.md`) goes foundations, shell, sessions, review and save, then
 shipping. The pure pieces (`DSK-05` to `DSK-07`) need nothing and can start at once.
 
-2. `DSK-04` — spike: drive Claude Code from Electron, so the bridge is built on facts
-3. `DSK-06` — three-way merge
-4. `DSK-07` — writing lint
-5. `DSK-08` — the shell, its bridge and the `desktop` commit scope
-6. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
-7. `DSK-09` — Google sign-in through the system browser
-8. `DSK-10` — agent bridge
-9. `DSK-11` — sessions in the web app: facade, store, start
-10. `DSK-12` — course tools
-11. `DSK-13` — session workspace: chat and live preview
-12. `DSK-17` — system prompt and skills
-13. `DSK-14` — Review
-14. `DSK-15` — Save to draft
-15. `DSK-16` — new course
-16. `DSK-18` — second opinion on answers
-17. `DSK-19` — hand edits inside a session
-18. `DSK-20` — click a block, Sources folder
-19. `DSK-24` — end-to-end with a fake Claude Code
-20. `DSK-25` — download card in Studio
-21. `DSK-22` — Windows signing
-22. `DSK-23` — guides, privacy note, analytics events
+2. `DSK-06` — three-way merge
+3. `DSK-07` — writing lint
+4. `DSK-08` — the shell, its bridge and the `desktop` commit scope
+5. `DSK-21` — release pipeline: versions from commits, installers, self-update, from the first build
+6. `DSK-09` — Google sign-in through the system browser
+7. `DSK-10` — agent bridge
+8. `DSK-11` — sessions in the web app: facade, store, start
+9. `DSK-12` — course tools
+10. `DSK-13` — session workspace: chat and live preview
+11. `DSK-17` — system prompt and skills
+12. `DSK-14` — Review
+13. `DSK-15` — Save to draft
+14. `DSK-16` — new course
+15. `DSK-18` — second opinion on answers
+16. `DSK-19` — hand edits inside a session
+17. `DSK-20` — click a block, Sources folder
+18. `DSK-24` — end-to-end with a fake Claude Code
+19. `DSK-25` — download card in Studio
+20. `DSK-22` — Windows signing
+21. `DSK-23` — guides, privacy note, analytics events
 
 
 
@@ -377,13 +376,14 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-01` | Anthropic confirms the design in writing; NonStop accepts the Commercial Terms | maintainer | — | Open question 18. Needed before public installers, not before building. `22-desktop-studio.md` (What Anthropic allows) |
 | `DSK-02` | Google "Desktop" OAuth client for sign-in from the app | maintainer | — | Google Cloud console, same project; client id and secret go to GitHub Actions secrets (open question 22) |
 | `DSK-03` | Signing: Apple Developer ID and notarisation secrets | maintainer | — | The five secrets Morph's pipeline uses (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) as GitHub Actions secrets on this repository; an existing Developer ID certificate can be reused. Steps: Morph's `docs/release-setup.md` |
-| `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | todo | — | Done when a throwaway script proves, on macOS and Windows: stream input and output, the MCP proxy round trip, stop and resume, how to detect a missing sign-in without spending usage, and how to keep personal Claude Code config out while keeping the subscription sign-in; findings written into `22-desktop-studio.md` (Starting Claude Code). No product code |
+| `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | done | — | Linux slice, signed out, no usage spent: `22-desktop-studio.md` (Starting Claude Code, Spike findings) pins the launch flags (`--setting-sources ""`, `--strict-mcp-config`, `--tools Skill`, `--system-prompt-snapshot off`, `--session-id` then `--resume`), the allow-listed environment, the not-signed-in signals, Stop as the `interrupt` control request, and the agent's tools as an HTTP MCP endpoint in the main process with the stdio proxy as fallback. The signed-in macOS and Windows half is `DSK-26` |
+| `DSK-26` | Signed-in check of the pinned launch on macOS and Windows | maintainer | `DSK-04` | Needs signed-in Macs and Windows PCs, so the maintainer runs it (a throwaway script from `DSK-04` is enough). Done when, with the flags and allow-listed environment in `22-desktop-studio.md` (Starting Claude Code), a Claude plan sign-in still works under `--setting-sources ""` and `auth status` and `initialize` report it; a real round trip (one message, one `gurukul` tool call over the HTTP endpoint, a skill, Stop, resume) works; a real plan limit is recorded as it arrives in the stream; `claude.exe` and `claude.cmd` both start on Windows, with paths that have spaces; the packaged, hardened macOS app with its fuses set serves the endpoint without a firewall prompt; and where the transcript lands on each. If the HTTP endpoint fails, the stdio proxy is checked instead (named pipes, socket path length, hardened runtime with `RunAsNode`) and the trade-off recorded in Privacy and security. Findings go back into Spike findings |
 | `DSK-05` | Session shape and the change engine | done | — | `packages/schema/src/session.ts` (`authoringSessionSchema`, `workingSchema`, goals as `{ text, done }`), `packages/schema/src/changes.ts` (`courseChanges`, `wordDiff`, `lineDiff`; imported as `@gurukul/schema/changes` so `diff` stays out of the learner chunk), tests in `packages/schema/test/session.test.ts` and `changes.test.ts`; `answerKeysSchema` shared from `draft.ts`. `diffCourses` unchanged |
 | `DSK-06` | Three-way merge of working copies | todo | `DSK-05` | Done when `packages/schema/src/merge.ts` `mergeWorking(base, mine, theirs)` takes one-sided changes, reports items changed on both sides as conflicts, keeps the session's order, and moves answer keys with their question |
 | `DSK-07` | Writing lint | todo | — | Done when `packages/schema/src/writingLint.ts` returns findings (item, field, rule, excerpt) for the rules in `22-desktop-studio.md` (Writing quality), pure and without AI |
 | `DSK-08` | Desktop shell: window, origin lock, bridge v1, session files, CI | todo | `DSK-04` | Done when `apps/desktop` (`@gurukul/desktop`) loads the web app with context isolation and sandbox on, exposes `window.gurukulDesktop` (`info`, `store.*`) to the allowed origin only, opens other links in the system browser, is in `npm run check` at 100% coverage, and `desktop` is a commit scope in `commitlint.config.mjs`, the PR-title check and the commit-message skill. CLAUDE.md map gains the workspace |
 | `DSK-09` | Google sign-in through the system browser | todo | `DSK-02`, `DSK-08` | Done when `auth.googleSignIn()` runs OAuth with PKCE and a loopback redirect and the web app signs in with `signInWithCredential`; the domain check stays in the rules; no secret in the repository |
-| `DSK-10` | Agent bridge: find, start, stream, stop and resume Claude Code; MCP proxy | todo | `DSK-04`, `DSK-08` | Done when `agent.*` in the bridge starts the unmodified `claude` with the pinned flags, streams events, forwards tool calls to the window and back, and reports not installed, too old, not signed in and plan limit reached as distinct events. Never reads or stores a Claude credential |
+| `DSK-10` | Agent bridge: find, start, stream, stop and resume Claude Code; MCP endpoint | todo | `DSK-04`, `DSK-08`, `DSK-26` | Done when `agent.*` in the bridge starts the unmodified `claude` with the pinned flags, streams events, forwards tool calls to the window and back, and reports not installed, too old, not signed in and plan limit reached as distinct events, starts `claude` with the allow-listed environment, and removes Claude Code's own transcript of a session (`<config>/projects/*/<id>.jsonl`, not `claude purge`) with the session's 30-day clean-up. Never reads or stores a Claude credential |
 | `DSK-11` | Sessions in the web app: bridge facade, store, list and start | todo | `DSK-05`, `DSK-08` | Done when `apps/web/src/desktop/bridge.ts` is the only reader of the bridge, the session store saves after every turn and restores after a restart, the Studio course list offers New course with AI and Edit with AI in the desktop app only, one open session per course is enforced, files are removed after 30 days, and the route is classified in `navigation/areas/` |
 | `DSK-12` | Course tools the agent calls | todo | `DSK-05` | Done when every tool in `22-desktop-studio.md` (The agent's tools) runs against the working copy through Studio's edit helpers, validates with the course schema and size limit, makes ids itself, and refuses with a sentence the model can act on. No tool reaches learners, publishing, access or another course |
 | `DSK-13` | Session workspace: chat, live preview, turns and undo | todo | `DSK-10`, `DSK-11`, `DSK-12` | Done when `/studio/sessions/:sessionId` shows the chat (streaming, plain-word activity, Stop), the real player drawing the working copy with changed blocks marked, the outline with badges, a checkpoint per turn and Undo of the newest turn; side by side from 1024px, chat as a drawer from 640px. No Firestore write |
@@ -394,7 +394,7 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-18` | Second opinion on Quiz answers | todo | `DSK-14`, `DSK-17` | Done when each question added or changed in a session is answered by a separate run that never sees the key, disagreements show Check this answer in Review, results are cached per question, and Skip answer check exists |
 | `DSK-19` | Hand edits inside a session | todo | `DSK-13` | Done when Open in editor binds Studio's lesson and Quiz editors to the session's working copy through a second `DraftApi` source, and the edits become a turn by the Educator |
 | `DSK-20` | Click a block to attach it; Sources folder | todo | `DSK-13` | Done when a block clicked in the preview is attached to the next message, and `sources.*` lets the Educator pick files the agent may read, with the notice about what is sent to Anthropic |
-| `DSK-21` | Release pipeline: versions from commits, signed installers, self-update | todo | `DSK-03`, `DSK-08` | Done when `.github/workflows/desktop-release.yml` (adapted from Morph's `release.yml`) runs after CI on a push to `main` that touches `apps/desktop/`, computes `desktop-vX.Y.Z` from commit subjects since the last `desktop-v*` tag, stamps it without committing, builds signed and notarised macOS (arm64 and x64, DMG and ZIP) and Windows x64 (NSIS, unsigned) installers and publishes one GitHub Release with update metadata; `apps/desktop/src/updates.ts` (from Morph's `updates.ts`) checks at launch and every six hours, downloads silently, and the sidebar's Update ready item or a Quit installs it; `docs/desktop-release-setup.md` exists; an upgrade between two released versions was checked by hand. `22-desktop-studio.md` (Releases, versions and updates) |
+| `DSK-21` | Release pipeline: versions from commits, signed installers, self-update | todo | `DSK-03`, `DSK-08` | Done when `.github/workflows/desktop-release.yml` (adapted from Morph's `release.yml`) runs after CI on a push to `main` that touches `apps/desktop/`, computes `desktop-vX.Y.Z` from commit subjects since the last `desktop-v*` tag, stamps it without committing, builds signed and notarised macOS (arm64 and x64, DMG and ZIP) and Windows x64 (NSIS, unsigned) installers and publishes one GitHub Release with update metadata; `apps/desktop/src/updates.ts` (from Morph's `updates.ts`) checks at launch and every six hours, downloads silently, and the sidebar's Update ready item or a Quit installs it; the packaged build sets Electron's fuses as `22-desktop-studio.md` (Privacy and security) lists, `RunAsNode` off; `docs/desktop-release-setup.md` exists; an upgrade between two released versions was checked by hand. `22-desktop-studio.md` (Releases, versions and updates) |
 | `DSK-22` | Windows: signed installer and the agent bridge proven there | todo | `DSK-10`, `DSK-21` | Done when the Windows installer is signed (certificate from the maintainer, open question 23), installs without a SmartScreen warning, updates itself, and the agent bridge passes its tests on Windows |
 | `DSK-23` | Guides, privacy note and analytics events | todo | `DSK-15` | Done when `docs/` has an Educator guide (install, sign in to Claude Code, a first session), the privacy page says what a session sends to Anthropic, and `session_started`, `session_saved`, `session_discarded` are typed events with counts only |
 | `DSK-24` | End-to-end with a fake Claude Code | todo | `DSK-15` | Done when Playwright drives the built shell against the emulators with a script that replays recorded agent output: a session, a turn, Review, Save to draft, a new course, and a stale draft with a merge. No test calls Anthropic |
