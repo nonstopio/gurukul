@@ -488,6 +488,33 @@ Rules every tool follows:
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 
+Each tool is `{ name, description, input (zod), run(state, input, ctx) }`, pure: no React,
+Firestore or bridge. `runTool(state, name, input, ctx)` parses the input, runs the tool and checks
+the result; `toolList()` gives the MCP server each input as JSON Schema (zod's `toJSONSchema`).
+The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`,
+`ctx.sources`), with the clock and the randomness for ids. Found while building it:
+
+- **A draft that is already invalid does not block the agent.** An Educator's draft may hold an
+  untitled chapter or an empty Quiz (Studio saves drafts unfinished). A change is refused only for
+  schema problems it adds, matched by the ids on their path, so moving a broken chapter is not a
+  new problem; and for size, only when it grows a course past the limit. Refusals name the place in
+  words: "In chapter "Basics" (p1) › lesson "Branches" (l2), title cannot be empty."
+- `runTool` also refuses any change to the course's id, Educators, status, version or publish
+  date, and keeps the base as it was, whatever a tool returns.
+- `add_quiz` takes its questions in the same call: the course schema requires at least one, so an
+  empty Quiz would be refused. `questionsShown` defaults to all of them. `remove_question` refuses
+  the last question and points at `remove_item`.
+- Right answers are indexes from 0 into the options given (`correct`); a True or False question
+  always has the answers True and False. Changing a multiple-choice question to single choice
+  without saying which answer is right is refused, never trimmed to the first.
+- `add_block` and `set_blocks` write only text, code, callout and check blocks. `update_block`
+  changes only the words of a media block (alt, caption, title, label), never an address or an
+  upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep
+  media), a block with an existing `id` to rewrite it in place (so Review shows Changed, not
+  Removed and Added), or a block without one to add it.
+- `update_question` keeps answers by id (`{ id, text }`) so a reworded answer stays the same
+  answer, and keeps the right answers marked when `correct` is left out.
+
 ## Writing quality: the humanizer
 
 Three layers, because a prompt alone drifts in a long session.
