@@ -14,6 +14,8 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/args.ts`                                                         | The zod pieces the handlers check arguments with                                                         |
 | `src/handlers.ts`                                                     | `info`, `store.*`, and the composition of every area's handlers (`createHandlers`)                       |
 | `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; `notAvailable(schema)` until its item builds it                                |
+| `src/googleSignIn.ts`                                                 | `auth.googleSignIn`: PKCE, loopback listener, system browser, token exchange; answers the ID token only  |
+| `src/googleClient.ts`, `scripts/bundle.ts`, `.env.example`            | The Google Desktop OAuth client: build-time variables the bundle writes into `main.cjs` as literals      |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged          |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                   |
 | `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                  |
@@ -51,7 +53,12 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 - **Session files hold answer keys.** Never log a file name, chat text, course text or a key.
   Errors reach the window as `store.write failed (EACCES)`; Node's messages carry home-folder paths.
 - No UI, no credentials. The shell never sees a Claude credential and never says "Claude Code" in
-  a product name.
+  a product name. Google sign-in hands the window its ID token and keeps nothing: no token, code,
+  verifier or client secret is stored or logged.
+- **Build-time configuration comes in through `scripts/bundle.ts`'s `define`, never at run time.**
+  The Google client id and secret (`GURUKUL_DESKTOP_GOOGLE_CLIENT_*`) are GitHub Actions secrets
+  in a release build and `apps/desktop/.env` (gitignored, `.env.example`) in development; never
+  commit a value. A test never calls Google: the token endpoint is an injected `fetch`.
 
 ## Commands
 

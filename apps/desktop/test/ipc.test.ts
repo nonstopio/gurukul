@@ -27,13 +27,15 @@ function fakeStore(overrides: Partial<SessionStore> = {}): SessionStore {
   };
 }
 
-function setup(store = fakeStore()) {
+const signedIn = { ok: true, idToken: 'header.payload.signature' } as const;
+
+function setup(store = fakeStore(), googleSignIn = vi.fn(async () => signedIn)) {
   const listeners = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
   const ipc: IpcLike = { handle: (name, listener) => void listeners.set(name, listener) };
   const sink = vi.fn();
   registerHandlers(
     ipc,
-    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store }),
+    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store, googleSignIn }),
     ORIGINS,
     createLogger({ sink }),
   );
@@ -42,7 +44,7 @@ function setup(store = fakeStore()) {
     if (!listener) throw new Error('no listener');
     return listener(event, ...args) as Promise<unknown>;
   };
-  return { listeners, call, sink, store };
+  return { listeners, call, sink, store, googleSignIn };
 }
 
 describe('checkSender', () => {
@@ -88,6 +90,15 @@ describe('registerHandlers', () => {
     expect(store.write).toHaveBeenCalledWith(f, '{}');
     expect(store.list).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
     expect(store.remove).toHaveBeenCalledWith(f);
+  });
+
+  it('answers auth.googleSignIn with what the sign-in gave, and refuses arguments to it', async () => {
+    const { call, googleSignIn } = setup();
+    await expect(call('auth.googleSignIn', top())).resolves.toEqual(signedIn);
+    expect(googleSignIn).toHaveBeenCalledTimes(1);
+    await expect(call('auth.googleSignIn', top(), 'client')).rejects.toThrow(INVALID);
+    await expect(call('auth.googleSignIn', top('https://evil.example'))).rejects.toThrow(REFUSED);
+    expect(googleSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a call from another origin before the handler runs, and logs no argument', async () => {
@@ -208,7 +219,6 @@ describe('calls a later item builds', () => {
     ['sources.list', [ref]],
     ['sources.reveal', [ref]],
     ['sources.read', [ref, 'Rebase notes.md']],
-    ['auth.googleSignIn', []],
     ['app.checkForUpdate', []],
     ['app.installUpdate', []],
   ];
@@ -222,8 +232,10 @@ describe('calls a later item builds', () => {
     });
   });
 
-  it('covers every call that is not info or store', () => {
-    const later = CALLS.filter((n) => n !== 'info' && !n.startsWith('store.'));
+  it('covers every call that is not built yet', () => {
+    const later = CALLS.filter(
+      (n) => n !== 'info' && !n.startsWith('store.') && n !== 'auth.googleSignIn',
+    );
     expect(new Set(valid.map(([n]) => n))).toEqual(new Set(later));
   });
 

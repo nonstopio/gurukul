@@ -409,6 +409,43 @@ redirect, a "Desktop" OAuth client), receives an ID token, and the web app calls
 OAuth client is a maintainer item (`DSK-02`); how its client id reaches the build without
 tripping the secret guard is open question 22.
 
+As built in `DSK-09`:
+
+- **The flow** (`apps/desktop/src/googleSignIn.ts`): OAuth 2.0 for installed apps. Each call makes
+  a fresh PKCE verifier (S256) and a random `state`, listens once on `127.0.0.1` at a port the
+  system picks (redirect URI `http://127.0.0.1:{port}`), and opens Google's consent page with
+  `shell.openExternal` (`prompt=select_account`, `hd=nonstopio.com` as a hint only). The redirect
+  must carry that `state`; anything else is answered "This sign-in has ended" and ignored, so a
+  local program cannot end or hijack it. The code is exchanged at `oauth2.googleapis.com/token`
+  with the verifier through Electron's `net.fetch` (the system proxy applies), and only the
+  `id_token` goes to the window: the access token is dropped, no refresh token is asked for or
+  kept, nothing is written to disk, and no token, code, verifier or secret is logged. The tab
+  says, in plain words, to go back to the app, and the app's window comes to the front.
+- **Endings.** Five minutes without the browser coming back is `timeout`; Cancel on Google's page
+  is `cancelled`; a second call while one waits replaces it (the first answers `cancelled`, its
+  listener closes), so pressing Sign in again after closing the tab just works. A token that
+  arrives after the time is up is thrown away.
+- **Contract change:** `GoogleSignInResult`'s reasons gained `not_configured`, for a build made
+  without a client id (a development build with nothing set). Not a breaking change: no site used
+  the call before, so `BRIDGE_VERSION` stays 1.
+- **The web side** (`apps/web/src/auth/service.ts`, the `AuthService` port): in the desktop app
+  (`desktopBridge()` not null) `signIn` calls `auth.googleSignIn()` and then
+  `signInWithCredential(GoogleAuthProvider.credential(idToken))`; in a browser nothing changed
+  (popup, redirect on iOS). Cancelled is quiet, like a closed popup; timeout, not configured and a
+  shell too old for the call ("Not available in this version") each show their own sentence; any
+  other failure shows "Sign-in did not finish". While it waits, the sign-in page says the browser
+  opened. The account check in `AuthProvider` and the rules applies to this sign-in as to any.
+- **The client id and secret** are build-time configuration (open question 22, resolved):
+  `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID` and `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET`, written into
+  `dist/main.cjs` as string literals by `apps/desktop/scripts/bundle.ts` (esbuild `define`), from
+  GitHub Actions secrets in the release build and from the environment or a gitignored
+  `apps/desktop/.env` in development (`apps/desktop/.env.example`). The packaged app never reads
+  them from the Educator's environment. Unset, the call answers `not_configured`.
+- **For `DSK-02`:** Firebase Auth accepts an ID token from another OAuth client of the same Google
+  Cloud project; a client in another project must be added to the Google provider's allow-list in
+  the Firebase console. **For `DSK-21`:** the release workflow's build steps pass the two secrets
+  as environment variables to `npm run build -w @gurukul/desktop`.
+
 ## Sessions
 
 ### Shape
@@ -928,7 +965,9 @@ Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes
 reinstalls), Node 22 from `.nvmrc`, one release at a time through a concurrency group.
 
 Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`). `docs/desktop-release-setup.md` is
+`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`); and
+`GURUKUL_DESKTOP_GOOGLE_CLIENT_ID`, `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET` (`DSK-02`), which the
+bundle writes into the app (Signing in to Gurukul). `docs/desktop-release-setup.md` is
 Morph's step-by-step guide with the names changed.
 
 Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and

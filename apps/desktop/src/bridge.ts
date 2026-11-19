@@ -207,11 +207,19 @@ export interface SourcesChoice extends SessionRef {
 
 // ---- auth ----
 
-/** `auth.googleSignIn`: an ID token for `signInWithCredential`, or why there is none. */
+/**
+ * `auth.googleSignIn`: an ID token for `signInWithCredential`, or why there is none. A second call
+ * while one is waiting replaces it: the first answers `cancelled`.
+ */
 export type GoogleSignInResult =
-  | { ok: true; idToken: string }
-  /** `cancelled`: the browser tab was closed or sign-in refused; `timeout`: no answer in time. */
-  | { ok: false; reason: 'cancelled' | 'timeout' | 'failed' };
+  { ok: true; idToken: string } | { ok: false; reason: GoogleSignInFailure };
+
+/**
+ * `cancelled`: the person refused in the browser, or signed in again from the app; `timeout`: no
+ * answer from the browser in time; `not_configured`: this build has no Google client id (a
+ * development build without `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID`); `failed`: anything else.
+ */
+export type GoogleSignInFailure = 'cancelled' | 'timeout' | 'not_configured' | 'failed';
 
 // ---- app ----
 
