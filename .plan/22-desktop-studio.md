@@ -114,7 +114,7 @@ Four decisions shape it:
 | `apps/web/src/studio/session/` | Session store, course tools, chat panel, workspace, review screen, prompts and skills | yes |
 | `packages/schema/src/session.ts` | The session shape (zod) | yes |
 | `packages/schema/src/changes.ts` | The change engine: what differs between two working copies, down to the field. Imported as `@gurukul/schema/changes`, not from the package index, so its `diff` dependency stays out of the chunk every learner loads | yes |
-| `packages/schema/src/merge.ts` | Three-way merge of working copies | yes |
+| `packages/schema/src/merge.ts` | Three-way merge of working copies, built on the change engine's alignment and rows. Imported as `@gurukul/schema/merge`, for the same reason | yes |
 | `packages/schema/src/writingLint.ts` | The writing lint (pure, no AI) | yes |
 | `apps/web/src/studio/` editors, preview, publish dialog | Reused as they are | no |
 
@@ -458,6 +458,36 @@ page says: "The draft was saved by Arjun at 14:10, after this session started." 
 
 The stored draft becomes the new base, Review is drawn again against it, and Save is offered
 again. Nothing is overwritten silently, and there is no "save anyway".
+
+`mergeWorking` and `resolveConflicts(result, choices)` (`packages/schema/src/merge.ts`, imported
+as `@gurukul/schema/merge`) do this, pure and without I/O. They match things the way Review does
+(`changes.ts`: chapters by id, lessons and Quizzes by type and id, repeated ids in order) and take
+"changed" from `courseChanges`, so a merge never disagrees with the rows the Educator reviewed.
+Found while building it:
+
+- The unit is the Review row. Course details and landing page fields merge one by one (the
+  outcomes list is one field: it has no ids). A lesson or Quiz is taken whole from one side, never
+  merged block by block or question by question, so a Quiz always arrives with its own keys. Both
+  sides making the same change, or adding the same item, is no conflict.
+- Conflict keys follow the row keys (`lesson:l2`, `chapter:p3`, and `field:rules.passMark` for a
+  field), so the screen can show both rows. `resolveConflicts` refuses while any conflict has no
+  choice.
+- A change and a move are separate: one side's new words and the other side's new place both land.
+  Removed on one side and only moved or untouched on the other: removed. Removed on one side and
+  changed on the other: a conflict.
+- A chapter removed on one side takes along the items still in it on the other side, and is one
+  conflict (not one per lesson) when that side renamed it or added, changed or moved in a lesson
+  there. Keeping it keeps it as that side has it; removing it sends a lesson moved into it back to
+  where the other side has it, and drops one that was only ever there.
+- An item moved on both sides goes where the session put it; a list reordered on both sides takes
+  the session's order. Either way `orderKept` names the list so the page can say so. An item one
+  side added goes right after the entry before it on that side.
+- The course's own fields that Studio and publishing keep (id, version, status, `publishedAt`,
+  Educators) come from the stored draft. `answersChanged` is set as Studio's save sets it: when
+  the stored draft carries it or the merged keys differ from the stored draft's.
+- Two copies each within the limits can merge into one over them (31 chapters, 61 lessons in a
+  chapter, over `COURSE_BYTES_LIMIT`). The merged copy goes through Review's checks like any
+  working copy, so "Course is valid" or Size stops that save.
 
 ## The agent's tools
 
