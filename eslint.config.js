@@ -5,6 +5,52 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import globals from 'globals';
 
+/** A log message is a constant phrase; values go in fields (.claude/rules/logging.md). */
+const webLogSyntax = [
+  {
+    selector:
+      'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > TemplateLiteral[expressions.length>0]',
+    message:
+      'Log a constant event phrase and put values in fields: log.info("Issued", { id }). See .claude/rules/logging.md.',
+  },
+  {
+    selector:
+      'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > BinaryExpression[operator="+"]',
+    message:
+      'Log a constant event phrase and put values in fields: log.info("Issued", { id }). See .claude/rules/logging.md.',
+  },
+];
+
+const DESKTOP_BRIDGE_MESSAGE =
+  'Only apps/web/src/desktop/bridge.ts reads window.gurukulDesktop: use desktopBridge() or useDesktop() from there (.plan/22-desktop-studio.md, The bridge).';
+
+const DESKTOP_TYPES_MESSAGE =
+  'The desktop package reaches the web app as types only: `import type { … } from "@gurukul/desktop/bridge"`, so none of its code lands in the bundle (.plan/22-desktop-studio.md, The bridge).';
+const DESKTOP_PACKAGE = '/^@gurukul\\/desktop(\\/|$)/';
+
+/**
+ * `@gurukul/desktop` only as `import type` / `export type`. An inline `import { type X }` is refused
+ * too: under `verbatimModuleSyntax` it keeps the import, and with it the module, in the bundle.
+ */
+const desktopTypesOnlySyntax = [
+  {
+    selector: `ImportDeclaration[source.value=${DESKTOP_PACKAGE}][importKind!="type"]`,
+    message: DESKTOP_TYPES_MESSAGE,
+  },
+  {
+    selector: `:matches(ExportAllDeclaration, ExportNamedDeclaration)[source.value=${DESKTOP_PACKAGE}][exportKind!="type"]`,
+    message: DESKTOP_TYPES_MESSAGE,
+  },
+  { selector: `ImportExpression[source.value=${DESKTOP_PACKAGE}]`, message: DESKTOP_TYPES_MESSAGE },
+];
+
+/** Any mention of `gurukulDesktop` outside the facade. */
+const desktopBridgeSyntax = [
+  { selector: 'Identifier[name="gurukulDesktop"]', message: DESKTOP_BRIDGE_MESSAGE },
+  { selector: 'Literal[value="gurukulDesktop"]', message: DESKTOP_BRIDGE_MESSAGE },
+  { selector: 'TemplateElement[value.cooked="gurukulDesktop"]', message: DESKTOP_BRIDGE_MESSAGE },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -107,26 +153,25 @@ export default tseslint.config(
     files: ['apps/web/src/log.ts'],
     rules: { 'no-console': 'off' },
   },
-  // WEB: a log message is a constant phrase; values go in fields (.claude/rules/logging.md).
+  // WEB: a log message is a constant phrase; values go in fields (.claude/rules/logging.md). And only
+  // the desktop facade, apps/web/src/desktop/bridge.ts, may name window.gurukulDesktop
+  // (.plan/22-desktop-studio.md, The bridge): any mention of the name, as a property, a variable, a
+  // destructured key or a string, is refused elsewhere. The facade's own block keeps the log rules
+  // and the types-only rule for @gurukul/desktop.
   {
     files: ['apps/web/src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
-        {
-          selector:
-            'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > TemplateLiteral[expressions.length>0]',
-          message:
-            'Log a constant event phrase and put values in fields: log.info("Issued", { id }). See .claude/rules/logging.md.',
-        },
-        {
-          selector:
-            'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > BinaryExpression[operator="+"]',
-          message:
-            'Log a constant event phrase and put values in fields: log.info("Issued", { id }). See .claude/rules/logging.md.',
-        },
+        ...webLogSyntax,
+        ...desktopTypesOnlySyntax,
+        ...desktopBridgeSyntax,
       ],
     },
+  },
+  {
+    files: ['apps/web/src/desktop/bridge.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...webLogSyntax, ...desktopTypesOnlySyntax] },
   },
   // FUNCTIONS: only firebase/functions/src/api/ throws HttpsError / calls onCall, and only
   // firebase/functions/src/logging/ (plus api/) touches the logger or console
