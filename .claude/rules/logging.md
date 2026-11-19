@@ -2,6 +2,7 @@
 paths:
   - 'firebase/functions/src/**'
   - 'apps/web/src/**'
+  - 'apps/desktop/src/**'
   - 'packages/schema/src/logging.ts'
 ---
 
@@ -13,7 +14,8 @@ Use the `writing-logs` skill whenever you add or change a log statement. Full st
 - **Structured only:** `log.<level>('Constant event phrase', { fieldA, fieldB })`. Never put a value
   in the sentence (no template literals with `${}`, no `+` concatenation) — ESLint rejects it.
 - **One logger:** functions log through `log` in `firebase/functions/src/logging/`, the browser
-  through `apps/web/src/log.ts`. No `console.*`, no direct `firebase-functions/logger`.
+  through `apps/web/src/log.ts`, the desktop shell's main process through `apps/desktop/src/log.ts`.
+  No `console.*`, no direct `firebase-functions/logger`.
 - **Levels:** `debug` entry points, decisions and payloads (off in deployed environments); `info`
   completed operations; `warn` refused rules, retries, fallbacks; `error` a failure, always with the
   `Error` object, and **once** — the API wrapper logs thrown errors, lower layers throw instead.

@@ -71,7 +71,7 @@ fi
 # 100% coverage per workspace, only for the workspaces this push touched. A change to the root
 # config or the lockfile can affect any of them, so it runs them all.
 everything='^(package\.json|package-lock\.json|tsconfig\.base\.json)$'
-for ws in apps/web:@gurukul/web packages/ui:@gurukul/ui firebase/functions:@gurukul/functions; do
+for ws in apps/web:@gurukul/web apps/desktop:@gurukul/desktop packages/ui:@gurukul/ui firebase/functions:@gurukul/functions; do
   dir=${ws%%:*}
   name=${ws#*:}
   if touches "^$dir/" || touches "$everything"; then

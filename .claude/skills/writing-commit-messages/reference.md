@@ -14,6 +14,7 @@ scope is always an area from the table below, and commitlint rejects anything el
 | Scope       | Covers                                                             |
 | ----------- | ------------------------------------------------------------------ |
 | `web`       | `apps/web`: the learner app, Admin console, Studio                 |
+| `desktop`   | `apps/desktop`: the Gurukul Studio desktop shell and its bridge    |
 | `ui`        | `packages/ui`: tokens and shared components                        |
 | `functions` | `firebase/functions`                                               |
 | `rules`     | `firebase/firestore.rules`, indexes and the rules tests            |
@@ -27,7 +28,7 @@ scope is always an area from the table below, and commitlint rejects anything el
 
 Prefer one that already exists. A scope invented per commit groups nothing. If a new area genuinely
 appears (a new workspace), add it in the same pull request to three places that must agree:
-`SCOPES` in `commitlint.config.mjs`, `scopes:` in the `pr-title` job of `.github/workflows/ci.yml`,
+`SCOPES` in `commitlint.config.mjs`, `scopes:` in `.github/workflows/pr-title.yml`,
 and this table.
 
 > `docs` is both a type and a plausible area. When documentation changes, the type carries it and

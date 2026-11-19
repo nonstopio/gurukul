@@ -33,14 +33,14 @@ Every commit, every PR title, every new branch.
 
 ## Quick Reference
 
-| Element     | Rule                                                                                                     |
-| ----------- | -------------------------------------------------------------------------------------------------------- |
-| Type        | `feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci` `chore` `revert`                       |
-| Scope       | Required, one of: `web` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps` `repo` |
-| Description | Lower-case start, present tense, the new state; whole header ≤ 100 characters                            |
-| Breaking    | `!` before the colon, and a `BREAKING CHANGE:` footer explaining the migration                           |
-| Body        | Only when it carries content. Four parts in `reference.md`                                               |
-| Trailers    | None. No `Co-Authored-By`, `Signed-off-by` or tool attribution — commitlint rejects them                 |
+| Element     | Rule                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| Type        | `feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci` `chore` `revert`                                 |
+| Scope       | Required, one of: `web` `desktop` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps` `repo` |
+| Description | Lower-case start, present tense, the new state; whole header ≤ 100 characters                                      |
+| Breaking    | `!` before the colon, and a `BREAKING CHANGE:` footer explaining the migration                                     |
+| Body        | Only when it carries content. Four parts in `reference.md`                                                         |
+| Trailers    | None. No `Co-Authored-By`, `Signed-off-by` or tool attribution — commitlint rejects them                           |
 
 ## Common Mistakes
 

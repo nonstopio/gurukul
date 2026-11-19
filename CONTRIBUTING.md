@@ -46,7 +46,7 @@ must pass before merge.
 1. Branch from `main`. One concern per PR.
 2. If the change alters scope, data shape, roles or cost, update `.plan/` first.
 3. Conventional Commit title with an area scope: `feat(web): learners can retry a quiz`.
-   Scopes: `web` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps` `repo`.
+   Scopes: `web` `desktop` `ui` `functions` `rules` `changelog` `search` `ci` `plan` `claude` `deps` `repo`.
    The `commit-msg` hook and CI enforce it; see the `writing-commit-messages` skill.
 4. Fill the template, including how you checked the change.
 5. PRs from this repository get a Firebase Hosting preview link; forks do not

@@ -18,6 +18,12 @@ concurrency:
 permissions:
   contents: read
 
+# No job here launches the desktop shell (apps/desktop): its typecheck, tests and bundle need Electron's
+# types, not its ~100 MB binary. Electron 45 fetches the binary on first launch rather than at install;
+# this keeps CI from fetching it should a later version go back to downloading during `npm ci`.
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
 jobs:
   quality:
     name: Lint, format, typecheck
