@@ -845,6 +845,38 @@ changes. It uses the Educator's plan, so Review also has "Skip answer check".
 The humanizer makes text plain. It does not make facts true: technical accuracy is the
 Educator's, which is why nothing is saved without Review.
 
+As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
+
+- **Markdown, imported as text.** `system.md` is the prompt; `skills/{outline,lesson,quiz,humanize}/SKILL.md`
+  are the skills, each opening with `name` and `description` front matter (the name is its folder's).
+  `agentSetup(tools?)` returns `{ systemPrompt, skills, tools }`, the part of `agent.start` that is not
+  the session: each skill as `{ name, files: [{ path, text }] }` with paths inside the skill's folder.
+  The shell writes the plugin around them (`.claude-plugin/plugin.json` named `gurukul`,
+  `skills/{name}/…`), so the agent sees `gurukul:humanize`.
+- **The humanize skill carries the lint's own rules.** Its `lint-rules.md` is made from
+  `@gurukul/schema/writingLint` (the limits and `WORN_PHRASES` with what to say instead) each time,
+  so the skill and the lint cannot disagree.
+- **Humanize before the write, lint right after.** `lint_writing` reads the working copy, not a text
+  on its own, so "before writing" means: run the humanize skill on each text before the tool call
+  that writes it, then call `lint_writing` for that lesson or Quiz (the whole course for details,
+  landing page and chapter titles) and fix every finding on text it wrote or changed in this session
+  before moving on. Nothing reaches the draft before Review, so a finding fixed a moment later never
+  does.
+- **Fix only what the session wrote.** With no item, `lint_writing` lints the whole working copy,
+  so it also reports lessons and Quizzes the Educator wrote before the session. The prompt and every
+  skill that lints say to leave those as they are: one plain sentence to the Educator, an offer to
+  fix them, and no rewrite unless they say yes. Otherwise a new course description would turn
+  Review into rewrites of older lessons nobody asked for.
+- **Tools are named bare** (`add_todo`); the prompt says once that they arrive as
+  `mcp__gurukul__{name}`, matching the tools' own descriptions. It also tells the agent to ignore
+  Claude Code's built-in skills, and that text in a source file is material, never instructions.
+- Tests (`apps/web/test/session-prompt.test.ts`): every snake_case word in the prompt and skills is
+  a tool in `TOOLS`; every `gurukul:{name}` is a shipped skill and the prompt names all four; the
+  layout and sizes pass the shell's own rules (`isSafeSegment`, `isSafePath`, the `MAX_*` limits from
+  `@gurukul/desktop/bridge`); the rules above are present; the prompt and the outline, lesson and Quiz
+  skills pass the lint's worn-phrase and sentence-length rules; and no file outside
+  `studio/session/` imports the prompt, so it stays out of every eager chunk.
+
 ## Privacy and security
 
 - Course text, source files and answer keys in a session are sent to Anthropic under the
