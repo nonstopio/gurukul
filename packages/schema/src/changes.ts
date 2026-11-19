@@ -220,11 +220,11 @@ type RowBody = Without<ChangeRow, 'key'>;
 
 // ─── Fields ──────────────────────────────────────────────────────────────────────────────────────
 
-type FieldKind = 'plain' | 'words' | 'lines';
-type FieldSpec = readonly (readonly [field: string, kind: FieldKind])[];
+export type FieldKind = 'plain' | 'words' | 'lines';
+export type FieldSpec = readonly (readonly [field: string, kind: FieldKind])[];
 
-/** JSON with object keys sorted, so two equal values always compare equal (as in `draft.ts`). */
-const stable = (value: unknown): string =>
+/** JSON with object keys sorted, so two equal values always compare equal (as in `draft.ts`). Shared with `merge.ts`. */
+export const stable = (value: unknown): string =>
   JSON.stringify(value, (_k, v: unknown) =>
     v && typeof v === 'object' && !Array.isArray(v)
       ? Object.fromEntries(
@@ -233,7 +233,8 @@ const stable = (value: unknown): string =>
       : v,
   );
 
-const read = (value: unknown, path: string): unknown =>
+/** The value at a dotted path (`rules.passMark`); undefined when any step is missing. Shared with `merge.ts`. */
+export const read = (value: unknown, path: string): unknown =>
   path
     .split('.')
     .reduce<unknown>((o, k) => (o as Record<string, unknown> | null | undefined)?.[k], value);
@@ -262,7 +263,8 @@ function fieldChanges(spec: FieldSpec, before: unknown, after: unknown): FieldCh
   return out;
 }
 
-const COURSE_FIELDS: FieldSpec = [
+/** Course details, field by field: the Review's Course details row and `mergeWorking`'s fields. */
+export const COURSE_FIELDS: FieldSpec = [
   ['title', 'words'],
   ['summary', 'words'],
   ['level', 'plain'],
@@ -275,7 +277,8 @@ const COURSE_FIELDS: FieldSpec = [
   ['rules.requireVideoWatch', 'plain'],
   ['certificate.title', 'words'],
 ];
-const LANDING_FIELDS: FieldSpec = [['description', 'words']];
+/** The landing page's fields besides its outcomes, as for `COURSE_FIELDS`. */
+export const LANDING_FIELDS: FieldSpec = [['description', 'words']];
 const TITLE_FIELDS: FieldSpec = [['title', 'words']];
 const TEXT_FIELDS: FieldSpec = [['text', 'words']];
 const LESSON_FIELDS: FieldSpec = [
@@ -370,7 +373,7 @@ interface Paired<T> {
   moved: boolean;
 }
 
-interface Keyed<T> {
+export interface Keyed<T> {
   key: string;
   entry: T;
   index: number;
@@ -381,7 +384,7 @@ interface Keyed<T> {
  * refuses one), so the n-th entry with an id is matched with the n-th on the other side: the
  * second `l2` is keyed `l2`, NUL, `2`.
  */
-function keyed<T>(list: readonly T[], key: (entry: T) => string): Keyed<T>[] {
+export function keyed<T>(list: readonly T[], key: (entry: T) => string): Keyed<T>[] {
   const seen = new Map<string, number>();
   return list.map((entry, index) => {
     const k = key(entry);
@@ -392,7 +395,7 @@ function keyed<T>(list: readonly T[], key: (entry: T) => string): Keyed<T>[] {
 }
 
 /** Index pairs of one longest common subsequence of `a` and `b`; ties keep the earlier `a` entry. */
-function lcs(a: readonly string[], b: readonly string[]): [number, number][] {
+export function lcs(a: readonly string[], b: readonly string[]): [number, number][] {
   const w = b.length + 1;
   const t = new Array<number>((a.length + 1) * w).fill(0);
   const at = (i: number, j: number) => t[i * w + j] as number;
@@ -703,7 +706,7 @@ function quizRow(before: Quiz | null, after: Quiz | null, id: string, cx: ItemCo
 }
 
 /** Where an item sits in one copy. `key` is unique in the course; `chapterKey` names its chapter. */
-interface Location {
+export interface Location {
   id: string;
   key: string;
   chapterKey: string;
@@ -717,7 +720,7 @@ interface Location {
  * into a Quiz under the same id reads as one removed and one added (rows `lesson:x` and `quiz:x`).
  * Repeated ids are numbered across the whole course, chapters by the same rule as `alignById`.
  */
-function locate(course: Course | null): Location[] {
+export function locate(course: Course | null): Location[] {
   const chapters = keyed(course?.chapters ?? [], (chapter) => chapter.id);
   const items = chapters.flatMap(({ key: chapterKey, entry: chapter }) =>
     chapter.items.map((item, index) => ({ chapterKey, chapterId: chapter.id, index, item })),

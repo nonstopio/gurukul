@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./changes": "./src/changes.ts",
+    "./merge": "./src/merge.ts",
     "./writingLint": "./src/writingLint.ts"
   },
   "scripts": {
