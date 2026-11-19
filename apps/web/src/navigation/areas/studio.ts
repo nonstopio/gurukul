@@ -51,5 +51,8 @@ export const navigation = {
       context:
         'needs a session id; reached from the course list in the desktop app, and offered by search there as a session record (sessionSource)',
     },
+    '/studio/sessions/:sessionId/review': {
+      context: "needs a session id; a session's Review tab, reached from its header and turn lines",
+    },
   },
 } satisfies AreaNavigation;

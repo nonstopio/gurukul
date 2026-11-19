@@ -1,8 +1,12 @@
 import {
-  Callout,
+  AlertIcon,
+  Button,
   Card,
+  ChatActivity,
+  CheckIcon,
+  ChecklistIcon,
   ChevronLeftIcon,
-  Chip,
+  Dialog,
   EmptyState,
   Page,
   PageSkeleton,
@@ -11,22 +15,19 @@ import {
   buttonClass,
   topBarBackClass,
 } from '@gurukul/ui';
-import type { AuthoringSession } from '@gurukul/schema';
-import { useCallback } from 'react';
-import { Link, useParams } from 'react-router';
+import { useMemo, useState } from 'react';
+import { Link, useMatch, useParams } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
-import { useAsync } from '../../data/useAsync';
 import { useDesktop } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
-import { Loaded } from '../../learn/ui';
-import { createSessionStore } from './store';
-
-const STATUS = {
-  open: { tone: 'accent', label: 'Open' },
-  saved: { tone: 'neutral', label: 'Saved' },
-  discarded: { tone: 'warning', label: 'Discarded' },
-} as const;
+import { ChatPanel, reviewPath } from './ChatPanel';
+import { PreviewPanel } from './PreviewPanel';
+import { UnavailableCard, UpdateTheAppButton } from './Problem';
+import { useAgentSession } from './useAgentSession';
+import type { AgentSessionHandle } from './useAgentSession';
+import { useSideBySide } from './useSideBySide';
+import { headerChecks, headerStatus } from './workspace';
 
 function Back() {
   const t = useTerms();
@@ -39,18 +40,20 @@ function Back() {
 }
 
 /**
- * `/studio/sessions/:sessionId` inside the desktop app: the session as it is kept on this computer.
- * For now its title, goal and kind, and the place the workspace (chat and live preview, `DSK-13`)
- * will fill. Reads local files only; nothing touches Firestore.
+ * `/studio/sessions/:sessionId` and its Review tab, `/studio/sessions/:sessionId/review`, inside the
+ * desktop app (`.plan/22-desktop-studio.md`, The session workspace): the header with the change
+ * count and checks, the chat beside the preview from 1024px (a drawer over it below), and Review
+ * (`DSK-14`). Both share one runtime (`useAgentSession`), so leaving the chat for Review keeps the
+ * agent going. Nothing here reads or writes Firestore.
  */
 export function SessionPage() {
   const desktop = useDesktop();
-  if (desktop.status === 'ready') return <SessionLoader desktop={desktop.desktop} />;
+  if (desktop.status === 'ready') return <SessionView desktop={desktop.desktop} />;
   if (desktop.status === 'checking') {
     return (
       <>
         <TopBar title="Session" back={<Back />} />
-        <PageSkeleton width="default" label="Opening the session" />
+        <PageSkeleton width="wide" label="Opening the session" />
       </>
     );
   }
@@ -63,13 +66,15 @@ export function SessionPage() {
             variant="error"
             title="Update Gurukul Studio"
             actions={
-              <Link className={buttonClass('secondary')} to="/studio">
-                Back to the courses
-              </Link>
+              <>
+                <UpdateTheAppButton desktop={desktop.desktop} />
+                <Link className={buttonClass('secondary')} to="/studio">
+                  Back to the courses
+                </Link>
+              </>
             }
           >
-            This version of the app cannot open sessions. Choose Check for updates in the app menu,
-            then restart it.
+            This version of the app cannot open sessions. Update the app, then restart it.
           </StateCard>
         ) : (
           <StateCard
@@ -89,33 +94,136 @@ export function SessionPage() {
   );
 }
 
-function SessionLoader({ desktop }: { desktop: GurukulDesktop }) {
+function SessionView({ desktop }: { desktop: GurukulDesktop }) {
   const { sessionId = '' } = useParams();
   const { uid } = useUser();
-  const loaded = useAsync(
-    useCallback(
-      () => createSessionStore({ desktop, uid }).read(sessionId),
-      [desktop, uid, sessionId],
-    ),
+  const review = useMatch('/studio/sessions/:sessionId/review') !== null;
+  const agent = useAgentSession({ desktop, uid, sessionId });
+  const { session, status, problem } = agent;
+
+  if (!session) {
+    return (
+      <>
+        <TopBar title="Session" back={<Back />} />
+        {status === 'missing' ? (
+          <Page width="reading">
+            <Missing />
+          </Page>
+        ) : status === 'unavailable' && problem ? (
+          <Page width="reading">
+            <UnavailableCard
+              problem={problem}
+              desktop={desktop}
+              onRetry={() => void agent.retry()}
+            />
+          </Page>
+        ) : (
+          <PageSkeleton width="wide" label="Opening the session" />
+        )}
+      </>
+    );
+  }
+  return <Workspace agent={agent} desktop={desktop} sessionId={sessionId} review={review} />;
+}
+
+function Workspace({
+  agent,
+  desktop,
+  sessionId,
+  review,
+}: {
+  agent: AgentSessionHandle;
+  desktop: GurukulDesktop;
+  sessionId: string;
+  review: boolean;
+}) {
+  const session = agent.session as NonNullable<AgentSessionHandle['session']>;
+  const work = agent.work as NonNullable<AgentSessionHandle['work']>;
+  // Worked out whenever there is a working copy.
+  const changes = agent.changes as NonNullable<AgentSessionHandle['changes']>;
+  const sideBySide = useSideBySide();
+  const [chatOpen, setChatOpen] = useState(false);
+  // The goal waits in the message box of a session nothing was said in yet: one press sends it.
+  const [typed, setTyped] = useState<string | null>(null);
+  const goal = session.goals.map((g) => g.text).join('\n');
+  const draft = typed ?? (agent.transcript.length === 0 ? goal : '');
+  const checks = useMemo(() => headerChecks(work), [work]);
+  const passing = checks.valid && !checks.overLimit;
+  const working = agent.status === 'working' || agent.status === 'stopping';
+
+  const chat = (
+    <ChatPanel
+      agent={agent}
+      desktop={desktop}
+      sessionId={sessionId}
+      draft={draft}
+      onDraft={setTyped}
+    />
   );
-  const session = loaded.state === 'ready' ? loaded.value : null;
-  const status = session ? STATUS[session.status] : null;
+
   return (
     <>
       <TopBar
-        title={session?.title ?? 'Session'}
+        title={session.title}
         back={<Back />}
-        status={status ? <Chip tone={status.tone}>{status.label}</Chip> : undefined}
+        status={
+          <span className="ss-status">
+            {passing ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
+            {headerStatus(changes.count, checks)}
+          </span>
+        }
+        actions={
+          review ? (
+            <Link className={buttonClass('chrome-secondary')} to={`/studio/sessions/${sessionId}`}>
+              Back to the chat
+            </Link>
+          ) : (
+            <>
+              {sideBySide ? null : (
+                <Button variant="chrome-secondary" onClick={() => setChatOpen(true)}>
+                  Chat
+                </Button>
+              )}
+              <Link className={buttonClass('chrome')} to={reviewPath(sessionId)}>
+                Review
+              </Link>
+            </>
+          )
+        }
       />
-      {loaded.state === 'loading' ? (
-        <PageSkeleton width="default" label="Opening the session" />
+      {review ? (
+        <Page width="reading">
+          <EmptyState title="Review comes next" headingAs="h2" icon={<ChecklistIcon size={24} />}>
+            Review will list every change this session made against the draft, with the old and new
+            words side by side, and save them to the draft in one step. Until it comes, the
+            session’s Preview and Outline show what changed.
+          </EmptyState>
+        </Page>
       ) : (
-        <Page width="default">
-          <Loaded loadable={loaded}>
-            {(found) => (found ? <Workspace session={found} /> : <Missing />)}
-          </Loaded>
+        <Page width="wide">
+          <div className="ss-workspace">
+            {sideBySide ? (
+              <Card title="Chat" className="ss-chat">
+                {chat}
+              </Card>
+            ) : null}
+            <Card className="ss-pane">
+              {sideBySide ? null : (
+                // With the chat in its drawer, the preview still says what the agent is doing.
+                <ChatActivity className="ss-pane__activity">
+                  {working && !chatOpen ? (agent.activity ?? 'Thinking') : null}
+                </ChatActivity>
+              )}
+              <PreviewPanel work={work} base={agent.base} changes={changes} />
+            </Card>
+          </div>
         </Page>
       )}
+      {!sideBySide && !review ? (
+        <Dialog open={chatOpen} onClose={() => setChatOpen(false)} size="drawer" title="Chat">
+          <div className="ss-drawer">{chat}</div>
+        </Dialog>
+      ) : null}
     </>
   );
 }
@@ -136,31 +244,5 @@ function Missing() {
       Sessions are kept on the computer they were started on, and removed 30 days after they are
       saved or discarded.
     </EmptyState>
-  );
-}
-
-function Workspace({ session }: { session: AuthoringSession }) {
-  const course = session.work.course;
-  return (
-    <>
-      <Card title="Goal" className="sc-panel">
-        <ul className="ss-goals">
-          {session.goals.map((goal, i) => (
-            <li key={i}>{goal.text}</li>
-          ))}
-        </ul>
-        <p className="sc-help">
-          {session.kind === 'new'
-            ? 'A new course: its title and address are settled at the first save.'
-            : `Changing the draft of “${course.title}”.`}
-        </p>
-      </Card>
-      <Callout tone="note" title="The workspace opens here">
-        <p>
-          The chat and the live preview of this course come in the next update of Gurukul Studio.
-          This session is kept on this computer until then, and nothing has been saved to the draft.
-        </p>
-      </Callout>
-    </>
   );
 }

@@ -183,6 +183,14 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
       </DesktopOnly>
     </RequireRole>
   ),
+  // The session's Review tab: the same page, which reads the path (`DSK-14` fills it).
+  '/studio/sessions/:sessionId/review': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionRoute />
+      </DesktopOnly>
+    </RequireRole>
+  ),
   '/studio/bank': (
     <RequireRole any={['educator', 'admin']}>
       <DesktopOnly>
@@ -234,6 +242,7 @@ export const FOCUSED: readonly RoutePath[] = [
   '/studio/courses/:courseId/quiz/:quizId',
   '/studio/courses/:courseId/preview/:itemId',
   '/studio/sessions/:sessionId',
+  '/studio/sessions/:sessionId/review',
 ];
 
 /**

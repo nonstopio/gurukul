@@ -97,9 +97,8 @@ describe('the Studio course list in the desktop app', () => {
     expect(s.data.getDraft).toHaveBeenCalledTimes(1);
     expect(s.data.saveDraft).not.toHaveBeenCalled();
     expect(await screen.findByRole('heading', { name: 'Make the basics shorter.' })).toBeTruthy();
-    expect(screen.getByText('Make the basics shorter. Then a Quiz.')).toBeTruthy();
-    expect(screen.getByText('Changing the draft of “Git”.')).toBeTruthy();
-    expect(screen.getByText('The workspace opens here')).toBeTruthy();
+    // This fake shell has no agent: the workspace says the app needs its update.
+    expect(await screen.findByRole('heading', { name: 'Update the app' })).toBeTruthy();
     expect((await d.store.list()).sessions).toHaveLength(1);
   });
 
@@ -210,9 +209,7 @@ describe('the Studio course list in the desktop app', () => {
       expect(app.router.state.location.pathname).toMatch(/^\/studio\/sessions\//),
     );
     expect(s.data.getDraft).not.toHaveBeenCalled();
-    expect(
-      await screen.findByText('A new course: its title and address are settled at the first save.'),
-    ).toBeTruthy();
+    expect(await screen.findByText('A new course: everything in it is added.')).toBeTruthy();
     expect((await d.store.list()).sessions).toHaveLength(3);
   });
 
@@ -305,14 +302,16 @@ describe('the session route in a browser', () => {
 });
 
 describe('the session route in the desktop app', () => {
-  it('shows the session: title, goal and the place of the workspace', async () => {
+  it('shows a saved session to read, with no message box and no agent', async () => {
     const d = await desktopWith([{ kind: 'edit', courseId: 'git' }]);
     const session = d.made[0] as AuthoringSession;
     await d.store.close(session, 'saved');
     await openApp(`/studio/sessions/${session.id}`, { roles: ['educator'], studio: studio() });
     expect(await screen.findByRole('heading', { name: 'Simplify the basics.' })).toBeTruthy();
     expect(screen.getByText('Saved')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Goal' })).toBeTruthy();
+    expect(screen.getByText('Nothing was said in this session.')).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Ask for a change' })).toBeNull();
+    expect(d.desktop.agent.status).not.toHaveBeenCalled();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -342,7 +341,8 @@ describe('the session route in the desktop app', () => {
       roles: ['educator'],
       studio: studio(),
     });
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('The app did not answer')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
     expect(await screen.findByRole('heading', { name: 'A new course number 1.' })).toBeTruthy();
   });
 

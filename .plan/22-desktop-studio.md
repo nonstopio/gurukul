@@ -599,8 +599,8 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   and is removed 30 days later.
 - **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
   `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
-  app, `/studio/sessions/:sessionId` uses the focused layout and for now shows the title, the goal
-  and where the workspace (`DSK-13`) goes. Global search offers sessions as records ("Session"),
+  app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
+  (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
 - The start dialog already says that the course and the goal go to Anthropic under the Educator's
   own Claude account, and to leave out client names and internal documents; the Sources offer
@@ -713,6 +713,50 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
   its turn id. At most 6,000,000 characters are kept, the oldest entries going first; damaged lines
   are skipped when read. Nothing in it is logged.
+
+As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.tsx`,
+`PreviewPanel.tsx`, `Problem.tsx`, `workspace.ts`; components `ChatLog`, `ChatMessage`,
+`ChatTurn`, `ChatActivity` and `ChangeMark` in `@gurukul/ui`):
+
+- **The header** is the focused layout's top bar: back to the Studio courses, the session title,
+  "N changes · checks pass" (or "· 1 check fails") and **Review**. The checks there are the two
+  that stop a save and need no read: Course is valid and Size. Draft is up to date needs a
+  Firestore read and stays with Review (`DSK-14`). There is no [⋯] menu yet: Discard and Close come
+  with Save (`DSK-15`).
+- **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
+  so the header stays and the shared runtime keeps the agent going between the two. Until `DSK-14`
+  it says "Review comes next". A turn's line links to `…/review?turn=<turn id>`: the filter
+  `DSK-14` reads.
+- **The goal is not sent by itself.** A session nothing was said in yet opens with its goal in the
+  message box, so one press of Send starts the work and the Educator can reword it first. Sending
+  spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
+- **The chat** shows the Educator's messages (as typed), the agent's (as markdown, through the
+  player's renderer) and the app's notices; activity entries stay in `transcript.jsonl` but the log
+  shows only the live line, which says "Thinking" until the first activity of a turn. After each
+  finished turn a line "Turn 4 · 4 changes"; a turn that could not be written is listed too ("· not
+  saved", from the runtime view's `unsaved`) because it is the one Undo takes back first. Undo is
+  on the newest line only, behind a confirmation. Enter sends, Shift and Enter is a new line; the
+  next message can be typed during a turn but not sent. When the agent cannot run, a card with
+  the problem's sentence and **Check again** (or **Start it again** after a crash) takes the place
+  of the message box; a shell too old for a call adds **Update the app** (the sidebar item's check,
+  `useUpdateTheApp`). A plan limit, a turn not written and an Undo that cannot be done are notes
+  above the box. A saved or discarded session shows its chat and copy to read, with no box.
+- **The preview** is the learner's block renderer and the Studio preview's Quiz (`PreviewExam`,
+  moved out of `PreviewPage` and shared) over the working copy, one item at a time, picked from a
+  list numbered like the outline ("2.3 · Title (changed)") or with Previous and Next. It opens on
+  the first item that changed. Each added, changed or moved block, and each changed question, is
+  wrapped in a `ChangeMark`: a dashed hairline and a label with a sign and the words ("Changed ·
+  Text block"), its group named "changed: Text block". A removed block leaves a mark where it was,
+  placed as Review places it. Changes to the course details and landing page are not in the player;
+  Outline lists them.
+- **The outline** is the chapter tree with Added, Changed, Removed, Moved and Renamed chips, the
+  course details and landing page above it, removed chapters and items struck through where they
+  used to be; a present item opens in the preview.
+- **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
+  log scrolling inside. From 640px to 1023px a Chat button in the header opens it as a drawer
+  (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
+  it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
+  Studio's `DesktopOnly` asks for a wider window.
 
 ## Review: the whole session at once
 

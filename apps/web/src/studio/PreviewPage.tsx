@@ -1,12 +1,9 @@
 import { itemsOf } from '@gurukul/schema';
-import type { AnswerKeys, Quiz } from '@gurukul/schema';
 import {
-  Button,
   Callout,
   Card,
   ChevronLeftIcon,
   EmptyState,
-  Explanation,
   Page,
   PageHeader,
   PageSkeleton,
@@ -14,24 +11,17 @@ import {
   buttonClass,
   topBarBackClass,
 } from '@gurukul/ui';
-import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { answerLetters } from '../quiz/model';
-import { QuestionFields } from '../quiz/QuestionFields';
-import { BlockView, Prose } from '../player/blocks';
+import { BlockView } from '../player/blocks';
 import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
+import { PreviewExam } from './PreviewExam';
 import { itemEditorPath, nameOf } from './studioModel';
 import { useDraft } from './useDraft';
 import { scrollIntoRail } from './scrollIntoRail';
 
 const previewPath = (courseId: string, itemId: string) =>
   `/studio/courses/${courseId}/preview/${itemId}`;
-
-/** Whether the picked options are exactly the keyed ones. An empty key is never right. */
-export function isCorrect(picked: readonly string[], key: readonly string[]): boolean {
-  return key.length > 0 && picked.length === key.length && key.every((id) => picked.includes(id));
-}
 
 /** `/studio/courses/:courseId/preview/:itemId`: the draft as a learner would see it. Nothing is saved. */
 export function PreviewPage() {
@@ -149,7 +139,12 @@ export function PreviewPage() {
                 ))}
               </>
             ) : (
-              <PreviewExam key={item.id} courseId={courseId} quiz={item} answers={answers} />
+              <PreviewExam
+                key={item.id}
+                quiz={item}
+                answers={answers}
+                editPath={itemEditorPath(courseId, item)}
+              />
             )}
             <footer className="sc-preview__footer">
               {prev ? (
@@ -167,124 +162,5 @@ export function PreviewPage() {
         </div>
       </Page>
     </>
-  );
-}
-
-/** A Quiz, one question at a time, graded here against the draft's answer keys. */
-function PreviewExam({
-  courseId,
-  quiz,
-  answers,
-}: {
-  courseId: string;
-  quiz: Quiz;
-  answers: AnswerKeys;
-}) {
-  const t = useTerms();
-  const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<Record<string, string[]>>({});
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const total = quiz.questions.length;
-  const question = quiz.questions[index];
-
-  if (total === 0) {
-    return (
-      <EmptyState
-        title={`This ${t.Quiz} has no questions yet`}
-        headingAs="h2"
-        action={
-          <Link className={buttonClass('secondary')} to={itemEditorPath(courseId, quiz)}>
-            Add questions
-          </Link>
-        }
-      >
-        Add questions in the builder, then come back to try it.
-      </EmptyState>
-    );
-  }
-  if (!question) {
-    const right = quiz.questions.filter((q) =>
-      isCorrect(picked[q.id] as string[], answers[quiz.id]?.[q.id] ?? []),
-    ).length;
-    return (
-      <div className="sc-exam">
-        <Callout tone="tip" title="Preview finished" role="status">
-          <p>{`You answered ${right} of ${total} correctly. This attempt was not recorded.`}</p>
-        </Callout>
-        <div className="sc-exam__actions">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setIndex(0);
-              setPicked({});
-              setChecked({});
-            }}
-          >
-            Try again
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const key = answers[quiz.id]?.[question.id] ?? [];
-  const mine = picked[question.id] ?? [];
-  const done = checked[question.id] === true;
-  const multiple = question.kind === 'multiple';
-  const pick = (optionId: string, on: boolean) =>
-    setPicked({
-      ...picked,
-      [question.id]: multiple
-        ? on
-          ? [...mine, optionId]
-          : mine.filter((id) => id !== optionId)
-        : [optionId],
-    });
-  const letters = answerLetters(
-    question.options.map((o) => o.id),
-    key,
-  );
-  const answerText = `the ${key.length > 1 ? 'answers are' : 'answer is'} ${letters}`;
-  const stateOf = (id: string) => {
-    if (!done) return 'idle' as const;
-    if (key.includes(id)) return 'correct' as const;
-    return mine.includes(id) ? ('incorrect' as const) : ('locked' as const);
-  };
-
-  return (
-    <div className="sc-exam">
-      <p className="studio-micro">
-        Question {index + 1} of {total}
-      </p>
-      <QuestionFields question={question} picked={mine} stateOf={stateOf} onPick={pick} />
-      {done ? (
-        <Explanation
-          verdict={key.length === 0 ? 'neutral' : isCorrect(mine, key) ? 'correct' : 'incorrect'}
-          title={
-            key.length === 0
-              ? 'No correct answer is marked yet. Mark one in the builder.'
-              : isCorrect(mine, key)
-                ? 'Correct.'
-                : `Not quite — ${answerText}.`
-          }
-        >
-          <Prose md={question.explanation} />
-        </Explanation>
-      ) : null}
-      <div className="sc-exam__actions">
-        {done ? (
-          <Button onClick={() => setIndex(index + 1)}>
-            {index === total - 1 ? 'Finish preview' : 'Next question'}
-          </Button>
-        ) : (
-          <Button
-            disabled={mine.length === 0}
-            onClick={() => setChecked({ ...checked, [question.id]: true })}
-          >
-            Check answer
-          </Button>
-        )}
-      </div>
-    </div>
   );
 }

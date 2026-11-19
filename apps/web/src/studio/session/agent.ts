@@ -104,6 +104,11 @@ export interface AgentSessionView {
   changes: CourseChanges | null;
   /** Finished turns, each with its change count ("Turn 4 · 4 changes"). */
   turns: readonly Turn[];
+  /**
+   * A finished turn that could not be written (`not_saved`): newer than every turn in `turns`, and
+   * the one Undo takes back first. Null once a later turn is written, or it is undone.
+   */
+  unsaved: Turn | null;
   /** Changes made so far by the turn that is running, against the checkpoint before it. */
   turnChanges: number;
   canSend: boolean;
@@ -331,6 +336,7 @@ export function createAgentSession({
       base,
       changes: work ? allChanges(base, work) : null,
       turns,
+      unsaved,
       // A turn runs only once the session is open, so `work` is there.
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
       canSend: status === 'ready',

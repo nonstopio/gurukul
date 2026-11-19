@@ -76,6 +76,7 @@ const LOADING: AgentSessionView = {
   base: null,
   changes: null,
   turns: [],
+  unsaved: null,
   turnChanges: 0,
   canSend: false,
   canStop: false,

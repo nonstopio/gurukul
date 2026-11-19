@@ -1,8 +1,8 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Course } from '@gurukul/schema';
 import type { DraftDoc } from '../src/studio/types';
-import { isCorrect } from '../src/studio/PreviewPage';
+import { PreviewExam, isCorrect } from '../src/studio/PreviewExam';
 import { log } from '../src/log';
 import { axeViolations } from './axe';
 import { fakeData, lesson, makeCourse } from './fake-data';
@@ -74,6 +74,14 @@ describe('isCorrect', () => {
     expect(isCorrect(['a', 'b'], ['a'])).toBe(false);
     expect(isCorrect(['b'], ['a'])).toBe(false);
     expect(isCorrect([], [])).toBe(false);
+  });
+});
+
+describe('PreviewExam', () => {
+  it('offers no editor link for an empty Quiz when it has none to give', () => {
+    render(<PreviewExam quiz={exam({ questions: [] })} answers={{}} />);
+    expect(screen.getByRole('heading', { name: 'This Quiz has no questions yet' })).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
 
