@@ -18,6 +18,8 @@ export { AreaSwitcher } from './AreaSwitcher';
 export type { AreaSwitcherItem, AreaSwitcherProps } from './AreaSwitcher';
 export { NavItem } from './NavItem';
 export type { NavItemProps, NavItemRenderProps } from './NavItem';
+export { NavAction } from './NavAction';
+export type { NavActionProps } from './NavAction';
 export { TopBar, TopBarToolsContext, topBarBackClass } from './TopBar';
 export type { TopBarProps } from './TopBar';
 export { Field, Input, Textarea } from './Field';
