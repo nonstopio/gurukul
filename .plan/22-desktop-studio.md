@@ -676,8 +676,15 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
 - **Every `turn_end` is a turn**, whatever its outcome (`done`, `stopped`, `failed`): its count is
   `courseChanges` against the working copy the previous saved turn left, then `saveTurn` writes its
   checkpoint and the session, then the whole chat is written. A failed `saveTurn` keeps the turn's
-  changes in memory and shows "not saved"; the next turn that is written counts them. A chat that
-  cannot be written is only logged: no course work is lost with it.
+  changes in memory and shows "not saved"; the next turn that is written counts them, or Undo takes
+  them back (that unwritten turn is the newest, so Undo writes the session with the working copy
+  `session.json` already holds, and only then reaches the saved turns). A chat that cannot be
+  written is only logged: no course work is lost with it.
+- **A Claude session id with no turn left to write it is written at once.** The shell sends a
+  sign-in failure before the `turn_end` that carries the id; the error has already ended the turn,
+  so the later `turn_end` writes the id alone to `session.json` (never an unwritten turn's changes).
+  Kept only in memory, a closed app would lose it: the next open could not resume that chat, and the
+  30-day clean-up, which forgets Claude Code's copy by this id, would never remove it.
 - **Undo needs the copy from before the first turn.** A new course has no base, and after a save the
   base is no longer the start, so the first turn's end also writes `checkpoints/start.json`, which
   `saveTurn` never prunes. Undo reads the checkpoint of the turn before the newest (or
@@ -693,7 +700,9 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   ends a turn the agent left open as `failed` and makes the session `unavailable`.
 - **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
   answers the running process) is adopted at its first event or tool call, so its tool calls are
-  answered and its end is written, as "Carried on after the page reloaded".
+  answered and its end is written, as "Carried on after the page reloaded". If `agent.status()`
+  said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
+  again.
 - **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
   (`acquireAgentSession`); the last one to leave ends it at once, or, during a turn, when that turn
   has been written. The `claude` process is not closed when the page goes: opening the session again

@@ -108,6 +108,10 @@ export interface AgentSessionView {
   turnChanges: number;
   canSend: boolean;
   canStop: boolean;
+  /**
+   * Also true for a finished turn that could not be written (`not_saved`), which is not in
+   * `turns`: Undo takes that one back first.
+   */
   canUndo: boolean;
 }
 
@@ -215,7 +219,7 @@ export function appProblem(error: unknown): AgentProblem {
 const NOT_SAVED: AgentProblem = {
   code: 'not_saved',
   message:
-    'The last turn could not be written to this computer, so closing the app now would lose it. Its changes are still here; the next turn writes them again.',
+    'The last turn could not be written to this computer, so closing the app now would lose it. Its changes are still here: the next turn writes them again, or Undo takes them back.',
 };
 
 const UNDO_GONE: AgentProblem = {
@@ -296,8 +300,13 @@ export function createAgentSession({
   let status: AgentSessionStatus = 'loading';
   let problem: AgentProblem | null = null;
   let session: AuthoringSession | null = null;
-  /** The working copy as the last saved turn left it: what the next turn is counted against. */
-  let previous: Working | null = null;
+  /**
+   * The session as `session.json` holds it. Its working copy is what the last saved turn left:
+   * what the next turn is counted against.
+   */
+  let saved: AuthoringSession | null = null;
+  /** A finished turn that could not be written: its changes are in `session` only. */
+  let unsaved: Turn | null = null;
   let transcript: TranscriptEntry[] = [];
   let activity: string | null = null;
   let turn: RunningTurn | null = null;
@@ -323,10 +332,10 @@ export function createAgentSession({
       changes: work ? allChanges(base, work) : null,
       turns,
       // A turn runs only once the session is open, so `work` is there.
-      turnChanges: turn ? turnCount(previous, work as Working) : 0,
+      turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
       canSend: status === 'ready',
       canStop: status === 'working',
-      canUndo: status === 'ready' && turns.length > 0,
+      canUndo: status === 'ready' && (turns.length > 0 || unsaved !== null),
     };
   };
   let snapshot = view();
@@ -400,9 +409,24 @@ export function createAgentSession({
   };
 
   /**
+   * Writes a Claude session id that came with no turn to write it (the turn had already ended on an
+   * error), so the next open resumes that chat and the clean-up can remove Claude Code's copy of it.
+   * Only the id: a turn that could not be written stays unwritten.
+   */
+  const keepAgentSessionId = async (agentSessionId: string | null) => {
+    try {
+      const written = await store.save({ ...(saved as AuthoringSession), agentSessionId });
+      saved = written;
+      session = { ...(session as AuthoringSession), updatedAt: written.updatedAt };
+    } catch (error) {
+      log.warn('Session agent id not saved', { sessionId, reason: bridgeFailure(error) });
+    }
+  };
+
+  /**
    * Ends the running turn: its change count, the checkpoint before the first turn, the turn's own
    * checkpoint and the session (`saveTurn`), then the chat. A write that fails leaves the turn's
-   * changes in memory, counted again by the next turn that is written.
+   * changes in memory, counted again by the next turn that is written, or taken back by Undo.
    */
   const endTurn = async (agentSessionId: string | null, outcome: TurnOutcome) => {
     const current = {
@@ -411,8 +435,12 @@ export function createAgentSession({
     };
     session = current;
     const running = turn;
-    if (!running) return emit();
-    const before = previous as Working;
+    if (!running) {
+      if (current.agentSessionId !== (saved as AuthoringSession).agentSessionId)
+        await keepAgentSessionId(current.agentSessionId);
+      return emit();
+    }
+    const before = workOf(saved as AuthoringSession);
     if (outcome !== 'done') notice(running.id, ENDED[outcome]);
     activity = null;
     emit();
@@ -426,9 +454,10 @@ export function createAgentSession({
     };
     try {
       if (current.turns.length === 0) await store.saveStart(sessionId, before);
-      const saved = await store.saveTurn(current, record, current.work);
-      session = saved;
-      previous = workOf(saved);
+      const written = await store.saveTurn(current, record, current.work);
+      session = written;
+      saved = written;
+      unsaved = null;
       log.info('Session turn saved', {
         sessionId,
         turnId: record.id,
@@ -438,11 +467,13 @@ export function createAgentSession({
     } catch (error) {
       log.error('Session turn not saved', error, { sessionId, turnId: record.id });
       problem = NOT_SAVED;
+      unsaved = record;
     }
     await writeChat();
     turn = null;
-    // While the agent is still starting, `connect` decides once it has.
-    if (status !== 'connecting') status = 'ready';
+    // While the agent is still starting, `connect` decides once it has; a turn adopted while it
+    // could not run leaves it unable to, and `retry` asks again.
+    if (status !== 'connecting' && status !== 'unavailable') status = 'ready';
     emit();
   };
 
@@ -538,7 +569,7 @@ export function createAgentSession({
       return emit();
     }
     session = found;
-    previous = workOf(found);
+    saved = found;
     if (found.status !== 'open') {
       status = 'closed';
       return emit();
@@ -606,26 +637,34 @@ export function createAgentSession({
     },
 
     async undo() {
-      if (status !== 'ready' || !session || session.turns.length === 0) return false;
+      if (status !== 'ready' || !session || (session.turns.length === 0 && !unsaved)) return false;
       status = 'undoing';
       problem = null;
       emit();
       return enqueue(async () => {
         const current = session as AuthoringSession;
-        const last = current.turns[current.turns.length - 1] as Turn;
-        const file =
-          current.turns.length === 1
-            ? START_CHECKPOINT
-            : (current.turns[current.turns.length - 2] as Turn).checkpoint;
+        const pending = unsaved;
+        const last = pending ?? (current.turns[current.turns.length - 1] as Turn);
         try {
-          const before = await store.readCheckpoint(sessionId, file);
-          if (!before) {
-            problem = UNDO_GONE;
-            return false;
+          let next: AuthoringSession;
+          if (pending) {
+            // Its changes never reached the disk: the copy before it is the one last written.
+            next = await store.save({ ...current, work: (saved as AuthoringSession).work });
+          } else {
+            const file =
+              current.turns.length === 1
+                ? START_CHECKPOINT
+                : (current.turns[current.turns.length - 2] as Turn).checkpoint;
+            const before = await store.readCheckpoint(sessionId, file);
+            if (!before) {
+              problem = UNDO_GONE;
+              return false;
+            }
+            next = await store.undoTurn(current, before);
           }
-          const next = await store.undoTurn(current, before);
           session = next;
-          previous = workOf(next);
+          saved = next;
+          unsaved = null;
           undone += 1;
           notice(last.id, 'Turn undone: the course is back as it was before it.');
           await writeChat();

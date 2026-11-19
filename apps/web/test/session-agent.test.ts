@@ -485,13 +485,45 @@ describe('turns', () => {
     });
   });
 
-  it('records the Claude session id of a turn end that had no turn', async () => {
+  it('records the Claude session id of a turn end that had no turn, on disk too', async () => {
     const s = await setup();
     await s.runtime.open();
     s.emit({ type: 'turn_end', sessionId: 's1', agentSessionId: 'claude-2', outcome: 'stopped' });
     await s.runtime.settled();
     expect(s.state()).toMatchObject({ status: 'ready', turns: [] });
     expect(s.state().session?.agentSessionId).toBe('claude-2');
+    expect(s.disk()).toMatchObject({ agentSessionId: 'claude-2', turns: [] });
+    // The same id again is not written again.
+    s.store.save = vi.fn(s.store.save);
+    s.emit({ type: 'turn_end', sessionId: 's1', agentSessionId: 'claude-2', outcome: 'done' });
+    await s.runtime.settled();
+    expect(s.store.save).not.toHaveBeenCalled();
+  });
+
+  it('writes only the id when a turn that could not be written is followed by an id', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED);
+    await renameTurn(s, 'One');
+    s.emit({ type: 'turn_end', sessionId: 's1', agentSessionId: 'claude-2', outcome: 'done' });
+    await s.runtime.settled();
+    expect(s.disk()).toMatchObject({ agentSessionId: 'claude-2', turns: [] });
+    expect(s.disk().work.course.title).toBe('Git, the NonStop Way');
+    expect(s.state().work?.course.title).toBe('One');
+  });
+
+  it('logs a Claude session id that could not be written, and keeps it in memory', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.save = vi.fn().mockRejectedValueOnce(REFUSED);
+    s.emit({ type: 'turn_end', sessionId: 's1', agentSessionId: 'claude-2', outcome: 'done' });
+    await s.runtime.settled();
+    expect(s.state().session?.agentSessionId).toBe('claude-2');
+    expect(s.disk().agentSessionId).toBeNull();
+    expect(log.warn).toHaveBeenCalledWith('Session agent id not saved', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
   });
 });
 
@@ -645,6 +677,8 @@ describe('agent errors', () => {
       turns: [{ id: 't1', changes: 0 }],
     });
     expect(s.state().session?.agentSessionId).toBe(AGENT_SESSION_ID);
+    // On disk too: the next open resumes that chat, and the clean-up can remove Claude Code's copy.
+    expect(s.disk()).toMatchObject({ agentSessionId: AGENT_SESSION_ID, turns: [{ id: 't1' }] });
   });
 });
 
@@ -665,6 +699,32 @@ describe('a turn already running when the page opened', () => {
     expect(s.state().turns).toMatchObject([
       { id: 't1', summary: 'Carried on after the page reloaded', changes: 1 },
     ]);
+  });
+
+  it('stays unavailable when a turn adopted while the agent could not run ends', async () => {
+    const s = await setup({ agent: { status: { state: 'not_signed_in', version: '2.1.328' } } });
+    await s.runtime.open();
+    expect(s.state()).toMatchObject({ status: 'unavailable', problem: { code: 'not_signed_in' } });
+    expect(await s.call('set_course_details', { title: 'Carried on' })).toEqual({
+      text: 'Updated title.',
+    });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.state()).toMatchObject({
+      status: 'unavailable',
+      problem: { code: 'not_signed_in' },
+      turns: [{ id: 't1', changes: 1 }],
+      canSend: false,
+      canUndo: false,
+    });
+    s.agent.status.mockResolvedValueOnce({ state: 'ready', version: '2.1.328' });
+    await s.runtime.retry();
+    expect(s.state()).toMatchObject({ status: 'ready', problem: null, canSend: true });
   });
 
   it('adopts a tool call that arrives first', async () => {
@@ -768,6 +828,62 @@ describe('undo', () => {
       problem: { code: 'app' },
       turns: [{ id: 't1' }],
     });
+    expect(log.error).toHaveBeenCalledWith('Session turn not undone', REFUSED, {
+      sessionId: 's1',
+      turnId: 't1',
+    });
+  });
+
+  it('takes back a turn that could not be written, and only that one', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED);
+    await renameTurn(s, 'Two');
+    expect(s.state()).toMatchObject({
+      status: 'ready',
+      problem: { code: 'not_saved' },
+      turns: [{ id: 't1' }],
+      canUndo: true,
+    });
+    expect(s.state().work?.course.title).toBe('Two');
+
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'ready', problem: null, turns: [{ id: 't1' }] });
+    expect(s.state().work?.course.title).toBe('One');
+    expect(s.disk()).toMatchObject({ turns: [{ id: 't1' }] });
+    expect(s.disk().work.course.title).toBe('One');
+    expect(s.chat().at(-1)).toMatchObject({ kind: 'notice', turnId: 't2' });
+    expect(log.info).toHaveBeenCalledWith('Session turn undone', { sessionId: 's1', turnId: 't2' });
+
+    // The saved turn is next, and the agent hears of the one undone.
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state().work?.course.title).toBe('Git, the NonStop Way');
+    await s.runtime.send('Shorter.');
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${undoNote(2)}Shorter.`);
+  });
+
+  it('takes back a first turn that could not be written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED);
+    await renameTurn(s, 'One');
+    expect(s.state()).toMatchObject({ turns: [], canUndo: true });
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state()).toMatchObject({ turns: [], canUndo: false });
+    expect(s.state().work?.course.title).toBe('Git, the NonStop Way');
+    expect(s.state().changes?.count).toBe(0);
+  });
+
+  it('keeps a turn that could not be written when taking it back fails too', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED);
+    await renameTurn(s, 'One');
+    s.store.save = vi.fn().mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.undo()).toBe(false);
+    expect(s.state()).toMatchObject({ status: 'ready', problem: { code: 'app' }, canUndo: true });
+    expect(s.state().work?.course.title).toBe('One');
     expect(log.error).toHaveBeenCalledWith('Session turn not undone', REFUSED, {
       sessionId: 's1',
       turnId: 't1',
