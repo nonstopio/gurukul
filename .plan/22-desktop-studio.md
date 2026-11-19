@@ -485,6 +485,33 @@ person may edit, **Edit with AI**. The start dialog asks for the goal in one fre
 offers the Sources folder. For a new course it asks nothing else; title and slug are settled at
 the first save, when the content exists.
 
+As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.tsx`):
+
+- **The goal is one box of at most 300 characters** (what `goalSchema` holds). It becomes the
+  session's first goal, and its first sentence, cut on a word at 80 characters, the title until
+  the agent sets one (`set_summary`).
+- **Before any read,** the dialog looks at the local files: an open session on that course turns
+  the dialog into "You already have a session on this course" with **Open the session**, and no
+  draft is read. "New course with AI" lists the new-course sessions still open, to pick one up.
+  `start` checks again, so a session opened meanwhile is offered, not doubled.
+- **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person
+  as its Educator, level Foundation and the forest cover: `courseId` stays null, so the schema
+  ignores the id until the first save gives the real slug.
+- **The 30-day clean-up (`sweep`) runs on each visit to the Studio course list in the app.** For a
+  session closed 30 days ago or more (closing is its last change, so `updatedAt` says when) it
+  writes `history.json` (title, summary, counts of turns, changes, goals done, to-dos left, and the
+  Claude session id still to forget), removes every other file with `session.json` last, so a
+  crash midway is retried whole, then calls `agent.forget`. A forget that fails ("Not available in
+  this version" until `DSK-10`) stays in `history.json` and is tried again on the next visit.
+- **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
+  `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
+  app, `/studio/sessions/:sessionId` uses the focused layout and for now shows the title, the goal
+  and where the workspace (`DSK-13`) goes. Global search offers sessions as records ("Session"),
+  only inside the app.
+- The start dialog already says that the course and the goal go to Anthropic under the Educator's
+  own Claude account, and to leave out client names and internal documents; the Sources offer
+  (`DSK-20`) goes between the goal and that notice.
+
 ## The session workspace
 
 Route `/studio/sessions/:sessionId` (classified in `navigation/areas/`; offered by global search

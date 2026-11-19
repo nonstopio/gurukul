@@ -133,6 +133,19 @@ export function editableCourseSource(
   };
 }
 
+/**
+ * For Educators and Admins inside the desktop app: their authoring sessions on this computer. Add it
+ * only where `isDesktop()` is true; its code (the session store) is fetched the first time search
+ * opens there, and a browser never asks for it.
+ */
+export function sessionSource(uid: string, t: Terms): RecordSource {
+  return {
+    id: 'sessions',
+    roles: ['educator', 'admin'],
+    load: async () => (await import('../studio/session/search')).sessionDestinations(uid, t),
+  };
+}
+
 /** Where a person found in search opens: the Learners page, with their drawer open. */
 export const learnerPath = (uid: string) => `/admin/learners?learner=${encodeURIComponent(uid)}`;
 

@@ -1,0 +1,392 @@
+import {
+  SESSION_CHECKPOINTS_KEPT,
+  SESSION_FILES_DAYS,
+  SESSION_SCHEMA_VERSION,
+  authoringSessionSchema,
+  blankCourse,
+  workingSchema,
+} from '@gurukul/schema';
+import type { AuthoringSession, Turn, WorkingCopy } from '@gurukul/schema';
+import { z } from 'zod';
+import { bridgeFailure } from '../../desktop/bridge';
+import type { GurukulDesktop } from '../../desktop/bridge';
+import { log } from '../../log';
+import type { DraftDoc } from '../types';
+
+/*
+ * The session store (`.plan/22-desktop-studio.md`, Sessions): an Educator's authoring sessions as
+ * files on their laptop, read and written through the desktop bridge's `store.*` and nothing else.
+ * Firestore is never written here; starting an edit session reads the draft once, through the
+ * `getDraft` it is handed.
+ *
+ *   sessions/{uid}/{sessionId}/session.json            the session (`authoringSessionSchema`)
+ *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
+ *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
+ *
+ * The files hold answer keys: nothing here logs a title, a goal, course text or a key, only ids,
+ * counts and reasons.
+ */
+
+/** Where a session opens in the app. */
+export const sessionPath = (sessionId: string) => `/studio/sessions/${sessionId}`;
+
+/** The session itself, inside the session's folder. */
+export const SESSION_FILE = 'session.json';
+/** What stays of a session once its files are removed: title, summary and counts. */
+export const HISTORY_FILE = 'history.json';
+/** Where a turn's checkpoint lives, inside the session's folder. */
+export const checkpointPath = (file: string) => `checkpoints/${file}`;
+
+const DAY_MS = 86_400_000;
+/** A goal is one box of free text, held to what `goalSchema` stores. */
+export const GOAL_MAX_LENGTH = 300;
+/** A title made from the goal is cut here, on a word, so it fits a top bar. */
+const TITLE_LENGTH = 80;
+/** The working course of a new-course session, until the first save gives it its slug. */
+export const NEW_COURSE_ID = 'new-course';
+
+const at = z.iso.datetime({ offset: true });
+
+/**
+ * A session after its files were removed: no course, no keys, no chat. Kept so the person can
+ * still see what they worked on (`.plan/22-desktop-studio.md`, Where it is kept).
+ */
+export const sessionHistorySchema = z.object({
+  schemaVersion: z.literal(SESSION_SCHEMA_VERSION),
+  id: z.string().min(1).max(80),
+  kind: z.enum(['new', 'edit']),
+  courseId: z.string().min(1).max(80).nullable(),
+  title: z.string().min(1).max(160),
+  summary: z.string().max(4_000),
+  status: z.enum(['saved', 'discarded']),
+  turns: z.number().int().min(0),
+  changes: z.number().int().min(0),
+  goals: z.number().int().min(0),
+  goalsDone: z.number().int().min(0),
+  todosLeft: z.number().int().min(0),
+  createdAt: at,
+  closedAt: at,
+  /** Claude Code's session id while its own copy of the chat is still to be deleted, else null. */
+  forgetPending: z.string().min(1).max(200).nullable(),
+});
+export type SessionHistory = z.infer<typeof sessionHistorySchema>;
+
+/** What a session is started from: a goal, and for an edit session the course. */
+export type StartRequest =
+  | { kind: 'new'; goal: string; educatorName?: string | undefined }
+  | { kind: 'edit'; courseId: string; goal: string };
+
+export type StartResult =
+  /** Created and written; open it. */
+  | { status: 'started'; session: AuthoringSession }
+  /** This person already has an open session on that course: offer to open it instead. */
+  | { status: 'already_open'; session: AuthoringSession }
+  /** The course has no draft this person can read. Nothing was written. */
+  | { status: 'no_draft' };
+
+export interface SessionList {
+  /** Every readable session, open or closed, newest change first. */
+  sessions: AuthoringSession[];
+  /** Sessions whose files were removed, newest closed first. */
+  history: SessionHistory[];
+}
+
+export interface SessionStore {
+  /** The session, or null when it is not on this computer or its file cannot be read. */
+  read(sessionId: string): Promise<AuthoringSession | null>;
+  /** Writes the session as it is, with `updatedAt` set to now; answers what was written. */
+  save(session: AuthoringSession): Promise<AuthoringSession>;
+  /**
+   * After every turn: the working copy as the turn left it goes to `checkpoints/{turn.checkpoint}`,
+   * then the session with the turn added, then checkpoints older than the newest 30 are removed.
+   * The workspace (`DSK-13`) calls it at each turn's end, so a restart loses nothing.
+   */
+  saveTurn(session: AuthoringSession, turn: Turn, work: WorkingCopy): Promise<AuthoringSession>;
+  /** A turn's checkpoint, or null when it was removed or cannot be read. */
+  readCheckpoint(sessionId: string, file: string): Promise<WorkingCopy | null>;
+  /** Marks the session saved or discarded; its files go 30 days later (`sweep`). */
+  close(session: AuthoringSession, status: 'saved' | 'discarded'): Promise<AuthoringSession>;
+  /** Every session this person has on this computer, and the history of removed ones. */
+  list(): Promise<SessionList>;
+  /** The person's open session on this course, if any: one per course per person. */
+  openFor(courseId: string): Promise<AuthoringSession | null>;
+  /**
+   * Starts a session. An edit session reads the draft once (`getDraft`) and keeps it as its base;
+   * a new-course session starts from a blank course and no base. Firestore is never written.
+   */
+  start(
+    request: StartRequest,
+    getDraft: (courseId: string) => Promise<DraftDoc | null>,
+  ): Promise<StartResult>;
+  /**
+   * Removes the files of every session saved or discarded 30 days ago or more, keeping its title,
+   * summary and counts as history, and asks the agent bridge to forget Claude Code's own copy of
+   * its chat. A forget that fails is tried again on the next sweep. Answers how many were removed.
+   */
+  sweep(): Promise<number>;
+}
+
+export interface SessionStoreOptions {
+  /** The bridge's `store` and `agent.forget`, from `desktop/bridge.ts`. */
+  desktop: { store: GurukulDesktop['store']; agent: Pick<GurukulDesktop['agent'], 'forget'> };
+  uid: string;
+  now?: () => Date;
+  /** A new session id: a safe folder name. */
+  newId?: () => string;
+}
+
+/** A title from the goal: its first sentence, cut on a word to fit a top bar. */
+export function titleFromGoal(goal: string): string {
+  const flat = goal.replace(/\s+/g, ' ').trim();
+  const sentence = /^(.+?[.!?])(?:\s|$)/.exec(flat)?.[1] ?? flat;
+  if (sentence.length <= TITLE_LENGTH) return sentence;
+  const cut = sentence.slice(0, TITLE_LENGTH - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > TITLE_LENGTH / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
+/** What a closed session leaves behind once its files are removed. */
+export function historyOf(session: AuthoringSession, closedAt: string): SessionHistory {
+  return {
+    schemaVersion: SESSION_SCHEMA_VERSION,
+    id: session.id,
+    kind: session.kind,
+    courseId: session.courseId,
+    title: session.title,
+    summary: session.summary,
+    // `close` never writes `open`; a session is only retired once closed.
+    status: session.status === 'discarded' ? 'discarded' : 'saved',
+    turns: session.turns.length,
+    changes: session.turns.reduce((sum, t) => sum + t.changes, 0),
+    goals: session.goals.length,
+    goalsDone: session.goals.filter((g) => g.done).length,
+    todosLeft: session.todos.filter((t) => !t.done).length,
+    createdAt: session.createdAt,
+    closedAt,
+    forgetPending: session.agentSessionId,
+  };
+}
+
+/** Is a closed session's 30 days up? Closing is its last change, so `updatedAt` is when it closed. */
+export function isDue(session: AuthoringSession, now: Date): boolean {
+  return (
+    session.status !== 'open' &&
+    now.getTime() - Date.parse(session.updatedAt) >= SESSION_FILES_DAYS * DAY_MS
+  );
+}
+
+function parse<T>(
+  text: string | null,
+  schema: z.ZodType<T>,
+  fields: Record<string, unknown>,
+): T | null {
+  if (text === null) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    log.warn('Session file unreadable', { ...fields, reason: 'json' });
+    return null;
+  }
+  const result = schema.safeParse(data);
+  if (result.success) return result.data;
+  log.warn('Session file unreadable', { ...fields, reason: 'schema' });
+  return null;
+}
+
+export function createSessionStore({
+  desktop,
+  uid,
+  now = () => new Date(),
+  newId = () => crypto.randomUUID(),
+}: SessionStoreOptions): SessionStore {
+  const { store, agent } = desktop;
+  const file = (sessionId: string, path: string) => ({ uid, sessionId, path });
+
+  const write = async (session: AuthoringSession) => {
+    // A bug that builds an invalid session throws here, before anything reaches the disk.
+    const valid = authoringSessionSchema.parse(session);
+    await store.write(file(valid.id, SESSION_FILE), JSON.stringify(valid));
+    return valid;
+  };
+
+  const read: SessionStore['read'] = async (sessionId) =>
+    parse(await store.read(file(sessionId, SESSION_FILE)), authoringSessionSchema, {
+      sessionId,
+      file: 'session',
+    });
+
+  const readHistory = async (sessionId: string) =>
+    parse(await store.read(file(sessionId, HISTORY_FILE)), sessionHistorySchema, {
+      sessionId,
+      file: 'history',
+    });
+
+  const save: SessionStore['save'] = (session) =>
+    write({ ...session, updatedAt: now().toISOString() });
+
+  const list: SessionStore['list'] = async () => {
+    const ids = await store.list({ uid });
+    const sessions: AuthoringSession[] = [];
+    const history: SessionHistory[] = [];
+    for (const id of ids) {
+      const session = await read(id);
+      if (session) sessions.push(session);
+      else {
+        const past = await readHistory(id);
+        if (past) history.push(past);
+      }
+    }
+    sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    history.sort((a, b) => b.closedAt.localeCompare(a.closedAt));
+    return { sessions, history };
+  };
+
+  const openFor: SessionStore['openFor'] = async (courseId) =>
+    (await list()).sessions.find((s) => s.status === 'open' && s.courseId === courseId) ?? null;
+
+  /** Asks the shell to delete Claude Code's copy of the chat; a failure waits for the next sweep. */
+  const forget = async (history: SessionHistory) => {
+    if (history.forgetPending === null) return;
+    try {
+      await agent.forget(history.forgetPending);
+    } catch (error) {
+      log.warn('Session transcript not forgotten', {
+        sessionId: history.id,
+        reason: bridgeFailure(error),
+      });
+      return;
+    }
+    await store.write(
+      file(history.id, HISTORY_FILE),
+      JSON.stringify({ ...history, forgetPending: null }),
+    );
+  };
+
+  /** History first, then every other file, `session.json` last: a crash midway is retried whole. */
+  const retire = async (session: AuthoringSession) => {
+    const history = historyOf(session, session.updatedAt);
+    await store.write(file(session.id, HISTORY_FILE), JSON.stringify(history));
+    const files = await store.list({ uid, sessionId: session.id });
+    const others = files.filter((f) => f !== HISTORY_FILE && f !== SESSION_FILE);
+    await Promise.all(others.map((path) => store.remove({ uid, sessionId: session.id, path })));
+    await store.remove({ uid, sessionId: session.id, path: SESSION_FILE });
+    await forget(history);
+  };
+
+  return {
+    read,
+    save,
+    list,
+    openFor,
+
+    async saveTurn(session, turn, work) {
+      const valid = workingSchema.parse(work);
+      await store.write(file(session.id, checkpointPath(turn.checkpoint)), JSON.stringify(valid));
+      const next = await save({ ...session, work: valid, turns: [...session.turns, turn] });
+      const kept = new Set(
+        next.turns.slice(-SESSION_CHECKPOINTS_KEPT).map((t) => checkpointPath(t.checkpoint)),
+      );
+      const stale = (await store.list({ uid, sessionId: session.id })).filter(
+        (f) => f.startsWith(checkpointPath('')) && !kept.has(f),
+      );
+      await Promise.all(stale.map((path) => store.remove({ uid, sessionId: session.id, path })));
+      return next;
+    },
+
+    async readCheckpoint(sessionId, name) {
+      return parse(await store.read(file(sessionId, checkpointPath(name))), workingSchema, {
+        sessionId,
+        file: 'checkpoint',
+      });
+    },
+
+    async close(session, status) {
+      const closed = await save({ ...session, status });
+      log.info('Session closed', { sessionId: session.id, status });
+      return closed;
+    },
+
+    async start(request, getDraft) {
+      if (request.kind === 'edit') {
+        const open = await openFor(request.courseId);
+        if (open) return { status: 'already_open', session: open };
+      }
+      const id = newId();
+      const createdAt = now().toISOString();
+      const goal = request.goal.trim().slice(0, GOAL_MAX_LENGTH);
+      let base: AuthoringSession['base'] = null;
+      let work: WorkingCopy;
+      if (request.kind === 'edit') {
+        // The one Firestore read a session costs.
+        const draft = await getDraft(request.courseId);
+        if (!draft) return { status: 'no_draft' };
+        work = {
+          course: draft.course,
+          answers: draft.answers,
+          ...(draft.answersChanged ? { answersChanged: true as const } : {}),
+        };
+        base = { rev: draft.rev, savedAt: draft.updatedAt?.toISOString() ?? null, work };
+      } else {
+        work = {
+          course: blankCourse({
+            id: NEW_COURSE_ID,
+            title: 'Untitled course',
+            level: 'foundation',
+            theme: 'forest',
+            educatorId: uid,
+            educatorName: request.educatorName,
+          }),
+          answers: {},
+        };
+      }
+      const session = await write({
+        schemaVersion: SESSION_SCHEMA_VERSION,
+        id,
+        uid,
+        kind: request.kind,
+        courseId: request.kind === 'edit' ? request.courseId : null,
+        title: titleFromGoal(goal),
+        goals: [{ text: goal, done: false }],
+        summary: '',
+        status: 'open',
+        base,
+        work,
+        turns: [],
+        todos: [],
+        viewed: [],
+        agentSessionId: null,
+        createdAt,
+        updatedAt: createdAt,
+      });
+      log.info('Session started', {
+        sessionId: id,
+        kind: request.kind,
+        courseId: session.courseId,
+      });
+      return { status: 'started', session };
+    },
+
+    async sweep() {
+      const moment = now();
+      let removed = 0;
+      for (const id of await store.list({ uid })) {
+        try {
+          const session = await read(id);
+          if (session) {
+            if (!isDue(session, moment)) continue;
+            await retire(session);
+            removed += 1;
+          } else {
+            const past = await readHistory(id);
+            if (past) await forget(past);
+          }
+        } catch (error) {
+          log.error('Session clean-up failed', error, { sessionId: id });
+        }
+      }
+      if (removed > 0) log.info('Session files removed', { count: removed });
+      return removed;
+    },
+  };
+}
