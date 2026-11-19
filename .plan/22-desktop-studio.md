@@ -583,8 +583,11 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   session closed 30 days ago or more (closing is its last change, so `updatedAt` says when) it
   writes `history.json` (title, summary, counts of turns, changes, goals done, to-dos left, and the
   Claude session id still to forget), removes every other file with `session.json` last, so a
-  crash midway is retried whole, then calls `agent.forget`. A forget that fails ("Not available in
-  this version" until `DSK-10`) stays in `history.json` and is tried again on the next visit.
+  crash midway is retried whole, then calls `agent.forget`. A forget that fails stays in
+  `history.json` and is tried again on the next visit. The agent bridge's own files (`prompt.md`,
+  `skills/`, `mcp.json`, `workdir/`, which `store.remove` refuses one by one) go with the whole
+  folder after `session.json`, and `history.json` is written again; a crash between those two
+  loses only the history line (integration of `DSK-10` and `DSK-11`).
 - **A folder the app cannot read** (a `session.json` that is damaged or written by a newer app, or
   neither a session nor a history) still holds answer keys, and its closing date cannot be read.
   The first sweep that finds it writes `unreadable.json` with that day and logs it at warn; the

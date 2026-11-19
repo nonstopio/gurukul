@@ -393,14 +393,30 @@ describe('sweep', () => {
       JSON.parse(s.files.get(`u1/s1/${HISTORY_FILE}`) as string),
     );
     expect(history).toMatchObject({ id: 's1', status: 'saved', turns: 1, forgetPending: null });
-    // session.json goes last, so a crash midway is retried whole.
-    expect(s.desktop.store.remove.mock.calls.at(-1)?.[0]).toEqual({
-      uid: 'u1',
-      sessionId: 's1',
-      path: SESSION_FILE,
-    });
+    // session.json goes last of the files, so a crash midway is retried whole; the folder, which
+    // holds the agent bridge's files, goes after it.
+    expect(s.desktop.store.remove.mock.calls.slice(-2).map(([ref]) => ref)).toEqual([
+      { uid: 'u1', sessionId: 's1', path: SESSION_FILE },
+      { uid: 'u1', sessionId: 's1' },
+    ]);
     expect(log.info).toHaveBeenCalledWith('Session files removed', { count: 1 });
     expect((await s.store.list()).history.map((h) => h.id)).toEqual(['s1']);
+  });
+
+  it('removes the agent bridge’s own files with the whole folder, in any case, and keeps history', async () => {
+    const s = setup();
+    await closedWithFiles(s);
+    s.files.set('u1/s1/MCP.json', '{}');
+    s.files.set('u1/s1/workdir/notes.md', 'x');
+    s.at(new Date(T0.getTime() + 31 * DAY));
+    expect(await s.store.sweep()).toBe(1);
+    // The shell refuses them one by one; none was asked for that way.
+    const paths = s.desktop.store.remove.mock.calls.map(([ref]) => ref.path);
+    expect(paths).not.toContain('MCP.json');
+    expect(paths).not.toContain('skills/humanize/SKILL.md');
+    expect(s.desktop.store.remove).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
+    expect([...s.files.keys()]).toEqual([`u1/s1/${HISTORY_FILE}`]);
+    expect(log.error).not.toHaveBeenCalled();
   });
 
   it('removes a session that never reached Claude Code without asking to forget', async () => {
@@ -409,6 +425,8 @@ describe('sweep', () => {
     s.at(new Date(T0.getTime() + 30 * DAY));
     expect(await s.store.sweep()).toBe(1);
     expect(s.desktop.agent.forget).not.toHaveBeenCalled();
+    // No agent files: the folder stays, holding the history.
+    expect(s.desktop.store.remove).not.toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
   });
 
   it('keeps the forget pending when the app cannot do it yet, and tries again next time', async () => {

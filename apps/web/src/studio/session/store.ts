@@ -8,7 +8,7 @@ import {
 } from '@gurukul/schema';
 import type { AuthoringSession, Turn, WorkingCopy } from '@gurukul/schema';
 import { z } from 'zod';
-import { bridgeFailure } from '../../desktop/bridge';
+import { bridgeFailure, isAgentSessionFile } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { log } from '../../log';
 import type { DraftDoc } from '../types';
@@ -281,14 +281,25 @@ export function createSessionStore({
     );
   };
 
-  /** History first, then every other file, `session.json` last: a crash midway is retried whole. */
+  /**
+   * History first, then every other file, `session.json` last: a crash midway is retried whole. The
+   * agent bridge's own files (`prompt.md`, `skills/`, `mcp.json`, `workdir/`) cannot be removed one
+   * by one, so a session that reached Claude Code then loses its whole folder and gets its history
+   * written again; a crash between those two loses only the history line.
+   */
   const retire = async (session: AuthoringSession) => {
     const history = historyOf(session, session.updatedAt);
     await store.write(file(session.id, HISTORY_FILE), JSON.stringify(history));
     const files = await store.list({ uid, sessionId: session.id });
-    const others = files.filter((f) => f !== HISTORY_FILE && f !== SESSION_FILE);
+    const others = files.filter(
+      (f) => f !== HISTORY_FILE && f !== SESSION_FILE && !isAgentSessionFile(f),
+    );
     await Promise.all(others.map((path) => store.remove({ uid, sessionId: session.id, path })));
     await store.remove({ uid, sessionId: session.id, path: SESSION_FILE });
+    if (files.some(isAgentSessionFile)) {
+      await store.remove({ uid, sessionId: session.id });
+      await store.write(file(session.id, HISTORY_FILE), JSON.stringify(history));
+    }
     await forget(history);
   };
 

@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { isAgentSessionFile } from '../src/desktop/bridge';
 import type { DesktopInfo, GurukulDesktop } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
@@ -12,7 +13,7 @@ const NOT_AVAILABLE = () =>
 
 /**
  * The desktop bridge in memory: `store.*` keeps files in a map keyed `uid/sessionId/path`, as the
- * shell's store does on disk; `agent.forget` resolves; the rest refuse as an unbuilt call does.
+ * shell's store does on disk, and refuses the agent's own files as it does; `agent.forget` resolves; the rest refuse as an unbuilt call does.
  */
 export function fakeDesktop(
   init: { files?: Record<string, string>; info?: () => Promise<DesktopInfo> } = {},
@@ -20,11 +21,18 @@ export function fakeDesktop(
   const files = new Map(Object.entries(init.files ?? {}));
   const key = (uid: string, sessionId: string, path: string) => `${uid}/${sessionId}/${path}`;
   const refuse = vi.fn(NOT_AVAILABLE);
+  // The shell refuses to write or remove its agent files one by one, in any case.
+  const writable = (path: string) => {
+    if (isAgentSessionFile(path)) {
+      throw new Error('Error invoking remote method: Error: Reserved session file name');
+    }
+  };
   const desktop = {
     info: vi.fn(init.info ?? (async () => DESKTOP_INFO)),
     store: {
       read: vi.fn(async ({ uid, sessionId, path }) => files.get(key(uid, sessionId, path)) ?? null),
       write: vi.fn(async ({ uid, sessionId, path }, data: string) => {
+        writable(path);
         files.set(key(uid, sessionId, path), data);
       }),
       list: vi.fn(async ({ uid, sessionId }) => {
@@ -36,6 +44,7 @@ export function fakeDesktop(
         return [...new Set(names)].sort() as string[];
       }),
       remove: vi.fn(async ({ uid, sessionId, path }) => {
+        if (path !== undefined) writable(path);
         for (const k of [...files.keys()]) {
           if (
             path === undefined

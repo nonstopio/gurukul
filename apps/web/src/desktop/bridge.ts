@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { BridgeErrors, DesktopInfo, GurukulDesktop } from '@gurukul/desktop/bridge';
+import type {
+  AGENT_SESSION_NAMES as SHELL_AGENT_SESSION_NAMES,
+  BridgeErrors,
+  DesktopInfo,
+  GurukulDesktop,
+} from '@gurukul/desktop/bridge';
 import { log } from '../log';
 
 /*
@@ -29,6 +34,24 @@ const ERRORS: BridgeErrors = {
   invalid: 'Invalid arguments',
   notAvailable: 'Not available in this version',
 };
+
+/**
+ * The session files only the shell writes (what `agent.start` hands Claude Code): `store.write` and
+ * `store.remove` refuse a path under one of them, in any case. They go only with the whole session
+ * folder. The type makes the list equal to the shell's own.
+ */
+export const AGENT_SESSION_NAMES: typeof SHELL_AGENT_SESSION_NAMES = [
+  'prompt.md',
+  'skills',
+  'mcp.json',
+  'workdir',
+];
+
+/** True for a session file path the window may read but never write or remove. */
+export function isAgentSessionFile(path: string): boolean {
+  const first = (path.split('/')[0] as string).toLowerCase();
+  return (AGENT_SESSION_NAMES as readonly string[]).includes(first);
+}
 
 /** Where the page stands with the desktop app. */
 export type DesktopState =
