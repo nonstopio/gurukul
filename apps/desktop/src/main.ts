@@ -1,7 +1,9 @@
 // The main process: Electron glue only. Everything it does is in app.ts, tested with fakes.
 import { BrowserWindow, Menu, app, dialog, ipcMain, net, session, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import os from 'node:os';
 import path from 'node:path';
+import { nodeAgentPlatform } from './agent/node';
 import { main } from './app';
 import { googleClient } from './googleClient';
 import { log } from './log';
@@ -28,5 +30,6 @@ void main({
     process.env.GURUKUL_DESKTOP_GOOGLE_CLIENT_ID,
     process.env.GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET,
   ),
+  agent: nodeAgentPlatform(process.platform, process.env, os.homedir()),
   log,
 });

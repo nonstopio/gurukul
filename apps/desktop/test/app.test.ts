@@ -12,6 +12,7 @@ import type { MenuItem } from '../src/menu';
 import { createLogger } from '../src/log';
 import type { ContentsLike } from '../src/navigation';
 import type { WindowLike, WindowOptions } from '../src/window';
+import { fakePlatform } from './agent/fakes';
 
 let userData: string;
 
@@ -107,6 +108,7 @@ function setup({
     },
     showMessage: vi.fn(async () => undefined),
     setMenu: vi.fn<(template: MenuItem[]) => void>(),
+    agent: fakePlatform(),
     log: createLogger({ sink }),
   } satisfies ShellDeps;
   const emit = (name: string, ...args: unknown[]) => appListeners.get(name)?.(...args);
@@ -256,6 +258,16 @@ describe('startApp', () => {
     await startApp(mac.deps);
     mac.emit('window-all-closed');
     expect(mac.deps.app.quit).not.toHaveBeenCalled();
+  });
+
+  it('answers agent calls with the agent bridge, and ends its processes on quit', async () => {
+    const { deps, handlers, emit } = setup();
+    await startApp(deps);
+    const status = handlers.get(channel('agent.status'));
+    await expect(status?.(topFrame('http://localhost:5173'))).resolves.toEqual({
+      state: 'not_installed',
+    });
+    expect(() => emit('will-quit')).not.toThrow();
   });
 });
 

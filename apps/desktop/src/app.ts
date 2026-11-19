@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { createAgentManager } from './agent/manager';
+import type { AgentPlatform } from './agent/platform';
 import { BRIDGE_VERSION } from './bridge';
 import { allowedOrigins, startUrl } from './config';
 import { createEventSender, type EventSender } from './events';
@@ -26,7 +28,10 @@ export interface AppLike {
   requestSingleInstanceLock(): boolean;
   quit(): void;
   whenReady(): Promise<unknown>;
-  on(event: 'second-instance' | 'activate' | 'window-all-closed', listener: () => void): unknown;
+  on(
+    event: 'second-instance' | 'activate' | 'window-all-closed' | 'will-quit',
+    listener: () => void,
+  ): unknown;
   on(
     event: 'web-contents-created',
     listener: (event: unknown, contents: ContentsLike) => void,
@@ -74,6 +79,8 @@ export interface ShellDeps {
   fetch: FetchLike;
   /** The Google Desktop OAuth client this build was given (`googleClient.ts`), or null. */
   googleClient: GoogleClient | null;
+  /** What the agent bridge starts Claude Code with (`agent/node.ts` in the app). */
+  agent: AgentPlatform;
   log: Logger;
 }
 
@@ -164,13 +171,25 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   });
   deps.setMenu(menuTemplate(deps.platform, () => void updates.checkFromMenu()));
 
-  const store = createSessionStore(path.join(app.getPath('userData'), 'sessions'));
+  const sessionsRoot = path.join(app.getPath('userData'), 'sessions');
+  const store = createSessionStore(sessionsRoot);
+  const agent = createAgentManager({
+    platform: deps.agent,
+    sessionsRoot,
+    events,
+    // `sourcesFolder` comes with DSK-20 (sources.choose); until then each session works in an
+    // empty folder of its own.
+    log,
+  });
+  // Quitting ends every session's `claude` rather than leaving it to finish a turn unheard.
+  app.on('will-quit', () => agent.closeAll());
   registerHandlers(
     deps.ipc,
     createHandlers({
       appVersion: app.getVersion(),
       platform: deps.platform,
       store,
+      agent,
       updates,
       // After the browser, the window comes back to the front.
       googleSignIn: createGoogleSignIn({

@@ -16,6 +16,13 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; `notAvailable(schema)` until its item builds it                                |
 | `src/googleSignIn.ts`                                                 | `auth.googleSignIn`: PKCE, loopback listener, system browser, token exchange; answers the ID token only  |
 | `src/googleClient.ts`, `scripts/bundle.ts`, `.env.example`            | The Google Desktop OAuth client: build-time variables the bundle writes into `main.cjs` as literals      |
+| `src/agent/manager.ts`                                                | `agent.*`: status, one `claude` per open session, tool results, `forget`, `closeAll` on quit             |
+| `src/agent/launch.ts`                                                 | The pinned flags, `MIN_CLAUDE_VERSION`, the allow-listed environment (`ALLOWED_ENV`)                     |
+| `src/agent/run.ts`                                                    | One running `claude`: messages in, events out, Stop (`interrupt`), close, tool calls to the window       |
+| `src/agent/stream.ts`                                                 | Stream-json both ways, pure: what each output line means                                                 |
+| `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only              |
+| `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript          |
+| `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)      |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged          |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                   |
 | `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                  |
@@ -55,6 +62,16 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   `window.gurukulDesktop`.
 - **Session files hold answer keys.** Never log a file name, chat text, course text or a key.
   Errors reach the window as `store.write failed (EACCES)`; Node's messages carry home-folder paths.
+- **The agent's session files are the shell's.** `prompt.md`, `skills/`, `mcp.json` and `workdir/`
+  (`AGENT_SESSION_NAMES`) are written by `agent/files.ts` at every start; `store.write` and
+  `store.remove` refuse them in any case (macOS and Windows ignore it: `MCP.json` is `mcp.json`),
+  because a plugin folder can carry hooks and `mcp.json` can name a program.
+- **`claude` starts with the pinned flags and `childEnv`'s allow-list only** (`agent/launch.ts`,
+  tested as constants). Changing either changes `.plan/22-desktop-studio.md` (Starting Claude Code)
+  in the same commit. The endpoint's token is only in `claude`'s environment and in memory; never
+  an argument, a file or a log field. Nothing `claude` prints is logged.
+- **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
+  stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`.
 - No UI, no credentials. The shell never sees a Claude credential and never says "Claude Code" in
   a product name. Google sign-in hands the window its ID token and keeps nothing: no token, code,
   verifier or client secret is stored or logged.

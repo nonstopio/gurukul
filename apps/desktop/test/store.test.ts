@@ -103,6 +103,38 @@ describe('session store', () => {
     expect(await store.list({ uid: 'u1' })).toEqual([]);
   });
 
+  it.each([
+    'prompt.md',
+    'mcp.json',
+    'skills/humanize/SKILL.md',
+    'skills',
+    'workdir/CLAUDE.md',
+    // macOS and Windows ignore case: these are the same files there.
+    'MCP.json',
+    'Mcp.Json',
+    'Prompt.md',
+    'Skills/hooks/hooks.json',
+    'WorkDir/x.txt',
+  ])(
+    'leaves %s to the agent bridge: the window may read it but not write or remove it',
+    async (name) => {
+      await expect(store.write(file(name), 'x')).rejects.toThrow('Reserved session file name');
+      await expect(store.remove({ uid: 'u1', sessionId: 's1', path: name })).rejects.toBeInstanceOf(
+        SessionFileError,
+      );
+      await expect(store.read(file(name))).resolves.toBeNull();
+    },
+  );
+
+  it('still writes names that only start like a reserved one', async () => {
+    await store.write(file('skills.json'), 'x');
+    await store.write(file('checkpoints/prompt.md'), 'x');
+    expect(await store.list({ uid: 'u1', sessionId: 's1' })).toEqual([
+      'checkpoints/prompt.md',
+      'skills.json',
+    ]);
+  });
+
   it('removes what is not there without an error', async () => {
     await expect(store.remove({ uid: 'u1', sessionId: 's1' })).resolves.toBeUndefined();
     await expect(

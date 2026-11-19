@@ -244,6 +244,49 @@ put on a command line.
   ("Open a terminal, run `claude` and sign in, then try again").
 - No model picker in v1: Claude Code's own default is used.
 
+As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`):
+
+- **`agent.status()`** finds `claude` on `PATH` (`claude.exe`, then `claude.cmd`, on Windows),
+  reads `claude --version` against `MIN_CLAUDE_VERSION` (2.1.328, what the flags were checked on)
+  and `claude auth status` for `loggedIn`, each with the allow-listed environment and a 15-second
+  limit. A `claude` that will not run is "not installed"; one that prints no version is "too old".
+  Nothing else `auth status` prints (it names the account) is kept.
+- **`agent.start()`** checks the same, mints the token, starts the endpoint, writes `prompt.md`,
+  the `skills/` plugin (replaced whole each time) and `mcp.json`, starts `claude`, then sends the
+  `initialize` control request: `tokenSource: "none"` ends the process and answers
+  `not_signed_in` before any message is sent; no answer within 30 seconds, or an exit first (an
+  unknown `--resume` id), answers `crashed`. A second start of a running session answers its id.
+- **The session folder's agent files are the shell's.** `prompt.md`, `skills/`, `mcp.json` and the
+  empty working folder `workdir/` (used until `DSK-20` gives a Sources folder, or when the chosen
+  one has gone) are `AGENT_SESSION_NAMES` in `bridge.ts`: `store.write` and `store.remove` refuse
+  them in any case (`MCP.json` is `mcp.json` on macOS and Windows), because a plugin folder can
+  carry hooks and `mcp.json` can name a program to run.
+- **Events.** Without `--include-partial-messages` (not pinned) text arrives a whole assistant
+  text block at a time, each a `text` event. Thinking and the `Skill` tool become `activity`
+  ("Thinking", "Loading the humanize skill"); a course tool's `tool_call` event comes from the
+  endpoint when the call arrives, with the same `callId` as `agent.onToolCall`. An assistant
+  `error`, an `api_retry` with `authentication_failed` or `rate_limit`, or a `rate_limit_event`
+  with `status: "rejected"` (its `resetsAt` becomes the plan limit's reset time; the shape is the
+  Agent SDK's, unconfirmed until `DSK-26`) is reported once per turn and the turn interrupted;
+  that turn ends `failed`. A turn ended by Stop ends `stopped`. A process that ends unasked ends
+  its turn `failed`, then reports `crashed` with its exit code.
+- **Tool calls** wait 120 seconds for `agent.toolResult`; then, or when no window is open, the
+  model gets a sentence saying so. Only the tools `agent.start` listed are offered or run. The SDK's
+  stateless transport answers with its default (SSE), as in the spike.
+- **Closing** closes `claude`'s input, SIGTERM after 5 seconds, SIGKILL 5 seconds later. Quitting
+  the app ends every `claude`, a starting one too, by closing its input and sending SIGTERM in the
+  same moment: no timer outlives the app, and a `claude` with only its input closed would finish
+  its turn after the app had gone.
+- **`agent.forget(id)`** deletes `projects/*/{id}.jsonl` and a `{id}` folder beside it under
+  `CLAUDE_CONFIG_DIR` (else `~/.claude`), reading no other file there.
+- **Windows** is started through `cross-spawn` (MIT), which runs `claude.cmd` via `cmd.exe` with
+  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Untested on
+  Windows until `DSK-22`/`DSK-26`.
+- **Tests** never start the real `claude`: `apps/desktop/test/fixtures/fake-claude.mjs` speaks the
+  stream-json above, checks the flags as strictly as 2.1.328 does, keeps a transcript where Claude
+  Code would, and makes its tool calls over the real endpoint with the SDK's client. `DSK-24`
+  reuses it.
+
 The flags are pinned to what the spike saw on Claude Code 2.1.328 and are re-tested on each new
 Claude Code release: the documentation says `--bare` will become the default for scripted runs,
 and `--bare` never reads the subscription sign-in. What the spike settled, and what still needs a
@@ -490,8 +533,8 @@ to-do ids are unique.
 
 On the laptop, under the app's data folder, per signed-in person:
 `sessions/{uid}/{sessionId}/` with `session.json`, `checkpoints/{turnId}.json` (a full working
-copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), `prompt.md`, `skills/`
-and `mcp.json`. Source material lives where the Educator can see it:
+copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and the agent's own
+`prompt.md`, `skills/`, `mcp.json` and empty `workdir/`, which only the main process writes. Source material lives where the Educator can see it:
 `Documents/Gurukul Studio/{course slug}/sources/`.
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
