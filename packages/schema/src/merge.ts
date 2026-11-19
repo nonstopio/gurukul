@@ -39,7 +39,9 @@ export type ConflictReason = 'both' | 'removedInMine' | 'removedInTheirs';
  * (`mine`) or Keep theirs (`theirs`). `key` is unique in the result and follows the Review's row
  * keys: `chapter:p1`, `lesson:l2`, `quiz:q1` (a repeated id gets `#2`…), and `field:<path>` for a
  * course details or landing page field. `base`, `mine` and `theirs` are the three versions; null
- * (an item or chapter) or undefined (a field) where that copy has none.
+ * (an item or chapter) or undefined (a field) where that copy has none. A lesson on one side and a
+ * Quiz on the other under one id is one item conflict: `kind` and `key` are this session's, and
+ * `theirs` (or `base`) may be of the other type.
  */
 export type MergeConflict =
   | {
@@ -221,6 +223,13 @@ interface Kept {
   chapter: string;
 }
 
+/** What one item's own three versions say: take a side (null: gone), settle a conflict, or follow its chapter. */
+type Verdict =
+  { take: Side | null } | { conflict: ConflictReason } | { follow: Side; chapterKey: string };
+
+/** The conflict reason that, chosen for this side, removes the item. */
+const REMOVED_IN = { mine: 'removedInMine', theirs: 'removedInTheirs' } as const;
+
 function merge(
   base: CourseCopy,
   mine: CourseCopy,
@@ -308,45 +317,86 @@ function merge(
     }
   }
 
-  // Lessons and Quizzes: which stay, with whose content, in which chapter.
+  // Lessons and Quizzes: first what each one's own three versions say, before any choice.
+  const verdict = (key: string): Verdict => {
+    const b = B.items.get(key);
+    const m = M.items.get(key);
+    const t = T.items.get(key);
+    if (m && t) {
+      const same =
+        stable(m.item) === stable(t.item) &&
+        stable(keysOf(mine.answers, m.item)) === stable(keysOf(theirs.answers, t.item));
+      if (!b) return same ? { take: 'mine' } : { conflict: 'both' };
+      if (!has(M, m, 'changed')) return { take: 'theirs' };
+      if (!has(T, t, 'changed') || same) return { take: 'mine' };
+      return { conflict: 'both' };
+    }
+    if (!b) return { take: m ? 'mine' : 'theirs' };
+    if (!m && !t) return { take: null };
+    const k: Side = m ? 'mine' : 'theirs';
+    const r: Side = m ? 'theirs' : 'mine';
+    const here = (m ?? t) as Location;
+    if (!sides[r].chapters.has(b.chapterKey) && here.chapterKey === b.chapterKey)
+      // Gone with its chapter on one side, still in it on the other: it follows the chapter.
+      return { follow: k, chapterKey: b.chapterKey };
+    if (has(sides[k], here, 'changed'))
+      return { conflict: r === 'mine' ? 'removedInMine' : 'removedInTheirs' };
+    return { take: null };
+  };
+  const dropped = (v: Verdict) => 'take' in v && v.take === null;
+
+  // A lesson in one copy and a Quiz in the other under one id (one turned into the other, or both
+  // added): two rows to the Review, but one thing to the course, which must not hold the id twice.
+  // When both could stay, they are one conflict: choosing a side keeps that side's, never both.
+  const twinOf = (key: string): string | undefined => {
+    const [type, ...rest] = key.split(':');
+    const other = `${type === 'lesson' ? 'quiz' : 'lesson'}:${rest.join(':')}`;
+    return M.items.has(key) && !M.items.has(other) && T.items.has(other) && !T.items.has(key)
+      ? other
+      : undefined;
+  };
+  const twins = new Map<string, Side | null>();
+
+  // Then which stay, with whose content, in which chapter.
   const kept = new Map<string, Kept>();
   for (const key of union(M.itemOrder, T.itemOrder, B.itemOrder)) {
     const b = B.items.get(key);
     const m = M.items.get(key);
     const t = T.items.get(key);
     const at = (m ?? t ?? b) as Location;
-    const conflict = (reason: ConflictReason) =>
-      decide({
+    const v = verdict(key);
+    const twin = twinOf(key);
+    let from: Side | null;
+    if (twins.has(key)) from = twins.get(key) as Side | null;
+    else if (twin !== undefined && !dropped(v) && !dropped(verdict(twin))) {
+      // Reached first from this session's key: `union` lists all of `mine` before `theirs`.
+      const other = T.items.get(twin) as Location;
+      const choice = decide({
         key: rowKey(key),
         kind: at.item.type,
         id: at.id,
         chapterId: at.chapterId,
-        reason,
+        reason: 'both',
+        base: (b ?? B.items.get(twin))?.item ?? null,
+        mine: at.item,
+        theirs: other.item,
+      });
+      twins.set(twin, choice === 'theirs' ? 'theirs' : null);
+      from = choice === 'mine' ? 'mine' : null;
+    } else if ('take' in v) from = v.take;
+    else if ('follow' in v) from = titles.has(v.chapterKey) ? v.follow : null;
+    else {
+      const choice = decide({
+        key: rowKey(key),
+        kind: at.item.type,
+        id: at.id,
+        chapterId: at.chapterId,
+        reason: v.conflict,
         base: b?.item ?? null,
         mine: m?.item ?? null,
         theirs: t?.item ?? null,
       });
-    let from: Side | null;
-    if (m && t) {
-      const same =
-        stable(m.item) === stable(t.item) &&
-        stable(keysOf(mine.answers, m.item)) === stable(keysOf(theirs.answers, t.item));
-      if (!b) from = same ? 'mine' : conflict('both');
-      else if (!has(M, m, 'changed')) from = 'theirs';
-      else if (!has(T, t, 'changed') || same) from = 'mine';
-      else from = conflict('both');
-    } else if (!b) from = m ? 'mine' : 'theirs';
-    else if (!m && !t) from = null;
-    else {
-      const k: Side = m ? 'mine' : 'theirs';
-      const r: Side = m ? 'theirs' : 'mine';
-      const here = sides[k].items.get(key) as Location;
-      if (!sides[r].chapters.has(b.chapterKey) && here.chapterKey === b.chapterKey)
-        // Gone with its chapter on one side, still in it on the other: it follows the chapter.
-        from = titles.has(b.chapterKey) ? k : null;
-      else if (has(sides[k], here, 'changed'))
-        from = conflict(r === 'mine' ? 'removedInMine' : 'removedInTheirs') === k ? k : null;
-      else from = null;
+      from = v.conflict === REMOVED_IN[choice] ? null : choice;
     }
     if (from === null) continue;
 
@@ -421,6 +471,9 @@ function merge(
  * - Order: a list reordered on one side takes that side's order; on both, this session's, and
  *   `orderKept` says so. An item moved on both sides goes where this session put it.
  * - Answer keys travel with their Quiz: whichever side's Quiz is kept brings its keys.
+ * - A lesson in this session and a Quiz in the stored draft (or the other way round) under one id
+ *   never both stay: when both would, they are one `both` conflict keyed by this session's row,
+ *   with `mine` and `theirs` of different types.
  */
 export function mergeWorking(base: CourseCopy, mine: CourseCopy, theirs: CourseCopy): MergeResult {
   // Each conflict is first settled for this session so the rest can be worked out; `working` stays

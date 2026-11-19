@@ -485,6 +485,10 @@ Found while building it:
 - The course's own fields that Studio and publishing keep (id, version, status, `publishedAt`,
   Educators) come from the stored draft. `answersChanged` is set as Studio's save sets it: when
   the stored draft carries it or the merged keys differ from the stored draft's.
+- Items are matched by type and id, so a lesson on one side and a Quiz on the other under one id
+  (one turned into the other, or both added) are two rows, and the schema would accept a course
+  holding both. The merge never keeps both: when both could stay they are one conflict, keyed by
+  the session's row, and choosing a side keeps only that side's item (and, for a Quiz, its keys).
 - Two copies each within the limits can merge into one over them (31 chapters, 61 lessons in a
   chapter, over `COURSE_BYTES_LIMIT`). The merged copy goes through Review's checks like any
   working copy, so "Course is valid" or Size stops that save.

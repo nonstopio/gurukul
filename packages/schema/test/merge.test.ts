@@ -785,3 +785,84 @@ describe('mergeWorking: answer keys travel with their question', () => {
     expect(resolveConflicts(r, { 'chapter:p3': 'theirs' }).answers.q2).toBeUndefined();
   });
 });
+
+describe('mergeWorking: a lesson on one side and a Quiz on the other under one id', () => {
+  /** Turns the lesson into a Quiz under the same id, keyed `x`. */
+  const toQuiz =
+    (id: string): Edit =>
+    (c, answers) => {
+      for (const p of c.chapters) p.items = p.items.map((i) => (i.id === id ? quizNamed(id) : i));
+      answers[id] = { z1: ['x'] };
+    };
+  const keyed =
+    (id: string): Edit =>
+    (_c, answers) => {
+      answers[id] = { z1: ['x'] };
+    };
+  const ids = (c: Course) => c.chapters.flatMap((p) => p.items.map((i) => i.id));
+  const shape = (c: Course, id: string) => {
+    const found = item(c, id);
+    return found.type === 'quiz' ? 'quiz' : `lesson ${found.title}`;
+  };
+
+  it.each<[string, Edit, Edit, string, string | null, string, string]>([
+    [
+      'the session turned a lesson into a Quiz, the draft edited the lesson',
+      toQuiz('l2'),
+      retitle('l2', 'Theirs'),
+      'quiz:l2 both',
+      'lesson',
+      'quiz',
+      'lesson Theirs',
+    ],
+    [
+      'the session edited a lesson, the draft turned it into a Quiz',
+      retitle('l2', 'Mine'),
+      toQuiz('l2'),
+      'lesson:l2 both',
+      'lesson',
+      'lesson Mine',
+      'quiz',
+    ],
+    [
+      'the session added a lesson and the draft a Quiz under one new id',
+      add('p3', 1, lessonNamed('n1', { title: 'Mine' })),
+      all(add('p3', 0, quizNamed('n1')), keyed('n1')),
+      'lesson:n1 both',
+      null,
+      'lesson Mine',
+      'quiz',
+    ],
+  ])(
+    '%s is one conflict, never both',
+    (_name, mine, theirs, conflict, base, keepMine, keepTheirs) => {
+      const r = three(mine, theirs);
+      expect(conflicts(r)).toEqual([conflict]);
+      const [key, id] = [conflict.split(' ')[0] as string, conflict.split(/[: ]/)[1] as string];
+      expect((r.conflicts[0]?.base as Item | null)?.type ?? null).toBe(base);
+      for (const [side, expected] of [
+        ['mine', keepMine],
+        ['theirs', keepTheirs],
+      ] as const) {
+        const w = resolveConflicts(r, { [key]: side });
+        expect(new Set(ids(w.course)).size).toBe(ids(w.course).length);
+        expect(shape(w.course, id)).toBe(expected);
+        expect(w.answers[id]).toEqual(expected === 'quiz' ? { z1: ['x'] } : undefined);
+        expect(workingSchema.safeParse(w).success).toBe(true);
+      }
+    },
+  );
+
+  it.each<[string, Edit, Edit]>([
+    ['by the session', toQuiz('l2'), none],
+    ['in the draft', none, toQuiz('l2')],
+  ])(
+    'takes a lesson turned into a Quiz %s when the other side left it alone',
+    (_n, mine, theirs) => {
+      const r = three(mine, theirs);
+      expect(r.conflicts).toEqual([]);
+      expect(shape(merged(r).course, 'l2')).toBe('quiz');
+      expect(ids(merged(r).course)).toEqual(['l1', 'q1', 'l2', 'l3', 'l4', 'l5', 'l6']);
+    },
+  );
+});
