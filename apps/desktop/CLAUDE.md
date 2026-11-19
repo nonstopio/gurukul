@@ -13,7 +13,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/ipc.ts`                                                          | Typed handler registry and the gate every call passes: top frame, allowed origin, zod args               |
 | `src/args.ts`                                                         | The zod pieces the handlers check arguments with                                                         |
 | `src/handlers.ts`                                                     | `info`, `store.*`, and the composition of every area's handlers (`createHandlers`)                       |
-| `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; `notAvailable(schema)` until its item builds it                                |
+| `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; a later call starts as `notAvailable(schema)` until its item builds it         |
 | `src/googleSignIn.ts`                                                 | `auth.googleSignIn`: PKCE, loopback listener, system browser, token exchange; answers the ID token only  |
 | `src/googleClient.ts`, `scripts/bundle.ts`, `.env.example`            | The Google Desktop OAuth client: build-time variables the bundle writes into `main.cjs` as literals      |
 | `src/agent/manager.ts`                                                | `agent.*`: status, one `claude` per open session, tool results, `forget`, `closeAll` on quit             |
@@ -25,6 +25,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)      |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged          |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                   |
+| `src/sources.ts`                                                      | `sources.*`: the chosen folder per session (`{userData}/sources/`), plain text files only, size cap      |
 | `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                  |
 | `src/window.ts`                                                       | Window options (isolation, sandbox, no Node) and retry when the page cannot load                         |
 | `src/app.ts`                                                          | Start-up over injected adapters; returns the `Shell` (`events`) for what later sends events              |
@@ -52,7 +53,9 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   Electron's event object, and offers no way to listen on any other channel.
 - **The window names a session, never a path.** `sources.*` and `agent.start` take
   `{ uid, sessionId }`; the shell remembers the chosen Sources folder itself, outside the session
-  files the window can write.
+  files the window can write (`{userData}/sources/`). `sources.read` reads only a name its own
+  listing gives, of a text type, under `MAX_SOURCE_BYTES`; a refusal is one of `SOURCE_REFUSALS`.
+  Never log a Sources path, file name or text.
 - **Never widen the origins** beyond `config.ts`, and never from an environment variable: that
   would hand the bridge to another site. `localhost:5173` is allowed only when `app.isPackaged` is
   false.

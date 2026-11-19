@@ -212,10 +212,26 @@ export interface SourcesFolder {
 export interface SourcesChoice extends SessionRef {
   /**
    * A safe name (`isSafeSegment`), usually the course slug: the dialog starts in
-   * `Documents/Gurukul Studio/{suggestedName}/sources`, created if missing.
+   * `Documents/Gurukul Studio/{suggestedName}/sources`, created if missing. Without one it starts
+   * in `Documents/Gurukul Studio`.
    */
   suggestedName?: string | undefined;
 }
+
+/**
+ * Why `sources.read` would not read a listed file: the call rejects with one of these sentences,
+ * written for the agent to act on. Electron prefixes them like `BRIDGE_ERRORS`, so the web app
+ * matches the end of the message.
+ */
+export const SOURCE_REFUSALS = {
+  /** Not one of the text types the shell reads, or not valid UTF-8 text. */
+  notText:
+    'This file is not plain text, so it cannot be read. Ask the Educator to save it in the Sources folder as text or Markdown (.txt or .md).',
+  /** Larger than `MAX_SOURCE_BYTES`. */
+  tooLarge:
+    'This file is larger than 1 MB, so it cannot be read. Ask the Educator to split it or save a shorter copy in the Sources folder.',
+} as const;
+export type SourceRefusals = typeof SOURCE_REFUSALS;
 
 // ---- auth ----
 
@@ -425,6 +441,10 @@ export const MAX_SKILL_FILES = 32;
 export const MAX_TOOLS = 128;
 /** Longest name of a file in a Sources folder (most systems allow 255). */
 export const MAX_SOURCE_NAME_LENGTH = 255;
+/** Largest Sources file `sources.read` reads, in bytes: 1 MB (`SOURCE_REFUSALS.tooLarge`). */
+export const MAX_SOURCE_BYTES = 1_048_576;
+/** Most files one `sources.list` gives, the first by name: a listing fits in one tool result. */
+export const MAX_SOURCE_FILES = 1000;
 
 const SEGMENT = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
 /** Names Windows reserves for devices, with or without an extension. */

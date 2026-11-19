@@ -5,6 +5,7 @@ import {
   INVALID,
   REFUSED,
   checkSender,
+  notAvailable,
   registerHandlers,
   type InvokeEventLike,
   type IpcLike,
@@ -12,6 +13,7 @@ import {
 import { createLogger } from '../src/log';
 import type { AgentManager } from '../src/agent/manager';
 import { AgentNotRunningError } from '../src/agent/run';
+import { SourcesError, type SourcesManager } from '../src/sources';
 import { SessionFileError, type SessionStore } from '../src/store';
 import type { Updates } from '../src/updates';
 
@@ -56,11 +58,25 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
   };
 }
 
+function fakeSources(overrides: Partial<SourcesManager> = {}): SourcesManager {
+  return {
+    choose: vi.fn(async () => ({ path: '~/Material', files: [] })),
+    list: vi.fn(async () => null),
+    reveal: vi.fn(async () => undefined),
+    read: vi.fn(async () => 'notes'),
+    folderOf: vi.fn(async () => null),
+    forget: vi.fn(async () => undefined),
+    prune: vi.fn(async () => 0),
+    ...overrides,
+  };
+}
+
 function setup(
   store = fakeStore(),
   agent = fakeAgent(),
   googleSignIn = vi.fn(async () => signedIn),
   updates = fakeUpdates(),
+  sources = fakeSources(),
 ) {
   const listeners = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
   const ipc: IpcLike = { handle: (name, listener) => void listeners.set(name, listener) };
@@ -72,6 +88,7 @@ function setup(
       platform: 'darwin',
       store,
       agent,
+      sources,
       googleSignIn,
       updates,
     }),
@@ -83,7 +100,7 @@ function setup(
     if (!listener) throw new Error('no listener');
     return listener(event, ...args) as Promise<unknown>;
   };
-  return { listeners, call, sink, store, agent, googleSignIn, updates };
+  return { listeners, call, sink, store, agent, googleSignIn, updates, sources };
 }
 
 describe('checkSender', () => {
@@ -129,6 +146,14 @@ describe('registerHandlers', () => {
     expect(store.write).toHaveBeenCalledWith(f, '{}');
     expect(store.list).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
     expect(store.remove).toHaveBeenCalledWith(f);
+  });
+
+  it('forgets the Sources choice of a whole session it removes, not of one file', async () => {
+    const { call, sources } = setup();
+    await call('store.remove', top(), { uid: 'u1', sessionId: 's1', path: 'session.json' });
+    expect(sources.forget).not.toHaveBeenCalled();
+    await call('store.remove', top(), { uid: 'u1', sessionId: 's1' });
+    expect(sources.forget).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
   });
 
   it('answers auth.googleSignIn with what the sign-in gave, and refuses arguments to it', async () => {
@@ -300,32 +325,55 @@ describe('calls a later item builds', () => {
     );
   });
 
-  const valid: [string, unknown[]][] = [
-    ['sources.choose', [ref]],
-    ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }]],
-    ['sources.list', [ref]],
-    ['sources.reveal', [ref]],
-    ['sources.read', [ref, 'Rebase notes.md']],
+  const sourcesCalls: [string, unknown[], keyof SourcesManager][] = [
+    ['sources.choose', [ref], 'choose'],
+    ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }], 'choose'],
+    ['sources.list', [ref], 'list'],
+    ['sources.reveal', [ref], 'reveal'],
+    ['sources.read', [ref, 'Rebase notes.md'], 'read'],
   ];
 
-  it.each(valid)('checks %s’s arguments, then refuses it as not available', async (name, args) => {
-    const { call, sink } = setup();
-    await expect(call(name, top(), ...args)).rejects.toThrow(/^Not available in this version$/);
+  it.each(sourcesCalls)('passes %s through to the Sources folder', async (name, args, method) => {
+    const { call, sources } = setup();
+    await call(name, top(), ...args);
+    expect(sources[method]).toHaveBeenCalledWith(...args);
+  });
+
+  it('answers sources calls with what the Sources folder gives', async () => {
+    const { call } = setup();
+    await expect(call('sources.choose', top(), ref)).resolves.toEqual({
+      path: '~/Material',
+      files: [],
+    });
+    await expect(call('sources.list', top(), ref)).resolves.toBeNull();
+    await expect(call('sources.read', top(), ref, 'a.md')).resolves.toBe('notes');
+  });
+
+  it('passes a Sources refusal on as its sentence, logging the reason only', async () => {
+    const sources = fakeSources({
+      read: vi.fn(async () => {
+        throw new SourcesError('notText', 'This file is not plain text.');
+      }),
+    });
+    const { call, sink } = setup(fakeStore(), fakeAgent(), undefined, undefined, sources);
+    await expect(call('sources.read', top(), ref, 'slides.pdf')).rejects.toThrow(
+      /^This file is not plain text\.$/,
+    );
     expect(sink).toHaveBeenCalledWith('warn', 'Bridge call refused', {
-      call: name,
-      reason: 'not available',
+      call: 'sources.read',
+      reason: 'notText',
     });
   });
 
-  it('covers every call that is not built yet', () => {
-    const later = CALLS.filter(
+  it('builds every call of the contract', () => {
+    const built = CALLS.filter(
       (n) =>
         n !== 'info' &&
         !n.startsWith('store.') &&
         n !== 'auth.googleSignIn' &&
         !n.startsWith('app.'),
     );
-    expect(new Set([...agentCalls, ...valid].map(([n]) => n))).toEqual(new Set(later));
+    expect(new Set([...agentCalls, ...sourcesCalls].map(([n]) => n))).toEqual(new Set(built));
   });
 
   it.each([
@@ -370,5 +418,33 @@ describe('calls a later item builds', () => {
   it('checks the sender before saying a call is not available', async () => {
     const { call } = setup();
     await expect(call('agent.status', top('https://evil.example'))).rejects.toThrow(REFUSED);
+  });
+
+  it('checks a call not built yet, then refuses it as not available', async () => {
+    // Every version-1 call is built; a later one starts as `notAvailable(schema)`.
+    const listeners = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
+    const sink = vi.fn();
+    const handlers = createHandlers({
+      appVersion: '1.2.3',
+      platform: 'darwin',
+      store: fakeStore(),
+      agent: fakeAgent(),
+      sources: fakeSources(),
+      googleSignIn: vi.fn(async () => signedIn),
+      updates: fakeUpdates(),
+    });
+    registerHandlers(
+      { handle: (name, listener) => void listeners.set(name, listener) },
+      { ...handlers, 'sources.list': notAvailable(handlers['sources.list'].args) },
+      ORIGINS,
+      createLogger({ sink }),
+    );
+    const list = listeners.get(channel('sources.list'));
+    await expect(list?.(top(), ref)).rejects.toThrow(/^Not available in this version$/);
+    await expect(list?.(top(), { ...ref, path: '/etc' })).rejects.toThrow(INVALID);
+    expect(sink).toHaveBeenCalledWith('warn', 'Bridge call refused', {
+      call: 'sources.list',
+      reason: 'not available',
+    });
   });
 });

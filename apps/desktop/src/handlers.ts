@@ -6,6 +6,7 @@ import { id, relativePath } from './args';
 import { authCalls } from './authCalls';
 import { BRIDGE_VERSION, MAX_FILE_BYTES, type GoogleSignInResult } from './bridge';
 import type { AreaHandlers, Handlers } from './ipc';
+import type { SourcesManager } from './sources';
 import type { SessionStore } from './store';
 import { sourcesCalls } from './sourcesCalls';
 import type { Updates } from './updates';
@@ -28,6 +29,8 @@ export interface HandlerDeps {
   platform: string;
   store: SessionStore;
   agent: AgentManager;
+  /** `sources.*` (`sources.ts`). Removing a whole session also forgets its Sources choice. */
+  sources: SourcesManager;
   /** `auth.googleSignIn` (`googleSignIn.ts`). */
   googleSignIn: () => Promise<GoogleSignInResult>;
   updates: Updates;
@@ -35,7 +38,7 @@ export interface HandlerDeps {
 
 type CoreHandlers = Pick<Handlers, 'info'> & AreaHandlers<'store'>;
 
-function coreCalls({ appVersion, platform, store }: HandlerDeps): CoreHandlers {
+function coreCalls({ appVersion, platform, store, sources }: HandlerDeps): CoreHandlers {
   return {
     info: {
       args: z.tuple([]),
@@ -49,7 +52,10 @@ function coreCalls({ appVersion, platform, store }: HandlerDeps): CoreHandlers {
     },
     'store.remove': {
       args: z.tuple([z.object({ uid: id, sessionId: id, path: relativePath.optional() }).strict()]),
-      run: (ref) => store.remove(ref),
+      run: async (ref) => {
+        await store.remove(ref);
+        if (ref.path === undefined) await sources.forget(ref);
+      },
     },
   };
 }
@@ -58,7 +64,7 @@ export function createHandlers(deps: HandlerDeps): Handlers {
   return {
     ...coreCalls(deps),
     ...agentCalls(deps.agent),
-    ...sourcesCalls(),
+    ...sourcesCalls(deps.sources),
     ...authCalls(deps.googleSignIn),
     ...appCalls(deps.updates),
   };

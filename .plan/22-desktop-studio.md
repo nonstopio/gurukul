@@ -537,6 +537,35 @@ copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and th
 `prompt.md`, `skills/`, `mcp.json` and empty `workdir/`, which only the main process writes. Source material lives where the Educator can see it:
 `Documents/Gurukul Studio/{course slug}/sources/`.
 
+As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/desktop/src/sources.ts`,
+`apps/web/src/studio/session/sources.ts`, `SourcesOffer.tsx`):
+
+- **The shell keeps the choice**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
+  path), beside the session folders and not in one, so no `store.*` call can write it. Removing a
+  whole session (`store.remove` without `path`) forgets it; a choice whose session folder does not
+  exist is forgotten when the app starts, which covers a start dialog closed after choosing.
+- **The start dialog makes the session's id** before the session exists (`StartRequest.id`), because
+  `sources.choose` names a session; `start` then uses that id.
+- **`sources.choose`** opens the system folder dialog in `Documents/Gurukul Studio/{suggestedName}/sources`
+  (created on demand; the course slug for an edit, nothing for a new course, which starts in
+  `Documents/Gurukul Studio`), or in the folder already chosen. A folder inside the app's own data
+  is refused (it holds every session's answer keys). The chosen folder is `claude`'s working
+  directory at the next `agent.start`.
+- **`sources.list`** gives plain files directly in the folder: no folders, no name starting with a
+  dot, no symbolic link that ends outside the folder; at most `MAX_SOURCE_FILES` (1,000), the first
+  by name. The display path writes the home folder as `~`.
+- **`sources.read`** reads only a name that listing gives, opened without following links where the
+  system allows (`O_NOFOLLOW`; not on Windows), of a text type (`SOURCE_TEXT_EXTENSIONS` in
+  `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
+  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB). A file it will not read rejects with
+  one of `SOURCE_REFUSALS`, a sentence `read_source` hands the agent ("save it as text or
+  Markdown"). It logs the size read, never a path, a file name or the text.
+- **`sources.reveal`** opens the folder in Finder or Explorer.
+- **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
+  answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
+  The workspace (`DSK-13`) passes it to `defaultToolContext`.
+- Not built here: changing the folder from the workspace, and clicking a block (`DSK-20`'s other half).
+
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or
 discarded (the title, summary and counts are kept as history).
@@ -604,7 +633,8 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   only inside the app.
 - The start dialog already says that the course and the goal go to Anthropic under the Educator's
   own Claude account, and to leave out client names and internal documents; the Sources offer
-  (`DSK-20`) goes between the goal and that notice.
+  (`DSK-20`, "Choose a Sources folder") sits between the goal and that notice and says that what
+  the agent reads is sent to Anthropic too.
 
 ## The session workspace
 
