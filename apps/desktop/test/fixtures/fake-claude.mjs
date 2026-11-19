@@ -11,8 +11,10 @@
 //   $CLAUDE_CONFIG_DIR/fake-claude-runs.jsonl   one line per start: argv, environment names, cwd
 //   $CLAUDE_CONFIG_DIR/projects/<cwd, non-alphanumerics as ->/<session id>.jsonl   the transcript
 //
-// Scenario: { "version": "2.1.328", "loggedIn": true, "turns": [[step, …], …] }. Turn n of a
-// process plays turns[n] (the last one again when there are fewer). Steps:
+// Scenario: { "version": "2.1.328", "loggedIn": true, "apiKeySource": "…" (in `initialize`),
+// "turns": [[step, …], …], "resumeTurns": … }.
+// Turn n of a process plays turns[n] (the last one again when there are fewer); a process started
+// with --resume plays resumeTurns instead, when the scenario has them. Steps:
 //   { "text": "…" }                 an assistant text block
 //   { "thinking": true }            a thinking block
 //   { "skill": "humanize" }         the Skill tool loading gurukul:humanize
@@ -24,6 +26,7 @@
 //   { "rateLimitEvent": {…} }       a rate_limit_event with that rate_limit_info
 //   { "controlRequest": true }      asks the bridge a control request and waits for its answer
 //   { "exit": 3 }                   exits at once with that code
+//   { "recall": true }              says back the last tool result in the transcript (history kept)
 // Signed out ("loggedIn": false), `initialize` answers tokenSource "none" and every turn fails as
 // the spike recorded: an assistant error `authentication_failed`, then an error result.
 
@@ -167,6 +170,12 @@ const result = (subtype, isError, terminalReason) =>
 
 // ---- turns ----
 
+/** The `--plugin-dir` skills, as Claude Code lists them: `gurukul:<name>`. */
+function pluginSkills() {
+  const dir = path.join(flags['--plugin-dir'] ?? '', 'skills');
+  return existsSync(dir) ? readdirSync(dir).map((name) => `gurukul:${name}`) : [];
+}
+
 let turnIndex = 0;
 let interrupted = null; // resolves the wait of the turn in progress
 let turnRunning = false;
@@ -248,6 +257,12 @@ async function runStep(step, state) {
     assistant([{ type: 'text', text: `control: ${response.subtype}` }]);
   } else if (step.exit !== undefined) {
     process.exit(step.exit);
+  } else if (step.recall) {
+    const results = readFileSync(transcript, 'utf8')
+      .split('\n')
+      .filter((l) => l.includes('"tool_result"'))
+      .map((l) => JSON.parse(l).message.content[0].content);
+    assistant([{ type: 'text', text: results.at(-1) ?? 'I remember nothing.' }]);
   }
 }
 
@@ -264,6 +279,7 @@ async function runTurn(message) {
       ...(mcp ? (await mcp.listTools()).tools.map((t) => `mcp__gurukul__${t.name}`) : []),
     ],
     mcp_servers: [{ name: 'gurukul', status: mcpStatus }],
+    skills: pluginSkills(),
     claude_code_version: version,
   });
   const state = { n: 0, aborted: false, failed: false, interrupt: false };
@@ -276,7 +292,8 @@ async function runTurn(message) {
     lastFailed = true;
     return;
   }
-  const turns = scenario.turns ?? [[{ text: 'Done.' }]];
+  const resumed = flags['--resume'] !== undefined && scenario.resumeTurns !== undefined;
+  const turns = (resumed ? scenario.resumeTurns : scenario.turns) ?? [[{ text: 'Done.' }]];
   const steps = turns[Math.min(turnIndex, turns.length - 1)] ?? [];
   turnIndex += 1;
   for (const step of steps) {
@@ -310,7 +327,11 @@ input.on('line', (line) => {
     if (subtype === 'initialize') {
       response = {
         commands: [],
-        account: { email: 'meera@example.com', tokenSource: loggedIn ? 'claude.ai' : 'none' },
+        account: {
+          email: 'meera@example.com',
+          tokenSource: loggedIn ? 'claude.ai' : 'none',
+          ...(scenario.apiKeySource ? { apiKeySource: scenario.apiKeySource } : {}),
+        },
       };
     } else if (subtype === 'interrupt' && turnRunning && currentTurn) {
       currentTurn.interrupt = true;

@@ -167,6 +167,37 @@ installed by hand; every later one arrives by itself.
 
 Record the result (versions, machines, what was checked) in the pull request that closes `DSK-21`.
 
+## 9. The signed-in check of the agent (`DSK-26`)
+
+Tests only ever start a fake `claude`. This check starts the real one, signed in with your own
+Claude plan, through the app's shipped agent code: the pinned flags, the allow-listed environment,
+the session files and the `gurukul` HTTP endpoint. It needs no Electron and no build, only a clone
+with `npm ci` done. It uses a few messages of your plan and asks before it starts.
+
+```sh
+npm run check:claude -w @gurukul/desktop             # asks first; --yes skips the question
+```
+
+It runs `claude --version` and `claude auth status`, starts a session in a temporary folder whose
+path has spaces, sends one message that loads a test skill and calls a `ping` tool, stops the next
+turn mid-way, resumes the chat with `--resume` and asks what `ping` returned, records any plan-limit
+event, then shows where Claude Code wrote its transcript and removes it as the 30-day clean-up
+would. Each step prints `PASS`, `FAIL`, `INFO` or `SKIP`; the block between `paste from here` and
+`to here` goes into the checklist note. It prints no credential, token or account name, and no chat
+beyond the scripted replies; your home folder is written `~`.
+
+1. Run it on an Apple Silicon Mac and on a Windows PC, each signed in to Claude Code
+   (`claude`, then `/login`).
+2. On Windows, run it twice if both installs are there: once as found on `PATH`, then with the
+   other one, for example (PowerShell)
+   `npm run check:claude -w @gurukul/desktop -- --claude "$env:APPDATA\npm\claude.cmd"` or
+   `--claude "$env:USERPROFILE\.local\bin\claude.exe"`.
+3. Put each pasted block in the pull request that closes `DSK-26`, with what it found in
+   `.plan/22-desktop-studio.md` (Spike findings).
+
+The check does not cover the packaged, hardened macOS app's firewall prompt: install a release
+(step 7), start a session in it and confirm no prompt appears.
+
 ## When something goes wrong
 
 - **A secret is missing or wrong**: the macOS job says which, or electron-builder fails at signing

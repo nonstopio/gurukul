@@ -23,6 +23,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only              |
 | `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript          |
 | `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)      |
+| `src/agent/signedInCheck.ts`, `checkCli.ts`                           | The signed-in check (`DSK-26`), run by `scripts/check-claude.ts`, against the real `claude`              |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged          |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                   |
 | `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                  |
@@ -71,7 +72,14 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   in the same commit. The endpoint's token is only in `claude`'s environment and in memory; never
   an argument, a file or a log field. Nothing `claude` prints is logged.
 - **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
-  stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`.
+  stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`;
+  `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else.
+- **The signed-in check runs the shipped code, not a copy.** `signedInCheck.ts` drives
+  `findClaude`, `runCommand` and `createAgentManager` over the real platform, reading `claude`'s
+  output through a tapped `spawn`; a launch change reaches it with no edit. It prints only
+  `loggedIn`, `authMethod`, `tokenSource`, `apiKeySource` and the plan-limit events' shape, never
+  the account, a token or chat beyond the scripted replies, and writes the home folder `~`. It spends
+  plan messages: run it only on a maintainer's signed-in machine, never in CI or a cloud container.
 - No UI, no credentials. The shell never sees a Claude credential and never says "Claude Code" in
   a product name. Google sign-in hands the window its ID token and keeps nothing: no token, code,
   verifier or client secret is stored or logged.
@@ -87,7 +95,14 @@ npm run dev -w @gurukul/web        # the Vite dev server, first
 npm run dev -w @gurukul/desktop    # bundle and open the shell on http://localhost:5173/studio
 npm run coverage -w @gurukul/desktop
 npm run build -w @gurukul/desktop  # typecheck and bundle to dist/ (main.cjs, preload.cjs)
+npm run check:claude -w @gurukul/desktop -- [--yes] [--claude <path>]  # DSK-26, signed-in machines only
 ```
+
+The signed-in check (`docs/desktop-release-setup.md`, step 9) runs with plain Node through `tsx`,
+no Electron: it asks before using the plan, prints `PASS`/`FAIL`/`INFO`/`SKIP` per step and a
+block to paste into the checklist note, and exits 0 when nothing failed. `--claude` checks one
+program instead of the first `claude` on `PATH`: on Windows, run it for `claude.exe` and for
+`claude.cmd`.
 
 Electron 45 downloads its binary the first time it is launched, not at `npm ci`. On Linux as root
 (a container) Chromium needs `--no-sandbox`: `npx electron --no-sandbox .`.

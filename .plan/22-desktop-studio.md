@@ -441,7 +441,12 @@ created too.
   under 104 bytes (a short temporary folder, not `Application Support`) and the hardened runtime
   with `ELECTRON_RUN_AS_NODE`.
 
-These are `DSK-26`.
+These are `DSK-26`. The maintainer runs them with one command on each signed-in machine,
+`npm run check:claude -w @gurukul/desktop` (`apps/desktop/src/agent/signedInCheck.ts`, steps in
+`docs/desktop-release-setup.md`): it drives the shipped agent manager, flags, environment and
+endpoint against the real `claude`, with a `ping` tool and a test skill, prints a block to paste,
+and asks first because it uses a few messages of the plan. The packaged app's firewall prompt and
+the stdio fallback stay hand checks.
 
 ### Signing in to Gurukul
 

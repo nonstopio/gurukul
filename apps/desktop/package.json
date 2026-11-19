@@ -16,7 +16,8 @@
     "dev": "npm run bundle && electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "check:claude": "tsx scripts/check-claude.ts"
   },
   "dependencies": {
     "@gurukul/schema": "^0.0.0",
