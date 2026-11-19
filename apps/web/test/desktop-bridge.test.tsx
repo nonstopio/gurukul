@@ -73,9 +73,11 @@ describe('connectDesktop', () => {
   it('asks for an update when the shell’s bridge is older than this site needs', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const old = { ...INFO, bridgeVersion: REQUIRED_BRIDGE_VERSION - 1 };
-    await expect(connectDesktop(fakeDesktop(async () => old))).resolves.toEqual({
+    const desktop = fakeDesktop(async () => old);
+    await expect(connectDesktop(desktop)).resolves.toEqual({
       status: 'needs_update',
       info: old,
+      desktop,
     });
     expect(warn).toHaveBeenCalledWith('Desktop app needs update', {
       bridgeVersion: REQUIRED_BRIDGE_VERSION - 1,

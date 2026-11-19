@@ -36,8 +36,11 @@ export type DesktopState =
   | { status: 'browser' }
   /** Inside the app, asking it for its version (`useDesktop` only, for a moment). */
   | { status: 'checking' }
-  /** Inside an app whose bridge is older than this site needs: "Update the app". */
-  | { status: 'needs_update'; info: DesktopInfo }
+  /**
+   * Inside an app whose bridge is older than this site needs: "Update the app". `desktop` is there
+   * for `app.checkForUpdate` and `app.installUpdate` only, which every shell since version 1 has.
+   */
+  | { status: 'needs_update'; info: DesktopInfo; desktop: GurukulDesktop }
   | { status: 'ready'; info: DesktopInfo; desktop: GurukulDesktop }
   /** Inside the app, but it did not answer `info()`. */
   | { status: 'failed' };
@@ -73,7 +76,7 @@ export async function connectDesktop(
         bridgeVersion: info.bridgeVersion,
         required: REQUIRED_BRIDGE_VERSION,
       });
-      return { status: 'needs_update', info };
+      return { status: 'needs_update', info, desktop };
     }
     return { status: 'ready', info, desktop };
   } catch (error) {

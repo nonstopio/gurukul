@@ -1,0 +1,193 @@
+name: Desktop release
+
+# Gurukul Studio installers (apps/desktop): one GitHub Release per version, which the installed apps
+# update from. Adapted from Morph's release.yml; .plan/22-desktop-studio.md (Releases, versions and
+# updates) is the design and docs/desktop-release-setup.md the maintainer's setup guide.
+#
+# Runs only AFTER the CI workflow has passed on a push to `main` (workflow_run, as deploy.yml
+# waits), and releases only when a commit since the last `desktop-v*` tag touched apps/desktop/.
+# Pull requests never build installers: CI's `npm run check` covers the workspace.
+#
+# Versions: nobody types one. scripts/desktop-version.mjs reads the commits since the last
+# `desktop-v*` tag that touched apps/desktop/ (`!` or BREAKING CHANGE major, `feat` minor, else
+# patch; the first release is 0.1.0). The version is stamped into apps/desktop/package.json for the
+# build only and never committed; the tag is created with the release, after every build passed.
+#
+# The web app's deploys (deploy.yml) push `release-*` tags and never create GitHub Releases, so the
+# repository's latest release is always a desktop one: the updater relies on that.
+#
+# Secrets (repository secrets, macOS signing and notarisation; checked up front by name):
+# CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Windows is
+# unsigned until DSK-22. GITHUB_TOKEN is GitHub's own.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# One release at a time; a queued one waits rather than racing the tag.
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # The commit CI tested.
+  SHA: ${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  version:
+    name: Next version
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.v.outputs.release }}
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      previous: ${{ steps.v.outputs.previous }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0 # the last desktop tag and the commits since it
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - id: v
+        run: node scripts/desktop-version.mjs
+      - name: Say what happens
+        env:
+          RELEASE: ${{ steps.v.outputs.release }}
+          TAG: ${{ steps.v.outputs.tag }}
+          PREVIOUS: ${{ steps.v.outputs.previous }}
+        run: |
+          if [ "$RELEASE" = true ]; then
+            echo "::notice::${PREVIOUS:-no desktop tag} -> $TAG"
+          else
+            echo "::notice::apps/desktop/ unchanged since $PREVIOUS: no desktop release"
+          fi
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            platform: mac
+            build_args: --mac --arm64 --x64 -c.forceCodeSigning=true
+          - name: Windows
+            os: windows-latest
+            platform: win
+            build_args: --win --x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # The committed lockfile, as everywhere else in this repository (Morph reinstalls without one).
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1' # electron-builder fetches the build's own copy
+      # For this build only; never committed. electron-builder and app.getVersion() read it.
+      - name: Stamp version ${{ needs.version.outputs.version }}
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: npm pkg set version="$VERSION" -w @gurukul/desktop
+      - name: Typecheck and bundle
+        run: npm run build -w @gurukul/desktop
+      - name: Check the macOS signing and notarisation secrets
+        if: matrix.platform == 'mac'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required macOS release secret: $name (docs/desktop-release-setup.md)"
+              exit 1
+            fi
+          done
+      # macOS: signed (forceCodeSigning fails the build rather than ship unsigned), hardened runtime,
+      # notarised because the three APPLE_* variables are set. Windows: unsigned (DSK-22).
+      - name: Build installers
+        working-directory: apps/desktop
+        run: npx electron-builder ${{ matrix.build_args }} --publish never
+        env:
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' && 'true' || 'false' }}
+          CSC_FOR_PULL_REQUEST: false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/latest*.yml
+            apps/desktop/release/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Create release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the tag and the release
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: List the files
+        run: ls -l artifacts
+      - name: Check every installer and update file is there
+        run: |
+          for pattern in '*-arm64.dmg' '*-x64.dmg' '*-arm64.zip' '*-x64.zip' 'Gurukul-Studio-Setup-*.exe' latest-mac.yml latest.yml '*.blockmap'; do
+            if ! compgen -G "artifacts/$pattern" > /dev/null; then
+              echo "::error::Missing from the build: $pattern"
+              exit 1
+            fi
+          done
+      # Creates the tag on the commit CI tested, with notes from the pull requests merged since the
+      # last desktop release, and marks it the latest release: what the installed apps and the
+      # download card read.
+      - name: Publish ${{ needs.version.outputs.tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.version.outputs.tag }}
+          PREVIOUS: ${{ needs.version.outputs.previous }}
+        run: |
+          gh release create "$TAG" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SHA" \
+            --title "Gurukul Studio ${TAG#desktop-v}" \
+            --generate-notes \
+            ${PREVIOUS:+--notes-start-tag "$PREVIOUS"} \
+            --latest

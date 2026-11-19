@@ -15,6 +15,7 @@ import {
   Checkbox,
   Chip,
   ChoiceCard,
+  DownloadIcon,
   OptionCard,
   OptionCardGroup,
   OptionCardRow,
@@ -40,6 +41,7 @@ import {
   Menu,
   MediaGallery,
   MediaPreview,
+  NavAction,
   NavItem,
   Page,
   PageHeader,
@@ -714,6 +716,11 @@ function SidebarExample() {
         <SidebarGroup label="Manage">
           <NavItem href="#studio">Studio</NavItem>
         </SidebarGroup>
+        <SidebarGroup label="Gurukul Studio">
+          <NavAction icon={<DownloadIcon />} detail="Restart to install 0.2.0">
+            Update ready
+          </NavAction>
+        </SidebarGroup>
       </Sidebar>
     </Frame>
   );
@@ -742,6 +749,7 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   AppShell: 'Patterns → Shell (it is the whole page frame)',
   SidebarGroup: 'inside the Sidebar example',
   NavItem: 'inside the Sidebar example',
+  NavAction: 'inside the Sidebar example (Update ready, an action rather than a page)',
   Field: 'the base of Input, Select and Textarea',
   OptionCardGroup: 'inside the OptionCard example',
   OptionCardRow: 'inside the OptionCard example',
@@ -1280,7 +1288,7 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
     Example: PeoplePickerExample,
   },
   Sidebar: {
-    rule: 'The ink navigation inside AppShell: brand, SidebarGroups of NavItems, the UserCard at the foot.',
+    rule: 'The ink navigation inside AppShell: brand, SidebarGroups of NavItems (a NavAction for an action that is not a page), the UserCard at the foot.',
     Example: SidebarExample,
   },
   TopBar: {

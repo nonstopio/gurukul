@@ -84,7 +84,7 @@ still prints the count.
 its heading (Inter 600 `--text-lg`), actions on the right. Every section of a page is a titled
 Card; never an `h2` with a class above a `div`.
 
-## Sidebar, SidebarGroup and NavItem — shipped
+## Sidebar, SidebarGroup, NavItem and NavAction — shipped
 
 ```tsx
 <Sidebar brand={<>Logo Gurukul</>} label="Main" footer={<UserCard />}>
@@ -107,6 +107,20 @@ focus `--focus-ring`. Never a left-border indicator. `icon` is decorative (`aria
 Router use: `render` receives the anchor props (`className`, `aria-current`, `children`, and any
 `href`/`onClick` passed to NavItem) and returns the element. Spread them onto `Link`/`NavLink`. With no
 `render` it draws a plain `<a>`.
+
+NavAction: a sidebar `<button>` for an action that is not a page (the desktop app's "Update ready").
+Same 44px shape, hover and focus as NavItem, never `aria-current`; its icon is `--chrome-accent` so
+it stands apart from the pages. `detail` adds a quieter `--chrome-label` line that describes the
+button (`aria-describedby`; the label alone names it). `loading` is Button's: disabled, `aria-busy`,
+the spinner in place of the icon. Put it in its own `SidebarGroup` after the pages.
+
+```tsx
+<SidebarGroup label="Gurukul Studio">
+  <NavAction icon={<DownloadIcon />} detail="Restart to install 0.2.0" onClick={install}>
+    Update ready
+  </NavAction>
+</SidebarGroup>
+```
 
 ## TopBar (focused mode) — shipped
 

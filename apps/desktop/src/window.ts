@@ -79,6 +79,11 @@ export interface WindowLike {
         isMainFrame: boolean,
       ) => void,
     ): unknown;
+    /** The page asked to stay (`beforeunload`); `preventDefault` leaves it anyway. */
+    on(
+      event: 'will-prevent-unload',
+      listener: (event: { preventDefault(): void }) => void,
+    ): unknown;
   };
 }
 

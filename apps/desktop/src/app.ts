@@ -7,8 +7,10 @@ import { createGoogleSignIn, type FetchLike } from './googleSignIn';
 import { createHandlers } from './handlers';
 import { registerHandlers, type IpcLike } from './ipc';
 import type { Logger } from './log';
+import { menuTemplate, type MenuItem } from './menu';
 import { allowPermission, guardContents, type ContentsLike, type ShellLike } from './navigation';
 import { createSessionStore } from './store';
+import { createUpdates, type UpdateMessage, type UpdaterLike } from './updates';
 import { openWindow, windowOptions, type WindowLike, type WindowOptions } from './window';
 
 /**
@@ -57,7 +59,17 @@ export interface ShellDeps {
   /** The built preload script (`dist/preload.cjs`). */
   preloadPath: string;
   platform: string;
-  timers: { setTimeout(callback: () => void, ms: number): unknown };
+  timers: {
+    setTimeout(callback: () => void, ms: number): unknown;
+    /** Must not keep the process alive on its own (Node's `unref`). */
+    setInterval(callback: () => void, ms: number): unknown;
+  };
+  /** `electron-updater`'s `autoUpdater`. */
+  updater: UpdaterLike;
+  /** A message box, for "Check for updates…" only. */
+  showMessage(message: UpdateMessage): Promise<unknown>;
+  /** `Menu.setApplicationMenu(Menu.buildFromTemplate(template))`. */
+  setMenu(template: MenuItem[]): void;
   /** For Google's token endpoint: Electron's `net.fetch`, which follows the system's proxy. */
   fetch: FetchLike;
   /** The Google Desktop OAuth client this build was given (`googleClient.ts`), or null. */
@@ -93,6 +105,15 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     );
     win.on('closed', () => {
       if (current === win) current = null;
+    });
+    // The Educator chose Update ready and the web found nothing unsaved; a page that still asks to
+    // stay would leave the restart hanging (Electron cancels the quit without a word) and, on
+    // Windows, the installer already running beside the open app. Studio's draft keeps a copy on
+    // this device on the way out either way.
+    win.webContents.on('will-prevent-unload', (event) => {
+      if (!updates.isInstalling()) return;
+      log.info('Page left for an update', {});
+      event.preventDefault();
     });
     current = win;
   };
@@ -131,6 +152,18 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     log,
   );
 
+  // Installed macOS and Windows builds only: a development build never asks GitHub.
+  const updates = createUpdates({
+    updater: deps.updater,
+    supported: app.isPackaged && (deps.platform === 'darwin' || deps.platform === 'win32'),
+    appVersion: app.getVersion(),
+    events,
+    showMessage: (message) => deps.showMessage(message),
+    timers: deps.timers,
+    log,
+  });
+  deps.setMenu(menuTemplate(deps.platform, () => void updates.checkFromMenu()));
+
   const store = createSessionStore(path.join(app.getPath('userData'), 'sessions'));
   registerHandlers(
     deps.ipc,
@@ -138,6 +171,7 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
       appVersion: app.getVersion(),
       platform: deps.platform,
       store,
+      updates,
       // After the browser, the window comes back to the front.
       googleSignIn: createGoogleSignIn({
         client: deps.googleClient,
@@ -152,6 +186,7 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   );
 
   open();
+  updates.start();
   log.info('Desktop shell started', { dev, bridgeVersion: BRIDGE_VERSION });
   return { events };
 }
