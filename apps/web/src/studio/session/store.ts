@@ -89,10 +89,15 @@ function isNewer(data: unknown): boolean {
   return typeof version === 'number' && version > SESSION_SCHEMA_VERSION;
 }
 
-/** What a session is started from: a goal, and for an edit session the course. */
-export type StartRequest =
+/**
+ * What a session is started from: a goal, and for an edit session the course. `id` is the new
+ * session's id when the start dialog already made one, because the Sources folder is chosen for it
+ * (`sources.choose` names a session) before the session exists; otherwise one is made here.
+ */
+export type StartRequest = (
   | { kind: 'new'; goal: string; educatorName?: string | undefined }
-  | { kind: 'edit'; courseId: string; goal: string };
+  | { kind: 'edit'; courseId: string; goal: string }
+) & { id?: string | undefined };
 
 export type StartResult =
   /** Created and written; open it. */
@@ -366,7 +371,7 @@ export function createSessionStore({
         const open = await openFor(request.courseId);
         if (open) return { status: 'already_open', session: open };
       }
-      const id = newId();
+      const id = request.id ?? newId();
       const createdAt = now().toISOString();
       const goal = request.goal.trim().slice(0, GOAL_MAX_LENGTH);
       let base: AuthoringSession['base'] = null;

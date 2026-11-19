@@ -5,7 +5,7 @@ import type { ChangeRow, ListEntryChange } from '@gurukul/schema/changes';
 import { z } from 'zod';
 import { locate, needItem } from './find';
 import type { Located } from './find';
-import { answer, defineTool, refuse } from './types';
+import { SourceRefusedError, answer, defineTool, refuse } from './types';
 
 const itemId = z.string().min(1).max(80).describe('The id of a lesson or Quiz, from get_course.');
 
@@ -245,9 +245,8 @@ export const listSources = defineTool({
     'The files the Educator put in this session’s Sources folder (names and sizes). Read one with read_source.',
   input: z.strictObject({}),
   run: async (state, _input, ctx) => {
-    if (!ctx.sources) return refuse(NO_SOURCES);
-    const files = await ctx.sources.list();
-    return answer(state, { files });
+    const files = await ctx.sources?.list();
+    return files ? answer(state, { files }) : refuse(NO_SOURCES);
   },
 });
 
@@ -265,8 +264,16 @@ export const readSource = defineTool({
     if (/[/\\]/.test(name) || name === '.' || name === '..')
       return refuse('Give a file name exactly as list_sources gives it, without a path.');
     const listed = await ctx.sources.list();
+    if (listed === null) return refuse(NO_SOURCES);
     if (!listed.some((f) => f.name === name)) return refuse(missing);
-    const text = await ctx.sources.read(name);
+    let text: string | null;
+    try {
+      text = await ctx.sources.read(name);
+    } catch (error) {
+      // Not text, or too large: the folder says why in a sentence the agent can act on.
+      if (error instanceof SourceRefusedError) return refuse(error.message);
+      throw error;
+    }
     if (text === null) return refuse(missing);
     const end = Math.min(text.length, offset + SOURCE_CHUNK);
     return answer(state, {

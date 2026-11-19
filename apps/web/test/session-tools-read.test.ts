@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { SourceRefusedError } from '../src/studio/session/tools';
 import { SOURCE_CHUNK } from '../src/studio/session/tools/read';
 import { call, json, ok, refused, toolCtx, toolState, must } from './session-tools-fixture';
 
@@ -299,6 +300,35 @@ describe('list_sources and read_source', () => {
     const ctx = toolCtx({ sources: sources({}) });
     expect(await refused(call(toolState(), 'read_source', { name: 'gone.md' }, ctx))).toBe(
       'There is no file called "gone.md" in the Sources folder. Call list_sources.',
+    );
+  });
+
+  it('refuse while the Educator has not chosen a folder for the session', async () => {
+    const folder = sources({});
+    folder.list.mockResolvedValue(null as never);
+    const ctx = toolCtx({ sources: folder });
+    const no =
+      'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+    expect(await refused(call(toolState(), 'list_sources', {}, ctx))).toBe(no);
+    expect(await refused(call(toolState(), 'read_source', { name: 'a.md' }, ctx))).toBe(no);
+    expect(folder.read).not.toHaveBeenCalled();
+  });
+
+  it('passes on the folder’s sentence for a file it will not read', async () => {
+    const folder = sources({ 'slides.pdf': '%PDF' });
+    folder.read.mockRejectedValue(new SourceRefusedError('This file is not plain text.'));
+    const ctx = toolCtx({ sources: folder });
+    expect(await refused(call(toolState(), 'read_source', { name: 'slides.pdf' }, ctx))).toBe(
+      'This file is not plain text.',
+    );
+  });
+
+  it('fails as any tool does when the folder cannot be read for another reason', async () => {
+    const folder = sources({ 'notes.md': 'Rebase notes' });
+    folder.read.mockRejectedValue(new Error('sources.read failed (EIO)'));
+    const ctx = toolCtx({ sources: folder });
+    expect(await refused(call(toolState(), 'read_source', { name: 'notes.md' }, ctx))).toMatch(
+      /^The tool failed unexpectedly/,
     );
   });
 });
