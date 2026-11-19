@@ -64,7 +64,10 @@ export interface AgentRun {
   send(message: string): void;
   stop(): void;
   close(): Promise<void>;
-  /** Ends it now (the app is quitting, or the start failed): input closed, then SIGTERM. */
+  /**
+   * Ends it now (the app is quitting, or the start failed): input closed and SIGTERM at once, in
+   * the same call, then SIGKILL after a grace period if the process is still there.
+   */
   kill(): void;
   callTool(name: string, input: unknown): Promise<AgentToolResult>;
   /** False when no call with that id is waiting (answered already, or timed out). */
@@ -77,6 +80,7 @@ export function createRun(options: RunOptions): AgentRun {
   let live = false;
   let ended = false;
   let closing = false;
+  let killed = false;
   let turnsInFlight = 0;
   let stopRequested = false;
   let errorReported = false;
@@ -177,11 +181,10 @@ export function createRun(options: RunOptions): AgentRun {
     end(null, null);
   });
 
-  const shutDown = (graceMs: number) => {
+  const closeInput = () => {
+    if (closing) return;
     closing = true;
     child.stdin.end();
-    timers.push(clock.setTimeout(() => child.kill('SIGTERM'), graceMs));
-    timers.push(clock.setTimeout(() => child.kill('SIGKILL'), graceMs + CLOSE_GRACE_MS));
   };
 
   return {
@@ -233,13 +236,22 @@ export function createRun(options: RunOptions): AgentRun {
     },
 
     close() {
-      if (!ended && !closing) shutDown(CLOSE_GRACE_MS);
+      if (!ended && !closing) {
+        closeInput();
+        timers.push(clock.setTimeout(() => child.kill('SIGTERM'), CLOSE_GRACE_MS));
+        timers.push(clock.setTimeout(() => child.kill('SIGKILL'), 2 * CLOSE_GRACE_MS));
+      }
       return endedPromise;
     },
 
     kill() {
-      if (ended) return;
-      if (!closing) shutDown(0);
+      if (ended || killed) return;
+      killed = true;
+      closeInput();
+      // SIGTERM now, not on a timer: the app may be quitting, and no timer outlives it. A `claude`
+      // left only with its input closed would finish its turn without anyone listening.
+      child.kill('SIGTERM');
+      timers.push(clock.setTimeout(() => child.kill('SIGKILL'), CLOSE_GRACE_MS));
     },
 
     callTool(name, input) {

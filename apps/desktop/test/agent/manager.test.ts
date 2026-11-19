@@ -317,12 +317,23 @@ describe('a running session', () => {
     expect(sessions).toHaveLength(2);
   });
 
-  it('ends every process when the app quits', async () => {
-    const { manager, fake, time } = await running();
+  it('ends every process when the app quits, with SIGTERM before any timer runs', async () => {
+    const { manager, fake } = await running();
     manager.closeAll();
     expect(fake.child.stdin.end).toHaveBeenCalled();
-    time.advance(0);
     expect(fake.child.kill).toHaveBeenCalledWith('SIGTERM');
+  });
+
+  it('ends a process still starting when the app quits, and forgets one that has ended', async () => {
+    const { manager, sessions } = setup();
+    void manager.start(request());
+    await vi.waitFor(() => expect(sessions).toHaveLength(1));
+    const fake = sessions[0] as Fake;
+    manager.closeAll();
+    expect(fake.child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM');
+    fake.close(null, 'SIGTERM');
+    manager.closeAll();
+    expect(fake.child.kill).toHaveBeenCalledOnce();
   });
 });
 

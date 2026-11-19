@@ -346,20 +346,38 @@ describe('the end', () => {
     const { fake, run, time } = await live();
     const closed = run.close();
     const again = run.close();
-    run.kill();
     fake.close(0);
     await Promise.all([closed, again]);
     expect(time.pending()).toBe(0);
     expect(fake.child.kill).not.toHaveBeenCalled();
   });
 
-  it('kills at once', async () => {
-    const { fake, run, time } = await live();
+  it('kills at once: input closed and SIGTERM in the same call, with no timer run', async () => {
+    // The app is quitting and no timer outlives it; a claude mid-turn ignores its input closing.
+    const { fake, run, time, events } = await live();
+    run.send('Hello');
     run.kill();
-    time.advance(0);
-    expect(fake.child.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(fake.child.stdin.end).toHaveBeenCalledOnce();
+    expect(fake.child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM');
+    run.kill();
+    expect(fake.child.kill).toHaveBeenCalledOnce();
+    time.advance(CLOSE_GRACE_MS);
+    expect(fake.child.kill).toHaveBeenLastCalledWith('SIGKILL');
     fake.stdinError(new Error('EPIPE'));
-    fake.close(143);
+    fake.close(null, 'SIGKILL');
+    expect(time.pending()).toBe(0);
+    expect(events).toEqual([]);
     run.stop();
+  });
+
+  it('kills at once during a close’s grace period, without closing its input again', async () => {
+    const { fake, run, time } = await live();
+    const closed = run.close();
+    run.kill();
+    expect(fake.child.stdin.end).toHaveBeenCalledOnce();
+    expect(fake.child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM');
+    fake.close(143, 'SIGTERM');
+    await closed;
+    expect(time.pending()).toBe(0);
   });
 });

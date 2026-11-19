@@ -49,7 +49,7 @@ export interface AgentManager {
   close(sessionId: string): Promise<void>;
   forget(agentSessionId: string): Promise<void>;
   toolResult(sessionId: string, callId: string, result: AgentToolResult): void;
-  /** Ends every session's process now: the app is quitting. */
+  /** Ends every session's process now, a starting one too: the app is quitting. */
   closeAll(): void;
 }
 
@@ -68,6 +68,8 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
   const { platform, events, log } = options;
   const sourcesFolder = options.sourcesFolder ?? (() => Promise.resolve(null));
   const runs = new Map<string, AgentRun>();
+  // Every process not yet ended, including one still answering `initialize`: what quitting kills.
+  const processes = new Set<AgentRun>();
   const starting = new Map<string, Promise<AgentStartResult>>();
   // Short commands get the allow-listed environment too, so they see what a session would.
   const commandOptions = () => ({
@@ -145,11 +147,13 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
       events,
       log,
       onEnd: () => {
+        processes.delete(started);
         if (runs.get(sessionId) === started) runs.delete(sessionId);
         void endpoint.close();
       },
     });
     target.run = started;
+    processes.add(started);
     const init = await started.initialize(INIT_TIMEOUT_MS);
     if (!init.ok) {
       started.kill();
@@ -225,7 +229,7 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
     },
 
     closeAll() {
-      for (const run of runs.values()) run.kill();
+      for (const run of processes) run.kill();
     },
   };
 }
