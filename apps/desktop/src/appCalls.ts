@@ -1,13 +1,14 @@
 import { z } from 'zod';
-import { notAvailable, type AreaHandlers } from './ipc';
+import type { AreaHandlers } from './ipc';
+import type { Updates } from './updates';
 
 /**
- * `app.*`: the updater (`DSK-21`, `updates.ts`). `app.onUpdateReady` goes out through `events.ts`.
- * Refused as not available in this version until then.
+ * `app.*`: the updater (`updates.ts`). `app.onUpdateReady` goes out through `events.ts`, sent by
+ * `updates.ts` when a download finishes.
  */
-export function appCalls(): AreaHandlers<'app'> {
+export function appCalls(updates: Updates): AreaHandlers<'app'> {
   return {
-    'app.checkForUpdate': notAvailable(z.tuple([])),
-    'app.installUpdate': notAvailable(z.tuple([])),
+    'app.checkForUpdate': { args: z.tuple([]), run: () => updates.check() },
+    'app.installUpdate': { args: z.tuple([]), run: () => updates.install() },
   };
 }

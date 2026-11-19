@@ -5,8 +5,10 @@ import { createEventSender, type EventSender } from './events';
 import { createHandlers } from './handlers';
 import { registerHandlers, type IpcLike } from './ipc';
 import type { Logger } from './log';
+import { menuTemplate, type MenuItem } from './menu';
 import { allowPermission, guardContents, type ContentsLike, type ShellLike } from './navigation';
 import { createSessionStore } from './store';
+import { createUpdates, type UpdateMessage, type UpdaterLike } from './updates';
 import { openWindow, windowOptions, type WindowLike, type WindowOptions } from './window';
 
 /**
@@ -55,7 +57,17 @@ export interface ShellDeps {
   /** The built preload script (`dist/preload.cjs`). */
   preloadPath: string;
   platform: string;
-  timers: { setTimeout(callback: () => void, ms: number): unknown };
+  timers: {
+    setTimeout(callback: () => void, ms: number): unknown;
+    /** Must not keep the process alive on its own (Node's `unref`). */
+    setInterval(callback: () => void, ms: number): unknown;
+  };
+  /** `electron-updater`'s `autoUpdater`. */
+  updater: UpdaterLike;
+  /** A message box, for "Check for updates…" only. */
+  showMessage(message: UpdateMessage): Promise<unknown>;
+  /** `Menu.setApplicationMenu(Menu.buildFromTemplate(template))`. */
+  setMenu(template: MenuItem[]): void;
   log: Logger;
 }
 
@@ -124,15 +136,28 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     log,
   );
 
+  // Installed macOS and Windows builds only: a development build never asks GitHub.
+  const updates = createUpdates({
+    updater: deps.updater,
+    supported: app.isPackaged && (deps.platform === 'darwin' || deps.platform === 'win32'),
+    appVersion: app.getVersion(),
+    events,
+    showMessage: (message) => deps.showMessage(message),
+    timers: deps.timers,
+    log,
+  });
+  deps.setMenu(menuTemplate(deps.platform, () => void updates.checkFromMenu()));
+
   const store = createSessionStore(path.join(app.getPath('userData'), 'sessions'));
   registerHandlers(
     deps.ipc,
-    createHandlers({ appVersion: app.getVersion(), platform: deps.platform, store }),
+    createHandlers({ appVersion: app.getVersion(), platform: deps.platform, store, updates }),
     origins,
     log,
   );
 
   open();
+  updates.start();
   log.info('Desktop shell started', { dev, bridgeVersion: BRIDGE_VERSION });
   return { events };
 }

@@ -6,6 +6,7 @@ import { main, startApp, type ShellDeps } from '../src/app';
 import { channel } from '../src/bridge';
 import { DEV_URL, PRODUCTION_URL } from '../src/config';
 import type { InvokeEventLike } from '../src/ipc';
+import type { MenuItem } from '../src/menu';
 import { createLogger } from '../src/log';
 import type { ContentsLike } from '../src/navigation';
 import type { WindowLike, WindowOptions } from '../src/window';
@@ -71,7 +72,17 @@ function setup({ packaged = false, lock = true, platform = 'linux' } = {}) {
     windowCount: vi.fn(() => windows.length),
     preloadPath: '/app/dist/preload.cjs',
     platform,
-    timers: { setTimeout: vi.fn() },
+    timers: { setTimeout: vi.fn(), setInterval: vi.fn() },
+    updater: {
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      logger: undefined as unknown,
+      on: vi.fn(),
+      checkForUpdates: vi.fn(async () => null),
+      quitAndInstall: vi.fn(),
+    },
+    showMessage: vi.fn(async () => undefined),
+    setMenu: vi.fn<(template: MenuItem[]) => void>(),
     log: createLogger({ sink }),
   } satisfies ShellDeps;
   const emit = (name: string, ...args: unknown[]) => appListeners.get(name)?.(...args);
@@ -192,6 +203,54 @@ describe('startApp', () => {
     await startApp(mac.deps);
     mac.emit('window-all-closed');
     expect(mac.deps.app.quit).not.toHaveBeenCalled();
+  });
+});
+
+describe('updates', () => {
+  const menuCheck = (template: MenuItem[] | undefined) =>
+    template
+      ?.flatMap((item) => item.submenu ?? [])
+      .find((item) => item.label === 'Check for updates…')?.click;
+
+  it('check at launch and every six hours in an installed Mac or Windows build', async () => {
+    for (const platform of ['darwin', 'win32']) {
+      const { deps, handlers } = setup({ packaged: true, platform });
+      await startApp(deps);
+      expect(deps.updater.checkForUpdates).toHaveBeenCalledTimes(1);
+      expect(deps.timers.setInterval).toHaveBeenCalledWith(expect.any(Function), 21_600_000);
+      await expect(
+        handlers.get(channel('app.checkForUpdate'))?.(topFrame('https://gurukul.nonstopio.com')),
+      ).resolves.toEqual({ state: 'up_to_date' });
+    }
+  });
+
+  it('never check in a development build or on Linux', async () => {
+    for (const options of [{ platform: 'darwin' }, { packaged: true, platform: 'linux' }]) {
+      const { deps, handlers } = setup(options);
+      await startApp(deps);
+      expect(deps.updater.checkForUpdates).not.toHaveBeenCalled();
+      const origin = options.packaged ? 'https://gurukul.nonstopio.com' : 'http://localhost:5173';
+      await expect(
+        handlers.get(channel('app.checkForUpdate'))?.(topFrame(origin)),
+      ).resolves.toEqual({ state: 'unsupported' });
+      await expect(
+        handlers.get(channel('app.installUpdate'))?.(topFrame(origin)),
+      ).resolves.toBeUndefined();
+    }
+  });
+
+  it('answer “Check for updates…” in the menu with a message box', async () => {
+    const { deps } = setup({ packaged: true, platform: 'darwin' });
+    await startApp(deps);
+    const click = menuCheck(deps.setMenu.mock.calls[0]?.[0]);
+    click?.();
+    await vi.waitFor(() =>
+      expect(deps.showMessage).toHaveBeenCalledWith({
+        type: 'info',
+        message: 'Gurukul Studio is up to date.',
+        detail: 'You have version 0.1.0, the newest.',
+      }),
+    );
   });
 });
 

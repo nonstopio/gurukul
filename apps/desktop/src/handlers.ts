@@ -7,11 +7,12 @@ import { BRIDGE_VERSION, MAX_FILE_BYTES } from './bridge';
 import type { AreaHandlers, Handlers } from './ipc';
 import type { SessionStore } from './store';
 import { sourcesCalls } from './sourcesCalls';
+import type { Updates } from './updates';
 
 /**
  * Every handler of bridge version 1, one area per file: `info` and `store.*` here, then
- * `agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts` and `appCalls.ts`, whose calls are refused as
- * not available until their items build them. Each has a zod schema for its arguments. The store's
+ * `agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts` and `appCalls.ts`; a call whose item is not
+ * built yet is refused as not available. Each has a zod schema for its arguments. The store's
  * schemas check shape and length only; `store.ts` decides which names are safe, so the rule lives in
  * one place.
  */
@@ -25,6 +26,7 @@ export interface HandlerDeps {
   appVersion: string;
   platform: string;
   store: SessionStore;
+  updates: Updates;
 }
 
 type CoreHandlers = Pick<Handlers, 'info'> & AreaHandlers<'store'>;
@@ -54,6 +56,6 @@ export function createHandlers(deps: HandlerDeps): Handlers {
     ...agentCalls(),
     ...sourcesCalls(),
     ...authCalls(),
-    ...appCalls(),
+    ...appCalls(deps.updates),
   };
 }

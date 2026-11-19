@@ -911,6 +911,12 @@ across under this repository's MIT licence.
   the point of the thin shell.
 - First release: `desktop-v0.1.0`. The app shows its version in Settings and reports it through
   `info()`.
+- As built (`DSK-21`): `scripts/desktop-version.mjs` (tested in `scripts/test/`) does all of this.
+  With no `desktop-v*` tag the version is `0.1.0` whatever the commits say (a bump of `0.0.0` would
+  make a lone `fix` `0.0.1`). "Touched `apps/desktop/`" means a non-merge commit since the last tag
+  changed a file there; with no tag, any such commit ever. Only `apps/desktop/` counts:
+  `@gurukul/schema` is bundled into the shell too, but a schema change ships in the next desktop
+  release rather than making one, because today the shell uses only its logging helpers.
 
 ### The release workflow (`.github/workflows/desktop-release.yml`)
 
@@ -922,10 +928,30 @@ requests never build installers; `npm run check` in CI covers the workspace.
 | Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
 | Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
 | Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user | Same; unsigned until `DSK-22` |
-| Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests | Same |
+| Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests since the last desktop tag, marked Latest. Checks every expected file is there first | `gh release create` instead of `softprops/action-gh-release`: one third-party action fewer with write access |
 
 Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
 reinstalls), Node 22 from `.nvmrc`, one release at a time through a concurrency group.
+
+As built (`DSK-21`), `apps/desktop/electron-builder.yml`:
+
+- **The app ships no `node_modules`.** esbuild already bundles zod, `@gurukul/schema` and
+  `electron-updater` into `dist/main.cjs`, so the app holds `dist/main.cjs`, `dist/preload.cjs` and
+  `package.json` only. `electron-builder` and `electron-updater` are dev dependencies, pinned
+  (26.18.1, 6.8.12, both MIT). The packaged `package.json` is named `gurukul-studio`
+  (`extraMetadata`), which names the Linux executable and the updater's cache folder; the app's own
+  name and data folder come from `productName`, Gurukul Studio, in development and packaged alike.
+- **Fuses** as Privacy and security lists, plus `GrantFileProtocolExtraPrivileges` off (the window
+  never loads `file://`). Checked on a Linux unpacked build: the fuses read as set, the app starts,
+  and `ELECTRON_RUN_AS_NODE=1` no longer runs it as Node.
+- **Entitlements** (`resources/entitlements.mac.plist`): `allow-jit` and
+  `allow-unsigned-executable-memory`. Morph also has `disable-library-validation`; it is left off
+  because the app loads no native module of its own. The first signed release confirms it
+  launches (the hand check below).
+- **Icon:** `resources/icon.png`, 1024px, rendered from `apps/web/public/favicon.svg`;
+  electron-builder makes the `.icns` and `.ico` from it.
+- Linux builds an unpacked folder only (`target: dir`), for checking the packaging; nothing is
+  published for it.
 
 Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`). `docs/desktop-release-setup.md` is
@@ -939,8 +965,9 @@ Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 - Packaged macOS and Windows builds only; development builds never check.
 - Checks at launch and every six hours, downloads in the background, **never opens a dialog on
   its own**.
-- When a download finishes the shell tells the window (`app.onUpdateReady(version)`) and Studio's
-  sidebar shows an "Update ready" item. Clicking it restarts and installs; a normal Quit installs
+- When a download finishes the shell tells the window (`app.onUpdateReady(version)`) and the
+  sidebar shows an "Update ready" item (in every area's sidebar inside the desktop app, not only
+  Studio's: the update is the app's, and hiding the item on Learn pages would only hide it). Clicking it restarts and installs; a normal Quit installs
   it too. If the install fails the app stays open, the item goes away and the next check tries
   again.
 - **Check for updates…** in the app menu checks on demand and says "up to date", "already
@@ -948,15 +975,30 @@ Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 - An open session is safe across the restart: it is written to disk after every turn.
 - Two kinds of "out of date" stay separate. A new **shell** arrives through this updater. A new
   **web app** arrives with a normal deploy; if it needs a newer bridge than the installed shell
-  has, the page says "Update the app" and offers Check for updates.
+  has, the page says "Update the app" and offers Check for updates. As built, that is the same
+  sidebar place: "Update the app" asks the shell (`app.checkForUpdate`), says what it found, and
+  installs once the update is downloaded. Session pages (`DSK-11`) still show their own card for
+  `needs_update`, which now carries the bridge for those two calls.
 - Changes from Morph: the `log` helper instead of `console.warn`, wording in Gurukul's voice, and
   the logic tested in Vitest at 100% with the updater, dialog and timer injected (Morph's
   `scripts/check-updates.cjs` cases, ported).
 - The updater reads GitHub Releases of this repository. The web app pushes tags but creates no
-  GitHub Releases, so "latest release" is always a desktop one; that must stay true. To confirm
-  when building: that `electron-updater`'s GitHub provider accepts the `desktop-v` tag prefix. If
-  it does not, use its generic provider pointed at
-  `github.com/nonstopio/gurukul/releases/latest/download/`.
+  GitHub Releases, so "latest release" is always a desktop one; that must stay true.
+- **The `desktop-v` prefix works with the GitHub provider** (read in `electron-updater` 6.8.12,
+  `out/providers/GitHubProvider.js`, while building `DSK-21`). Without prereleases it asks
+  `github.com/nonstopio/gurukul/releases/latest` for the latest release's `tag_name`, uses that
+  name as it is in `releases/download/{tag}/latest-mac.yml` (or `latest.yml`), and reads the
+  version from that file, never from the tag; its tag pattern (`/tag/(v?[^/]+)$`) matches
+  `desktop-v0.2.0`. Only the prerelease path parses tags as semver, and would skip ours, so
+  desktop releases are never prereleases. The generic provider is not needed.
+- As built: `updates.ts` (over injected `autoUpdater`, message box, interval and window events),
+  `menu.ts` (Check for updates… in the app menu on macOS, under Help on Windows), and
+  `app.checkForUpdate` answering `up_to_date`, `checking`, `downloading`, `ready`, `unsupported`
+  or `failed` without a dialog; only the menu shows one. `electron-updater`'s own logger is off
+  (its lines hold URLs and paths); the shell logs `Update downloading`, `Update ready`,
+  `Update installing` with the version, and failures with the error code only. The web app watches
+  once per page (`apps/web/src/desktop/updates.ts`), and asks the shell once at load, because the
+  download can finish before the page subscribes.
 
 ### Download
 

@@ -22,6 +22,9 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/preloadApi.ts`                                                   | Builds `window.gurukulDesktop` from `CALLS` and `EVENTS`; exposes it to the allowed top frame only       |
 | `src/main.ts`, `src/preload.ts`                                       | Electron glue only: hand the real objects to `app.ts` / `preloadApi.ts`                                  |
 | `src/log.ts`                                                          | The main-process `log` helper; the only file here that may call `console.*`                              |
+| `src/updates.ts`                                                      | Self-update over `electron-updater`: launch and six-hourly checks, silent download, `app.*` answers      |
+| `src/menu.ts`                                                         | The app menu as data: Check for updates… (app menu on macOS, Help elsewhere)                             |
+| `electron-builder.yml`, `resources/`                                  | Installers: app id, fuses, hardened runtime, entitlements, icon, GitHub publish config                   |
 
 ## Rules
 
@@ -63,5 +66,20 @@ npm run build -w @gurukul/desktop  # typecheck and bundle to dist/ (main.cjs, pr
 ```
 
 Electron 45 downloads its binary the first time it is launched, not at `npm ci`. On Linux as root
-(a container) Chromium needs `--no-sandbox`: `npx electron --no-sandbox .`. Installers and the
-updater are `DSK-21`.
+(a container) Chromium needs `--no-sandbox`: `npx electron --no-sandbox .`.
+
+## Releases
+
+`.github/workflows/desktop-release.yml` builds and publishes the installers after CI passes on a
+push to `main` that touched this folder; the version comes from the commits
+(`scripts/desktop-version.mjs`), never from `package.json` (`0.0.0` stays). Setup and the hand
+upgrade check: `docs/desktop-release-setup.md`.
+
+- **The app ships `dist/` and `package.json` only.** `electron-builder.yml` copies no
+  `node_modules`, so anything the shell runs must be bundled by esbuild into `dist/main.cjs` (a
+  package with native code or files it reads at run time would need the packaging changed first).
+- **The updater never opens a dialog on its own**; only the menu's Check for updates… answers in one.
+  `electron-updater`'s own logger stays off (URLs and paths); log through `log`.
+- Check packaging on Linux without signing:
+  `npm run bundle && npx electron-builder --linux dir --publish never` (output in `release/`,
+  ignored), then `npx @electron/fuses read --app release/linux-unpacked/gurukul-studio`.

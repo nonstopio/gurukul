@@ -1,0 +1,92 @@
+# Installers for Gurukul Studio, built by .github/workflows/desktop-release.yml.
+# Adapted from Morph's electron-builder.yml. Plan: .plan/22-desktop-studio.md (Releases, versions
+# and updates). The version comes from the `desktop-v*` tag: CI stamps it into package.json before
+# this runs and never commits it.
+appId: com.nonstopio.gurukul.studio
+productName: Gurukul Studio
+copyright: Copyright © NonStop io Technologies
+# The packaged package.json's name: what the executable on Linux and the updater's download cache
+# folder are named after (the workspace name, @gurukul/desktop, is not a usable file name). The
+# app's own name, and so its data folder, is productName in both.
+extraMetadata:
+  name: gurukul-studio
+
+directories:
+  # dist/ holds the bundles (main.cjs, preload.cjs); installers go beside it.
+  output: release
+  buildResources: resources
+
+# esbuild bundles everything the shell runs (zod, @gurukul/schema, electron-updater) into
+# dist/main.cjs and dist/preload.cjs, so the app ships no node_modules at all.
+files:
+  - dist/main.cjs
+  - dist/preload.cjs
+  - package.json
+  - '!node_modules/**'
+npmRebuild: false
+nodeGypRebuild: false
+asar: true
+
+# Electron fuses: 22-desktop-studio.md (Privacy and security). Set before signing.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  # The window loads Gurukul over https only; nothing is served from file://.
+  grantFileProtocolExtraPrivileges: false
+
+# resources/icon.png (1024px, rendered from apps/web/public/favicon.svg): electron-builder derives
+# the .icns and .ico from it.
+icon: resources/icon.png
+
+mac:
+  artifactName: 'Gurukul-Studio-${version}-${arch}.${ext}'
+  category: public.app-category.education
+  target:
+    - dmg
+    - zip
+  darkModeSupport: true
+  hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+
+dmg:
+  artifactName: 'Gurukul-Studio-${version}-${arch}.${ext}'
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 140
+      y: 250
+    - x: 400
+      y: 250
+      type: link
+      path: /Applications
+
+# Unsigned until DSK-22: SmartScreen warns on first run.
+win:
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  artifactName: 'Gurukul-Studio-Setup-${version}.${ext}'
+  oneClick: true
+  perMachine: false
+
+# The shell runs on Linux for development; no installer is published for it.
+linux:
+  target: dir
+
+# Written into the app as app-update.yml for electron-updater. CI uploads the files itself
+# (--publish never), and the web app's deploys push tags only, never GitHub Releases, so the
+# repository's latest release is always a desktop one. The GitHub provider reads the tag name the
+# latest release has and downloads latest-mac.yml / latest.yml under it; the `desktop-v` prefix is
+# fine because the version is read from that file, not the tag (22-desktop-studio.md, Updates).
+publish:
+  provider: github
+  owner: nonstopio
+  repo: gurukul
+  releaseType: release

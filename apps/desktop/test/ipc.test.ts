@@ -11,6 +11,7 @@ import {
 } from '../src/ipc';
 import { createLogger } from '../src/log';
 import { SessionFileError, type SessionStore } from '../src/store';
+import type { Updates } from '../src/updates';
 
 const ORIGINS = ['https://gurukul.nonstopio.com'];
 const top = (origin = ORIGINS[0] as string): InvokeEventLike => ({
@@ -27,13 +28,22 @@ function fakeStore(overrides: Partial<SessionStore> = {}): SessionStore {
   };
 }
 
-function setup(store = fakeStore()) {
+function fakeUpdates(): Updates {
+  return {
+    start: vi.fn(),
+    check: vi.fn(async () => ({ state: 'ready', version: '0.2.0' }) as const),
+    checkFromMenu: vi.fn(async () => undefined),
+    install: vi.fn(async () => undefined),
+  };
+}
+
+function setup(store = fakeStore(), updates = fakeUpdates()) {
   const listeners = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
   const ipc: IpcLike = { handle: (name, listener) => void listeners.set(name, listener) };
   const sink = vi.fn();
   registerHandlers(
     ipc,
-    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store }),
+    createHandlers({ appVersion: '1.2.3', platform: 'darwin', store, updates }),
     ORIGINS,
     createLogger({ sink }),
   );
@@ -42,7 +52,7 @@ function setup(store = fakeStore()) {
     if (!listener) throw new Error('no listener');
     return listener(event, ...args) as Promise<unknown>;
   };
-  return { listeners, call, sink, store };
+  return { listeners, call, sink, store, updates };
 }
 
 describe('checkSender', () => {
@@ -171,6 +181,20 @@ describe('registerHandlers', () => {
   });
 });
 
+describe('app calls', () => {
+  it('ask the updater, and refuse arguments', async () => {
+    const { call, updates } = setup();
+    await expect(call('app.checkForUpdate', top())).resolves.toEqual({
+      state: 'ready',
+      version: '0.2.0',
+    });
+    await expect(call('app.installUpdate', top())).resolves.toBeUndefined();
+    expect(updates.install).toHaveBeenCalledTimes(1);
+    await expect(call('app.installUpdate', top(), 'now')).rejects.toThrow(INVALID);
+    await expect(call('app.checkForUpdate', top('https://evil.example'))).rejects.toThrow(REFUSED);
+  });
+});
+
 describe('calls a later item builds', () => {
   const ref = { uid: 'u1', sessionId: 's1' };
   const uuid = '0b6e4f3e-6b7a-4c1e-9d55-2f1a3c4b5d6e';
@@ -209,8 +233,6 @@ describe('calls a later item builds', () => {
     ['sources.reveal', [ref]],
     ['sources.read', [ref, 'Rebase notes.md']],
     ['auth.googleSignIn', []],
-    ['app.checkForUpdate', []],
-    ['app.installUpdate', []],
   ];
 
   it.each(valid)('checks %s’s arguments, then refuses it as not available', async (name, args) => {
@@ -223,7 +245,9 @@ describe('calls a later item builds', () => {
   });
 
   it('covers every call that is not info or store', () => {
-    const later = CALLS.filter((n) => n !== 'info' && !n.startsWith('store.'));
+    const later = CALLS.filter(
+      (n) => n !== 'info' && !n.startsWith('store.') && !n.startsWith('app.'),
+    );
     expect(new Set(valid.map(([n]) => n))).toEqual(new Set(later));
   });
 

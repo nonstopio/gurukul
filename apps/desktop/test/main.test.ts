@@ -19,8 +19,21 @@ const mocks = vi.hoisted(() => {
     handle: vi.fn(),
     openExternal: vi.fn(),
     defaultSession: { setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn() },
+    menu: { template: [] as { label?: string; click?: () => void; submenu?: unknown[] }[] },
+    setApplicationMenu: vi.fn(),
+    showMessageBox: vi.fn(async () => ({ response: 0 })),
+    autoUpdater: {
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      logger: undefined as unknown,
+      on: vi.fn(),
+      checkForUpdates: vi.fn(async () => null),
+      quitAndInstall: vi.fn(),
+    },
   };
 });
+
+vi.mock('electron-updater', () => ({ autoUpdater: mocks.autoUpdater }));
 
 vi.mock('electron', () => {
   class BrowserWindow {
@@ -37,6 +50,14 @@ vi.mock('electron', () => {
     app: mocks.app,
     BrowserWindow,
     ipcMain: { handle: mocks.handle },
+    Menu: {
+      buildFromTemplate: (template: typeof mocks.menu.template) => {
+        mocks.menu.template = template;
+        return template;
+      },
+      setApplicationMenu: mocks.setApplicationMenu,
+    },
+    dialog: { showMessageBox: mocks.showMessageBox },
     session: { defaultSession: mocks.defaultSession },
     shell: { openExternal: mocks.openExternal },
   };
@@ -45,12 +66,31 @@ vi.mock('electron', () => {
 describe('main', () => {
   it('starts the shell with Electron’s real objects', async () => {
     vi.useFakeTimers();
+    // An installed Mac build, so the updater starts.
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform') as PropertyDescriptor;
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
     await import('../src/main');
+    Object.defineProperty(process, 'platform', platform);
     await vi.waitFor(() => expect(mocks.windows).toHaveLength(1));
     const opts = mocks.windows[0]?.opts as { webPreferences: { preload: string } };
     expect(opts.webPreferences.preload).toBe('/app/dist/preload.cjs');
     expect(mocks.handle).toHaveBeenCalledWith('gurukul:info', expect.any(Function));
     expect(mocks.defaultSession.setPermissionRequestHandler).toHaveBeenCalled();
+
+    // The updater checks at launch and on a six-hour timer; the menu's check answers in a dialog.
+    expect(mocks.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1);
+    expect(mocks.setApplicationMenu).toHaveBeenCalledWith(mocks.menu.template);
+    const check = (
+      mocks.menu.template[0]?.submenu as { label?: string; click?: () => void }[]
+    ).find((item) => item.label === 'Check for updates…');
+    check?.click?.();
+    await vi.waitFor(() =>
+      expect(mocks.showMessageBox).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Gurukul Studio is up to date.' }),
+      ),
+    );
+    vi.advanceTimersByTime(6 * 60 * 60 * 1000);
+    expect(mocks.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(3);
 
     // The adapters main.ts builds: the Dock re-opens a window, and a failed load retries on a timer.
     mocks.windows.length = 0;
