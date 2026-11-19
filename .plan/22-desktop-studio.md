@@ -154,27 +154,161 @@ claude -p --input-format stream-json --output-format stream-json --verbose \
   --append-system-prompt-file <session>/prompt.md \
   --plugin-dir               <session>/skills/ \
   --mcp-config               <session>/mcp.json \
+  --strict-mcp-config \
+  --setting-sources          "" \
+  --tools                    Skill \
   --allowedTools             "mcp__gurukul__*" \
   --permission-mode          dontAsk \
-  --resume                   <Claude session id, after a restart>
+  --session-id               <new UUID, first start>  |  --resume <same UUID, every later start>
 ```
 
-- The working directory is the session's Sources folder, so the only files the agent can read
-  are the ones the Educator put there. `dontAsk` refuses anything not allowed instead of asking.
-- `mcp.json` names a small proxy script shipped in the app. Claude Code starts it; it connects
-  back to the main process over a local socket with a one-time token; the main process forwards
-  each tool call to the window and returns the answer.
-- Stop sends an interrupt. A plan limit or a missing sign-in arrives as an event and the chat
-  says what to do in plain words ("Open a terminal, run `claude` and sign in, then try again").
+Started with `GURUKUL_BRIDGE_SOCKET` and `GURUKUL_BRIDGE_TOKEN` in its environment; the proxy
+inherits them, so neither is written to `mcp.json` or put on a command line.
+
+- The working directory is the session's Sources folder. `--tools Skill` leaves the agent no
+  built-in tool but the one that loads skills, so it reads sources only through `read_source`.
+  `dontAsk` refuses anything not allowed instead of asking.
+- `--setting-sources ""` and `--strict-mcp-config` keep the Educator's own settings, hooks,
+  skills, notes (`CLAUDE.md`) and MCP servers out, and a `CLAUDE.md`, `.mcp.json` or
+  `.claude/settings.json` dropped into Sources too.
+- `mcp.json` names a small proxy script shipped in the app, run by the app's own Electron binary
+  with `ELECTRON_RUN_AS_NODE=1`, so the Educator needs no Node. Claude Code starts it; it connects
+  back to the main process over a local socket with a token minted for that one process; the main
+  process forwards each tool call to the window and returns the answer.
+- Stop sends a stream-json `interrupt` control request: the turn ends, the process stays. A plan
+  limit or a missing sign-in arrives as an event and the chat says what to do in plain words
+  ("Open a terminal, run `claude` and sign in, then try again").
 - No model picker in v1: Claude Code's own default is used.
 
-**To settle in the spike (`DSK-04`), before the bridge is built:** that stream input and the MCP
-proxy behave as documented on macOS and Windows; how to tell "not signed in" without spending
-plan usage; and how to keep the Educator's personal Claude Code hooks, plugins and notes out of
-the session. The documented switch for that (`--bare`) also skips the subscription sign-in, and
-the documentation says it will become the default for scripted runs, so the launch flags must be
-pinned and re-tested on new Claude Code releases. The spike's findings are written back into
-this section.
+The flags are pinned to what the spike saw on Claude Code 2.1.328 and are re-tested on each new
+Claude Code release: the documentation says `--bare` will become the default for scripted runs,
+and `--bare` never reads the subscription sign-in. What the spike settled, and what still needs a
+signed-in macOS and Windows machine, is below.
+
+#### Spike findings (Linux, 2026-11-19)
+
+`DSK-04`, run in a Linux container with Claude Code 2.1.328, Electron 45.2.3 and
+`@modelcontextprotocol/sdk` 1.32.2. No Claude credential was read or printed and no usage was
+spent. Every `claude` ran as an unprivileged user, with an empty environment, an empty `HOME` and
+`CLAUDE_CONFIG_DIR`, inside a network namespace with no route out. Unsetting the four
+`ANTHROPIC_*`/`CLAUDE_CODE_OAUTH_TOKEN` variables was not enough there: the container's host
+supplies a sign-in by another route, and `claude auth status` still said `loggedIn: true`. Where a
+model reply was needed, `claude` was pointed with `ANTHROPIC_BASE_URL` and a dummy key at a local
+stand-in for the Messages API that returns a scripted tool call (no model, nothing leaves the
+machine). That stand-in proves the plumbing, not Anthropic's real replies.
+
+**Flags.** All of the plan's flags exist. `--append-system-prompt-file` (and
+`--system-prompt-file`) work but are not in `claude --help`; a missing file fails at start
+(exit 1, `Error: Append system prompt file not found`). `--output-format stream-json` with `-p`
+refuses to start without `--verbose`. Unknown flags fail at start with exit 1.
+
+| Flag | What it did | Use |
+|---|---|---|
+| (the plan's original flags only) | The Educator's `CLAUDE.md`, a `CLAUDE.md` in Sources, their personal skill, their hooks *and hooks from `Sources/.claude/settings.json`* all reached the session | Not enough |
+| `--strict-mcp-config` | Only `mcp.json`'s server started; user and Sources `.mcp.json` servers did not | Pin |
+| `--setting-sources ""` | Kept out every `CLAUDE.md`, personal skills, user and project hooks; `--plugin-dir` skills and `--mcp-config` still load | Pin |
+| `--tools Skill` | Built-in tools gone (no Bash, Read, Write, Edit, WebFetch, Agent); skills still load; MCP tools still offered | Pin |
+| `--tools ""` | As above, but skills cannot load (no `Skill` tool) | Only if skills move into the prompt |
+| `--disable-slash-commands` | Removes every skill, ours included | No |
+| `--safe-mode` | Also drops `--mcp-config` servers and `--plugin-dir` skills | No |
+| `--restricted` | Keeps Write, Edit and Read; ignores settings files | No |
+| `--bare` | Keeps everything personal out, but its help says OAuth and keychain are never read: no subscription | No |
+| `--permission-mode dontAsk` | A Bash call the model made anyway was refused and listed in the result's `permission_denials`; the `Skill` tool runs without being in `--allowedTools` | Pin |
+| `--session-id <uuid>` | Sets the Claude session id on the first start; reusing it on a later start fails (`Session ID … is already in use`, exit 1) | Pin, first start |
+| `--resume <uuid>` | Reloads the history and keeps the same `session_id`; worked from a different working folder too | Pin, later starts |
+
+With `--tools Skill` the model still sees Claude Code's built-in skills (`deep-research`,
+`design-sync` and the like) next to ours; without tools they can do nothing. Skills from
+`--plugin-dir` are plugin-shaped (`.claude-plugin/plugin.json`, `skills/<name>/SKILL.md`) and
+named `gurukul:<name>`; a folder of plugins loads each child (per `--help`, not tried).
+
+**Not signed in, without spending usage.** Three signals, in the order the bridge uses them:
+
+1. Before starting a session: `claude auth status` (JSON by default). Signed out: exit 1,
+   `"loggedIn": false`, `"authMethod": "none"`. With a credential: exit 0 and `"loggedIn": true`
+   (seen for an OAuth sign-in supplied by the container's host and for an API key). It works
+   with no network and does not check the credential is still valid: a dummy API key also
+   reports `loggedIn: true`.
+2. Once started, before the first message: the stream-json `initialize` control request
+   (`{"type":"control_request","request_id":"…","request":{"subtype":"initialize"}}`) answers at
+   once with `account.tokenSource` (`"none"` signed out) and, for a key, `account.apiKeySource`.
+3. In a turn: signed out, the turn ends within a second with an `assistant` event carrying
+   `"error": "authentication_failed"` and the text `Not logged in · Please run /login`, then a
+   `result` with `"is_error": true` and `"terminal_reason": "api_error"` (its `subtype` is still
+   `success`). `total_cost_usd` is 0. A rejected credential (HTTP 401) and a rate limit (429)
+   instead arrive as `system` events with `subtype: "api_retry"` and `error:
+   "authentication_failed"` or `"rate_limit"`, `attempt`, `retry_delay_ms` and `max_retries: 10`,
+   with growing delays (seven retries in the first 40 seconds) before the turn would fail; the
+   bridge shows the message on the first one and stops the turn.
+
+Nothing is printed to stderr in any of these cases; exit codes only say how the process ended.
+
+**Stream input and output.** No `system`/`init` event comes until the first message; then one
+comes at the start of every turn, carrying `session_id`, `tools`, `mcp_servers` (with `status`:
+`connected`, `failed`), `plugins`, `skills`, `apiKeySource` and `claude_code_version`. Every
+message event carries `session_id`. A turn ends with exactly one `result`. Messages written
+before `init` are queued, and the process stays up between turns. `claude --version` prints
+`2.1.328 (Claude Code)`.
+
+**Stopping.**
+
+| Action | During a turn | While idle |
+|---|---|---|
+| `interrupt` control request | The turn ends (`[Request interrupted by user]`, then `result` with `subtype: "error_during_execution"`, `terminal_reason: "aborted_streaming"`); the process stays and takes the next message | Answers `success`, nothing else |
+| SIGINT | The same turn end, then the process exits 0 | Exits 0 |
+| SIGTERM | — | Exits 143 |
+| SIGHUP | — | Exits 129 |
+| Close stdin | Waits for the turn to finish, then exits | Exits 0, or 1 if the last turn failed |
+
+So Stop is the control request, closing a session is closing stdin (SIGTERM after a grace
+period), and SIGINT is not used.
+
+**The MCP proxy round trip.** A stdio proxy built on the SDK's low-level `Server` forwards
+`tools/list` and `tools/call` over a Unix socket (mode 0600) to the parent, which answered from a
+fixed tool list. Driven by the SDK's own client: list, a call and an unknown tool (returned as
+`isError`) round-trip in about 150 ms, and a wrong or reused token is refused. Started by
+`claude` through `--mcp-config`, the proxy connects and lists its tools even signed out, and with
+the stand-in API a `mcp__gurukul__get_course` call travelled claude → proxy → parent and back
+into the next request as a `tool_result`. Three findings for the bridge:
+
+- The token is for one `claude` process, not one connection attempt: a resumed process given
+  the previous token was refused and its server showed `"status": "failed"`. Each start mints a
+  new token; it dies with the process.
+- Put the socket and token in the `claude` process's environment. `mcp.json`'s `env`, `${VAR}`
+  references and plain inheritance all work, but the `mcp_status` control request echoes
+  `mcp.json`'s `args` back, so the token must never be an argument.
+- The proxy runs under the app's own binary: `command` is Electron's executable with
+  `ELECTRON_RUN_AS_NODE=1` in `env`. This needs Electron's `RunAsNode` fuse left on in the
+  packaged build.
+
+**Electron.** From an Electron 45.2.3 main process under `xvfb-run`, with a hidden sandboxed
+window: `child_process.spawn` of `claude` with piped stdio; `initialize`; one message; a tool call
+through the proxy; an interrupted turn; the next message on the same process; SIGINT during a
+turn; a restart with `--resume`; close stdin. All behaved as above. One trap: an ESM main file
+that does a top-level `await app.whenReady()` never becomes ready (the ready event waits for the
+entry module to finish evaluating); start from `app.whenReady().then(main)`.
+
+**Where Claude Code keeps the chat.** Under the Educator's own Claude config folder,
+`projects/<Sources path>/<session id>.jsonl` (mode 0600), so a session's course text is also in
+their own `claude --resume` list. Whether the 30-day clean-up removes it (`claude purge` exists
+for this) is for `DSK-10`.
+
+**Still needs a signed-in macOS and Windows machine** (none of it could be done here):
+
+- A real model round trip with the pinned flags: one message, one `gurukul` tool call, a skill
+  loaded, Stop, resume.
+- The subscription sign-in with `--setting-sources ""`: that a Claude plan sign-in (keychain on
+  macOS, the credentials file on Windows) still works, and what `auth status` and `initialize`
+  report for it. An Educator whose sign-in comes from their settings (`apiKeyHelper`, or a cloud
+  provider set in `settings.json`) loses it under `--setting-sources ""`; what to tell them is
+  open.
+- What a real plan limit looks like in the stream (the `rate_limit_event` event, `api_retry` with
+  `rate_limit`, or both) and its reset time.
+- Windows: spawning `claude.exe` (native install) and `claude.cmd` (npm install, which Node
+  starts only through a shell), the named pipe in place of the Unix socket, stopping without
+  POSIX signals (the control request and closing stdin should suffice), and paths with spaces.
+- macOS: a Unix socket path must stay under 104 bytes, so the socket goes in a short temporary
+  folder, not under `Application Support`; the hardened runtime with `ELECTRON_RUN_AS_NODE`.
 
 ### Signing in to Gurukul
 
