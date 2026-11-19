@@ -21,9 +21,9 @@
 //
 //  WHAT IT DOES NOT DO
 //
-//  It does not read tests, the logging module itself, generated files or anything outside
-//  firebase/functions/src and apps/web/src. It does not try to prove a statement is safe; it names
-//  the shapes that are never right. Heuristics, on purpose: a false positive costs one glance.
+//  It does not read tests, the logging modules themselves, generated files or anything outside
+//  firebase/functions/src, apps/web/src and apps/desktop/src. It does not try to prove a statement
+//  is safe; it names the shapes that are never right. Heuristics, on purpose: a false positive costs one glance.
 // =================================================================================================
 
 import {
@@ -39,10 +39,15 @@ import {
   sayAfter,
 } from './lib.mjs';
 
-const LOGGING_HOME = ['firebase/functions/src/logging/', 'apps/web/src/log.ts'];
+const LOGGING_HOME = [
+  'firebase/functions/src/logging/',
+  'apps/web/src/log.ts',
+  'apps/desktop/src/log.ts',
+];
+const IN_SCOPE = ['firebase/functions/src/', 'apps/web/src/', 'apps/desktop/src/'];
 
 function watched(rel) {
-  const inScope = rel.startsWith('firebase/functions/src/') || rel.startsWith('apps/web/src/');
+  const inScope = IN_SCOPE.some((root) => rel.startsWith(root));
   if (!inScope || isTestPath(rel) || isGeneratedPath(rel)) return false;
   if (!/\.[cm]?[jt]sx?$/.test(rel)) return false;
   return !LOGGING_HOME.some((home) => rel === home || rel.startsWith(home));

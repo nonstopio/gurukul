@@ -10,6 +10,7 @@ function repo() {
     'apps/web/src/App.tsx': 'export {};\n',
     'apps/web/src/changelog/index.ts': 'export {};\n',
     'packages/ui/src/Button.tsx': 'export {};\n',
+    'apps/desktop/src/window.ts': 'export {};\n',
     'firebase/firestore.rules': "rules_version = '2';\n",
     'firebase/functions/src/index.ts': 'export {};\n',
     'scripts/build.sh': 'true\n',
@@ -42,10 +43,11 @@ describe('changelog-nudge', () => {
     assert.ok(context(other), 'a new session asks again');
   });
 
-  it('covers packages/ui, rules and functions source', () => {
+  it('covers packages/ui, the desktop shell, rules and functions source', () => {
     const r = repo();
     for (const rel of [
       'packages/ui/src/Button.tsx',
+      'apps/desktop/src/window.ts',
       'firebase/firestore.rules',
       'firebase/functions/src/index.ts',
     ]) {

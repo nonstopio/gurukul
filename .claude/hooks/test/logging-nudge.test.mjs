@@ -12,6 +12,8 @@ function repo(files = {}) {
     'firebase/functions/test/grading.test.ts': "console.log('x');\n",
     'apps/web/src/log.ts': "console.warn('x');\n",
     'apps/web/src/HomePage.tsx': GOOD,
+    'apps/desktop/src/log.ts': "console.warn('x');\n",
+    'apps/desktop/src/app.ts': GOOD,
     'scripts/tool.mjs': "console.log('x');\n",
     ...files,
   });
@@ -94,12 +96,18 @@ describe('logging-nudge', () => {
     );
   });
 
+  it('covers the desktop shell', () => {
+    const r = repo();
+    assert.match(context(edit(r, 'apps/desktop/src/app.ts', "console.log('x');\n")), /console/);
+  });
+
   it('ignores tests, the logging module, other folders, unreadable payloads and non-code', () => {
     const r = repo();
     for (const rel of [
       'firebase/functions/test/grading.test.ts',
       'firebase/functions/src/logging/index.ts',
       'apps/web/src/log.ts',
+      'apps/desktop/src/log.ts',
       'scripts/tool.mjs',
     ]) {
       assert.equal(edit(r, rel, "console.log('x');\n").stdout, '', rel);
