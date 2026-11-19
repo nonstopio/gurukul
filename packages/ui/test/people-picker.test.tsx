@@ -14,7 +14,9 @@ const PEOPLE: Person[] = [
 /**
  * Counts React state updates scheduled while it runs: React reads `window.event` to pick the
  * priority of an update made outside an event handler. That read is what threw on CI when a late
- * answer arrived after the test environment had removed `window`.
+ * answer arrived after the test environment had removed `window`. React's Scheduler tasks read it
+ * too, so `run` must not wait for a timer: a task an earlier test left queued would run there and
+ * be counted (it did, on a loaded machine).
  */
 async function updatesDuring(run: () => Promise<void>): Promise<number> {
   let reads = 0;
@@ -522,15 +524,25 @@ describe('PeoplePicker: like a Jira people field', () => {
     // A late answer used to set state after the test environment (and `window`) was torn down,
     // failing CI with an unhandled error although every test passed.
     let answer: (people: Person[]) => void = () => {};
-    const search = vi.fn(() => new Promise<Person[]>((resolve) => (answer = resolve)));
+    let asked = Promise.resolve<Person[]>([]);
+    const search = vi.fn(() => (asked = new Promise<Person[]>((resolve) => (answer = resolve))));
+    // Answers the newest search and returns once the picker has taken it. The picker awaited that
+    // same promise first, so its code after the await has run when ours resumes. Only microtasks
+    // pass, never a timer: React work an earlier test left queued cannot run, and be counted, here.
+    const deliver = () =>
+      updatesDuring(async () => {
+        answer(PEOPLE);
+        await asked;
+      });
     const { unmount } = render(<Harness search={search} />);
-    fireEvent.focus(screen.getByRole('combobox', { name: 'Add people' }));
-    expect(search).toHaveBeenCalled();
+    // The control: while the picker is there, its answer is an update the count sees.
+    fireEvent.focus(box());
+    expect(await act(deliver)).toBeGreaterThan(0);
+    expect(expanded()).toBe('true');
+    fireEvent.change(box(), { target: { value: 'a' } });
+    expect(search).toHaveBeenCalledTimes(2);
     unmount();
-    const updates = await updatesDuring(async () => {
-      answer(PEOPLE);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    expect(updates).toBe(0);
+    // The same answer once the picker has gone is no update at all.
+    expect(await deliver()).toBe(0);
   });
 });
