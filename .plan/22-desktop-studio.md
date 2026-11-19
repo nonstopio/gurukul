@@ -516,7 +516,8 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   changes only the words of a media block (alt, caption, title, label), never an address or an
   upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep
   media), a block with an existing `id` to rewrite it in place (so Review shows Changed, not
-  Removed and Added), or a block without one to add it.
+  Removed and Added; every field the block needs is given, as for a new one, and `update_block`
+  is for changing a few), or a block without one to add it.
 - `update_question` keeps answers by id (`{ id, text }`) so a reworded answer stays the same
   answer, and keeps the right answers marked when `correct` is left out.
 

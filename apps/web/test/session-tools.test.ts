@@ -296,6 +296,23 @@ describe('describeIssue on a union', () => {
     );
   });
 
+  it('passes over an option that does not know the value’s keys, and names a missing field', () => {
+    const issue = { code: 'invalid_union', path: at, message: 'Invalid input' };
+    const missing = {
+      code: 'invalid_type',
+      path: ['title'],
+      message: 'Invalid input: expected string, received undefined',
+    };
+    const strange = { code: 'unrecognized_keys', path: [], message: 'Unrecognized keys' };
+    const said = 'In chapter "Basics" (p1) › lesson "Branches" (l2), title is missing.';
+    expect(describeIssue(course, { ...issue, errors: [[strange], [missing, blank]] })).toBe(said);
+    expect(describeIssue(course, { ...issue, errors: [[missing, blank], [strange]] })).toBe(said);
+    const nested = { ...strange, path: ['cover'] };
+    expect(describeIssue(course, { ...issue, errors: [[nested], [missing, blank]] })).toBe(
+      'In chapter "Basics" (p1) › lesson "Branches" (l2), cover: Unrecognized keys.',
+    );
+  });
+
   it('falls back to the union’s own message when no option says more', () => {
     const issue = { code: 'invalid_union', path: at, message: 'No matching discriminator' };
     const said = 'In chapter "Basics" (p1) › lesson "Branches" (l2), No matching discriminator.';

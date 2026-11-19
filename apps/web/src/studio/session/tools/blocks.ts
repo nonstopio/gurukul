@@ -242,7 +242,7 @@ const keep = z.strictObject({
 
 export const setBlocks = defineTool({
   name: 'set_blocks',
-  description: `Replaces all of a lesson’s blocks in one call, in the order given. Each entry is either {"keep": "<block id>"} to keep a block as it is (the only way to keep media), a block with the "id" of an existing block of the same type to rewrite it in place (fields left out stay as they were), or a block without an id to add a new one. Blocks not listed are removed. ${MEDIA}`,
+  description: `Replaces all of a lesson’s blocks in one call, in the order given. Each entry is either {"keep": "<block id>"} to keep a block as it is (the only way to keep media), a block with the "id" of an existing block of the same type to rewrite it in place (give every field it needs, as for a new block; to change a few fields of one block, use update_block), or a block without an id to add a new one. Blocks not listed are removed. ${MEDIA}`,
   input: z.strictObject({
     lessonId,
     blocks: z.array(z.union([keep, blockInput(true)])).max(60),

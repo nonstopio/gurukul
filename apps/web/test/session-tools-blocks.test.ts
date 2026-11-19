@@ -258,6 +258,17 @@ describe('set_blocks', () => {
     expect(text).toMatch(/^Set 4 blocks \(ids in order: b3, b1, b-[0-9a-f]{8}, b2\); 1 removed\.$/);
   });
 
+  it('says which field a rewritten block is missing, not that it is not a keep', async () => {
+    const set = (blocks: unknown[]) =>
+      refused(call(toolState(), 'set_blocks', { lessonId: 'l1', blocks }));
+    expect(await set([{ type: 'check', id: 'b4', explanation: 'Snapshots, always.' }])).toBe(
+      'The input for set_blocks is not valid. In block 1 (check), prompt is missing.',
+    );
+    expect(await set([{ type: 'code', id: 'b2', code: 'git log' }])).toBe(
+      'The input for set_blocks is not valid. In block 1 (code), lang is missing.',
+    );
+  });
+
   it('can empty a lesson', async () => {
     const { state } = await ok(call(toolState(), 'set_blocks', { lessonId: 'l1', blocks: [] }));
     expect(blocksOf(state, 'l1')).toEqual([]);

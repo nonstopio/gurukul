@@ -61,9 +61,14 @@ function entryName(list: string, index: number, entry: unknown): string {
 
 /** The issue in one sentence, naming where it is in words: `In lesson "Rebase" (l2), title cannot be empty.` */
 export function describeIssue(root: unknown, issue: Issue): string {
-  // A lesson or Quiz is a union: say what is wrong with the option it is closest to being.
+  // A lesson or Quiz is a union: say what is wrong with the option it is closest to being. An
+  // option that does not know the value's keys at all (`{ keep }` for a whole block) is the
+  // furthest, whatever its count.
   if (issue.code === 'invalid_union' && issue.errors && issue.errors.length > 0) {
-    const closest = issue.errors.reduce((a, b) => (b.length < a.length ? b : a));
+    const distance = (option: Issue[]) =>
+      option.length +
+      (option.some((i) => i.code === 'unrecognized_keys' && i.path.length === 0) ? 1_000 : 0);
+    const closest = issue.errors.reduce((a, b) => (distance(b) < distance(a) ? b : a));
     const first = closest[0];
     if (first) return describeIssue(root, { ...first, path: [...issue.path, ...first.path] });
   }
@@ -92,6 +97,8 @@ export function describeIssue(root: unknown, issue: Issue): string {
     sentence = `${what} is too long: at most ${String(max)} characters`;
   else if (issue.code === 'too_small' && issue.origin === 'string' && issue.minimum === 1)
     sentence = `${what} cannot be empty`;
+  else if (issue.code === 'invalid_type' && issue.message.endsWith('received undefined'))
+    sentence = `${what} is missing`;
   else sentence = field ? `${field}: ${issue.message}` : issue.message;
   const text = `${where}${sentence}.`;
   return text.charAt(0).toUpperCase() + text.slice(1);
