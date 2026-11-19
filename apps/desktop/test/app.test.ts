@@ -23,6 +23,7 @@ afterEach(async () => {
 
 function fakeWindow() {
   const listeners = new Map<string, () => void>();
+  const contentsListeners = new Map<string, (...args: never[]) => void>();
   const mainFrame = { origin: 'http://localhost:5173', parent: null, send: vi.fn() };
   return {
     loadURL: vi.fn(async () => undefined),
@@ -31,9 +32,20 @@ function fakeWindow() {
     restore: vi.fn(),
     focus: vi.fn(),
     on: vi.fn((name: string, listener: () => void) => listeners.set(name, listener)),
-    webContents: { mainFrame, on: vi.fn() },
+    webContents: {
+      mainFrame,
+      on: vi.fn((name: string, listener: (...args: never[]) => void) =>
+        contentsListeners.set(name, listener),
+      ),
+    },
     close: () => listeners.get('closed')?.(),
-  } satisfies WindowLike & { close(): void };
+    /** The page asks to stay; true when the shell let it go anyway. */
+    vetoUnload: () => {
+      const event = { preventDefault: vi.fn() };
+      contentsListeners.get('will-prevent-unload')?.(event as never);
+      return event.preventDefault.mock.calls.length > 0;
+    },
+  } satisfies WindowLike & { close(): void; vetoUnload(): boolean };
 }
 
 function setup({ packaged = false, lock = true, platform = 'linux' } = {}) {
@@ -237,6 +249,20 @@ describe('updates', () => {
         handlers.get(channel('app.installUpdate'))?.(topFrame(origin)),
       ).resolves.toBeUndefined();
     }
+  });
+
+  it('let a page that asks to stay go only while an update installs', async () => {
+    const { deps, windows, handlers, sink } = setup({ packaged: true, platform: 'win32' });
+    await startApp(deps);
+    const win = windows[0] as ReturnType<typeof fakeWindow>;
+    // Outside an install the page's question stands (Electron's default: the close is cancelled).
+    expect(win.vetoUnload()).toBe(false);
+    const downloaded = deps.updater.on.mock.calls.find(([name]) => name === 'update-downloaded');
+    (downloaded?.[1] as (info: { version: string }) => void)({ version: '0.2.0' });
+    void handlers.get(channel('app.installUpdate'))?.(topFrame('https://gurukul.nonstopio.com'));
+    expect(deps.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    expect(win.vetoUnload()).toBe(true);
+    expect(sink).toHaveBeenCalledWith('info', 'Page left for an update', {});
   });
 
   it('answer “Check for updates…” in the menu with a message box', async () => {

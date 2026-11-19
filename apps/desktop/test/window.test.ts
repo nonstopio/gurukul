@@ -21,8 +21,9 @@ function fakeWindow(loadURL = vi.fn(async () => undefined)) {
     on: vi.fn(),
     webContents: {
       mainFrame: { origin: 'http://localhost:5173', parent: null, send: vi.fn() },
-      on: (_name: string, listener: FailLoad) => {
-        failLoad = listener;
+      // `openWindow` listens for `did-fail-load` only.
+      on: (_name: string, listener: (...args: never[]) => void) => {
+        failLoad = listener as FailLoad;
       },
     },
   } satisfies WindowLike;

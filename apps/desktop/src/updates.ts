@@ -11,11 +11,23 @@ import type { Logger } from './log';
  * normal Quit installs it too. Only the menu's "Check for updates…" answers in a dialog, because the
  * Educator asked.
  *
+ * The restart must not hang on a page that asks before it is left (Studio's unsaved draft, the
+ * console's unsaved form): the web asks its own page first and installs only when nothing would be
+ * lost, the shell lets the page go while an install runs (`isInstalling`, read by `app.ts` on
+ * `will-prevent-unload`), and an install that has not quit the app after `INSTALL_WAIT_MS` counts
+ * as failed.
+ *
  * Over adapters (`electron-updater`'s `autoUpdater`, a message box, timers), so it runs in Vitest.
  */
 
 /** How often a running app looks for a new shell. */
 export const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * How long an install may take to quit the app before it counts as failed. Long enough for
+ * Squirrel.Mac to finish taking the download from electron-updater, which it does before it quits.
+ */
+export const INSTALL_WAIT_MS = 30 * 1000;
 
 /** The parts of `electron-updater`'s `autoUpdater` used here. */
 export interface UpdaterLike {
@@ -47,7 +59,10 @@ export interface UpdateDeps {
   appVersion: string;
   events: EventSender;
   showMessage(message: UpdateMessage): Promise<unknown>;
-  timers: { setInterval(callback: () => void, ms: number): unknown };
+  timers: {
+    setInterval(callback: () => void, ms: number): unknown;
+    setTimeout(callback: () => void, ms: number): unknown;
+  };
   log: Logger;
 }
 
@@ -60,9 +75,11 @@ export interface Updates {
   checkFromMenu(): Promise<void>;
   /**
    * `app.installUpdate`: restarts into the downloaded shell. Resolves only when that did not
-   * happen (nothing downloaded, or the install failed and the app stays open).
+   * happen (nothing downloaded, or the install failed or timed out and the app stays open).
    */
   install(): Promise<void>;
+  /** An install is running: the window lets its page go instead of asking to stay. */
+  isInstalling(): boolean;
 }
 
 /** The `code` of an updater error (`ERR_UPDATER_…`, `ENOTFOUND`); its message holds URLs. */
@@ -128,12 +145,15 @@ export function createUpdates(deps: UpdateDeps): Updates {
 
   // The install never happened: the app stays open, the sidebar item goes (the window hears it from
   // `install` resolving) and the next check downloads it again.
-  const abortInstall = (error: unknown) => {
-    log.error('Update install failed', error);
+  const abortInstall = () => {
     const current = installing as { resolve: () => void };
     installing = null;
     ready = null;
     current.resolve();
+  };
+  const failInstall = (error: unknown) => {
+    log.error('Update install failed', error);
+    abortInstall();
   };
 
   const check = async (): Promise<UpdateCheck> => {
@@ -178,7 +198,7 @@ export function createUpdates(deps: UpdateDeps): Updates {
       updater.autoInstallOnAppQuit = true;
       updater.logger = null;
       updater.on('error', (error) => {
-        if (installing !== null) abortInstall(error);
+        if (installing !== null) failInstall(error);
         else log.warn('Updater error', { code: errorCode(error) });
       });
       updater.on('update-downloaded', (info) => {
@@ -201,14 +221,23 @@ export function createUpdates(deps: UpdateDeps): Updates {
       const promise = new Promise<void>((r) => {
         resolve = r;
       });
-      installing = { promise, resolve };
+      const current = { promise, resolve };
+      installing = current;
       log.info('Update installing', { version: ready });
+      // Nothing says the quit was refused (a page that will not be left, an installer that never
+      // quits the app): an install still running after the wait has failed.
+      deps.timers.setTimeout(() => {
+        if (installing !== current) return;
+        log.warn('Update install timed out', { waitedMs: INSTALL_WAIT_MS });
+        abortInstall();
+      }, INSTALL_WAIT_MS);
       try {
         updater.quitAndInstall(false, true);
       } catch (error) {
-        abortInstall(error);
+        failInstall(error);
       }
       return promise;
     },
+    isInstalling: () => installing !== null,
   };
 }

@@ -970,6 +970,18 @@ Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
   Studio's: the update is the app's, and hiding the item on Learn pages would only hide it). Clicking it restarts and installs; a normal Quit installs
   it too. If the install fails the app stays open, the item goes away and the next check tries
   again.
+- **The restart never waits on a page that asks to stay.** Studio's unsaved draft and the
+  console's unsaved forms ask with `beforeunload`; Electron then cancels the quit without a word
+  (measured on Electron 45: no updater error, `will-quit` never fires), so the item would spin until
+  the Educator quit, and on Windows the NSIS installer has already started before `app.quit()` is
+  refused. The rule: the web asks its own page first (a cancelable `beforeunload` it dispatches
+  itself, `unsavedWork()`), and with unsaved work it installs nothing and says "Save your work
+  first", keeping the item. Otherwise it calls `app.installUpdate()`, and while that install runs
+  the shell lets the page go (`will-prevent-unload` → `preventDefault`), since the page already
+  said nothing would be lost; Studio's draft keeps a copy on this device on the way out either way.
+  An install that has not quit the app after 30 seconds counts as failed (`Update install timed
+  out`): the item goes and the next check tries again. A normal Quit with unsaved work is still
+  refused by the page, as before; a downloaded update then waits for the next Quit.
 - **Check for updates…** in the app menu checks on demand and says "up to date", "already
   checking", or points at the sidebar item.
 - An open session is safe across the restart: it is written to disk after every turn.
@@ -977,7 +989,8 @@ Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
   **web app** arrives with a normal deploy; if it needs a newer bridge than the installed shell
   has, the page says "Update the app" and offers Check for updates. As built, that is the same
   sidebar place: "Update the app" asks the shell (`app.checkForUpdate`), says what it found, and
-  installs once the update is downloaded. Session pages (`DSK-11`) still show their own card for
+  installs if the update is already downloaded; if it is still downloading, the item waits for
+  `app.onUpdateReady` and becomes "Update ready". Session pages (`DSK-11`) still show their own card for
   `needs_update`, which now carries the bridge for those two calls.
 - Changes from Morph: the `log` helper instead of `console.warn`, wording in Gurukul's voice, and
   the logic tested in Vitest at 100% with the updater, dialog and timer injected (Morph's

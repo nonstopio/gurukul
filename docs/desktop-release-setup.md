@@ -157,6 +157,9 @@ installed by hand; every later one arrives by itself.
    updates…**). It says the new version is downloading, or is ready.
 4. When it is ready, the sidebar shows **Update ready**. Quit nothing yet: confirm the app keeps
    working with the item there.
+   Then leave work unsaved (an Admin console form filled in and not submitted, or a Studio edit
+   within the three seconds before it saves) and choose **Update ready**: it says **Save your work
+   first**, installs nothing and the item stays. Save or leave that page, and go on.
 5. Choose **Update ready**. The app restarts into the new version. Confirm the version (macOS: **Gurukul
    Studio → About Gurukul Studio**; Windows: **Settings → Apps → Installed apps**) and that the open session and the sign-in survived.
 6. Repeat on an Apple Silicon Mac, an Intel Mac and a Windows PC. On Windows, also try the other

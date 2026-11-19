@@ -34,6 +34,7 @@ function fakeUpdates(): Updates {
     check: vi.fn(async () => ({ state: 'ready', version: '0.2.0' }) as const),
     checkFromMenu: vi.fn(async () => undefined),
     install: vi.fn(async () => undefined),
+    isInstalling: vi.fn(() => false),
   };
 }
 

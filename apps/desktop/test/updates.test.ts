@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { UpdateCheck } from '../src/bridge';
 import { createLogger } from '../src/log';
-import { CHECK_EVERY_MS, createUpdates, menuMessage, type UpdaterLike } from '../src/updates';
+import {
+  CHECK_EVERY_MS,
+  INSTALL_WAIT_MS,
+  createUpdates,
+  menuMessage,
+  type UpdaterLike,
+} from '../src/updates';
 
 /*
  * Morph's `scripts/check-updates.cjs` cases, ported: the update decisions without downloading a
@@ -28,6 +34,8 @@ function harness({ supported = true } = {}) {
   const send = vi.fn(() => true);
   const showMessage = vi.fn(async () => undefined);
   const setInterval = vi.fn();
+  const timeouts: { callback: () => void; ms: number }[] = [];
+  const setTimeout = vi.fn((callback: () => void, ms: number) => timeouts.push({ callback, ms }));
   const sink = vi.fn();
   const updates = createUpdates({
     updater,
@@ -35,12 +43,25 @@ function harness({ supported = true } = {}) {
     appVersion: '0.1.0',
     events: { send },
     showMessage,
-    timers: { setInterval },
+    timers: { setInterval, setTimeout },
     log: createLogger({ sink }),
   });
   const emit = (event: string, arg: unknown) => listeners[event]?.(arg);
   const downloaded = (version: string) => emit('update-downloaded', { version });
-  return { updates, updater, send, showMessage, setInterval, sink, emit, downloaded };
+  /** Runs every timeout that has come due. */
+  const elapse = () => timeouts.splice(0).forEach(({ callback }) => callback());
+  return {
+    updates,
+    updater,
+    send,
+    showMessage,
+    setInterval,
+    timeouts,
+    sink,
+    emit,
+    downloaded,
+    elapse,
+  };
 }
 
 /** A check that finds `version` and a download that finishes when `finish` is called. */
@@ -193,6 +214,52 @@ describe('updates', () => {
     await expect(h.updates.check()).resolves.toEqual({ state: 'up_to_date' });
     h.downloaded('0.2.0');
     await expect(h.updates.check()).resolves.toEqual({ state: 'ready', version: '0.2.0' });
+  });
+
+  it('count an install the page kept from quitting as failed after the wait', async () => {
+    // A page asking to stay cancels the quit without an updater error: `quitAndInstall` returns and
+    // nothing else happens. Without the wait the item would spin until the Educator quit.
+    const h = harness();
+    h.updates.start();
+    h.downloaded('0.2.0');
+    const install = h.updates.install();
+    expect(h.updates.isInstalling()).toBe(true);
+    expect(h.timeouts.map(({ ms }) => ms)).toEqual([INSTALL_WAIT_MS]);
+    expect(INSTALL_WAIT_MS).toBe(30_000);
+    const settled = vi.fn();
+    void install.then(settled);
+    await settle();
+    expect(settled).not.toHaveBeenCalled();
+    h.elapse();
+    await expect(install).resolves.toBeUndefined();
+    expect(h.updates.isInstalling()).toBe(false);
+    expect(h.sink).toHaveBeenCalledWith('warn', 'Update install timed out', {
+      waitedMs: INSTALL_WAIT_MS,
+    });
+    // The item is gone; the next download offers it again and a click tries again.
+    await expect(h.updates.check()).resolves.toEqual({ state: 'up_to_date' });
+    h.downloaded('0.2.0');
+    void h.updates.install();
+    expect(h.updater.quitAndInstall).toHaveBeenCalledTimes(2);
+  });
+
+  it('leave a later install alone when an earlier one’s wait comes due', async () => {
+    const h = harness();
+    h.updates.start();
+    h.downloaded('0.2.0');
+    const first = h.updates.install();
+    h.emit('error', new Error('not signed'));
+    await expect(first).resolves.toBeUndefined();
+    h.downloaded('0.2.1');
+    void h.updates.install();
+    // Only the second install's own wait may end it.
+    h.timeouts.shift()?.callback();
+    expect(h.updates.isInstalling()).toBe(true);
+    h.elapse();
+    expect(h.updates.isInstalling()).toBe(false);
+    expect(
+      h.sink.mock.calls.filter(([, event]) => event === 'Update install timed out'),
+    ).toHaveLength(1);
   });
 
   it('take the same path when quitAndInstall throws outright', async () => {

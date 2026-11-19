@@ -100,6 +100,15 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     win.on('closed', () => {
       if (current === win) current = null;
     });
+    // The Educator chose Update ready and the web found nothing unsaved; a page that still asks to
+    // stay would leave the restart hanging (Electron cancels the quit without a word) and, on
+    // Windows, the installer already running beside the open app. Studio's draft keeps a copy on
+    // this device on the way out either way.
+    win.webContents.on('will-prevent-unload', (event) => {
+      if (!updates.isInstalling()) return;
+      log.info('Page left for an update', {});
+      event.preventDefault();
+    });
     current = win;
   };
 
