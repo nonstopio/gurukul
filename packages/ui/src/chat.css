@@ -1,0 +1,77 @@
+.g-chat-log {
+  min-width: 0;
+}
+.g-chat-log__list {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-chat-msg {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+.g-chat-msg__who {
+  margin: 0;
+  font: 600 var(--text-xs) / var(--leading-snug) var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.g-chat-msg__body {
+  min-width: 0;
+}
+.g-chat-msg__body > :first-child {
+  margin-top: 0;
+}
+.g-chat-msg__body > :last-child {
+  margin-bottom: 0;
+}
+.g-chat-msg--you {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+/* What the person typed keeps its line breaks. */
+.g-chat-msg--you .g-chat-msg__body {
+  white-space: pre-wrap;
+}
+.g-chat-msg--notice {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+.g-chat-msg__icon {
+  margin-top: 0.2em;
+}
+.g-chat-turn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-block: 1px solid var(--border);
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
+.g-chat-activity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.5rem;
+  margin: 0;
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-muted);
+}
+.g-chat-activity svg {
+  flex: none;
+  color: var(--accent);
+}

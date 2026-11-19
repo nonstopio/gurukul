@@ -325,6 +325,26 @@ for an alert that receives focus (the sign-in refusal: a non-NonStop account is 
 confused face, because picking that account was the person's choice; "Sign-in did not finish" is
 `error`, the sad face).
 
+## ChangeMark — shipped
+
+`<ChangeMark statuses={['changed', 'moved']} what="Code block">{the block as drawn}</ChangeMark>`. Marks a
+changed piece of a course where it is drawn (a Desktop Studio session's preview): a `role="group"` named
+"changed and moved: Code block", a 1px dashed hairline in the first status's line token, `--radius-lg`, and
+a pill label at the top with a sign (plus, pen, swap, bin) and the words ("Changed · Moved · Code block",
+`aria-hidden`: the group name says it). Tones: added `--accent-soft` / `--accent-soft-text`, changed
+`--warning-soft` / `--warning`, moved `--info-soft` / `--info`, removed `--danger-soft` / `--danger`, the
+pairs `Chip` uses. Without children (something removed) only the mark is drawn. Never colour alone.
+
+## ChatLog, ChatMessage, ChatTurn, ChatActivity — shipped
+
+A chat with an agent. `<ChatLog label>` is a `role="log"` region round an `<ol>` (it takes a `ref`; a layout
+that gives it a height scrolls it, with `tabIndex={0}`). `<ChatMessage from="you|agent|notice" author?>`:
+who said it is a word above it (`--text-xs` caps, `--text-muted`); the person's own sit on
+`--surface-sunken` with `--radius-lg` and keep their line breaks; a notice is a quiet line led by the info
+icon. `<ChatTurn>` is the line after a turn, between hairlines, holding its name and actions (a quiet link,
+an Undo). `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
+in `--accent`): always rendered, empty between turns, so a new line is announced; no animation.
+
 ## Explanation — shipped
 
 `<Explanation verdict="correct|incorrect|neutral" title="Correct. Here is why">reason</Explanation>`.
