@@ -21,8 +21,8 @@ function setup(openExternal = vi.fn(async () => undefined)) {
   } as unknown as ContentsLike;
   const sink = vi.fn();
   guardContents(contents, ORIGINS, { openExternal }, createLogger({ sink }));
-  const fire = (name: string, url?: string) => {
-    const event = { url, preventDefault: vi.fn() };
+  const fire = (name: string, url?: string, isMainFrame = true) => {
+    const event = { url, isMainFrame, preventDefault: vi.fn() };
     (listeners.get(name) as (event: unknown) => void)(event);
     return event;
   };
@@ -79,6 +79,14 @@ describe('guardContents', () => {
     ).not.toHaveBeenCalled();
     expect(fire('will-redirect', 'https://evil.example/').preventDefault).toHaveBeenCalled();
     expect(openExternal).not.toHaveBeenCalled();
+  });
+
+  it('lets an embedded frame follow a redirect to another site', () => {
+    // A youtu.be embed answers with a redirect to www.youtube.com; frames never get the bridge.
+    const { fire, sink } = setup();
+    const event = fire('will-redirect', 'https://www.youtube.com/embed/x', false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(sink).not.toHaveBeenCalled();
   });
 
   it('never opens a second window: web links go to the system browser', () => {

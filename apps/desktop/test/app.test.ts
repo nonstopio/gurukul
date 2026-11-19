@@ -24,6 +24,7 @@ function fakeWindow() {
   const listeners = new Map<string, () => void>();
   return {
     loadURL: vi.fn(async () => undefined),
+    isDestroyed: vi.fn(() => false),
     isMinimized: vi.fn(() => false),
     restore: vi.fn(),
     focus: vi.fn(),

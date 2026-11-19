@@ -27,6 +27,7 @@ vi.mock('electron', () => {
     static getAllWindows = () => mocks.windows;
     webContents = { on: vi.fn() };
     loadURL = vi.fn(async () => undefined);
+    isDestroyed = () => false;
     on = vi.fn();
     constructor(public opts: unknown) {
       mocks.windows.push(this);

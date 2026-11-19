@@ -60,6 +60,7 @@ export const RETRY_MS = 2000;
 /** The parts of Electron's `BrowserWindow` the shell uses. */
 export interface WindowLike {
   loadURL(url: string): Promise<void>;
+  isDestroyed(): boolean;
   isMinimized(): boolean;
   restore(): void;
   focus(): void;
@@ -90,13 +91,22 @@ export function openWindow(
   log: Logger,
 ): WindowLike {
   const win = createWindow(options);
-  // A failed load also rejects this promise; `did-fail-load` below is what acts on it.
-  const load = () => win.loadURL(url).catch(() => undefined);
+  const load = () => {
+    // A retry can come due after the window closed (macOS keeps the app running with no window),
+    // and a destroyed window's `loadURL` throws instead of rejecting.
+    if (win.isDestroyed()) return;
+    try {
+      // A failed load also rejects this promise; `did-fail-load` below is what acts on it.
+      win.loadURL(url).catch(() => undefined);
+    } catch {
+      // Nothing to load into: the next `did-fail-load`, if any, tries again.
+    }
+  };
   win.webContents.on('did-fail-load', (_event, errorCode, _description, _url, isMainFrame) => {
     if (!isMainFrame || errorCode === ABORTED) return;
     log.warn('Page failed to load', { code: errorCode, retryMs: RETRY_MS });
-    timers.setTimeout(() => void load(), RETRY_MS);
+    timers.setTimeout(load, RETRY_MS);
   });
-  void load();
+  load();
   return win;
 }

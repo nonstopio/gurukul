@@ -3,9 +3,9 @@ import type { Logger } from './log';
 
 /**
  * The window stays on Gurukul. A link to anywhere else opens in the system browser; a new window is
- * never created; a redirect away from Gurukul is stopped; `<webview>` is refused. Applied to every
- * web contents the app creates (`app.on('web-contents-created')`), so nothing slips past by being
- * created later.
+ * never created; a redirect of the window away from Gurukul is stopped; `<webview>` is refused.
+ * Applied to every web contents the app creates (`app.on('web-contents-created')`), so nothing
+ * slips past by being created later.
  */
 
 /** Schemes the system browser or mail app may be asked to open. Never `file:` or a custom scheme. */
@@ -38,6 +38,7 @@ interface PreventableEvent {
 
 interface NavigationEvent extends PreventableEvent {
   readonly url: string;
+  readonly isMainFrame: boolean;
 }
 
 /** The parts of Electron's `WebContents` the guard uses. */
@@ -69,7 +70,10 @@ export function guardContents(
     else log.warn('Navigation blocked', { reason: 'scheme' });
   });
 
+  // Only the window itself must stay on Gurukul. A frame (a lesson's embed or video) may follow a
+  // redirect to another site, as `youtu.be` links do: frames never get the bridge.
   contents.on('will-redirect', (event) => {
+    if (!event.isMainFrame) return;
     if (decideNavigation(event.url, origins) === 'stay') return;
     event.preventDefault();
     log.warn('Navigation blocked', { reason: 'redirect' });
