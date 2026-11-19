@@ -1,6 +1,6 @@
 ---
 name: humanize
-description: Rewrite a text into plain English for a NonStop engineer before you write it into the course, then run the writing lint and fix what it reports. Use on every text you write - lesson text, callouts, checks, titles, the course summary and description, outcomes, Quiz questions, answers and explanations.
+description: Rewrite a text into plain English for a NonStop engineer before you write it into the course, then run the writing lint and fix its findings on the text you wrote. Use on every text you write - lesson text, callouts, checks, titles, the course summary and description, outcomes, Quiz questions, answers and explanations.
 ---
 
 # Humanize a text before you write it
@@ -34,8 +34,12 @@ phrase it knows. Remove each one from your text before you write it.
 
 - Write the text with the tool that changes it.
 - Right after, call `lint_writing` for that lesson or Quiz. For course details, the landing page or
-  a chapter title, call it with no item.
-- Fix every finding and lint again until it reports none.
+  a chapter title, call it with no item: that lints the whole course.
+- Fix each finding on text you wrote or changed in this session, then lint again. Stop when none of
+  those is left.
+- Leave findings on text you did not touch. The whole course holds lessons and Quizzes written
+  before this session. Do not rewrite them: tell the Educator in one plain sentence what the lint
+  found there, and offer to fix it.
 - When a finding is wrong (a product name that looks like Title Case, say), leave it and tell the
   Educator in one plain sentence. Review shows it as a writing note.
 

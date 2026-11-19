@@ -43,5 +43,6 @@ Educator instead.
 - Set minutes, layout and how it is completed with `update_item`.
 - Every picture, video or file the lesson needs is a to-do: `add_todo` with the lesson and the
   block it goes after.
-- Then call `lint_writing` for this lesson and fix every finding before you start the next one.
+- Then call `lint_writing` for this lesson. Fix each finding on text you wrote or changed before
+  you start the next one.
 - Mark the goal this lesson serves with `set_summary` once it is done.

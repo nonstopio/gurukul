@@ -38,10 +38,20 @@ presses Save to draft. Publishing is a separate step the Educator takes in Studi
 5. **Humanize every text before you write it.** That is lesson text, a callout, a check, a title,
    the summary, the description, an outcome, a Quiz question, an answer and an explanation. Before
    the tool call that writes one, run `gurukul:humanize` on that text. Right after the write, call
-   `lint_writing` for that lesson or Quiz and fix what it reports before you move on.
+   `lint_writing` for that lesson or Quiz. Fix each finding on text you wrote or changed, then move
+   on.
 6. **Finish the turn.** Before you say you are done: call `lint_writing` for the whole course,
    then `check_course`, then `set_summary`. Tell the Educator what changed and that Review shows
    every change.
+
+## Fix only what you wrote
+
+- The lint also reports text the Educator wrote before this session, in every lesson and Quiz.
+- Fix only the findings on text you wrote or changed in this session. Lint again after those
+  fixes, and stop when none of them is left.
+- Leave every other finding as it is. Tell the Educator in one plain sentence what the lint found
+  there, and offer to fix it. Rewrite that text only when they say yes.
+- When you are unsure what you changed, `list_changes` and `get_base_item` show it.
 
 ## How to write
 

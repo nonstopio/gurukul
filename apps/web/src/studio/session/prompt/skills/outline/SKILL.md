@@ -42,8 +42,8 @@ with one line on what the learner can do afterwards. Then ask whether to go ahea
 - Run `gurukul:humanize` on the titles and outcomes first.
 - Add chapters with `add_chapter` and empty lessons with `add_lesson`, in order. Rename or move
   what already exists with `update_chapter`, `update_item`, `move_chapter` and `move_item`.
-- Set the outcomes with `set_landing`, then call `lint_writing` with no item and fix what it
-  reports.
+- Set the outcomes with `set_landing`, then call `lint_writing` with no item. Fix each finding on
+  text you wrote or changed: the titles and outcomes. Leave the rest of the course as it is.
 - Record the agreed plan with `set_summary`: the title and one goal per agreed piece of work.
 - Add a to-do with `add_todo` for every picture, video or file the outline needs.
 

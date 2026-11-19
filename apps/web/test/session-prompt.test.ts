@@ -192,6 +192,35 @@ describe('the rules the prompt sets', () => {
     expect(skillMd('humanize')).toContain('`lint_writing`');
   });
 
+  it('the prompt fixes lint findings only on text the session wrote or changed', () => {
+    expect(SYSTEM_PROMPT).toMatch(/Fix only the findings on text you wrote or changed/);
+    expect(SYSTEM_PROMPT).toMatch(/Leave every other finding as it is/);
+    expect(SYSTEM_PROMPT).toMatch(/Rewrite that text only when they say yes/);
+  });
+
+  it('the humanize skill fixes only changed text and leaves the rest of the course', () => {
+    const md = skillMd('humanize');
+    expect(md).toMatch(/Fix each finding on text you wrote or changed in this session/);
+    expect(md).toMatch(/Leave findings on text you did not touch/);
+    expect(md).toMatch(/Do not rewrite them/);
+    expect(md).not.toMatch(/until it reports none/);
+  });
+
+  // `lint_writing` with no item lints the whole working copy, older lessons and Quizzes included.
+  it.each([
+    'system prompt',
+    'outline/SKILL.md',
+    'lesson/SKILL.md',
+    'quiz/SKILL.md',
+    'humanize/SKILL.md',
+  ])('the %s never asks for every finding in the course to be fixed', (where) => {
+    const text = (TEXTS.find(([w]) => w === where) as [string, string])[1];
+    expect(text).toContain('`lint_writing`');
+    expect(text).toMatch(/finding on\s+text you\s+wrote\s+or\s+changed/);
+    expect(text).not.toMatch(/fix\s+(every\s+finding|what\s+it\s+reports)/i);
+    expect(text).not.toMatch(/until it reports none/);
+  });
+
   it('the lesson and outline skills hold back lessons until the outline is agreed', () => {
     expect(skillMd('outline')).toMatch(/Nothing in a lesson is written until the Educator agrees/);
     expect(skillMd('lesson')).toMatch(/only after the Educator has\s+agreed the outline/);
@@ -243,10 +272,14 @@ describe('agentSetup', () => {
   });
 
   it('gives fresh objects each time', () => {
+    const before = SKILLS[0]?.files[0]?.text;
     const first = agentSetup();
+    expect(first.skills[0]).not.toBe(SKILLS[0]);
+    expect(first.skills[0]?.files).not.toBe(SKILLS[0]?.files);
+    expect(first.skills[0]?.files[0]).not.toBe(SKILLS[0]?.files[0]);
     (first.skills[0]?.files[0] as { text: string }).text = 'changed';
-    expect(agentSetup().skills[0]?.files[0]?.text).toBe(skillMd('outline'));
-    expect(SKILLS[0]?.files[0]?.text).toBe(skillMd('outline'));
+    expect(SKILLS[0]?.files[0]?.text).toBe(before);
+    expect(agentSetup().skills[0]?.files[0]?.text).toBe(before);
   });
 
   it('takes the tools to list', () => {

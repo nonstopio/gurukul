@@ -39,4 +39,4 @@ A Quiz checks what the lessons taught. It never asks about something no lesson e
 - Add a question with `add_question`. Change one with `update_question`: keep each answer's id
   when you reword it, so Review shows it as reworded, not replaced.
 - Move or remove questions with `move_question` and `remove_question`, only when asked.
-- Then call `lint_writing` for the Quiz and fix every finding.
+- Then call `lint_writing` for the Quiz. Fix each finding on text you wrote or changed.
