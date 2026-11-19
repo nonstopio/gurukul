@@ -423,7 +423,9 @@ As built in `DSK-09`:
   says, in plain words, to go back to the app, and the app's window comes to the front.
 - **Endings.** Five minutes without the browser coming back is `timeout`; Cancel on Google's page
   is `cancelled`; a second call while one waits replaces it (the first answers `cancelled`, its
-  listener closes), so pressing Sign in again after closing the tab just works. A token that
+  listener closes), so pressing Sign in again after closing the tab just works: in the desktop app
+  the sign-in button stays usable while the browser waits (no spinner), and the waiting hint says
+  so. A token that
   arrives after the time is up is thrown away.
 - **Contract change:** `GoogleSignInResult`'s reasons gained `not_configured`, for a build made
   without a client id (a development build with nothing set). Not a breaking change: no site used

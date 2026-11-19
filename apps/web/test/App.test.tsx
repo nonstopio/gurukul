@@ -168,6 +168,29 @@ describe('sign-in pending state', () => {
     }
   });
 
+  it('in the desktop app, Sign in stays usable while it waits, and pressing it again starts over', async () => {
+    (window as { gurukulDesktop?: unknown }).gurukulDesktop = { info: () => Promise.resolve() };
+    try {
+      const f = fakeAuth();
+      const finishes: (() => void)[] = [];
+      f.service.signIn = vi.fn(() => new Promise<void>((resolve) => finishes.push(resolve)));
+      renderSignedOut(f);
+      act(() => f.emitUser(null));
+      const button = () => screen.getByRole('button', { name: 'Sign in with Google' });
+      fireEvent.click(button());
+      expect(button().hasAttribute('disabled')).toBe(false);
+      fireEvent.click(button());
+      expect(f.service.signIn).toHaveBeenCalledTimes(2);
+      // The replaced attempt answers quietly; the hint stays for the one still waiting.
+      await act(async () => finishes[0]?.());
+      expect(screen.getByText(/opened in your browser/)).toBeTruthy();
+      await act(async () => finishes[1]?.());
+      expect(screen.queryByText(/opened in your browser/)).toBeNull();
+    } finally {
+      delete (window as { gurukulDesktop?: unknown }).gurukulDesktop;
+    }
+  });
+
   it('never shows the browser hint outside the desktop app', () => {
     const f = fakeAuth();
     f.service.signIn = vi.fn(() => new Promise<void>(() => undefined));

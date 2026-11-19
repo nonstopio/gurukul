@@ -48,13 +48,21 @@ export function SignInPage() {
   const { signIn, error, wrongAccount } = useSession();
   const alert = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(false);
+  // In the desktop app the button stays usable while the browser waits, so someone who closed the
+  // Google tab can start over; the new attempt replaces the old one, and only the latest attempt
+  // ends the waiting state.
+  const attempt = useRef(0);
+  const desktop = isDesktop();
   const accepted = usePolicyAccepted();
   const [agreed, setAgreed] = useState(false);
   const start = (options?: { chooseAccount: boolean }) => {
     if (!accepted) acceptPolicy();
     markSignInStarted();
     setPending(true);
-    void signIn(options).finally(() => setPending(false));
+    const mine = ++attempt.current;
+    void signIn(options).finally(() => {
+      if (attempt.current === mine) setPending(false);
+    });
   };
   useEffect(() => {
     if (wrongAccount) alert.current?.focus();
@@ -108,7 +116,7 @@ export function SignInPage() {
           <Button
             variant="primary"
             icon={<GoogleMark />}
-            loading={pending}
+            loading={pending && !desktop}
             disabled={!accepted && !agreed}
             onClick={() => start(wrongAccount ? { chooseAccount: true } : undefined)}
           >
@@ -116,10 +124,10 @@ export function SignInPage() {
           </Button>
           {/* The desktop app signs in through the system browser; the region is there from the
               start so a screen reader announces the hint when it appears. */}
-          {isDesktop() ? (
+          {desktop ? (
             <p className="learn-meta" role="status">
               {pending
-                ? 'Google sign-in opened in your browser. Finish there, then come back here.'
+                ? 'Google sign-in opened in your browser. Finish there, then come back here. Closed the tab? Sign in again.'
                 : null}
             </p>
           ) : null}

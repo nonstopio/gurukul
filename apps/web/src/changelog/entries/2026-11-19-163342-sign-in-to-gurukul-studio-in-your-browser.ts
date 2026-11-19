@@ -11,6 +11,7 @@ export default {
     'could not work in the desktop app the way it does on the website.',
   detail: [
     'In the desktop app, "Sign in with Google" opens Google in your usual browser. Pick your @nonstopio.com account there, then come back: the app is signed in.',
+    'Closed the Google tab, or picked the wrong account? Press "Sign in with Google" again to start over.',
     'Nothing changes on the website.',
   ],
 } satisfies ChangelogEntry;
