@@ -196,6 +196,37 @@ export default tseslint.config(
       ],
     },
   },
+  // DESKTOP: one logger in the main process; only apps/desktop/src/log.ts touches the console, and a
+  // log message is a constant phrase (.claude/rules/logging.md, apps/desktop/CLAUDE.md).
+  {
+    files: ['apps/desktop/src/**/*.ts'],
+    ignores: ['apps/desktop/src/log.ts'],
+    rules: { 'no-console': ['error', { allow: ['none'] }] },
+  },
+  {
+    files: ['apps/desktop/src/log.ts'],
+    rules: { 'no-console': 'off' },
+  },
+  {
+    files: ['apps/desktop/src/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > TemplateLiteral[expressions.length>0]',
+          message:
+            'Log a constant event phrase and put values in fields: log.warn("Bridge call refused", { call }). See .claude/rules/logging.md.',
+        },
+        {
+          selector:
+            'CallExpression[callee.object.name="log"][callee.property.name=/^(debug|info|warn|error)$/] > BinaryExpression[operator="+"]',
+          message:
+            'Log a constant event phrase and put values in fields: log.warn("Bridge call refused", { call }). See .claude/rules/logging.md.',
+        },
+      ],
+    },
+  },
   {
     files: ['**/*.{js,mjs}'],
     languageOptions: { globals: { ...globals.node } },
