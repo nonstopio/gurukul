@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { useBlocker } from 'react-router';
 import { ConfirmDialog } from '../studio/ConfirmDialog';
 
@@ -20,7 +20,9 @@ export function LeavePrompt({
     ({ currentLocation, nextLocation }) =>
       when && currentLocation.pathname !== nextLocation.pathname,
   );
-  useEffect(() => {
+  // A layout effect, so the tab-close warning switches in the same commit that draws the page:
+  // after a page shows "assigned", closing the tab must not still ask.
+  useLayoutEffect(() => {
     if (!when) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', warn);

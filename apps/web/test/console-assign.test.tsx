@@ -923,8 +923,16 @@ describe('Assign: leaving with input', () => {
     const { router } = await open(c);
     await toReview('a@nonstopio.com');
     expect(unload()).toBe(true);
+    const seen: boolean[] = [];
+    const mo = new MutationObserver(() => {
+      if (seen.length === 0 && screen.queryByRole('button', { name: 'Assign more' }))
+        seen.push(unload());
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
     fireEvent.click(screen.getByRole('button', { name: /^Assign to/ }));
     await screen.findByRole('button', { name: 'Assign more' });
+    mo.disconnect();
+    expect(seen).toEqual([false]);
     expect(unload()).toBe(false);
     await leave(router);
     expect(router.state.location.pathname).toBe('/admin');
