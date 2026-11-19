@@ -28,6 +28,12 @@ export interface CourseTileProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   meta?: ReactNode;
   /** A progress bar or other block between the summary and the meta line. */
   extra?: ReactNode;
+  /**
+   * One control of its own under the meta line ("Edit with AI"): a button or a link to somewhere
+   * other than the tile's page. It sits above the stretched title link (`--z-raised`), so it is a
+   * second target beside the tile's one link, never a link nested in it.
+   */
+  action?: ReactNode;
   /** The element to render. Default: `article`. */
   as?: 'article' | 'li';
   /**
@@ -54,6 +60,7 @@ export function CourseTile({
   summary,
   meta,
   extra,
+  action,
   as: Tag = 'article',
   onSelectedChange,
   selected = false,
@@ -106,6 +113,7 @@ export function CourseTile({
         {summary ? <p className="g-course-tile__summary">{summary}</p> : null}
         {extra}
         {meta ? <p className="g-course-tile__meta">{meta}</p> : null}
+        {action ? <div className="g-course-tile__action">{action}</div> : null}
       </div>
     </Tag>
   );

@@ -1173,6 +1173,11 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           theme="sand"
           heading={<a href="#forms">Accessible forms</a>}
           summary="No picture: the name sits on the course colour."
+          action={
+            <Button variant="secondary" size="sm">
+              Edit with AI
+            </Button>
+          }
         />
         <CourseTile
           title="Git, the NonStop Way"

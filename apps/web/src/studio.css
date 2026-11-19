@@ -655,3 +655,26 @@
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+
+/* ---- Desktop sessions (studio/session/) ---- */
+.ss-resume,
+.ss-goals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.ss-resume p,
+.ss-resume ul {
+  margin: 0;
+}
+.ss-resume ul,
+.ss-goals {
+  padding-left: var(--space-5);
+}
+.ss-resume ul {
+  display: grid;
+  gap: var(--space-1);
+}
+.ss-resume a {
+  color: var(--accent);
+}

@@ -47,5 +47,9 @@ export const navigation = {
     '/studio/courses/:courseId/preview/:itemId': {
       context: 'needs a course and an item id; reached from the editors',
     },
+    '/studio/sessions/:sessionId': {
+      context:
+        'needs a session id; reached from the course list in the desktop app, and offered by search there as a session record (sessionSource)',
+    },
   },
 } satisfies AreaNavigation;

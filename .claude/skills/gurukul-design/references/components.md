@@ -757,7 +757,11 @@ glyph) in it instead of a player; no open-in-new-tab link. Never bare text where
 
 ## CourseTile — shipped
 
-`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? />`.
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? action? />`.
+`action` is one control of the tile's own under the meta line (Studio's "Edit with AI" in the desktop app):
+it sits above the title's stretched link on `--z-raised`, so it is a second target beside the tile's one
+link, never nested in it. Keep it to one quiet button (`variant="secondary" size="sm"`); the tile's own
+destination stays the title.
 `cover` replaces the picture with a drawing at its own height: the certificates gallery shows each
 certificate, scaled down, as its cover (the record is still one link, the heading's).
 A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover

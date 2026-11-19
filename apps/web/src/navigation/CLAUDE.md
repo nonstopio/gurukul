@@ -53,7 +53,9 @@ A new area is a new file in `areas/`; nothing to register.
 
 Search also offers records — every course the person may open, the lessons of the courses they are
 taking (the five most recent, read whole; `LESSON_COURSES`), the courses an Educator or Admin may
-edit (never-published ones included), and people for Admins. Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
+edit (never-published ones included), people for Admins, and, inside the desktop app only, an
+Educator's or Admin's authoring sessions on that computer (`sessionSource`: `Frame` adds it only when
+`isDesktop()`, and its `load` imports the session store lazily, so a browser never fetches it). Each comes from a `RecordSource` (`types.ts`): an id, optional `roles`,
 and `load()` returning `Destination`s with a `kind` ("Course", "Lesson"). The sources are built in
 `Frame` (`src/Shell.tsx`) and passed to `GlobalSearchProvider`, which:
 
