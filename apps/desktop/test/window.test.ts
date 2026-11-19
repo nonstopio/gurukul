@@ -20,6 +20,7 @@ function fakeWindow(loadURL = vi.fn(async () => undefined)) {
     focus: vi.fn(),
     on: vi.fn(),
     webContents: {
+      mainFrame: { origin: 'http://localhost:5173', parent: null, send: vi.fn() },
       on: (_name: string, listener: FailLoad) => {
         failLoad = listener;
       },

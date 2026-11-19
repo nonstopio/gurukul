@@ -1,20 +1,21 @@
 import { z } from 'zod';
-import { BRIDGE_VERSION, MAX_FILE_BYTES, MAX_SEGMENT_LENGTH, MAX_PATH_SEGMENTS } from './bridge';
-import type { Handlers } from './ipc';
+import { agentCalls } from './agentCalls';
+import { appCalls } from './appCalls';
+import { id, relativePath } from './args';
+import { authCalls } from './authCalls';
+import { BRIDGE_VERSION, MAX_FILE_BYTES } from './bridge';
+import type { AreaHandlers, Handlers } from './ipc';
 import type { SessionStore } from './store';
+import { sourcesCalls } from './sourcesCalls';
 
 /**
- * The handlers of bridge version 1: `info` and `store.*`. Later items add theirs here (`agent.*`,
- * `auth.googleSignIn`, `sources.*`, `app.*`), each with a zod schema for its arguments. The schemas
- * check shape and length only; `store.ts` decides which names are safe, so the rule lives in one
- * place.
+ * Every handler of bridge version 1, one area per file: `info` and `store.*` here, then
+ * `agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts` and `appCalls.ts`, whose calls are refused as
+ * not available until their items build them. Each has a zod schema for its arguments. The store's
+ * schemas check shape and length only; `store.ts` decides which names are safe, so the rule lives in
+ * one place.
  */
 
-const id = z.string().min(1).max(MAX_SEGMENT_LENGTH);
-const relativePath = z
-  .string()
-  .min(1)
-  .max((MAX_SEGMENT_LENGTH + 1) * MAX_PATH_SEGMENTS);
 const file = z.object({ uid: id, sessionId: id, path: relativePath }).strict();
 // A string with more characters than the limit has bytes is refused here; `store.ts` then measures
 // the UTF-8 bytes exactly.
@@ -26,7 +27,9 @@ export interface HandlerDeps {
   store: SessionStore;
 }
 
-export function createHandlers({ appVersion, platform, store }: HandlerDeps): Handlers {
+type CoreHandlers = Pick<Handlers, 'info'> & AreaHandlers<'store'>;
+
+function coreCalls({ appVersion, platform, store }: HandlerDeps): CoreHandlers {
   return {
     info: {
       args: z.tuple([]),
@@ -42,5 +45,15 @@ export function createHandlers({ appVersion, platform, store }: HandlerDeps): Ha
       args: z.tuple([z.object({ uid: id, sessionId: id, path: relativePath.optional() }).strict()]),
       run: (ref) => store.remove(ref),
     },
+  };
+}
+
+export function createHandlers(deps: HandlerDeps): Handlers {
+  return {
+    ...coreCalls(deps),
+    ...agentCalls(),
+    ...sourcesCalls(),
+    ...authCalls(),
+    ...appCalls(),
   };
 }

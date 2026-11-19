@@ -1,4 +1,5 @@
 import { originsArgument } from './config';
+import type { EventFrameLike } from './events';
 import type { Logger } from './log';
 
 /**
@@ -66,6 +67,8 @@ export interface WindowLike {
   focus(): void;
   on(event: 'closed', listener: () => void): unknown;
   webContents: {
+    /** The top frame: where bridge events go (`events.ts`). */
+    readonly mainFrame: EventFrameLike;
     on(
       event: 'did-fail-load',
       listener: (

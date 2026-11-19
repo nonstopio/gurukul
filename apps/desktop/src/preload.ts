@@ -1,10 +1,10 @@
 // The preload: Electron glue only. The logic is in preloadApi.ts.
 import { contextBridge, ipcRenderer } from 'electron';
-import { buildBridge, originsFromArgv, shouldExpose } from './preloadApi';
+import { buildBridge, listenVia, originsFromArgv, shouldExpose } from './preloadApi';
 
 if (shouldExpose(window, originsFromArgv(process.argv))) {
   contextBridge.exposeInMainWorld(
     'gurukulDesktop',
-    buildBridge((name, ...args) => ipcRenderer.invoke(name, ...args)),
+    buildBridge((name, ...args) => ipcRenderer.invoke(name, ...args), listenVia(ipcRenderer)),
   );
 }

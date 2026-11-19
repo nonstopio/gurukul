@@ -1,5 +1,12 @@
 import type { z } from 'zod';
-import { CALLS, channel, type CallArgs, type CallName, type CallResult } from './bridge';
+import {
+  BRIDGE_ERRORS,
+  CALLS,
+  channel,
+  type CallArgs,
+  type CallName,
+  type CallResult,
+} from './bridge';
 import type { Logger } from './log';
 import { SessionFileError } from './store';
 
@@ -40,6 +47,32 @@ export interface Handler<N extends CallName> {
 /** A handler for every call: adding a call to `BridgeCalls` without one fails to compile. */
 export type Handlers = { [N in CallName]: Handler<N> };
 
+/** The calls of one area: `CallsIn<'agent'>` is `agent.status`, `agent.start`, … */
+export type CallsIn<P extends string> = Extract<CallName, `${P}.${string}`>;
+
+/** The handlers of one area, as an `*Calls.ts` file gives them to `createHandlers`. */
+export type AreaHandlers<P extends string> = { [N in CallsIn<P>]: Handler<N> };
+
+/** Thrown by a call this shell has in its contract but does not do yet. */
+export class NotAvailableError extends Error {
+  override name = 'NotAvailableError';
+}
+
+/**
+ * A handler for a call a later item implements: the arguments are checked as they will be, then the
+ * call is refused with `BRIDGE_ERRORS.notAvailable`, so a site that calls it early gets an answer it
+ * can show instead of a crash. The item that builds the call replaces `notAvailable(…)` with a
+ * handler and keeps the schema.
+ */
+export function notAvailable<N extends CallName>(args: z.ZodType<CallArgs<N>>): Handler<N> {
+  return {
+    args,
+    run: () => {
+      throw new NotAvailableError(BRIDGE_ERRORS.notAvailable);
+    },
+  };
+}
+
 export type SenderCheck = { ok: true } | { ok: false; reason: 'no frame' | 'subframe' | 'origin' };
 
 export function checkSender(event: InvokeEventLike, origins: readonly string[]): SenderCheck {
@@ -51,8 +84,8 @@ export function checkSender(event: InvokeEventLike, origins: readonly string[]):
 }
 
 /** What the window sees when a call is refused or fails. Constant: no path, no argument. */
-export const REFUSED = 'Not allowed';
-export const INVALID = 'Invalid arguments';
+export const REFUSED = BRIDGE_ERRORS.refused;
+export const INVALID = BRIDGE_ERRORS.invalid;
 
 /** A failure the window can act on: the call and the system error code (`EACCES`), no path. */
 function failure(name: CallName, error: unknown): Error {
@@ -82,6 +115,10 @@ export function registerHandlers(
       try {
         return await (handler.run as (...a: unknown[]) => unknown)(...parsed.data);
       } catch (error) {
+        if (error instanceof NotAvailableError) {
+          log.warn('Bridge call refused', { call: name, reason: 'not available' });
+          throw new Error(BRIDGE_ERRORS.notAvailable);
+        }
         if (error instanceof SessionFileError) {
           log.warn('Bridge call refused', { call: name, reason: error.message });
           throw new Error(error.message);

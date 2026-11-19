@@ -1,22 +1,85 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BRIDGE_ERRORS,
   BRIDGE_VERSION,
   CALLS,
+  EVENTS,
   MAX_PATH_SEGMENTS,
   MAX_SEGMENT_LENGTH,
+  MAX_SKILL_PATH_SEGMENTS,
+  MAX_SOURCE_NAME_LENGTH,
   channel,
+  eventChannel,
+  isPlainFileName,
   isSafePath,
   isSafeSegment,
 } from '../src/bridge';
 
 describe('bridge contract', () => {
-  it('is version 1 with the info and store calls', () => {
+  it('is version 1 with every call of the plan', () => {
     expect(BRIDGE_VERSION).toBe(1);
-    expect(CALLS).toEqual(['info', 'store.read', 'store.write', 'store.list', 'store.remove']);
+    expect(CALLS).toEqual([
+      'info',
+      'store.read',
+      'store.write',
+      'store.list',
+      'store.remove',
+      'agent.status',
+      'agent.start',
+      'agent.send',
+      'agent.stop',
+      'agent.close',
+      'agent.forget',
+      'agent.toolResult',
+      'sources.choose',
+      'sources.list',
+      'sources.reveal',
+      'sources.read',
+      'auth.googleSignIn',
+      'app.checkForUpdate',
+      'app.installUpdate',
+    ]);
+    expect(EVENTS).toEqual(['agent.onEvent', 'agent.onToolCall', 'app.onUpdateReady']);
   });
 
-  it('namespaces every channel', () => {
+  it('namespaces every channel, calls and events apart', () => {
     expect(channel('store.read')).toBe('gurukul:store.read');
+    expect(eventChannel('agent.onEvent')).toBe('gurukul-event:agent.onEvent');
+    const calls = new Set(CALLS.map(channel));
+    expect(EVENTS.map(eventChannel).some((c) => calls.has(c))).toBe(false);
+  });
+
+  it('refuses with three constant messages', () => {
+    expect(BRIDGE_ERRORS).toEqual({
+      refused: 'Not allowed',
+      invalid: 'Invalid arguments',
+      notAvailable: 'Not available in this version',
+    });
+  });
+
+  it('keeps a skill inside the session folder’s depth', () => {
+    expect(MAX_SKILL_PATH_SEGMENTS).toBe(2);
+  });
+});
+
+describe('isPlainFileName', () => {
+  it.each(['notes.md', 'Rebase notes (draft).md', 'पाठ.txt', '.env', 'a'.repeat(255)])(
+    'accepts %s',
+    (name) => {
+      expect(isPlainFileName(name)).toBe(true);
+    },
+  );
+
+  it.each([
+    ['empty', ''],
+    ['the current folder', '.'],
+    ['the parent folder', '..'],
+    ['a slash', 'a/b'],
+    ['a backslash', 'a\\b'],
+    ['a NUL byte', 'a\0b'],
+    ['a name that is too long', 'a'.repeat(MAX_SOURCE_NAME_LENGTH + 1)],
+  ])('refuses %s', (_label, name) => {
+    expect(isPlainFileName(name)).toBe(false);
   });
 });
 

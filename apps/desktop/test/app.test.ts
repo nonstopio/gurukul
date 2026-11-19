@@ -22,6 +22,7 @@ afterEach(async () => {
 
 function fakeWindow() {
   const listeners = new Map<string, () => void>();
+  const mainFrame = { origin: 'http://localhost:5173', parent: null, send: vi.fn() };
   return {
     loadURL: vi.fn(async () => undefined),
     isDestroyed: vi.fn(() => false),
@@ -29,7 +30,7 @@ function fakeWindow() {
     restore: vi.fn(),
     focus: vi.fn(),
     on: vi.fn((name: string, listener: () => void) => listeners.set(name, listener)),
-    webContents: { on: vi.fn() },
+    webContents: { mainFrame, on: vi.fn() },
     close: () => listeners.get('closed')?.(),
   } satisfies WindowLike & { close(): void };
 }
@@ -82,7 +83,7 @@ const topFrame = (origin: string): InvokeEventLike => ({ senderFrame: { origin, 
 describe('startApp', () => {
   it('quits when another copy is already running, and touches nothing else', async () => {
     const { deps } = setup({ lock: false });
-    await startApp(deps);
+    await expect(startApp(deps)).resolves.toBeNull();
     expect(deps.app.quit).toHaveBeenCalled();
     expect(deps.app.whenReady).not.toHaveBeenCalled();
     expect(deps.createWindow).not.toHaveBeenCalled();
@@ -194,17 +195,48 @@ describe('startApp', () => {
   });
 });
 
+describe('bridge events', () => {
+  const event = { type: 'text', sessionId: 's1', text: 'Hello' } as const;
+
+  it('go to the current window’s top frame on its event channel', async () => {
+    const { deps, windows } = setup();
+    const shell = await startApp(deps);
+    expect(shell?.events.send('agent.onEvent', event)).toBe(true);
+    expect(windows[0]?.webContents.mainFrame.send).toHaveBeenCalledWith(
+      'gurukul-event:agent.onEvent',
+      event,
+    );
+  });
+
+  it('are not sent when the window is closed or destroyed, or the frame left Gurukul', async () => {
+    const { deps, windows, sink } = setup({ packaged: true });
+    const shell = await startApp(deps);
+    const win = windows[0] as ReturnType<typeof fakeWindow>;
+    // A packaged build allows only production; this window's frame is on the dev server.
+    expect(shell?.events.send('agent.onEvent', event)).toBe(false);
+    expect(sink).toHaveBeenCalledWith('warn', 'Bridge event not sent', {
+      event: 'agent.onEvent',
+      reason: 'origin',
+    });
+    win.isDestroyed.mockReturnValue(true);
+    expect(shell?.events.send('agent.onEvent', event)).toBe(false);
+    win.close();
+    expect(shell?.events.send('app.onUpdateReady', { version: '1.0.0' })).toBe(false);
+    expect(win.webContents.mainFrame.send).not.toHaveBeenCalled();
+  });
+});
+
 describe('main', () => {
   it('starts the app', async () => {
     const { deps, windows } = setup();
-    await main(deps);
+    await expect(main(deps)).resolves.toEqual({ events: expect.any(Object) });
     expect(windows).toHaveLength(1);
   });
 
   it('logs and quits when start-up fails', async () => {
     const { deps, sink } = setup();
     deps.app.whenReady.mockRejectedValue(new Error('no display'));
-    await main(deps);
+    await expect(main(deps)).resolves.toBeNull();
     expect(sink).toHaveBeenCalledWith('error', 'Desktop shell failed to start', {
       error: { name: 'Error' },
     });

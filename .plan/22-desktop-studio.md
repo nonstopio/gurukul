@@ -131,13 +131,14 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | Call | Does |
 |---|---|
 | `info()` | Bridge version, app version, platform. An old shell with a new site shows "Update the app" |
-| `agent.status()` | Is Claude Code installed, which version, is it new enough |
-| `agent.start({ sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session |
-| `agent.send(sessionId, message)` / `agent.stop(sessionId)` | A message in; stop the current turn |
-| `agent.onEvent(handler)` | Streamed text, tool activity, turn end, errors (sign-in needed, plan limit reached) |
-| `agent.onToolCall(handler)` | A tool call from the agent; the web app runs it and returns the result |
+| `agent.status()` | Is Claude Code installed, which version, is it new enough, is the Educator signed in |
+| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start |
+| `agent.send(sessionId, message)` / `agent.stop(sessionId)` / `agent.close(sessionId)` | A message in; stop the current turn; end the session's process |
+| `agent.forget(agentSessionId)` | Deletes Claude Code's own copy of a chat, for the 30-day clean-up |
+| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id, errors (not installed, too old, not signed in, plan limit reached, crashed) |
+| `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
-| `sources.choose / list / reveal` | The session's Sources folder |
+| `sources.choose / list / reveal / read` | The session's Sources folder; `read` takes one plain file name the listing gives |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
 | `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
@@ -152,6 +153,21 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   imports it as `@gurukul/desktop/bridge`. Not in `packages/schema`: these are not Firestore
   shapes, and the schema package is in every learner's chunk.
 - **Every call returns a promise**, `info()` included: each one crosses to the main process.
+- **The whole version-1 contract exists from the start.** A call whose item is not built yet checks
+  its arguments, then refuses with "Not available in this version", so a site that calls it early
+  shows a message instead of crashing. Each area's handlers live in their own file
+  (`agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts`).
+- **Events (`on…`) go one way, main to window**, only to the window's top frame while it is on an
+  allowed origin. A subscription returns a function that ends it; the page's handler gets plain
+  data, never Electron's event object, and there is no way to listen on any other channel.
+- **The window names a session, never a path.** `sources.*` and `agent.start` take
+  `{ uid, sessionId }`: the shell remembers which folder the Educator picked for that session,
+  outside the session files the window can write, so a compromised page still reaches only the one
+  chosen folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
+  cancelled) is a result, not a rejection.
+- **The web app takes the types only** (`import type`, enforced by ESLint), so no shell code reaches
+  its bundle; `REQUIRED_BRIDGE_VERSION` in `apps/web/src/desktop/bridge.ts` decides "Update the
+  app".
 - **One gate for every call.** The main process registers a typed handler per call; before any
   runs it checks that the sender is a top frame (no parent) on an allowed origin and that the
   arguments pass the handler's zod schema. The preload also exposes the object only to the top

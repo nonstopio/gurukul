@@ -170,3 +170,104 @@ describe('registerHandlers', () => {
     );
   });
 });
+
+describe('calls a later item builds', () => {
+  const ref = { uid: 'u1', sessionId: 's1' };
+  const uuid = '0b6e4f3e-6b7a-4c1e-9d55-2f1a3c4b5d6e';
+  const start = {
+    uid: 'u1',
+    sessionId: 's1',
+    systemPrompt: 'You help an Educator.',
+    skills: [
+      {
+        name: 'humanize',
+        files: [
+          { path: 'SKILL.md', text: '# Humanize' },
+          { path: 'references/words.md', text: 'words' },
+        ],
+      },
+    ],
+    tools: [
+      { name: 'get_course', description: 'Reads the course.', inputSchema: { type: 'object' } },
+    ],
+    resumeId: null,
+  };
+
+  const valid: [string, unknown[]][] = [
+    ['agent.status', []],
+    ['agent.start', [start]],
+    ['agent.start', [{ ...start, resumeId: uuid }]],
+    ['agent.send', ['s1', 'Simplify the rebase chapter']],
+    ['agent.stop', ['s1']],
+    ['agent.close', ['s1']],
+    ['agent.forget', [uuid]],
+    ['agent.toolResult', ['s1', 'call-1', { text: '{}' }]],
+    ['agent.toolResult', ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }]],
+    ['sources.choose', [ref]],
+    ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }]],
+    ['sources.list', [ref]],
+    ['sources.reveal', [ref]],
+    ['sources.read', [ref, 'Rebase notes.md']],
+    ['auth.googleSignIn', []],
+    ['app.checkForUpdate', []],
+    ['app.installUpdate', []],
+  ];
+
+  it.each(valid)('checks %s’s arguments, then refuses it as not available', async (name, args) => {
+    const { call, sink } = setup();
+    await expect(call(name, top(), ...args)).rejects.toThrow(/^Not available in this version$/);
+    expect(sink).toHaveBeenCalledWith('warn', 'Bridge call refused', {
+      call: name,
+      reason: 'not available',
+    });
+  });
+
+  it('covers every call that is not info or store', () => {
+    const later = CALLS.filter((n) => n !== 'info' && !n.startsWith('store.'));
+    expect(new Set(valid.map(([n]) => n))).toEqual(new Set(later));
+  });
+
+  it.each([
+    [
+      'a skill name that climbs out',
+      'agent.start',
+      [{ ...start, skills: [{ name: '..', files: start.skills[0]?.files }] }],
+    ],
+    [
+      'a skill file too deep',
+      'agent.start',
+      [{ ...start, skills: [{ name: 'h', files: [{ path: 'a/b/c.md', text: '' }] }] }],
+    ],
+    ['a skill with no files', 'agent.start', [{ ...start, skills: [{ name: 'h', files: [] }] }]],
+    ['an empty prompt', 'agent.start', [{ ...start, systemPrompt: '' }]],
+    [
+      'a tool name with capitals',
+      'agent.start',
+      [{ ...start, tools: [{ ...start.tools[0], name: 'GetCourse' }] }],
+    ],
+    ['a resume id that is a path', 'agent.start', [{ ...start, resumeId: '../../x' }]],
+    ['a Sources path', 'agent.start', [{ ...start, sourcesDir: '/Users/x' }]],
+    ['an empty message', 'agent.send', ['s1', '']],
+    ['a message without a session', 'agent.send', ['Hello']],
+    ['a Claude session id that is a path', 'agent.forget', ['../projects']],
+    [
+      'a tool result with both text and error',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', error: 'b' }],
+    ],
+    ['a tool result that is a string', 'agent.toolResult', ['s1', 'c', 'ok']],
+    ['a suggested folder name with a slash', 'sources.choose', [{ ...ref, suggestedName: 'a/b' }]],
+    ['a Sources folder path', 'sources.list', [{ ...ref, path: '/etc' }]],
+    ['a source name with a slash', 'sources.read', [ref, '../secret.md']],
+    ['a source name of ..', 'sources.read', [ref, '..']],
+    ['arguments to googleSignIn', 'auth.googleSignIn', ['client']],
+  ])('refuses %s', async (_label, name, args) => {
+    const { call } = setup();
+    await expect(call(name, top(), ...args)).rejects.toThrow(INVALID);
+  });
+
+  it('checks the sender before saying a call is not available', async () => {
+    const { call } = setup();
+    await expect(call('agent.status', top('https://evil.example'))).rejects.toThrow(REFUSED);
+  });
+});

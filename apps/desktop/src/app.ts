@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { BRIDGE_VERSION } from './bridge';
 import { allowedOrigins, startUrl } from './config';
+import { createEventSender, type EventSender } from './events';
 import { createHandlers } from './handlers';
 import { registerHandlers, type IpcLike } from './ipc';
 import type { Logger } from './log';
@@ -58,12 +59,18 @@ export interface ShellDeps {
   log: Logger;
 }
 
-export async function startApp(deps: ShellDeps): Promise<void> {
+/** What a started shell hands back: the way to send the window bridge events. */
+export interface Shell {
+  events: EventSender;
+}
+
+/** Starts the shell; null when another copy is already running and this one quits. */
+export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   const { app, log } = deps;
   // A second copy would write the same session files: hand over to the first one instead.
   if (!app.requestSingleInstanceLock()) {
     app.quit();
-    return;
+    return null;
   }
 
   const dev = !app.isPackaged;
@@ -110,6 +117,13 @@ export async function startApp(deps: ShellDeps): Promise<void> {
     allowPermission(permission, requestingOrigin, origins),
   );
 
+  // Events go to the current window's top frame, looked up on every send.
+  const events = createEventSender(
+    () => (current === null || current.isDestroyed() ? null : current.webContents.mainFrame),
+    origins,
+    log,
+  );
+
   const store = createSessionStore(path.join(app.getPath('userData'), 'sessions'));
   registerHandlers(
     deps.ipc,
@@ -120,12 +134,14 @@ export async function startApp(deps: ShellDeps): Promise<void> {
 
   open();
   log.info('Desktop shell started', { dev, bridgeVersion: BRIDGE_VERSION });
+  return { events };
 }
 
 /** `startApp`, quitting with one log line if start-up throws. */
-export function main(deps: ShellDeps): Promise<void> {
+export function main(deps: ShellDeps): Promise<Shell | null> {
   return startApp(deps).catch((error: unknown) => {
     deps.log.error('Desktop shell failed to start', error);
     deps.app.quit();
+    return null;
   });
 }
