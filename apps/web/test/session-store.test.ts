@@ -5,6 +5,7 @@ import {
   HISTORY_FILE,
   NEW_COURSE_ID,
   SESSION_FILE,
+  START_CHECKPOINT,
   UNREADABLE_FILE,
   checkpointPath,
   createSessionStore,
@@ -14,6 +15,7 @@ import {
   sessionPath,
   titleFromGoal,
 } from '../src/studio/session/store';
+import { TRANSCRIPT_FILE, transcriptText } from '../src/studio/session/transcript';
 import { makeCourse } from './fake-data';
 import { fakeDesktop } from './fake-desktop';
 import { draftDoc } from './fake-studio';
@@ -292,6 +294,85 @@ describe('saveTurn and checkpoints', () => {
       file: 'checkpoint',
       reason: 'schema',
     });
+  });
+
+  it('keeps the start checkpoint however many turns follow', async () => {
+    const s = setup();
+    let session = await editSession(s);
+    await s.store.saveStart('s1', session.work);
+    for (let i = 1; i <= SESSION_CHECKPOINTS_KEPT + 1; i += 1) {
+      session = await s.store.saveTurn(session, turn(`t${i}`), session.work);
+    }
+    expect(await s.store.readCheckpoint('s1', START_CHECKPOINT)).toEqual(session.work);
+    expect(await s.store.readCheckpoint('s1', 't1.json')).toBeNull();
+  });
+
+  it('refuses a start checkpoint that is not a working copy', async () => {
+    const s = setup();
+    await expect(
+      s.store.saveStart('s1', { course: {} } as unknown as AuthoringSession['work']),
+    ).rejects.toThrow();
+    expect(s.files.has(`u1/s1/checkpoints/${START_CHECKPOINT}`)).toBe(false);
+  });
+});
+
+describe('undoTurn', () => {
+  it('drops the newest turn, takes the working copy given and removes its checkpoint', async () => {
+    const s = setup();
+    let session = await editSession(s);
+    const first = session.work;
+    const changed = { ...first, course: { ...first.course, title: 'Changed' } };
+    session = await s.store.saveTurn(session, turn('t1'), changed);
+    s.at(new Date(T0.getTime() + 1000));
+    const undone = await s.store.undoTurn(session, first);
+    expect(undone).toMatchObject({ turns: [], updatedAt: '2026-11-01T10:00:01.000Z' });
+    expect(undone.work).toEqual(first);
+    expect(await s.store.read('s1')).toEqual(undone);
+    expect(s.files.has('u1/s1/checkpoints/t1.json')).toBe(false);
+  });
+
+  it('only saves a session that has no turn to drop', async () => {
+    const s = setup();
+    const session = await editSession(s);
+    s.desktop.store.remove.mockClear();
+    expect((await s.store.undoTurn(session, session.work)).turns).toEqual([]);
+    expect(s.desktop.store.remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('transcript', () => {
+  const entry = (text: string) =>
+    ({ kind: 'agent', turnId: 't1', at: T0.toISOString(), text }) as const;
+
+  it('writes the chat as lines and reads it back', async () => {
+    const s = setup();
+    expect(await s.store.readTranscript('s1')).toEqual([]);
+    await s.store.writeTranscript('s1', [entry('One'), entry('Two')]);
+    expect(s.files.get(`u1/s1/${TRANSCRIPT_FILE}`)?.split('\n')).toHaveLength(3);
+    expect(await s.store.readTranscript('s1')).toEqual([entry('One'), entry('Two')]);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('leaves out damaged lines and says how many', async () => {
+    const s = setup({
+      files: {
+        [`u1/s1/${TRANSCRIPT_FILE}`]: `${JSON.stringify(entry('One'))}\n{"kind":"agent"}\n\n{oops\n`,
+      },
+    });
+    expect(await s.store.readTranscript('s1')).toEqual([entry('One')]);
+    expect(log.warn).toHaveBeenCalledWith('Session transcript lines unreadable', {
+      sessionId: 's1',
+      count: 2,
+    });
+  });
+
+  it('keeps the newest entries that fit', () => {
+    const [one, two, three] = [entry('One'), entry('Two'), entry('Three')];
+    const line = (e: ReturnType<typeof entry>) => `${JSON.stringify(e)}\n`;
+    const fits = line(two).length + line(three).length;
+    expect(transcriptText([one, two, three], fits)).toBe(line(two) + line(three));
+    expect(transcriptText([one, two, three], fits - 1)).toBe(line(three));
+    expect(transcriptText([one, two, three])).toBe(line(one) + line(two) + line(three));
   });
 });
 

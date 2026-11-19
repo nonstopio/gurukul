@@ -651,6 +651,60 @@ only inside the desktop app).
   Studio.
 - The header count and checks update after every turn. **Review** is always available.
 
+As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agent.ts`,
+`useAgentSession.ts`, `transcript.ts`, `activity.ts`), before any screen uses it:
+
+- **One runtime per open session** (`createAgentSession`), plain TypeScript, with a thin hook
+  (`useAgentSession({ desktop, uid, sessionId })`) over `useSyncExternalStore`. Its view is the
+  status, the problem, the transcript, the activity line, the working copy, the base,
+  `courseChanges(base, work)`, the turns with their counts, the running turn's count so far, and
+  whether Send, Stop and Undo apply. Statuses: `loading`, `missing`, `closed` (saved or discarded:
+  shown, never changed, no agent started), `connecting`, `unavailable`, `ready`, `working`,
+  `stopping`, `undoing`.
+- **Opening** reads `session.json` and `transcript.jsonl`, asks `agent.status()`, then
+  `agent.start()` with `agentSetup()` and `resumeId` = the session's `agentSessionId`. That id is
+  written only from a `turn_end`, never from `agent.start`'s answer: Claude Code keeps no chat for a
+  session that was never sent a message, so resuming such an id would fail as `crashed`. Not
+  installed, too old, not signed in, plan limit and crashed are each their own problem with its
+  sentence (not signed in is "Open a terminal, run `claude` and sign in, then try again"); a refused
+  bridge call is `app` (with "Check for updates" when the shell lacks the call). **Retry** asks
+  again.
+- **Tool calls run one at a time**, in the order they arrive, each on the result of the one before
+  (`runToolIn` with the session's tools and `defaultToolContext(sources)`), and are answered with
+  `agent.toolResult`: the result text, or the tool's refusal. A result longer than the shell's
+  `MAX_TOOL_RESULT_LENGTH` is refused and changes nothing. Only tools change the working copy.
+- **Every `turn_end` is a turn**, whatever its outcome (`done`, `stopped`, `failed`): its count is
+  `courseChanges` against the working copy the previous saved turn left, then `saveTurn` writes its
+  checkpoint and the session, then the whole chat is written. A failed `saveTurn` keeps the turn's
+  changes in memory and shows "not saved"; the next turn that is written counts them. A chat that
+  cannot be written is only logged: no course work is lost with it.
+- **Undo needs the copy from before the first turn.** A new course has no base, and after a save the
+  base is no longer the start, so the first turn's end also writes `checkpoints/start.json`, which
+  `saveTurn` never prunes. Undo reads the checkpoint of the turn before the newest (or
+  `start.json`), and the store's `undoTurn` drops the turn and its checkpoint file. Past the 30 kept
+  checkpoints it answers "no longer kept". Undo restores the working copy only; the agent's title,
+  summary, goals and to-dos stay as they are.
+- **The agent is told about undone turns** with the next message, ahead of the Educator's words
+  ("[From Gurukul: the Educator undid your last turn…]"), because its own history still says it
+  made those changes. `MESSAGE_MAX_LENGTH` (60,000) leaves room for that note under the shell's
+  limit.
+- **Stop** is `agent.stop`; the `stopped` turn end then writes the turn like any other. An error
+  event for a plan limit leaves the session waiting (the next message clears it); any other error
+  ends a turn the agent left open as `failed` and makes the session `unavailable`.
+- **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
+  answers the running process) is adopted at its first event or tool call, so its tool calls are
+  answered and its end is written, as "Carried on after the page reloaded".
+- **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
+  (`acquireAgentSession`); the last one to leave ends it at once, or, during a turn, when that turn
+  has been written. The `claude` process is not closed when the page goes: opening the session again
+  reuses it.
+- **The activity line** names what the agent does in plain words, one line per course tool
+  (`TOOL_ACTIVITY`, a test checks every tool has one), never a tool name.
+- **`transcript.jsonl`** holds one entry per line: the Educator's message, each streamed text block,
+  each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
+  its turn id. At most 6,000,000 characters are kept, the oldest entries going first; damaged lines
+  are skipped when read. Nothing in it is logged.
+
 ## Review: the whole session at once
 
 The **Review** tab of the session route. This is the screen the feature stands on.
