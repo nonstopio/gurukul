@@ -2,6 +2,8 @@ import path from 'node:path';
 import { BRIDGE_VERSION } from './bridge';
 import { allowedOrigins, startUrl } from './config';
 import { createEventSender, type EventSender } from './events';
+import type { GoogleClient } from './googleClient';
+import { createGoogleSignIn, type FetchLike } from './googleSignIn';
 import { createHandlers } from './handlers';
 import { registerHandlers, type IpcLike } from './ipc';
 import type { Logger } from './log';
@@ -56,6 +58,10 @@ export interface ShellDeps {
   preloadPath: string;
   platform: string;
   timers: { setTimeout(callback: () => void, ms: number): unknown };
+  /** For Google's token endpoint: Electron's `net.fetch`, which follows the system's proxy. */
+  fetch: FetchLike;
+  /** The Google Desktop OAuth client this build was given (`googleClient.ts`), or null. */
+  googleClient: GoogleClient | null;
   log: Logger;
 }
 
@@ -94,11 +100,12 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   app.on('web-contents-created', (_event, contents) =>
     guardContents(contents, origins, deps.shell, log),
   );
-  app.on('second-instance', () => {
+  const show = () => {
     if (current === null) return;
     if (current.isMinimized()) current.restore();
     current.focus();
-  });
+  };
+  app.on('second-instance', show);
   // macOS keeps an app running with no window; the Dock icon opens a new one.
   app.on('window-all-closed', () => {
     if (deps.platform !== 'darwin') app.quit();
@@ -127,7 +134,19 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   const store = createSessionStore(path.join(app.getPath('userData'), 'sessions'));
   registerHandlers(
     deps.ipc,
-    createHandlers({ appVersion: app.getVersion(), platform: deps.platform, store }),
+    createHandlers({
+      appVersion: app.getVersion(),
+      platform: deps.platform,
+      store,
+      // After the browser, the window comes back to the front.
+      googleSignIn: createGoogleSignIn({
+        client: deps.googleClient,
+        openExternal: (url) => deps.shell.openExternal(url),
+        fetch: deps.fetch,
+        log,
+        onSettled: show,
+      }),
+    }),
     origins,
     log,
   );

@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc --noEmit && npm run bundle",
-    "bundle": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node22 --external:electron --outfile=dist/main.cjs && esbuild src/preload.ts --bundle --platform=browser --format=cjs --target=es2023 --external:electron --outfile=dist/preload.cjs",
+    "bundle": "tsx scripts/bundle.ts",
     "dev": "npm run bundle && electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "electron": "45.2.3",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
   }
 }

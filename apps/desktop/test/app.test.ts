@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, startApp, type ShellDeps } from '../src/app';
 import { channel } from '../src/bridge';
 import { DEV_URL, PRODUCTION_URL } from '../src/config';
+import type { GoogleClient } from '../src/googleClient';
+import type { FetchLike } from '../src/googleSignIn';
 import type { InvokeEventLike } from '../src/ipc';
 import { createLogger } from '../src/log';
 import type { ContentsLike } from '../src/navigation';
@@ -35,7 +37,12 @@ function fakeWindow() {
   } satisfies WindowLike & { close(): void };
 }
 
-function setup({ packaged = false, lock = true, platform = 'linux' } = {}) {
+function setup({
+  packaged = false,
+  lock = true,
+  platform = 'linux',
+  googleClient = null as GoogleClient | null,
+} = {}) {
   const appListeners = new Map<string, (...args: unknown[]) => void>();
   const handlers = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
   const windows: ReturnType<typeof fakeWindow>[] = [];
@@ -54,7 +61,7 @@ function setup({ packaged = false, lock = true, platform = 'linux' } = {}) {
       ),
     },
     ipc: { handle: (name, listener) => void handlers.set(name, listener) },
-    shell: { openExternal: vi.fn(async () => undefined) },
+    shell: { openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined) },
     session: () => ({
       setPermissionRequestHandler: (h: unknown) => {
         permission.request = h;
@@ -72,6 +79,11 @@ function setup({ packaged = false, lock = true, platform = 'linux' } = {}) {
     preloadPath: '/app/dist/preload.cjs',
     platform,
     timers: { setTimeout: vi.fn() },
+    // Never Google: no test here reaches the token endpoint.
+    fetch: vi.fn<FetchLike>(async () => {
+      throw new Error('no network in tests');
+    }),
+    googleClient,
     log: createLogger({ sink }),
   } satisfies ShellDeps;
   const emit = (name: string, ...args: unknown[]) => appListeners.get(name)?.(...args);
@@ -166,6 +178,35 @@ describe('startApp', () => {
     win.close();
     emit('second-instance');
     expect(win.focus).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers Google sign-in as not set up when the build has no client', async () => {
+    const { deps, handlers } = setup();
+    await startApp(deps);
+    const signIn = handlers.get(channel('auth.googleSignIn'));
+    await expect(signIn?.(topFrame('http://localhost:5173'))).resolves.toEqual({
+      ok: false,
+      reason: 'not_configured',
+    });
+    expect(deps.shell.openExternal).not.toHaveBeenCalled();
+  });
+
+  it('signs in to Google in the system browser, then brings the window back', async () => {
+    const { deps, handlers, windows } = setup({
+      googleClient: { id: 'desktop-client', secret: null },
+    });
+    await startApp(deps);
+    const answer = handlers.get(channel('auth.googleSignIn'))?.(topFrame('http://localhost:5173'));
+    await vi.waitFor(() => expect(deps.shell.openExternal).toHaveBeenCalled());
+    const consent = new URL(String(deps.shell.openExternal.mock.calls[0]?.[0]));
+    expect(consent.searchParams.get('client_id')).toBe('desktop-client');
+    // The person presses Cancel on Google's page.
+    const back = new URL(String(consent.searchParams.get('redirect_uri')));
+    back.searchParams.set('state', String(consent.searchParams.get('state')));
+    back.searchParams.set('error', 'access_denied');
+    expect((await fetch(back)).status).toBe(200);
+    await expect(answer).resolves.toEqual({ ok: false, reason: 'cancelled' });
+    expect(windows[0]?.focus).toHaveBeenCalled();
   });
 
   it('opens a new window from the Dock only when none is open', async () => {

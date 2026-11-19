@@ -17,7 +17,12 @@ const mocks = vi.hoisted(() => {
       on: (name: string, listener: (...args: unknown[]) => void) => listeners.set(name, listener),
     },
     handle: vi.fn(),
-    openExternal: vi.fn(),
+    openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
+    netFetch: vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ id_token: 'a.b.c' }),
+    })),
     defaultSession: { setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn() },
   };
 });
@@ -28,6 +33,9 @@ vi.mock('electron', () => {
     webContents = { on: vi.fn() };
     loadURL = vi.fn(async () => undefined);
     isDestroyed = () => false;
+    isMinimized = () => false;
+    restore = vi.fn();
+    focus = vi.fn();
     on = vi.fn();
     constructor(public opts: unknown) {
       mocks.windows.push(this);
@@ -39,6 +47,7 @@ vi.mock('electron', () => {
     ipcMain: { handle: mocks.handle },
     session: { defaultSession: mocks.defaultSession },
     shell: { openExternal: mocks.openExternal },
+    net: { fetch: mocks.netFetch },
   };
 });
 
@@ -66,5 +75,36 @@ describe('main', () => {
     vi.runOnlyPendingTimers();
     expect(win.loadURL).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+
+  it('signs in to Google with the build’s client, through Electron’s shell and net', async () => {
+    // Unbundled, main.ts reads the variables the bundle would have written in as literals.
+    vi.stubEnv('GURUKUL_DESKTOP_GOOGLE_CLIENT_ID', 'desktop-client');
+    vi.stubEnv('GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET', '');
+    vi.resetModules();
+    mocks.handle.mockClear();
+    await import('../src/main');
+    await vi.waitFor(() =>
+      expect(mocks.handle).toHaveBeenCalledWith('gurukul:auth.googleSignIn', expect.any(Function)),
+    );
+    const signIn = mocks.handle.mock.calls.find(
+      ([name]) => name === 'gurukul:auth.googleSignIn',
+    )?.[1] as (event: unknown) => Promise<unknown>;
+    const result = signIn({
+      senderFrame: { origin: 'https://gurukul.nonstopio.com', parent: null },
+    });
+    await vi.waitFor(() => expect(mocks.openExternal).toHaveBeenCalled());
+    const consent = new URL(String(mocks.openExternal.mock.calls[0]?.[0]));
+    expect(consent.searchParams.get('client_id')).toBe('desktop-client');
+    const back = new URL(String(consent.searchParams.get('redirect_uri')));
+    back.searchParams.set('state', String(consent.searchParams.get('state')));
+    back.searchParams.set('code', 'c');
+    await fetch(back);
+    await expect(result).resolves.toEqual({ ok: true, idToken: 'a.b.c' });
+    expect(mocks.netFetch).toHaveBeenCalledWith(
+      'https://oauth2.googleapis.com/token',
+      expect.any(Object),
+    );
+    vi.unstubAllEnvs();
   });
 });

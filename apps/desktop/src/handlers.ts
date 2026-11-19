@@ -3,7 +3,7 @@ import { agentCalls } from './agentCalls';
 import { appCalls } from './appCalls';
 import { id, relativePath } from './args';
 import { authCalls } from './authCalls';
-import { BRIDGE_VERSION, MAX_FILE_BYTES } from './bridge';
+import { BRIDGE_VERSION, MAX_FILE_BYTES, type GoogleSignInResult } from './bridge';
 import type { AreaHandlers, Handlers } from './ipc';
 import type { SessionStore } from './store';
 import { sourcesCalls } from './sourcesCalls';
@@ -25,6 +25,8 @@ export interface HandlerDeps {
   appVersion: string;
   platform: string;
   store: SessionStore;
+  /** `auth.googleSignIn` (`googleSignIn.ts`). */
+  googleSignIn: () => Promise<GoogleSignInResult>;
 }
 
 type CoreHandlers = Pick<Handlers, 'info'> & AreaHandlers<'store'>;
@@ -53,7 +55,7 @@ export function createHandlers(deps: HandlerDeps): Handlers {
     ...coreCalls(deps),
     ...agentCalls(),
     ...sourcesCalls(),
-    ...authCalls(),
+    ...authCalls(deps.googleSignIn),
     ...appCalls(),
   };
 }

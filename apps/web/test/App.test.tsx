@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createMemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import { DESKTOP_SIGN_IN_MESSAGES, SignInProblem } from '../src/auth/service';
 import { ROUTES, appRoutes } from '../src/routes';
 import { groupByArea, titleFor } from '../src/Shell';
 import { axeViolations } from './axe';
@@ -147,6 +148,75 @@ describe('sign-in pending state', () => {
     ).toBe(true);
     await act(async () => finish());
     expect(screen.getByRole('button', { name: 'Try another account' })).toBeTruthy();
+  });
+
+  it('in the desktop app, says to finish in the browser while it waits', async () => {
+    (window as { gurukulDesktop?: unknown }).gurukulDesktop = { info: () => Promise.resolve() };
+    try {
+      const f = fakeAuth();
+      let finish: () => void = () => {};
+      f.service.signIn = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+      renderSignedOut(f);
+      act(() => f.emitUser(null));
+      expect(screen.queryByText(/opened in your browser/)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
+      expect(screen.getByText(/opened in your browser/).getAttribute('role')).toBe('status');
+      await act(async () => finish());
+      expect(screen.queryByText(/opened in your browser/)).toBeNull();
+    } finally {
+      delete (window as { gurukulDesktop?: unknown }).gurukulDesktop;
+    }
+  });
+
+  it('in the desktop app, Sign in stays usable while it waits, and pressing it again starts over', async () => {
+    (window as { gurukulDesktop?: unknown }).gurukulDesktop = { info: () => Promise.resolve() };
+    try {
+      const f = fakeAuth();
+      const finishes: (() => void)[] = [];
+      f.service.signIn = vi.fn(() => new Promise<void>((resolve) => finishes.push(resolve)));
+      renderSignedOut(f);
+      act(() => f.emitUser(null));
+      const button = () => screen.getByRole('button', { name: 'Sign in with Google' });
+      fireEvent.click(button());
+      expect(button().hasAttribute('disabled')).toBe(false);
+      fireEvent.click(button());
+      expect(f.service.signIn).toHaveBeenCalledTimes(2);
+      // The replaced attempt answers quietly; the hint stays for the one still waiting.
+      await act(async () => finishes[0]?.());
+      expect(screen.getByText(/opened in your browser/)).toBeTruthy();
+      await act(async () => finishes[1]?.());
+      expect(screen.queryByText(/opened in your browser/)).toBeNull();
+    } finally {
+      delete (window as { gurukulDesktop?: unknown }).gurukulDesktop;
+    }
+  });
+
+  it('never shows the browser hint outside the desktop app', () => {
+    const f = fakeAuth();
+    f.service.signIn = vi.fn(() => new Promise<void>(() => undefined));
+    renderSignedOut(f);
+    act(() => f.emitUser(null));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
+    expect(screen.queryByText(/opened in your browser/)).toBeNull();
+  });
+
+  it('shows a desktop sign-in problem in its own words, with the sad owl', async () => {
+    const f = fakeAuth();
+    f.service.signIn = vi
+      .fn()
+      .mockRejectedValue(
+        new SignInProblem('not_configured', DESKTOP_SIGN_IN_MESSAGES.not_configured),
+      );
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    renderSignedOut(f);
+    act(() => f.emitUser(null));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
+    });
+    const alert = screen
+      .getAllByRole('alert')
+      .find((a) => a.textContent.includes('built without Google sign-in')) as HTMLElement;
+    expect(alert.querySelector('.g-mascot')?.getAttribute('data-expression')).toBe('sad');
   });
 });
 
