@@ -705,6 +705,13 @@
 }
 
 /* ---- The session workspace: chat beside the preview from 1024px, a drawer below ---- */
+/* The two ways out while hand edits wait for the agent's turn (`HandEditor`). */
+.ss-wait__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
 .ss-status {
   display: inline-flex;
   align-items: center;

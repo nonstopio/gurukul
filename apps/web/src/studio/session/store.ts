@@ -25,6 +25,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
  *   sessions/{uid}/{sessionId}/checkpoints/start.json  the working copy before the first turn
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
+ *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -52,6 +53,13 @@ export const checkpointPath = (file: string) => `checkpoints/${file}`;
  * whatever the number of turns; a turn's own checkpoint is named by its id, which is never `start`.
  */
 export const START_CHECKPOINT = 'start.json';
+
+/**
+ * Hand edits made in Studio's editors that are not a turn yet (`DSK-19`): the working copy from
+ * before them. Written before the first hand edit reaches `session.json` and removed once they are
+ * a turn, so a session opened after the app closed mid-edit still makes them one.
+ */
+export const EDITING_FILE = 'editing.json';
 
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
@@ -88,6 +96,10 @@ export const sessionHistorySchema = z.object({
 export type SessionHistory = z.infer<typeof sessionHistorySchema>;
 
 const unreadableSchema = z.object({ since: at });
+
+/** `editing.json`: when the hand edits began, and the working copy before them. */
+export const handEditsSchema = z.object({ since: at, before: workingSchema });
+export type PendingHandEdits = z.infer<typeof handEditsSchema>;
 
 /**
  * Was this file written by a newer app (a `schemaVersion` above this one's)? Only the log says so:
@@ -143,6 +155,12 @@ export interface SessionStore {
    * it) as its working copy, then the undone turn's checkpoint removed. Answers what was written.
    */
   undoTurn(session: AuthoringSession, work: WorkingCopy): Promise<AuthoringSession>;
+  /** Notes that hand edits began (`EDITING_FILE`), with the working copy from before them. */
+  saveHandEdits(sessionId: string, pending: PendingHandEdits): Promise<void>;
+  /** The hand edits not yet a turn, or null when there are none or the file cannot be read. */
+  readHandEdits(sessionId: string): Promise<PendingHandEdits | null>;
+  /** Forgets the note once the hand edits are a turn (or came to nothing). */
+  clearHandEdits(sessionId: string): Promise<void>;
   /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
   readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
   /** Replaces the chat file (the newest entries, when it would be too large). */
@@ -395,6 +413,22 @@ export function createSessionStore({
       });
       if (undone) await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
       return next;
+    },
+
+    async saveHandEdits(sessionId, pending) {
+      const valid = handEditsSchema.parse(pending);
+      await store.write(file(sessionId, EDITING_FILE), JSON.stringify(valid));
+    },
+
+    async readHandEdits(sessionId) {
+      return parse(await store.read(file(sessionId, EDITING_FILE)), handEditsSchema, {
+        sessionId,
+        file: 'editing',
+      });
+    },
+
+    async clearHandEdits(sessionId) {
+      await store.remove(file(sessionId, EDITING_FILE));
     },
 
     async readTranscript(sessionId) {

@@ -16,12 +16,14 @@ import {
   topBarBackClass,
 } from '@gurukul/ui';
 import { useMemo, useState } from 'react';
-import { Link, useMatch, useParams } from 'react-router';
+import { Link, useMatch, useParams, useSearchParams } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
+import { sessionItemPath } from '../editorPlace';
 import { ChatPanel, reviewPath } from './ChatPanel';
+import { HandEditor } from './HandEditor';
 import { PreviewPanel } from './PreviewPanel';
 import { UnavailableCard, UpdateTheAppButton } from './Problem';
 import { useAgentSession } from './useAgentSession';
@@ -43,8 +45,9 @@ function Back() {
  * `/studio/sessions/:sessionId` and its Review tab, `/studio/sessions/:sessionId/review`, inside the
  * desktop app (`.plan/22-desktop-studio.md`, The session workspace): the header with the change
  * count and checks, the chat beside the preview from 1024px (a drawer over it below), and Review
- * (`DSK-14`). Both share one runtime (`useAgentSession`), so leaving the chat for Review keeps the
- * agent going. Nothing here reads or writes Firestore.
+ * (`DSK-14`); and `/studio/sessions/:sessionId/items/:itemId`, Studio's editor over the working copy
+ * (`HandEditor`, `DSK-19`). All share one runtime (`useAgentSession`), so leaving the chat for Review
+ * or an editor keeps the agent going. Nothing here writes Firestore.
  */
 export function SessionPage() {
   const desktop = useDesktop();
@@ -98,6 +101,7 @@ function SessionView({ desktop }: { desktop: GurukulDesktop }) {
   const { sessionId = '' } = useParams();
   const { uid } = useUser();
   const review = useMatch('/studio/sessions/:sessionId/review') !== null;
+  const itemId = useMatch('/studio/sessions/:sessionId/items/:itemId')?.params.itemId;
   const agent = useAgentSession({ desktop, uid, sessionId });
   const { session, status, problem } = agent;
 
@@ -121,6 +125,11 @@ function SessionView({ desktop }: { desktop: GurukulDesktop }) {
           <PageSkeleton width="wide" label="Opening the session" />
         )}
       </>
+    );
+  }
+  if (itemId !== undefined) {
+    return (
+      <HandEditor agent={agent} desktop={desktop} uid={uid} sessionId={sessionId} itemId={itemId} />
     );
   }
   return <Workspace agent={agent} desktop={desktop} sessionId={sessionId} review={review} />;
@@ -150,6 +159,8 @@ function Workspace({
   const checks = useMemo(() => headerChecks(work), [work]);
   const passing = checks.valid && !checks.overLimit;
   const working = agent.status === 'working' || agent.status === 'stopping';
+  // Back from an editor, the preview opens on the item that was edited.
+  const shown = useSearchParams()[0].get('item');
 
   const chat = (
     <ChatPanel
@@ -214,7 +225,15 @@ function Workspace({
                   {working && !chatOpen ? (agent.activity ?? 'Thinking') : null}
                 </ChatActivity>
               )}
-              <PreviewPanel work={work} base={agent.base} changes={changes} />
+              <PreviewPanel
+                work={work}
+                base={agent.base}
+                changes={changes}
+                initialItem={shown}
+                editPath={
+                  session.status === 'open' ? (id) => sessionItemPath(sessionId, id) : undefined
+                }
+              />
             </Card>
           </div>
         </Page>

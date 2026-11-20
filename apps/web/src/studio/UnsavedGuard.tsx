@@ -34,14 +34,30 @@ export function LeaveGuard({ draft }: { draft: Pick<DraftApi, 'save' | 'saveNow'
     setAsking(false);
     blocker.reset();
   };
+  const leave = () => {
+    setAsking(false);
+    proceed();
+  };
+  // A desktop session keeps only a course that passes its checks: the rest is dropped on leaving.
+  if (draft.save === 'incomplete') {
+    return (
+      <ConfirmDialog
+        title="Leave with unfinished edits?"
+        confirmLabel="Leave and drop them"
+        onConfirm={leave}
+        onClose={stay}
+      >
+        Some of your latest edits leave the course incomplete, such as an empty title or a question
+        with no prompt, so the session cannot keep them yet. Stay to finish them, or leave and they
+        are dropped.
+      </ConfirmDialog>
+    );
+  }
   return (
     <ConfirmDialog
       title="Leave with unsaved changes?"
       confirmLabel="Leave without saving"
-      onConfirm={() => {
-        setAsking(false);
-        proceed();
-      }}
+      onConfirm={leave}
       onClose={stay}
     >
       Your latest edits could not be saved. Stay to try again.

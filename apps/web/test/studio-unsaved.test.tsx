@@ -164,4 +164,12 @@ describe('SizeNotice', () => {
     const { container } = render(<SizeNotice draft={{ work: null, save: 'saved' }} />);
     expect(container.textContent).toBe('');
   });
+
+  it('says a session keeps a course too large for the draft, but cannot save it there', () => {
+    const big = { course: makeCourse({ summary: 'x'.repeat(COURSE_BYTES_LIMIT) }), answers: {} };
+    render(<SizeNotice draft={{ work: big, save: 'saved' }} session />);
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /too large to save to the draft.*kept in this session/,
+    );
+  });
 });

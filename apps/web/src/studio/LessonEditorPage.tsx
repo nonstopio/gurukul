@@ -3,6 +3,8 @@ import type { Block, BlockType, Lesson } from '@gurukul/schema';
 import { Card, DragList, EmptyState, Input, Select, buttonClass } from '@gurukul/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { NEW_COURSE_UPLOADS, useEditorLinks } from './editorPlace';
+import type { EditorPlace } from './editorPlace';
 import { useUser } from '../auth/AuthProvider';
 import { BlockScope } from './blocks/BlockScope';
 import { BlockPreviewFrame } from './blocks/BlockPreviewFrame';
@@ -27,7 +29,6 @@ import {
 import { newId } from './ids';
 import { uploadedImages } from './media/courseMedia';
 import { patch } from './patch';
-import { itemEditorPath, nameOf } from './studioModel';
 import type { Terms } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import type { Working } from './types';
@@ -56,20 +57,31 @@ export function LessonEditorPage() {
   const draft = useDraft(courseId);
   return (
     <DraftGate draft={draft} title="Lesson editor">
-      {(work) => <LessonEditor draft={draft} work={work} courseId={courseId} lessonId={lessonId} />}
+      {(work) => (
+        <LessonEditor
+          draft={draft}
+          work={work}
+          place={{ kind: 'draft', courseId }}
+          lessonId={lessonId}
+        />
+      )}
     </DraftGate>
   );
 }
 
-function LessonEditor({
+/**
+ * The lesson editor over a working copy: Studio's draft, or a desktop session's (`place`), whose
+ * `draft` is then `useSessionDraft`. Only the links and what may be uploaded differ.
+ */
+export function LessonEditor({
   draft,
   work,
-  courseId,
+  place,
   lessonId,
 }: {
   draft: DraftApi;
   work: Working;
-  courseId: string;
+  place: EditorPlace;
   lessonId: string;
 }) {
   const terms = useTerms();
@@ -82,7 +94,17 @@ function LessonEditor({
     [work, checks],
   );
 
-  const hosted = useMemo(() => uploadedImages(work.course, courseId), [work.course, courseId]);
+  const lesson = findLesson(work.course, lessonId);
+  const links = useEditorLinks(place, work, {
+    id: lessonId,
+    key: `lesson:${lessonId}`,
+    title: lesson?.title || 'Lesson',
+  });
+  const courseId = links.uploadCourseId;
+  const hosted = useMemo(
+    () => (courseId === null ? [] : uploadedImages(work.course, courseId)),
+    [work.course, courseId],
+  );
 
   const focusAfterRender = useRef<string | null>(null);
 
@@ -119,29 +141,18 @@ function LessonEditor({
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  const lesson = findLesson(work.course, lessonId);
-  const crumbs = [
-    { label: terms.Studio, render: (p: object) => <Link to="/studio" {...p} /> },
-    {
-      label: work.course.title,
-      render: (p: object) => <Link to={`/studio/courses/${courseId}`} {...p} />,
-    },
-    { label: lesson?.title || 'Lesson' },
-  ];
-  const back = {
-    to: `/studio/courses/${courseId}`,
-    label: nameOf(work.course.title, 'Untitled course'),
-  };
+  const { back, crumbs } = links;
+  const source = place.kind;
   if (!lesson) {
     return (
-      <EditorBar title="Lesson not found" back={back} crumbs={crumbs} draft={draft}>
+      <EditorBar title="Lesson not found" back={back} crumbs={crumbs} draft={draft} source={source}>
         <EmptyState
           headingAs="h2"
           title="This lesson does not exist"
           mascot="notFound"
           action={
-            <Link className={buttonClass('secondary')} to={`/studio/courses/${courseId}`}>
-              Back to the course
+            <Link className={buttonClass('secondary')} to={back.to}>
+              {links.backWords}
             </Link>
           }
         >
@@ -183,10 +194,13 @@ function LessonEditor({
         back={back}
         crumbs={crumbs}
         draft={draft}
+        source={source}
         actions={
-          <PreviewLink draft={draft} to={`/studio/courses/${courseId}/preview/${lessonId}`}>
-            {`Preview as ${terms.learner}`}
-          </PreviewLink>
+          links.previewPath === null ? undefined : (
+            <PreviewLink draft={draft} to={links.previewPath}>
+              {`Preview as ${terms.learner}`}
+            </PreviewLink>
+          )
         }
       >
         <div className="studio-cols">
@@ -198,7 +212,7 @@ function LessonEditor({
                   .map((i) => (
                     <li key={i.id}>
                       <Link
-                        to={itemEditorPath(courseId, i)}
+                        to={links.itemPath(i)}
                         aria-current={i.id === lessonId ? 'page' : undefined}
                         ref={i.id === lessonId ? scrollIntoRail : undefined}
                       >
@@ -236,7 +250,12 @@ function LessonEditor({
                     onAdd={(type) => add(type, index)}
                   />
                   <div data-block-id={block.id}>
-                    <BlockScope courseId={courseId} uid={uid} uploadedImages={hosted}>
+                    <BlockScope
+                      courseId={courseId ?? ''}
+                      uid={uid}
+                      uploadedImages={hosted}
+                      uploadsOff={courseId === null ? NEW_COURSE_UPLOADS : undefined}
+                    >
                       <BlockPreviewFrame
                         block={block}
                         onChange={(next) => edit((l) => replaceBlock(l, next))}
@@ -306,8 +325,9 @@ function LessonEditor({
             setDeleting(null);
           }}
         >
-          Its content is removed from the draft. You can still restore an older version of the
-          course.
+          {source === 'session'
+            ? 'Its content is removed from this session’s copy of the course. Undo in the chat brings it back.'
+            : 'Its content is removed from the draft. You can still restore an older version of the course.'}
         </ConfirmDialog>
       ) : null}
     </>

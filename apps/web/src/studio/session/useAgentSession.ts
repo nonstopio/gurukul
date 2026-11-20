@@ -58,13 +58,14 @@ export function acquireAgentSession(
   };
 }
 
+/** What the Educator can do with a session, from any screen showing it. */
+type SessionActions = Pick<
+  AgentSession,
+  'send' | 'stop' | 'undo' | 'retry' | 'edit' | 'keepEdits' | 'endEdits'
+>;
+
 /** What the session screens get: the view, and what the Educator can do. */
-export interface AgentSessionHandle extends AgentSessionView {
-  send(message: string): Promise<boolean>;
-  stop(): Promise<void>;
-  undo(): Promise<boolean>;
-  retry(): Promise<void>;
-}
+export interface AgentSessionHandle extends AgentSessionView, SessionActions {}
 
 const LOADING: AgentSessionView = {
   status: 'loading',
@@ -81,18 +82,16 @@ const LOADING: AgentSessionView = {
   canSend: false,
   canStop: false,
   canUndo: false,
+  canEdit: false,
+  handEdits: null,
 };
 
 type SessionKey = Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>;
 
 /** What `useAgentSession` reads: the shared runtime while a component subscribes, else nothing. */
-export interface AgentSessionSource {
+export interface AgentSessionSource extends SessionActions {
   subscribe(listener: () => void): () => void;
   getState(): AgentSessionView;
-  send(message: string): Promise<boolean>;
-  stop(): Promise<void>;
-  undo(): Promise<boolean>;
-  retry(): Promise<void>;
 }
 
 /**
@@ -117,6 +116,9 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     stop: async () => held?.stop(),
     undo: async () => (held ? held.undo() : false),
     retry: async () => held?.retry(),
+    edit: (change) => held?.edit(change) ?? false,
+    keepEdits: async () => (held ? held.keepEdits() : false),
+    endEdits: async () => held?.endEdits(),
   };
 }
 
@@ -130,5 +132,14 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     [desktop, uid, sessionId],
   );
   const view = useSyncExternalStore(source.subscribe, source.getState);
-  return { ...view, send: source.send, stop: source.stop, undo: source.undo, retry: source.retry };
+  return {
+    ...view,
+    send: source.send,
+    stop: source.stop,
+    undo: source.undo,
+    retry: source.retry,
+    edit: source.edit,
+    keepEdits: source.keepEdits,
+    endEdits: source.endEdits,
+  };
 }

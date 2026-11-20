@@ -1,6 +1,7 @@
-import { ImageFigure, Input, SegmentedControl, Tabs, ToggleCard } from '@gurukul/ui';
+import { Callout, ImageFigure, Input, SegmentedControl, Tabs, ToggleCard } from '@gurukul/ui';
 import type { ImageLayout } from '@gurukul/ui';
 import { useState } from 'react';
+import { useBlockScope } from './BlockScope';
 import { PLACEHOLDER_IMAGE } from '../lessonEdit';
 import { patch } from '../patch';
 import { CourseImagePicker } from './CourseImagePicker';
@@ -25,6 +26,7 @@ const LAYOUTS = [
 export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
   const [tab, setTab] = useState(block.upload ? 'upload' : 'link');
   const source = useImageUpload(block, onChange);
+  const { uploadsOff } = useBlockScope();
   const picked = 'picked' in source.stage ? source.stage.picked : undefined;
   // A new block's stand-in address is not an image: nothing to preview until there is a real one.
   const src = picked?.previewUrl ?? (block.url === PLACEHOLDER_IMAGE ? '' : block.url);
@@ -73,7 +75,11 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
           {
             id: 'upload',
             label: 'Upload',
-            panel: (
+            panel: uploadsOff ? (
+              <Callout title="Uploads come later">
+                <p>{uploadsOff}</p>
+              </Callout>
+            ) : (
               <ImageUploadPanel
                 block={block}
                 source={source}

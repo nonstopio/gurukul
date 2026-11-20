@@ -797,6 +797,51 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
   Studio's `DesktopOnly` asks for a wider window.
 
+As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`,
+`useSessionDraft.ts`, the runtime's `edit`, `keepEdits` and `endEdits` in `agent.ts`,
+`apps/web/src/studio/editorPlace.tsx`):
+
+- **The route is `/studio/sessions/:sessionId/items/:itemId`**, the session page again (desktop app
+  only, unlisted in search): Studio's `LessonEditor` or `QuizBuilder`, picked by the item's type, an
+  unknown id showing the lesson editor's "Lesson not found". "Open in editor" is on the preview's
+  item header and, as a pen icon link, on each Outline row; Review links to the same route
+  (`sessionItemPath`). The back link ("Session") returns to the workspace opened on that item
+  (`?item=lesson:l2`). A saved or discarded session offers no link, and the route says it is closed.
+- **One `DraftApi`, two sources.** The editors take an `EditorPlace` (`draft` or `session`) for their
+  links, and a `DraftApi`: `useDraft` in Studio, `useSessionDraft` in a session. In a session an
+  edit changes the runtime's copy in memory at once and `session.json` a pause later
+  (`HAND_EDIT_WRITE_MS`, 1 s: a local file); no Firestore read or write and no `rev` check. The top
+  bar says "In the session · saved just now". The rail links to the session's other items; there
+  is no "Preview as a Learner" (the workspace is the preview).
+- **A session reads the draft once, so its editors leave out what reads or writes Firestore
+  besides it:** the Quiz builder's first-try scores (the course's stats document) and Save to
+  question bank. Import from the question bank stays: it reads the bank, not the draft, and only
+  when asked. Uploads go to Storage as in Studio, under the session's course; a new course has no
+  course to store them under until its first save, so its Upload tabs say so and offer the link.
+- **Leaving the editor makes the edits one turn by the Educator** (`by: 'educator'`, a checkpoint,
+  `courseChanges` against the copy before them, "Edited by hand: Why Git, Rebase check"), with
+  `checkpoints/start.json` first when it is the session's first turn, and a line in the chat
+  ("Turn 3 · by hand · 2 changes"). Chosen over a quiet period so one visit is one turn and the
+  agent never meets edits half made. Undo and Review treat it as any turn. The agent is told with
+  the next message (`HAND_EDIT_NOTE`), as it is after an Undo; undoing a hand-edit turn tells it
+  the same. The end runs on the next task after the editor unmounts, so React's development double
+  mount, or an image reporting its size from its first effect, does not split one visit in two.
+  Edits that come to nothing make no turn.
+- **Only between turns.** `canEdit` needs an open session with no turn running and no undo being
+  written; Claude Code need not be running. While a turn runs the route says the agent is working,
+  offers Back and Stop, and opens the editor once the turn is written. While hand edits are open,
+  Send and Undo wait. A turn the page did not start (adopted after a reload) first makes open hand
+  edits their own turn.
+- **The working copy must pass the course schema to be kept** (the plan was silent; a session file
+  holds only a valid course, but the editors pass through invalid states: an empty title, a new
+  question with no prompt). Such edits stay in memory ("not kept until complete"); leaving asks
+  first and drops them, back to the last copy written.
+- **A crash loses no hand edit already written.** Before the first write, `editing.json` keeps the
+  copy from before them; opening the session again makes a turn of what `session.json` holds, then
+  removes it. It is also removed by the next turn written or by Undo of an unwritten turn.
+- Opening the editor can itself be a change: an image linked without its size gets its width and
+  height from the loaded picture, as in Studio, and that shows as a changed Image block.
+
 ## Review: the whole session at once
 
 The **Review** tab of the session route. This is the screen the feature stands on.

@@ -108,7 +108,7 @@ export function ChatPanel({
                   className={buttonClass('quiet', undefined, 'sm')}
                   to={reviewPath(sessionId, line.turn.id)}
                 >
-                  {turnLabel(line.number, line.turn.changes, line.saved)}
+                  {turnLabel(line.number, line.turn.changes, line.saved, line.turn.by)}
                 </Link>
                 {line.newest && canUndo ? (
                   <Button

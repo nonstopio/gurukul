@@ -24,6 +24,7 @@ export function useSaveLabel(
   if (draft.save === 'saving') return `${head} · saving…`;
   if (draft.save === 'dirty') return `${head} · unsaved changes`;
   if (draft.save === 'too-large') return `${head} · too large to save`;
+  if (draft.save === 'incomplete') return `${head} · not kept until complete`;
   if (draft.save === 'saved') {
     return draft.savedAt
       ? `${head} · saved ${relativeTime(draft.savedAt, now)}`
