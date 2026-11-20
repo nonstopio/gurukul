@@ -771,9 +771,9 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   Firestore read and stays with Review (`DSK-14`). There is no [⋯] menu yet: Discard and Close come
   with Save (`DSK-15`).
 - **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
-  so the header stays and the shared runtime keeps the agent going between the two. Until `DSK-14`
-  it says "Review comes next". A turn's line links to `…/review?turn=<turn id>`: the filter
-  `DSK-14` reads.
+  so the header stays and the shared runtime keeps the agent going between the two (`DSK-14` fills
+  it: As built in `DSK-14`, under Review). A turn's line links to `…/review?turn=<turn id>`: the
+  filter Review reads.
 - **The goal is not sent by itself.** A session nothing was said in yet opens with its goal in the
   message box, so one press of Send starts the work and the Educator can reword it first. Sending
   spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
@@ -963,6 +963,67 @@ Like the checks on a pull request. Two can stop a save; the rest inform.
 | Left for you | The session's to-do list | No |
 
 Each finding links to its row. Writing and Answers offer "Ask the agent to fix these".
+
+### As built in `DSK-14`
+
+`apps/web/src/studio/session/ReviewPanel.tsx` (the tab), `ReviewDiff.tsx` (one row compared),
+`ReviewChecks.tsx`, `review.ts` (pure view data), `revert.ts` (Undo this item); `DiffView`,
+`DiffRow`, `DiffText`, `DiffCode`, `DiffFields`, `DiffUnchanged`, `DiffNote` and `DiffMedia` in
+`@gurukul/ui`; the runtime's `updateReview` and `educatorTurn`.
+
+- **Contrast.** Body text on `--danger-soft` and `--accent-soft` is 10.9:1 and 11.0:1 in the light
+  theme, 10.8:1 and 9.7:1 in the dark (`--text-body`), so no new "removed" / "added" pair was
+  added. Removed words are struck through, added ones underlined, code lines carry − and +, and
+  each mark is named for a screen reader; the tints only repeat that.
+- **The list** groups rows under their chapter (`groupRows`), in `courseChanges` order, each a
+  button with its status chips and a tick once viewed; the open row has a chevron as well as
+  `aria-current`. The filter is a `Select` ("All changes", "Turn 4 · 4 changes"), not a row of
+  buttons, because a session can have hundreds of turns. A turn compares its checkpoint with the one
+  before it (`start.json` for the first), read from this computer when picked; past the 30 kept it
+  says the turn is no longer kept and offers all changes. The selected row and the turn live in the
+  address (`?row=`, `?turn=`), which the chat's turn lines already use.
+- **The summary** is edited with Edit summary (a box, Save summary, Cancel); each goal is a tick.
+  The goals' words are not edited in Review: they are what the Educator asked for. Both, and the
+  Viewed ticks, are written to `session.json` at once by the runtime's `updateReview` (in turn with
+  tool calls and turn ends, never the working copy, so a turn running meanwhile is written as
+  usual).
+- **Views.** Side by side is offered from 1024px (`useSideBySide`) and falls back to Inline when the
+  window narrows; As a learner only for a lesson or Quiz, with Version (Before, After) when both
+  exist; an added or removed item opens there. Text as Source or Rendered appears when a row has a
+  text or callout block whose words changed. An unchanged entry, or one only moved, is drawn once
+  across both columns (`DiffRow same`), so a screen reader does not hear it twice and two copies of
+  a code block do not make two landmarks of one name.
+- **A removed lesson** asks `completedCount` once, when its row is opened (a read; "—" while
+  counting, "Unavailable" if it fails). A Quiz is done when passed, not listed in
+  `completedItemIds`, so a removed Quiz has no count; Review says it leaves the course once saved
+  and published. A new course has no learners to count.
+- **Ask for a change** attaches the row (`rowTarget`: the course details, landing page, chapter,
+  lesson or Quiz, numbered as in the outline) through the runtime's `attach` and goes to the chat,
+  its drawer open below 1024px (router state, read once per arrival). Rows already gone from the
+  course offer none; Undo this item covers them. A message already carrying ten parts gets the
+  outline's sentence instead.
+- **Open in editor** links to `/studio/sessions/:sessionId/items/:itemId` (`DSK-19`) for a lesson
+  or Quiz still in the course.
+- **Undo this item** (`revertRow`) puts back the course details or landing page field by field, a
+  chapter's title and place (an added chapter only when empty; a removed one with its lessons that
+  are not elsewhere now), or a lesson or Quiz whole with its answer keys, into its old chapter after
+  the nearest entry before it that is still there, `answersChanged` marked as Studio marks it. It is
+  written by `educatorTurn` as a turn of its own with `by: 'educator'` (checkpoint, count, a line in
+  the chat), so the chat's Undo takes it back, and the agent's next message starts with one fixed
+  sentence saying the Educator changed the course by hand (`HAND_NOTE`, counted in the message
+  limit test). It is offered only against the draft (a row of the whole session, not one only in a
+  turn's filter), not for a new course, not for a repeated id, and waits while a turn runs. A result
+  the course schema refuses (31 chapters, say) is not written. The DSK-19 hand edits can write
+  their turn through `educatorTurn` too.
+- **Checks** (`reviewChecks`): Course is valid and Size (warning from `COURSE_BYTES_WARN`) say
+  "stops Save"; `saveBlockers` names them for `DSK-15`. Draft is up to date reads "checked when you
+  save" until `DSK-15` reads the stored rev. Writing lints the rows still there (`lintScope`); Ask
+  the agent to fix these attaches each row a note sits in (at most ten) and puts a prepared message
+  in the box, which the Educator sends. Answers says the second opinion comes with the answer check
+  (`DSK-18`). Ready to publish lists `validateForPublish` and informs only. Left for you lists the
+  open to-dos. Findings are 25 to a page, each with Show for its row when one is listed.
+- **The footer** says "Left for you: N", links Keep working, and holds the place of Save to draft
+  (`DSK-15`), which reads "Save to draft comes next" until then. Nothing on the tab writes Firestore.
 
 ### Save to draft
 

@@ -850,3 +850,204 @@ h3.ss-outline__row {
   text-decoration: line-through;
   color: var(--text-muted);
 }
+
+/* ---- Review: the change list, the selected change and the checks (wide: list and checks left) ---- */
+.ss-review {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+@media (width >= 64rem) {
+  .ss-review {
+    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    /* The second row takes what the change's height leaves, so Checks sits right under the list. */
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'list detail'
+      'checks detail';
+    align-items: start;
+  }
+  .ss-review__list {
+    grid-area: list;
+  }
+  .ss-review__detail {
+    grid-area: detail;
+  }
+  .ss-review__checks {
+    grid-area: checks;
+  }
+}
+.ss-review__list,
+.ss-review__detail,
+.ss-review__checks {
+  min-width: 0;
+}
+.ss-review__summary,
+.ss-review__changes,
+.ss-review__row-detail,
+.ss-review__question,
+.ss-review__section {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ss-review__goals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ss-review__h3,
+.ss-review__count,
+.ss-review__chapter,
+.ss-review__left {
+  margin: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.ss-review__goals legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+.ss-review__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ss-review__edit {
+  display: grid;
+  gap: var(--space-4);
+}
+.ss-review__edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.ss-review__tree,
+.ss-review__items {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-review__group {
+  display: grid;
+  gap: var(--space-1);
+}
+.ss-review__chapter {
+  padding: var(--space-2) 0 0;
+}
+.ss-review__items {
+  padding-left: var(--space-5);
+}
+.ss-review__row {
+  min-width: 0;
+}
+.ss-review__pick {
+  justify-content: flex-start;
+  width: 100%;
+  height: auto;
+  text-align: left;
+  white-space: normal;
+}
+.ss-review__marker {
+  display: inline-flex;
+  flex: none;
+  width: var(--space-4);
+}
+.ss-review__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.ss-review__head,
+.ss-review__tools,
+.ss-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ss-review__title {
+  margin: 0;
+  font: 600 var(--text-lg) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ss-review__options {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-review__letter {
+  font-weight: 600;
+}
+.ss-review__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.ss-review__left {
+  margin-right: auto;
+}
+.ss-checks,
+.ss-checks__findings {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-checks__item {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ss-checks__title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.ss-checks__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 0.1em;
+}
+.ss-checks__item--pass .ss-checks__icon {
+  color: var(--accent);
+}
+.ss-checks__item--warn .ss-checks__icon {
+  color: var(--warning);
+}
+.ss-checks__item--fail .ss-checks__icon {
+  color: var(--danger);
+}
+.ss-checks__item--info .ss-checks__icon {
+  color: var(--text-muted);
+}
+.ss-checks__findings {
+  gap: var(--space-2);
+  padding-left: var(--space-6);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.ss-checks__findings li {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}

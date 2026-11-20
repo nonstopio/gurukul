@@ -770,16 +770,16 @@ describe('the session workspace below 1024px', () => {
 });
 
 describe('the session Review tab', () => {
-  it('says Review comes next, inside the session, and keeps the same agent', async () => {
+  it('shows Review inside the session, and keeps the same agent', async () => {
     const s = await open({ path: (id) => `/studio/sessions/${id}/review` });
-    expect(await screen.findByRole('heading', { name: 'Review comes next' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Nothing has changed yet' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Simplify the basics.' })).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
     await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('link', { name: 'Back to the chat' }));
     expect(await screen.findByRole('log', { name: 'Chat with the agent' })).toBeTruthy();
     fireEvent.click(screen.getByRole('link', { name: 'Review' }));
-    expect(await screen.findByRole('heading', { name: 'Review comes next' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Nothing has changed yet' })).toBeTruthy();
     expect(s.agent.start).toHaveBeenCalledTimes(1);
   });
 });

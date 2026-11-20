@@ -118,6 +118,8 @@ describe('agentSessionSource', () => {
     await source.retry();
     expect(source.attach({ kind: 'course', ids: {}, label: 'Course details' })).toBe(false);
     source.detach('course');
+    expect(await source.updateReview({ summary: 'x' })).toBe(false);
+    expect(await source.educatorTurn({ course: makeCourse(), answers: {} }, 'x')).toBe(false);
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });
@@ -160,6 +162,18 @@ describe('useAgentSession', () => {
       await result.current.retry();
     });
     expect(result.current.turns).toHaveLength(0);
+    await act(async () => {
+      expect(await result.current.updateReview({ viewed: ['course:course'] })).toBe(true);
+      const work = result.current.work as NonNullable<typeof result.current.work>;
+      expect(
+        await result.current.educatorTurn(
+          { ...work, course: { ...work.course, title: 'Hand' } },
+          'Hand',
+        ),
+      ).toBe(true);
+    });
+    expect(result.current.session?.viewed).toEqual(['course:course']);
+    expect(result.current.turns).toHaveLength(1);
     unmount();
     expect(s.listening()).toBe(0);
   });

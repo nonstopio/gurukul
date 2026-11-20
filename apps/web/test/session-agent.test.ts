@@ -5,6 +5,7 @@ import { SESSION_CHECKPOINTS_KEPT } from '@gurukul/schema';
 import type { AuthoringSession } from '@gurukul/schema';
 import { TOOL_ACTIVITY, toolActivity } from '../src/studio/session/activity';
 import {
+  HAND_NOTE,
   MESSAGE_MAX_LENGTH,
   TOOL_RESULT_MAX_LENGTH,
   appProblem,
@@ -716,7 +717,10 @@ describe('attached parts of the course', () => {
       label: 'x'.repeat(ATTACHMENT_LABEL_MAX),
     }));
     expect(
-      MESSAGE_MAX_LENGTH + undoNote(SESSION_CHECKPOINTS_KEPT).length + attachmentNote(most).length,
+      MESSAGE_MAX_LENGTH +
+        undoNote(SESSION_CHECKPOINTS_KEPT).length +
+        HAND_NOTE.length +
+        attachmentNote(most).length,
     ).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH);
   });
 });
@@ -1104,5 +1108,189 @@ describe('undo', () => {
     expect(s.runtime.busy()).toBe(true);
     await undoing;
     expect(s.runtime.busy()).toBe(false);
+  });
+});
+
+describe('Review’s fields', () => {
+  it('writes the summary, the goals and the Viewed ticks to the session file at once', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const goals = [{ text: 'Simplify chapter one.', done: true }];
+    expect(
+      await s.runtime.updateReview({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] }),
+    ).toBe(true);
+    expect(s.state().session).toMatchObject({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] });
+    expect(s.disk()).toMatchObject({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] });
+    expect(s.state().work).toEqual(s.state().base);
+  });
+
+  it('keeps them through a turn running meanwhile, and writes the turn with them', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Rename the course.')).toBe(true);
+    await s.call('set_course_details', { title: 'Mid-turn' });
+    expect(await s.runtime.updateReview({ viewed: ['course:course'] })).toBe(true);
+    // The file holds the tick, not the turn's unfinished work.
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [] });
+    expect(s.disk().work.course.title).toBe('Git, the NonStop Way');
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [{ id: 't1' }] });
+    expect(s.disk().work.course.title).toBe('Mid-turn');
+  });
+
+  it('says so when the file could not be written, keeping what was typed in memory', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.save = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.updateReview({ summary: 'Kept here.' })).toBe(false);
+    expect(s.state()).toMatchObject({
+      problem: { code: 'app' },
+      session: { summary: 'Kept here.' },
+    });
+    expect(log.warn).toHaveBeenCalledWith('Session review not saved', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
+  });
+
+  it('changes nothing in a closed session', async () => {
+    const s = await setup({ edit: (x) => ({ ...x, status: 'saved' }) });
+    await s.runtime.open();
+    expect(await s.runtime.updateReview({ summary: 'No.' })).toBe(false);
+    expect(s.disk().summary).toBe('');
+  });
+});
+
+describe('a turn by the Educator', () => {
+  const renamed = (s: Setup, title: string) => {
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    return { ...work, course: { ...work.course, title } };
+  };
+
+  it('writes the copy as a turn of its own, by the Educator, and tells the agent next time', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const editing = s.runtime.educatorTurn(renamed(s, 'By hand'), 'Put back Course details');
+    expect(s.state().status).toBe('editing');
+    expect(s.runtime.busy()).toBe(true);
+    expect(s.state().canUndo).toBe(false);
+    expect(await editing).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'ready', changes: { count: 1 } });
+    expect(s.disk().turns).toEqual([
+      {
+        id: 't1',
+        at: T0.toISOString(),
+        by: 'educator',
+        summary: 'Put back Course details',
+        checkpoint: 't1.json',
+        changes: 1,
+      },
+    ]);
+    expect(s.disk().work.course.title).toBe('By hand');
+    // The first turn also keeps the copy from before it, for Undo.
+    expect(s.files.has(`u1/s1/checkpoints/${START_CHECKPOINT}`)).toBe(true);
+    expect(s.chat()).toEqual([
+      {
+        kind: 'notice',
+        turnId: 't1',
+        at: T0.toISOString(),
+        text: 'You changed the course: Put back Course details',
+      },
+    ]);
+    expect(log.info).toHaveBeenCalledWith('Session educator turn saved', {
+      sessionId: 's1',
+      turnId: 't1',
+      changes: 1,
+    });
+    // Undo takes it back like any other turn.
+    expect(s.state().canUndo).toBe(true);
+
+    expect(await s.runtime.send('Carry on.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Carry on.`);
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(await s.runtime.send('Again.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', 'Again.');
+  });
+
+  it('keeps the note for the agent when the message was not sent', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.educatorTurn(renamed(s, 'By hand'), 'Hand edit');
+    s.agent.send.mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.send('First.')).toBe(false);
+    expect(await s.runtime.send('Second.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Second.`);
+  });
+
+  it('counts a turn that could not be written with it, from the last written copy', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const saveTurn = s.store.saveTurn;
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED).mockImplementation(saveTurn);
+    await renameTurn(s, 'One');
+    expect(s.state().unsaved).not.toBeNull();
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    const next = { ...work, course: { ...work.course, summary: 'Changed by hand.' } };
+    expect(await s.runtime.educatorTurn(next, 'Hand edit')).toBe(true);
+    expect(s.state().unsaved).toBeNull();
+    expect(s.disk().turns.map((t) => [t.id, t.by, t.changes])).toEqual([['t2', 'educator', 1]]);
+    expect(s.disk().work.course).toMatchObject({ title: 'One', summary: 'Changed by hand.' });
+  });
+
+  it('leaves the copy as it was when the turn could not be written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.educatorTurn(renamed(s, 'Lost'), 'Hand edit')).toBe(false);
+    expect(s.state()).toMatchObject({ status: 'ready', problem: { code: 'app' }, turns: [] });
+    expect(s.state().work?.course.title).toBe('Git, the NonStop Way');
+    expect(log.error).toHaveBeenCalledWith('Session educator turn not saved', REFUSED, {
+      sessionId: 's1',
+      turnId: 't1',
+    });
+    // Nothing to tell the agent.
+    await s.runtime.send('Go.');
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', 'Go.');
+  });
+
+  it('only between turns, in an open session', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('Working.');
+    expect(await s.runtime.educatorTurn(renamed(s, 'No'), 'x')).toBe(false);
+    const closed = await setup({ edit: (x) => ({ ...x, status: 'saved' }) });
+    await closed.runtime.open();
+    expect(await closed.runtime.educatorTurn(renamed(closed, 'No'), 'x')).toBe(false);
+  });
+
+  it('carries on with a turn the agent was already in when the write finishes', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const editing = s.runtime.educatorTurn(renamed(s, 'By hand'), 'Hand edit');
+    s.emit({ type: 'text', sessionId: 's1', text: 'Still here.' });
+    expect(await editing).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'working', canStop: true });
+  });
+
+  it('writes no start copy after the first turn', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    s.store.saveStart = vi.fn();
+    expect(await s.runtime.educatorTurn(renamed(s, 'Two'), 'Hand edit')).toBe(true);
+    expect(s.store.saveStart).not.toHaveBeenCalled();
+    expect(s.disk().turns.map((t) => t.by)).toEqual(['agent', 'educator']);
   });
 });

@@ -4,7 +4,6 @@ import {
   Card,
   ChatActivity,
   CheckIcon,
-  ChecklistIcon,
   ChevronLeftIcon,
   Dialog,
   EmptyState,
@@ -16,13 +15,15 @@ import {
   topBarBackClass,
 } from '@gurukul/ui';
 import { useMemo, useState } from 'react';
-import { Link, useMatch, useParams } from 'react-router';
+import { Link, useLocation, useMatch, useParams } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
 import { ChatPanel, reviewPath } from './ChatPanel';
 import { PreviewPanel } from './PreviewPanel';
+import { ReviewPanel } from './ReviewPanel';
+import type { ChatState } from './ReviewPanel';
 import { SourcesPanel } from './SourcesPanel';
 import { UnavailableCard, UpdateTheAppButton } from './Problem';
 import { useAgentSession } from './useAgentSession';
@@ -158,9 +159,23 @@ function Workspace({
   // Worked out whenever there is a working copy.
   const changes = agent.changes as NonNullable<AgentSessionHandle['changes']>;
   const sideBySide = useSideBySide();
+  // Review's Ask for a change comes back with the chat open (its drawer, below 1024px) and,
+  // for "Ask the agent to fix these", a message ready in the box.
+  const location = useLocation();
   const [chatOpen, setChatOpen] = useState(false);
   // The goal waits in the message box of a session nothing was said in yet: one press sends it.
   const [typed, setTyped] = useState<string | null>(null);
+  // Once per arrival (the page stays mounted between the chat and Review, so not only at mount),
+  // set while drawing, as React suggests for state that follows a changed input.
+  const [arrived, setArrived] = useState<string | null>(null);
+  if (arrived !== location.key) {
+    setArrived(location.key);
+    const asked = (location.state ?? null) as ChatState | null;
+    if (asked?.chat === true) {
+      setChatOpen(true);
+      if (asked.draft !== undefined) setTyped(asked.draft);
+    }
+  }
   const goal = session.goals.map((g) => g.text).join('\n');
   const draft = typed ?? (agent.transcript.length === 0 ? goal : '');
   const checks = useMemo(() => headerChecks(work), [work]);
@@ -216,12 +231,8 @@ function Workspace({
         }
       />
       {review ? (
-        <Page width="reading">
-          <EmptyState title="Review comes next" headingAs="h2" icon={<ChecklistIcon size={24} />}>
-            Review will list every change this session made against the draft, with the old and new
-            words side by side, and save them to the draft in one step. Until it comes, the
-            session’s Preview and Outline show what changed.
-          </EmptyState>
+        <Page width="wide">
+          <ReviewPanel agent={agent} desktop={desktop} uid={uid} sessionId={sessionId} />
         </Page>
       ) : (
         <Page width="wide">

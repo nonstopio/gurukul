@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { createAgentSession } from './agent';
-import type { AgentSession, AgentSessionOptions, AgentSessionView } from './agent';
+import type { AgentSession, AgentSessionOptions, AgentSessionView, ReviewPatch } from './agent';
+import type { Working } from '../types';
 import type { AttachTarget } from './attachments';
 
 /*
@@ -67,6 +68,8 @@ export interface AgentSessionHandle extends AgentSessionView {
   retry(): Promise<void>;
   attach(target: AttachTarget): boolean;
   detach(target: AttachTarget | string): void;
+  updateReview(patch: ReviewPatch): Promise<boolean>;
+  educatorTurn(work: Working, summary: string): Promise<boolean>;
 }
 
 const LOADING: AgentSessionView = {
@@ -100,6 +103,8 @@ export interface AgentSessionSource {
   retry(): Promise<void>;
   attach(target: AttachTarget): boolean;
   detach(target: AttachTarget | string): void;
+  updateReview(patch: ReviewPatch): Promise<boolean>;
+  educatorTurn(work: Working, summary: string): Promise<boolean>;
 }
 
 /**
@@ -126,6 +131,8 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     retry: async () => held?.retry(),
     attach: (target) => held?.attach(target) ?? false,
     detach: (target) => held?.detach(target),
+    updateReview: async (patch) => (held ? held.updateReview(patch) : false),
+    educatorTurn: async (work, summary) => (held ? held.educatorTurn(work, summary) : false),
   };
 }
 
@@ -147,5 +154,7 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     retry: source.retry,
     attach: source.attach,
     detach: source.detach,
+    updateReview: source.updateReview,
+    educatorTurn: source.educatorTurn,
   };
 }
