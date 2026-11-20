@@ -11,7 +11,9 @@ Page views and a small catalog of typed events (`apps/web/src/analytics/events.t
 sign-out, course start and completion, lesson completion, Quiz submission (pass or fail and the
 score), certificate view and download, Studio course create and publish, Admin assignment, global
 search (the length of the query and the count of results, never the words), primary links and
-navigation, and caught errors (a code, never a message).
+navigation, caught errors (a code, never a message), and Desktop Studio sessions started, saved
+and discarded (whether the course is new, and the changes and turns in bands such as `6-20`; never
+a course id or text; `22-desktop-studio.md`, As built in `DSK-23`).
 
 Every event carries `app_version`, `environment`, `platform` and `user_role`. The person is
 identified by their opaque Firebase uid and one user property, `role`. Never an email, a name,

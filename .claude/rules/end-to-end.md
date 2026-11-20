@@ -7,6 +7,9 @@ paths:
   - 'firebase/firestore.rules'
   - 'firebase/seed/**'
   - 'e2e/**'
+  - 'apps/desktop/src/**'
+  - 'apps/desktop/scripts/**'
+  - 'apps/desktop/test/fixtures/**'
 ---
 
 # Run the end-to-end tests before pushing
@@ -25,6 +28,14 @@ that a spec walks through passes every unit test and still turns CI red.
   commit.
 - **Keep runs off the internet.** A spec never depends on a third-party service (YouTube, fonts,
   CDNs): block it in `e2e/support/fixtures.ts` (`EXTERNAL`) and test the fallback instead.
+- **The desktop app is in it too.** `e2e/tests/desktop-studio.spec.ts` drives the bundled shell
+  (`apps/desktop`) with the fake `claude` against the same app and emulators, so a change to the
+  shell's code, its bundle script or the fake runs `npm run e2e` as well. Electron's binary comes
+  on first use (`node -e "require('electron')"` in `apps/desktop` fetches it); no display is needed.
+  They run on Linux (CI) and are skipped on Windows, where the fake's `#!/bin/sh` wrapper and the
+  headless window cannot work (`e2e/support/desktop-platform.mjs`): there `npm run e2e` runs the web
+  specs only, so a desktop change is checked on Linux or by CI. macOS should run them, with a
+  window showing, but nobody has checked yet.
 - **Prerequisites:** Java 21 and Chromium. Where a browser is preinstalled, point at it with
   `PW_CHROMIUM_PATH=/path/to/chrome`; to run one spec, `cd e2e && npx playwright test -g "name"`
   (`npm run e2e -- -g` does not reach Playwright). `E2E_SKIP_FUNCTIONS_BUILD=1` reuses the last

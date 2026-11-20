@@ -3,6 +3,7 @@ import type { AuthoringSession } from '@gurukul/schema';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { useAnalytics } from '../../analytics/react/context';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
 import type { DesktopState, GurukulDesktop } from '../../desktop/bridge';
@@ -117,6 +118,7 @@ function StartForm({
   onClose: () => void;
 }) {
   const { data } = useStudio();
+  const analytics = useAnalytics();
   const user = useUser();
   const t = useTerms();
   const navigate = useNavigate();
@@ -167,6 +169,7 @@ function StartForm({
         (id) => data.getDraft(id),
       );
       if (result.status === 'started') {
+        analytics.track('session_started', { kind: start.kind });
         onClose();
         void navigate(sessionPath(result.session.id));
         return;

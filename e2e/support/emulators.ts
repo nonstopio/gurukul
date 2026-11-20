@@ -257,3 +257,46 @@ export async function setCourseField(
     `Setting ${field} on ${courseId}`,
   );
 }
+
+/** A course's stored draft, past the rules: its `rev` and its course as the REST API's JSON. */
+export async function readDraft(
+  courseId: string,
+): Promise<{ rev: number; course: string; publishedAt: unknown }> {
+  const fields = await readDoc(`courses/${courseId}/drafts/current`);
+  if (!fields) throw new Error(`No draft for ${courseId}`);
+  const course = fields.course as { mapValue: { fields: Record<string, unknown> } };
+  return {
+    rev: Number((fields.rev as { integerValue: string }).integerValue),
+    course: JSON.stringify(course),
+    publishedAt: course.mapValue.fields.publishedAt,
+  };
+}
+
+/**
+ * Someone else saves the draft, past the rules, as Studio's autosave would: the course with `edit`
+ * applied to its REST JSON, the next `rev`, who saved it and when.
+ */
+export async function saveDraftAs(
+  courseId: string,
+  updatedBy: string,
+  edit: (courseJson: string) => string,
+): Promise<void> {
+  const path = `courses/${courseId}/drafts/current`;
+  const fields = await readDoc(path);
+  if (!fields) throw new Error(`No draft for ${courseId}`);
+  const rev = Number((fields.rev as { integerValue: string }).integerValue);
+  const next = {
+    course: JSON.parse(edit(JSON.stringify(fields.course))) as unknown,
+    rev: { integerValue: String(rev + 1) },
+    updatedBy: { stringValue: updatedBy },
+    updatedAt: { timestampValue: new Date().toISOString() },
+  };
+  const mask = Object.keys(next)
+    .map((f) => `updateMask.fieldPaths=${f}`)
+    .join('&');
+  await call(
+    `${DOCS}/${path}?${mask}`,
+    { method: 'PATCH', headers: OWNER, body: JSON.stringify({ fields: next }) },
+    `Saving the draft of ${courseId}`,
+  );
+}

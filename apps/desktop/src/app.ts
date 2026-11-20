@@ -2,7 +2,7 @@ import path from 'node:path';
 import { createAgentManager } from './agent/manager';
 import type { AgentPlatform } from './agent/platform';
 import { BRIDGE_VERSION } from './bridge';
-import { allowedOrigins, startUrl } from './config';
+import { TEST_URL_VARIABLE, allowedOrigins, startUrl, testUrl } from './config';
 import { createEventSender, type EventSender } from './events';
 import type { GoogleClient } from './googleClient';
 import { createGoogleSignIn, type FetchLike } from './googleSignIn';
@@ -85,6 +85,11 @@ export interface ShellDeps {
   googleClient: GoogleClient | null;
   /** What the agent bridge starts Claude Code with (`agent/node.ts` in the app). */
   agent: AgentPlatform;
+  /**
+   * `GURUKUL_DESKTOP_TEST_URL` as the environment has it: the end-to-end tests' app (`DSK-24`).
+   * Only a development build opens it (`testUrl` in `config.ts`); a packaged one ignores it.
+   */
+  testUrl: string | undefined;
   log: Logger;
 }
 
@@ -103,7 +108,12 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   }
 
   const dev = !app.isPackaged;
-  const origins = allowedOrigins(dev);
+  const test = testUrl(dev, deps.testUrl);
+  if (deps.testUrl !== undefined && test === null) {
+    // Never the value: it is not ours to log, and a packaged build must not act on it at all.
+    log.warn('Test page ignored', { variable: TEST_URL_VARIABLE, dev });
+  }
+  const origins = allowedOrigins(dev, test);
   let current: WindowLike | null = null;
   // Set once the agent bridge exists: what a window's page going away ends (`agent.cancelAsks`).
   let pageGone: () => void = () => undefined;
@@ -112,7 +122,7 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     const win = openWindow(
       (options) => deps.createWindow(options),
       windowOptions(deps.preloadPath, origins),
-      startUrl(dev),
+      startUrl(dev, test),
       deps.timers,
       log,
     );
@@ -229,7 +239,7 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
 
   open();
   updates.start();
-  log.info('Desktop shell started', { dev, bridgeVersion: BRIDGE_VERSION });
+  log.info('Desktop shell started', { dev, test: test !== null, bridgeVersion: BRIDGE_VERSION });
   return { events };
 }
 

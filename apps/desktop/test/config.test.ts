@@ -7,6 +7,7 @@ import {
   originOf,
   originsArgument,
   startUrl,
+  testUrl,
 } from '../src/config';
 
 describe('config', () => {
@@ -41,6 +42,34 @@ describe('config', () => {
     expect(isAllowedUrl('http://gurukul.nonstopio.com/', origins)).toBe(false);
     expect(isAllowedUrl('http://localhost:5173/', origins)).toBe(false);
     expect(isAllowedUrl('garbage', origins)).toBe(false);
+  });
+
+  it('takes a test page on this computer, in a development build only', () => {
+    expect(testUrl(true, 'http://127.0.0.1:4173/studio')).toBe('http://127.0.0.1:4173/studio');
+    expect(testUrl(true, 'http://localhost:4173')).toBe('http://localhost:4173/');
+    // A packaged build never reads it, whatever it says.
+    expect(testUrl(false, 'http://127.0.0.1:4173/studio')).toBeNull();
+    expect(testUrl(true, undefined)).toBeNull();
+    expect(testUrl(true, '')).toBeNull();
+    expect(testUrl(true, 'not a url')).toBeNull();
+    expect(testUrl(true, 'https://127.0.0.1:4173/')).toBeNull();
+    expect(testUrl(true, 'http://evil.example:4173/')).toBeNull();
+    expect(testUrl(true, 'http://127.0.0.1.evil.example:4173/')).toBeNull();
+    expect(testUrl(true, 'http://127.0.0.1/')).toBeNull();
+    expect(testUrl(true, 'http://user@127.0.0.1:4173/')).toBeNull();
+    expect(testUrl(true, 'http://:secret@127.0.0.1:4173/')).toBeNull();
+  });
+
+  it('opens a test page and adds its origin in development only', () => {
+    const test = 'http://127.0.0.1:4173/studio';
+    expect(startUrl(true, test)).toBe(test);
+    expect(startUrl(false, test)).toBe(PRODUCTION_URL);
+    expect(allowedOrigins(true, test)).toEqual([
+      'http://127.0.0.1:4173',
+      'http://localhost:5173',
+      'https://gurukul.nonstopio.com',
+    ]);
+    expect(allowedOrigins(false, test)).toEqual(['https://gurukul.nonstopio.com']);
   });
 
   it('carries the origins in one command-line flag', () => {

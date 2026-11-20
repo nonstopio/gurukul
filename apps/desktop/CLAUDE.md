@@ -6,37 +6,37 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 
 ## Map
 
-| File                                                                  | Does                                                                                                     |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `src/bridge.ts`                                                       | The contract, version 1: calls, events, argument, result and event types, limits, name rules. No imports |
-| `src/config.ts`                                                       | Production URL, dev URL, allowed origins. The one place to change the production host                    |
-| `src/ipc.ts`                                                          | Typed handler registry and the gate every call passes: top frame, allowed origin, zod args               |
-| `src/args.ts`                                                         | The zod pieces the handlers check arguments with                                                         |
-| `src/handlers.ts`                                                     | `info`, `store.*`, and the composition of every area's handlers (`createHandlers`)                       |
-| `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; a later call starts as `notAvailable(schema)` until its item builds it         |
-| `src/googleSignIn.ts`                                                 | `auth.googleSignIn`: PKCE, loopback listener, system browser, token exchange; answers the ID token only  |
-| `src/googleClient.ts`, `scripts/bundle.ts`, `.env.example`            | The Google Desktop OAuth client: build-time variables the bundle writes into `main.cjs` as literals      |
-| `src/agent/manager.ts`                                                | `agent.*`: status, one `claude` per open session, tool results, `forget`, `closeAll` on quit             |
-| `src/agent/launch.ts`                                                 | The pinned flags, `MIN_CLAUDE_VERSION`, the allow-listed environment (`ALLOWED_ENV`)                     |
-| `src/agent/run.ts`                                                    | One running `claude`: messages in, events out, Stop (`interrupt`), close, tool calls to the window       |
-| `src/agent/ask.ts`                                                    | `agent.ask` (`DSK-18`): one one-shot `claude` (`askArgs`), prompt in, reply's words out, timeout, cancel |
-| `src/agent/stream.ts`                                                 | Stream-json both ways, pure: what each output line means                                                 |
-| `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only              |
-| `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript          |
-| `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)      |
-| `src/agent/signedInCheck.ts`, `checkCli.ts`                           | The signed-in check (`DSK-26`), run by `scripts/check-claude.ts`, against the real `claude`              |
-| `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged          |
-| `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                   |
-| `src/sources.ts`                                                      | `sources.*`: the chosen folder per session (`{userData}/sources/`), plain text files only, size cap      |
-| `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                  |
-| `src/window.ts`                                                       | Window options (isolation, sandbox, no Node) and retry when the page cannot load                         |
-| `src/app.ts`                                                          | Start-up over injected adapters; returns the `Shell` (`events`) for what later sends events              |
-| `src/preloadApi.ts`                                                   | Builds `window.gurukulDesktop` from `CALLS` and `EVENTS`; exposes it to the allowed top frame only       |
-| `src/main.ts`, `src/preload.ts`                                       | Electron glue only: hand the real objects to `app.ts` / `preloadApi.ts`                                  |
-| `src/log.ts`                                                          | The main-process `log` helper; the only file here that may call `console.*`                              |
-| `src/updates.ts`                                                      | Self-update over `electron-updater`: launch and six-hourly checks, silent download, `app.*` answers      |
-| `src/menu.ts`                                                         | The app menu as data: Check for updates… (app menu on macOS, Help elsewhere)                             |
-| `electron-builder.yml`, `resources/`                                  | Installers: app id, fuses, hardened runtime, entitlements, icon, GitHub publish config                   |
+| File                                                                  | Does                                                                                                                 |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge.ts`                                                       | The contract, version 1: calls, events, argument, result and event types, limits, name rules. No imports             |
+| `src/config.ts`                                                       | Production URL, dev URL, the e2e test page (`testUrl`), allowed origins. The one place to change the production host |
+| `src/ipc.ts`                                                          | Typed handler registry and the gate every call passes: top frame, allowed origin, zod args                           |
+| `src/args.ts`                                                         | The zod pieces the handlers check arguments with                                                                     |
+| `src/handlers.ts`                                                     | `info`, `store.*`, and the composition of every area's handlers (`createHandlers`)                                   |
+| `src/agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts` | One area's handlers each; a later call starts as `notAvailable(schema)` until its item builds it                     |
+| `src/googleSignIn.ts`                                                 | `auth.googleSignIn`: PKCE, loopback listener, system browser, token exchange; answers the ID token only              |
+| `src/googleClient.ts`, `scripts/bundle.ts`, `.env.example`            | The Google Desktop OAuth client: build-time variables the bundle writes into `main.cjs` as literals                  |
+| `src/agent/manager.ts`                                                | `agent.*`: status, one `claude` per open session, tool results, `forget`, `closeAll` on quit                         |
+| `src/agent/launch.ts`                                                 | The pinned flags, `MIN_CLAUDE_VERSION`, the allow-listed environment (`ALLOWED_ENV`)                                 |
+| `src/agent/run.ts`                                                    | One running `claude`: messages in, events out, Stop (`interrupt`), close, tool calls to the window                   |
+| `src/agent/ask.ts`                                                    | `agent.ask` (`DSK-18`): one one-shot `claude` (`askArgs`), prompt in, reply's words out, timeout, cancel             |
+| `src/agent/stream.ts`                                                 | Stream-json both ways, pure: what each output line means                                                             |
+| `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only                          |
+| `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript                      |
+| `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)                  |
+| `src/agent/signedInCheck.ts`, `checkCli.ts`                           | The signed-in check (`DSK-26`), run by `scripts/check-claude.ts`, against the real `claude`                          |
+| `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged                      |
+| `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                               |
+| `src/sources.ts`                                                      | `sources.*`: the chosen folder per session (`{userData}/sources/`), plain text files only, size cap                  |
+| `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                              |
+| `src/window.ts`                                                       | Window options (isolation, sandbox, no Node) and retry when the page cannot load                                     |
+| `src/app.ts`                                                          | Start-up over injected adapters; returns the `Shell` (`events`) for what later sends events                          |
+| `src/preloadApi.ts`                                                   | Builds `window.gurukulDesktop` from `CALLS` and `EVENTS`; exposes it to the allowed top frame only                   |
+| `src/main.ts`, `src/preload.ts`                                       | Electron glue only: hand the real objects to `app.ts` / `preloadApi.ts`                                              |
+| `src/log.ts`                                                          | The main-process `log` helper; the only file here that may call `console.*`                                          |
+| `src/updates.ts`                                                      | Self-update over `electron-updater`: launch and six-hourly checks, silent download, `app.*` answers                  |
+| `src/menu.ts`                                                         | The app menu as data: Check for updates… (app menu on macOS, Help elsewhere)                                         |
+| `electron-builder.yml`, `resources/`                                  | Installers: app id, fuses, hardened runtime, entitlements, icon, GitHub publish config                               |
 
 ## Rules
 
@@ -58,9 +58,11 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   files the window can write (`{userData}/sources/`). `sources.read` reads only a name its own
   listing gives, of a text type, under `MAX_SOURCE_BYTES`; a refusal is one of `SOURCE_REFUSALS`.
   Never log a Sources path, file name or text.
-- **Never widen the origins** beyond `config.ts`, and never from an environment variable: that
-  would hand the bridge to another site. `localhost:5173` is allowed only when `app.isPackaged` is
-  false.
+- **Never widen the origins** beyond `config.ts`: that would hand the bridge to another site.
+  `localhost:5173` is allowed only when `app.isPackaged` is false. The one environment variable,
+  `GURUKUL_DESKTOP_TEST_URL` (`testUrl`, for the end-to-end specs), is read only by a development
+  build and only as a plain `http` page on `127.0.0.1` or `localhost` with a port; a packaged build
+  ignores it and logs that it did (`app.test.ts` holds both). Add no other.
 - **The web app imports the bridge's types** from `@gurukul/desktop/bridge` with `import type`
   only (ESLint), so no code from here reaches its bundle; constants it needs are repeated there and
   held equal by their types (`BridgeErrors`). Only `apps/web/src/desktop/bridge.ts` may read
@@ -82,7 +84,10 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   prompt nor the reply is logged.
 - **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
   stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`;
-  `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else.
+  `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else. The end-to-end specs
+  (`e2e/tests/desktop-studio.spec.ts`, `e2e/support/desktop.ts`) run the same fake against the
+  bundled shell: a change to its steps, `src/` or `scripts/bundle.ts` runs `npm run e2e` before a
+  push (`scripts/pre-push.sh`).
 - **The signed-in check runs the shipped code, not a copy.** `signedInCheck.ts` drives
   `findClaude`, `runCommand` and `createAgentManager` over the real platform, reading `claude`'s
   output through a tapped `spawn`; a launch change reaches it with no edit. It prints only
@@ -105,7 +110,16 @@ npm run dev -w @gurukul/desktop    # bundle and open the shell on http://localho
 npm run coverage -w @gurukul/desktop
 npm run build -w @gurukul/desktop  # typecheck and bundle to dist/ (main.cjs, preload.cjs)
 npm run check:claude -w @gurukul/desktop -- [--yes] [--claude <path>]  # DSK-26, signed-in machines only
+cd e2e && npx playwright test desktop-studio  # DSK-24: the bundled shell, the fake claude, the emulators
 ```
+
+The desktop specs bundle the shell into `e2e/dist/desktop` (with a made-up Google client id; Google
+is never called: `e2e/support/desktop.ts` answers the consent page and the token endpoint in the main
+process), start it with `--no-sandbox --ozone-platform=headless` (no display needed on Linux), a
+fresh `--user-data-dir`, a proxy that does not exist (no internet), the fake on `PATH` and its
+scenario in `CLAUDE_CONFIG_DIR`. On Windows they are skipped and the shell is not bundled
+(`e2e/support/desktop-platform.mjs`): the fake's wrapper is a `#!/bin/sh` file and the headless
+window is Linux's.
 
 The signed-in check (`docs/desktop-release-setup.md`, step 9) runs with plain Node through `tsx`,
 no Electron: it asks before using the plan, prints `PASS`/`FAIL`/`INFO`/`SKIP` per step and a

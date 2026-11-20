@@ -80,6 +80,7 @@ function setup({
   lock = true,
   platform = 'linux',
   googleClient = null as GoogleClient | null,
+  testUrl = undefined as string | undefined,
 } = {}) {
   const appListeners = new Map<string, (...args: unknown[]) => void>();
   const handlers = new Map<string, (event: InvokeEventLike, ...args: unknown[]) => unknown>();
@@ -142,6 +143,7 @@ function setup({
     showMessage: vi.fn(async () => undefined),
     setMenu: vi.fn<(template: MenuItem[]) => void>(),
     agent: fakePlatform(),
+    testUrl,
     log: createLogger({ sink }),
   } satisfies ShellDeps;
   const emit = (name: string, ...args: unknown[]) => appListeners.get(name)?.(...args);
@@ -168,7 +170,54 @@ describe('startApp', () => {
     ]);
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
+      test: false,
       bridgeVersion: 1,
+    });
+  });
+
+  it("opens the end-to-end tests' page, and lets it call, in a development build", async () => {
+    const { deps, windows, handlers, sink } = setup({ testUrl: 'http://127.0.0.1:4173/studio' });
+    await startApp(deps);
+    expect(windows[0]?.loadURL).toHaveBeenCalledWith('http://127.0.0.1:4173/studio');
+    expect(deps.createWindow.mock.calls[0]?.[0].webPreferences.additionalArguments).toEqual([
+      '--gurukul-origins=http://127.0.0.1:4173,http://localhost:5173,https://gurukul.nonstopio.com',
+    ]);
+    await expect(
+      handlers.get(channel('info'))?.(topFrame('http://127.0.0.1:4173')),
+    ).resolves.toMatchObject({ bridgeVersion: 1 });
+    expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
+      dev: true,
+      test: true,
+      bridgeVersion: 1,
+    });
+  });
+
+  it('ignores a test page in a packaged build: production only, and says so', async () => {
+    const { deps, windows, handlers, sink } = setup({
+      packaged: true,
+      testUrl: 'http://127.0.0.1:4173/studio',
+    });
+    await startApp(deps);
+    expect(windows[0]?.loadURL).toHaveBeenCalledWith(PRODUCTION_URL);
+    expect(deps.createWindow.mock.calls[0]?.[0].webPreferences.additionalArguments).toEqual([
+      '--gurukul-origins=https://gurukul.nonstopio.com',
+    ]);
+    await expect(
+      handlers.get(channel('info'))?.(topFrame('http://127.0.0.1:4173')),
+    ).rejects.toThrow('Not allowed');
+    expect(sink).toHaveBeenCalledWith('warn', 'Test page ignored', {
+      variable: 'GURUKUL_DESKTOP_TEST_URL',
+      dev: false,
+    });
+  });
+
+  it('ignores a test page that is not on this computer, even in development', async () => {
+    const { deps, windows, sink } = setup({ testUrl: 'https://evil.example:4173/' });
+    await startApp(deps);
+    expect(windows[0]?.loadURL).toHaveBeenCalledWith(DEV_URL);
+    expect(sink).toHaveBeenCalledWith('warn', 'Test page ignored', {
+      variable: 'GURUKUL_DESKTOP_TEST_URL',
+      dev: true,
     });
   });
 

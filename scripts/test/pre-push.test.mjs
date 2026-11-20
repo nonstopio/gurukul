@@ -92,10 +92,25 @@ describe('pre-push.sh', () => {
     ]);
   });
 
-  it('runs only the desktop coverage for a desktop shell change', () => {
-    const { res, calls } = push({ 'apps/desktop/src/window.ts': 'x' });
-    assert.equal(res.status, 0, res.stderr);
-    assert.deepEqual(calls.slice(2), ['run -s coverage -w @gurukul/desktop']);
+  it('runs the desktop coverage and the end-to-end specs for a desktop shell change', () => {
+    // The desktop specs drive the built shell with the fake `claude` (DSK-24).
+    for (const file of [
+      'apps/desktop/src/window.ts',
+      'apps/desktop/scripts/bundle.ts',
+      'apps/desktop/test/fixtures/fake-claude.mjs',
+    ]) {
+      const { res, calls } = push({ [file]: 'x' });
+      assert.equal(res.status, 0, res.stderr);
+      assert.deepEqual(calls.slice(2), ['run -s coverage -w @gurukul/desktop', 'run -s e2e'], file);
+    }
+  });
+
+  it('runs only the desktop coverage for a change to its unit tests or packaging', () => {
+    for (const file of ['apps/desktop/test/app.test.ts', 'apps/desktop/electron-builder.yml']) {
+      const { res, calls } = push({ [file]: 'x' });
+      assert.equal(res.status, 0, res.stderr);
+      assert.deepEqual(calls.slice(2), ['run -s coverage -w @gurukul/desktop'], file);
+    }
   });
 
   it('runs the rules tests and the end-to-end specs for a rules change', () => {

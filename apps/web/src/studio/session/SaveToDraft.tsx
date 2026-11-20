@@ -16,6 +16,7 @@ import { PublishDialog } from '../PublishDialog';
 import { useStudio } from '../StudioProvider';
 import type { Working } from '../types';
 import type { SessionBase } from './agent';
+import { sessionBands } from './events';
 import { saveBlockers } from './review';
 import { movedLine, saveSession, saveWaits } from './save';
 import type { DraftCheck } from './save';
@@ -177,6 +178,11 @@ export function SaveBar({
     const outcome = await saveSession(agent, data, { uid, sessionId, courseId });
     switch (outcome.status) {
       case 'saved':
+        // `title` names a course created for this save: a new course, whatever the session became.
+        analytics.track('session_saved', {
+          kind: title === undefined ? 'edit' : 'new',
+          ...sessionBands(count, session.turns.length),
+        });
         toast.show(
           title === undefined
             ? `Saved ${changesWord(count)} to Draft v${outcome.rev}. ${t.Learners} see nothing until you publish.`

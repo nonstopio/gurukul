@@ -154,11 +154,14 @@ export function firebaseStudioData(db: Firestore): StudioData {
             { course: work.course, answers: work.answers },
             { course: work.course, answers: prior.answers as AnswerKeys },
           );
+        // `publishedAt` is the stored draft's: a desktop session hands over a copy read back from
+        // its own file, whose Timestamp is a look-alike Firestore would refuse (`DSK-24`).
+        const publishedAt = (prior.course as { publishedAt?: unknown } | undefined)?.publishedAt;
         tx.update(ref, {
           rev: baseRev + 1,
           updatedAt: serverTimestamp(),
           updatedBy: uid,
-          course: cleanForFirestore(work.course),
+          course: cleanForFirestore({ ...work.course, publishedAt: publishedAt ?? null }),
           answers: cleanForFirestore(work.answers),
           // Never written false: only the publish function removes the mark.
           ...(marked ? { answersChanged: true } : {}),

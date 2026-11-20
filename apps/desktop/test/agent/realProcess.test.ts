@@ -229,6 +229,27 @@ describe('a session against a fake claude', () => {
     });
   });
 
+  it('lets a scenario reuse an id the window made in a later call (the fake’s capture)', async () => {
+    const { manager, calls, turnEnd } = await setup(
+      {
+        turns: [
+          [
+            { tool: 'get_course', capture: { chapter: 'Added chapter (\\S+) at' } },
+            { tool: 'add_block', input: { lessonId: 'in ${chapter}', keep: ['${missing}', 3] } },
+          ],
+        ],
+      },
+      () => ({ text: 'Added chapter ch-7 at position 1.' }),
+    );
+    await manager.start(request());
+    manager.send('s1', 'Add a chapter');
+    await turnEnd(1);
+    expect(calls.map((c) => c.input)).toEqual([
+      {},
+      { lessonId: 'in ch-7', keep: ['${missing}', 3] },
+    ]);
+  });
+
   it('hands the model the window’s refusal as a tool error', async () => {
     const { manager, turnEnd, texts } = await setup(
       { turns: [[{ tool: 'add_block' }, { tool: 'publish_course' }]] },

@@ -1267,7 +1267,8 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
-  (`DSK-11`).
+  (`DSK-11`). Fixed in `DSK-24`, whose
+  first scenario walked into it (As built in `DSK-24`).
 
 ### As built in `DSK-16`
 
@@ -1568,6 +1569,37 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   process run by the app's binary. If `DSK-26` forces the stdio proxy, `RunAsNode` stays on and
   this bullet records that trade-off and its reason before it ships.
 
+### As built in `DSK-23`
+
+- **The guide** is `docs/desktop-studio.md` (linked from `docs/README.md` and `docs/educator.md`):
+  install on a Mac or Windows (SmartScreen's More info, then Run anyway, while the installer is
+  unsigned), install Claude Code and sign in to it in a terminal (`claude`, then `/login`), sign in
+  to Gurukul, a first session from start to publish, the Sources folder, plan limits, where the
+  files live and when they go, and a table for each card the chat shows when the agent cannot run.
+  It names Claude Code only as Anthropic's program. It describes what is built: Discard is left
+  out until it exists.
+- **The privacy page** (`/privacy`, `PrivacyPage.tsx`) has a card, Gurukul Studio sessions: what a
+  session sends to Anthropic under the Educator's own account (the course parts it works on with
+  their answer keys, the messages and attached parts, the Sources files the agent reads; the
+  second opinion gets the question and lessons, never the key; no learner data), what stays on the
+  laptop and for how long, and that Gurukul stores only the draft at Save. "What we measure" names
+  the session events. Since what is collected changed, `POLICY_VERSION` is `2026-11-20`: everyone
+  accepts once more (`20-product-analytics.md`, Consent).
+- **The events** (`analytics/events.ts`): `session_started { kind }` from `SessionLauncher` when
+  `start` answers `started` (not for Open the session, not on a reopen); `session_saved { kind,
+  change_band, turn_band }` from Review's `SaveBar` when `saveSession` answers `saved`, once per
+  save. Counts go in bands (`countBand` in `studio/session/events.ts`: `0`, `1-5`, `6-20`, `21-50`,
+  `51+`) rather than exact numbers, so a record with its time and role cannot single out one
+  person's session (the plan said "counts only"; bands are the narrower reading). `kind` is `new`
+  when the save is the one that created the course (Create course and save draft, or Save the
+  draft for a course created but not yet noted); the session is an edit session by then
+  (`DSK-16`), so a new course whose first save failed and was saved again from the footer reports
+  `edit`. `session_discarded` has the same shape and is typed, but **nothing sends it**: no Discard
+  exists yet (The session workspace, "Discard and a Close without saving are still to come"), and
+  it has no tracker row. Whoever builds Discard sends it after `store.close(session, 'discarded')`
+  succeeds, with `sessionBands`. The privacy page already names discarding, so that needs no
+  second `POLICY_VERSION` change.
+
 ## Cost
 
 - **Firebase: less than today for the same work.** A session reads the draft once and writes it
@@ -1765,6 +1797,51 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   start a session, a turn that changes a lesson, Review, Save to draft, the draft holds the
   change; a new course; a stale draft and a merge. No test calls Anthropic.
 - Screens are checked at 1280px, 1024px and 640px, in both themes, by keyboard.
+
+### As built in `DSK-24`
+
+`e2e/tests/desktop-studio.spec.ts` over `e2e/support/desktop.ts`, run by `npm run e2e` with the web
+specs (one Playwright project, the same emulators, the same reset before each test).
+
+- **The built shell, not a copy.** Global setup bundles `apps/desktop` with its own bundle script
+  into `e2e/dist/desktop` (a `package.json` and `dist/`, as an installer holds them) and each test
+  starts it fresh with Playwright's `_electron.launch`: its own `--user-data-dir`, `--no-sandbox`
+  (CI and containers), `--ozone-platform=headless` (no display needed, so no `xvfb-run`), and
+  `--proxy-server` at a port nothing serves, so nothing but `127.0.0.1` is reachable from the
+  window. CI's e2e job fetches Electron's binary (`require('electron')`, which
+  `ELECTRON_SKIP_BINARY_DOWNLOAD` does not stop) and caches it.
+- **Linux, not Windows.** The fake is put on `PATH` as a `#!/bin/sh` wrapper and the window uses
+  Linux's headless mode, so on Windows the desktop specs are skipped and the shell is not bundled
+  (`e2e/support/desktop-platform.mjs`, tested by listing the specs as each platform). `npm run e2e`
+  and the pre-push hook still run there for every web spec, rather than refusing a Windows
+  contributor's push of a web change. CI runs the desktop specs on Linux.
+- **The test page is a development build's only.** The shell opens the e2e app because
+  `GURUKUL_DESKTOP_TEST_URL` names it: `testUrl` in `apps/desktop/src/config.ts` reads it only when
+  `app.isPackaged` is false, and only as `http` on `127.0.0.1` or `localhost` with a port; it then
+  joins the allowed origins. A packaged build ignores it and logs `Test page ignored` (tested).
+- **Sign-in is the shell's own flow.** The window's Sign in with Google calls `auth.googleSignIn`;
+  the test stands in for Google in the main process only, answering `shell.openExternal` with the
+  loopback redirect and its `state`, and the token endpoint (`net.fetch`) with an unsigned ID token
+  the Auth emulator accepts. PKCE, the listener and `signInWithCredential` all run as shipped. The
+  bundle is built with a made-up client id.
+- **The fake Claude Code** is `apps/desktop/test/fixtures/fake-claude.mjs`, on `PATH`, steered by a
+  scenario file in `CLAUDE_CONFIG_DIR` (the allow-listed environment passes nothing else). Its tool
+  calls go to the shell's real MCP endpoint with the bearer token, so the window's tools change the
+  working copy. It gained `capture`, which keeps an id from a tool's answer for a later input
+  (`"${chapter}"`), because the app makes the ids.
+- **Scenarios.** An edit session on the seeded, published Git course: a turn renames a lesson,
+  Firestore unchanged until Save, the row in Review, no per-change accept button, Save to draft,
+  the stored draft holds it at the next `rev` with its `publishedAt` kept. A new course: a turn sets
+  the title and adds a chapter, a lesson and a block, Create course and save draft, the course and
+  its draft exist. A stale draft: someone saves the same lesson and another one through the REST
+  API mid-session; Save finds it moved and writes nothing, Bring in their changes asks for the one
+  conflict, Keep this session's, Save, and the draft holds both the session's lesson and their other
+  change.
+- **Found by the first scenario, fixed here:** a session on a published course could not be opened
+  (As built in `DSK-15`). `session.json` held `publishedAt` as seconds and nanoseconds; the store now
+  reads it back as a `StoredTimestamp` (`store.ts`) the course schema accepts, and
+  `StudioData.saveDraft` writes the stored draft's own `publishedAt`, so the look-alike never
+  reaches Firestore.
 
 ## Phases
 
