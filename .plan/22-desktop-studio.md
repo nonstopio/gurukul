@@ -771,8 +771,9 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   base is no longer the start, so the first turn's end also writes `checkpoints/start.json`, which
   `saveTurn` never prunes. Undo reads the checkpoint of the turn before the newest (or
   `start.json`), and the store's `undoTurn` drops the turn and its checkpoint file. Past the 30 kept
-  checkpoints it answers "no longer kept". Undo restores the working copy only; the agent's title,
-  summary, goals and to-dos stay as they are.
+  checkpoints it answers "no longer kept". Undo restores the working copy only (and, for a turn that
+  brought in a draft that moved, the base it replaced: `DSK-15`); the agent's title, summary, goals
+  and to-dos stay as they are.
 - **The agent is told about undone turns** with the next message, ahead of the Educator's words
   ("[From Gurukul: the Educator undid your last turn…]"), because its own history still says it
   made those changes. `MESSAGE_MAX_LENGTH` (60,000) leaves room for that note under the shell's
