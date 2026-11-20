@@ -287,6 +287,24 @@ const UNDO_GONE: AgentProblem = {
 const TOO_LONG = 'That answer is too long to send. Ask for less at a time: one lesson or one Quiz.';
 
 /**
+ * A Review edit a tool call saw, less the fields the tool then set otherwise: the agent's later
+ * value wins, so the edit no longer lays the earlier one back. Only the summary and the goals,
+ * the Review fields a tool can set.
+ */
+export function yieldTo(
+  patch: ReviewPatch,
+  tool: Pick<ReviewPatch, 'summary' | 'goals'>,
+): ReviewPatch {
+  return Object.fromEntries(
+    Object.entries(patch).filter(
+      ([field, value]) =>
+        (field !== 'summary' && field !== 'goals') ||
+        JSON.stringify(value) === JSON.stringify(tool[field]),
+    ),
+  ) as ReviewPatch;
+}
+
+/**
  * What the agent is told, ahead of the Educator's next message, after turns were undone: its own
  * history still says it made those changes.
  */
@@ -379,6 +397,16 @@ export function createAgentSession({
   /** Whether the Educator changed the course since the agent was last told. */
   let edited = false;
   let queue: Promise<unknown> = Promise.resolve();
+  /**
+   * Review edits shown at once but not yet written, in the order they were made. A task that took
+   * its copy of the session before one of them lays it back on top (`withReview`), so a tick made
+   * while a turn, an undo or an Educator's turn is being written stays on the screen and in the
+   * next write.
+   */
+  let pendingReview: { seq: number; patch: ReviewPatch }[] = [];
+  let reviewSeq = 0;
+  const withReview = (next: AuthoringSession, after = 0): AuthoringSession =>
+    pendingReview.reduce((out, p) => (p.seq > after ? { ...out, ...p.patch } : out), next);
 
   const allChanges = lastOf(courseChanges);
   const turnCount = lastOf((before, work) => courseChanges(before, work).count);
@@ -524,7 +552,7 @@ export function createAgentSession({
     try {
       if (current.turns.length === 0) await store.saveStart(sessionId, before);
       const written = await store.saveTurn(current, record, current.work);
-      session = written;
+      session = withReview(written);
       saved = written;
       unsaved = null;
       log.info('Session turn saved', {
@@ -562,6 +590,7 @@ export function createAgentSession({
 
   const runCall = async (call: AgentToolCall) => {
     const current = session as AuthoringSession;
+    const seen = reviewSeq;
     const state: SessionState = {
       work: workOf(current),
       base: baseOf(current),
@@ -578,7 +607,10 @@ export function createAgentSession({
       reply = { error: TOO_LONG };
     } else {
       const { work, title, goals, summary, todos } = result.state;
-      session = { ...current, work, title, goals, summary, todos };
+      // Review edits the tool saw are its to change; ones made while it ran stay on top.
+      for (const p of pendingReview)
+        if (p.seq <= seen) p.patch = yieldTo(p.patch, { goals, summary });
+      session = withReview({ ...current, work, title, goals, summary, todos }, seen);
       reply = { text: result.text };
       emit();
     }
@@ -751,7 +783,7 @@ export function createAgentSession({
             }
             next = await store.undoTurn(current, before);
           }
-          session = next;
+          session = withReview(next);
           saved = next;
           unsaved = null;
           undone += 1;
@@ -774,11 +806,13 @@ export function createAgentSession({
     async updateReview(patch) {
       if (session?.status !== 'open') return false;
       // At once in memory, so the screen keeps the tick; the file is written in turn with the rest.
+      const entry = { seq: ++reviewSeq, patch };
+      pendingReview = [...pendingReview, entry];
       session = { ...session, ...patch };
       emit();
       return enqueue(async () => {
         try {
-          const written = await store.save({ ...(saved as AuthoringSession), ...patch });
+          const written = await store.save({ ...(saved as AuthoringSession), ...entry.patch });
           saved = written;
           session = { ...(session as AuthoringSession), updatedAt: written.updatedAt };
           return true;
@@ -787,6 +821,8 @@ export function createAgentSession({
           problem = appProblem(error);
           return false;
         } finally {
+          // Written or not, it is in `session` now and goes to the file with the next write.
+          pendingReview = pendingReview.filter((p) => p !== entry);
           emit();
         }
       });
@@ -813,7 +849,7 @@ export function createAgentSession({
         try {
           if (current.turns.length === 0) await store.saveStart(sessionId, before);
           const written = await store.saveTurn({ ...current, work }, record, work);
-          session = written;
+          session = withReview(written);
           saved = written;
           unsaved = null;
           edited = true;

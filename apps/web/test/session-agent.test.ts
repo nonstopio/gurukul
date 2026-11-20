@@ -14,6 +14,7 @@ import {
   statusProblem,
   turnSummary,
   undoNote,
+  yieldTo,
 } from '../src/studio/session/agent';
 import type { AgentSessionOptions } from '../src/studio/session/agent';
 import {
@@ -1142,6 +1143,158 @@ describe('Review’s fields', () => {
     await s.runtime.settled();
     expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [{ id: 't1' }] });
     expect(s.disk().work.course.title).toBe('Mid-turn');
+  });
+
+  /** Holds `method` open until `release`; `entered` resolves once it was called. */
+  function hold<K extends 'saveTurn' | 'undoTurn'>(s: Setup, method: K) {
+    const real = s.store[method].bind(s.store) as (...args: unknown[]) => Promise<AuthoringSession>;
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const reached = new Promise<void>((resolve) => (entered = resolve));
+    (s.store as Record<K, unknown>)[method] = async (...args: unknown[]) => {
+      entered();
+      await gate;
+      return real(...args);
+    };
+    return { reached, release };
+  }
+
+  it('keeps a tick made while a turn’s end is being written, on screen and in the next turn', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Rename the course.')).toBe(true);
+    await s.call('set_course_details', { title: 'Mid-turn' });
+    const held = hold(s, 'saveTurn');
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await held.reached;
+    const ticked = s.runtime.updateReview({ viewed: ['course:course'] });
+    held.release();
+    expect(await ticked).toBe(true);
+    await s.runtime.settled();
+    expect(s.state().session?.viewed).toEqual(['course:course']);
+    expect(s.disk().viewed).toEqual(['course:course']);
+    await renameTurn(s, 'Second');
+    expect(s.state().session?.viewed).toEqual(['course:course']);
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [{}, {}] });
+  });
+
+  it('keeps a summary typed while an undo is being written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    const held = hold(s, 'undoTurn');
+    const undoing = s.runtime.undo();
+    await held.reached;
+    const typed = s.runtime.updateReview({ summary: 'Typed meanwhile.' });
+    held.release();
+    expect(await undoing).toBe(true);
+    expect(await typed).toBe(true);
+    expect(s.state().session).toMatchObject({ summary: 'Typed meanwhile.', turns: [] });
+    expect(s.disk()).toMatchObject({ summary: 'Typed meanwhile.', turns: [] });
+  });
+
+  it('keeps a goal ticked while the Educator’s own turn is being written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    const held = hold(s, 'saveTurn');
+    const editing = s.runtime.educatorTurn(
+      { ...work, course: { ...work.course, title: 'By hand' } },
+      'Renamed the course',
+    );
+    await held.reached;
+    const goals = [{ text: 'Simplify chapter one.', done: true }];
+    const ticked = s.runtime.updateReview({ goals });
+    held.release();
+    expect(await editing).toBe(true);
+    expect(await ticked).toBe(true);
+    expect(s.state().session?.goals).toEqual(goals);
+    expect(s.disk().goals).toEqual(goals);
+  });
+
+  /** A tool that waits for `release` before it sets the goals. */
+  function slowGoals() {
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const reached = new Promise<void>((resolve) => (entered = resolve));
+    const tool: Tool = {
+      name: 'slow_goals',
+      description: 'Sets the goals, slowly.',
+      input: z.strictObject({
+        goals: z.array(z.strictObject({ text: z.string(), done: z.boolean() })),
+      }),
+      run: async (state, input: { goals: { text: string; done: boolean }[] }) => {
+        entered();
+        await gate;
+        return { state: { ...state, goals: input.goals }, text: 'Set.' };
+      },
+    };
+    return { tool, reached, release };
+  }
+
+  it('keeps a tick made while a tool runs', async () => {
+    const slow = slowGoals();
+    const s = await setup({ options: { tools: [slow.tool] } });
+    await s.runtime.open();
+    expect(await s.runtime.send('Mark the goal.')).toBe(true);
+    const goals = [{ text: 'Simplify chapter one.', done: false }];
+    const call = s.call('slow_goals', { goals });
+    await slow.reached;
+    const ticked = s.runtime.updateReview({ viewed: ['course:course'] });
+    slow.release();
+    expect(await call).toEqual({ text: 'Set.' });
+    expect(await ticked).toBe(true);
+    expect(s.state().session).toMatchObject({ viewed: ['course:course'], goals });
+  });
+
+  it('lets a tool that saw an Educator’s goals set them otherwise, on screen and in the file', async () => {
+    const first = slowGoals();
+    const second = slowGoals();
+    const s = await setup({
+      options: { tools: [first.tool, { ...second.tool, name: 'slow_too' }] },
+    });
+    await s.runtime.open();
+    expect(await s.runtime.send('Mark the goal.')).toBe(true);
+    const educator = [{ text: 'Simplify chapter one.', done: true }];
+    const agent = [{ text: 'Simplify chapter one.', done: false }];
+    // The first call holds the queue; the second waits behind it, then the Educator ticks.
+    const one = s.call('slow_goals', { goals: educator });
+    await first.reached;
+    const two = s.call('slow_too', { goals: agent });
+    const ticked = s.runtime.updateReview({ goals: educator, viewed: ['course:course'] });
+    first.release();
+    await one;
+    await second.reached;
+    expect(s.state().session?.goals).toEqual(educator);
+    second.release();
+    await two;
+    expect(await ticked).toBe(true);
+    // The second call saw the tick and changed the goals after it: the agent's are the latest.
+    expect(s.state().session).toMatchObject({ goals: agent, viewed: ['course:course'] });
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], goals: [{ done: false }] });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk()).toMatchObject({ goals: agent, viewed: ['course:course'] });
+  });
+
+  it('drops from a seen Review edit only the fields a tool then set otherwise', () => {
+    const goals = [{ text: 'A goal.', done: true }];
+    expect(
+      yieldTo({ summary: 'Mine.', goals, viewed: ['x'] }, { summary: 'Mine.', goals: [] }),
+    ).toEqual({ summary: 'Mine.', viewed: ['x'] });
+    expect(yieldTo({ viewed: ['x'] }, { summary: 'Other.', goals })).toEqual({ viewed: ['x'] });
   });
 
   it('says so when the file could not be written, keeping what was typed in memory', async () => {
