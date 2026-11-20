@@ -678,6 +678,39 @@ describe('a new course created before the app closed (DSK-28)', () => {
     });
   });
 
+  it('names the course it found by the title typed last, here and after the app reopens', async () => {
+    const s = await setup({ kind: 'new' });
+    await renameTurn(s, 'Reviewing code');
+    // An earlier attempt made "Code review" at the address; this one typed "Better name".
+    await s.runtime.noteCreating('code-review', 'Better name');
+    const own = await s.runtime.ownCourse(made());
+    expect(own?.work.course.title).toBe('Code review');
+    expect(await s.runtime.courseCreated(own as SessionBase)).toBe(true);
+    const named = { title: 'Better name', certificate: { title: 'Better name' } };
+    expect(s.disk().work.course).toMatchObject({ ...named, cover: { glyph: 'B' } });
+    // The stored blank course stays the base, so the new title is a change Save writes.
+    expect(s.disk().base?.work.course.title).toBe('Code review');
+    expect(s.state().changes?.rows.map((r) => r.kind)).toContain('course');
+
+    // The app closes and opens again: Undo of the turn from before the course keeps the title.
+    s.runtime.dispose();
+    const again = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await again.open();
+    expect(again.getState().creating).toMatchObject({ slug: 'code-review', title: 'Better name' });
+    expect(await again.undo()).toBe(true);
+    expect(s.disk().work.course).toMatchObject({
+      id: 'code-review',
+      ...named,
+      cover: { glyph: 'B' },
+    });
+  });
+
   it('goes on when the note cannot be written or read', async () => {
     const s = await setup({ kind: 'new' });
     s.desktop.store.write.mockRejectedValueOnce(REFUSED);

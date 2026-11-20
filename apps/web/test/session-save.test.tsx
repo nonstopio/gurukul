@@ -650,6 +650,71 @@ describe('a new course’s first save', () => {
       });
     });
 
+    it('saves the course it finds under the title typed now, not the earlier attempt’s', async () => {
+      const s = await openNew({ ...tried(), drafts: [created()] });
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Better name' } });
+      // The address stays the one the earlier attempt tried.
+      expect((within(form).getByLabelText('Address') as HTMLInputElement).value).toBe(
+        'code-review',
+      );
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'Created “Better name” and saved its draft as Draft v2. Learners see nothing until you publish.',
+        ),
+      ).toBeTruthy();
+      // Saved against the stored blank course as a change to its title, with the certificate
+      // title and cover letter `createCourse` would have made from it.
+      expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[1].course).toMatchObject({
+        id: 'code-review',
+        title: 'Better name',
+        certificate: { title: 'Better name' },
+        cover: { glyph: 'B' },
+      });
+      await waitFor(() => expect(s.disk().status).toBe('saved'));
+      expect(s.disk().base?.work.course.title).toBe('Code review');
+    });
+
+    it('names the course it could not note by the title typed last', async () => {
+      const s = await openNew({ ...tried(), drafts: [created()] });
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Better name' } });
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      // `creating.json` is written; then neither `created.json` nor `session.json` can be.
+      const write = s.desktop.store.write.getMockImplementation();
+      s.desktop.store.write.mockImplementation(async (file, text) => {
+        if (file.path === 'created.json' || file.path === 'session.json') throw REFUSED;
+        return write?.(file, text);
+      });
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'The course “Better name” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.',
+        ),
+      ).toBeTruthy();
+      s.desktop.store.write.mockImplementation(async (file, text) => write?.(file, text));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Save the draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'Created “Better name” and saved its draft as Draft v2. Learners see nothing until you publish.',
+        ),
+      ).toBeTruthy();
+      expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[1].course.title).toBe(
+        'Better name',
+      );
+      expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    });
+
     it('finds it again in the same run when createCourse answered too late to be heard', async () => {
       // Made by this attempt: the server dates it after the note.
       const s = await openNew({ drafts: [created({ updatedAt: new Date(Date.now() + 60_000) })] });

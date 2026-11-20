@@ -176,6 +176,34 @@ export function asCreated<W extends WorkingCopy>(work: W, created: WorkingCopy['
 }
 
 /**
+ * The course a new-course session is put on (`asCreated`), named as the Educator named it last
+ * (`DSK-28`): `created` is the blank course `createCourse` wrote, and `note` the session's last
+ * attempt at its address. When an earlier attempt made the course and this one found it, the title
+ * typed this time is the one kept, with the certificate title and cover letter `createCourse`
+ * derives from it; the stored draft keeps its own, so Save writes the new title as a change.
+ * `created` itself when the note is for another address or gives the same title.
+ */
+export function namedCourse(
+  created: WorkingCopy['course'],
+  note: CreatingNote | null,
+): WorkingCopy['course'] {
+  if (note === null || note.slug !== created.id || note.title === created.title) return created;
+  const named = blankCourse({
+    id: created.id,
+    title: note.title,
+    level: created.level,
+    theme: created.cover.theme,
+    educatorId: '',
+  });
+  return {
+    ...created,
+    title: named.title,
+    certificate: { ...created.certificate, title: named.certificate.title },
+    cover: { ...created.cover, glyph: named.cover.glyph },
+  };
+}
+
+/**
  * The draft `createCourse` has just written for a new-course session's course (`DSK-16`): a blank
  * course with the title and address the Educator chose, the session's level, cover theme and
  * Educator, at `CREATED_DRAFT_REV`. Built here rather than read, so nothing stands between the

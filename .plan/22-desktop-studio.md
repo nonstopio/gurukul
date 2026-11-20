@@ -1269,7 +1269,8 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
   hand edits open, a change being written, or a turn running (`DSK-29`). The chat calls the merge
   turn "draft brought in" (`turnBy`: the one turn with `baseBefore`), not "by hand". A disabled
   primary button (the merge dialog's, until every conflict has a side) is a flat neutral ground in
-  both themes (`@gurukul/ui` `button.css`).
+  both themes, with a `--border` edge so it keeps its shape where that ground is close to the
+  page's (the light theme's `--bg`) (`@gurukul/ui` `button.css`).
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
@@ -1343,7 +1344,11 @@ As built in `DSK-28` (a new course created just before the app closed): `CREATIN
   older than the note's `since` (10 minutes' allowance for the server's clock,
   `CREATED_CLOCK_SKEW_MS`), with no other open session on this computer on that course. Then the
   stored draft is the base and the session is noted as an edit session exactly as after a
-  successful create (`courseCreated`), and saved. That read counts as the page's read of the
+  successful create (`courseCreated`), and saved. The title is the one typed in this attempt
+  (`namedCourse` in `store.ts`, from the note), with the certificate title and cover letter
+  `createCourse` makes from it: the stored blank course keeps the earlier attempt's, so a title
+  changed in the dialog is saved as a change, and Undo of a turn from before the course keeps it
+  too (the note is also read while the base is still that blank course, `rev` 1). That read counts as the page's read of the
   draft (`useDraftCheck`'s `found`), so the session still reads it once. Anything else (someone
   else's course, one changed in the browser since, one made before the attempt, a draft that
   cannot be read) still says "That address is taken".

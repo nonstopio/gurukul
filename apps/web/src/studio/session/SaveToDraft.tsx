@@ -20,7 +20,7 @@ import type { SessionBase } from './agent';
 import { saveBlockers } from './review';
 import { movedLine, saveSession, saveWaits } from './save';
 import type { DraftCheck } from './save';
-import { NEW_COURSE_TITLE, createdBase, creatorName } from './store';
+import { NEW_COURSE_TITLE, createdBase, creatorName, namedCourse } from './store';
 import type { DraftCheckApi } from './useDraftCheck';
 import type { AgentSessionHandle } from './useAgentSession';
 
@@ -225,11 +225,16 @@ export function SaveBar({
 
   /**
    * The course exists: the session becomes an edit session on it, then the draft is saved. When it
-   * could not be noted, the runtime keeps it as `pendingCourse`, which the footer says.
+   * could not be noted, the runtime keeps it as `pendingCourse`, which the footer says. `title` is
+   * the one it is saved under: the last attempt's (`namedCourse`), which a course an earlier
+   * attempt made keeps too.
    */
-  const note = async (base: SessionBase) => {
+  const note = async (
+    base: SessionBase,
+    title = namedCourse(base.work.course, agent.creating).title,
+  ) => {
     setFailure(null);
-    if (await agent.courseCreated(base)) await save(base.work.course.id, base.work.course.title);
+    if (await agent.courseCreated(base)) await save(base.work.course.id, title);
   };
 
   /**
@@ -279,7 +284,8 @@ export function SaveBar({
         const own = tried ? await ownCourse(slug) : null;
         if (own === null) return 'taken';
         setCreating(false);
-        await note(own);
+        // Saved under the title typed now: the runtime has just noted it (`noteCreating`).
+        await note(own, title);
         return 'created';
       }
       log.error('Creating a course failed', error, { sessionId });
@@ -319,7 +325,7 @@ export function SaveBar({
       ) : created ? (
         <Callout tone="warning" title="Not saved">
           <p>
-            {`The course “${created.work.course.title}” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.`}
+            {`The course “${namedCourse(created.work.course, agent.creating).title}” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.`}
           </p>
         </Callout>
       ) : null}
