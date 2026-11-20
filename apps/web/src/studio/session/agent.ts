@@ -226,7 +226,8 @@ export interface AgentSession {
   /**
    * A change the Educator made to the working copy, written as a turn of its own by the Educator
    * (its checkpoint, its count, a line in the chat), so Undo takes it back like any other. Only
-   * between turns. False when it could not be written; the working copy is then as it was.
+   * between turns and with no hand edits open. False when it could not be written; the working
+   * copy is then as it was.
    */
   educatorTurn(work: Working, summary: string): Promise<boolean>;
   /** Ends the running turn; what it had changed stays. */
@@ -1208,8 +1209,6 @@ export function createAgentSession({
       attachments = kept;
       emit();
     },
-
-    busy: () => turn !== null || status === 'undoing' || status === 'editing',
 
     keepEdits: () => enqueue(writeEdits),
 

@@ -629,3 +629,92 @@ describe('dropping edits the session cannot keep yet', () => {
     expect(s.state().turns).toEqual([]);
   });
 });
+
+describe('hand edits beside Review', () => {
+  it('refuses Undo this item while hand edits are open, and takes it once they are a turn', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    const put = retitle('l2', 'Lesson two')(s.state().work as Working);
+    expect(await s.runtime.educatorTurn(put, 'Put back Lesson l2')).toBe(false);
+    expect(s.state().turns).toEqual([]);
+    expect(s.runtime.busy()).toBe(true);
+
+    await s.runtime.endEdits();
+    const next = retitle('l2', 'Lesson two')(s.state().work as Working);
+    expect(await s.runtime.educatorTurn(next, 'Put back Lesson l2')).toBe(true);
+    expect(s.state().turns.map((t) => [t.by, t.changes])).toEqual([
+      ['educator', 1],
+      ['educator', 1],
+    ]);
+    expect(titleOf(s.disk().work, 'l1')).toBe('Why Git');
+    expect(titleOf(s.disk().work, 'l2')).toBe('Lesson two');
+  });
+
+  it('writes a Review tick over the hand edits on disk, and still undoes their turn to before them', async () => {
+    let fail = true;
+    const s = await setup({
+      store: (store) => ({
+        ...store,
+        saveTurn: (...args) => (fail ? Promise.reject(FAILED) : store.saveTurn(...args)),
+      }),
+    });
+    await s.runtime.open();
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    expect(await s.runtime.keepEdits()).toBe(true);
+    expect(await s.runtime.updateReview({ viewed: ['lesson:l1'] })).toBe(true);
+    // The tick does not take the hand edits back off the disk.
+    expect(titleOf(s.disk().work, 'l1')).toBe('Why Git');
+    expect(s.disk().viewed).toEqual(['lesson:l1']);
+
+    await s.runtime.endEdits();
+    expect(s.state().unsaved).toMatchObject({ by: 'educator', changes: 1 });
+    fail = false;
+    expect(await s.runtime.undo()).toBe(true);
+    expect(titleOf(s.state().work, 'l1')).toBe('Lesson l1');
+    expect(titleOf(s.disk().work, 'l1')).toBe('Lesson l1');
+    expect(s.disk().viewed).toEqual(['lesson:l1']);
+  });
+
+  it('keeps a Review edit made while the hand-edit turn is written', async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const s = await setup({
+      store: (store) => ({
+        ...store,
+        saveTurn: async (...args) => {
+          await gate;
+          return store.saveTurn(...args);
+        },
+      }),
+    });
+    await s.runtime.open();
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    const ending = s.runtime.endEdits();
+    await vi.waitFor(() => expect(s.state().transcript).toHaveLength(1));
+    const reviewed = s.runtime.updateReview({ summary: 'Chapter one, shorter.' });
+    expect(s.state().session?.summary).toBe('Chapter one, shorter.');
+    release();
+    await ending;
+    expect(s.state().session?.summary).toBe('Chapter one, shorter.');
+    expect(await reviewed).toBe(true);
+    expect(s.state().session?.summary).toBe('Chapter one, shorter.');
+    expect(s.disk().summary).toBe('Chapter one, shorter.');
+    expect(s.disk().turns).toMatchObject([{ by: 'educator' }]);
+  });
+
+  it('tells a later runtime’s agent of an Undo this item made before it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const put = retitle('l2', 'Lesson two')(s.state().work as Working);
+    expect(await s.runtime.educatorTurn(put, 'Put back Lesson l2')).toBe(true);
+    expect(JSON.parse(s.note() as string)).toEqual({ undone: 0, handEdited: true });
+    s.runtime.dispose();
+
+    const next = await s.reopen();
+    expect(await next.send('Shorten it.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_EDIT_NOTE}Shorten it.`);
+  });
+});

@@ -932,3 +932,43 @@ describe('Review’s checks', () => {
     expect(within(publish).getByRole('button', { name: 'Show Course details' })).toBeTruthy();
   });
 });
+
+describe('Review and the session’s editors together', () => {
+  it('opens a lesson from Review in the editor on the working copy, and the edit comes back as a turn', async () => {
+    const s = await open({ turns: [turnOne] });
+    await ready(s);
+    pick(/^1\.1 · Lesson l1/);
+    fireEvent.click(within(detail()).getByRole('link', { name: 'Open in editor' }));
+
+    // Studio's lesson editor, bound to the session: the working copy, not the stored draft.
+    const title = (await screen.findByLabelText('Lesson title')) as HTMLInputElement;
+    expect(screen.getByRole('heading', { level: 1, name: 'Lesson l1' })).toBeTruthy();
+    expect(screen.getByText(/^In the session · saved/)).toBeTruthy();
+    expect(screen.getByDisplayValue('Rebase before you open a pull request.')).toBeTruthy();
+    expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+
+    fireEvent.change(title, { target: { value: 'Why rebase' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Session' }));
+    await screen.findByRole('link', { name: 'Turn 2 · by hand · 1 change' });
+    await waitFor(() => expect(s.disk().turns.map((t) => t.by)).toEqual(['agent', 'educator']));
+
+    // Review lists the lesson under its new title, from both turns.
+    fireEvent.click(screen.getByRole('link', { name: 'Review' }));
+    expect(await within(list()).findByRole('button', { name: /^1\.1 · Why rebase/ })).toBeTruthy();
+    expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+  });
+
+  it('opens a Quiz from Review in the Quiz builder on the working copy', async () => {
+    const s = await open({ turns: [turnOne] });
+    await ready(s);
+    pick(/^2\.2 · Quiz I/);
+    fireEvent.click(within(detail()).getByRole('link', { name: 'Open in editor' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Quiz I' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Question editor' })).toBeTruthy();
+    // The option the first turn reworded: the session's copy is the one being edited.
+    expect(screen.getByDisplayValue('B, rebased')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Session' }).getAttribute('href')).toBe(
+      `/studio/sessions/${s.id}?item=quiz%3Aq1`,
+    );
+  });
+});

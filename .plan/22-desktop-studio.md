@@ -1082,11 +1082,16 @@ Each finding links to its row. Writing and Answers offer "Ask the agent to fix t
   other way round) is refused until that one is undone, since the id would be used twice. It is
   written by `educatorTurn` as a turn of its own with `by: 'educator'` (checkpoint, count, a line in
   the chat), so the chat's Undo takes it back, and the agent's next message starts with one fixed
-  sentence saying the Educator changed the course by hand (`HAND_NOTE`, counted in the message
-  limit test). It is offered only against the draft (a row of the whole session, not one only in a
-  turn's filter), not for a new course, not for a repeated id, and waits while a turn runs. A result
-  the course schema refuses (31 chapters, say) is not written. The DSK-19 hand edits can write
-  their turn through `educatorTurn` too.
+  sentence saying the Educator changed the course by hand (`HAND_EDIT_NOTE`, the same note hand
+  edits use, kept in `agent-note.json` until a message carries it, and counted in the message limit
+  test). It is offered only against the draft (a row of the whole session, not one only in a
+  turn's filter), not for a new course, not for a repeated id, and waits while a turn runs or hand
+  edits are open. A result the course schema refuses (31 chapters, say) is not written. The DSK-19
+  hand edits write their turn through their own `endEdits`, not `educatorTurn`: they are counted
+  against the copy before the visit and kept through a crash by `editing.json`.
+- **Review beside hand edits** (when the two met in one branch): a Review tick, goal or summary
+  written while hand edits are on disk starts from what `session.json` holds, so it never takes
+  them back off it, and one made while their turn is written is laid back over it, as for any turn.
 - **Checks** (`reviewChecks`): Course is valid and Size (warning from `COURSE_BYTES_WARN`) say
   "stops Save"; `saveBlockers` names them for `DSK-15`. Draft is up to date reads "checked when you
   save" until `DSK-15` reads the stored rev. Writing lints the rows still there (`lintScope`) and

@@ -217,7 +217,13 @@ export function PreviewPanel({
             id: 'outline',
             label: 'Outline',
             panel: (
-              <Outline work={work} base={base} changes={changes} onShow={show} editPath={editPath} />
+              <Outline
+                work={work}
+                base={base}
+                changes={changes}
+                onShow={show}
+                editPath={editPath}
+              />
             ),
           },
           ...(sources === null
