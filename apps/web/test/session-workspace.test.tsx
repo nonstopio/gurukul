@@ -19,6 +19,7 @@ import { choose } from './select';
 vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+const { log } = await import('../src/log');
 
 const GIT = makeCourse({ id: 'git', title: 'Git', educatorIds: ['u1'] });
 const studio = () => fakeStudio({ courses: [{ live: GIT, draft: draftDoc(GIT, { rev: 3 }) }] });
@@ -48,6 +49,7 @@ async function open(
     course?: typeof GIT;
     path?: (id: string) => string;
     info?: () => Promise<typeof DESKTOP_INFO>;
+    labels?: 'generic' | 'gurukul';
   } = {},
 ) {
   // A new id each time: a runtime still writing a turn outlives its test (`acquireAgentSession`).
@@ -71,6 +73,7 @@ async function open(
   const app = await openApp(init.path?.(id) ?? `/studio/sessions/${id}`, {
     roles: ['educator'],
     studio: studio(),
+    ...(init.labels ? { labels: init.labels } : {}),
   });
   return {
     ...fake,
@@ -396,6 +399,241 @@ describe('the session workspace', () => {
   });
 });
 
+describe('attaching parts of the course to a message', () => {
+  const attachButton = (name: string) =>
+    screen.getByRole('button', { name: `Attach ${name} to your message` });
+  const chips = () => screen.queryByRole('list', { name: 'Attached to your next message' });
+
+  it('attaches a block from the preview, sends its ids, and shows it with the message', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    const block = attachButton('Lesson 1.1 · Text block 1');
+    expect(block.getAttribute('aria-pressed')).toBe('false');
+    // A real button, so the keyboard reaches it.
+    block.focus();
+    expect(document.activeElement).toBe(block);
+    fireEvent.click(block);
+    expect(block.getAttribute('aria-pressed')).toBe('true');
+    expect(within(chips() as HTMLElement).getByText('Lesson 1.1 · Text block 1')).toBeTruthy();
+    expect(
+      screen.getByText('Enter sends, with what is attached; Shift and Enter start a new line.'),
+    ).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+
+    await send(s, 'Make this shorter.');
+    expect(s.agent.send).toHaveBeenCalledWith(
+      s.id,
+      expect.stringMatching(
+        /^\[From Gurukul: the Educator attached this part[^\n]*\n- Lesson 1\.1 · Text block 1: \{"kind":"block","itemId":"l1","blockId":"l1-b"\}\n\nMake this shorter\.$/,
+      ),
+    );
+    expect(chips()).toBeNull();
+    expect(block.getAttribute('aria-pressed')).toBe('false');
+    const sent = screen.getByRole('list', { name: 'Attached to this message' });
+    expect(sent.textContent).toBe('Lesson 1.1 · Text block 1');
+    expect(within(sent).queryByRole('button')).toBeNull();
+  });
+
+  it('attaches a question, and removes a part from its chip or its button', async () => {
+    await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    choose(screen.getByRole('combobox', { name: 'Lesson or Quiz' }), '2.2 · Quiz I');
+    fireEvent.click(attachButton('Quiz 2.2 · Question 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    fireEvent.click(attachButton('Lesson 2.1 · Text block 1'));
+    expect(
+      within(chips() as HTMLElement)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Quiz 2.2 · Question 1', 'Lesson 2.1 · Text block 1']);
+    // Pressed again, the block comes off.
+    fireEvent.click(attachButton('Lesson 2.1 · Text block 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Quiz 2.2 · Question 1' }));
+    expect(chips()).toBeNull();
+    // Nothing left to focus in the list: the message box takes it.
+    expect(document.activeElement).toBe(box());
+  });
+
+  it('attaches chapters, items, the course details and the landing page from the outline', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    await send(s);
+    await act(() => s.call('set_course_details', { title: 'Git, simply' }));
+    await act(() => s.call('set_landing', { description: 'Learn Git, simply.' }));
+    await act(() => s.call('remove_item', { itemId: 'l2' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    const outline = screen.getByRole('tabpanel', { name: 'Outline' });
+    for (const name of [
+      'Chapter 1 · Basics',
+      'Lesson 1.1 · Lesson l1',
+      'Quiz 2.2 · Quiz I',
+      'Course details',
+      'Landing page',
+    ]) {
+      const button = within(outline).getByRole('button', {
+        name: `Attach ${name} to your message`,
+      });
+      fireEvent.click(button);
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+    }
+    // A removed lesson can no longer be attached.
+    expect(within(outline).queryByRole('button', { name: /Attach Lesson l2/ })).toBeNull();
+    expect(within(chips() as HTMLElement).getAllByRole('listitem')).toHaveLength(5);
+    fireEvent.click(within(outline).getByRole('button', { name: /^Attach Landing page/ }));
+    expect(within(chips() as HTMLElement).getAllByRole('listitem')).toHaveLength(4);
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('names lessons "Lesson" in the Gurukul names too, as the preview does', async () => {
+    await open({ labels: 'gurukul' });
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    expect(screen.getByText('Lesson 1.1')).toBeTruthy();
+    fireEvent.click(attachButton('Lesson 1.1 · Text block 1'));
+    expect(within(chips() as HTMLElement).getByText('Lesson 1.1 · Text block 1')).toBeTruthy();
+    choose(screen.getByRole('combobox', { name: 'Lesson or Pariksha' }), '2.2 · Quiz I');
+    fireEvent.click(attachButton('Pariksha 2.2 · Question 1'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    const outline = screen.getByRole('tabpanel', { name: 'Outline' });
+    for (const name of ['Parva 1 · Basics', 'Lesson 1.1 · Lesson l1', 'Pariksha 2.2 · Quiz I']) {
+      expect(
+        within(outline).getByRole('button', { name: `Attach ${name} to your message` }),
+      ).toBeTruthy();
+    }
+    expect(screen.queryByText(/Adhyaya/)).toBeNull();
+  });
+
+  it('says when a message already carries as many parts as it can', async () => {
+    await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    const outline = screen.getByRole('tabpanel', { name: 'Outline' });
+    const buttons = within(outline).getAllByRole('button', { name: /^Attach / });
+    // The fixture has 2 chapters and 5 items: 7 parts. Fill the rest from the preview.
+    for (const button of buttons) fireEvent.click(button);
+    fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    fireEvent.click(attachButton('Lesson 1.1 · Text block 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(attachButton('Lesson 1.2 · Text block 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(attachButton('Lesson 2.1 · Text block 1'));
+    expect(within(chips() as HTMLElement).getAllByRole('listitem')).toHaveLength(10);
+    choose(screen.getByRole('combobox', { name: 'Lesson or Quiz' }), '2.2 · Quiz I');
+    fireEvent.click(attachButton('Quiz 2.2 · Question 1'));
+    expect(
+      await screen.findByText(
+        'A message carries at most 10 parts of the course. Remove one first.',
+      ),
+    ).toBeTruthy();
+    expect(attachButton('Quiz 2.2 · Question 1').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('counts what is attached on the Chat button below 1024px', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: !query.includes('64rem'),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    await open();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Lesson l1' })).toBeTruthy();
+    fireEvent.click(attachButton('Lesson 1.1 · Text block 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Chat · 1 attached' }));
+    const drawer = screen.getByRole('dialog', { name: 'Chat' });
+    expect(within(drawer).getByText('Lesson 1.1 · Text block 1')).toBeTruthy();
+  });
+
+  it('offers no Attach in a closed session', async () => {
+    const s = await open({ prepare: () => undefined });
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    const read = await s.store.read(s.id);
+    await s.store.save({ ...(read as NonNullable<typeof read>), status: 'saved' });
+    s.app.unmount();
+    await openApp(`/studio/sessions/${s.id}`, { roles: ['educator'], studio: studio() });
+    expect(await screen.findByText(/This session was saved and closed/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Attach / })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Sources' })).toBeNull();
+  });
+});
+
+describe('the workspace’s Sources tab', () => {
+  const sourcesTab = () => {
+    fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+    return screen.getByRole('tabpanel', { name: 'Sources' });
+  };
+
+  it('offers a folder when none is chosen, with the notice, and then lists its files', async () => {
+    const s = await open();
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    expect(s.desktop.sources.list).not.toHaveBeenCalled();
+    const panel = sourcesTab();
+    const group = await within(panel).findByRole('group', { name: 'Sources folder' });
+    expect(s.desktop.sources.list).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    expect(within(group).getByText(/sent to Anthropic under your own Claude account/)).toBeTruthy();
+    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
+    expect(await within(group).findByText('~/Material')).toBeTruthy();
+    expect(s.desktop.sources.choose).toHaveBeenCalledWith({
+      uid: 'u1',
+      sessionId: s.id,
+      suggestedName: 'git',
+    });
+    const files = within(group).getByRole('list', { name: 'Files the agent may read' });
+    expect(
+      within(files)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Rebase notes.md120 B', 'transcript.txt4 KB']);
+    fireEvent.click(within(group).getByRole('button', { name: 'Show in Finder' }));
+    expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('reads the folder again each time the tab opens, and pages a long list', async () => {
+    const s = await open();
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    const files = Array.from({ length: 30 }, (_, i) => ({
+      name: `note-${String(i).padStart(2, '0')}.md`,
+      bytes: 10,
+    }));
+    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files });
+    let panel = sourcesTab();
+    const list = await within(panel).findByRole('list', { name: 'Files the agent may read' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(25);
+    expect(within(panel).getByText('Showing 1–25 of 30')).toBeTruthy();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Next' }));
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files: [] });
+    panel = sourcesTab();
+    expect(
+      await within(panel).findByText(/Save notes in the folder as text or Markdown/),
+    ).toBeTruthy();
+    expect(within(panel).getByText('No files yet')).toBeTruthy();
+    expect(s.desktop.sources.list).toHaveBeenCalledTimes(2);
+  });
+
+  it('says when the folder could not be read, and tries again', async () => {
+    const s = await open({ kind: 'new' });
+    await screen.findByRole('heading', { name: 'Nothing to preview yet' });
+    const failure = new Error('sources.list failed');
+    s.desktop.sources.list.mockRejectedValueOnce(failure);
+    const panel = sourcesTab();
+    expect(within(panel).getByRole('status').getAttribute('aria-busy')).toBe('true');
+    expect(await within(panel).findByText('The Sources folder could not be read')).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Sources folder not listed', failure, {
+      sessionId: s.id,
+    });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Try again' }));
+    const choose = await within(panel).findByRole('button', { name: 'Choose a Sources folder' });
+    fireEvent.click(choose);
+    // A new course has no slug to suggest yet.
+    await waitFor(() =>
+      expect(s.desktop.sources.choose).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id }),
+    );
+  });
+});
+
 describe('the session workspace when the agent cannot run', () => {
   it.each<[string, Parameters<typeof open>[0], string, string]>([
     [
@@ -532,16 +770,16 @@ describe('the session workspace below 1024px', () => {
 });
 
 describe('the session Review tab', () => {
-  it('says Review comes next, inside the session, and keeps the same agent', async () => {
+  it('shows Review inside the session, and keeps the same agent', async () => {
     const s = await open({ path: (id) => `/studio/sessions/${id}/review` });
-    expect(await screen.findByRole('heading', { name: 'Review comes next' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Nothing has changed yet' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Simplify the basics.' })).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
     await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('link', { name: 'Back to the chat' }));
     expect(await screen.findByRole('log', { name: 'Chat with the agent' })).toBeTruthy();
     fireEvent.click(screen.getByRole('link', { name: 'Review' }));
-    expect(await screen.findByRole('heading', { name: 'Review comes next' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Nothing has changed yet' })).toBeTruthy();
     expect(s.agent.start).toHaveBeenCalledTimes(1);
   });
 });

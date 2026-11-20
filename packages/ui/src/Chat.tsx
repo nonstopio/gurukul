@@ -1,6 +1,7 @@
+import { useEffect, useRef } from 'react';
 import type { HTMLAttributes, LiHTMLAttributes, ReactNode, Ref } from 'react';
 import { cx } from './cx';
-import { InfoIcon, SparkIcon } from './Icon';
+import { InfoIcon, PaperclipIcon, SparkIcon, XIcon } from './Icon';
 import './chat.css';
 
 /*
@@ -78,5 +79,75 @@ export function ChatActivity({ children, className, ...rest }: ChatActivityProps
         </>
       ) : null}
     </p>
+  );
+}
+
+/** One thing attached to a message: a stable id and what it is, in plain words. */
+export interface ChatAttachment {
+  id: string;
+  /** "Lesson 3.2 · Text block 2". */
+  label: string;
+}
+
+export interface ChatAttachmentsProps extends Omit<HTMLAttributes<HTMLUListElement>, 'children'> {
+  /** The list's accessible name: "Attached to your next message". */
+  label: string;
+  items: readonly ChatAttachment[];
+  /** Given, each chip has a remove button named "Remove {label}". Left out, the chips only say. */
+  onRemove?: (id: string) => void;
+  /** After the last chip is removed focus has nowhere left in the list: move it (the message box). */
+  onEmptied?: () => void;
+}
+
+/**
+ * What a message carries besides its words, as chips with a paperclip: above the message box with
+ * remove buttons, or under a sent message to say what it carried. A removed chip hands focus to the
+ * chip that takes its place, else the one before it, else `onEmptied`. Nothing is drawn when empty.
+ */
+export function ChatAttachments({
+  label,
+  items,
+  onRemove,
+  onEmptied,
+  className,
+  ...rest
+}: ChatAttachmentsProps) {
+  const list = useRef<HTMLUListElement>(null);
+  /** Where the chip just removed was, until the list without it is drawn. */
+  const removed = useRef<number | null>(null);
+
+  useEffect(() => {
+    const at = removed.current;
+    if (at === null) return;
+    removed.current = null;
+    const buttons = list.current?.querySelectorAll('button') ?? [];
+    const next = buttons[Math.min(at, buttons.length - 1)];
+    if (next) next.focus();
+    else onEmptied?.();
+  }, [items, onEmptied]);
+
+  if (items.length === 0) return null;
+  return (
+    <ul ref={list} aria-label={label} className={cx('g-chat-attachments', className)} {...rest}>
+      {items.map((item, i) => (
+        <li key={item.id} className="g-chat-attachment">
+          <PaperclipIcon size={14} />
+          <span className="g-chat-attachment__label">{item.label}</span>
+          {onRemove ? (
+            <button
+              type="button"
+              className="g-chat-attachment__x"
+              aria-label={`Remove ${item.label}`}
+              onClick={() => {
+                removed.current = i;
+                onRemove(item.id);
+              }}
+            >
+              <XIcon size={12} />
+            </button>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }

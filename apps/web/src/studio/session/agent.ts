@@ -1,6 +1,6 @@
 import { courseChanges } from '@gurukul/schema/changes';
 import type { CourseChanges } from '@gurukul/schema/changes';
-import type { AuthoringSession, Turn } from '@gurukul/schema';
+import type { AuthoringSession, SessionGoal, Turn } from '@gurukul/schema';
 import { bridgeFailure } from '../../desktop/bridge';
 import type {
   AgentError,
@@ -15,6 +15,8 @@ import type {
 import { log } from '../../log';
 import type { Working } from '../types';
 import { toolActivity } from './activity';
+import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './attachments';
+import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
 import { START_CHECKPOINT, createSessionStore } from './store';
@@ -36,6 +38,12 @@ import type { TranscriptEntry } from './transcript';
  *           the session and the chat written to disk (`saveTurn`), so a restart loses nothing.
  *   stop    `agent.stop`: the turn ends, and what it had changed stays as its checkpoint.
  *   undo    the newest turn goes; the checkpoint before it becomes the working copy again.
+ *   attach  a part of the course goes with the next message (`DSK-20`): its ids for the agent, its
+ *           plain label for the chat. Sending carries every attached part, then clears them.
+ *   review  Review's own fields (`DSK-14`): the summary, the goals' ticks and the Viewed ticks,
+ *           written to `session.json` at once.
+ *   edit    a working copy the Educator made (Review's Undo this item, `DSK-14`) becomes a turn of
+ *           its own, by the Educator, written like the agent's; the agent is told with the next message.
  *
  * Firestore is never read or written here: the draft was read once when the session started.
  * Nothing logged carries chat text, course text, a source name or an answer key.
@@ -85,7 +93,9 @@ export type AgentSessionStatus =
   /** Stop was pressed; the turn ends shortly. */
   | 'stopping'
   /** Undo of the newest turn is being written. */
-  | 'undoing';
+  | 'undoing'
+  /** A change by the Educator (Review's Undo this item) is being written as a turn. */
+  | 'editing';
 
 /** Everything the session screens draw. A new object after every change; never mutate it. */
 export interface AgentSessionView {
@@ -112,6 +122,10 @@ export interface AgentSessionView {
   unsaved: Turn | null;
   /** Changes made so far by the turn that is running, against the checkpoint before it. */
   turnChanges: number;
+  /** The parts of the course the next message carries, in the order they were attached. */
+  attachments: readonly AttachTarget[];
+  /** True while the session is open and fewer than `MAX_ATTACHMENTS` are attached. */
+  canAttach: boolean;
   canSend: boolean;
   canStop: boolean;
   /**
@@ -119,6 +133,13 @@ export interface AgentSessionView {
    * `turns`: Undo takes that one back first.
    */
   canUndo: boolean;
+}
+
+/** What Review changes in the session besides the course. */
+export interface ReviewPatch {
+  summary?: string;
+  goals?: SessionGoal[];
+  viewed?: string[];
 }
 
 export interface AgentSessionOptions {
@@ -149,8 +170,34 @@ export interface AgentSession {
   open(): Promise<void>;
   /** After `unavailable`: asks again whether Claude Code can run, and starts it. */
   retry(): Promise<void>;
-  /** Starts a turn. False when it was not sent (not ready, empty, too long, or the app refused). */
+  /**
+   * Starts a turn, carrying every attached part, which are then cleared. False when it was not sent
+   * (not ready, empty, too long, or the app refused); the attached parts then stay.
+   */
   send(message: string): Promise<boolean>;
+  /**
+   * Attaches a part of the course to the next message: the chat's chips, the preview's and
+   * outline's Attach buttons, and Review's Ask for a change (`DSK-14`) all go through it. Possible
+   * while a turn runs, since the next message can be typed meanwhile. True when it is attached now
+   * (attaching it again changes nothing); false when the session is not open, `MAX_ATTACHMENTS` are
+   * already attached, or its ids are not ids.
+   */
+  attach(target: AttachTarget): boolean;
+  /** Takes a part off the next message, by the target or its `attachmentKey`. */
+  detach(target: AttachTarget | string): void;
+  /**
+   * Review's fields, written to `session.json` at once: the summary, the goals (ticked or not) and
+   * the Viewed ticks (`ChangeRow.key`s). The working copy is not touched, so a turn running meanwhile
+   * is written as usual at its end. False when the session is not open or the write failed (the
+   * screen keeps what was typed).
+   */
+  updateReview(patch: ReviewPatch): Promise<boolean>;
+  /**
+   * A change the Educator made to the working copy, written as a turn of its own by the Educator
+   * (its checkpoint, its count, a line in the chat), so Undo takes it back like any other. Only
+   * between turns. False when it could not be written; the working copy is then as it was.
+   */
+  educatorTurn(work: Working, summary: string): Promise<boolean>;
   /** Ends the running turn; what it had changed stays. */
   stop(): Promise<void>;
   /** Undoes the newest turn. False when there is none or its checkpoint before is gone. */
@@ -240,6 +287,24 @@ const UNDO_GONE: AgentProblem = {
 const TOO_LONG = 'That answer is too long to send. Ask for less at a time: one lesson or one Quiz.';
 
 /**
+ * A Review edit a tool call saw, less the fields the tool then set otherwise: the agent's later
+ * value wins, so the edit no longer lays the earlier one back. Only the summary and the goals,
+ * the Review fields a tool can set.
+ */
+export function yieldTo(
+  patch: ReviewPatch,
+  tool: Pick<ReviewPatch, 'summary' | 'goals'>,
+): ReviewPatch {
+  return Object.fromEntries(
+    Object.entries(patch).filter(
+      ([field, value]) =>
+        (field !== 'summary' && field !== 'goals') ||
+        JSON.stringify(value) === JSON.stringify(tool[field]),
+    ),
+  ) as ReviewPatch;
+}
+
+/**
  * What the agent is told, ahead of the Educator's next message, after turns were undone: its own
  * history still says it made those changes.
  */
@@ -247,6 +312,13 @@ export function undoNote(turns: number): string {
   const what = turns === 1 ? 'your last turn' : `your last ${turns} turns`;
   return `[From Gurukul: the Educator undid ${what}. The course is back as it was before, so read it again before you change it.]\n\n`;
 }
+
+/**
+ * What the agent is told, ahead of the Educator's next message, after the Educator changed the
+ * course in Review: its own history does not know. One fixed sentence, however many changes.
+ */
+export const HAND_NOTE =
+  '[From Gurukul: the Educator changed the course by hand since your last turn. Read the parts you work on again before you change them.]\n\n';
 
 const SUMMARY_LENGTH = 120;
 
@@ -319,9 +391,22 @@ export function createAgentSession({
   let transcript: TranscriptEntry[] = [];
   let activity: string | null = null;
   let turn: RunningTurn | null = null;
+  let attachments: readonly AttachTarget[] = [];
   /** Turns undone since the agent was last told. */
   let undone = 0;
+  /** Whether the Educator changed the course since the agent was last told. */
+  let edited = false;
   let queue: Promise<unknown> = Promise.resolve();
+  /**
+   * Review edits shown at once but not yet written, in the order they were made. A task that took
+   * its copy of the session before one of them lays it back on top (`withReview`), so a tick made
+   * while a turn, an undo or an Educator's turn is being written stays on the screen and in the
+   * next write.
+   */
+  let pendingReview: { seq: number; patch: ReviewPatch }[] = [];
+  let reviewSeq = 0;
+  const withReview = (next: AuthoringSession, after = 0): AuthoringSession =>
+    pendingReview.reduce((out, p) => (p.seq > after ? { ...out, ...p.patch } : out), next);
 
   const allChanges = lastOf(courseChanges);
   const turnCount = lastOf((before, work) => courseChanges(before, work).count);
@@ -343,6 +428,8 @@ export function createAgentSession({
       unsaved,
       // A turn runs only once the session is open, so `work` is there.
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
+      attachments,
+      canAttach: session?.status === 'open' && attachments.length < MAX_ATTACHMENTS,
       canSend: status === 'ready',
       canStop: status === 'working',
       canUndo: status === 'ready' && (turns.length > 0 || unsaved !== null),
@@ -465,7 +552,7 @@ export function createAgentSession({
     try {
       if (current.turns.length === 0) await store.saveStart(sessionId, before);
       const written = await store.saveTurn(current, record, current.work);
-      session = written;
+      session = withReview(written);
       saved = written;
       unsaved = null;
       log.info('Session turn saved', {
@@ -503,6 +590,7 @@ export function createAgentSession({
 
   const runCall = async (call: AgentToolCall) => {
     const current = session as AuthoringSession;
+    const seen = reviewSeq;
     const state: SessionState = {
       work: workOf(current),
       base: baseOf(current),
@@ -519,7 +607,10 @@ export function createAgentSession({
       reply = { error: TOO_LONG };
     } else {
       const { work, title, goals, summary, todos } = result.state;
-      session = { ...current, work, title, goals, summary, todos };
+      // Review edits the tool saw are its to change; ones made while it ran stay on top.
+      for (const p of pendingReview)
+        if (p.seq <= seen) p.patch = yieldTo(p.patch, { goals, summary });
+      session = withReview({ ...current, work, title, goals, summary, todos }, seen);
       reply = { text: result.text };
       emit();
     }
@@ -610,21 +701,41 @@ export function createAgentSession({
       const text = message.trim();
       if (status !== 'ready' || text === '' || text.length > MESSAGE_MAX_LENGTH) return false;
       const running: RunningTurn = { id: newId(), message: text };
+      const carried = attachments;
       turn = running;
       status = 'working';
       problem = null;
       activity = null;
-      say({ kind: 'educator', turnId: running.id, at: now().toISOString(), text });
+      say({
+        kind: 'educator',
+        turnId: running.id,
+        at: now().toISOString(),
+        text,
+        ...(carried.length > 0 && { attachments: [...carried] }),
+      });
+      attachments = [];
       emit();
       try {
-        await agent.send(sessionId, (undone > 0 ? undoNote(undone) : '') + text);
+        await agent.send(
+          sessionId,
+          (undone > 0 ? undoNote(undone) : '') +
+            (edited ? HAND_NOTE : '') +
+            attachmentNote(carried) +
+            text,
+        );
         undone = 0;
+        edited = false;
         return true;
       } catch (error) {
         log.warn('Agent message not sent', { sessionId, reason: bridgeFailure(error) });
         turn = null;
         status = 'ready';
         problem = appProblem(error);
+        // Parts attached meanwhile stay too, after the ones the message carried.
+        attachments = [
+          ...carried,
+          ...attachments.filter((a) => !carried.some((c) => attachmentKey(c) === attachmentKey(a))),
+        ].slice(0, MAX_ATTACHMENTS);
         notice(running.id, 'Not sent.');
         emit();
         return false;
@@ -672,7 +783,7 @@ export function createAgentSession({
             }
             next = await store.undoTurn(current, before);
           }
-          session = next;
+          session = withReview(next);
           saved = next;
           unsaved = null;
           undone += 1;
@@ -692,7 +803,97 @@ export function createAgentSession({
       });
     },
 
-    busy: () => turn !== null || status === 'undoing',
+    async updateReview(patch) {
+      if (session?.status !== 'open') return false;
+      // At once in memory, so the screen keeps the tick; the file is written in turn with the rest.
+      const entry = { seq: ++reviewSeq, patch };
+      pendingReview = [...pendingReview, entry];
+      session = { ...session, ...patch };
+      emit();
+      return enqueue(async () => {
+        try {
+          const written = await store.save({ ...(saved as AuthoringSession), ...entry.patch });
+          saved = written;
+          session = { ...(session as AuthoringSession), updatedAt: written.updatedAt };
+          return true;
+        } catch (error) {
+          log.warn('Session review not saved', { sessionId, reason: bridgeFailure(error) });
+          problem = appProblem(error);
+          return false;
+        } finally {
+          // Written or not, it is in `session` now and goes to the file with the next write.
+          pendingReview = pendingReview.filter((p) => p !== entry);
+          emit();
+        }
+      });
+    },
+
+    async educatorTurn(work, summary) {
+      if (status !== 'ready' || session?.status !== 'open') return false;
+      status = 'editing';
+      problem = null;
+      emit();
+      return enqueue(async () => {
+        const current = session as AuthoringSession;
+        const before = workOf(saved as AuthoringSession);
+        const id = newId();
+        const record: Turn = {
+          id,
+          at: now().toISOString(),
+          by: 'educator',
+          summary: turnSummary(summary),
+          checkpoint: `${id}.json`,
+          // Counted from the last written copy, so a turn that could not be written is counted too.
+          changes: courseChanges(before, work).count,
+        };
+        try {
+          if (current.turns.length === 0) await store.saveStart(sessionId, before);
+          const written = await store.saveTurn({ ...current, work }, record, work);
+          session = withReview(written);
+          saved = written;
+          unsaved = null;
+          edited = true;
+          notice(id, `You changed the course: ${record.summary}`);
+          await writeChat();
+          log.info('Session educator turn saved', {
+            sessionId,
+            turnId: id,
+            changes: record.changes,
+          });
+          return true;
+        } catch (error) {
+          log.error('Session educator turn not saved', error, { sessionId, turnId: id });
+          problem = appProblem(error);
+          return false;
+        } finally {
+          // A turn the agent was already in may have spoken meanwhile (`adopt`).
+          status = turn ? 'working' : 'ready';
+          emit();
+        }
+      });
+    },
+
+    attach(target) {
+      if (session?.status !== 'open') return false;
+      const clean = cleanTarget(target);
+      if (!clean) return false;
+      const key = attachmentKey(clean);
+      if (attachments.some((a) => attachmentKey(a) === key)) return true;
+      if (attachments.length >= MAX_ATTACHMENTS) return false;
+      attachments = [...attachments, clean];
+      emit();
+      return true;
+    },
+
+    detach(target) {
+      const key = typeof target === 'string' ? target : attachmentKey(target);
+      const kept = attachments.filter((a) => attachmentKey(a) !== key);
+      if (kept.length === attachments.length) return;
+      attachments = kept;
+      emit();
+    },
+
+    busy: () => turn !== null || status === 'undoing' || status === 'editing',
 
     settled: () => queue.then(noop),
 

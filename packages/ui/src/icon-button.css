@@ -18,6 +18,11 @@
   background: var(--surface-hover);
   color: var(--text);
 }
+.g-iconbtn[aria-pressed='true'],
+.g-iconbtn[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
 .g-iconbtn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);

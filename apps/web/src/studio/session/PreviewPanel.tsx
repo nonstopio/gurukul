@@ -1,21 +1,38 @@
+import type { Quiz } from '@gurukul/schema';
 import type { ChangeRow, CourseChanges, RowStatus } from '@gurukul/schema/changes';
 import {
+  Attachable,
   Button,
   ChangeMark,
+  CheckIcon,
   Chip,
   EmptyState,
+  IconButton,
   PageHeader,
+  PaperclipIcon,
   Select,
   Tabs,
   BookIcon,
+  useToast,
 } from '@gurukul/ui';
-import { useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTerms } from '../../labels/useTerms';
 import { BlockView } from '../../player/blocks';
 import { PreviewExam } from '../PreviewExam';
 import { nameOf } from '../studioModel';
 import type { Working } from '../types';
+import {
+  COURSE_TARGET,
+  LANDING_TARGET,
+  MAX_ATTACHMENTS,
+  attachmentKey,
+  blockTarget,
+  chapterTarget,
+  itemTarget,
+  questionTarget,
+} from './attachments';
+import type { AttachTarget, AttachWords } from './attachments';
 import {
   BLOCK_WORDS,
   STATUS_TONE,
@@ -33,7 +50,83 @@ import type { PreviewEntry } from './workspace';
  * the learner's player drawing the working copy with every changed block marked, and Outline, the
  * chapter tree with a badge on everything that changed. Both read `courseChanges`. Nothing here is
  * specific to a course: the player renders whatever the working copy holds.
+ *
+ * In an open session each block and question in the preview, and each chapter, lesson, Quiz, the
+ * course details and the landing page in the outline, has an Attach toggle (`DSK-20`): the next
+ * message carries what is attached. A third tab, Sources, shows the session's Sources folder.
  */
+
+/** Attaching parts of the course to the next message: the session runtime's, in an open session. */
+export interface Attaching {
+  attachments: readonly AttachTarget[];
+  attach: (target: AttachTarget) => boolean;
+  detach: (target: AttachTarget) => void;
+}
+
+const AttachingContext = createContext<Attaching | null>(null);
+
+type Toggle = [attached: boolean, toggle: (on: boolean) => void];
+
+/**
+ * Whether a part is attached, and the toggle that attaches or removes it; null outside an open
+ * session. A refused attach is the limit (the session is open, or there would be no toggle), and a
+ * toast says so.
+ */
+function useAttach(): ((target: AttachTarget) => Toggle) | null {
+  const attaching = useContext(AttachingContext);
+  const toast = useToast();
+  const attachments = attaching?.attachments;
+  const keys = useMemo(() => new Set(attachments?.map(attachmentKey)), [attachments]);
+  if (!attaching) return null;
+  return (target) => [
+    keys.has(attachmentKey(target)),
+    (on) => {
+      if (!on) return attaching.detach(target);
+      if (!attaching.attach(target)) {
+        toast.show(
+          `A message carries at most ${MAX_ATTACHMENTS} parts of the course. Remove one first.`,
+          { tone: 'warning' },
+        );
+      }
+    },
+  ];
+}
+
+/** The outline's Attach toggle for one row. */
+function AttachButton({ target }: { target: AttachTarget }) {
+  const attach = useAttach();
+  if (!attach) return null;
+  const [attached, toggle] = attach(target);
+  return (
+    <IconButton
+      className="ss-outline__attach"
+      label={`Attach ${target.label} to your message`}
+      tip={attached ? 'Attached' : 'Attach'}
+      aria-pressed={attached}
+      onClick={() => toggle(!attached)}
+    >
+      {attached ? <CheckIcon /> : <PaperclipIcon />}
+    </IconButton>
+  );
+}
+
+/** A block or question in the preview, attachable in an open session. */
+function Attach({ target, children }: { target: AttachTarget; children: ReactNode }) {
+  const attach = useAttach();
+  if (!attach) return children;
+  const [attached, toggle] = attach(target);
+  return (
+    <Attachable label={target.label} attached={attached} onAttachedChange={toggle}>
+      {children}
+    </Attachable>
+  );
+}
+
+/** A label is running words, so "Lesson" stays itself in every label set, as in the eyebrow. */
+function useAttachWords(): AttachWords {
+  const t = useTerms();
+  return { lesson: 'Lesson', quiz: t.Quiz, chapter: t.Chapter };
+}
 
 /** Status words as chips: a word on its tone, never the colour alone. */
 export function StatusChips({ statuses }: { statuses: readonly RowStatus[] }) {
@@ -52,10 +145,16 @@ export function PreviewPanel({
   work,
   base,
   changes,
+  attaching = null,
+  sources = null,
 }: {
   work: Working;
   base: Working | null;
   changes: CourseChanges;
+  /** In an open session: attaching parts to the next message. */
+  attaching?: Attaching | null;
+  /** The Sources tab's content, drawn only while it is open; no tab without it. */
+  sources?: ReactNode;
 }) {
   const t = useTerms();
   const rows = useMemo(() => rowsByKey(changes), [changes]);
@@ -73,35 +172,44 @@ export function PreviewPanel({
   };
 
   return (
-    <Tabs
-      label="The course"
-      value={tab}
-      onValueChange={setTab}
-      tabs={[
-        {
-          id: 'preview',
-          label: 'Preview',
-          panel: current ? (
-            <ItemPreview
-              entries={entries}
-              entry={current}
-              row={rows.get(current.key)}
-              work={work}
-              onPick={setPicked}
-            />
-          ) : (
-            <EmptyState title="Nothing to preview yet" headingAs="h2" icon={<BookIcon size={24} />}>
-              {`Ask the agent for an outline. Each lesson and ${t.Quiz} appears here as it is written, as ${t.learners} will see it.`}
-            </EmptyState>
-          ),
-        },
-        {
-          id: 'outline',
-          label: 'Outline',
-          panel: <Outline work={work} base={base} changes={changes} onShow={show} />,
-        },
-      ]}
-    />
+    <AttachingContext.Provider value={attaching}>
+      <Tabs
+        label="The course"
+        value={tab}
+        onValueChange={setTab}
+        tabs={[
+          {
+            id: 'preview',
+            label: 'Preview',
+            panel: current ? (
+              <ItemPreview
+                entries={entries}
+                entry={current}
+                row={rows.get(current.key)}
+                work={work}
+                onPick={setPicked}
+              />
+            ) : (
+              <EmptyState
+                title="Nothing to preview yet"
+                headingAs="h2"
+                icon={<BookIcon size={24} />}
+              >
+                {`Ask the agent for an outline. Each lesson and ${t.Quiz} appears here as it is written, as ${t.learners} will see it.`}
+              </EmptyState>
+            ),
+          },
+          {
+            id: 'outline',
+            label: 'Outline',
+            panel: <Outline work={work} base={base} changes={changes} onShow={show} />,
+          },
+          ...(sources === null
+            ? []
+            : [{ id: 'sources', label: 'Sources', panel: tab === 'sources' ? sources : null }]),
+        ]}
+      />
+    </AttachingContext.Provider>
   );
 }
 
@@ -119,6 +227,7 @@ function ItemPreview({
   onPick: (key: string) => void;
 }) {
   const t = useTerms();
+  const words = useAttachWords();
   const { item } = entry;
   const index = entries.indexOf(entry);
   const prev = entries[index - 1];
@@ -127,12 +236,18 @@ function ItemPreview({
   const marks = questionMarks(row);
   const markQuestion = (id: string, question: ReactNode) => {
     const [first, ...rest] = marks.get(id) ?? [];
-    return first ? (
-      <ChangeMark statuses={[first, ...rest]} what="Question">
-        {question}
-      </ChangeMark>
-    ) : (
-      question
+    // Only a Quiz draws questions.
+    const position = (item as Quiz).questions.findIndex((q) => q.id === id) + 1;
+    return (
+      <Attach target={questionTarget(words, item.id, entry.number, id, position)}>
+        {first ? (
+          <ChangeMark statuses={[first, ...rest]} what="Question">
+            {question}
+          </ChangeMark>
+        ) : (
+          question
+        )}
+      </Attach>
     );
   };
 
@@ -186,18 +301,24 @@ function ItemPreview({
               }
               const view = <BlockView block={mark.block} />;
               const [first, ...rest] = mark.statuses;
-              return first ? (
-                <ChangeMark
-                  key={mark.block.id}
-                  statuses={[first, ...rest]}
-                  what={BLOCK_WORDS[mark.block.type]}
-                >
-                  {view}
-                </ChangeMark>
-              ) : (
-                <div key={mark.block.id} className="ss-preview__block">
-                  {view}
-                </div>
+              const target = blockTarget(
+                words,
+                item.id,
+                entry.number,
+                mark.block,
+                BLOCK_WORDS[mark.block.type],
+                item.blocks.indexOf(mark.block) + 1,
+              );
+              return (
+                <Attach key={mark.block.id} target={target}>
+                  {first ? (
+                    <ChangeMark statuses={[first, ...rest]} what={BLOCK_WORDS[mark.block.type]}>
+                      {view}
+                    </ChangeMark>
+                  ) : (
+                    <div className="ss-preview__block">{view}</div>
+                  )}
+                </Attach>
               );
             })}
           </>
@@ -226,6 +347,7 @@ function Outline({
   onShow: (key: string) => void;
 }) {
   const t = useTerms();
+  const words = useAttachWords();
   const outline = useMemo(
     () => outlineOf(base?.course ?? null, work.course, changes),
     [base, work, changes],
@@ -246,12 +368,14 @@ function Outline({
             <li className="ss-outline__row">
               <span>Course details</span>
               <StatusChips statuses={outline.details} />
+              <AttachButton target={COURSE_TARGET} />
             </li>
           ) : null}
           {outline.landing.length > 0 ? (
             <li className="ss-outline__row">
               <span>Landing page</span>
               <StatusChips statuses={outline.landing} />
+              <AttachButton target={LANDING_TARGET} />
             </li>
           ) : null}
         </ul>
@@ -262,12 +386,23 @@ function Outline({
         <ol className="ss-outline__list">
           {outline.chapters.map((chapter) => (
             <li key={chapter.key} className="ss-outline__chapter">
-              <h3 className="ss-outline__row">
-                <span className={chapter.number === null ? 'ss-outline__gone' : undefined}>
-                  {`${chapter.number ? `${chapter.number} · ` : ''}${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
-                </span>
-                <StatusChips statuses={chapter.statuses} />
-              </h3>
+              <div className="ss-outline__head">
+                <h3 className="ss-outline__row">
+                  <span className={chapter.number === null ? 'ss-outline__gone' : undefined}>
+                    {`${chapter.number ? `${chapter.number} · ` : ''}${nameOf(chapter.title, `Untitled ${t.chapter}`)}`}
+                  </span>
+                  <StatusChips statuses={chapter.statuses} />
+                </h3>
+                {chapter.number === null ? null : (
+                  <AttachButton
+                    target={chapterTarget(
+                      words,
+                      { id: chapter.id, title: chapter.title },
+                      chapter.number,
+                    )}
+                  />
+                )}
+              </div>
               <ol className="ss-outline__items">
                 {chapter.items.map((item) => (
                   <li key={item.key} className="ss-outline__row">
@@ -284,6 +419,15 @@ function Outline({
                       </Button>
                     )}
                     <StatusChips statuses={item.statuses} />
+                    {item.number === null ? null : (
+                      <AttachButton
+                        target={itemTarget(
+                          words,
+                          { id: item.id, type: item.type, title: item.title },
+                          item.number,
+                        )}
+                      />
+                    )}
                   </li>
                 ))}
               </ol>

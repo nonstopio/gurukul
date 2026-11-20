@@ -5,6 +5,7 @@ import { SESSION_CHECKPOINTS_KEPT } from '@gurukul/schema';
 import type { AuthoringSession } from '@gurukul/schema';
 import { TOOL_ACTIVITY, toolActivity } from '../src/studio/session/activity';
 import {
+  HAND_NOTE,
   MESSAGE_MAX_LENGTH,
   TOOL_RESULT_MAX_LENGTH,
   appProblem,
@@ -13,8 +14,16 @@ import {
   statusProblem,
   turnSummary,
   undoNote,
+  yieldTo,
 } from '../src/studio/session/agent';
 import type { AgentSessionOptions } from '../src/studio/session/agent';
+import {
+  ATTACHMENT_LABEL_MAX,
+  MAX_ATTACHMENTS,
+  attachmentKey,
+  attachmentNote,
+} from '../src/studio/session/attachments';
+import type { AttachTarget } from '../src/studio/session/attachments';
 import { agentSetup } from '../src/studio/session/prompt';
 import { START_CHECKPOINT, createSessionStore } from '../src/studio/session/store';
 import { TOOLS } from '../src/studio/session/tools';
@@ -549,6 +558,174 @@ describe('turns', () => {
   });
 });
 
+describe('attached parts of the course', () => {
+  const block: AttachTarget = {
+    kind: 'block',
+    ids: { itemId: 'l1', blockId: 'b1' },
+    label: 'Lesson 1.1 · Text block 1',
+  };
+  const question: AttachTarget = {
+    kind: 'question',
+    ids: { itemId: 'q1', questionId: 'q1a' },
+    label: 'Quiz 1.2 · Question 1',
+  };
+
+  it('sends them with the next message, ids first, and keeps them with it in the chat', async () => {
+    const s = await setup();
+    expect(s.runtime.attach(block)).toBe(false);
+    expect(s.state()).toMatchObject({ attachments: [], canAttach: false });
+    await s.runtime.open();
+    expect(s.state().canAttach).toBe(true);
+    s.changes.mockClear();
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.runtime.attach({ ...block, label: 'The same block' })).toBe(true);
+    expect(s.runtime.attach(question)).toBe(true);
+    expect(s.changes).toHaveBeenCalledTimes(2);
+    expect(s.state().attachments).toEqual([block, question]);
+
+    expect(await s.runtime.send('Make this shorter.')).toBe(true);
+    expect(s.agent.send).toHaveBeenCalledWith(
+      's1',
+      `${attachmentNote([block, question])}Make this shorter.`,
+    );
+    expect(s.state().attachments).toEqual([]);
+    expect(s.state().transcript[0]).toEqual({
+      kind: 'educator',
+      turnId: 't1',
+      at: T0.toISOString(),
+      text: 'Make this shorter.',
+      attachments: [block, question],
+    });
+    // The turn's line is the Educator's words; the chat on disk keeps what was attached.
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk().turns[0]?.summary).toBe('Make this shorter.');
+    expect(s.chat()[0]).toMatchObject({ attachments: [block, question] });
+  });
+
+  it('puts the note about undone turns before the attached parts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    expect(await s.runtime.undo()).toBe(true);
+    s.runtime.attach(block);
+    await s.runtime.send('Shorter.');
+    expect(s.agent.send).toHaveBeenLastCalledWith(
+      's1',
+      `${undoNote(1)}${attachmentNote([block])}Shorter.`,
+    );
+  });
+
+  it('sends no note and keeps no list when nothing is attached', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('Hello');
+    expect(s.agent.send).toHaveBeenCalledWith('s1', 'Hello');
+    expect(s.state().transcript[0]).not.toHaveProperty('attachments');
+  });
+
+  it('can attach while a turn runs, for the message after it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('First.');
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.state().attachments).toEqual([block]);
+  });
+
+  it('takes a part off by itself or by its key, and ignores one not attached', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.attach(block);
+    s.runtime.attach(question);
+    s.changes.mockClear();
+    s.runtime.detach('course');
+    expect(s.changes).not.toHaveBeenCalled();
+    s.runtime.detach(block);
+    expect(s.state().attachments).toEqual([question]);
+    s.runtime.detach(attachmentKey(question));
+    expect(s.state().attachments).toEqual([]);
+  });
+
+  it('takes a part off by the object it was attached with, its ids in any order', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const reversed: AttachTarget = {
+      kind: 'block',
+      ids: { blockId: 'b1', itemId: 'l1' },
+      label: 'Lesson 1.1 · Text block 1',
+    };
+    expect(s.runtime.attach(reversed)).toBe(true);
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.state().attachments).toHaveLength(1);
+    s.runtime.detach(reversed);
+    expect(s.state().attachments).toEqual([]);
+  });
+
+  it('refuses past the limit, and ids that are not ids, but cuts a long label', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    for (let i = 0; i < MAX_ATTACHMENTS; i += 1) {
+      expect(
+        s.runtime.attach({ kind: 'chapter', ids: { chapterId: `c${i}` }, label: `Chapter ${i}` }),
+      ).toBe(true);
+    }
+    expect(s.state().canAttach).toBe(false);
+    expect(s.runtime.attach(block)).toBe(false);
+    // One already attached is still attached.
+    expect(s.runtime.attach({ kind: 'chapter', ids: { chapterId: 'c0' }, label: 'Again' })).toBe(
+      true,
+    );
+    s.runtime.detach('chapter:c0');
+    expect(s.runtime.attach({ ...block, ids: { itemId: 'l1', blockId: '' } })).toBe(false);
+    expect(s.runtime.attach({ ...block, label: `Lesson ${'x'.repeat(200)}` })).toBe(true);
+    expect(s.state().attachments.at(-1)?.label).toHaveLength(ATTACHMENT_LABEL_MAX);
+  });
+
+  it('keeps them when the app does not take the message, with any attached meanwhile', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.attach(block);
+    let refuse: (error: Error) => void = () => undefined;
+    s.agent.send.mockImplementationOnce(
+      () => new Promise<undefined>((_, reject) => (refuse = reject)),
+    );
+    const sending = s.runtime.send('Shorter.');
+    expect(s.state().attachments).toEqual([]);
+    s.runtime.attach(question);
+    s.runtime.attach(block);
+    refuse(REFUSED);
+    expect(await sending).toBe(false);
+    expect(s.state().attachments).toEqual([block, question]);
+  });
+
+  it('is not offered for a closed session', async () => {
+    const s = await setup({ edit: (x) => ({ ...x, status: 'discarded' }) });
+    await s.runtime.open();
+    expect(s.state().canAttach).toBe(false);
+    expect(s.runtime.attach(block)).toBe(false);
+  });
+
+  it('stays under the shell’s message limit with the most a message can carry', () => {
+    const id = 'i'.repeat(80);
+    const most = Array.from({ length: MAX_ATTACHMENTS }, (): AttachTarget => ({
+      kind: 'question',
+      ids: { itemId: id, questionId: id },
+      label: 'x'.repeat(ATTACHMENT_LABEL_MAX),
+    }));
+    expect(
+      MESSAGE_MAX_LENGTH +
+        undoNote(SESSION_CHECKPOINTS_KEPT).length +
+        HAND_NOTE.length +
+        attachmentNote(most).length,
+    ).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH);
+  });
+});
+
 describe('stop', () => {
   it('ends the turn and keeps what it had changed as its checkpoint', async () => {
     const s = await setup();
@@ -932,5 +1109,341 @@ describe('undo', () => {
     expect(s.runtime.busy()).toBe(true);
     await undoing;
     expect(s.runtime.busy()).toBe(false);
+  });
+});
+
+describe('Review’s fields', () => {
+  it('writes the summary, the goals and the Viewed ticks to the session file at once', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const goals = [{ text: 'Simplify chapter one.', done: true }];
+    expect(
+      await s.runtime.updateReview({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] }),
+    ).toBe(true);
+    expect(s.state().session).toMatchObject({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] });
+    expect(s.disk()).toMatchObject({ summary: 'Shorter.', goals, viewed: ['lesson:l1'] });
+    expect(s.state().work).toEqual(s.state().base);
+  });
+
+  it('keeps them through a turn running meanwhile, and writes the turn with them', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Rename the course.')).toBe(true);
+    await s.call('set_course_details', { title: 'Mid-turn' });
+    expect(await s.runtime.updateReview({ viewed: ['course:course'] })).toBe(true);
+    // The file holds the tick, not the turn's unfinished work.
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [] });
+    expect(s.disk().work.course.title).toBe('Git, the NonStop Way');
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [{ id: 't1' }] });
+    expect(s.disk().work.course.title).toBe('Mid-turn');
+  });
+
+  /** Holds `method` open until `release`; `entered` resolves once it was called. */
+  function hold<K extends 'saveTurn' | 'undoTurn'>(s: Setup, method: K) {
+    const real = s.store[method].bind(s.store) as (...args: unknown[]) => Promise<AuthoringSession>;
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const reached = new Promise<void>((resolve) => (entered = resolve));
+    (s.store as Record<K, unknown>)[method] = async (...args: unknown[]) => {
+      entered();
+      await gate;
+      return real(...args);
+    };
+    return { reached, release };
+  }
+
+  it('keeps a tick made while a turn’s end is being written, on screen and in the next turn', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Rename the course.')).toBe(true);
+    await s.call('set_course_details', { title: 'Mid-turn' });
+    const held = hold(s, 'saveTurn');
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await held.reached;
+    const ticked = s.runtime.updateReview({ viewed: ['course:course'] });
+    held.release();
+    expect(await ticked).toBe(true);
+    await s.runtime.settled();
+    expect(s.state().session?.viewed).toEqual(['course:course']);
+    expect(s.disk().viewed).toEqual(['course:course']);
+    await renameTurn(s, 'Second');
+    expect(s.state().session?.viewed).toEqual(['course:course']);
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], turns: [{}, {}] });
+  });
+
+  it('keeps a summary typed while an undo is being written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    const held = hold(s, 'undoTurn');
+    const undoing = s.runtime.undo();
+    await held.reached;
+    const typed = s.runtime.updateReview({ summary: 'Typed meanwhile.' });
+    held.release();
+    expect(await undoing).toBe(true);
+    expect(await typed).toBe(true);
+    expect(s.state().session).toMatchObject({ summary: 'Typed meanwhile.', turns: [] });
+    expect(s.disk()).toMatchObject({ summary: 'Typed meanwhile.', turns: [] });
+  });
+
+  it('keeps a goal ticked while the Educator’s own turn is being written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    const held = hold(s, 'saveTurn');
+    const editing = s.runtime.educatorTurn(
+      { ...work, course: { ...work.course, title: 'By hand' } },
+      'Renamed the course',
+    );
+    await held.reached;
+    const goals = [{ text: 'Simplify chapter one.', done: true }];
+    const ticked = s.runtime.updateReview({ goals });
+    held.release();
+    expect(await editing).toBe(true);
+    expect(await ticked).toBe(true);
+    expect(s.state().session?.goals).toEqual(goals);
+    expect(s.disk().goals).toEqual(goals);
+  });
+
+  /** A tool that waits for `release` before it sets the goals. */
+  function slowGoals() {
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const reached = new Promise<void>((resolve) => (entered = resolve));
+    const tool: Tool = {
+      name: 'slow_goals',
+      description: 'Sets the goals, slowly.',
+      input: z.strictObject({
+        goals: z.array(z.strictObject({ text: z.string(), done: z.boolean() })),
+      }),
+      run: async (state, input: { goals: { text: string; done: boolean }[] }) => {
+        entered();
+        await gate;
+        return { state: { ...state, goals: input.goals }, text: 'Set.' };
+      },
+    };
+    return { tool, reached, release };
+  }
+
+  it('keeps a tick made while a tool runs', async () => {
+    const slow = slowGoals();
+    const s = await setup({ options: { tools: [slow.tool] } });
+    await s.runtime.open();
+    expect(await s.runtime.send('Mark the goal.')).toBe(true);
+    const goals = [{ text: 'Simplify chapter one.', done: false }];
+    const call = s.call('slow_goals', { goals });
+    await slow.reached;
+    const ticked = s.runtime.updateReview({ viewed: ['course:course'] });
+    slow.release();
+    expect(await call).toEqual({ text: 'Set.' });
+    expect(await ticked).toBe(true);
+    expect(s.state().session).toMatchObject({ viewed: ['course:course'], goals });
+  });
+
+  it('lets a tool that saw an Educator’s goals set them otherwise, on screen and in the file', async () => {
+    const first = slowGoals();
+    const second = slowGoals();
+    const s = await setup({
+      options: { tools: [first.tool, { ...second.tool, name: 'slow_too' }] },
+    });
+    await s.runtime.open();
+    expect(await s.runtime.send('Mark the goal.')).toBe(true);
+    const educator = [{ text: 'Simplify chapter one.', done: true }];
+    const agent = [{ text: 'Simplify chapter one.', done: false }];
+    // The first call holds the queue; the second waits behind it, then the Educator ticks.
+    const one = s.call('slow_goals', { goals: educator });
+    await first.reached;
+    const two = s.call('slow_too', { goals: agent });
+    const ticked = s.runtime.updateReview({ goals: educator, viewed: ['course:course'] });
+    first.release();
+    await one;
+    await second.reached;
+    expect(s.state().session?.goals).toEqual(educator);
+    second.release();
+    await two;
+    expect(await ticked).toBe(true);
+    // The second call saw the tick and changed the goals after it: the agent's are the latest.
+    expect(s.state().session).toMatchObject({ goals: agent, viewed: ['course:course'] });
+    expect(s.disk()).toMatchObject({ viewed: ['course:course'], goals: [{ done: false }] });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk()).toMatchObject({ goals: agent, viewed: ['course:course'] });
+  });
+
+  it('drops from a seen Review edit only the fields a tool then set otherwise', () => {
+    const goals = [{ text: 'A goal.', done: true }];
+    expect(
+      yieldTo({ summary: 'Mine.', goals, viewed: ['x'] }, { summary: 'Mine.', goals: [] }),
+    ).toEqual({ summary: 'Mine.', viewed: ['x'] });
+    expect(yieldTo({ viewed: ['x'] }, { summary: 'Other.', goals })).toEqual({ viewed: ['x'] });
+  });
+
+  it('says so when the file could not be written, keeping what was typed in memory', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.save = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.updateReview({ summary: 'Kept here.' })).toBe(false);
+    expect(s.state()).toMatchObject({
+      problem: { code: 'app' },
+      session: { summary: 'Kept here.' },
+    });
+    expect(log.warn).toHaveBeenCalledWith('Session review not saved', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
+  });
+
+  it('changes nothing in a closed session', async () => {
+    const s = await setup({ edit: (x) => ({ ...x, status: 'saved' }) });
+    await s.runtime.open();
+    expect(await s.runtime.updateReview({ summary: 'No.' })).toBe(false);
+    expect(s.disk().summary).toBe('');
+  });
+});
+
+describe('a turn by the Educator', () => {
+  const renamed = (s: Setup, title: string) => {
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    return { ...work, course: { ...work.course, title } };
+  };
+
+  it('writes the copy as a turn of its own, by the Educator, and tells the agent next time', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const editing = s.runtime.educatorTurn(renamed(s, 'By hand'), 'Put back Course details');
+    expect(s.state().status).toBe('editing');
+    expect(s.runtime.busy()).toBe(true);
+    expect(s.state().canUndo).toBe(false);
+    expect(await editing).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'ready', changes: { count: 1 } });
+    expect(s.disk().turns).toEqual([
+      {
+        id: 't1',
+        at: T0.toISOString(),
+        by: 'educator',
+        summary: 'Put back Course details',
+        checkpoint: 't1.json',
+        changes: 1,
+      },
+    ]);
+    expect(s.disk().work.course.title).toBe('By hand');
+    // The first turn also keeps the copy from before it, for Undo.
+    expect(s.files.has(`u1/s1/checkpoints/${START_CHECKPOINT}`)).toBe(true);
+    expect(s.chat()).toEqual([
+      {
+        kind: 'notice',
+        turnId: 't1',
+        at: T0.toISOString(),
+        text: 'You changed the course: Put back Course details',
+      },
+    ]);
+    expect(log.info).toHaveBeenCalledWith('Session educator turn saved', {
+      sessionId: 's1',
+      turnId: 't1',
+      changes: 1,
+    });
+    // Undo takes it back like any other turn.
+    expect(s.state().canUndo).toBe(true);
+
+    expect(await s.runtime.send('Carry on.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Carry on.`);
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(await s.runtime.send('Again.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', 'Again.');
+  });
+
+  it('keeps the note for the agent when the message was not sent', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.educatorTurn(renamed(s, 'By hand'), 'Hand edit');
+    s.agent.send.mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.send('First.')).toBe(false);
+    expect(await s.runtime.send('Second.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Second.`);
+  });
+
+  it('counts a turn that could not be written with it, from the last written copy', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const saveTurn = s.store.saveTurn;
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED).mockImplementation(saveTurn);
+    await renameTurn(s, 'One');
+    expect(s.state().unsaved).not.toBeNull();
+    const work = s.state().work as NonNullable<ReturnType<Setup['state']>['work']>;
+    const next = { ...work, course: { ...work.course, summary: 'Changed by hand.' } };
+    expect(await s.runtime.educatorTurn(next, 'Hand edit')).toBe(true);
+    expect(s.state().unsaved).toBeNull();
+    expect(s.disk().turns.map((t) => [t.id, t.by, t.changes])).toEqual([['t2', 'educator', 1]]);
+    expect(s.disk().work.course).toMatchObject({ title: 'One', summary: 'Changed by hand.' });
+  });
+
+  it('leaves the copy as it was when the turn could not be written', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.educatorTurn(renamed(s, 'Lost'), 'Hand edit')).toBe(false);
+    expect(s.state()).toMatchObject({ status: 'ready', problem: { code: 'app' }, turns: [] });
+    expect(s.state().work?.course.title).toBe('Git, the NonStop Way');
+    expect(log.error).toHaveBeenCalledWith('Session educator turn not saved', REFUSED, {
+      sessionId: 's1',
+      turnId: 't1',
+    });
+    // Nothing to tell the agent.
+    await s.runtime.send('Go.');
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', 'Go.');
+  });
+
+  it('only between turns, in an open session', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('Working.');
+    expect(await s.runtime.educatorTurn(renamed(s, 'No'), 'x')).toBe(false);
+    const closed = await setup({ edit: (x) => ({ ...x, status: 'saved' }) });
+    await closed.runtime.open();
+    expect(await closed.runtime.educatorTurn(renamed(closed, 'No'), 'x')).toBe(false);
+  });
+
+  it('carries on with a turn the agent was already in when the write finishes', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const editing = s.runtime.educatorTurn(renamed(s, 'By hand'), 'Hand edit');
+    s.emit({ type: 'text', sessionId: 's1', text: 'Still here.' });
+    expect(await editing).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'working', canStop: true });
+  });
+
+  it('writes no start copy after the first turn', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    s.store.saveStart = vi.fn();
+    expect(await s.runtime.educatorTurn(renamed(s, 'Two'), 'Hand edit')).toBe(true);
+    expect(s.store.saveStart).not.toHaveBeenCalled();
+    expect(s.disk().turns.map((t) => t.by)).toEqual(['agent', 'educator']);
   });
 });

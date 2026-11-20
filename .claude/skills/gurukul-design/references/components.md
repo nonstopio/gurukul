@@ -335,6 +335,42 @@ a pill label at the top with a sign (plus, pen, swap, bin) and the words ("Chang
 `--warning-soft` / `--warning`, moved `--info-soft` / `--info`, removed `--danger-soft` / `--danger`, the
 pairs `Chip` uses. Without children (something removed) only the mark is drawn. Never colour alone.
 
+## DiffView, DiffRow, DiffText, DiffCode, DiffFields, DiffUnchanged, DiffNote, DiffMedia — shipped
+
+A difference between two versions of the same thing (a Desktop Studio session's Review). Every mark
+has a sign or a text decoration and hidden words for a screen reader; the soft grounds only repeat
+them (body text reaches 4.5:1 on `--danger-soft` and `--accent-soft` in both themes, so no new role
+was needed).
+
+- `<DiffText parts side?>`: a word difference (`{ op: 'same' | 'added' | 'removed', text }[]`, the
+  shape of `DiffPart` in `@gurukul/schema/changes`). Removed runs are `<del>` struck through on
+  `--danger-soft`, added runs `<ins>` underlined on `--accent-soft`, each led by a hidden
+  "removed: " or "added: "; a run of spaces alone is not marked. `side="before"` keeps the removed
+  runs, `"after"` the added ones, `"both"` (default) everything in one text.
+- `<DiffCode parts side? label>`: a line difference in `--font-mono` on `--surface-sunken`, a
+  `--radius-lg` well that scrolls sideways inside itself (focusable, named by `label`). The gutter
+  shows − (in `--danger`) and + (in `--accent-soft-text`), hidden from a screen reader, which hears
+  "removed line: " and "added line: "; changed lines sit on their soft ground.
+- `<DiffFields items>`: a `<dl>` of fields, one per line, as "Pass mark 70% → 80%" (the arrow hidden,
+  "changed to" read instead; `null` reads "Not set" in italics), or `{ label, change }` for a
+  difference already drawn. Name column 8–12rem from 640px, stacked below.
+- `<DiffView layout="split|inline" label>`: a `role="group"` of entries. Side by side it opens with a
+  Before / After head (`aria-hidden`; each cell says which it is). `<DiffRow statuses? what before
+after merged? notes? same?>` is one entry: a pill label with the sign and words ("Changed · Text
+  block 1", the tones of `ChangeMark`, `aria-hidden`: the group is named "changed: Text block 1"), a
+  dashed hairline in the first status's line token (a plain hairline when unchanged), any `notes`,
+  then the two cells. Inline, `merged` is drawn when given, else before above after with visible
+  "Before" / "After" labels. A side that is `null` says "Not there before" or "Removed". `same`
+  draws the entry once across both columns (unchanged, or only moved), so nothing is announced twice.
+- `<DiffUnchanged label defaultOpen?>`: a run of unchanged entries folded into one dashed button
+  ("3 unchanged blocks", chevron, `aria-expanded`, `aria-controls`); its children render only open.
+- `<DiffNote>`: a line in the warning tone with the alert sign that must not be folded into
+  "changed": "Correct answer changed: B → C".
+- `<DiffMedia kind url name alt?>`: an image as a thumbnail (max 12rem high, hairline, `--radius-md`)
+  with its name under it; a video, embed or file as a link card (icon, name, host) that opens in a
+  new window and is named "Intro · youtu.be (opens in a new window)"; an empty address says
+  "No address".
+
 ## ChatLog, ChatMessage, ChatTurn, ChatActivity — shipped
 
 A chat with an agent. `<ChatLog label>` is a `role="log"` region round an `<ol>` (it takes a `ref`; a layout
@@ -344,6 +380,26 @@ who said it is a word above it (`--text-xs` caps, `--text-muted`); the person's 
 icon. `<ChatTurn>` is the line after a turn, between hairlines, holding its name and actions (a quiet link,
 an Undo). `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
 in `--accent`): always rendered, empty between turns, so a new line is announced; no animation.
+
+`<ChatAttachments label items={[{ id, label }]} onRemove? onEmptied?>`: what a message carries besides its
+words, a `<ul>` named by `label` of pill chips (`--accent-soft` / `--accent-soft-text`, an `--accent-line`
+hairline, paperclip icon, the label in words). With `onRemove` each chip ends in a 24px remove button named
+"Remove {label}"; a removed chip hands focus to the one taking its place, else the one before, else
+`onEmptied` (the message box). Without it the chips only say what a sent message carried. Nothing is drawn
+when `items` is empty.
+
+## Attachable — shipped
+
+`<Attachable label attached onAttachedChange>{the block as drawn}</Attachable>`: something drawn that a
+message can carry (a block or a question in a Desktop Studio session's preview). A grid of the content and
+an `IconButton` toggle (`aria-pressed`, named "Attach {label} to your message", tip Attach or Attached,
+paperclip or tick) in its own column, so it never covers the content's own controls. The button is
+transparent until the wrapper is hovered or anything in it has keyboard focus (always shown with
+`hover: none` and while attached); a real button, so attaching never needs a mouse. Attached, a 2px
+`--accent` outline goes round it and the button shows the tick on `--accent-soft`: a sign, not only a
+colour. The wrapper keeps the content on its column's edge (`--space-2` padding, the same negative margin).
+Clicking the content itself does nothing: a click on a block's video, check or Copy keeps doing what it
+does.
 
 ## Explanation — shipped
 
@@ -616,7 +672,9 @@ first and last word ("Asha Rao" → AR), one word's first letter, an email's loc
 `<IconButton label tip? tone="neutral|danger">icon</IconButton>`: a 36px icon-only button for dense list rows
 (rename, move, delete). Quiet (`--text-muted`) until hover (`--surface-hover`); `danger` is `--danger`
 with `--danger-soft` on hover. `label` is the accessible name ("Rename What Git solves"); `tip` is the
-short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `iconButtonClass(tone?)` and
+short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). As a toggle it takes
+`aria-pressed`; pressed it sits on `--accent-soft` with `--accent-soft-text`, and its icon changes too
+(Attach: paperclip, then a tick). `iconButtonClass(tone?)` and
 `Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
 link (`position: relative; z-index: 1`).
 
