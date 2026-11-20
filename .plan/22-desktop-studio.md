@@ -1461,7 +1461,10 @@ Starting Claude Code):
   checked with zod. The longest question and lessons fit the shell's `MAX_ASK_PROMPT_LENGTH`.
 - **Cached by content.** The key is a 64-bit hash of the prompt (question, options and lesson text)
   and `ANSWER_PROMPT_VERSION`, so a question is asked again only when it or its lessons change; a
-  key change alone compares the kept answer with the new key. Two questions with the same words and
+  key change alone compares the kept answer with the new key. A running ask whose question or
+  lessons changed under it (a turn, hand edits, or Bring in their changes merging a draft that
+  moved) is cancelled and asked again in the new words; an answer kept for the old words no longer
+  matches, so a merge never shows an opinion on words the course no longer has. Two questions with the same words and
   lessons share one answer. Answers live in `answer-check.json` in the session folder (newest 500),
   removed with the rest 30 days after the session closes; a failure is not kept, so it is asked
   again on the next visit. The file also remembers Skip answer check for the session.
@@ -1481,7 +1484,9 @@ Starting Claude Code):
   disagreements already found stay listed, with Ask the agent to fix these, as their rows still
   show them. A question that could not be checked (too slow, no answer, an answer that could not
   be read) is listed with why, and Try again asks again. Not installed, too old, signed out and a plan limit stop the check with a
-  sentence and Try again; a shell without `agent.ask` asks for the update. None of it stops Save.
+  sentence and Try again; a shell without `agent.ask` asks for the update. None of it stops Save:
+  Save (`DSK-15`) waits for nothing the answer check does, whether it runs, disagrees or failed
+  (`test/session-save-answers.test.tsx`).
 - **Logs** name the session, Quiz and question ids and the outcome, never the question, an option,
   a key or the reply.
 

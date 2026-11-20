@@ -760,6 +760,46 @@ describe('the answer check', () => {
     }
   });
 
+  it('cancels a running ask once its question or lessons change, once, and asks about the new words', async () => {
+    const s = setup();
+    const { base: b, work, changes } = session();
+    await s.check.open();
+    s.check.update({ work, changes, active: true });
+    expect(s.waiting()).toHaveLength(2);
+
+    // A lesson of the Quiz's chapter now reads differently (a merge brought it in): both prompts
+    // carry it, so both asks are about words the course no longer has.
+    const moved = change(work, (c) => {
+      lessonOf(c, 'l3').title = 'Rebasing, slowly';
+    });
+    s.check.update({ work: moved, changes: courseChanges(b, moved), active: true });
+    s.check.update({ work: moved, changes: courseChanges(b, moved), active: true });
+    expect(s.cancelAsk.mock.calls.map((c) => c[0])).toEqual(['ask-1', 'ask-2']);
+    await flushPromises();
+    expect(s.waiting()).toHaveLength(2);
+    expect(s.waiting().every((p) => p.includes('Rebasing, slowly'))).toBe(true);
+    expect(states(s.check)).toEqual([
+      ['k1', 'checking'],
+      ['k2', 'checking'],
+    ]);
+    // A cancelled ask leaves no failure behind.
+    expect(vi.mocked(log.info)).toHaveBeenCalledWith(
+      'Answer check ended',
+      expect.objectContaining({ outcome: 'cancelled' }),
+    );
+
+    // Only the ask whose question changed is cancelled; the other runs on.
+    const reworded = change(moved, (c) => {
+      (quizOf(c).questions[1] as Question).prompt = 'Which command replays commits?';
+    });
+    s.check.update({ work: reworded, changes: courseChanges(b, reworded), active: true });
+    expect(s.cancelAsk).toHaveBeenCalledTimes(3);
+    await flushPromises();
+    expect(s.waiting()).toHaveLength(2);
+    expect(s.waiting().some((p) => p.includes('Which command replays commits?'))).toBe(true);
+    expect(s.waiting().some((p) => p.includes('What does git rebase do?'))).toBe(true);
+  });
+
   it('asks again for one the shell cancelled on its own', async () => {
     const s = setup();
     const { work, changes } = session();

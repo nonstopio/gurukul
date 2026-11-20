@@ -14,7 +14,9 @@ import type { AnswerCheckFile, AnswerResult, SessionStore } from './store';
  * changed is answered by a separate one-shot Claude Code run (`agent.ask`) that sees the lessons
  * and the question but never the key, at most `MAX_ASKS_RUNNING` at a time. Its answer is kept by
  * the question's hash in `answer-check.json`, so it runs once per question and again only when the
- * question or its lessons change, and compared with the key here. Nothing it finds stops Save.
+ * question or its lessons change, and compared with the key here. An ask whose question or lessons
+ * changed while it ran (a turn, hand edits, bringing in a draft that moved) is cancelled. Nothing it
+ * finds stops Save.
  *
  * It waits while a turn runs or hand edits are open (the questions are still changing), asks
  * nothing for a saved or discarded session, and stops for the session when the Educator presses
@@ -161,6 +163,8 @@ export function createAnswerCheck({
   const failures = new Map<string, AnswerFailure>();
   /** Hash → the ask's id, while it runs. */
   const running = new Map<string, string>();
+  /** Ask ids this check asked the shell to cancel, until their answer comes back. */
+  const cancelling = new Set<string>();
   const listeners = new Set<() => void>();
   let targets: Target[] = [];
   let loaded = false;
@@ -293,8 +297,14 @@ export function createAnswerCheck({
     const askId = newId();
     running.set(t.hash, askId);
     desktop.agent.ask({ askId, prompt: t.prompt }).then(
-      (result) => settle(t, result),
-      (rejected: unknown) => settle(t, { rejected }),
+      (result) => {
+        cancelling.delete(askId);
+        settle(t, result);
+      },
+      (rejected: unknown) => {
+        cancelling.delete(askId);
+        settle(t, { rejected });
+      },
     );
   };
 
@@ -320,12 +330,28 @@ export function createAnswerCheck({
     if (started) emit();
   }
 
+  /** Ends one running ask, once: its `cancelled` answer then settles it like any other. */
+  const cancel = (askId: string) => {
+    if (cancelling.has(askId)) return;
+    cancelling.add(askId);
+    desktop.agent.cancelAsk(askId).catch((error: unknown) => {
+      log.warn('Answer check not cancelled', { sessionId, reason: bridgeFailure(error) });
+    });
+  };
+
   const cancelAll = () => {
-    for (const askId of running.values()) {
-      desktop.agent.cancelAsk(askId).catch((error: unknown) => {
-        log.warn('Answer check not cancelled', { sessionId, reason: bridgeFailure(error) });
-      });
-    }
+    for (const askId of running.values()) cancel(askId);
+  };
+
+  /*
+   * Ends each running ask whose question is no longer one to check in the words it was asked in: a
+   * turn, hand edits or bringing in a draft that moved (`bringIn`) changed the question or its
+   * lessons, so its answer would be about words the course no longer has. Answers already kept are
+   * keyed by those old words' hash, so they no longer match either.
+   */
+  const dropStale = () => {
+    const asked = new Set(targets.map((t) => t.hash));
+    for (const [hash, askId] of running) if (!asked.has(hash)) cancel(askId);
   };
 
   return {
@@ -345,6 +371,7 @@ export function createAnswerCheck({
     update(input) {
       targets = checkTargets(input.work, input.changes);
       active = input.active;
+      dropStale();
       emit();
       pump();
     },
