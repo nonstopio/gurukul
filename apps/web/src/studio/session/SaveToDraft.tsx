@@ -153,10 +153,11 @@ export function SaveBar({
   const [confirming, setConfirming] = useState(false);
   const [creating, setCreating] = useState(false);
   /**
-   * The draft of a course created for this session that the session could not note: Save then
-   * notes it again, and never creates the course a second time.
+   * The draft of a course created for this session that the session could not note yet: Save then
+   * notes it again, and never creates the course a second time. Held by the runtime (and in
+   * `created.json`), so it outlives this footer: leaving Review and coming back keeps it.
    */
-  const [created, setCreated] = useState<SessionBase | null>(null);
+  const created = agent.pendingCourse;
   const [failure, setFailure] = useState<string | null>(null);
   const session = agent.session as NonNullable<AgentSessionHandle['session']>;
   const work = agent.work as Working;
@@ -207,19 +208,13 @@ export function SaveBar({
     }
   };
 
-  /** The course exists: the session becomes an edit session on it, then the draft is saved. */
+  /**
+   * The course exists: the session becomes an edit session on it, then the draft is saved. When it
+   * could not be noted, the runtime keeps it as `pendingCourse`, which the footer says.
+   */
   const note = async (base: SessionBase) => {
-    const title = base.work.course.title;
     setFailure(null);
-    if (!(await agent.courseCreated(base))) {
-      setCreated(base);
-      setFailure(
-        `The course “${title}” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.`,
-      );
-      return;
-    }
-    setCreated(null);
-    await save(base.work.course.id, title);
+    if (await agent.courseCreated(base)) await save(base.work.course.id, base.work.course.title);
   };
 
   const create = async (title: string, slug: string): Promise<Created> => {
@@ -271,6 +266,12 @@ export function SaveBar({
       {failure ? (
         <Callout tone="warning" title="Not saved">
           <p>{failure}</p>
+        </Callout>
+      ) : created ? (
+        <Callout tone="warning" title="Not saved">
+          <p>
+            {`The course “${created.work.course.title}” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.`}
+          </p>
         </Callout>
       ) : null}
       {confirming && session.base ? (

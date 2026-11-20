@@ -548,7 +548,8 @@ describe('a new course’s first save', () => {
   it('notes the created course again when this computer could not, without creating it again', async () => {
     const s = await openNew();
     vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
-    s.desktop.store.write.mockRejectedValueOnce(REFUSED);
+    // Neither `created.json` nor `session.json` can be written: only the runtime holds the course.
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED).mockRejectedValueOnce(REFUSED);
     await create();
     expect(
       await screen.findByText(
@@ -557,6 +558,17 @@ describe('a new course’s first save', () => {
     ).toBeTruthy();
     expect(s.disk()).toMatchObject({ kind: 'new', courseId: null });
     expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+
+    // Leaving Review for the chat and coming back keeps the created course: the runtime holds it.
+    fireEvent.click(screen.getAllByRole('link', { name: 'Keep working' })[0] as HTMLElement);
+    fireEvent.click(await screen.findByRole('link', { name: 'Review' }));
+    await screen.findByRole('region', { name: 'Checks' });
+    expect(screen.queryByRole('button', { name: 'Create course and save draft' })).toBeNull();
+    expect(
+      screen.getByText(
+        'The course “Code review” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.',
+      ),
+    ).toBeTruthy();
 
     // Save the draft notes it and saves, with no second createCourse and no dialog.
     await act(async () => {

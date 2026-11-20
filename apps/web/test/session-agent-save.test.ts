@@ -5,6 +5,7 @@ import { HAND_EDIT_NOTE, createAgentSession } from '../src/studio/session/agent'
 import type { SessionBase } from '../src/studio/session/agent';
 import {
   CREATED_DRAFT_REV,
+  CREATED_FILE,
   START_CHECKPOINT,
   createSessionStore,
   createdBase,
@@ -400,9 +401,16 @@ describe('A new course’s first save in the runtime', () => {
     // Only once: it has a course now.
     expect(await s.runtime.courseCreated(created(s))).toBe(false);
 
-    // Undo of a turn from before the course existed keeps the session on its course.
+    // Undo of a turn from before the course existed keeps the session on its course, with the
+    // title the Educator gave it and what that title made: creating it was not a turn.
     expect(await s.runtime.undo()).toBe(true);
-    expect(s.disk().work.course).toMatchObject({ id: 'code-review', title: 'Untitled course' });
+    expect(s.disk().work.course).toMatchObject({
+      id: 'code-review',
+      title: 'Code review, plainly',
+      certificate: { title: 'Code review, plainly' },
+      cover: { glyph: 'C' },
+    });
+    expect(s.state().changes?.count).toBe(0);
     expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review', base: { rev: 1 } });
 
     // The agent is told the course changed under it.
@@ -438,9 +446,105 @@ describe('A new course’s first save in the runtime', () => {
     expect(s.disk().courseId).toBe('code-review');
   });
 
+  it('keeps a created course it could not note, for this runtime and the next one', async () => {
+    const s = await setup({ kind: 'new' });
+    expect(s.state().pendingCourse).toBeNull();
+    const base = created(s);
+    // `created.json` is written, then `session.json` is refused.
+    const write = s.desktop.store.write.getMockImplementation();
+    s.desktop.store.write
+      .mockImplementationOnce(async (...args) => write?.(...args))
+      .mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.courseCreated(base)).toBe(false);
+    expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
+    expect(s.state().pendingCourse).toEqual(base);
+    expect(JSON.parse(s.files.get(`u1/s1/${CREATED_FILE}`) as string)).toEqual(base);
+
+    // The app closed: a runtime opened later still knows the course exists.
+    s.runtime.dispose();
+    const again = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await again.open();
+    expect(again.getState().pendingCourse).toEqual(base);
+    expect(await again.courseCreated(base)).toBe(true);
+    expect(again.getState().pendingCourse).toBeNull();
+    expect(again.getState().session).toMatchObject({ kind: 'edit', courseId: 'code-review' });
+
+    // Once noted, the file is not read again: the session has its course.
+    const third = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await third.open();
+    expect(third.getState().pendingCourse).toBeNull();
+  });
+
+  it('keeps a created course in memory when its note cannot be written either, or read', async () => {
+    const s = await setup({ kind: 'new' });
+    const base = created(s);
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED).mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.courseCreated(base)).toBe(false);
+    expect(s.state().pendingCourse).toEqual(base);
+    expect(s.files.has(`u1/s1/${CREATED_FILE}`)).toBe(false);
+    expect(log.warn).toHaveBeenCalledWith('Session created course not kept', {
+      sessionId: 's1',
+      courseId: 'code-review',
+      reason: 'refused',
+    });
+
+    // A note this app cannot read is left alone: the session stays a new course.
+    s.files.set(`u1/s1/${CREATED_FILE}`, '{"rev":1}');
+    const reopened = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await reopened.open();
+    expect(reopened.getState().pendingCourse).toBeNull();
+    // Read first by the session itself, so refuse the read of `created.json` only.
+    const read = s.desktop.store.read.getMockImplementation();
+    s.desktop.store.read.mockReset();
+    s.desktop.store.read.mockImplementation(async (file) => {
+      if (file.path === CREATED_FILE) throw REFUSED;
+      return read?.(file) ?? null;
+    });
+    const refused = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await refused.open();
+    expect(refused.getState()).toMatchObject({ pendingCourse: null, status: 'ready' });
+    expect(log.warn).toHaveBeenCalledWith('Session created course not read', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
+  });
+
+  it('keeps a course created while the session was busy, to note once it is not', async () => {
+    const s = await setup({ kind: 'new' });
+    expect(await s.runtime.send('Start.')).toBe(true);
+    const base = created(s);
+    expect(await s.runtime.courseCreated(base)).toBe(false);
+    expect(s.state().pendingCourse).toEqual(base);
+    expect(s.disk().kind).toBe('new');
+  });
+
   it('writes nothing when it cannot, and refuses an edit session or a busy one', async () => {
     const s = await setup({ kind: 'new' });
-    s.desktop.store.write.mockRejectedValueOnce(REFUSED);
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED).mockRejectedValueOnce(REFUSED);
     expect(await s.runtime.courseCreated(created(s))).toBe(false);
     expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
     expect(s.state()).toMatchObject({ saving: false, problem: { code: 'app' } });

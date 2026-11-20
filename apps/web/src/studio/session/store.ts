@@ -29,6 +29,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
+ *   sessions/{uid}/{sessionId}/created.json            a new course's draft, once `createCourse` made it
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -70,6 +71,14 @@ export const EDITING_FILE = 'editing.json';
  * closed in between still tells it (`undoNote`, `HAND_EDIT_NOTE` in `agent.ts`).
  */
 export const AGENT_NOTE_FILE = 'agent-note.json';
+
+/**
+ * A new-course session's created course (`DSK-16`): the draft `createCourse` wrote (`createdBase`),
+ * written as soon as the course exists and before `session.json` makes the session an edit session
+ * on it, so a session that could not note it, opened again later, saves it without creating the
+ * course twice. Read only while the session is still a new course with no base.
+ */
+export const CREATED_FILE = 'created.json';
 
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
@@ -277,6 +286,10 @@ export interface SessionStore {
   saveAgentNote(sessionId: string, note: AgentNote | null): Promise<void>;
   /** What the agent is still to be told, or null when nothing (or the file cannot be read). */
   readAgentNote(sessionId: string): Promise<AgentNote | null>;
+  /** Writes the draft of the course created for a new-course session (`CREATED_FILE`). */
+  saveCreated(sessionId: string, base: SessionBase): Promise<void>;
+  /** The course created for a new-course session, or null when none (or it cannot be read). */
+  readCreated(sessionId: string): Promise<SessionBase | null>;
   /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
   readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
   /** Replaces the chat file (the newest entries, when it would be too large). */
@@ -579,6 +592,18 @@ export function createSessionStore({
       return parse(await store.read(file(sessionId, AGENT_NOTE_FILE)), agentNoteSchema, {
         sessionId,
         file: 'agent-note',
+      });
+    },
+
+    async saveCreated(sessionId, base) {
+      const valid = sessionBaseSchema.parse(base);
+      await store.write(file(sessionId, CREATED_FILE), JSON.stringify(valid));
+    },
+
+    async readCreated(sessionId) {
+      return parse(await store.read(file(sessionId, CREATED_FILE)), sessionBaseSchema, {
+        sessionId,
+        file: 'created',
       });
     },
 

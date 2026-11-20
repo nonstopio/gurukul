@@ -1241,7 +1241,7 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
 
 A new course from a session: `SaveToDraft.tsx` (`CreateCourseDialog`, and `SaveBar` for a session
 with no base), `studio/CourseAddress.tsx` (the Title and Address fields, shared with Studio's New
-course dialog), `createdBase` and `onCourse` in `store.ts`, and the runtime's `courseCreated` in
+course dialog), `createdBase`, `asCreated` and `CREATED_FILE` in `store.ts`, and the runtime's `courseCreated` in
 `agent.ts`.
 
 - **Review of a new course** compares with nothing, so its list card is **Outline** (every row is
@@ -1265,8 +1265,10 @@ course dialog), `createdBase` and `onCourse` in `store.ts`, and the runtime's `c
   "Untitled course" on the certificate). As an edit session it
   is the course's one open session (Edit with AI on that course offers it), and a reopened page reads
   its draft once like any other. It is not a turn: Undo never takes a session back to before its
-  course existed, and a checkpoint from then (`start.json` included) is given the course's id when
-  Undo puts it back (`onCourse`). The agent is told with its next message (`HAND_EDIT_NOTE`), since
+  course existed, and a checkpoint from then (`start.json` included) is put back on the course with
+  the title the Educator gave it and the certificate title and cover letter it made (`asCreated`,
+  as for the working copy), so undoing the agent's first turn never writes "Untitled course" over
+  the course at the next save. The agent is told with its next message (`HAND_EDIT_NOTE`), since
   the course got a title and an address under it.
 - **The base is built, not read**: `createdBase` is the blank course `createCourse` writes, at
   `CREATED_DRAFT_REV` (1, `firebase/functions/src/stores.ts`). Reading it back would put a network
@@ -1275,12 +1277,15 @@ course dialog), `createdBase` and `onCourse` in `store.ts`, and the runtime's `c
   over anything.
 - **Never created twice.** Then the draft is saved through `DSK-15`'s save. If that fails the page
   says the course was created and the draft not saved, and the footer is an edit session's again:
-  Save N changes to draft, against Draft v1. If `session.json` could not be written after the
-  course was created, the page keeps the created draft and its button becomes **Save the draft**,
-  which notes the course again and saves, with no second `createCourse`. Not covered: the app
-  closing between `createCourse` answering and that write; the session is still a new course then,
-  and its address is taken by the empty course just created (another address works; the empty
-  course stays in Studio).
+  Save N changes to draft, against Draft v1. As soon as `createCourse` answers, the runtime keeps the
+  created draft (`pendingCourse`) and writes it to `created.json`, then writes `session.json`. If
+  that write fails, the button becomes **Save the draft**, which notes the course again and saves,
+  with no second `createCourse`. The runtime holds it while the session is open in the app (leaving
+  Review for the chat and coming back keeps it), and `created.json` holds it for a session opened
+  again later (read only while the session has no base). Not covered: the app closing between
+  `createCourse` answering and the `created.json` write, or neither file being writable and the
+  session then left; the session is still a new course then, and its address is taken by the empty
+  course just created (another address works; the empty course stays in Studio).
 - **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
   'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
   duplicated course without AI, as in the browser.

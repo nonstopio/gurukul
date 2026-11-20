@@ -102,6 +102,7 @@ const LOADING: AgentSessionView = {
   handEdits: null,
   canSave: false,
   saving: false,
+  pendingCourse: null,
 };
 
 type SessionKey = Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>;

@@ -21,7 +21,7 @@ import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './a
 import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
-import { START_CHECKPOINT, asCreated, createSessionStore, onCourse } from './store';
+import { START_CHECKPOINT, asCreated, createSessionStore } from './store';
 import type { SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
@@ -180,6 +180,12 @@ export interface AgentSessionView {
   canSave: boolean;
   /** A save to the draft, or the merge of their changes, is being written. */
   saving: boolean;
+  /**
+   * A new-course session's course that `createCourse` made but the session could not note yet
+   * (`DSK-16`): its draft, kept in the runtime and in `created.json`, so Save offers to note it
+   * and save, and never creates the course again. Null otherwise.
+   */
+  pendingCourse: SessionBase | null;
 }
 
 export type { SessionBase } from './store';
@@ -284,9 +290,11 @@ export interface AgentSession {
    * The session becomes an edit session on it, with `base` as its base and the working copy given
    * the course's id, Educators and title, written to `session.json` before the draft is saved; then
    * Save to draft saves it like any edit session. Not a turn: Undo never takes a session back to
-   * before its course existed (a checkpoint from then gets the course's id, `onCourse`). Only when
-   * `canSave` and the session is a new course with no base. False when it could not be written;
-   * nothing then changed, and the page offers it again without creating the course again.
+   * before its course existed (a checkpoint from then is put back on the course with its title,
+   * `asCreated`). Only for a new course with no base. `base` is kept at once as `pendingCourse` and
+   * in `created.json`; it is noted only when `canSave`. False when it was not noted (busy, or
+   * `session.json` could not be written): nothing else changed, and `pendingCourse` stays, so the
+   * page offers it again without creating the course again.
    */
   courseCreated(base: SessionBase): Promise<boolean>;
   /**
@@ -538,6 +546,8 @@ export function createAgentSession({
   let handNoted = false;
   /** Save to draft or Bring in their changes is being written: nothing else changes the course. */
   let saving = false;
+  /** A course created for this new-course session and not noted in `session.json` yet. */
+  let pendingCourse: SessionBase | null = null;
   let queue: Promise<unknown> = Promise.resolve();
   /**
    * Review edits shown at once but not yet written, in the order they were made. A task that took
@@ -606,6 +616,7 @@ export function createAgentSession({
       handEdits: hand ? { state: hand.state, savedAt: hand.savedAt } : null,
       canSave: savable(),
       saving,
+      pendingCourse,
     };
   };
   let snapshot = view();
@@ -1013,6 +1024,14 @@ export function createAgentSession({
     } catch (error) {
       log.warn('Session agent note not read', { sessionId, reason: bridgeFailure(error) });
     }
+    // A course created for this session that it could not note (`created.json`, `DSK-16`).
+    if (found.base === null) {
+      try {
+        pendingCourse = await store.readCreated(sessionId);
+      } catch (error) {
+        log.warn('Session created course not read', { sessionId, reason: bridgeFailure(error) });
+      }
+    }
     // Hand edits the app closed on (`editing.json`): made a turn before the agent starts.
     try {
       const pending = await store.readHandEdits(sessionId);
@@ -1154,10 +1173,12 @@ export function createAgentSession({
               problem = UNDO_GONE;
               return false;
             }
-            // A checkpoint from before a new course was created carries the placeholder id.
+            // A checkpoint from before a new course was created carries the placeholder id and
+            // title: it is put back on the course, with the title the Educator gave it, as
+            // `courseCreated` did (creating the course is not a turn, so Undo keeps it).
             const copy =
               current.courseId !== null && before.course.id !== current.courseId
-                ? onCourse(before, (current.base as SessionBase).work.course)
+                ? asCreated(before, (current.base as SessionBase).work.course)
                 : before;
             next = await store.undoTurn(current, copy, baseBefore);
           }
@@ -1420,13 +1441,27 @@ export function createAgentSession({
     },
 
     async courseCreated(base) {
-      if (!savable() || session?.base !== null) return false;
+      if (session === null || session.status !== 'open' || session.base !== null) return false;
+      const courseId = base.work.course.id;
+      // Kept before anything else, so the course is never created twice while the app is open,
+      // and in `created.json` for a runtime opened later.
+      pendingCourse = base;
+      emit();
+      try {
+        await store.saveCreated(sessionId, base);
+      } catch (error) {
+        log.warn('Session created course not kept', {
+          sessionId,
+          courseId,
+          reason: bridgeFailure(error),
+        });
+      }
+      if (!savable()) return false;
       saving = true;
       problem = null;
       emit();
       return enqueue(async () => {
         const current = session as AuthoringSession;
-        const courseId = base.work.course.id;
         const ofCourse = (work: Working): Working => asCreated(work, base.work.course);
         try {
           const written = await store.save({
@@ -1440,6 +1475,7 @@ export function createAgentSession({
           // A turn that could not be written stays the newest: Undo goes back to the copy before
           // it, now on the course too.
           saved = { ...written, work: ofCourse(workOf(saved as AuthoringSession)) };
+          pendingCourse = null;
           // Its own history does not know the course has a title and an address now.
           handEdited = true;
           await keepNote();
