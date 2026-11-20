@@ -14,6 +14,10 @@ test.describe('Educator in Studio', () => {
     await page.goto('/studio');
     await expect(page.getByRole('heading', { level: 1, name: 'Courses' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: GIT_COURSE.title })).toBeVisible();
+    // GitHub is blocked here (`EXTERNAL`), so the desktop app's card falls back to the releases page.
+    await expect(
+      page.getByRole('link', { name: 'Get Gurukul Studio from GitHub' }),
+    ).toHaveAttribute('href', 'https://github.com/nonstopio/gurukul/releases');
     await expectNoSeriousViolations(page);
 
     await page.getByRole('button', { name: 'New course', exact: true }).click();
