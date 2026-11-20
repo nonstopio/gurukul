@@ -15,7 +15,15 @@ import type { ReactNode } from 'react';
 import { useStudio } from '../StudioProvider';
 import type { Working } from '../types';
 import type { AttachTarget, AttachWords } from './attachments';
-import { WRITING_FIX_MESSAGE, fixTargets, reviewChecks, rowFor, rowName, sizeLine } from './review';
+import {
+  WRITING_FIX_MESSAGE,
+  fixTargets,
+  issueAt,
+  reviewChecks,
+  rowFor,
+  rowName,
+  sizeLine,
+} from './review';
 import type { CheckState, Numbers } from './review';
 
 /*
@@ -145,13 +153,7 @@ export function ReviewChecks({
   const publish = checks.publish.map((issue, i): Finding => ({
     key: `p${i}`,
     text: issue.message,
-    row: rowFor(rows, {
-      itemId: issue.itemId,
-      field:
-        issue.code.startsWith('course.description') || issue.code.startsWith('course.outcome')
-          ? 'description'
-          : 'title',
-    }),
+    row: rowFor(rows, issueAt(issue)),
   }));
   const left = checks.todos.map((todo): Finding => ({
     key: todo.id,

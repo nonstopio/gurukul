@@ -1,6 +1,17 @@
-import { COURSE_BYTES_LIMIT, COURSE_BYTES_WARN } from '@gurukul/schema';
-import type { Chapter, Course, Item, Lesson, Quiz, SessionTodo, Turn } from '@gurukul/schema';
+import { COURSE_BYTES_LIMIT, COURSE_BYTES_WARN, validateForPublish } from '@gurukul/schema';
+import type {
+  Chapter,
+  Course,
+  Item,
+  Lesson,
+  PublishIssue,
+  Quiz,
+  SessionTodo,
+  Turn,
+} from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
+import { lintCourse } from '@gurukul/schema/writingLint';
+import type { WritingFinding } from '@gurukul/schema/writingLint';
 import type { ChangeRow } from '@gurukul/schema/changes';
 import { describe, expect, it } from 'vitest';
 import type { Working } from '../src/studio/types';
@@ -15,10 +26,12 @@ import {
   fieldValue,
   fixTargets,
   groupRows,
+  issueAt,
   itemOf,
   letter,
   lintScope,
   numbersOf,
+  onChangedText,
   questionPlaces,
   reviewChecks,
   rowFor,
@@ -296,6 +309,86 @@ describe('checks', () => {
     expect(saveBlockers(checks)).toEqual([]);
   });
 
+  it('reports writing notes only on text the session changed, a changed question or block whole', () => {
+    const WORN = 'We leverage Git.';
+    const k2 = {
+      id: 'k2',
+      kind: 'single' as const,
+      prompt: 'Second?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      explanation: '',
+    };
+    const b = edited((c) => {
+      c.summary = WORN;
+      c.outcomes = [WORN, 'Branch'];
+      chapter(c, 'p1').title = 'We leverage basics';
+      (chapter(c, 'p1').items[0] as Lesson).title = 'We leverage lessons';
+      (chapter(c, 'p1').items[0] as Lesson).blocks = [
+        { type: 'markdown', id: 'm1', md: WORN },
+        { type: 'markdown', id: 'm2', md: 'Plain.' },
+        { type: 'markdown', id: 'm3', md: WORN },
+      ];
+      (chapter(c, 'p2').items[1] as Quiz).questions.push(k2);
+    });
+    const work = structuredClone(b);
+    ((c: Course) => {
+      c.description = WORN;
+      c.outcomes = [WORN, 'We leverage branches.'];
+      chapter(c, 'p2').title = 'We leverage history';
+      const l1 = chapter(c, 'p1').items[0] as Lesson;
+      l1.blocks = [
+        { type: 'markdown', id: 'm3', md: WORN },
+        { type: 'markdown', id: 'm1', md: WORN },
+        { type: 'markdown', id: 'm2', md: 'We leverage more.' },
+      ];
+      const k1 = (chapter(c, 'p2').items[1] as Quiz).questions[0] as Quiz['questions'][number];
+      k1.prompt = 'Which one do we leverage?';
+      (chapter(c, 'p2').items[1] as Quiz).title = 'We leverage quizzes';
+      chapter(c, 'p1').items.push(lesson('n', { title: 'We leverage new things' }) as Item);
+    })(work.course);
+    const changes = courseChanges(b, work);
+    const where = (f: WritingFinding) =>
+      [f.itemId ?? f.chapterId ?? 'course', f.blockId ?? f.questionId ?? '', f.field, f.index ?? '']
+        .join('/')
+        .replace(/\/+$/, '');
+    const all = lintCourse(work).map(where);
+    const shown = reviewChecks(work, changes, []).writing.map(where);
+    // The unchanged text has notes too, so leaving them out is the filter's doing.
+    for (const kept of [
+      'course//description',
+      'course//outcome/1',
+      'p2//title',
+      'l1/m2/md',
+      'q1/k1/prompt',
+      'n//title',
+      'q1//title',
+    ]) {
+      expect(all).toContain(kept);
+      expect(shown).toContain(kept);
+    }
+    for (const left of [
+      'course//summary',
+      'course//outcome/0',
+      'p1//title',
+      'l1/m1/md',
+      'l1/m3/md',
+      'q1/k2/explanation',
+      'l1//title',
+    ]) {
+      expect(all).toContain(left);
+      expect(shown).not.toContain(left);
+    }
+    expect(
+      onChangedText(
+        { field: 'title', rule: 'worn-phrase', excerpt: '', message: '' } as WritingFinding,
+        [],
+      ),
+    ).toBe(false);
+  });
+
   it('says when the course is not valid or too big, which stops Save', () => {
     const work = edited((c) => {
       (chapter(c, 'p1').items[0] as Lesson).title = '';
@@ -338,6 +431,39 @@ describe('checks', () => {
     expect(rowFor(rows, { field: 'description' })?.key).toBe('landing:landing');
     expect(rowFor(rows, { field: 'title' })?.key).toBe('course:course');
     expect(rowFor(rows, {})).toBeNull();
+  });
+
+  it('points each Ready to publish issue at its own row, or at none', () => {
+    const at = (code: string, extra: Partial<PublishIssue> = {}) =>
+      issueAt({ code, message: 'm', ...extra });
+    expect(at('item.title', { itemId: 'l1' })).toEqual({ itemId: 'l1' });
+    expect(at('id.duplicate', { itemId: 'l1' })).toEqual({ itemId: 'l1' });
+    expect(at('chapter.title', { chapterId: 'p2' })).toEqual({ chapterId: 'p2' });
+    expect(at('id.duplicate', { chapterId: 'p2' })).toEqual({ chapterId: 'p2' });
+    for (const code of ['course.description', 'course.outcomes', 'course.outcome.blank'])
+      expect(at(code)).toEqual({ field: 'description' });
+    for (const code of [
+      'course.title',
+      'course.summary',
+      'course.cover.upload',
+      'rules.passMark',
+      'certificate.noQuiz',
+      'certificate.title',
+    ])
+      expect(at(code)).toEqual({ field: 'title' });
+    expect(at('course.empty')).toEqual({});
+    expect(at('chapter.title')).toEqual({});
+    // A chapter's blank title links to the chapter, not to Course details changed beside it.
+    const work = edited((c) => {
+      c.title = 'Git, simply';
+      chapter(c, 'p2').title = '';
+    });
+    const rows = courseChanges(base(), work).rows;
+    const issue = validateForPublish(work.course, work.answers, {}).find(
+      (i) => i.code === 'chapter.title',
+    ) as PublishIssue;
+    expect(rowFor(rows, issueAt(issue))?.key).toBe('chapter:p2');
+    expect(rowFor(rows, issueAt({ code: 'course.empty', message: 'm' }))).toBeNull();
   });
 
   it('attaches each row a finding sits in once, at most ten', () => {
@@ -521,6 +647,67 @@ describe('Undo this item', () => {
       ['l4', 'Lesson l4'],
       ['l1', 'Lesson l1'],
     ]);
+  });
+
+  it('puts a lesson that only changed back where it is, after a lesson added before it', () => {
+    const b = base();
+    const work = edited((c) => {
+      const p1 = chapter(c, 'p1');
+      p1.items.splice(1, 0, lesson('l9') as Item);
+      (p1.items[2] as Lesson).title = 'Edited';
+    });
+    expect(rowOf(b, work, 'lesson:l2').statuses).toEqual(['changed']);
+    const back = ok(undo(b, work, 'lesson:l2'));
+    expect(chapter(back.course, 'p1').items.map((i) => [i.id, i.title])).toEqual([
+      ['l1', 'Lesson l1'],
+      ['l9', 'Lesson l9'],
+      ['l2', 'Lesson l2'],
+    ]);
+  });
+
+  it('puts a lesson moved within its chapter back in its old place', () => {
+    const b = base();
+    const work = edited((c) => chapter(c, 'p2').items.reverse());
+    expect(rowOf(b, work, 'lesson:l3').statuses).toContain('moved');
+    const back = ok(undo(b, work, 'lesson:l3'));
+    expect(chapter(back.course, 'p2').items.map((i) => i.id)).toEqual(['l3', 'l4', 'q1']);
+  });
+
+  it('puts a chapter that was only renamed back where it is, after a chapter added before it', () => {
+    const b = base();
+    const work = edited((c) => {
+      c.chapters.splice(1, 0, { id: 'p9', title: 'New', items: [] });
+      chapter(c, 'p2').title = 'Renamed';
+    });
+    expect(rowOf(b, work, 'chapter:p2').statuses).not.toContain('moved');
+    const back = ok(undo(b, work, 'chapter:p2')).course;
+    expect(back.chapters.map((c) => [c.id, c.title])).toEqual([
+      ['p1', 'Basics'],
+      ['p9', 'New'],
+      ['p2', 'History'],
+    ]);
+  });
+
+  it('refuses a removed lesson whose id a Quiz took this session, until that Quiz is undone', () => {
+    const b = base();
+    const work = edited(
+      (c) => {
+        const p1 = chapter(c, 'p1');
+        p1.items[1] = { ...(chapter(c, 'p2').items[1] as Quiz), id: 'l2', title: 'Now a Quiz' };
+      },
+      { ...base().answers, l2: { k1: ['a'] } },
+    );
+    expect(courseChanges(b, work).rows.map((r) => `${r.key}:${r.statuses.join('+')}`)).toEqual(
+      expect.arrayContaining(['lesson:l2:removed', 'quiz:l2:added']),
+    );
+    expect(undo(b, work, 'lesson:l2')).toEqual({ ok: false, reason: 'id_taken' });
+    const noQuiz = ok(undo(b, work, 'quiz:l2'));
+    const back = ok(undo(b, noQuiz, 'lesson:l2'));
+    expect(chapter(back.course, 'p1').items.map((i) => `${i.type}:${i.id}`)).toEqual([
+      'lesson:l1',
+      'lesson:l2',
+    ]);
+    expect(courseChanges(b, back).count).toBe(0);
   });
 
   it('refuses a removed item whose chapter is gone, a repeated id, and a new course', () => {

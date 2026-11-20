@@ -9,9 +9,10 @@ import type { Working } from '../types';
  * list put back as the base has it, everything else left as the session made it. Pure, so the
  * screen only asks and the runtime writes the result as a turn by the Educator.
  *
- * Where something goes back into a list, it goes right after the nearest entry before it in the
- * base that is still in that list (first when there is none): the rule Review uses to place a
- * removed entry, so it lands where the Educator saw it.
+ * Something that only changed is put back where it is, so entries the session added around it stay
+ * where it put them. Something removed or moved goes back right after the nearest entry before it
+ * in the base that is still in that list (first when there is none): the rule Review uses to place
+ * a removed entry, so it lands where the Educator saw it.
  */
 
 /** Why a row cannot be put back, for the screen to say in words. */
@@ -23,7 +24,12 @@ export type RevertRefusal =
   /** An added chapter still holds lessons or Quizzes: undo those first. */
   | 'not_empty'
   /** The chapter a removed item belonged to is gone too: undo the chapter first. */
-  | 'chapter_gone';
+  | 'chapter_gone'
+  /**
+   * A removed lesson's id is a Quiz's now, or the other way round: putting it back would use the
+   * id twice, which publishing refuses. Undo the one that took its place first.
+   */
+  | 'id_taken';
 
 export type RevertResult = { ok: true; work: Working } | { ok: false; reason: RevertRefusal };
 
@@ -101,6 +107,11 @@ function revertChapter(base: Course, course: Course, row: Extract<ChangeRow, { k
   }
   // Renamed, moved, or both: the old title, and the old place.
   const back = { ...(now as Chapter), title: was.title };
+  if (!row.statuses.includes('moved'))
+    return withChapters(
+      course,
+      course.chapters.map((c) => (c.id === row.id ? back : c)),
+    );
   const others = course.chapters.filter((c) => c.id !== row.id);
   return withChapters(course, placeAfter(others, back, base.chapters, chapterKey));
 }
@@ -124,6 +135,8 @@ function revertItem(
       : work.answers;
   // Out of wherever it is now.
   const here = find(course, key);
+  const other = `${row.kind === 'lesson' ? 'quiz' : 'lesson'}:${row.id}`;
+  if (!here && find(course, other)) return { ok: false, reason: 'id_taken' };
   const chapters = course.chapters.map((chapter, c) =>
     c === here?.c ? { ...chapter, items: chapter.items.filter((_, i) => i !== here.i) } : chapter,
   );
@@ -135,9 +148,9 @@ function revertItem(
   const baseAt = find(base.course, key) as { c: number; i: number };
   const baseChapter = base.course.chapters[baseAt.c] as Chapter;
   const target = chapters.findIndex((c) => c.id === baseChapter.id);
-  if (target < 0) {
-    if (!here) return { ok: false, reason: 'chapter_gone' };
-    // Its chapter is gone, but the item is still in the course: put its content back where it is.
+  // Only changed, or its chapter is gone while it is still in the course: its content back where
+  // it is, so what the session added around it keeps its place.
+  if (here && (target < 0 || (target === here.c && !row.statuses.includes('moved')))) {
     const kept = course.chapters.map((chapter, c) =>
       c === here.c
         ? { ...chapter, items: chapter.items.map((item, i) => (i === here.i ? was : item)) }
@@ -145,6 +158,7 @@ function revertItem(
     );
     return { ok: true, work: { ...work, course: withChapters(course, kept), answers } };
   }
+  if (target < 0) return { ok: false, reason: 'chapter_gone' };
   const chapter = chapters[target] as Chapter;
   const items = placeAfter(chapter.items, was, baseChapter.items, itemKey);
   chapters[target] = { ...chapter, items };

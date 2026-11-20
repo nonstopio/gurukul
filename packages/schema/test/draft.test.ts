@@ -213,13 +213,19 @@ describe('validateForPublish', () => {
     expect(codes(c)).toEqual(
       expect.arrayContaining(['chapter.title', 'item.title', 'lesson.empty']),
     );
+    // A chapter's issue names the chapter, so Review can point at its row.
+    expect(validateForPublish(c, keys).find((i) => i.code === 'chapter.title')).toMatchObject({
+      chapterId: chapterAt(c, 0).id,
+    });
     const dup = good();
     chapterAt(dup, 0).items.push({ ...itemAt(dup, 0) });
     expect(codes(dup)).toContain('id.duplicate');
     dup.chapters.push({ ...chapterAt(dup, 0) });
-    expect(validateForPublish(dup, keys).some((i) => i.code === 'id.duplicate' && !i.itemId)).toBe(
-      true,
-    );
+    expect(
+      validateForPublish(dup, keys).some(
+        (i) => i.code === 'id.duplicate' && !i.itemId && i.chapterId === chapterAt(dup, 0).id,
+      ),
+    ).toBe(true);
   });
 
   const withBlock = (block: unknown) => {

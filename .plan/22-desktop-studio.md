@@ -986,10 +986,14 @@ Each finding links to its row. Writing and Answers offer "Ask the agent to fix t
   The goals' words are not edited in Review: they are what the Educator asked for. Both, and the
   Viewed ticks, are written to `session.json` at once by the runtime's `updateReview` (in turn with
   tool calls and turn ends, never the working copy, so a turn running meanwhile is written as
-  usual).
+  usual). An edit made while a turn end, an undo or an Educator's turn is being written is laid
+  back over what that write returns, so it stays on screen and goes into the next write; a tool
+  that saw the edit and then set the goals or summary otherwise wins.
 - **Views.** Side by side is offered from 1024px (`useSideBySide`) and falls back to Inline when the
   window narrows; As a learner only for a lesson or Quiz, with Version (Before, After) when both
-  exist; an added or removed item opens there. Text as Source or Rendered appears when a row has a
+  exist; an added or removed item opens there. Inline, options carry their letters before and
+  after ("B → A." for one that moved) and "(correct before)" or "(correct now)", so the line
+  "Correct answer changed: A → B" points at letters on screen. Text as Source or Rendered appears when a row has a
   text or callout block whose words changed. An unchanged entry, or one only moved, is drawn once
   across both columns (`DiffRow same`), so a screen reader does not hear it twice and two copies of
   a code block do not make two landmarks of one name.
@@ -1006,8 +1010,11 @@ Each finding links to its row. Writing and Answers offer "Ask the agent to fix t
   or Quiz still in the course.
 - **Undo this item** (`revertRow`) puts back the course details or landing page field by field, a
   chapter's title and place (an added chapter only when empty; a removed one with its lessons that
-  are not elsewhere now), or a lesson or Quiz whole with its answer keys, into its old chapter after
-  the nearest entry before it that is still there, `answersChanged` marked as Studio marks it. It is
+  are not elsewhere now), or a lesson or Quiz whole with its answer keys, `answersChanged` marked as
+  Studio marks it. A chapter, lesson or Quiz that only changed is put back where it is, so what the
+  session added around it keeps its place; a removed or moved one goes into its old chapter after
+  the nearest entry before it that is still there. A removed lesson whose id a Quiz now has (or the
+  other way round) is refused until that one is undone, since the id would be used twice. It is
   written by `educatorTurn` as a turn of its own with `by: 'educator'` (checkpoint, count, a line in
   the chat), so the chat's Undo takes it back, and the agent's next message starts with one fixed
   sentence saying the Educator changed the course by hand (`HAND_NOTE`, counted in the message
@@ -1017,10 +1024,15 @@ Each finding links to its row. Writing and Answers offer "Ask the agent to fix t
   their turn through `educatorTurn` too.
 - **Checks** (`reviewChecks`): Course is valid and Size (warning from `COURSE_BYTES_WARN`) say
   "stops Save"; `saveBlockers` names them for `DSK-15`. Draft is up to date reads "checked when you
-  save" until `DSK-15` reads the stored rev. Writing lints the rows still there (`lintScope`); Ask
+  save" until `DSK-15` reads the stored rev. Writing lints the rows still there (`lintScope`) and
+  keeps the notes on text the session changed (`onChangedText`): anything in an added row, a field
+  that changed, an outcome added or reworded, and a block or question added or changed, read whole
+  (its prompt, options and explanation belong together: "explain why the answer is right"). Ask
   the agent to fix these attaches each row a note sits in (at most ten) and puts a prepared message
   in the box, which the Educator sends. Answers says the second opinion comes with the answer check
-  (`DSK-18`). Ready to publish lists `validateForPublish` and informs only. Left for you lists the
+  (`DSK-18`). Ready to publish lists `validateForPublish` and informs only; each issue's Show goes
+  to its row by its code (`issueAt`: the item, the chapter by `PublishIssue.chapterId`, the landing
+  page, the course details, or none for `course.empty`). Left for you lists the
   open to-dos. Findings are 25 to a page, each with Show for its row when one is listed.
 - **The footer** says "Left for you: N", links Keep working, and holds the place of Save to draft
   (`DSK-15`), which reads "Save to draft comes next" until then. Nothing on the tab writes Firestore.

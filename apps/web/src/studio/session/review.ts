@@ -352,7 +352,7 @@ export interface ReviewChecks {
   bytes: number;
   /** Size: `warn` from `COURSE_BYTES_WARN`, `fail` (stops Save) over `COURSE_BYTES_LIMIT`. */
   size: 'pass' | 'warn' | 'fail';
-  /** `writingLint` on the rows that changed and are still there. */
+  /** `writingLint` on the text that changed and is still there (`onChangedText`). */
   writing: WritingFinding[];
   /** `validateForPublish`; informs only, a draft may be saved unfinished. */
   publish: PublishIssue[];
@@ -363,6 +363,41 @@ export interface ReviewChecks {
 /** The ids `lintCourse` takes for these rows: removed things have no text left to lint. */
 export function lintScope(rows: readonly ChangeRow[]): string[] {
   return rows.filter((r) => !r.statuses.includes('removed')).map((r) => r.id);
+}
+
+/** Whether an entry's own text may be new: added, or changed (not only moved). */
+const touched = (entry: { statuses: readonly string[] } | undefined): boolean =>
+  entry !== undefined && (entry.statuses.includes('added') || entry.statuses.includes('changed'));
+
+/**
+ * Whether a writing finding sits in text this session changed, so Writing never reports notes on
+ * text the session did not touch: anywhere in a row that was added; else a field of the course
+ * details, the landing page, a chapter, a lesson or a Quiz that changed, an outcome added or
+ * reworded, or a block or question added or changed. A changed block or question is checked whole
+ * (its prompt, options and explanation are read together, as "the long option is the right one"
+ * and "explain why the answer is right" are).
+ */
+export function onChangedText(finding: WritingFinding, rows: readonly ChangeRow[]): boolean {
+  const row = rowFor(rows, finding);
+  if (row === null) return false;
+  if (row.statuses.includes('added')) return true;
+  const fieldChanged = () => row.fields.some((f) => f.field === finding.field);
+  switch (row.kind) {
+    case 'lesson':
+      return finding.blockId === undefined
+        ? fieldChanged()
+        : touched(row.blocks.find((b) => b.id === finding.blockId));
+    case 'quiz':
+      return finding.questionId === undefined
+        ? fieldChanged()
+        : touched(row.questions.find((q) => q.id === finding.questionId));
+    case 'landing':
+      return finding.field === 'outcome'
+        ? touched(row.outcomes.find((o) => o.id === `#${finding.index}`))
+        : fieldChanged();
+    default:
+      return fieldChanged();
+  }
 }
 
 export function reviewChecks(
@@ -376,7 +411,9 @@ export function reviewChecks(
     valid: workingSchema.safeParse(work).success,
     bytes,
     size: bytes > COURSE_BYTES_LIMIT ? 'fail' : bytes >= COURSE_BYTES_WARN ? 'warn' : 'pass',
-    writing: lintCourse(work, lintScope(changes.rows)),
+    writing: lintCourse(work, lintScope(changes.rows)).filter((f) =>
+      onChangedText(f, changes.rows),
+    ),
     publish: validateForPublish(work.course, work.answers, publishOptions),
     todos: todos.filter((t) => !t.done),
   };
@@ -413,6 +450,27 @@ export function rowFor(
   return rows.find((row) => !row.statuses.includes('removed') && match(row)) ?? null;
 }
 
+/** Where a Ready to publish issue points, for `rowFor`. */
+export type IssueAt = { itemId?: string; chapterId?: string; field?: string };
+
+/**
+ * The row of the change list a Ready to publish issue belongs to, by its code: a lesson or Quiz by
+ * its id; a chapter's title by the chapter; the description and outcomes on the landing page; the
+ * title, summary, cover, rules and certificate in the course details. Nothing for an issue about
+ * the whole course (`course.empty`), or a code this list does not know.
+ */
+export function issueAt(issue: PublishIssue): IssueAt {
+  if (issue.itemId !== undefined) return { itemId: issue.itemId };
+  if (issue.chapterId !== undefined) return { chapterId: issue.chapterId };
+  const [area, part] = issue.code.split('.');
+  if (area === 'course' && (part === 'description' || part === 'outcome' || part === 'outcomes'))
+    return { field: 'description' };
+  if (area === 'course' && (part === 'title' || part === 'summary' || part === 'cover'))
+    return { field: 'title' };
+  if (area === 'rules' || area === 'certificate') return { field: 'title' };
+  return {};
+}
+
 /**
  * The parts to attach when the agent is asked to fix what a check found: each row a finding sits
  * in, once, in list order, at most `MAX_ATTACHMENTS`.
@@ -435,7 +493,7 @@ export function fixTargets(
 
 /** What the agent is asked when the Writing check's findings are sent to it. */
 export const WRITING_FIX_MESSAGE =
-  'Review found writing notes in the attached parts. Fix each one in the text you wrote this session, then check the writing again.';
+  'Review found writing notes in the attached parts. Fix each one in the text you changed this session, then check the writing again.';
 
 /** The item a lesson or Quiz row stands for, as it is now or, removed, as it was. */
 export const itemOf = (row: Extract<ChangeRow, { kind: 'lesson' | 'quiz' }>): Item =>

@@ -150,6 +150,7 @@ const REFUSALS: Record<RevertRefusal, string> = {
   repeated: 'This id is used twice in the course, so it cannot be put back on its own.',
   not_empty: 'This chapter still holds lessons. Undo those first, then the chapter.',
   chapter_gone: 'The chapter this belonged to is gone too. Undo the chapter first.',
+  id_taken: 'What took its place this session has the same id. Undo that first, then this.',
 };
 
 export function ReviewPanel({
