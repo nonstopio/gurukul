@@ -608,6 +608,48 @@ describe('when the draft moved underneath', () => {
     );
   });
 
+  it('reads the next session’s own draft when the page moves to another session in place', async () => {
+    // Global search can open a session from a session page: the page stays mounted.
+    const OTHER = makeCourse({ id: 'other', title: 'Other course' });
+    const fake = fakeDesktop();
+    const ids = ['sa', 'sb'];
+    const store = createSessionStore({
+      desktop: fake.desktop,
+      uid: 'u1',
+      newId: () => ids.shift() as string,
+    });
+    const drafts: Record<string, DraftDoc> = {
+      // Session A's draft moved; session B's did not.
+      git: stored(THEIRS),
+      other: draftDoc(OTHER, { rev: 7, updatedBy: 'u1' }),
+    };
+    await store.start({ kind: 'edit', courseId: 'git', goal: 'A' }, async () =>
+      stored(BASE, { rev: 3, updatedBy: 'u1' }),
+    );
+    await store.start(
+      { kind: 'edit', courseId: 'other', goal: 'B' },
+      async () => drafts.other as DraftDoc,
+    );
+    fakeAgent(fake.desktop);
+    installDesktop(fake.desktop);
+    const studio = fakeStudio({ courses: [{ live: GIT, draft: null }] });
+    vi.mocked(studio.data.getDraft).mockImplementation(async (id) => drafts[id] ?? null);
+    const app = await openApp('/studio/sessions/sa/review', {
+      roles: ['educator'],
+      studio,
+      data: fakeData({ courses: [GIT, OTHER] }),
+    });
+    expect(await screen.findByText(/^The draft was saved by Arjun on /)).toBeTruthy();
+
+    await act(async () => {
+      await app.router.navigate('/studio/sessions/sb/review');
+    });
+    expect(await within(checks()).findByText('Draft is up to date')).toBeTruthy();
+    expect(vi.mocked(studio.data.getDraft).mock.calls).toEqual([['git'], ['other']]);
+    expect(screen.queryByText(/^The draft was saved by/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bring in their changes' })).toBeNull();
+  });
+
   it('names the saver as you when it was saved from the browser', async () => {
     const s = await open({ turns: [mine], drafts: [stored(THEIRS, { updatedBy: 'u1' })] });
     await ready(s);

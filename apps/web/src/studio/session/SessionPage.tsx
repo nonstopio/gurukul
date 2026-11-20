@@ -58,8 +58,13 @@ function Back() {
  */
 export function SessionPage() {
   const desktop = useDesktop();
+  const { sessionId = '' } = useParams();
   if (desktop.status === 'ready') {
-    return <SessionView desktop={desktop.desktop} platform={desktop.info.platform} />;
+    // Keyed by the session: moving to another one in place (global search opens a session from a
+    // session page) starts its page afresh, its own draft read and its own chat state included.
+    return (
+      <SessionView key={sessionId} desktop={desktop.desktop} platform={desktop.info.platform} />
+    );
   }
   if (desktop.status === 'checking') {
     return (
