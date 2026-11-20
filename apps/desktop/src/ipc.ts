@@ -8,6 +8,7 @@ import {
   type CallResult,
 } from './bridge';
 import type { Logger } from './log';
+import { SourcesError } from './sources';
 import { SessionFileError } from './store';
 
 /**
@@ -121,6 +122,10 @@ export function registerHandlers(
         }
         if (error instanceof SessionFileError) {
           log.warn('Bridge call refused', { call: name, reason: error.message });
+          throw new Error(error.message);
+        }
+        if (error instanceof SourcesError) {
+          log.warn('Bridge call refused', { call: name, reason: error.reason });
           throw new Error(error.message);
         }
         log.error('Bridge call failed', error, { call: name });

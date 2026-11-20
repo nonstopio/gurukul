@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { isAgentSessionFile } from '../src/desktop/bridge';
-import type { DesktopInfo, GurukulDesktop } from '../src/desktop/bridge';
+import type { DesktopInfo, GurukulDesktop, SourcesFolder } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
   bridgeVersion: 1,
@@ -11,9 +11,20 @@ export const DESKTOP_INFO: DesktopInfo = {
 const NOT_AVAILABLE = () =>
   Promise.reject(new Error('Error invoking remote method: Error: Not available in this version'));
 
+/** The folder `sources.choose` picks in the fake: two notes in `~/Material`. */
+export const SOURCES_FOLDER: SourcesFolder = {
+  path: '~/Material',
+  files: [
+    { name: 'Rebase notes.md', bytes: 120 },
+    { name: 'transcript.txt', bytes: 4000 },
+  ],
+};
+
 /**
  * The desktop bridge in memory: `store.*` keeps files in a map keyed `uid/sessionId/path`, as the
- * shell's store does on disk, and refuses the agent's own files as it does; `agent.forget` resolves; the rest refuse as an unbuilt call does.
+ * shell's store does on disk, and refuses the agent's own files as it does; `sources.*` keeps the
+ * folder chosen per session (`choose` picks `SOURCES_FOLDER`, `read` answers a listed name);
+ * `agent.forget` resolves; the rest refuse as an unbuilt call does.
  */
 export function fakeDesktop(
   init: { files?: Record<string, string>; info?: () => Promise<DesktopInfo> } = {},
@@ -21,6 +32,8 @@ export function fakeDesktop(
   const files = new Map(Object.entries(init.files ?? {}));
   const key = (uid: string, sessionId: string, path: string) => `${uid}/${sessionId}/${path}`;
   const refuse = vi.fn(NOT_AVAILABLE);
+  const chosen = new Map<string, SourcesFolder>();
+  const session = ({ uid, sessionId }: { uid: string; sessionId: string }) => `${uid}/${sessionId}`;
   // The shell refuses to write or remove its agent files one by one, in any case.
   const writable = (path: string) => {
     if (isAgentSessionFile(path)) {
@@ -66,7 +79,19 @@ export function fakeDesktop(
       onEvent: vi.fn(() => () => undefined),
       onToolCall: vi.fn(() => () => undefined),
     },
-    sources: { choose: refuse, list: refuse, reveal: refuse, read: refuse },
+    sources: {
+      choose: vi.fn(async (ref: { uid: string; sessionId: string }) => {
+        chosen.set(session(ref), SOURCES_FOLDER);
+        return SOURCES_FOLDER as SourcesFolder | null;
+      }),
+      list: vi.fn(
+        async (ref: { uid: string; sessionId: string }) => chosen.get(session(ref)) ?? null,
+      ),
+      reveal: vi.fn(async () => undefined),
+      read: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
+        chosen.get(session(ref))?.files.some((f) => f.name === name) ? `Text of ${name}` : null,
+      ),
+    },
     auth: { googleSignIn: refuse },
     app: {
       checkForUpdate: refuse,

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,14 +15,20 @@ import type { WindowLike, WindowOptions } from '../src/window';
 import { fakePlatform } from './agent/fakes';
 
 let userData: string;
+let home: string;
 
 beforeEach(async () => {
   userData = await mkdtemp(path.join(tmpdir(), 'gurukul-app-'));
+  home = await mkdtemp(path.join(tmpdir(), 'gurukul-home-'));
 });
 
 afterEach(async () => {
   await rm(userData, { recursive: true, force: true });
+  await rm(home, { recursive: true, force: true });
 });
+
+const appPath = (name: 'userData' | 'documents' | 'home') =>
+  name === 'userData' ? userData : name === 'home' ? home : path.join(home, 'Documents');
 
 function fakeWindow() {
   const listeners = new Map<string, () => void>();
@@ -66,7 +72,7 @@ function setup({
     app: {
       isPackaged: packaged,
       getVersion: () => '0.1.0',
-      getPath: () => userData,
+      getPath: appPath,
       requestSingleInstanceLock: () => lock,
       quit: vi.fn(),
       whenReady: vi.fn(async () => undefined),
@@ -75,7 +81,16 @@ function setup({
       ),
     },
     ipc: { handle: (name, listener) => void handlers.set(name, listener) },
-    shell: { openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined) },
+    shell: {
+      openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
+      openPath: vi.fn<(path: string) => Promise<string>>(async () => ''),
+    },
+    dialog: {
+      showOpenDialog: vi.fn(async () => ({
+        canceled: false,
+        filePaths: [path.join(home, 'Material')],
+      })),
+    },
     session: () => ({
       setPermissionRequestHandler: (h: unknown) => {
         permission.request = h;
@@ -268,6 +283,41 @@ describe('startApp', () => {
       state: 'not_installed',
     });
     expect(() => emit('will-quit')).not.toThrow();
+  });
+});
+
+describe('Sources folders', () => {
+  it('remembers the folder the Educator picks, outside the session files', async () => {
+    await mkdir(path.join(home, 'Material'));
+    await writeFile(path.join(home, 'Material', 'notes.md'), 'Rebase notes');
+    const { deps, handlers } = setup();
+    await startApp(deps);
+    const event = topFrame('http://localhost:5173');
+    const ref = { uid: 'u1', sessionId: 's1' };
+    await expect(
+      handlers.get(channel('sources.choose'))?.(event, { ...ref, suggestedName: 'git-basics' }),
+    ).resolves.toEqual({ path: '~/Material', files: [{ name: 'notes.md', bytes: 12 }] });
+    expect(deps.dialog.showOpenDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultPath: path.join(home, 'Documents', 'Gurukul Studio', 'git-basics', 'sources'),
+      }),
+    );
+    await expect(handlers.get(channel('sources.read'))?.(event, ref, 'notes.md')).resolves.toBe(
+      'Rebase notes',
+    );
+    await handlers.get(channel('sources.reveal'))?.(event, ref);
+    expect(deps.shell.openPath).toHaveBeenCalledWith(path.join(home, 'Material'));
+    // Removing the whole session forgets the choice; the folder stays.
+    await handlers.get(channel('store.remove'))?.(event, ref);
+    await expect(handlers.get(channel('sources.list'))?.(event, ref)).resolves.toBeNull();
+  });
+
+  it('forgets at start a choice whose session never began', async () => {
+    const { deps, sink } = setup();
+    await mkdir(path.join(userData, 'sources', 'u1'), { recursive: true });
+    await writeFile(path.join(userData, 'sources', 'u1', 's9.json'), '{"folder":"/x"}');
+    await startApp(deps);
+    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 1 });
   });
 });
 

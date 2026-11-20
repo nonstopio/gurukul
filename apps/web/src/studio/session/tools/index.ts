@@ -20,6 +20,7 @@ import type { SessionState, Tool, ToolContext, ToolResult } from './types';
  */
 
 export { defaultToolContext, lintWorkingCopy } from './context';
+export { SourceRefusedError } from './types';
 export type {
   SessionSources,
   SessionState,

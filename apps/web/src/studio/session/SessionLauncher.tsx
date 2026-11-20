@@ -5,10 +5,11 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
-import type { DesktopState } from '../../desktop/bridge';
+import type { DesktopState, GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
 import { log } from '../../log';
 import { useStudio } from '../StudioProvider';
+import { SourcesOffer } from './SourcesOffer';
 import { GOAL_MAX_LENGTH, createSessionStore, sessionPath } from './store';
 import type { SessionStore } from './store';
 
@@ -59,11 +60,14 @@ export function SessionLauncher({
       </Dialog>
     );
   }
+  const ready = desktop as Extract<DesktopState, { status: 'ready' }>;
   return (
     <StartForm
       key={start.kind === 'edit' ? start.courseId : 'new'}
       start={start}
       store={store}
+      sources={ready.desktop.sources}
+      platform={ready.info.platform}
       onClose={onClose}
     />
   );
@@ -102,10 +106,14 @@ const FORM_ID = 'session-start-form';
 function StartForm({
   start,
   store,
+  sources,
+  platform,
   onClose,
 }: {
   start: SessionStart;
   store: SessionStore;
+  sources: GurukulDesktop['sources'];
+  platform: string;
   onClose: () => void;
 }) {
   const { data } = useStudio();
@@ -117,6 +125,8 @@ function StartForm({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const courseId = start.kind === 'edit' ? start.courseId : null;
+  // Made now, not at start: the Sources folder is chosen for this session before it exists.
+  const [sessionId] = useState(() => crypto.randomUUID());
 
   // Local files only: whether a session is already open, before anything is read from Firestore.
   const check = useCallback(async (): Promise<Look> => {
@@ -152,8 +162,8 @@ function StartForm({
     try {
       const result = await store.start(
         start.kind === 'edit'
-          ? { kind: 'edit', courseId: start.courseId, goal }
-          : { kind: 'new', goal, educatorName: user.displayName ?? undefined },
+          ? { kind: 'edit', courseId: start.courseId, goal, id: sessionId }
+          : { kind: 'new', goal, educatorName: user.displayName ?? undefined, id: sessionId },
         (id) => data.getDraft(id),
       );
       if (result.status === 'started') {
@@ -247,10 +257,12 @@ function StartForm({
             required
             onChange={(e) => setGoal(e.target.value)}
           />
-          {/*
-           * DSK-20: the Sources folder offer goes here (`sources.choose`), between the goal and the
-           * notice. Nothing is shown for it until it works.
-           */}
+          <SourcesOffer
+            sources={sources}
+            session={{ uid: user.uid, sessionId }}
+            platform={platform}
+            suggestedName={courseId ?? undefined}
+          />
           <p className="sc-help">
             This runs Claude Code on this computer, under your own Claude account. The course and
             what you write are sent to Anthropic, so leave out client names and internal documents.

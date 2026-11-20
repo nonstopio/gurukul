@@ -45,16 +45,23 @@ export interface SourceFile {
   bytes: number;
 }
 
-/** The session's Sources folder, read through the desktop bridge (`DSK-20`). */
+/** The session's Sources folder, read through the desktop bridge (`DSK-20`, `../sources.ts`). */
 export interface SessionSources {
-  list(): Promise<readonly SourceFile[]>;
+  /** The files in the folder, or null while the Educator has not chosen one. */
+  list(): Promise<readonly SourceFile[] | null>;
   /**
    * The text of the listed file with this plain name, or null when there is no such file. It takes
    * a file name, never a path, and must never resolve a name to anything outside the folder
    * (`read_source` also refuses a name with `/` or `\`, the names `.` and `..`, and any name `list`
-   * does not give).
+   * does not give). A file it will not read (not text, too large) throws `SourceRefusedError`
+   * with a sentence for the agent.
    */
   read(name: string): Promise<string | null>;
+}
+
+/** A listed file the Sources folder will not read; the message is a sentence for the agent. */
+export class SourceRefusedError extends Error {
+  override name = 'SourceRefusedError';
 }
 
 /** What a tool may use besides the state: injected so the tools stay pure and testable. */
@@ -65,7 +72,7 @@ export interface ToolContext {
   now: () => Date;
   /** The writing lint over the whole working copy, or one lesson or Quiz. */
   lintWriting(work: Working, scope: { itemId: string | null }): readonly WritingFinding[];
-  /** Null when the Educator has not chosen a Sources folder. */
+  /** Null outside the desktop app's sessions (tests); a session's folder lists null until chosen. */
   sources: SessionSources | null;
 }
 

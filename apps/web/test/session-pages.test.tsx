@@ -87,7 +87,7 @@ describe('the Studio course list in the desktop app', () => {
     const goal = await within(dialog).findByRole('textbox', { name: 'What do you want to do?' });
     const start = within(dialog).getByRole('button', { name: 'Start session' });
     expect((start as HTMLButtonElement).disabled).toBe(true);
-    expect(within(dialog).getByText(/sent to Anthropic/)).toBeTruthy();
+    expect(within(dialog).getByText(/what you write are sent to Anthropic/)).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
     fireEvent.change(goal, { target: { value: 'Make the basics shorter. Then a Quiz.' } });
     fireEvent.click(start);
@@ -280,6 +280,107 @@ describe('the Studio course list in the desktop app', () => {
     await openApp('/studio', { roles: ['educator'], studio: studio() });
     fireEvent.click(await screen.findByRole('button', { name: 'New course with AI' }));
     expect(await screen.findByLabelText('Checking the app')).toBeTruthy();
+  });
+});
+
+describe('the start dialog’s Sources folder', () => {
+  async function openEdit() {
+    const d = await desktopWith();
+    const app = await openApp('/studio', { roles: ['educator'], studio: studio() });
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit with AI: Git' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit “Git” with AI' });
+    const group = await within(dialog).findByRole('group', { name: 'Sources folder' });
+    return { d, app, dialog, group };
+  }
+
+  it('offers a folder, says what is sent to Anthropic, and starts the session it chose for', async () => {
+    const { d, app, dialog, group } = await openEdit();
+    expect(within(group).getByText(/What it reads is sent to Anthropic too/)).toBeTruthy();
+    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
+    expect(await within(group).findByText('~/Material')).toBeTruthy();
+    expect(within(group).getByText('2 files')).toBeTruthy();
+    const [ref] = d.desktop.sources.choose.mock.calls[0] ?? [];
+    expect(ref).toEqual({
+      uid: 'u1',
+      sessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      suggestedName: 'git',
+    });
+    expect(await axeViolations(document.body)).toEqual([]);
+
+    fireEvent.click(within(group).getByRole('button', { name: 'Show in Finder' }));
+    expect(d.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: ref?.sessionId });
+    fireEvent.click(within(group).getByRole('button', { name: 'Change folder' }));
+    await waitFor(() => expect(d.desktop.sources.choose).toHaveBeenCalledTimes(2));
+    expect(d.desktop.sources.choose.mock.calls[1]?.[0]).toEqual(ref);
+
+    // The session starts under the id its folder was chosen for, so the agent works in it.
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Make the basics shorter.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start session' }));
+    await waitFor(() =>
+      expect(app.router.state.location.pathname).toBe(`/studio/sessions/${ref?.sessionId}`),
+    );
+    expect(d.desktop.sources.choose).toHaveBeenCalledTimes(2);
+  });
+
+  it('suggests no folder name for a new course', async () => {
+    const d = await desktopWith();
+    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    fireEvent.click(await screen.findByRole('button', { name: 'New course with AI' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New course with AI' });
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Choose a Sources folder' }));
+    await within(dialog).findByText('~/Material');
+    expect(d.desktop.sources.choose.mock.calls[0]?.[0]).toEqual({
+      uid: 'u1',
+      sessionId: expect.any(String),
+    });
+  });
+
+  it('keeps offering the folder when the Educator cancels the system dialog', async () => {
+    const { d, group } = await openEdit();
+    d.desktop.sources.choose.mockResolvedValueOnce(null);
+    const choose = within(group).getByRole('button', { name: 'Choose a Sources folder' });
+    fireEvent.click(choose);
+    await waitFor(() => expect((choose as HTMLButtonElement).disabled).toBe(false));
+    expect(within(group).queryByText('~/Material')).toBeNull();
+  });
+
+  it('says to update an app too old for a Sources folder', async () => {
+    const { d, group } = await openEdit();
+    d.desktop.sources.choose.mockRejectedValueOnce(
+      new Error('Error invoking remote method: Error: Not available in this version'),
+    );
+    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
+    expect(
+      await screen.findByText(/cannot use a Sources folder. Choose Check for updates/),
+    ).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Sources folder not chosen', expect.any(Error), {
+      sessionId: expect.any(String),
+    });
+  });
+
+  it('asks for another folder when the app refuses the one picked', async () => {
+    const { d, group } = await openEdit();
+    d.desktop.sources.choose.mockRejectedValueOnce(
+      new Error(
+        'Error invoking remote method: Error: Choose a folder outside Gurukul Studio’s own data.',
+      ),
+    );
+    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
+    expect(await screen.findByText('That folder cannot be used. Choose another one.')).toBeTruthy();
+  });
+
+  it('says when the folder cannot be shown', async () => {
+    const { d, group } = await openEdit();
+    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
+    await within(group).findByText('~/Material');
+    d.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
+    fireEvent.click(within(group).getByRole('button', { name: 'Show in Finder' }));
+    expect(await screen.findByText('The folder could not be opened.')).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Sources folder not shown', expect.any(Error), {
+      sessionId: expect.any(String),
+    });
   });
 });
 
