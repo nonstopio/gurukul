@@ -305,7 +305,9 @@ an argument; the input is then closed, and the reply's text blocks are the answe
 `--mcp-config`), none of the Educator's settings, and no chat kept in Claude Code's folder
 (`--no-session-persistence`: such a chat cannot be resumed, which a one-shot never is). A sign-in
 or plan-limit signal ends it at once, as in a session; otherwise it has 180 seconds, and
-`agent.cancelAsk` ends it. At most two run at once (`MAX_ASKS_RUNNING`); more answer `busy`. The
+`agent.cancelAsk` ends it. At most two run at once (`MAX_ASKS_RUNNING`, over every session); more
+answer `busy`. A reload of the page or a closed window ends every running ask (`cancelAsks`), so a
+page nobody waits on does not hold the places. The
 spike notes do not show `--json-schema`, so the shell asks for nothing structured: the web app's
 prompt asks for a JSON object and the web app reads and checks it with zod, and the shell stays a
 plain proxy. The call is added to version 1 without raising `BRIDGE_VERSION`: it breaks nothing
@@ -1347,15 +1349,18 @@ Starting Claude Code):
   and only for an open session between turns with no hand edits open (the questions are still
   changing otherwise). Leaving Review starts nothing new, but a running ask still has its answer
   written (`acquireAnswerCheck`, shared like the session runtime). A saved or discarded session
-  shows what was found and asks nothing.
+  shows what was found and asks nothing. The two places are shared by every session's check, so
+  `busy` is not a failure: the question waits, and the check asks again after five seconds or as
+  soon as one of its own asks ends.
 - **What Review shows.** The Answers line: progress ("0 of 2 checked", a progress bar) with
   Skip answer check; then "N answers to check" with each disagreement ("Quiz 2.2 · Question 2: A
   second opinion chose A; the key says B. “…”") and Show, or "N checked, all agree". A Quiz with a
   disagreement has a "Check this answer" chip in the change list and a callout naming its questions
   when opened. **Ask the agent to fix these** attaches each disagreeing question (at most ten) and
-  puts a prepared message in the box, as Writing does. A question that could not be checked (too
-  slow, no answer, an answer that could not be read, too many at once) is listed with why, and Try
-  again asks again. Not installed, too old, signed out and a plan limit stop the check with a
+  puts a prepared message in the box, as Writing does. Skip answer check stops new asks only: the
+  disagreements already found stay listed, with Ask the agent to fix these, as their rows still
+  show them. A question that could not be checked (too slow, no answer, an answer that could not
+  be read) is listed with why, and Try again asks again. Not installed, too old, signed out and a plan limit stop the check with a
   sentence and Try again; a shell without `agent.ask` asks for the update. None of it stops Save.
 - **Logs** name the session, Quiz and question ids and the outcome, never the question, an option,
   a key or the reply.

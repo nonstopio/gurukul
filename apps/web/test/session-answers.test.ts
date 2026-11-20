@@ -4,6 +4,7 @@ import { MAX_ASK_PROMPT_LENGTH } from '@gurukul/desktop/bridge';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ANSWER_CHECK_CONCURRENCY,
+  BUSY_RETRY_MS,
   checkTargets,
   createAnswerCheck,
 } from '../src/studio/session/answerCheck';
@@ -437,18 +438,27 @@ function setup(files: Record<string, string> = {}) {
   const fake = fakeDesktop({ files });
   const asks = fakeAsk(fake.desktop);
   let n = 0;
+  /** The waits after `busy`, played by hand: `run` ends one, `cancelled` says the check ended it. */
+  const waits: { run: () => void; cancelled: boolean }[] = [];
   const check = createAnswerCheck({
     desktop: fake.desktop,
     uid: UID,
     sessionId: SID,
     newId: () => `ask-${(n += 1)}`,
     now: () => new Date(`2026-11-20T10:00:${String(n).padStart(2, '0')}Z`),
+    later: (run) => {
+      const wait = { run, cancelled: false };
+      waits.push(wait);
+      return () => {
+        wait.cancelled = true;
+      };
+    },
   });
   const saved = () => {
     const text = fake.files.get(`${UID}/${SID}/${ANSWER_CHECK_FILE}`);
     return text === undefined ? null : (JSON.parse(text) as AnswerCheckFile);
   };
-  return { ...fake, ...asks, check, saved };
+  return { ...fake, ...asks, check, saved, waits };
 }
 
 const states = (check: AnswerCheck) =>
@@ -633,14 +643,14 @@ describe('the answer check', () => {
     await flushPromises();
     s.answer({ ok: true, text: 'I think B.' }, 'Which command');
     await flushPromises();
-    s.answer({ ok: false, error: { code: 'busy' } }, 'Third?');
+    s.answer({ ok: false, error: { code: 'failed' } }, 'Third?');
     await flushPromises();
     s.reject(new Error('agent.ask failed (EIO)'), 'Fourth?');
     await flushPromises();
     expect(s.check.getState().questions.map((q) => q.outcome)).toEqual([
       { state: 'failed', reason: 'timeout' },
       { state: 'failed', reason: 'unreadable' },
-      { state: 'failed', reason: 'busy' },
+      { state: 'failed', reason: 'failed' },
       { state: 'failed', reason: 'failed' },
     ]);
     expect(s.check.getState()).toMatchObject({ pending: 0, done: 4, problem: null });
@@ -648,6 +658,106 @@ describe('the answer check', () => {
     expect(s.saved()).toBeNull();
     s.check.retry();
     expect(s.ask).toHaveBeenCalledTimes(6);
+  });
+
+  it('waits when the shell’s places are taken elsewhere, and asks again after the wait', async () => {
+    // Another session's check, or a page the window left, holds both of the shell's places.
+    const s = setup();
+    const { work, changes } = session();
+    await s.check.open();
+    s.check.update({ work, changes, active: true });
+    s.answer({ ok: false, error: { code: 'busy' } }, 'git rebase do');
+    await flushPromises();
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+    await flushPromises();
+    // No failure and no Try again: both wait, and nothing is asked until the wait ends.
+    expect(states(s.check)).toEqual([
+      ['k1', 'waiting'],
+      ['k2', 'waiting'],
+    ]);
+    expect(s.check.getState()).toMatchObject({ pending: 2, done: 0, problem: null });
+    expect(s.ask).toHaveBeenCalledTimes(2);
+    expect(s.waits).toHaveLength(1);
+    expect(s.check.busy()).toBe(false);
+    expect(vi.mocked(log.info)).toHaveBeenCalledWith('Answer check ended', {
+      sessionId: SID,
+      quizId: 'q1',
+      questionId: 'k1',
+      outcome: 'busy',
+    });
+
+    s.waits[0]?.run();
+    expect(s.ask).toHaveBeenCalledTimes(4);
+    s.reply(['A'], 'git rebase do');
+    await flushPromises();
+    s.reply(['B'], 'Which command');
+    await flushPromises();
+    expect(states(s.check)).toEqual([
+      ['k1', 'agrees'],
+      ['k2', 'agrees'],
+    ]);
+  });
+
+  it('stops waiting after busy when one of its own asks ends, on Try again, Skip or dispose', async () => {
+    const s = setup();
+    const { work, changes } = session();
+    await s.check.open();
+    s.check.update({ work, changes, active: true });
+    // One place is this check's, the other is taken elsewhere.
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+    await flushPromises();
+    expect(s.waits).toHaveLength(1);
+    s.reply(['A'], 'git rebase do');
+    await flushPromises();
+    // Its own place came free: the waiting question is asked at once.
+    expect(s.waits[0]?.cancelled).toBe(true);
+    expect(s.ask).toHaveBeenCalledTimes(3);
+    expect(states(s.check)[1]).toEqual(['k2', 'checking']);
+
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+    await flushPromises();
+    s.check.retry();
+    expect(s.waits[1]?.cancelled).toBe(true);
+    expect(s.ask).toHaveBeenCalledTimes(4);
+
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+    await flushPromises();
+    await s.check.skip();
+    expect(s.waits[2]?.cancelled).toBe(true);
+    await s.check.resume();
+    expect(s.ask).toHaveBeenCalledTimes(5);
+
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+    await flushPromises();
+    s.check.dispose();
+    expect(s.waits[3]?.cancelled).toBe(true);
+    // A wait that ends after the check did starts nothing.
+    s.waits[3]?.run();
+    expect(s.ask).toHaveBeenCalledTimes(5);
+  });
+
+  it('waits `BUSY_RETRY_MS` on a timer of its own by default', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = fakeDesktop();
+      const asks = fakeAsk(fake.desktop);
+      const check = createAnswerCheck({ desktop: fake.desktop, uid: UID, sessionId: SID });
+      const { work, changes } = session();
+      await check.open();
+      check.update({ work, changes, active: true });
+      asks.answer({ ok: false, error: { code: 'busy' } }, 'git rebase do');
+      asks.answer({ ok: false, error: { code: 'busy' } }, 'Which command');
+      await vi.advanceTimersByTimeAsync(BUSY_RETRY_MS - 1);
+      expect(asks.ask).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(asks.ask).toHaveBeenCalledTimes(4);
+      asks.answer({ ok: false, error: { code: 'busy' } }, 'git rebase do');
+      await vi.advanceTimersByTimeAsync(0);
+      check.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('asks again for one the shell cancelled on its own', async () => {

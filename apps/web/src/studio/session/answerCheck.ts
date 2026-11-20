@@ -19,15 +19,20 @@ import type { AnswerCheckFile, AnswerResult, SessionStore } from './store';
  * It waits while a turn runs or hand edits are open (the questions are still changing), asks
  * nothing for a saved or discarded session, and stops for the session when the Educator presses
  * "Skip answer check". A failure is shown per question; a reason about Claude Code itself (not
- * installed, signed out, plan limit) stops the check until Try again. Logs carry ids and outcomes,
- * never a question, an option, a key or a reply.
+ * installed, signed out, plan limit) stops the check until Try again. The shell's two places are
+ * shared by every session and by a page the window left (a reload), so `busy` is no failure: the
+ * question waits, and the check tries again after `BUSY_RETRY_MS` or when one of its own asks ends.
+ * Logs carry ids and outcomes, never a question, an option, a key or a reply.
  */
 
 /** Asks at once: the shell's own limit. */
 export const ANSWER_CHECK_CONCURRENCY = MAX_ASKS_RUNNING;
 
+/** How long the check waits to try again after the shell said both of its places were taken. */
+export const BUSY_RETRY_MS = 5000;
+
 /** Why a question has no second opinion. */
-export type AnswerFailure = 'timeout' | 'failed' | 'unreadable' | 'busy';
+export type AnswerFailure = 'timeout' | 'failed' | 'unreadable';
 
 /** Where one question stands. */
 export type AnswerOutcome =
@@ -101,7 +106,14 @@ export interface AnswerCheckOptions {
   store?: SessionStore;
   newId?: () => string;
   now?: () => Date;
+  /** Runs `run` after `BUSY_RETRY_MS`; returns what cancels it. Tests play it by hand. */
+  later?: (run: () => void) => () => void;
 }
+
+const afterBusyWait = (run: () => void) => {
+  const timer = setTimeout(run, BUSY_RETRY_MS);
+  return () => clearTimeout(timer);
+};
 
 interface Target extends AnswerTarget {
   position: number;
@@ -143,6 +155,7 @@ export function createAnswerCheck({
   store = createSessionStore({ desktop, uid }),
   newId = () => crypto.randomUUID(),
   now = () => new Date(),
+  later = afterBusyWait,
 }: AnswerCheckOptions): AnswerCheck {
   const results = new Map<string, AnswerResult>();
   const failures = new Map<string, AnswerFailure>();
@@ -156,6 +169,8 @@ export function createAnswerCheck({
   let disposed = false;
   let shown = true;
   let problem: AnswerProblem | null = null;
+  /** Set while the check waits after `busy`: what cancels the wait. Nothing starts meanwhile. */
+  let backOff: (() => void) | null = null;
   let writing: Promise<void> = Promise.resolve();
   let view: AnswerCheckView = compute();
 
@@ -217,8 +232,13 @@ export function createAnswerCheck({
     return writing;
   };
 
-  const settle = (t: Target, result: AgentAskResult | { rejected: unknown }) => {
-    running.delete(t.hash);
+  const stopWaiting = () => {
+    backOff?.();
+    backOff = null;
+  };
+
+  /** Keeps what an ask that was not `busy` gave; returns its outcome for the log. */
+  const record = (t: Target, result: AgentAskResult | { rejected: unknown }): string => {
     let outcome: string;
     if ('rejected' in result) {
       const reason = bridgeFailure(result.rejected);
@@ -240,6 +260,24 @@ export function createAnswerCheck({
       outcome = error.code;
       if (PROBLEMS.has(error.code)) problem = error as AnswerProblem;
       else if (error.code !== 'cancelled') failures.set(t.hash, error.code as AnswerFailure);
+    }
+    return outcome;
+  };
+
+  const settle = (t: Target, result: AgentAskResult | { rejected: unknown }) => {
+    running.delete(t.hash);
+    let outcome: string;
+    if (!('rejected' in result) && !result.ok && result.error.code === 'busy') {
+      // Another session, or a page this window left, holds the shell's places: the question waits.
+      backOff ??= later(() => {
+        backOff = null;
+        pump();
+      });
+      outcome = 'busy';
+    } else {
+      // One of this check's own asks ended, so a place is free: no need to wait any longer.
+      stopWaiting();
+      outcome = record(t, result);
     }
     log.info('Answer check ended', {
       sessionId,
@@ -263,6 +301,8 @@ export function createAnswerCheck({
   /** Starts asks while a place is free and the check may run. */
   function pump() {
     if (!loaded || disposed || !shown || skipped || !active || problem !== null) return;
+    // Waiting after `busy`: the wait, or one of this check's own asks ending, pumps again.
+    if (backOff !== null) return;
     if (!canAsk(desktop)) {
       problem = { code: 'needs_update' };
       emit();
@@ -311,6 +351,7 @@ export function createAnswerCheck({
 
     async skip() {
       skipped = true;
+      stopWaiting();
       cancelAll();
       emit();
       log.info('Answer check skipped', { sessionId });
@@ -325,6 +366,7 @@ export function createAnswerCheck({
     },
 
     retry() {
+      stopWaiting();
       failures.clear();
       problem = null;
       emit();
@@ -348,6 +390,7 @@ export function createAnswerCheck({
 
     dispose() {
       disposed = true;
+      stopWaiting();
     },
   };
 }

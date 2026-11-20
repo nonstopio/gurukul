@@ -130,7 +130,6 @@ const FAILURE_WORDS: Record<AnswerFailure, string> = {
   timeout: 'It took too long.',
   failed: 'Claude Code did not answer.',
   unreadable: 'Its answer could not be read.',
-  busy: 'Too many checks were running at once.',
 };
 
 /** "Quiz 2.4 · Question 3". */
@@ -189,40 +188,14 @@ function AnswersLine({
   const total = questions.length;
   if (!answers.loaded) return <CheckLine state="info" title="Answers: reading earlier checks" />;
   if (total === 0) return <CheckLine state="pass" title="Answers: no Quiz questions changed" />;
-  if (answers.skipped) {
-    return (
-      <CheckLine state="info" title="Answers: skipped for this session">
-        <p className="sc-help">
-          No second opinion is asked for, so none of your Claude plan is used for it.
-        </p>
-        {open ? (
-          <Button variant="secondary" onClick={answers.resume}>
-            Check answers
-          </Button>
-        ) : null}
-      </CheckLine>
-    );
-  }
-  const failed = questions.filter((q) => q.outcome.state === 'failed').length;
-  const progress = pending > 0 ? ` · ${done} of ${total} checked` : '';
-  const [state, title]: [CheckState, string] =
-    disagreements > 0
-      ? ['warn', `Answers: ${plural(disagreements, 'answer', 'answers')} to check${progress}`]
-      : pending > 0
-        ? ['info', `Answers: ${done} of ${total} checked`]
-        : failed > 0
-          ? ['info', `Answers: ${failed} not checked`]
-          : ['pass', `Answers: ${total} checked, all agree`];
   const line = (q: AnswerQuestion) =>
     `${questionName(q, numbers, words)}: ${answerWords(q) as string}`;
+  const finding = (q: AnswerQuestion): Finding => ({
+    key: `a:${q.quizId}:${q.questionId}`,
+    text: line(q),
+    row: rowFor(rows, { itemId: q.quizId }),
+  });
   const disagreeing = questions.filter((q) => q.outcome.state === 'disagrees');
-  const findings = questions
-    .filter((q) => answerWords(q) !== null)
-    .map((q): Finding => ({
-      key: `a:${q.quizId}:${q.questionId}`,
-      text: line(q),
-      row: rowFor(rows, { itemId: q.quizId }),
-    }));
   const ask = () => {
     const sent = disagreeing.slice(0, MAX_ATTACHMENTS);
     onAsk(
@@ -238,6 +211,58 @@ function AnswersLine({
       answersFixMessage(sent.map(line)),
     );
   };
+  const askButton =
+    open && disagreeing.length > 0 ? (
+      <Button variant="secondary" onClick={ask}>
+        Ask the agent to fix these
+      </Button>
+    ) : null;
+  if (answers.skipped) {
+    // Skip stops new asks; the disagreements already found stay, as on their rows.
+    return (
+      <CheckLine
+        state={disagreements > 0 ? 'warn' : 'info'}
+        title={
+          disagreements > 0
+            ? `Answers: skipped for this session · ${plural(disagreements, 'answer', 'answers')} to check`
+            : 'Answers: skipped for this session'
+        }
+      >
+        <p className="sc-help">
+          {disagreements > 0
+            ? 'No more second opinions are asked for, so no more of your Claude plan is used for them. Those already given are kept.'
+            : 'No second opinion is asked for, so none of your Claude plan is used for it.'}
+        </p>
+        {disagreements > 0 ? (
+          <Findings
+            label="Answers to check"
+            items={disagreeing.map(finding)}
+            numbers={numbers}
+            onShow={onShow}
+          />
+        ) : null}
+        {open ? (
+          <div className="ss-checks__actions">
+            {askButton}
+            <Button variant="secondary" onClick={answers.resume}>
+              Check answers
+            </Button>
+          </div>
+        ) : null}
+      </CheckLine>
+    );
+  }
+  const failed = questions.filter((q) => q.outcome.state === 'failed').length;
+  const progress = pending > 0 ? ` · ${done} of ${total} checked` : '';
+  const [state, title]: [CheckState, string] =
+    disagreements > 0
+      ? ['warn', `Answers: ${plural(disagreements, 'answer', 'answers')} to check${progress}`]
+      : pending > 0
+        ? ['info', `Answers: ${done} of ${total} checked`]
+        : failed > 0
+          ? ['info', `Answers: ${failed} not checked`]
+          : ['pass', `Answers: ${total} checked, all agree`];
+  const findings = questions.filter((q) => answerWords(q) !== null).map(finding);
   return (
     <CheckLine state={state} title={title}>
       {problem ? (
@@ -279,11 +304,7 @@ function AnswersLine({
       ) : null}
       {open ? (
         <div className="ss-checks__actions">
-          {disagreeing.length > 0 ? (
-            <Button variant="secondary" onClick={ask}>
-              Ask the agent to fix these
-            </Button>
-          ) : null}
+          {askButton}
           {failed > 0 && pending === 0 && problem === null ? (
             <Button variant="secondary" onClick={answers.retry}>
               Try again

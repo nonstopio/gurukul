@@ -205,6 +205,38 @@ describe('Review’s answer check', () => {
     expect(await within(await findChecks()).findByText('Answers: 0 of 2 checked')).toBeTruthy();
   });
 
+  it('keeps the disagreements already found after Skip, with Ask the agent to fix these', async () => {
+    const s = await open();
+    await waitFor(() => expect(s.waiting()).toHaveLength(2));
+    s.reply(['B'], 'Which one is first?', 'Order matters.');
+    await flushPromises();
+    // The other question is still being asked when the Educator skips.
+    fireEvent.click(await within(checks()).findByRole('button', { name: 'Skip answer check' }));
+    expect(
+      await within(await findChecks()).findByText(
+        'Answers: skipped for this session · 1 answer to check',
+      ),
+    ).toBeTruthy();
+    await waitFor(() => expect(s.cancelAsk).toHaveBeenCalledTimes(1));
+    // The same disagreement the row shows is in the check, with the way to send it to the agent.
+    const row = within(list()).getByRole('button', { name: /^2\.2 · Quiz I/ });
+    expect(row.textContent).toContain('Check this answer');
+    expect(
+      answersLine().getByText(
+        'Quiz 2.2 · Question 1: A second opinion chose B; the key says A. “Order matters.”',
+      ),
+    ).toBeTruthy();
+    expect(answersLine().getByText(/Those already given are kept\./)).toBeTruthy();
+    fireEvent.click(answersLine().getByRole('button', { name: 'Ask the agent to fix these' }));
+    const box = (await screen.findByRole('textbox', {
+      name: 'Ask for a change',
+    })) as HTMLTextAreaElement;
+    expect(box.value).toContain(
+      '- Quiz 2.2 · Question 1: A second opinion chose B; the key says A. “Order matters.”',
+    );
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
   it('shows a question it could not check, and asks again on Try again', async () => {
     const s = await open();
     await waitFor(() => expect(s.waiting()).toHaveLength(2));
