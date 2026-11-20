@@ -1,0 +1,51 @@
+.g-change-mark {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed;
+  border-radius: var(--radius-lg);
+}
+.g-change-mark__label {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--space-2);
+  min-height: 24px;
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+}
+.g-change-mark__body {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-change-mark--added {
+  border-color: var(--accent-line);
+}
+.g-change-mark--added .g-change-mark__label {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.g-change-mark--changed {
+  border-color: var(--warning-line);
+}
+.g-change-mark--changed .g-change-mark__label {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.g-change-mark--moved {
+  border-color: var(--info-line);
+}
+.g-change-mark--moved .g-change-mark__label {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.g-change-mark--removed {
+  border-color: var(--danger-line);
+}
+.g-change-mark--removed .g-change-mark__label {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

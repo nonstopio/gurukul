@@ -12,6 +12,11 @@ import {
   Callout,
   Card,
   Certificate,
+  ChangeMark,
+  ChatActivity,
+  ChatLog,
+  ChatMessage,
+  ChatTurn,
   Checkbox,
   Chip,
   ChoiceCard,
@@ -751,6 +756,9 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   NavItem: 'inside the Sidebar example',
   NavAction: 'inside the Sidebar example (Update ready, an action rather than a page)',
   Field: 'the base of Input, Select and Textarea',
+  ChatMessage: 'inside the ChatLog example',
+  ChatTurn: 'inside the ChatLog example',
+  ChatActivity: 'inside the ChatLog example (the live line under the log)',
   OptionCardGroup: 'inside the OptionCard example',
   OptionCardRow: 'inside the OptionCard example',
 };
@@ -1106,6 +1114,43 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
             Body text for the {t} callout.
           </Callout>
         ))}
+      </div>
+    ),
+  },
+  ChangeMark: {
+    rule: 'Marks a changed block where it is drawn: a sign and a word for what happened, a dashed hairline, never colour alone.',
+    Example: () => (
+      <div className="ds-stack">
+        <ChangeMark statuses={['added']} what="Text block">
+          <p>Rebase before you open a pull request.</p>
+        </ChangeMark>
+        <ChangeMark statuses={['changed', 'moved']} what="Code block">
+          <CodeBlock code="git fetch origin" />
+        </ChangeMark>
+        <ChangeMark statuses={['removed']} what="Image block" />
+      </div>
+    ),
+  },
+  ChatLog: {
+    rule: 'A chat with the agent: who said it in words, a line after each turn, and one live line for what it is doing.',
+    Example: () => (
+      <div className="ds-stack">
+        <ChatLog label="Example chat">
+          <ChatMessage from="you" author="You">
+            The rebase chapter is too heavy. Simplify it.
+          </ChatMessage>
+          <ChatMessage from="agent" author="Agent">
+            <p>I rewrote lessons 3.1 to 3.3 in shorter sentences.</p>
+          </ChatMessage>
+          <ChatTurn>
+            Turn 1 · 3 changes
+            <Button variant="quiet" size="sm">
+              Undo turn 1
+            </Button>
+          </ChatTurn>
+          <ChatMessage from="notice">Stopped. What this turn had changed is kept.</ChatMessage>
+        </ChatLog>
+        <ChatActivity>Rewriting a lesson</ChatActivity>
       </div>
     ),
   },

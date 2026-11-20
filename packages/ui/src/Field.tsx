@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref, TextareaHTMLAttributes } from 'react';
 import { cx } from './cx';
 import { AlertIcon } from './Icon';
 import './field.css';
@@ -100,7 +100,10 @@ export function Input({ label, hideLabel, hint, error, id, className, ...rest }:
   );
 }
 
-export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>, Shared {}
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>, Shared {
+  /** The textarea itself, to move focus back to it. */
+  ref?: Ref<HTMLTextAreaElement> | undefined;
+}
 
 /** A labelled textarea. */
 export function Textarea({ label, hideLabel, hint, error, id, className, ...rest }: TextareaProps) {

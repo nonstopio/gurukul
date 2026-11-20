@@ -12,6 +12,8 @@ import { bridgeFailure, isAgentSessionFile } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { log } from '../../log';
 import type { DraftDoc } from '../types';
+import { TRANSCRIPT_FILE, parseTranscript, transcriptText } from './transcript';
+import type { TranscriptEntry } from './transcript';
 
 /*
  * The session store (`.plan/22-desktop-studio.md`, Sessions): an Educator's authoring sessions as
@@ -21,6 +23,8 @@ import type { DraftDoc } from '../types';
  *
  *   sessions/{uid}/{sessionId}/session.json            the session (`authoringSessionSchema`)
  *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
+ *   sessions/{uid}/{sessionId}/checkpoints/start.json  the working copy before the first turn
+ *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -43,6 +47,11 @@ export const HISTORY_FILE = 'history.json';
 export const UNREADABLE_FILE = 'unreadable.json';
 /** Where a turn's checkpoint lives, inside the session's folder. */
 export const checkpointPath = (file: string) => `checkpoints/${file}`;
+/**
+ * The checkpoint before the first turn, so Undo can take a session back to where it started. Kept
+ * whatever the number of turns; a turn's own checkpoint is named by its id, which is never `start`.
+ */
+export const START_CHECKPOINT = 'start.json';
 
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
@@ -127,6 +136,17 @@ export interface SessionStore {
   saveTurn(session: AuthoringSession, turn: Turn, work: WorkingCopy): Promise<AuthoringSession>;
   /** A turn's checkpoint, or null when it was removed or cannot be read. */
   readCheckpoint(sessionId: string, file: string): Promise<WorkingCopy | null>;
+  /** Writes `checkpoints/start.json`: the working copy before the first turn, for Undo. */
+  saveStart(sessionId: string, work: WorkingCopy): Promise<void>;
+  /**
+   * Undo of the newest turn: the session without that turn and with `work` (the checkpoint before
+   * it) as its working copy, then the undone turn's checkpoint removed. Answers what was written.
+   */
+  undoTurn(session: AuthoringSession, work: WorkingCopy): Promise<AuthoringSession>;
+  /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
+  readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
+  /** Replaces the chat file (the newest entries, when it would be too large). */
+  writeTranscript(sessionId: string, entries: readonly TranscriptEntry[]): Promise<void>;
   /** Marks the session saved or discarded; its files go 30 days later (`sweep`). */
   close(session: AuthoringSession, status: 'saved' | 'discarded'): Promise<AuthoringSession>;
   /** Every session this person has on this computer, and the history of removed ones. */
@@ -343,9 +363,10 @@ export function createSessionStore({
       const valid = workingSchema.parse(work);
       await store.write(file(session.id, checkpointPath(turn.checkpoint)), JSON.stringify(valid));
       const next = await save({ ...session, work: valid, turns: [...session.turns, turn] });
-      const kept = new Set(
-        next.turns.slice(-SESSION_CHECKPOINTS_KEPT).map((t) => checkpointPath(t.checkpoint)),
-      );
+      const kept = new Set([
+        checkpointPath(START_CHECKPOINT),
+        ...next.turns.slice(-SESSION_CHECKPOINTS_KEPT).map((t) => checkpointPath(t.checkpoint)),
+      ]);
       const stale = (await store.list({ uid, sessionId: session.id })).filter(
         (f) => f.startsWith(checkpointPath('')) && !kept.has(f),
       );
@@ -358,6 +379,35 @@ export function createSessionStore({
         sessionId,
         file: 'checkpoint',
       });
+    },
+
+    async saveStart(sessionId, work) {
+      const valid = workingSchema.parse(work);
+      await store.write(file(sessionId, checkpointPath(START_CHECKPOINT)), JSON.stringify(valid));
+    },
+
+    async undoTurn(session, work) {
+      const undone = session.turns.at(-1);
+      const next = await save({
+        ...session,
+        work: workingSchema.parse(work),
+        turns: session.turns.slice(0, -1),
+      });
+      if (undone) await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
+      return next;
+    },
+
+    async readTranscript(sessionId) {
+      const text = await store.read(file(sessionId, TRANSCRIPT_FILE));
+      if (text === null) return [];
+      const { entries, dropped } = parseTranscript(text);
+      if (dropped > 0)
+        log.warn('Session transcript lines unreadable', { sessionId, count: dropped });
+      return entries;
+    },
+
+    async writeTranscript(sessionId, entries) {
+      await store.write(file(sessionId, TRANSCRIPT_FILE), transcriptText(entries));
     },
 
     async close(session, status) {

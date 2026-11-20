@@ -636,8 +636,8 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   and is removed 30 days later.
 - **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
   `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
-  app, `/studio/sessions/:sessionId` uses the focused layout and for now shows the title, the goal
-  and where the workspace (`DSK-13`) goes. Global search offers sessions as records ("Session"),
+  app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
+  (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
 - The start dialog already says that the course and the goal go to Anthropic under the Educator's
   own Claude account, and to leave out client names and internal documents; the Sources offer
@@ -688,6 +688,113 @@ only inside the desktop app).
   drawer over the preview. Below 640px the page says it needs a wider window, like the rest of
   Studio.
 - The header count and checks update after every turn. **Review** is always available.
+
+As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agent.ts`,
+`useAgentSession.ts`, `transcript.ts`, `activity.ts`), before any screen uses it:
+
+- **One runtime per open session** (`createAgentSession`), plain TypeScript, with a thin hook
+  (`useAgentSession({ desktop, uid, sessionId })`) over `useSyncExternalStore`. Its view is the
+  status, the problem, the transcript, the activity line, the working copy, the base,
+  `courseChanges(base, work)`, the turns with their counts, the running turn's count so far, and
+  whether Send, Stop and Undo apply. Statuses: `loading`, `missing`, `closed` (saved or discarded:
+  shown, never changed, no agent started), `connecting`, `unavailable`, `ready`, `working`,
+  `stopping`, `undoing`.
+- **Opening** reads `session.json` and `transcript.jsonl`, asks `agent.status()`, then
+  `agent.start()` with `agentSetup()` and `resumeId` = the session's `agentSessionId`. That id is
+  written only from a `turn_end`, never from `agent.start`'s answer: Claude Code keeps no chat for a
+  session that was never sent a message, so resuming such an id would fail as `crashed`. Not
+  installed, too old, not signed in, plan limit and crashed are each their own problem with its
+  sentence (not signed in is "Open a terminal, run `claude` and sign in, then try again"); a refused
+  bridge call is `app` (with "Check for updates" when the shell lacks the call). **Retry** asks
+  again.
+- **Tool calls run one at a time**, in the order they arrive, each on the result of the one before
+  (`runToolIn` with the session's tools and `defaultToolContext(sources)`), and are answered with
+  `agent.toolResult`: the result text, or the tool's refusal. A result longer than the shell's
+  `MAX_TOOL_RESULT_LENGTH` is refused and changes nothing. Only tools change the working copy.
+- **Every `turn_end` is a turn**, whatever its outcome (`done`, `stopped`, `failed`): its count is
+  `courseChanges` against the working copy the previous saved turn left, then `saveTurn` writes its
+  checkpoint and the session, then the whole chat is written. A failed `saveTurn` keeps the turn's
+  changes in memory and shows "not saved"; the next turn that is written counts them, or Undo takes
+  them back (that unwritten turn is the newest, so Undo writes the session with the working copy
+  `session.json` already holds, and only then reaches the saved turns). A chat that cannot be
+  written is only logged: no course work is lost with it.
+- **A Claude session id with no turn left to write it is written at once.** The shell sends a
+  sign-in failure before the `turn_end` that carries the id; the error has already ended the turn,
+  so the later `turn_end` writes the id alone to `session.json` (never an unwritten turn's changes).
+  Kept only in memory, a closed app would lose it: the next open could not resume that chat, and the
+  30-day clean-up, which forgets Claude Code's copy by this id, would never remove it.
+- **Undo needs the copy from before the first turn.** A new course has no base, and after a save the
+  base is no longer the start, so the first turn's end also writes `checkpoints/start.json`, which
+  `saveTurn` never prunes. Undo reads the checkpoint of the turn before the newest (or
+  `start.json`), and the store's `undoTurn` drops the turn and its checkpoint file. Past the 30 kept
+  checkpoints it answers "no longer kept". Undo restores the working copy only; the agent's title,
+  summary, goals and to-dos stay as they are.
+- **The agent is told about undone turns** with the next message, ahead of the Educator's words
+  ("[From Gurukul: the Educator undid your last turn…]"), because its own history still says it
+  made those changes. `MESSAGE_MAX_LENGTH` (60,000) leaves room for that note under the shell's
+  limit.
+- **Stop** is `agent.stop`; the `stopped` turn end then writes the turn like any other. An error
+  event for a plan limit leaves the session waiting (the next message clears it); any other error
+  ends a turn the agent left open as `failed` and makes the session `unavailable`.
+- **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
+  answers the running process) is adopted at its first event or tool call, so its tool calls are
+  answered and its end is written, as "Carried on after the page reloaded". If `agent.status()`
+  said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
+  again.
+- **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
+  (`acquireAgentSession`); the last one to leave ends it at once, or, during a turn, when that turn
+  has been written. The `claude` process is not closed when the page goes: opening the session again
+  reuses it.
+- **The activity line** names what the agent does in plain words, one line per course tool
+  (`TOOL_ACTIVITY`, a test checks every tool has one), never a tool name.
+- **`transcript.jsonl`** holds one entry per line: the Educator's message, each streamed text block,
+  each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
+  its turn id. At most 6,000,000 characters are kept, the oldest entries going first; damaged lines
+  are skipped when read. Nothing in it is logged.
+
+As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.tsx`,
+`PreviewPanel.tsx`, `Problem.tsx`, `workspace.ts`; components `ChatLog`, `ChatMessage`,
+`ChatTurn`, `ChatActivity` and `ChangeMark` in `@gurukul/ui`):
+
+- **The header** is the focused layout's top bar: back to the Studio courses, the session title,
+  "N changes · checks pass" (or "· 1 check fails") and **Review**. The checks there are the two
+  that stop a save and need no read: Course is valid and Size. Draft is up to date needs a
+  Firestore read and stays with Review (`DSK-14`). There is no [⋯] menu yet: Discard and Close come
+  with Save (`DSK-15`).
+- **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
+  so the header stays and the shared runtime keeps the agent going between the two. Until `DSK-14`
+  it says "Review comes next". A turn's line links to `…/review?turn=<turn id>`: the filter
+  `DSK-14` reads.
+- **The goal is not sent by itself.** A session nothing was said in yet opens with its goal in the
+  message box, so one press of Send starts the work and the Educator can reword it first. Sending
+  spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
+- **The chat** shows the Educator's messages (as typed), the agent's (as markdown, through the
+  player's renderer) and the app's notices; activity entries stay in `transcript.jsonl` but the log
+  shows only the live line, which says "Thinking" until the first activity of a turn. After each
+  finished turn a line "Turn 4 · 4 changes"; a turn that could not be written is listed too ("· not
+  saved", from the runtime view's `unsaved`) because it is the one Undo takes back first. Undo is
+  on the newest line only, behind a confirmation. Enter sends, Shift and Enter is a new line; the
+  next message can be typed during a turn but not sent. When the agent cannot run, a card with
+  the problem's sentence and **Check again** (or **Start it again** after a crash) takes the place
+  of the message box; a shell too old for a call adds **Update the app** (the sidebar item's check,
+  `useUpdateTheApp`). A plan limit, a turn not written and an Undo that cannot be done are notes
+  above the box. A saved or discarded session shows its chat and copy to read, with no box.
+- **The preview** is the learner's block renderer and the Studio preview's Quiz (`PreviewExam`,
+  moved out of `PreviewPage` and shared) over the working copy, one item at a time, picked from a
+  list numbered like the outline ("2.3 · Title (changed)") or with Previous and Next. It opens on
+  the first item that changed. Each added, changed or moved block, and each changed question, is
+  wrapped in a `ChangeMark`: a dashed hairline and a label with a sign and the words ("Changed ·
+  Text block"), its group named "changed: Text block". A removed block leaves a mark where it was,
+  placed as Review places it. Changes to the course details and landing page are not in the player;
+  Outline lists them.
+- **The outline** is the chapter tree with Added, Changed, Removed, Moved and Renamed chips, the
+  course details and landing page above it, removed chapters and items struck through where they
+  used to be; a present item opens in the preview.
+- **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
+  log scrolling inside. From 640px to 1023px a Chat button in the header opens it as a drawer
+  (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
+  it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
+  Studio's `DesktopOnly` asks for a wider window.
 
 ## Review: the whole session at once
 
@@ -913,7 +1020,9 @@ Rules every tool follows:
   a change that adds a picture (`![…](…)`, a reference picture, or raw media HTML) to a text or
   callout block, the course description, a check or a Quiz question is refused, read with the
   parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
-  so the agent can still edit the words around it.
+  so the agent can still edit the words around it. The chat is held to it too: the agent's
+  messages are drawn as Markdown without pictures (a picture shows as its words, raw HTML as
+  text), so nothing it writes there makes the app fetch an address.
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 

@@ -83,26 +83,44 @@ function UpdateReady({
   );
 }
 
-function UpdateTheApp({ desktop }: { desktop: GurukulDesktop }) {
+/**
+ * "Update the app" as an action wherever a page needs a newer shell (the sidebar item, a session's
+ * card): asks the shell for its update and says what it found; a download already waiting is
+ * installed. `check` answers whether an update is now on its way.
+ */
+export function useUpdateTheApp(desktop: GurukulDesktop): {
+  checking: boolean;
+  check: () => Promise<boolean>;
+} {
   const [checking, setChecking] = useState(false);
-  // Set once a check found an update: from then on the item waits for it (`app.onUpdateReady`).
-  const [waiting, setWaiting] = useState(false);
   const toast = useToast();
-  const onClick = async () => {
+  const check = async () => {
     setChecking(true);
+    let coming = false;
     try {
       const result = await desktop.app.checkForUpdate();
       const { tone, text } = checkMessage(result);
       // A ready update says "restarting" only when it does restart; `install` says why not.
       if (result.state === 'ready') await install(desktop, toast, () => toast.show(text, { tone }));
       else toast.show(text, { tone });
-      // From here the watch shows Update ready while a download waits, and this item otherwise.
-      if (['checking', 'downloading', 'ready'].includes(result.state)) setWaiting(true);
+      coming = ['checking', 'downloading', 'ready'].includes(result.state);
     } catch (error) {
       log.error('Desktop update check failed', error);
       toastError(toast, error, 'Gurukul Studio could not check for updates.');
     }
     setChecking(false);
+    return coming;
+  };
+  return { checking, check };
+}
+
+function UpdateTheApp({ desktop }: { desktop: GurukulDesktop }) {
+  const { checking, check } = useUpdateTheApp(desktop);
+  // Set once a check found an update: from then on the item waits for it (`app.onUpdateReady`).
+  const [waiting, setWaiting] = useState(false);
+  const onClick = async () => {
+    // From here the watch shows Update ready while a download waits, and this item otherwise.
+    if (await check()) setWaiting(true);
   };
   const item = (
     <SidebarGroup label={GROUP}>

@@ -33,6 +33,7 @@ export const ROUTE_PATHS = [
   '/studio/courses/:courseId/quiz/:quizId',
   '/studio/courses/:courseId/preview/:itemId',
   '/studio/sessions/:sessionId',
+  '/studio/sessions/:sessionId/review',
   '/studio/teams',
   '/studio/bank',
   '/studio/media',

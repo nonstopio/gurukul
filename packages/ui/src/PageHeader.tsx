@@ -18,8 +18,8 @@ export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'titl
   /** Buttons on the right; they wrap under the title on narrow screens. One primary at most. */
   actions?: ReactNode;
   /**
-   * `h2` only where a page header is shown as an example inside another page (the Design
-   * system tab), so that page keeps one `h1`. Default: `h1`.
+   * `h2` only where a page header is drawn inside another page, so that page keeps one `h1`: an
+   * example on the Design system tab, a lesson in a session's preview. Default: `h1`.
    */
   titleAs?: 'h1' | 'h2';
   /** The owl beside the title for a moment that earns one: `milestone` on completion, `error` on a crash. Decorative. */
