@@ -747,11 +747,16 @@
     grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
     align-items: start;
   }
-  /* The chat stays in view under the sticky top bar while the preview scrolls; its log scrolls inside. */
+  /*
+   * The chat stays in view under the sticky top bar while the preview scrolls; its log scrolls
+   * inside. `--ss-bar` is the bar's measured height (`SessionPage`): a long title wraps it to two
+   * or three lines. Before it is measured, the height of a bar on one line.
+   */
   .ss-chat {
+    --ss-bar-height: var(--ss-bar, calc(var(--control-height) + var(--space-3) * 2));
     position: sticky;
-    top: calc(var(--control-height) + var(--space-3) * 2 + var(--space-4));
-    max-height: calc(100dvh - var(--control-height) - var(--space-3) * 2 - var(--space-8));
+    top: calc(var(--ss-bar-height) + var(--space-4));
+    max-height: calc(100dvh - var(--ss-bar-height) - var(--space-8));
   }
   .ss-chat__log {
     flex: 1 1 auto;

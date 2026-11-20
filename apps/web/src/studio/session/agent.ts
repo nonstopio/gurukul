@@ -484,6 +484,19 @@ export function createAgentSession({
     emit();
   };
 
+  /**
+   * The Educator's message the agent is still answering, as the chat on disk keeps it: the newest
+   * message, when no turn is written under its id. `send` writes the chat as soon as a message is
+   * sent, so a page that reloads mid-turn finds it there.
+   */
+  const pendingMessage = (): RunningTurn | null => {
+    const current = session as AuthoringSession;
+    const last = transcript.findLast((entry) => entry.kind === 'educator');
+    if (!last || current.turns.some((t) => t.id === last.turnId) || unsaved?.id === last.turnId)
+      return null;
+    return { id: last.turnId, message: last.text };
+  };
+
   /** The agent is in a turn this page did not start (the page reloaded while it worked). */
   const adopt = (): RunningTurn => {
     if (turn) return turn;
@@ -491,7 +504,7 @@ export function createAgentSession({
     // editor opened before the agent spoke): they become their own turn first, so neither is
     // counted in the other.
     if (hand) void enqueue(finishEdits);
-    turn = { id: newId(), message: null };
+    turn = pendingMessage() ?? { id: newId(), message: null };
     if (status === 'ready') status = 'working';
     return turn;
   };
@@ -885,6 +898,8 @@ export function createAgentSession({
         undone = 0;
         handEdited = false;
         void enqueue(keepNote);
+        // The message to disk now, not at the turn's end: a page reloaded mid-turn keeps it.
+        void enqueue(writeChat);
         return true;
       } catch (error) {
         log.warn('Agent message not sent', { sessionId, reason: bridgeFailure(error) });

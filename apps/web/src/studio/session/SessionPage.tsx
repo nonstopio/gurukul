@@ -16,6 +16,7 @@ import {
   topBarBackClass,
 } from '@gurukul/ui';
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Link, useMatch, useParams, useSearchParams } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
@@ -27,6 +28,7 @@ import { HandEditor } from './HandEditor';
 import { PreviewPanel } from './PreviewPanel';
 import { UnavailableCard, UpdateTheAppButton } from './Problem';
 import { useAgentSession } from './useAgentSession';
+import { useBlockSize } from './useBlockSize';
 import type { AgentSessionHandle } from './useAgentSession';
 import { useSideBySide } from './useSideBySide';
 import { headerChecks, headerStatus } from './workspace';
@@ -152,6 +154,9 @@ function Workspace({
   const changes = agent.changes as NonNullable<AgentSessionHandle['changes']>;
   const sideBySide = useSideBySide();
   const [chatOpen, setChatOpen] = useState(false);
+  // The sticky chat sits under the top bar, which a long title wraps to two or three lines.
+  const [bar, setBar] = useState<HTMLElement | null>(null);
+  const barHeight = useBlockSize(bar);
   // The goal waits in the message box of a session nothing was said in yet: one press sends it.
   const [typed, setTyped] = useState<string | null>(null);
   const goal = session.goals.map((g) => g.text).join('\n');
@@ -175,6 +180,7 @@ function Workspace({
   return (
     <>
       <TopBar
+        ref={setBar}
         title={session.title}
         back={<Back />}
         status={
@@ -212,7 +218,12 @@ function Workspace({
         </Page>
       ) : (
         <Page width="wide">
-          <div className="ss-workspace">
+          <div
+            className="ss-workspace"
+            style={
+              barHeight === null ? undefined : ({ '--ss-bar': `${barHeight}px` } as CSSProperties)
+            }
+          >
             {sideBySide ? (
               <Card title="Chat" className="ss-chat">
                 {chat}

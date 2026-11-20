@@ -739,7 +739,10 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   ends a turn the agent left open as `failed` and makes the session `unavailable`.
 - **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
   answers the running process) is adopted at its first event or tool call, so its tool calls are
-  answered and its end is written, as "Carried on after the page reloaded". If `agent.status()`
+  answered and its end is written. Its line is the Educator's message that started it: `send`
+  writes the chat as soon as the message is sent, not only at the turn's end, so the reloaded page
+  reads it and takes up that turn's id (the newest message with no turn written under its id).
+  Only a turn with no such message is "Carried on after the page reloaded". If `agent.status()`
   said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
   again.
 - **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
@@ -750,8 +753,11 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   (`TOOL_ACTIVITY`, a test checks every tool has one), never a tool name.
 - **`transcript.jsonl`** holds one entry per line: the Educator's message, each streamed text block,
   each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
-  its turn id. At most 6,000,000 characters are kept, the oldest entries going first; damaged lines
-  are skipped when read. Nothing in it is logged.
+  its turn id. It is written when a message is sent and when a turn ends. At most 12 MiB of UTF-8
+  is kept (`TRANSCRIPT_MAX_BYTES`, 4 MiB under the shell's 16 MiB `MAX_FILE_BYTES`), the oldest
+  entries going first; counted in bytes, not characters, because Devanagari or Chinese takes 3
+  bytes a character and a cap in characters let a long chat pass the shell's limit, which refuses
+  the whole file. Damaged lines are skipped when read. Nothing in it is logged.
 
 As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.tsx`,
 `PreviewPanel.tsx`, `Problem.tsx`, `workspace.ts`; components `ChatLog`, `ChatMessage`,
@@ -792,7 +798,9 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   course details and landing page above it, removed chapters and items struck through where they
   used to be; a present item opens in the preview.
 - **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
-  log scrolling inside. From 640px to 1023px a Chat button in the header opens it as a drawer
+  log scrolling inside. The bar's height is measured (`useBlockSize`, a `ResizeObserver` on the
+  `TopBar`'s header), not assumed: a session title of up to 160 characters wraps it to three lines
+  at 1024px, and an assumed one-line bar left the top of the chat under it. From 640px to 1023px a Chat button in the header opens it as a drawer
   (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
   it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
   Studio's `DesktopOnly` asks for a wider window.
@@ -1074,7 +1082,10 @@ Rules every tool follows:
   parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
   so the agent can still edit the words around it. The chat is held to it too: the agent's
   messages are drawn as Markdown without pictures (a picture shows as its words, raw HTML as
-  text), so nothing it writes there makes the app fetch an address.
+  text), so nothing it writes there makes the app fetch an address. Nor links: a link in the
+  agent's message is drawn as its words and its address in brackets ("the Git book
+  (https://…)"), never as a link, so no click opens an address the words hide (Privacy and
+  security).
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 
@@ -1204,6 +1215,14 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.
+- **The agent's messages hold no link to follow.** What the agent writes can come from a Sources
+  file or a page it was shown, so a link in its message may be someone else's: words that say
+  "the Git book" over an address that carries course text to another server. In the shell a link
+  that opens a new tab goes straight to the system browser (`navigation.ts`, `setWindowOpenHandler`),
+  with no step between. So the chat draws each link as its words and its address in plain text: the
+  Educator sees where it points and copies it if they mean to go. Chosen over a link that first
+  shows the address and asks: no click on agent text then reaches any address, the shell needs no
+  new call, and the course links the agent might give ("lesson 3.2") are in Preview and Outline.
 - Logs follow `17-logging.md` in the window and in the main process: constant event names,
   counts and ids only. Never chat text, course text, source file names or answer keys.
 - Analytics (`20-product-analytics.md`) gains `session_started`, `session_saved`,

@@ -134,7 +134,7 @@ export function ChatPanel({
           if (entry.kind === 'agent') {
             return (
               <ChatMessage key={key} from="agent" author="Agent">
-                <Prose md={entry.text} pictures={false} />
+                <Prose md={entry.text} pictures={false} links={false} />
               </ChatMessage>
             );
           }

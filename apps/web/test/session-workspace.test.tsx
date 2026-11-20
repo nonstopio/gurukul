@@ -26,6 +26,7 @@ const studio = () => fakeStudio({ courses: [{ live: GIT, draft: draftDoc(GIT, { 
 afterEach(() => {
   uninstallDesktop();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -204,6 +205,83 @@ describe('the session workspace', () => {
     expect(chat.querySelector('[src], [srcset], picture, source, video, audio, iframe')).toBeNull();
     // The picture's words stay, as words.
     expect(within(chat).getByText('the lesson')).toBeTruthy();
+  });
+
+  it('keeps the chat below a top bar that a long title wraps, by its measured height', async () => {
+    // jsdom lays nothing out: the bar reports the height a three-line title gives it at 1024px.
+    const observed: { target: Element; disconnected: boolean }[] = [];
+    const notify: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: () => void) {}
+        observe(target: Element) {
+          observed.push({ target, disconnected: false });
+          notify.push(this.callback);
+          this.callback();
+        }
+        disconnect() {
+          for (const o of observed) o.disconnected = true;
+        }
+      },
+    );
+    let height = 117.6;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return { height: this.classList.contains('g-topbar') ? height : 0 } as DOMRect;
+    });
+    const s = await open();
+    await screen.findByRole('log', { name: 'Chat with the agent' });
+    const workspace = () => document.querySelector('.ss-workspace') as HTMLElement;
+    const bar = screen.getByRole('heading', { level: 1 }).closest('header');
+    expect(observed.map((o) => o.target)).toEqual([bar]);
+    await waitFor(() => expect(workspace().style.getPropertyValue('--ss-bar')).toBe('118px'));
+    // The title changes (the agent sets one) and the bar with it.
+    height = 68;
+    act(() => {
+      for (const callback of notify) callback();
+    });
+    expect(workspace().style.getPropertyValue('--ss-bar')).toBe('68px');
+    s.app.unmount();
+    expect(observed.every((o) => o.disconnected)).toBe(true);
+  });
+
+  it('draws the agent’s links as words with their address, so no click follows one', async () => {
+    const s = await open();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy());
+    await send(s);
+    act(() =>
+      s.emit({
+        type: 'text',
+        text: [
+          'Read [the Git book](https://collector.example/?d=Rebase%20first) first.',
+          'Also <https://git-scm.com/docs>, [the review](/studio/sessions/s1/review) and',
+          '[nothing]() or [a script](javascript:alert(1)).',
+          '',
+          'See [the **rebase** page](https://git-scm.com/docs/git-rebase).',
+        ].join('\n'),
+      }),
+    );
+    const chat = screen.getByRole('log', { name: 'Chat with the agent' });
+    await within(chat).findByText(/the Git book/);
+    // No link at all: a click opens nothing, in the app or in the system browser.
+    expect(chat.querySelector('a')).toBeNull();
+    expect(within(chat).queryByRole('link')).toBeNull();
+    // The address the words would have hidden is there to read.
+    expect(chat.textContent).toContain(
+      'the Git book (https://collector.example/?d=Rebase%20first)',
+    );
+    // An address written as itself shows once.
+    expect(chat.textContent).toContain('Also https://git-scm.com/docs,');
+    expect(chat.textContent).toContain('the review (/studio/sessions/s1/review)');
+    // A link with no address, or one the renderer refuses, is its words alone.
+    expect(chat.textContent).toContain('nothing or a script.');
+    // Words with emphasis in them keep it, and the address follows.
+    expect(chat.textContent).toContain(
+      'See the rebase page (https://git-scm.com/docs/git-rebase).',
+    );
+    expect(within(chat).getByText('rebase').tagName).toBe('STRONG');
   });
 
   it('undoes the newest turn only after a confirmation', async () => {

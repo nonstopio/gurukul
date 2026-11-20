@@ -723,6 +723,73 @@ describe('a turn already running when the page opened', () => {
     ]);
   });
 
+  it('keeps the Educator’s message when the page reloads mid-turn, and the turn under it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Shorten lesson one.')).toBe(true);
+    await s.runtime.settled();
+    // The page reloads before the agent has finished: this runtime goes, a new one opens.
+    s.runtime.dispose();
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Shorten lesson one.' },
+    ]);
+    const reloaded = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+      newId: () => 'r1',
+    });
+    await reloaded.open();
+    expect(reloaded.getState().transcript).toMatchObject([
+      { kind: 'educator', text: 'Shorten lesson one.' },
+    ]);
+    s.emit({ type: 'text', sessionId: 's1', text: 'Shortened it.' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await reloaded.settled();
+    expect(reloaded.getState().turns).toMatchObject([{ id: 't1', summary: 'Shorten lesson one.' }]);
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Shorten lesson one.' },
+      { kind: 'agent', turnId: 't1', text: 'Shortened it.' },
+    ]);
+  });
+
+  it('does not take a message already written as a turn for the turn it adopts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'Git basics');
+    await s.call('set_course_details', { title: 'Carried on' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.state().turns).toMatchObject([
+      { id: 't1', summary: 'Rename the course to Git basics.' },
+      { id: 't2', summary: 'Carried on after the page reloaded' },
+    ]);
+  });
+
+  it('does not take a message whose turn was not written for the turn it adopts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn(async () => {
+      throw REFUSED;
+    });
+    await renameTurn(s, 'Git basics');
+    expect(s.state().unsaved).toMatchObject({ id: 't1' });
+    s.emit({ type: 'text', sessionId: 's1', text: 'More.' });
+    expect(s.state().transcript.at(-1)).toMatchObject({ kind: 'agent', turnId: 't2' });
+  });
+
   it('stays unavailable when a turn adopted while the agent could not run ends', async () => {
     const s = await setup({ agent: { status: { state: 'not_signed_in', version: '2.1.328' } } });
     await s.runtime.open();

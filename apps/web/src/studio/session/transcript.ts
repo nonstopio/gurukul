@@ -9,11 +9,15 @@ import { z } from 'zod';
 /** The chat, inside the session's folder. */
 export const TRANSCRIPT_FILE = 'transcript.jsonl';
 
+/** The shell's `MAX_FILE_BYTES`: the largest file `store.write` takes, in bytes of UTF-8. */
+export const FILE_MAX_BYTES = 16 * 1024 * 1024;
+
 /**
- * Most characters a transcript file keeps; the oldest entries go first past it. Well under the
- * bridge's 16 MB file limit (`MAX_FILE_BYTES`), even when every character takes 2 bytes of UTF-8.
+ * Most bytes of UTF-8 a transcript file keeps; the oldest entries go first past it. Counted in
+ * bytes, not characters: Devanagari or Chinese takes 3 bytes a character, so a cap in characters
+ * could pass the shell's limit and lose the whole chat. 4 MiB under it, so the file is never near.
  */
-export const TRANSCRIPT_MAX_CHARS = 6_000_000;
+export const TRANSCRIPT_MAX_BYTES = FILE_MAX_BYTES - 4 * 1024 * 1024;
 
 const at = z.iso.datetime({ offset: true });
 const turnId = z.string().min(1).max(80);
@@ -33,19 +37,21 @@ export type TranscriptEntry = z.infer<typeof transcriptEntrySchema>;
 
 /**
  * The transcript as file text: one JSON entry per line, the newest entries kept when the whole
- * would pass `max` characters.
+ * would pass `max` bytes of UTF-8.
  */
 export function transcriptText(
   entries: readonly TranscriptEntry[],
-  max = TRANSCRIPT_MAX_CHARS,
+  max = TRANSCRIPT_MAX_BYTES,
 ): string {
+  const encoder = new TextEncoder();
   const lines: string[] = [];
   let size = 0;
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const line = `${JSON.stringify(entries[i])}\n`;
-    if (size + line.length > max) break;
+    const bytes = encoder.encode(line).length;
+    if (size + bytes > max) break;
     lines.push(line);
-    size += line.length;
+    size += bytes;
   }
   return lines.reverse().join('');
 }
