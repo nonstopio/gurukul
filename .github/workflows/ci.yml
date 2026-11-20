@@ -181,18 +181,87 @@ jobs:
             e2e/test-results/
           retention-days: 7
 
+  # Whether this run touched what the Windows job below tests: the desktop shell, the schema package
+  # it imports, the install, or this file. Trees are compared, not history, so a shallow fetch of the
+  # base is enough. When git cannot say (a new branch, a fetch that fails, a manual run), it is
+  # `true`: the Windows job runs rather than being skipped wrongly.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.diff.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base=""
+          if [ "$EVENT" = pull_request ]; then base=$PR_BASE; fi
+          if [ "$EVENT" = push ] && [ "$PUSH_BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$PUSH_BEFORE; fi
+          desktop=true
+          if [ -n "$base" ] && git fetch --no-tags --depth=1 origin "$base" \
+            && files=$(git diff --name-only "$base" HEAD); then
+            if echo "$files" | grep -Eq '^(apps/desktop/|packages/schema/|package\.json$|package-lock\.json$|tsconfig\.base\.json$|\.nvmrc$|\.github/workflows/ci\.yml$)'; then
+              desktop=true
+            else
+              desktop=false
+            fi
+          fi
+          echo "desktop=$desktop" >> "$GITHUB_OUTPUT"
+          echo "::notice::Desktop Windows job: $([ "$desktop" = true ] && echo runs || echo 'not needed, nothing it tests changed')"
+
+  # The agent bridge on Windows (DSK-22): apps/desktop/test/agent, where the fake `claude` is a
+  # `claude.cmd` that cross-spawn starts through `cmd.exe` (what Node refuses without a shell since
+  # its CVE-2024-27980 fix), every path has a space in it, and a cancelled `claude` must end with the
+  # `node` under its `cmd.exe` (taskkill /T). Only when `changes` says so: a Windows runner costs
+  # twice a Linux one and the install takes minutes. Coverage stays the `test` job's, on Linux.
+  # The rest of the desktop suite (store, sources) still assumes POSIX paths and is not run here.
+  desktop-windows:
+    name: Desktop agent bridge (Windows)
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Agent bridge tests
+        working-directory: apps/desktop
+        run: npx vitest run test/agent
+
   ci:
     name: ci
     if: always()
-    needs: [quality, test, rules, build, lighthouse, e2e]
+    needs: [quality, test, rules, build, lighthouse, e2e, changes, desktop-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       # Every result must be `success`: a job that ends `skipped` (a stray `if:`, a failed
-      # dependency) ran nothing, so it must not count as a pass.
+      # dependency) ran nothing, so it must not count as a pass. The one exception is the Windows
+      # job when `changes` passed and said nothing it tests changed.
       - name: Require every job to pass
         env:
-          RESULTS: ${{ toJSON(needs.*.result) }}
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo "$RESULTS"
-          echo "$RESULTS" | jq -e 'length > 0 and all(. == "success")'
+          echo "$NEEDS" | jq -c 'map_values(.result)'
+          echo "$NEEDS" | jq -e '
+            .changes.outputs.desktop as $desktop
+            | to_entries
+            | length > 0 and all(.[];
+                .value.result == "success"
+                or (.key == "desktop-windows" and .value.result == "skipped" and $desktop == "false"))'

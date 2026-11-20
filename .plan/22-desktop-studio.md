@@ -281,8 +281,8 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
 - **`agent.forget(id)`** deletes `projects/*/{id}.jsonl` and a `{id}` folder beside it under
   `CLAUDE_CONFIG_DIR` (else `~/.claude`), reading no other file there.
 - **Windows** is started through `cross-spawn` (MIT), which runs `claude.cmd` via `cmd.exe` with
-  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Untested on
-  Windows until `DSK-22`/`DSK-26`.
+  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Proved against
+  the fake in CI on Windows since `DSK-22` (below); the real `claude` there is `DSK-26`.
 - **Tests** never start the real `claude`: `apps/desktop/test/fixtures/fake-claude.mjs` speaks the
   stream-json above, checks the flags as strictly as 2.1.328 does, keeps a transcript where Claude
   Code would, and makes its tool calls over the real endpoint with the SDK's client. `DSK-24`
@@ -1617,8 +1617,11 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   reached the chat says so and the session waits. The answer check (`DSK-18`) spends one short
   request per changed Quiz question, once per version of it, and Skip answer check stops it.
 - **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
-  first, as Morph does, which shows a SmartScreen warning; a certificate is a separate yearly cost
-  to be quoted (`DSK-22`). Builds and update files are hosted free on GitHub Releases.
+  first, as Morph does, which shows a SmartScreen warning. Signing it (`DSK-22`): Azure Trusted
+  Signing at about $9.99 a month (some $120 a year) if NonStop io qualifies, otherwise an OV
+  certificate on a certificate authority's cloud key service at roughly $200 to $600 a year
+  (open question 23). Builds and update files are hosted free on GitHub Releases. The Windows CI
+  job runs only when the desktop shell, the schema or the install changed.
 
 ## Releases, versions and updates: from the first build
 
@@ -1660,7 +1663,7 @@ requests never build installers; `npm run check` in CI covers the workspace.
 |---|---|---|
 | Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
 | Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
-| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user | Same; unsigned until `DSK-22` |
+| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user; signed with Azure Trusted Signing when its settings exist (`DSK-22`), else unsigned | Same, plus signing (Morph's Windows build is unsigned) |
 | Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests since the last desktop tag, marked Latest. Checks every expected file is there first | `gh release create` instead of `softprops/action-gh-release`: one third-party action fewer with write access |
 
 Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
@@ -1689,11 +1692,49 @@ As built (`DSK-21`), `apps/desktop/electron-builder.yml`:
 Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`); and
 `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID`, `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET` (`DSK-02`), which the
-bundle writes into the app (Signing in to Gurukul). `docs/desktop-release-setup.md` is
-Morph's step-by-step guide with the names changed.
+bundle writes into the app (Signing in to Gurukul); and, for Windows signing once it is bought,
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` with four repository variables
+(`DSK-22`, below). `docs/desktop-release-setup.md` is Morph's step-by-step guide with the names
+changed, plus the Windows signing section Morph does not have.
 
 Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 `Gurukul-Studio-Setup-{version}.exe`. App id `com.nonstopio.gurukul.studio`.
+
+As built in `DSK-22` (what could be done without the certificate or a Windows PC):
+
+- **Signing is ready to switch on.** Azure Trusted Signing, chosen because it costs about a tenth
+  of a certificate, needs no hardware or certificate file, and electron-builder supports it
+  (`win.azureSignOptions`); a `.pfx` (`WIN_CSC_LINK`) is no longer issued since keys must sit in
+  hardware from June 2023, so a certificate authority's cloud key service is the fallback if
+  NonStop io cannot get Trusted Signing (it needs a custom `sign` script, not written).
+  `scripts/desktop-win-signing.mjs` (tested in `scripts/test/`) reads three secrets
+  (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) and four variables
+  (`WIN_SIGN_ENDPOINT`, `WIN_SIGN_ACCOUNT`, `WIN_SIGN_PROFILE`, `WIN_SIGN_PUBLISHER`): none set,
+  the installer is unsigned as before; all set, `desktop-release.yml` adds the
+  `-c.win.azureSignOptions.*` flags to the Windows build only; some set, the build fails naming
+  what is missing. `electron-builder.yml` names no account. The publisher name goes into
+  `app-update.yml`, so a signed app installs only updates signed by the same publisher (the
+  default `verifyUpdateCodeSignature`): once signed, signing must never be switched off. Steps:
+  `docs/desktop-release-setup.md` section 10.
+- **The agent bridge's tests run on Windows in CI** (`Desktop agent bridge (Windows)` in `ci.yml`,
+  `vitest run test/agent` on `windows-latest`), only when the desktop shell, `packages/schema`, the
+  install or `ci.yml` changed (a `changes` job diffs the trees; the `ci` gate accepts that job
+  skipped only when `changes` passed and said so). The fake `claude` is a `claude.cmd` wrapper
+  there, so every real-process test goes through `cmd.exe` as npm's install does; every test path
+  has a space; an argument round trip checks the pinned flags (an empty `--setting-sources`
+  value, `mcp__gurukul__*`, paths with spaces, `&` and brackets) through the `.cmd` wrapper and a
+  `claude.exe`. The rest of the desktop suite (`store`, `sources`) still assumes POSIX paths and is
+  not run on Windows.
+- **Ending `claude` on Windows ends its whole tree.** Node's `kill` there is `TerminateProcess` on
+  the one process, and `claude.cmd` runs as `cmd.exe` with `claude` under it: Stop's fallback,
+  close and quit would have ended `cmd.exe` alone and left `claude` running its turn. The Node
+  adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
+  instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
+  cancelled-ask test, which checks the fake's own `node` is gone.
+- **Left for the maintainer:** choose and buy the signing (open question 23), set the seven
+  settings, install a signed release on a real Windows PC and check the signature and SmartScreen,
+  the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
+  `claude.exe` and `claude.cmd` (`DSK-26`).
 
 ### Updates (`apps/desktop/src/updates.ts`, from Morph's `electron/updates.ts`)
 

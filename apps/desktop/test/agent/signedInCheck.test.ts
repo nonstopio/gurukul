@@ -26,7 +26,13 @@ import {
   withFirstOnPath,
   type CheckTimeouts,
 } from '../../src/agent/signedInCheck';
-import { fakeClaudeHome, type FakeClaudeScenario } from './fakeClaude';
+import {
+  CLAUDE_PROGRAM,
+  fakeClaudeHome,
+  PLATFORM,
+  writeClaudeWrapper,
+  type FakeClaudeScenario,
+} from './fakeClaude';
 import { fakeChild, fakePlatform } from './fakes';
 
 /**
@@ -68,13 +74,18 @@ async function home(scenario: FakeClaudeScenario = GOOD) {
 /** A home whose `claude` is the silent one, steered by `mode`. */
 async function silentHome(mode: Record<string, unknown> = {}) {
   const h = await home();
-  await writeFile(
-    path.join(h.bin, 'claude'),
-    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(SILENT_CLAUDE)} "$@"\n`,
-  );
+  await writeClaudeWrapper(h.bin, SILENT_CLAUDE);
   await writeFile(path.join(h.config, 'silent-claude.json'), JSON.stringify(mode));
   return h;
 }
+
+/** How the check names the wrapper it found: on Windows, npm's `claude.cmd`. */
+const PROGRAM_LINE =
+  PLATFORM === 'win32'
+    ? 'program: claude.cmd (npm install, started through cmd.exe)\n'
+    : 'program: claude\n';
+const NOT_ON_PATH =
+  PLATFORM === 'win32' ? 'no claude.exe or claude.cmd on PATH' : 'no claude on PATH';
 
 const FAST: CheckTimeouts = { turnMs: 600, stopAfterMs: 150, holdMs: 150 };
 
@@ -90,7 +101,7 @@ async function check(
   await mkdir(tempDir, { recursive: true });
   const out: string[] = [];
   const report = await runSignedInCheck({
-    platform: nodeAgentPlatform('linux', options.env ?? h.env, h.home),
+    platform: nodeAgentPlatform(PLATFORM, options.env ?? h.env, h.home),
     tempDir,
     claudePath: options.claudePath ?? null,
     write: (text) => out.push(text),
@@ -130,7 +141,8 @@ describe('the signed-in check against a fake claude', { timeout: 20_000 }, () =>
       'INFO',
       'PASS',
     ]);
-    expect(details(STEP_TITLES.find)).toContain('program: claude\n');
+    expect(details(STEP_TITLES.find)).toContain(PROGRAM_LINE);
+    expect(details(STEP_TITLES.find)).toContain('path has spaces: yes');
     expect(details(STEP_TITLES.auth)).toContain('method: claude.ai');
     expect(details(STEP_TITLES.auth)).toContain(
       'Claude variables dropped: ANTHROPIC_API_KEY, CLAUDE_CODE_USE_BEDROCK',
@@ -166,7 +178,7 @@ describe('the signed-in check against a fake claude', { timeout: 20_000 }, () =>
   it('checks a chosen program, even outside PATH', async () => {
     const h = await home();
     const { report, details } = await check(h, {
-      claudePath: path.join(h.bin, 'claude'),
+      claudePath: h.program,
       env: { ...h.env, PATH: '/nowhere' },
     });
     expect(report.passed).toBe(true);
@@ -184,7 +196,7 @@ describe('the signed-in check against a fake claude', { timeout: 20_000 }, () =>
 
   it('fails when the chosen program is not there', async () => {
     const h = await home();
-    const { report, text } = await check(h, { claudePath: path.join(h.root, 'claude') });
+    const { report, text } = await check(h, { claudePath: path.join(h.root, CLAUDE_PROGRAM) });
     expect(report.steps[0]?.status).toBe('FAIL');
     expect(text).toContain('is not there, or may not be run');
   });
@@ -193,7 +205,7 @@ describe('the signed-in check against a fake claude', { timeout: 20_000 }, () =>
     const h = await home();
     const { report, text } = await check(h, { env: { ...h.env, PATH: '/nowhere' } });
     expect(report.steps.map((s) => s.status)).toEqual(['FAIL', ...Array(10).fill('SKIP')]);
-    expect(text).toContain('no claude on PATH');
+    expect(text).toContain(NOT_ON_PATH);
   });
 
   it('fails a claude older than the pinned version', async () => {

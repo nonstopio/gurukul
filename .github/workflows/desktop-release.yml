@@ -17,8 +17,13 @@ name: Desktop release
 # repository's latest release is always a desktop one: the updater relies on that.
 #
 # Secrets (repository secrets, macOS signing and notarisation; checked up front by name):
-# CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Windows is
-# unsigned until DSK-22. GITHUB_TOKEN is GitHub's own.
+# CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. GITHUB_TOKEN is
+# GitHub's own.
+#
+# Windows signing (DSK-22), Azure Trusted Signing, on only when all of it is set and only in the
+# Windows job: secrets AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET and variables
+# WIN_SIGN_ENDPOINT, WIN_SIGN_ACCOUNT, WIN_SIGN_PROFILE, WIN_SIGN_PUBLISHER. None set: the installer
+# is unsigned, as before. Some set: the build fails (scripts/desktop-win-signing.mjs).
 on:
   workflow_run:
     workflows: [CI]
@@ -133,11 +138,32 @@ jobs:
               exit 1
             fi
           done
+      # All of it or none of it; says which in a notice. Nothing secret is printed.
+      - name: Check the Windows signing settings
+        if: matrix.platform == 'win'
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          WIN_SIGN_ENDPOINT: ${{ vars.WIN_SIGN_ENDPOINT }}
+          WIN_SIGN_ACCOUNT: ${{ vars.WIN_SIGN_ACCOUNT }}
+          WIN_SIGN_PROFILE: ${{ vars.WIN_SIGN_PROFILE }}
+          WIN_SIGN_PUBLISHER: ${{ vars.WIN_SIGN_PUBLISHER }}
+        run: node scripts/desktop-win-signing.mjs
       # macOS: signed (forceCodeSigning fails the build rather than ship unsigned), hardened runtime,
-      # notarised because the three APPLE_* variables are set. Windows: unsigned (DSK-22).
+      # notarised because the three APPLE_* variables are set. Windows: signed with Azure Trusted
+      # Signing when the step above found it set up (electron-builder installs Microsoft's
+      # TrustedSigning PowerShell module and signs the app, the installer and the uninstaller, and
+      # writes the publisher into app-update.yml); otherwise unsigned.
       - name: Build installers
         working-directory: apps/desktop
-        run: npx electron-builder ${{ matrix.build_args }} --publish never
+        run: |
+          args=(${{ matrix.build_args }} --publish never)
+          if [ "${{ matrix.platform }}" = win ]; then
+            mapfile -t signing < <(node ../../scripts/desktop-win-signing.mjs --args)
+            args+=("${signing[@]}")
+          fi
+          npx electron-builder "${args[@]}"
         env:
           CSC_LINK: ${{ matrix.platform == 'mac' && secrets.CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
@@ -145,6 +171,14 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' && 'true' || 'false' }}
+          # Windows only: read by the TrustedSigning module (Azure's EnvironmentCredential).
+          AZURE_TENANT_ID: ${{ matrix.platform == 'win' && secrets.AZURE_TENANT_ID || '' }}
+          AZURE_CLIENT_ID: ${{ matrix.platform == 'win' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ matrix.platform == 'win' && secrets.AZURE_CLIENT_SECRET || '' }}
+          WIN_SIGN_ENDPOINT: ${{ matrix.platform == 'win' && vars.WIN_SIGN_ENDPOINT || '' }}
+          WIN_SIGN_ACCOUNT: ${{ matrix.platform == 'win' && vars.WIN_SIGN_ACCOUNT || '' }}
+          WIN_SIGN_PROFILE: ${{ matrix.platform == 'win' && vars.WIN_SIGN_PROFILE || '' }}
+          WIN_SIGN_PUBLISHER: ${{ matrix.platform == 'win' && vars.WIN_SIGN_PUBLISHER || '' }}
           CSC_FOR_PULL_REQUEST: false
       - uses: actions/upload-artifact@v7
         with:
