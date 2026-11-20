@@ -170,6 +170,13 @@ export const MoreIcon = icon(
   'MoreIcon',
   <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth="2.5" />,
 );
+/** Lucide's paperclip (ISC), drawn on Lucide's 24 grid and scaled to 16: something attached. */
+export const PaperclipIcon = icon(
+  'PaperclipIcon',
+  <g transform="scale(0.6667)" strokeWidth="2.25">
+    <path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551" />
+  </g>,
+);
 export const PenIcon = icon('PenIcon', <path d="M10.5 2.5l3 3L6 13H3v-3zM9 4l3 3" />);
 export const SendIcon = icon('SendIcon', <path d="M14 2L7 9M14 2l-4.5 12L7 9 2 6.5z" />);
 export const SettingsIcon = icon(

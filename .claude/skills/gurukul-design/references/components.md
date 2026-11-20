@@ -345,6 +345,26 @@ icon. `<ChatTurn>` is the line after a turn, between hairlines, holding its name
 an Undo). `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
 in `--accent`): always rendered, empty between turns, so a new line is announced; no animation.
 
+`<ChatAttachments label items={[{ id, label }]} onRemove? onEmptied?>`: what a message carries besides its
+words, a `<ul>` named by `label` of pill chips (`--accent-soft` / `--accent-soft-text`, an `--accent-line`
+hairline, paperclip icon, the label in words). With `onRemove` each chip ends in a 24px remove button named
+"Remove {label}"; a removed chip hands focus to the one taking its place, else the one before, else
+`onEmptied` (the message box). Without it the chips only say what a sent message carried. Nothing is drawn
+when `items` is empty.
+
+## Attachable — shipped
+
+`<Attachable label attached onAttachedChange>{the block as drawn}</Attachable>`: something drawn that a
+message can carry (a block or a question in a Desktop Studio session's preview). A grid of the content and
+an `IconButton` toggle (`aria-pressed`, named "Attach {label} to your message", tip Attach or Attached,
+paperclip or tick) in its own column, so it never covers the content's own controls. The button is
+transparent until the wrapper is hovered or anything in it has keyboard focus (always shown with
+`hover: none` and while attached); a real button, so attaching never needs a mouse. Attached, a 2px
+`--accent` outline goes round it and the button shows the tick on `--accent-soft`: a sign, not only a
+colour. The wrapper keeps the content on its column's edge (`--space-2` padding, the same negative margin).
+Clicking the content itself does nothing: a click on a block's video, check or Copy keeps doing what it
+does.
+
 ## Explanation — shipped
 
 `<Explanation verdict="correct|incorrect|neutral" title="Correct. Here is why">reason</Explanation>`.
@@ -616,7 +636,9 @@ first and last word ("Asha Rao" → AR), one word's first letter, an email's loc
 `<IconButton label tip? tone="neutral|danger">icon</IconButton>`: a 36px icon-only button for dense list rows
 (rename, move, delete). Quiet (`--text-muted`) until hover (`--surface-hover`); `danger` is `--danger`
 with `--danger-soft` on hover. `label` is the accessible name ("Rename What Git solves"); `tip` is the
-short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `iconButtonClass(tone?)` and
+short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). As a toggle it takes
+`aria-pressed`; pressed it sits on `--accent-soft` with `--accent-soft-text`, and its icon changes too
+(Attach: paperclip, then a tick). `iconButtonClass(tone?)` and
 `Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
 link (`position: relative; z-index: 1`).
 

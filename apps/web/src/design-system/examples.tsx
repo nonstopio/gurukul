@@ -12,8 +12,10 @@ import {
   Callout,
   Card,
   Certificate,
+  Attachable,
   ChangeMark,
   ChatActivity,
+  ChatAttachments,
   ChatLog,
   ChatMessage,
   ChatTurn,
@@ -52,6 +54,7 @@ import {
   PageHeader,
   PageSkeleton,
   Pagination,
+  PaperclipIcon,
   PenIcon,
   Radio,
   SwapIcon,
@@ -763,6 +766,50 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   OptionCardRow: 'inside the OptionCard example',
 };
 
+function AttachableExample() {
+  const [attached, setAttached] = useState<readonly string[]>(['text']);
+  const toggle = (id: string) => (on: boolean) =>
+    setAttached((now) => (on ? [...now, id] : now.filter((a) => a !== id)));
+  return (
+    <div className="ds-stack">
+      <Attachable
+        label="Lesson 1.2 · Text block 1"
+        attached={attached.includes('text')}
+        onAttachedChange={toggle('text')}
+      >
+        <p>Rebase before you open a pull request.</p>
+      </Attachable>
+      <Attachable
+        label="Lesson 1.2 · Text block 2"
+        attached={attached.includes('code')}
+        onAttachedChange={toggle('code')}
+      >
+        <p>Fetch first, then rebase onto the branch you fetched.</p>
+      </Attachable>
+    </div>
+  );
+}
+
+function ChatAttachmentsExample() {
+  const [items, setItems] = useState([
+    { id: 'block', label: 'Lesson 1.2 · Text block 1' },
+    { id: 'question', label: 'Quiz 1.3 · Question 2' },
+  ]);
+  return (
+    <div className="ds-stack">
+      <ChatAttachments
+        label="Attached to the next message (example)"
+        items={items}
+        onRemove={(id) => setItems((now) => now.filter((i) => i.id !== id))}
+      />
+      <ChatAttachments
+        label="Attached to a sent message (example)"
+        items={[{ id: 'landing', label: 'Landing page' }]}
+      />
+    </div>
+  );
+}
+
 function SearchCardExample() {
   const [q, setQ] = useState('git');
   const [level, setLevel] = useState('foundation');
@@ -960,8 +1007,15 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <IconButton label="Delete lesson" tip="Delete" tone="danger">
           <TrashIcon />
         </IconButton>
+        <IconButton label="Attach lesson 1.2" tip="Attached" aria-pressed>
+          <PaperclipIcon />
+        </IconButton>
       </>
     ),
+  },
+  Attachable: {
+    rule: 'Something a message can carry: an Attach toggle beside it on hover and focus, a tick and a solid outline while attached.',
+    Example: AttachableExample,
   },
   InsertDivider: {
     rule: 'A quiet "add here" between two items in a list: the plus holds the name, hairlines show on hover and focus.',
@@ -1153,6 +1207,10 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
         <ChatActivity>Rewriting a lesson</ChatActivity>
       </div>
     ),
+  },
+  ChatAttachments: {
+    rule: 'What a message carries besides its words: a chip per part, removable above the message box, read-only under a sent message.',
+    Example: ChatAttachmentsExample,
   },
   Explanation: {
     rule: 'Feedback on an answer, verdict in words first: green when right, amber to try again, never red.',

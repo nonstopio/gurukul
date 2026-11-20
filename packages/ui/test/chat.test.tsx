@@ -1,6 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { ChatActivity, ChatLog, ChatMessage, ChatTurn } from '../src';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { ChatActivity, ChatAttachments, ChatLog, ChatMessage, ChatTurn } from '../src';
 import { axeViolations } from './axe';
 
 describe('Chat', () => {
@@ -49,5 +50,71 @@ describe('Chat', () => {
     const status = screen.getByRole('status');
     expect(status.className).toBe('g-chat-activity a');
     expect(status.childNodes).toHaveLength(0);
+  });
+});
+
+function Attached({ onEmptied }: { onEmptied?: () => void }) {
+  const [items, setItems] = useState([
+    { id: 'a', label: 'Lesson 3.2 · Text block 2' },
+    { id: 'b', label: 'Quiz 2.4 · Question 3' },
+    { id: 'c', label: 'Chapter 2 · Rebase' },
+  ]);
+  return (
+    <ChatAttachments
+      label="Attached to your next message"
+      items={items}
+      onRemove={(id) => setItems((now) => now.filter((i) => i.id !== id))}
+      {...(onEmptied ? { onEmptied } : {})}
+      className="x"
+    />
+  );
+}
+
+describe('ChatAttachments', () => {
+  it('names each attached part on a chip, and removes it with its button', async () => {
+    const onEmptied = vi.fn();
+    const { container } = render(<Attached onEmptied={onEmptied} />);
+    const list = screen.getByRole('list', { name: 'Attached to your next message' });
+    expect(list.className).toBe('g-chat-attachments x');
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((i) => i.textContent),
+    ).toEqual(['Lesson 3.2 · Text block 2', 'Quiz 2.4 · Question 3', 'Chapter 2 · Rebase']);
+    expect(await axeViolations(container)).toEqual([]);
+
+    // Focus goes to the chip that takes the removed one's place.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Quiz 2.4 · Question 3' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Remove Chapter 2 · Rebase' }),
+    );
+    // The last one removed: focus goes to the one before it.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Chapter 2 · Rebase' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Remove Lesson 3.2 · Text block 2' }),
+    );
+    expect(onEmptied).not.toHaveBeenCalled();
+    // None left: the caller moves focus.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Lesson 3.2 · Text block 2' }));
+    expect(screen.queryByRole('list')).toBeNull();
+    expect(onEmptied).toHaveBeenCalledOnce();
+  });
+
+  it('lets the last chip go without an onEmptied', () => {
+    render(<Attached />);
+    for (const name of ['Lesson 3.2 · Text block 2', 'Quiz 2.4 · Question 3', 'Chapter 2 · Rebase'])
+      fireEvent.click(screen.getByRole('button', { name: `Remove ${name}` }));
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
+  it('only says what a sent message carried, without remove buttons', () => {
+    render(<ChatAttachments label="Attached" items={[{ id: 'a', label: 'Landing page' }]} />);
+    expect(screen.getByRole('list', { name: 'Attached' }).textContent).toBe('Landing page');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('draws nothing when nothing is attached', () => {
+    const { container } = render(<ChatAttachments label="Attached" items={[]} />);
+    expect(container.childNodes).toHaveLength(0);
   });
 });

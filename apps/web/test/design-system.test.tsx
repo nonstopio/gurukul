@@ -323,6 +323,26 @@ describe('Design system: components', () => {
     );
   });
 
+  it('attaches and removes in the Attachable and ChatAttachments examples', async () => {
+    const user = userEvent.setup();
+    await openSection('components');
+    const attachable = screen.getByRole('region', { name: 'Attachable' });
+    const text = within(attachable).getByRole('button', {
+      name: 'Attach Lesson 1.2 · Text block 1 to your message',
+    });
+    const code = within(attachable).getByRole('button', {
+      name: 'Attach Lesson 1.2 · Text block 2 to your message',
+    });
+    expect(text.getAttribute('aria-pressed')).toBe('true');
+    await user.click(code);
+    expect(code.getAttribute('aria-pressed')).toBe('true');
+    await user.click(text);
+    expect(text.getAttribute('aria-pressed')).toBe('false');
+    const chips = screen.getByRole('region', { name: 'ChatAttachments' });
+    await user.click(within(chips).getByRole('button', { name: 'Remove Quiz 1.3 · Question 2' }));
+    expect(within(chips).queryByText('Quiz 1.3 · Question 2')).toBeNull();
+  });
+
   it('runs the menus and the filter bar', async () => {
     const user = userEvent.setup();
     await openSection('components');
