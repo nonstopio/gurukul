@@ -7,7 +7,7 @@ import {
   sessionBaseSchema,
   workingSchema,
 } from '@gurukul/schema';
-import type { AuthoringSession, Turn, WorkingCopy } from '@gurukul/schema';
+import type { AuthoringSession, TimestampLike, Turn, WorkingCopy } from '@gurukul/schema';
 import { z } from 'zod';
 import { bridgeFailure, isAgentSessionFile } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
@@ -396,6 +396,36 @@ export function isDue(session: AuthoringSession, now: Date): boolean {
   );
 }
 
+/**
+ * A course's `publishedAt` as a session file keeps it. `JSON.stringify` writes Firestore's
+ * `Timestamp` as its seconds and nanoseconds; read back, they become this, which the course schema
+ * takes as a timestamp, so a session on a published course opens again (found by `DSK-24`: it was
+ * written, then "not on this computer"). Its own fields are the `Timestamp`'s, so it is written and
+ * compared as one. Firestore is never handed it: Save writes the stored draft's own `publishedAt`
+ * (`StudioData.saveDraft`).
+ */
+export class StoredTimestamp implements TimestampLike {
+  constructor(
+    readonly seconds: number,
+    readonly nanoseconds: number,
+  ) {}
+  toMillis(): number {
+    return this.seconds * 1000 + Math.floor(this.nanoseconds / 1e6);
+  }
+  toDate(): Date {
+    return new Date(this.toMillis());
+  }
+}
+
+/** `JSON.parse`'s reviver for session files: a `publishedAt` of seconds and nanoseconds. */
+function reviveTimestamp(key: string, value: unknown): unknown {
+  if (key !== 'publishedAt' || value === null || typeof value !== 'object') return value;
+  const { seconds, nanoseconds } = value as { seconds?: unknown; nanoseconds?: unknown };
+  return typeof seconds === 'number' && typeof nanoseconds === 'number'
+    ? new StoredTimestamp(seconds, nanoseconds)
+    : value;
+}
+
 function parse<T>(
   text: string | null,
   schema: z.ZodType<T>,
@@ -404,7 +434,7 @@ function parse<T>(
   if (text === null) return null;
   let data: unknown;
   try {
-    data = JSON.parse(text);
+    data = JSON.parse(text, reviveTimestamp);
   } catch {
     log.warn('Session file unreadable', { ...fields, reason: 'json' });
     return null;

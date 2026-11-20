@@ -294,6 +294,26 @@ describe('drafts', () => {
     expect(JSON.stringify(store.writes[0])).not.toContain('answersChanged');
   });
 
+  it("keeps the stored draft's publishedAt, whatever the copy saved carries", async () => {
+    const stored = ts(1);
+    store.docs.set('courses/git/drafts/current', { ...draft(3), course: { publishedAt: stored } });
+    // A desktop session's copy, read back from its file: a look-alike, not Firestore's Timestamp.
+    const course = { ...makeCourse(), publishedAt: { seconds: 0, nanoseconds: 1e6 } } as never;
+    await data.saveDraft('git', { course, answers: {} }, 3, 'u1');
+    expect((store.writes[0]?.[2] as { course: { publishedAt: unknown } }).course.publishedAt).toBe(
+      stored,
+    );
+    // A draft never published, or one stored without a course, saves none.
+    for (const prior of [{ publishedAt: null }, undefined]) {
+      store.writes.length = 0;
+      store.docs.set('courses/git/drafts/current', { ...draft(3), course: prior });
+      await data.saveDraft('git', { course, answers: {} }, 3, 'u1');
+      expect(
+        (store.writes[0]?.[2] as { course: { publishedAt: unknown } }).course.publishedAt,
+      ).toBeNull();
+    }
+  });
+
   it('refuses to save over a draft that moved on, or that is gone', async () => {
     store.docs.set('courses/git/drafts/current', draft(5));
     await expect(

@@ -7,6 +7,7 @@ import {
   NEW_COURSE_ID,
   SESSION_FILE,
   START_CHECKPOINT,
+  StoredTimestamp,
   UNREADABLE_FILE,
   checkpointPath,
   createSessionStore,
@@ -202,6 +203,54 @@ describe('read, save and list', () => {
     const session = await editSession(s);
     expect(await s.store.read('s1')).toEqual(session);
     expect(await s.store.read('nope')).toBeNull();
+  });
+
+  it('reads back a session on a published course, its publishedAt a timestamp again', async () => {
+    // Firestore's Timestamp: seconds and nanoseconds as its own fields, `toJSON` adding a type.
+    const published = {
+      seconds: 1_790_000_000,
+      nanoseconds: 250_000_000,
+      toMillis: () => 1_790_000_000_250,
+      toDate: () => new Date(1_790_000_000_250),
+      toJSON: () => ({ seconds: 1_790_000_000, nanoseconds: 250_000_000, type: 'timestamp' }),
+    };
+    const s = setup();
+    const result = await s.store.start(
+      { kind: 'edit', courseId: 'git', goal: 'Shorter.' },
+      async () => draftDoc({ ...makeCourse(), publishedAt: published }, { rev: 4 }),
+    );
+    if (result.status !== 'started') throw new Error('not started');
+    const read = await s.store.read('s1');
+    const stamp = read?.work.course.publishedAt;
+    expect(stamp).toBeInstanceOf(StoredTimestamp);
+    expect(stamp?.toMillis()).toBe(1_790_000_000_250);
+    expect(stamp?.toDate().toISOString()).toBe('2026-09-21T14:13:20.250Z');
+    expect(read?.base?.work.course.publishedAt).toEqual(stamp);
+    // Written again, it is the same file.
+    await s.store.save(read as AuthoringSession);
+    expect((await s.store.read('s1'))?.work.course.publishedAt).toEqual(stamp);
+    expect(
+      JSON.parse(s.files.get(`u1/s1/${SESSION_FILE}`) as string).work.course.publishedAt,
+    ).toEqual({ seconds: 1_790_000_000, nanoseconds: 250_000_000 });
+  });
+
+  it('leaves a publishedAt that is not seconds and nanoseconds to the schema', async () => {
+    const s = setup();
+    const session = await editSession(s);
+    const file = `u1/s1/${SESSION_FILE}`;
+    const stored = JSON.parse(s.files.get(file) as string) as AuthoringSession;
+    for (const publishedAt of [{ seconds: 1 }, 'yesterday']) {
+      s.files.set(
+        file,
+        JSON.stringify({
+          ...stored,
+          work: { ...stored.work, course: { ...stored.work.course, publishedAt } },
+        }),
+      );
+      expect(await s.store.read('s1')).toBeNull();
+    }
+    s.files.set(file, JSON.stringify(stored));
+    expect(await s.store.read('s1')).toEqual(session);
   });
 
   it('saves with updatedAt set to now', async () => {
