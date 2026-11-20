@@ -9,7 +9,7 @@ import type { DraftApi } from './useDraft';
  * only waiting for its autosave is saved first and the move goes ahead; one that cannot be saved
  * (offline, or someone else saved first) asks, and leaving keeps nothing but the local backup.
  */
-export function LeaveGuard({ draft }: { draft: Pick<DraftApi, 'save' | 'saveNow'> }) {
+export function LeaveGuard({ draft }: { draft: Pick<DraftApi, 'save' | 'saveNow' | 'reload'> }) {
   // Asked when a move starts, so a save that finishes (or starts) in between is not misjudged.
   const current = useRef(draft.save);
   useEffect(() => {
@@ -34,14 +34,34 @@ export function LeaveGuard({ draft }: { draft: Pick<DraftApi, 'save' | 'saveNow'
     setAsking(false);
     blocker.reset();
   };
+  const leave = () => {
+    setAsking(false);
+    proceed();
+  };
+  // A desktop session keeps only a course that passes its checks: the rest is dropped on leaving,
+  // here and not only when the editor closes, since a move to another item keeps it open.
+  if (draft.save === 'incomplete') {
+    return (
+      <ConfirmDialog
+        title="Leave with unfinished edits?"
+        confirmLabel="Leave and drop them"
+        onConfirm={() => {
+          draft.reload();
+          leave();
+        }}
+        onClose={stay}
+      >
+        Some of your latest edits leave the course incomplete, such as an empty title or a question
+        with no prompt, so the session cannot keep them yet. Stay to finish them, or leave and they
+        are dropped.
+      </ConfirmDialog>
+    );
+  }
   return (
     <ConfirmDialog
       title="Leave with unsaved changes?"
       confirmLabel="Leave without saving"
-      onConfirm={() => {
-        setAsking(false);
-        proceed();
-      }}
+      onConfirm={leave}
       onClose={stay}
     >
       Your latest edits could not be saved. Stay to try again.

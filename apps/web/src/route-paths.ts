@@ -34,6 +34,7 @@ export const ROUTE_PATHS = [
   '/studio/courses/:courseId/preview/:itemId',
   '/studio/sessions/:sessionId',
   '/studio/sessions/:sessionId/review',
+  '/studio/sessions/:sessionId/items/:itemId',
   '/studio/teams',
   '/studio/bank',
   '/studio/media',

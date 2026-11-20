@@ -15,18 +15,22 @@ import {
   topBarBackClass,
 } from '@gurukul/ui';
 import { useMemo, useState } from 'react';
-import { Link, useLocation, useMatch, useParams } from 'react-router';
+import type { CSSProperties } from 'react';
+import { Link, useLocation, useMatch, useParams, useSearchParams } from 'react-router';
 import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
+import { sessionItemPath } from '../editorPlace';
 import { ChatPanel, reviewPath } from './ChatPanel';
+import { HandEditor } from './HandEditor';
 import { PreviewPanel } from './PreviewPanel';
 import { ReviewPanel } from './ReviewPanel';
 import type { ChatState } from './ReviewPanel';
 import { SourcesPanel } from './SourcesPanel';
 import { UnavailableCard, UpdateTheAppButton } from './Problem';
 import { useAgentSession } from './useAgentSession';
+import { useBlockSize } from './useBlockSize';
 import type { AgentSessionHandle } from './useAgentSession';
 import { useSideBySide } from './useSideBySide';
 import { headerChecks, headerStatus } from './workspace';
@@ -45,8 +49,9 @@ function Back() {
  * `/studio/sessions/:sessionId` and its Review tab, `/studio/sessions/:sessionId/review`, inside the
  * desktop app (`.plan/22-desktop-studio.md`, The session workspace): the header with the change
  * count and checks, the chat beside the preview from 1024px (a drawer over it below), and Review
- * (`DSK-14`). Both share one runtime (`useAgentSession`), so leaving the chat for Review keeps the
- * agent going. Nothing here reads or writes Firestore.
+ * (`DSK-14`); and `/studio/sessions/:sessionId/items/:itemId`, Studio's editor over the working copy
+ * (`HandEditor`, `DSK-19`). All share one runtime (`useAgentSession`), so leaving the chat for Review
+ * or an editor keeps the agent going. Nothing here writes Firestore.
  */
 export function SessionPage() {
   const desktop = useDesktop();
@@ -102,6 +107,7 @@ function SessionView({ desktop, platform }: { desktop: GurukulDesktop; platform:
   const { sessionId = '' } = useParams();
   const { uid } = useUser();
   const review = useMatch('/studio/sessions/:sessionId/review') !== null;
+  const itemId = useMatch('/studio/sessions/:sessionId/items/:itemId')?.params.itemId;
   const agent = useAgentSession({ desktop, uid, sessionId });
   const { session, status, problem } = agent;
 
@@ -125,6 +131,11 @@ function SessionView({ desktop, platform }: { desktop: GurukulDesktop; platform:
           <PageSkeleton width="wide" label="Opening the session" />
         )}
       </>
+    );
+  }
+  if (itemId !== undefined) {
+    return (
+      <HandEditor agent={agent} desktop={desktop} uid={uid} sessionId={sessionId} itemId={itemId} />
     );
   }
   return (
@@ -163,6 +174,9 @@ function Workspace({
   // for "Ask the agent to fix these", a message ready in the box.
   const location = useLocation();
   const [chatOpen, setChatOpen] = useState(false);
+  // The sticky chat sits under the top bar, which a long title wraps to two or three lines.
+  const [bar, setBar] = useState<HTMLElement | null>(null);
+  const barHeight = useBlockSize(bar);
   // The goal waits in the message box of a session nothing was said in yet: one press sends it.
   const [typed, setTyped] = useState<string | null>(null);
   // Once per arrival (the page stays mounted between the chat and Review, so not only at mount),
@@ -189,6 +203,8 @@ function Workspace({
     [open, attachments, attach, detach],
   );
   const attached = attachments.length;
+  // Back from an editor, the preview opens on the item that was edited.
+  const shown = useSearchParams()[0].get('item');
 
   const chat = (
     <ChatPanel
@@ -203,6 +219,7 @@ function Workspace({
   return (
     <>
       <TopBar
+        ref={setBar}
         title={session.title}
         back={<Back />}
         status={
@@ -236,7 +253,12 @@ function Workspace({
         </Page>
       ) : (
         <Page width="wide">
-          <div className="ss-workspace">
+          <div
+            className="ss-workspace"
+            style={
+              barHeight === null ? undefined : ({ '--ss-bar': `${barHeight}px` } as CSSProperties)
+            }
+          >
             {sideBySide ? (
               <Card title="Chat" className="ss-chat">
                 {chat}
@@ -265,6 +287,8 @@ function Workspace({
                     />
                   ) : null
                 }
+                initialItem={shown}
+                editPath={open ? (id) => sessionItemPath(sessionId, id) : undefined}
               />
             </Card>
           </div>

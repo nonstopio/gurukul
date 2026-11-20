@@ -131,6 +131,8 @@ editors: a `<header>` on `--chrome`, wrapping flex row. `title` is the page `h1`
 44px chrome look. `status` (progress, "Saved") and `actions` (a `chrome` Button) sit on the right.
 `TopBarToolsContext` holds controls every `TopBar` shows at its far right, after `actions`: the focused
 layout provides the theme switcher there once, so no page passes it in.
+`ref` reaches the `<header>`: a page with something sticky under the bar measures its height there
+(a long title wraps it), never assumes one line (the session workspace's chat).
 
 ## Field, Input, Select, Textarea — shipped
 

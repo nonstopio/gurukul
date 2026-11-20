@@ -191,6 +191,14 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
       </DesktopOnly>
     </RequireRole>
   ),
+  // Studio's lesson or Quiz editor over the session's working copy (`DSK-19`): the same page again.
+  '/studio/sessions/:sessionId/items/:itemId': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionRoute />
+      </DesktopOnly>
+    </RequireRole>
+  ),
   '/studio/bank': (
     <RequireRole any={['educator', 'admin']}>
       <DesktopOnly>
@@ -243,6 +251,7 @@ export const FOCUSED: readonly RoutePath[] = [
   '/studio/courses/:courseId/preview/:itemId',
   '/studio/sessions/:sessionId',
   '/studio/sessions/:sessionId/review',
+  '/studio/sessions/:sessionId/items/:itemId',
 ];
 
 /**

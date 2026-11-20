@@ -1,8 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { createAgentSession } from './agent';
-import type { AgentSession, AgentSessionOptions, AgentSessionView, ReviewPatch } from './agent';
-import type { Working } from '../types';
-import type { AttachTarget } from './attachments';
+import type { AgentSession, AgentSessionOptions, AgentSessionView } from './agent';
 
 /*
  * One runtime per open session, shared by every component that shows it (the chat, the preview,
@@ -60,17 +58,25 @@ export function acquireAgentSession(
   };
 }
 
+/** What the Educator can do with a session, from any screen showing it. */
+type SessionActions = Pick<
+  AgentSession,
+  | 'send'
+  | 'stop'
+  | 'undo'
+  | 'retry'
+  | 'attach'
+  | 'detach'
+  | 'updateReview'
+  | 'educatorTurn'
+  | 'edit'
+  | 'keepEdits'
+  | 'endEdits'
+  | 'dropIncomplete'
+>;
+
 /** What the session screens get: the view, and what the Educator can do. */
-export interface AgentSessionHandle extends AgentSessionView {
-  send(message: string): Promise<boolean>;
-  stop(): Promise<void>;
-  undo(): Promise<boolean>;
-  retry(): Promise<void>;
-  attach(target: AttachTarget): boolean;
-  detach(target: AttachTarget | string): void;
-  updateReview(patch: ReviewPatch): Promise<boolean>;
-  educatorTurn(work: Working, summary: string): Promise<boolean>;
-}
+export interface AgentSessionHandle extends AgentSessionView, SessionActions {}
 
 const LOADING: AgentSessionView = {
   status: 'loading',
@@ -89,22 +95,16 @@ const LOADING: AgentSessionView = {
   canSend: false,
   canStop: false,
   canUndo: false,
+  canEdit: false,
+  handEdits: null,
 };
 
 type SessionKey = Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>;
 
 /** What `useAgentSession` reads: the shared runtime while a component subscribes, else nothing. */
-export interface AgentSessionSource {
+export interface AgentSessionSource extends SessionActions {
   subscribe(listener: () => void): () => void;
   getState(): AgentSessionView;
-  send(message: string): Promise<boolean>;
-  stop(): Promise<void>;
-  undo(): Promise<boolean>;
-  retry(): Promise<void>;
-  attach(target: AttachTarget): boolean;
-  detach(target: AttachTarget | string): void;
-  updateReview(patch: ReviewPatch): Promise<boolean>;
-  educatorTurn(work: Working, summary: string): Promise<boolean>;
 }
 
 /**
@@ -133,6 +133,10 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     detach: (target) => held?.detach(target),
     updateReview: async (patch) => (held ? held.updateReview(patch) : false),
     educatorTurn: async (work, summary) => (held ? held.educatorTurn(work, summary) : false),
+    edit: (change) => held?.edit(change) ?? false,
+    keepEdits: async () => (held ? held.keepEdits() : false),
+    endEdits: async () => held?.endEdits(),
+    dropIncomplete: async () => held?.dropIncomplete(),
   };
 }
 
@@ -156,5 +160,9 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     detach: source.detach,
     updateReview: source.updateReview,
     educatorTurn: source.educatorTurn,
+    edit: source.edit,
+    keepEdits: source.keepEdits,
+    endEdits: source.endEdits,
+    dropIncomplete: source.dropIncomplete,
   };
 }

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_FILE_BYTES } from '@gurukul/desktop/bridge';
 import { SESSION_CHECKPOINTS_KEPT, authoringSessionSchema } from '@gurukul/schema';
 import type { AuthoringSession, Turn } from '@gurukul/schema';
 import {
@@ -15,7 +16,13 @@ import {
   sessionPath,
   titleFromGoal,
 } from '../src/studio/session/store';
-import { TRANSCRIPT_FILE, transcriptText } from '../src/studio/session/transcript';
+import {
+  FILE_MAX_BYTES,
+  TRANSCRIPT_FILE,
+  TRANSCRIPT_MAX_BYTES,
+  parseTranscript,
+  transcriptText,
+} from '../src/studio/session/transcript';
 import { makeCourse } from './fake-data';
 import { fakeDesktop } from './fake-desktop';
 import { draftDoc } from './fake-studio';
@@ -373,6 +380,26 @@ describe('transcript', () => {
     expect(transcriptText([one, two, three], fits)).toBe(line(two) + line(three));
     expect(transcriptText([one, two, three], fits - 1)).toBe(line(three));
     expect(transcriptText([one, two, three])).toBe(line(one) + line(two) + line(three));
+  });
+
+  it('counts what it keeps in bytes of UTF-8, so a chat in Hindi stays under the shell’s limit', () => {
+    expect(FILE_MAX_BYTES).toBe(MAX_FILE_BYTES);
+    expect(TRANSCRIPT_MAX_BYTES).toBeLessThan(MAX_FILE_BYTES);
+    // Devanagari takes 3 bytes a character: 7 entries of 990,000 characters, about 21 MB. Six of
+    // them are under 6 million characters, yet about 18 MB.
+    const hindi = Array.from({ length: 7 }, () => entry('क'.repeat(990_000)));
+    const text = transcriptText(hindi);
+    const bytes = new TextEncoder().encode(text).length;
+    expect(bytes).toBeLessThanOrEqual(MAX_FILE_BYTES);
+    expect(bytes).toBeLessThanOrEqual(TRANSCRIPT_MAX_BYTES);
+    // The newest entries that fit are kept, not none.
+    expect(parseTranscript(text).entries.length).toBeGreaterThan(0);
+    const [one, two] = [entry('दो'), entry('तीन')];
+    const line = (e: ReturnType<typeof entry>) => `${JSON.stringify(e)}\n`;
+    const twoBytes = new TextEncoder().encode(line(two)).length;
+    expect(transcriptText([one, two], twoBytes)).toBe(line(two));
+    // In characters the line is shorter than in bytes: a cap in characters would keep too much.
+    expect(transcriptText([one, two], twoBytes - 1)).toBe('');
   });
 });
 

@@ -1,5 +1,6 @@
+import { workingSchema } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
-import type { CourseChanges } from '@gurukul/schema/changes';
+import type { ChangeRow, CourseChanges } from '@gurukul/schema/changes';
 import type { AuthoringSession, SessionGoal, Turn } from '@gurukul/schema';
 import { bridgeFailure } from '../../desktop/bridge';
 import type {
@@ -13,6 +14,7 @@ import type {
   TurnOutcome,
 } from '../../desktop/bridge';
 import { log } from '../../log';
+import { nameOf } from '../studioModel';
 import type { Working } from '../types';
 import { toolActivity } from './activity';
 import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './attachments';
@@ -33,7 +35,12 @@ import type { TranscriptEntry } from './transcript';
  *           `agent.start()` with the prompt, skills and tools (`agentSetup`), resuming the Claude
  *           session the last finished turn named.
  *   send    one message is one turn. The agent's tool calls run here, one at a time, against the
- *           working copy in memory (`runTool`): the only way it changes, until hand edits (`DSK-19`).
+ *           working copy in memory (`runTool`).
+ *   edit    hand edits from Studio's own editors (`DSK-19`), only between turns: each changes the
+ *           working copy in memory and, at a pause, `session.json`; leaving the editor makes them one
+ *           turn by the Educator, with its checkpoint and change count, so Undo and Review treat
+ *           them like any turn. `editing.json` keeps the copy before them meanwhile, so a session
+ *           opened after the app closed mid-edit still makes them a turn.
  *   turn    at its end: the turn's change count against the checkpoint before it, its checkpoint,
  *           the session and the chat written to disk (`saveTurn`), so a restart loses nothing.
  *   stop    `agent.stop`: the turn ends, and what it had changed stays as its checkpoint.
@@ -42,10 +49,14 @@ import type { TranscriptEntry } from './transcript';
  *           plain label for the chat. Sending carries every attached part, then clears them.
  *   review  Review's own fields (`DSK-14`): the summary, the goals' ticks and the Viewed ticks,
  *           written to `session.json` at once.
- *   edit    a working copy the Educator made (Review's Undo this item, `DSK-14`) becomes a turn of
- *           its own, by the Educator, written like the agent's; the agent is told with the next message.
+ *   revert  a working copy the Educator made in Review (Undo this item, `DSK-14`) becomes a turn of
+ *           its own by the Educator, written like the agent's (`educatorTurn`).
+ *   note    undone turns and turns by the Educator (hand edits, Undo this item) are told to the
+ *           agent with the next message; until then `agent-note.json` keeps them, so a runtime
+ *           opened later still tells it.
  *
- * Firestore is never read or written here: the draft was read once when the session started.
+ * Firestore is never read or written here: the draft was read once when the session started, and
+ * hand edits go to this computer only.
  * Nothing logged carries chat text, course text, a source name or an answer key.
  */
 
@@ -97,6 +108,19 @@ export type AgentSessionStatus =
   /** A change by the Educator (Review's Undo this item) is being written as a turn. */
   | 'editing';
 
+/**
+ * How the hand edits stand on this computer: `dirty` waits for a pause, `incomplete` does not pass
+ * the course schema yet (an empty title, a question with no prompt) so it is not written until it
+ * does, `error` could not be written. Every state keeps the edits in memory.
+ */
+export type HandEditState = 'saved' | 'dirty' | 'saving' | 'incomplete' | 'error';
+
+export interface HandEditsView {
+  state: HandEditState;
+  /** When the hand edits were last written to `session.json`; null before the first write. */
+  savedAt: string | null;
+}
+
 /** Everything the session screens draw. A new object after every change; never mutate it. */
 export interface AgentSessionView {
   status: AgentSessionStatus;
@@ -133,6 +157,13 @@ export interface AgentSessionView {
    * `turns`: Undo takes that one back first.
    */
   canUndo: boolean;
+  /**
+   * Hand edits may be made now (`DSK-19`): the session is open and no turn runs or is undone.
+   * Claude Code need not be running: the editors do not use it.
+   */
+  canEdit: boolean;
+  /** Hand edits not yet a turn, while an editor has them; null otherwise. */
+  handEdits: HandEditsView | null;
 }
 
 /** What Review changes in the session besides the course. */
@@ -202,7 +233,24 @@ export interface AgentSession {
   stop(): Promise<void>;
   /** Undoes the newest turn. False when there is none or its checkpoint before is gone. */
   undo(): Promise<boolean>;
-  /** True while a turn runs or an undo is written: the session must keep listening until then. */
+  /**
+   * A hand edit from Studio's editors: `change` applied to the working copy in memory. False, and
+   * nothing changed, when `canEdit` is false. Nothing is written until `keepEdits` or `endEdits`.
+   */
+  edit(change: (work: Working) => Working): boolean;
+  /** Writes the hand edits to `session.json` now. True when they are all on this computer. */
+  keepEdits(): Promise<boolean>;
+  /**
+   * The editor is left: the hand edits become one turn by the Educator. Edits that do not pass the
+   * course schema yet are dropped, back to the last copy that did.
+   */
+  endEdits(): Promise<void>;
+  /**
+   * Drops hand edits that do not pass the course schema yet, back to the last copy that did, and
+   * keeps the editor's visit open: the Educator chose to leave them for another item.
+   */
+  dropIncomplete(): Promise<void>;
+  /** True while a turn runs, an undo is written or hand edits are open: keep listening until then. */
   busy(): boolean;
   /** Resolves once every tool call, turn end and undo already received has been handled. */
   settled(): Promise<void>;
@@ -315,10 +363,11 @@ export function undoNote(turns: number): string {
 
 /**
  * What the agent is told, ahead of the Educator's next message, after the Educator changed the
- * course in Review: its own history does not know. One fixed sentence, however many changes.
+ * course since its last turn (hand edits, Review's Undo this item, or an Undo of either): its own
+ * history does not know. One fixed sentence, however many changes.
  */
-export const HAND_NOTE =
-  '[From Gurukul: the Educator changed the course by hand since your last turn. Read the parts you work on again before you change them.]\n\n';
+export const HAND_EDIT_NOTE =
+  '[From Gurukul: the Educator edited the course by hand since your last turn. Read what you need again before you change it.]\n\n';
 
 const SUMMARY_LENGTH = 120;
 
@@ -330,6 +379,24 @@ export function turnSummary(message: string | null): string {
   const cut = flat.slice(0, SUMMARY_LENGTH - 1);
   const space = cut.lastIndexOf(' ');
   return `${(space > SUMMARY_LENGTH / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
+/** What a Review row is called in a turn's line: an item or chapter by its title. */
+function rowName(row: ChangeRow): string {
+  switch (row.kind) {
+    case 'course':
+      return 'course details';
+    case 'landing':
+      return 'landing page';
+    default:
+      // A row is never missing on both sides.
+      return nameOf(((row.after ?? row.before) as { title: string }).title, 'Untitled');
+  }
+}
+
+/** A hand-edit turn's line: "Edited by hand: Rebase basics, Rebase check". */
+export function handSummary(changes: CourseChanges): string {
+  return turnSummary(`Edited by hand: ${changes.rows.map(rowName).join(', ')}`);
 }
 
 const ENDED: Record<Exclude<TurnOutcome, 'done'>, string> = {
@@ -394,8 +461,25 @@ export function createAgentSession({
   let attachments: readonly AttachTarget[] = [];
   /** Turns undone since the agent was last told. */
   let undone = 0;
-  /** Whether the Educator changed the course since the agent was last told. */
-  let edited = false;
+  /** A turn by the Educator was made or undone since the agent was last told. */
+  let handEdited = false;
+  /** `agent-note.json` is on disk: the two above, kept for a runtime opened after this one. */
+  let noteKept = false;
+  /**
+   * Hand edits not yet a turn. `before` is the copy `session.json` held before them (what the turn
+   * is counted against, and what `editing.json` keeps); `start` the copy in memory then, which an
+   * edit that comes to nothing goes back to; `kept` the last copy written to `session.json`.
+   */
+  let hand: {
+    since: string;
+    before: Working;
+    start: Working;
+    kept: Working | null;
+    state: HandEditState;
+    savedAt: string | null;
+  } | null = null;
+  /** `editing.json` is on disk: removed once the hand edits it notes are a turn or are gone. */
+  let handNoted = false;
   let queue: Promise<unknown> = Promise.resolve();
   /**
    * Review edits shown at once but not yet written, in the order they were made. A task that took
@@ -408,8 +492,27 @@ export function createAgentSession({
   const withReview = (next: AuthoringSession, after = 0): AuthoringSession =>
     pendingReview.reduce((out, p) => (p.seq > after ? { ...out, ...p.patch } : out), next);
 
+  /**
+   * The session as `session.json` holds it now: `saved`, with the hand edits' last written copy
+   * when there is one (`saved` keeps the copy before them, which their turn is counted against).
+   * A write of one field starts from it, so it never takes hand edits back off the disk.
+   */
+  const onDisk = (): AuthoringSession => {
+    const last = saved as AuthoringSession;
+    return hand?.kept ? { ...last, work: hand.kept } : last;
+  };
+  /** `saved` after a write of `onDisk()`: its working copy stays the one turns are counted against. */
+  const savedAfter = (written: AuthoringSession): AuthoringSession =>
+    hand?.kept ? { ...written, work: (saved as AuthoringSession).work } : written;
+
   const allChanges = lastOf(courseChanges);
   const turnCount = lastOf((before, work) => courseChanges(before, work).count);
+
+  /** Hand edits are allowed: the session is open and no turn runs or is undone. */
+  const editable = () =>
+    session?.status === 'open' &&
+    turn === null &&
+    (status === 'ready' || status === 'connecting' || status === 'unavailable');
 
   const view = (): AgentSessionView => {
     const work = session ? workOf(session) : null;
@@ -430,9 +533,11 @@ export function createAgentSession({
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
       attachments,
       canAttach: session?.status === 'open' && attachments.length < MAX_ATTACHMENTS,
-      canSend: status === 'ready',
+      canSend: status === 'ready' && hand === null,
       canStop: status === 'working',
-      canUndo: status === 'ready' && (turns.length > 0 || unsaved !== null),
+      canUndo: status === 'ready' && hand === null && (turns.length > 0 || unsaved !== null),
+      canEdit: editable(),
+      handEdits: hand ? { state: hand.state, savedAt: hand.savedAt } : null,
     };
   };
   let snapshot = view();
@@ -472,10 +577,35 @@ export function createAgentSession({
     emit();
   };
 
+  /**
+   * The Educator's message the agent is still answering, as the chat on disk keeps it: the newest
+   * message, when nothing follows it under its id and no turn is written under it. `send` writes
+   * the chat as soon as a message is sent, so a page that reloads mid-turn finds it there; the
+   * agent's words and any notice of the turn are written only at its end. A message something
+   * follows is an answered, refused or undone turn's (an undone turn's id leaves `turns`), so when
+   * the newest message never reached the disk the turn is "carried on", not given an old one's id.
+   */
+  const pendingMessage = (): RunningTurn | null => {
+    const current = session as AuthoringSession;
+    const last = transcript.findLast((entry) => entry.kind === 'educator');
+    if (
+      !last ||
+      transcript.findLast((entry) => entry.turnId === last.turnId) !== last ||
+      current.turns.some((t) => t.id === last.turnId) ||
+      unsaved?.id === last.turnId
+    )
+      return null;
+    return { id: last.turnId, message: last.text };
+  };
+
   /** The agent is in a turn this page did not start (the page reloaded while it worked). */
   const adopt = (): RunningTurn => {
     if (turn) return turn;
-    turn = { id: newId(), message: null };
+    // A turn the page did not start, while hand edits are open (the page reloaded mid-turn and the
+    // editor opened before the agent spoke): they become their own turn first, so neither is
+    // counted in the other.
+    if (hand) void enqueue(finishEdits);
+    turn = pendingMessage() ?? { id: newId(), message: null };
     if (status === 'ready') status = 'working';
     return turn;
   };
@@ -512,12 +642,139 @@ export function createAgentSession({
    */
   const keepAgentSessionId = async (agentSessionId: string | null) => {
     try {
-      const written = await store.save({ ...(saved as AuthoringSession), agentSessionId });
-      saved = written;
+      const written = await store.save({ ...onDisk(), agentSessionId });
+      saved = savedAfter(written);
       session = { ...(session as AuthoringSession), updatedAt: written.updatedAt };
     } catch (error) {
       log.warn('Session agent id not saved', { sessionId, reason: bridgeFailure(error) });
     }
+  };
+
+  /**
+   * `agent-note.json` as `undone` and `handEdited` stand: written while there is something to tell
+   * the agent, removed once a message has told it, so the note survives the runtime (`open` reads
+   * it). Only logged on failure: the note in memory still goes with this runtime's next message.
+   */
+  const keepNote = async () => {
+    const note = undone > 0 || handEdited ? { undone, handEdited } : null;
+    if (note === null && !noteKept) return;
+    try {
+      await store.saveAgentNote(sessionId, note);
+      noteKept = note !== null;
+    } catch (error) {
+      log.warn('Session agent note not saved', { sessionId, reason: bridgeFailure(error) });
+    }
+  };
+
+  /**
+   * The session with hand edits that do not pass the course schema dropped, back to the last copy
+   * written (or, before any, the copy from before them); the session as it is when they pass.
+   */
+  const withoutIncomplete = (pending: { start: Working; kept: Working | null }) => {
+    const current = session as AuthoringSession;
+    if (workingSchema.safeParse(workOf(current)).success) return current;
+    log.warn('Session hand edits dropped', { sessionId, reason: 'incomplete' });
+    return { ...current, work: pending.kept ?? pending.start };
+  };
+
+  /** Removes `editing.json` once nothing it notes is left to make a turn of. Only logged on failure. */
+  const forgetHandNote = async () => {
+    if (!handNoted) return;
+    try {
+      await store.clearHandEdits(sessionId);
+      handNoted = false;
+    } catch (error) {
+      log.warn('Session hand edit note not removed', { sessionId, reason: bridgeFailure(error) });
+    }
+  };
+
+  /**
+   * Writes the hand edits to `session.json`, `editing.json` first so a crash after it still makes
+   * them a turn. A copy that does not pass the course schema waits in memory (`incomplete`).
+   */
+  const writeEdits = async (): Promise<boolean> => {
+    const pending = hand;
+    if (!pending || pending.state === 'saved') return true;
+    const current = session as AuthoringSession;
+    const work = workOf(current);
+    if (!workingSchema.safeParse(work).success) {
+      pending.state = 'incomplete';
+      emit();
+      return false;
+    }
+    pending.state = 'saving';
+    emit();
+    try {
+      if (!handNoted) {
+        await store.saveHandEdits(sessionId, { since: pending.since, before: pending.before });
+        handNoted = true;
+      }
+      const written = await store.save(current);
+      pending.kept = work;
+      pending.savedAt = written.updatedAt;
+      // An edit made while it was written leaves it waiting for the next pause.
+      pending.state = session === current ? 'saved' : 'dirty';
+    } catch (error) {
+      log.warn('Session hand edits not saved', { sessionId, reason: bridgeFailure(error) });
+      pending.state = 'error';
+    }
+    emit();
+    return pending.state === 'saved';
+  };
+
+  /**
+   * Makes the hand edits one turn by the Educator: counted against the copy before them, with the
+   * start checkpoint before a first turn, its own checkpoint and the session (`saveTurn`), and a
+   * line in the chat. Edits that do not pass the course schema are dropped first, back to the last
+   * copy written; edits that came to nothing make no turn. A turn that cannot be written stays in
+   * memory as `unsaved`, as an agent turn would.
+   */
+  const finishEdits = async (): Promise<void> => {
+    const pending = hand;
+    if (!pending) return;
+    const current = withoutIncomplete(pending);
+    hand = null;
+    session = current;
+    if (courseChanges(pending.start, workOf(current)).count === 0) {
+      // Nothing an Educator would see changed: back to the copy from before, on disk too.
+      session = { ...current, work: pending.start };
+      try {
+        if (handNoted) session = withReview(await store.save(session as AuthoringSession));
+        await forgetHandNote();
+      } catch (error) {
+        log.warn('Session hand edits not saved', { sessionId, reason: bridgeFailure(error) });
+      }
+      return emit();
+    }
+    const changes = courseChanges(pending.before, workOf(current));
+    const id = newId();
+    const record: Turn = {
+      id,
+      at: now().toISOString(),
+      by: 'educator',
+      summary: handSummary(changes),
+      checkpoint: `${id}.json`,
+      changes: changes.count,
+    };
+    notice(id, record.summary);
+    handEdited = true;
+    emit();
+    try {
+      if (current.turns.length === 0) await store.saveStart(sessionId, pending.before);
+      const written = await store.saveTurn(current, record, current.work);
+      session = withReview(written);
+      saved = written;
+      unsaved = null;
+      await forgetHandNote();
+      log.info('Session hand edits saved', { sessionId, turnId: id, changes: record.changes });
+    } catch (error) {
+      log.error('Session hand edits not saved as a turn', error, { sessionId, turnId: id });
+      problem = NOT_SAVED;
+      unsaved = record;
+    }
+    await keepNote();
+    await writeChat();
+    emit();
   };
 
   /**
@@ -555,6 +812,8 @@ export function createAgentSession({
       session = withReview(written);
       saved = written;
       unsaved = null;
+      // Hand edits whose own turn was not written are counted in this one.
+      await forgetHandNote();
       log.info('Session turn saved', {
         sessionId,
         turnId: record.id,
@@ -675,6 +934,36 @@ export function createAgentSession({
       status = 'closed';
       return emit();
     }
+    // What an earlier runtime had not told the agent yet, read before hand edits add to it.
+    try {
+      const note = await store.readAgentNote(sessionId);
+      if (note) {
+        noteKept = true;
+        undone = note.undone;
+        handEdited = note.handEdited;
+      }
+    } catch (error) {
+      log.warn('Session agent note not read', { sessionId, reason: bridgeFailure(error) });
+    }
+    // Hand edits the app closed on (`editing.json`): made a turn before the agent starts.
+    try {
+      const pending = await store.readHandEdits(sessionId);
+      if (pending) {
+        handNoted = true;
+        hand = {
+          since: pending.since,
+          before: pending.before as Working,
+          start: pending.before as Working,
+          kept: workOf(found),
+          state: 'saved',
+          savedAt: found.updatedAt,
+        };
+        await enqueue(finishEdits);
+      }
+    } catch (error) {
+      // Only the line in the chat is lost: the edits are in `session.json` all the same.
+      log.warn('Session hand edits not recovered', { sessionId, reason: bridgeFailure(error) });
+    }
     unsubscribe.push(agent.onEvent(onEvent), agent.onToolCall(onToolCall));
     await connect();
   };
@@ -699,7 +988,8 @@ export function createAgentSession({
 
     async send(message) {
       const text = message.trim();
-      if (status !== 'ready' || text === '' || text.length > MESSAGE_MAX_LENGTH) return false;
+      if (status !== 'ready' || hand || text === '' || text.length > MESSAGE_MAX_LENGTH)
+        return false;
       const running: RunningTurn = { id: newId(), message: text };
       const carried = attachments;
       turn = running;
@@ -719,12 +1009,15 @@ export function createAgentSession({
         await agent.send(
           sessionId,
           (undone > 0 ? undoNote(undone) : '') +
-            (edited ? HAND_NOTE : '') +
+            (handEdited ? HAND_EDIT_NOTE : '') +
             attachmentNote(carried) +
             text,
         );
         undone = 0;
-        edited = false;
+        handEdited = false;
+        void enqueue(keepNote);
+        // The message to disk now, not at the turn's end: a page reloaded mid-turn keeps it.
+        void enqueue(writeChat);
         return true;
       } catch (error) {
         log.warn('Agent message not sent', { sessionId, reason: bridgeFailure(error) });
@@ -758,7 +1051,8 @@ export function createAgentSession({
     },
 
     async undo() {
-      if (status !== 'ready' || !session || (session.turns.length === 0 && !unsaved)) return false;
+      if (status !== 'ready' || hand || !session || (session.turns.length === 0 && !unsaved))
+        return false;
       status = 'undoing';
       problem = null;
       emit();
@@ -786,7 +1080,11 @@ export function createAgentSession({
           session = withReview(next);
           saved = next;
           unsaved = null;
-          undone += 1;
+          // The agent's own history says it made an agent turn; a hand edit it never knew of.
+          if (last.by === 'educator') handEdited = true;
+          else undone += 1;
+          await keepNote();
+          await forgetHandNote();
           notice(last.id, 'Turn undone: the course is back as it was before it.');
           await writeChat();
           log.info('Session turn undone', { sessionId, turnId: last.id });
@@ -812,8 +1110,8 @@ export function createAgentSession({
       emit();
       return enqueue(async () => {
         try {
-          const written = await store.save({ ...(saved as AuthoringSession), ...entry.patch });
-          saved = written;
+          const written = await store.save({ ...onDisk(), ...entry.patch });
+          saved = savedAfter(written);
           session = { ...(session as AuthoringSession), updatedAt: written.updatedAt };
           return true;
         } catch (error) {
@@ -829,7 +1127,7 @@ export function createAgentSession({
     },
 
     async educatorTurn(work, summary) {
-      if (status !== 'ready' || session?.status !== 'open') return false;
+      if (status !== 'ready' || hand || session?.status !== 'open') return false;
       status = 'editing';
       problem = null;
       emit();
@@ -852,7 +1150,8 @@ export function createAgentSession({
           session = withReview(written);
           saved = written;
           unsaved = null;
-          edited = true;
+          handEdited = true;
+          await keepNote();
           notice(id, `You changed the course: ${record.summary}`);
           await writeChat();
           log.info('Session educator turn saved', {
@@ -885,6 +1184,23 @@ export function createAgentSession({
       return true;
     },
 
+    edit(change) {
+      if (!editable()) return false;
+      const current = session as AuthoringSession;
+      hand ??= {
+        since: now().toISOString(),
+        before: workOf(saved as AuthoringSession),
+        start: workOf(current),
+        kept: null,
+        state: 'saved',
+        savedAt: null,
+      };
+      hand.state = 'dirty';
+      session = { ...current, work: change(workOf(current)) };
+      emit();
+      return true;
+    },
+
     detach(target) {
       const key = typeof target === 'string' ? target : attachmentKey(target);
       const kept = attachments.filter((a) => attachmentKey(a) !== key);
@@ -894,6 +1210,24 @@ export function createAgentSession({
     },
 
     busy: () => turn !== null || status === 'undoing' || status === 'editing',
+
+    keepEdits: () => enqueue(writeEdits),
+
+    endEdits: () => enqueue(finishEdits),
+
+    dropIncomplete: () =>
+      enqueue(async () => {
+        const pending = hand;
+        if (!pending) return;
+        const next = withoutIncomplete(pending);
+        if (next === session) return;
+        session = next;
+        // Back to a copy on disk already, or (before any write) to the one from before the edits.
+        pending.state = 'saved';
+        emit();
+      }),
+
+    busy: () => turn !== null || status === 'undoing' || status === 'editing' || hand !== null,
 
     settled: () => queue.then(noop),
 

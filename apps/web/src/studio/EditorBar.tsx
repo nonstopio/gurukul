@@ -30,6 +30,7 @@ export function EditorBar({
   crumbs,
   draft,
   actions,
+  source = 'draft',
   children,
 }: {
   title: string;
@@ -48,10 +49,15 @@ export function EditorBar({
     | 'discardBackup'
   >;
   actions?: ReactNode;
+  /**
+   * Whose copy the editor changes: Studio's draft, or a desktop session's (`DSK-19`), kept on this
+   * computer until Save to draft, so the save state says "In the session".
+   */
+  source?: 'draft' | 'session';
   children: ReactNode;
 }) {
   const { save } = draft;
-  const label = useSaveLabel(draft);
+  const label = useSaveLabel(draft, source === 'session' ? 'In the session' : 'Draft');
   const failed = save === 'error' || save === 'conflict';
   return (
     <>
@@ -95,7 +101,7 @@ export function EditorBar({
       <Page width="wide">
         <Breadcrumb items={crumbs} />
         <RestoreNotice draft={draft} />
-        <SizeNotice draft={draft} />
+        <SizeNotice draft={draft} session={source === 'session'} />
         {save === 'conflict' ? (
           <Callout tone="warning" title="Someone else saved this course">
             <p>Reload to see their changes. Edits you made here since your last save are lost.</p>

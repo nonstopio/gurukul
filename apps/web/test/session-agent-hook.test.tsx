@@ -120,6 +120,10 @@ describe('agentSessionSource', () => {
     source.detach('course');
     expect(await source.updateReview({ summary: 'x' })).toBe(false);
     expect(await source.educatorTurn({ course: makeCourse(), answers: {} }, 'x')).toBe(false);
+    expect(source.edit((w) => w)).toBe(false);
+    expect(await source.keepEdits()).toBe(false);
+    await source.endEdits();
+    await source.dropIncomplete();
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });

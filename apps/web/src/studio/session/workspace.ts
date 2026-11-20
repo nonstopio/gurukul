@@ -114,6 +114,7 @@ export function questionMarks(
 
 export interface OutlineItem {
   key: string;
+  /** The item's id, for its editor (`DSK-19`). */
   id: string;
   type: Item['type'];
   title: string;
@@ -302,8 +303,16 @@ export function chatLines(
   return out;
 }
 
-/** "Turn 4 · 4 changes", "Turn 1 · no changes", "Turn 5 · 2 changes · not saved". */
-export function turnLabel(number: number, changes: number, saved = true): string {
+/**
+ * "Turn 4 · 4 changes", "Turn 1 · no changes", "Turn 5 · 2 changes · not saved", and for the
+ * Educator's hand edits "Turn 6 · by hand · 1 change".
+ */
+export function turnLabel(
+  number: number,
+  changes: number,
+  saved = true,
+  by: Turn['by'] = 'agent',
+): string {
   const count = changes === 0 ? 'no changes' : `${changes} ${changes === 1 ? 'change' : 'changes'}`;
-  return `Turn ${number} · ${count}${saved ? '' : ' · not saved'}`;
+  return `Turn ${number}${by === 'educator' ? ' · by hand' : ''} · ${count}${saved ? '' : ' · not saved'}`;
 }

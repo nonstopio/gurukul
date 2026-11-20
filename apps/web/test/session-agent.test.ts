@@ -5,7 +5,7 @@ import { SESSION_CHECKPOINTS_KEPT } from '@gurukul/schema';
 import type { AuthoringSession } from '@gurukul/schema';
 import { TOOL_ACTIVITY, toolActivity } from '../src/studio/session/activity';
 import {
-  HAND_NOTE,
+  HAND_EDIT_NOTE,
   MESSAGE_MAX_LENGTH,
   TOOL_RESULT_MAX_LENGTH,
   appProblem,
@@ -720,7 +720,7 @@ describe('attached parts of the course', () => {
     expect(
       MESSAGE_MAX_LENGTH +
         undoNote(SESSION_CHECKPOINTS_KEPT).length +
-        HAND_NOTE.length +
+        HAND_EDIT_NOTE.length +
         attachmentNote(most).length,
     ).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH);
   });
@@ -897,6 +897,114 @@ describe('a turn already running when the page opened', () => {
     await s.runtime.settled();
     expect(s.state().turns).toMatchObject([
       { id: 't1', summary: 'Carried on after the page reloaded', changes: 1 },
+    ]);
+  });
+
+  it('keeps the Educator’s message when the page reloads mid-turn, and the turn under it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    expect(await s.runtime.send('Shorten lesson one.')).toBe(true);
+    await s.runtime.settled();
+    // The page reloads before the agent has finished: this runtime goes, a new one opens.
+    s.runtime.dispose();
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Shorten lesson one.' },
+    ]);
+    const reloaded = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+      newId: () => 'r1',
+    });
+    await reloaded.open();
+    expect(reloaded.getState().transcript).toMatchObject([
+      { kind: 'educator', text: 'Shorten lesson one.' },
+    ]);
+    s.emit({ type: 'text', sessionId: 's1', text: 'Shortened it.' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await reloaded.settled();
+    expect(reloaded.getState().turns).toMatchObject([{ id: 't1', summary: 'Shorten lesson one.' }]);
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Shorten lesson one.' },
+      { kind: 'agent', turnId: 't1', text: 'Shortened it.' },
+    ]);
+  });
+
+  it('does not take a message already written as a turn for the turn it adopts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'Git basics');
+    await s.call('set_course_details', { title: 'Carried on' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.state().turns).toMatchObject([
+      { id: 't1', summary: 'Rename the course to Git basics.' },
+      { id: 't2', summary: 'Carried on after the page reloaded' },
+    ]);
+  });
+
+  it('does not take a message whose turn was not written for the turn it adopts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.store.saveTurn = vi.fn(async () => {
+      throw REFUSED;
+    });
+    await renameTurn(s, 'Git basics');
+    expect(s.state().unsaved).toMatchObject({ id: 't1' });
+    s.emit({ type: 'text', sessionId: 's1', text: 'More.' });
+    expect(s.state().transcript.at(-1)).toMatchObject({ kind: 'agent', turnId: 't2' });
+  });
+
+  it('does not take an undone turn’s message when the newest one never reached the disk', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'Git basics');
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state().turns).toEqual([]);
+    // The chat write made when the next message is sent fails; the page then reloads mid-turn.
+    const write = s.store.writeTranscript;
+    s.store.writeTranscript = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.send('Add a Quiz on rebase.')).toBe(true);
+    await s.runtime.settled();
+    s.runtime.dispose();
+    s.store.writeTranscript = write;
+    const reloaded = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+      newId: () => 'r1',
+    });
+    await reloaded.open();
+    s.emit({ type: 'text', sessionId: 's1', text: 'Added the Quiz.' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await reloaded.settled();
+    // Not the undone turn's id or words: the page cannot know the message, and says so.
+    expect(reloaded.getState().turns).toMatchObject([
+      { id: 'r1', summary: 'Carried on after the page reloaded' },
+    ]);
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Rename the course to Git basics.' },
+      { kind: 'notice', turnId: 't1', text: expect.stringMatching(/^Turn undone/) },
+      { kind: 'agent', turnId: 'r1', text: 'Added the Quiz.' },
     ]);
   });
 
@@ -1365,7 +1473,7 @@ describe('a turn by the Educator', () => {
     expect(s.state().canUndo).toBe(true);
 
     expect(await s.runtime.send('Carry on.')).toBe(true);
-    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Carry on.`);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_EDIT_NOTE}Carry on.`);
     s.emit({
       type: 'turn_end',
       sessionId: 's1',
@@ -1384,7 +1492,7 @@ describe('a turn by the Educator', () => {
     s.agent.send.mockRejectedValueOnce(REFUSED);
     expect(await s.runtime.send('First.')).toBe(false);
     expect(await s.runtime.send('Second.')).toBe(true);
-    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_NOTE}Second.`);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_EDIT_NOTE}Second.`);
   });
 
   it('counts a turn that could not be written with it, from the last written copy', async () => {

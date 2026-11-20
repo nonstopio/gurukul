@@ -29,6 +29,7 @@ import { useTerms } from '../../labels/useTerms';
 import { log } from '../../log';
 import { BlockView } from '../../player/blocks';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { sessionItemPath } from '../editorPlace';
 import { PreviewExam } from '../PreviewExam';
 import { useStudio } from '../StudioProvider';
 import type { Working } from '../types';
@@ -70,10 +71,6 @@ export interface ChatState {
   chat: true;
   draft?: string;
 }
-
-/** A link into the session's lesson or Quiz editor, bound to its working copy (`DSK-19`). */
-export const editorPath = (sessionId: string, itemId: string) =>
-  `/studio/sessions/${sessionId}/items/${encodeURIComponent(itemId)}`;
 
 type View = Layout | 'learner';
 
@@ -681,7 +678,7 @@ function RowDetail({
           </Button>
         ) : null}
         {open && item && !removed ? (
-          <Link className={buttonClass('secondary')} to={editorPath(sessionId, item.id)}>
+          <Link className={buttonClass('secondary')} to={sessionItemPath(sessionId, item.id)}>
             Open in editor
           </Link>
         ) : null}

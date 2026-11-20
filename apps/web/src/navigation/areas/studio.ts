@@ -54,5 +54,9 @@ export const navigation = {
     '/studio/sessions/:sessionId/review': {
       context: "needs a session id; a session's Review tab, reached from its header and turn lines",
     },
+    '/studio/sessions/:sessionId/items/:itemId': {
+      context:
+        "needs a session and an item id; Studio's editor over a session's working copy, desktop app only, reached from Open in editor in the session's preview, Outline and Review",
+    },
   },
 } satisfies AreaNavigation;

@@ -10,13 +10,17 @@ import {
   IconButton,
   PageHeader,
   PaperclipIcon,
+  PenIcon,
   Select,
   Tabs,
   BookIcon,
+  buttonClass,
+  iconButtonClass,
   useToast,
 } from '@gurukul/ui';
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { useTerms } from '../../labels/useTerms';
 import { BlockView } from '../../player/blocks';
 import { PreviewExam } from '../PreviewExam';
@@ -147,6 +151,8 @@ export function PreviewPanel({
   changes,
   attaching = null,
   sources = null,
+  initialItem = null,
+  editPath,
 }: {
   work: Working;
   base: Working | null;
@@ -155,12 +161,19 @@ export function PreviewPanel({
   attaching?: Attaching | null;
   /** The Sources tab's content, drawn only while it is open; no tab without it. */
   sources?: ReactNode;
+  /** The item to open on (`lesson:l2`), when it is in the course. */
+  initialItem?: string | null;
+  /**
+   * Studio's editor for a lesson or Quiz of the working copy (`DSK-19`): "Open in editor" on the
+   * preview and on each Outline row. Undefined where the copy may not change (a closed session).
+   */
+  editPath?: ((itemId: string) => string) | undefined;
 }) {
   const t = useTerms();
   const rows = useMemo(() => rowsByKey(changes), [changes]);
   const entries = useMemo(() => previewEntries(work.course, rows), [work.course, rows]);
   const [tab, setTab] = useState('preview');
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(initialItem);
   // Until one is picked, the first item that changed, else the first item.
   const current =
     entries.find((e) => e.key === picked) ??
@@ -188,6 +201,7 @@ export function PreviewPanel({
                 row={rows.get(current.key)}
                 work={work}
                 onPick={setPicked}
+                editPath={editPath}
               />
             ) : (
               <EmptyState
@@ -202,7 +216,9 @@ export function PreviewPanel({
           {
             id: 'outline',
             label: 'Outline',
-            panel: <Outline work={work} base={base} changes={changes} onShow={show} />,
+            panel: (
+              <Outline work={work} base={base} changes={changes} onShow={show} editPath={editPath} />
+            ),
           },
           ...(sources === null
             ? []
@@ -219,12 +235,14 @@ function ItemPreview({
   row,
   work,
   onPick,
+  editPath,
 }: {
   entries: readonly PreviewEntry[];
   entry: PreviewEntry;
   row: ChangeRow | undefined;
   work: Working;
   onPick: (key: string) => void;
+  editPath: ((itemId: string) => string) | undefined;
 }) {
   const t = useTerms();
   const words = useAttachWords();
@@ -285,6 +303,13 @@ function ItemPreview({
           eyebrow={`${kind} ${entry.number}`}
           title={nameOf(item.title, 'Untitled')}
           meta={entry.statuses.length > 0 ? <StatusChips statuses={entry.statuses} /> : undefined}
+          actions={
+            editPath ? (
+              <Link className={buttonClass('secondary')} to={editPath(item.id)}>
+                Open in editor
+              </Link>
+            ) : undefined
+          }
         />
         {item.type === 'lesson' ? (
           <>
@@ -340,11 +365,13 @@ function Outline({
   base,
   changes,
   onShow,
+  editPath,
 }: {
   work: Working;
   base: Working | null;
   changes: CourseChanges;
   onShow: (key: string) => void;
+  editPath: ((itemId: string) => string) | undefined;
 }) {
   const t = useTerms();
   const words = useAttachWords();
@@ -428,6 +455,16 @@ function Outline({
                         )}
                       />
                     )}
+                    {editPath && item.number !== null ? (
+                      <Link
+                        className={iconButtonClass()}
+                        to={editPath(item.id)}
+                        aria-label={`Open ${item.number} · ${nameOf(item.title, 'Untitled')} in the editor`}
+                        data-tip="Open in editor"
+                      >
+                        <PenIcon size={18} />
+                      </Link>
+                    ) : null}
                   </li>
                 ))}
               </ol>

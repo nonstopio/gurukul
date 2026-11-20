@@ -1,6 +1,7 @@
 import { formatBytes, PDF_CONTENT_TYPE } from '@gurukul/schema';
-import { Input, Tabs } from '@gurukul/ui';
+import { Callout, Input, Tabs } from '@gurukul/ui';
 import { useState } from 'react';
+import { useBlockScope } from './BlockScope';
 import { BlockView } from '../../player/blocks';
 import { PLACEHOLDER_FILE } from '../lessonEdit';
 import { patch } from '../patch';
@@ -19,6 +20,7 @@ import { usePdfUpload } from './usePdfUpload';
 export function FileEditor({ block, onChange }: BlockEditorProps<'file'>) {
   const [tab, setTab] = useState(block.upload ? 'upload' : 'link');
   const source = usePdfUpload(block, onChange);
+  const { uploadsOff } = useBlockScope();
   const picked = 'picked' in source.stage ? source.stage.picked : undefined;
   // Before the upload the preview is the picked file itself, so the link already opens it.
   const shown = picked
@@ -69,7 +71,11 @@ export function FileEditor({ block, onChange }: BlockEditorProps<'file'>) {
           {
             id: 'upload',
             label: 'Upload',
-            panel: (
+            panel: uploadsOff ? (
+              <Callout title="Uploads come later">
+                <p>{uploadsOff}</p>
+              </Callout>
+            ) : (
               <PdfUploadPanel
                 block={block}
                 source={source}

@@ -747,7 +747,13 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   ends a turn the agent left open as `failed` and makes the session `unavailable`.
 - **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
   answers the running process) is adopted at its first event or tool call, so its tool calls are
-  answered and its end is written, as "Carried on after the page reloaded". If `agent.status()`
+  answered and its end is written. Its line is the Educator's message that started it: `send`
+  writes the chat as soon as the message is sent, not only at the turn's end, so the reloaded page
+  reads it and takes up that turn's id: the newest message, when nothing follows it under its id
+  (the agent's words and a turn's notices are written only at its end) and no turn is written under
+  it. An undone turn's id leaves the session's turns but its "Turn undone" notice follows its
+  message, so a newest message that never reached the disk is not mistaken for it. Only a turn with
+  no such message is "Carried on after the page reloaded". If `agent.status()`
   said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
   again.
 - **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
@@ -758,8 +764,11 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   (`TOOL_ACTIVITY`, a test checks every tool has one), never a tool name.
 - **`transcript.jsonl`** holds one entry per line: the Educator's message, each streamed text block,
   each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
-  its turn id. At most 6,000,000 characters are kept, the oldest entries going first; damaged lines
-  are skipped when read. Nothing in it is logged.
+  its turn id. It is written when a message is sent and when a turn ends. At most 12 MiB of UTF-8
+  is kept (`TRANSCRIPT_MAX_BYTES`, 4 MiB under the shell's 16 MiB `MAX_FILE_BYTES`), the oldest
+  entries going first; counted in bytes, not characters, because Devanagari or Chinese takes 3
+  bytes a character and a cap in characters let a long chat pass the shell's limit, which refuses
+  the whole file. Damaged lines are skipped when read. Nothing in it is logged.
 
 As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.tsx`,
 `PreviewPanel.tsx`, `Problem.tsx`, `workspace.ts`; components `ChatLog`, `ChatMessage`,
@@ -800,7 +809,12 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   course details and landing page above it, removed chapters and items struck through where they
   used to be; a present item opens in the preview.
 - **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
-  log scrolling inside. From 640px to 1023px a Chat button in the header opens it as a drawer
+  log scrolling inside. The bar's height is measured (`useBlockSize`, a `ResizeObserver` on the
+  `TopBar`'s header), not assumed: a session title of up to 160 characters wraps it to three lines
+  at 1024px, and an assumed one-line bar left the top of the chat under it. The log watches its own
+  height too: the bar is measured after the log has scrolled to its end, so a taller bar would leave
+  the newest message under the card's edge; a log at its end stays there, one the Educator scrolled
+  up in stays put. From 640px to 1023px a Chat button in the header opens it as a drawer
   (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
   it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
   Studio's `DesktopOnly` asks for a wider window.
@@ -831,6 +845,57 @@ As built in `DSK-20` (attaching; `apps/web/src/studio/session/attachments.ts`, t
   what each kind means, which tool takes it, and never to repeat the ids. A test holds the longest
   message, the undo note and ten parts with the longest labels and ids under the shell's
   `MAX_MESSAGE_LENGTH`. Sending clears the parts; a message the app refuses keeps them.
+
+As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`,
+`useSessionDraft.ts`, the runtime's `edit`, `keepEdits` and `endEdits` in `agent.ts`,
+`apps/web/src/studio/editorPlace.tsx`):
+
+- **The route is `/studio/sessions/:sessionId/items/:itemId`**, the session page again (desktop app
+  only, unlisted in search): Studio's `LessonEditor` or `QuizBuilder`, picked by the item's type, an
+  unknown id showing the lesson editor's "Lesson not found". "Open in editor" is on the preview's
+  item header and, as a pen icon link, on each Outline row; Review links to the same route
+  (`sessionItemPath`). The back link ("Session") returns to the workspace opened on that item
+  (`?item=lesson:l2`). A saved or discarded session offers no link, and the route says it is closed.
+- **One `DraftApi`, two sources.** The editors take an `EditorPlace` (`draft` or `session`) for their
+  links, and a `DraftApi`: `useDraft` in Studio, `useSessionDraft` in a session. In a session an
+  edit changes the runtime's copy in memory at once and `session.json` a pause later
+  (`HAND_EDIT_WRITE_MS`, 1 s: a local file); no Firestore read or write and no `rev` check. The top
+  bar says "In the session · saved just now". The rail links to the session's other items; there
+  is no "Preview as a Learner" (the workspace is the preview).
+- **A session reads the draft once, so its editors leave out what reads or writes Firestore
+  besides it:** the Quiz builder's first-try scores (the course's stats document) and Save to
+  question bank. Import from the question bank stays: it reads the bank, not the draft, and only
+  when asked. Uploads go to Storage as in Studio, under the session's course; a new course has no
+  course to store them under until its first save, so its Upload tabs say so and offer the link.
+- **Leaving the editor makes the edits one turn by the Educator** (`by: 'educator'`, a checkpoint,
+  `courseChanges` against the copy before them, "Edited by hand: Why Git, Rebase check"), with
+  `checkpoints/start.json` first when it is the session's first turn, and a line in the chat
+  ("Turn 3 · by hand · 2 changes"). Chosen over a quiet period so one visit is one turn and the
+  agent never meets edits half made. Undo and Review treat it as any turn. The agent is told with
+  the next message (`HAND_EDIT_NOTE`), as it is after an Undo; undoing a hand-edit turn tells it
+  the same. What it is still to be told (turns undone, edited by hand) is kept in
+  `agent-note.json` until a message has carried it, so it is told even when the app closed, or
+  every screen let the session go, in between (the plan was silent; a counter in memory lost it).
+  The end runs on the next task after the editor unmounts, so React's development double mount
+  does not split one visit in two. Edits that come to nothing make no turn.
+- **Only between turns.** `canEdit` needs an open session with no turn running and no undo being
+  written; Claude Code need not be running. While a turn runs the route says the agent is working,
+  offers Back and Stop, and opens the editor once the turn is written. While hand edits are open,
+  Send and Undo wait. A turn the page did not start (adopted after a reload) first makes open hand
+  edits their own turn.
+- **The working copy must pass the course schema to be kept** (the plan was silent; a session file
+  holds only a valid course, but the editors pass through invalid states: an empty title, a new
+  question with no prompt). Such edits stay in memory ("not kept until complete"); leaving asks
+  first and drops them, back to the last copy written, there and then (`dropIncomplete`), also
+  when the move is to another item through the rail, which keeps the same editor and visit open.
+- **A crash loses no hand edit already written.** Before the first write, `editing.json` keeps the
+  copy from before them; opening the session again makes a turn of what `session.json` holds, then
+  removes it. It is also removed by the next turn written or by Undo of an unwritten turn.
+- **Opening the editor changes nothing by itself.** Studio stores the width and height of an image
+  linked without them once the picture loads; in a session that would be a hand-edit turn nobody
+  made (the seeded Git course's first lesson has such an image). So a session's lesson editor reads
+  a linked image's size only for an address typed there (`sizeLinkedImages` on `BlockScope`);
+  other unsized links get theirs the next time the course is opened in Studio.
 
 ## Review: the whole session at once
 
@@ -1131,7 +1196,10 @@ Rules every tool follows:
   parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
   so the agent can still edit the words around it. The chat is held to it too: the agent's
   messages are drawn as Markdown without pictures (a picture shows as its words, raw HTML as
-  text), so nothing it writes there makes the app fetch an address.
+  text), so nothing it writes there makes the app fetch an address. Nor links: a link in the
+  agent's message is drawn as its words and its address in brackets ("the Git book
+  (https://…)"), never as a link, so no click opens an address the words hide (Privacy and
+  security).
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 
@@ -1261,6 +1329,14 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.
+- **The agent's messages hold no link to follow.** What the agent writes can come from a Sources
+  file or a page it was shown, so a link in its message may be someone else's: words that say
+  "the Git book" over an address that carries course text to another server. In the shell a link
+  that opens a new tab goes straight to the system browser (`navigation.ts`, `setWindowOpenHandler`),
+  with no step between. So the chat draws each link as its words and its address in plain text: the
+  Educator sees where it points and copies it if they mean to go. Chosen over a link that first
+  shows the address and asks: no click on agent text then reaches any address, the shell needs no
+  new call, and the course links the agent might give ("lesson 3.2") are in Preview and Outline.
 - Logs follow `17-logging.md` in the window and in the main process: constant event names,
   counts and ids only. Never chat text, course text, source file names or answer keys.
 - Analytics (`20-product-analytics.md`) gains `session_started`, `session_saved`,
