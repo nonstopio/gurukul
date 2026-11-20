@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode, Ref } from 'react';
 import { cx } from './cx';
 import './topbar.css';
 
@@ -26,6 +26,11 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> 
   status?: ReactNode;
   /** The primary action, usually a `chrome` button. */
   actions?: ReactNode;
+  /**
+   * The `<header>`, for a page that keeps something sticky under the bar: a long title wraps, so
+   * the bar's height is measured, never assumed.
+   */
+  ref?: Ref<HTMLElement>;
 }
 
 /** The dark top bar of focused screens: lesson player, Quiz, editors. */

@@ -181,6 +181,12 @@ describe('TopBar', () => {
     expect(screen.getByRole('button', { name: 'Theme tool' })).toBeTruthy();
   });
 
+  it('hands its header to a ref, so a page can measure it', () => {
+    let header: HTMLElement | null = null;
+    render(<TopBar title="Git basics" ref={(el) => void (header = el)} />);
+    expect(header).toBe(screen.getByRole('banner'));
+  });
+
   it('draws the title as a paragraph when the page has its own heading', () => {
     render(<TopBar title="Git basics" titleAs="p" />);
     expect(screen.queryByRole('heading')).toBeNull();
