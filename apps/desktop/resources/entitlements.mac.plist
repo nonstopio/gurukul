@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened runtime entitlements for Gurukul Studio (electron-builder.yml, mac.entitlements).
+  JavaScript engines need these two to run under the hardened runtime. Morph also sets
+  disable-library-validation; Gurukul Studio loads no native module of its own, so it is left off
+  and every library the app loads must carry the app's own signature or Apple's.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key><true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+</dict>
+</plist>

@@ -6,6 +6,8 @@
 # Dependencies and build output
 node_modules/
 dist/
+# Desktop installers (apps/desktop/electron-builder.yml)
+/apps/desktop/release/
 # Functions compile here; anchored so a source folder called lib/ is not ignored
 /firebase/functions/lib/
 *.tsbuildinfo

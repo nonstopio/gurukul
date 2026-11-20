@@ -6,10 +6,14 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock('firebase/auth', () => ({
   GoogleAuthProvider: class {
+    static credential(idToken: string) {
+      return { providerId: 'google.com', idToken };
+    }
     setCustomParameters(p: unknown) {
       state.params = p;
     }
   },
+  signInWithCredential: vi.fn().mockResolvedValue(undefined),
   onAuthStateChanged: vi.fn((_a, cb) => {
     state.authCb = cb;
     return () => {};
@@ -20,8 +24,20 @@ vi.mock('firebase/auth', () => ({
   signOut: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { getRedirectResult, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
-import { firebaseAuthService, prefersRedirect } from '../src/auth/service';
+import {
+  getRedirectResult,
+  signInWithCredential,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from 'firebase/auth';
+import {
+  DESKTOP_SIGN_IN_MESSAGES,
+  SignInProblem,
+  firebaseAuthService,
+  prefersRedirect,
+} from '../src/auth/service';
+import type { GoogleSignInResult, GurukulDesktop } from '../src/desktop/bridge';
 
 const DESKTOP = {
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130',
@@ -155,5 +171,70 @@ describe('firebaseAuthService', () => {
 
   it('hands profile watching to the lazily loaded Firestore', () => {
     expect(svc().watchProfile).toBe(watchProfile);
+  });
+});
+
+describe('firebaseAuthService in the desktop app', () => {
+  const googleSignIn = vi.fn<() => Promise<GoogleSignInResult>>();
+  const app = { auth: { googleSignIn } } as unknown as GurukulDesktop;
+  const desktopSvc = () =>
+    firebaseAuthService({ auth: auth as never }, watchProfile, DESKTOP, () => app);
+
+  it('signs in to Firebase with the ID token the system browser sign-in gave, no popup', async () => {
+    googleSignIn.mockResolvedValueOnce({ ok: true, idToken: 'id.token.sig' });
+    await desktopSvc().signIn({ chooseAccount: true });
+    expect(signInWithCredential).toHaveBeenCalledWith(auth, {
+      providerId: 'google.com',
+      idToken: 'id.token.sig',
+    });
+    expect(signInWithPopup).not.toHaveBeenCalled();
+    expect(signInWithRedirect).not.toHaveBeenCalled();
+  });
+
+  it('resolves quietly when the person cancels in the browser', async () => {
+    googleSignIn.mockResolvedValueOnce({ ok: false, reason: 'cancelled' });
+    await expect(desktopSvc().signIn()).resolves.toBeUndefined();
+    expect(signInWithCredential).not.toHaveBeenCalled();
+  });
+
+  it.each(['timeout', 'not_configured'] as const)(
+    'says what to do when the sign-in answers %s',
+    async (reason) => {
+      googleSignIn.mockResolvedValueOnce({ ok: false, reason });
+      const error = await desktopSvc()
+        .signIn()
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(SignInProblem);
+      expect(error).toMatchObject({ reason, message: DESKTOP_SIGN_IN_MESSAGES[reason] });
+    },
+  );
+
+  it('fails plainly when the sign-in answers failed', async () => {
+    googleSignIn.mockResolvedValueOnce({ ok: false, reason: 'failed' });
+    const error = await desktopSvc()
+      .signIn()
+      .catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(SignInProblem);
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  it('asks for an app update when this app cannot sign in yet, and passes other refusals on', async () => {
+    googleSignIn.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'gurukul:auth.googleSignIn': Error: Not available in this version",
+      ),
+    );
+    await expect(desktopSvc().signIn()).rejects.toMatchObject({
+      reason: 'update_app',
+      message: DESKTOP_SIGN_IN_MESSAGES.update_app,
+    });
+    googleSignIn.mockRejectedValueOnce(new Error('Not allowed'));
+    await expect(desktopSvc().signIn()).rejects.toThrow('Not allowed');
+  });
+
+  it('uses the browser sign-in when there is no desktop bridge', async () => {
+    await firebaseAuthService({ auth: auth as never }, watchProfile, DESKTOP, () => null).signIn();
+    expect(signInWithPopup).toHaveBeenCalled();
+    expect(googleSignIn).not.toHaveBeenCalled();
   });
 });

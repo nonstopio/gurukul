@@ -9,10 +9,27 @@ const kb = (bytes: number) => Math.ceil(bytes / 1000).toLocaleString('en');
  * Warns as the draft nears the size one course can hold, and says why it stopped saving once it is
  * over. Measured with the same `courseBytes` as autosave and `publishCourse`.
  */
-export function SizeNotice({ draft }: { draft: Pick<DraftApi, 'work' | 'save'> }) {
+export function SizeNotice({
+  draft,
+  session = false,
+}: {
+  draft: Pick<DraftApi, 'work' | 'save'>;
+  /** A desktop session's copy: kept on this computer whatever its size, but not saved to the draft. */
+  session?: boolean;
+}) {
   const { work, save } = draft;
   const bytes = useMemo(() => (work ? courseBytes(work.course, work.answers) : 0), [work]);
   const of = `${kb(bytes)} KB of the ${kb(COURSE_BYTES_LIMIT)} KB one course can hold`;
+  if (session && bytes > COURSE_BYTES_LIMIT) {
+    return (
+      <Callout tone="warning" title="This course is too large to save to the draft" role="alert">
+        <p>
+          It is {of}. Your edits are kept in this session, but Save to draft stays off until some
+          content is removed, or some chapters move into a second course.
+        </p>
+      </Callout>
+    );
+  }
   if (save === 'too-large' || bytes > COURSE_BYTES_LIMIT) {
     return (
       <Callout tone="warning" title="This course is too large to save" role="alert">

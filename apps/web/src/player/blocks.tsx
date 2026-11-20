@@ -10,6 +10,7 @@ import {
 } from '@gurukul/ui';
 import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useId, useState } from 'react';
+import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import { formatBytes, isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { videoMeta } from '../learn/model';
@@ -28,17 +29,45 @@ function Inline({ md }: { md: string }) {
   );
 }
 
-/** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
-export function Prose({ md }: { md: string }) {
+/** A link drawn as words: its text, then its address in brackets (once, when the two are the same). */
+function LinkAsText({ href, children }: { href?: string | undefined; children?: ReactNode }) {
+  const words = typeof children === 'string' ? children : null;
+  if (!href || words === href) return <span>{children}</span>;
+  return (
+    <span>
+      {children} ({href})
+    </span>
+  );
+}
+
+/**
+ * Markdown without raw HTML (react-markdown drops it); links always open in a new tab. The agent's
+ * chat (`.plan/22-desktop-studio.md`, The agent's tools, Privacy and security) passes both off:
+ * with `pictures={false}` a picture is drawn as its words only, so its address is never fetched;
+ * with `links={false}` a link is drawn as its words and its address, not as a link, so no click
+ * takes the Educator to an address the words hide.
+ */
+export function Prose({
+  md,
+  pictures = true,
+  links = true,
+}: {
+  md: string;
+  pictures?: boolean;
+  links?: boolean;
+}) {
   return (
     <div className="prose">
       <Markdown
         components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
+          a: links
+            ? ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer">
+                  {children}
+                </a>
+              )
+            : LinkAsText,
+          ...(pictures ? {} : { img: ({ alt }) => <span>{alt}</span> }),
         }}
       >
         {md}

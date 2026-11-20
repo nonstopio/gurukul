@@ -16,7 +16,10 @@ Each recipe lists the tokens it uses, its states and its accessibility contract.
 | chrome    | chrome | `--chrome-accent` / `--chrome-accent-on`           | Primary action on dark chrome |
 
 States: hover, `:focus-visible` (`--focus-ring`), disabled (0.5 opacity,
-`not-allowed`). Height `--control-height`. Defaults to `type="button"`.
+`not-allowed`; a disabled primary or danger is a flat `--surface-hover` ground with a `--border`
+edge, `--text-subtle` and no dimming, because half an accent stays bright in the dark theme and
+reads as pressable, and the light ground alone is barely apart from `--bg`; `loading` keeps its
+colour). Height `--control-height`. Defaults to `type="button"`.
 
 ## CommandPalette — shipped
 
@@ -84,7 +87,7 @@ still prints the count.
 its heading (Inter 600 `--text-lg`), actions on the right. Every section of a page is a titled
 Card; never an `h2` with a class above a `div`.
 
-## Sidebar, SidebarGroup and NavItem — shipped
+## Sidebar, SidebarGroup, NavItem and NavAction — shipped
 
 ```tsx
 <Sidebar brand={<>Logo Gurukul</>} label="Main" footer={<UserCard />}>
@@ -108,6 +111,20 @@ Router use: `render` receives the anchor props (`className`, `aria-current`, `ch
 `href`/`onClick` passed to NavItem) and returns the element. Spread them onto `Link`/`NavLink`. With no
 `render` it draws a plain `<a>`.
 
+NavAction: a sidebar `<button>` for an action that is not a page (the desktop app's "Update ready").
+Same 44px shape, hover and focus as NavItem, never `aria-current`; its icon is `--chrome-accent` so
+it stands apart from the pages. `detail` adds a quieter `--chrome-label` line that describes the
+button (`aria-describedby`; the label alone names it). `loading` is Button's: disabled, `aria-busy`,
+the spinner in place of the icon. Put it in its own `SidebarGroup` after the pages.
+
+```tsx
+<SidebarGroup label="Gurukul Studio">
+  <NavAction icon={<DownloadIcon />} detail="Restart to install 0.2.0" onClick={install}>
+    Update ready
+  </NavAction>
+</SidebarGroup>
+```
+
 ## TopBar (focused mode) — shipped
 
 `<TopBar title titleAs? back? status? actions? />`. Used by the lesson player, Quiz, result and
@@ -117,6 +134,8 @@ editors: a `<header>` on `--chrome`, wrapping flex row. `title` is the page `h1`
 44px chrome look. `status` (progress, "Saved") and `actions` (a `chrome` Button) sit on the right.
 `TopBarToolsContext` holds controls every `TopBar` shows at its far right, after `actions`: the focused
 layout provides the theme switcher there once, so no page passes it in.
+`ref` reaches the `<header>`: a page with something sticky under the bar measures its height there
+(a long title wraps it), never assumes one line (the session workspace's chat).
 
 ## Field, Input, Select, Textarea — shipped
 
@@ -310,6 +329,82 @@ picks a more specific face: a failed load or request passes `error`. It takes a 
 for an alert that receives focus (the sign-in refusal: a non-NonStop account is `validation`, the
 confused face, because picking that account was the person's choice; "Sign-in did not finish" is
 `error`, the sad face).
+
+## ChangeMark — shipped
+
+`<ChangeMark statuses={['changed', 'moved']} what="Code block">{the block as drawn}</ChangeMark>`. Marks a
+changed piece of a course where it is drawn (a Desktop Studio session's preview): a `role="group"` named
+"changed and moved: Code block", a 1px dashed hairline in the first status's line token, `--radius-lg`, and
+a pill label at the top with a sign (plus, pen, swap, bin) and the words ("Changed · Moved · Code block",
+`aria-hidden`: the group name says it). Tones: added `--accent-soft` / `--accent-soft-text`, changed
+`--warning-soft` / `--warning`, moved `--info-soft` / `--info`, removed `--danger-soft` / `--danger`, the
+pairs `Chip` uses. Without children (something removed) only the mark is drawn. Never colour alone.
+
+## DiffView, DiffRow, DiffText, DiffCode, DiffFields, DiffUnchanged, DiffNote, DiffMedia — shipped
+
+A difference between two versions of the same thing (a Desktop Studio session's Review). Every mark
+has a sign or a text decoration and hidden words for a screen reader; the soft grounds only repeat
+them (body text reaches 4.5:1 on `--danger-soft` and `--accent-soft` in both themes, so no new role
+was needed).
+
+- `<DiffText parts side?>`: a word difference (`{ op: 'same' | 'added' | 'removed', text }[]`, the
+  shape of `DiffPart` in `@gurukul/schema/changes`). Removed runs are `<del>` struck through on
+  `--danger-soft`, added runs `<ins>` underlined on `--accent-soft`, each led by a hidden
+  "removed: " or "added: "; a run of spaces alone is not marked. `side="before"` keeps the removed
+  runs, `"after"` the added ones, `"both"` (default) everything in one text.
+- `<DiffCode parts side? label>`: a line difference in `--font-mono` on `--surface-sunken`, a
+  `--radius-lg` well that scrolls sideways inside itself (focusable, named by `label`). The gutter
+  shows − (in `--danger`) and + (in `--accent-soft-text`), hidden from a screen reader, which hears
+  "removed line: " and "added line: "; changed lines sit on their soft ground.
+- `<DiffFields items>`: a `<dl>` of fields, one per line, as "Pass mark 70% → 80%" (the arrow hidden,
+  "changed to" read instead; `null` reads "Not set" in italics), or `{ label, change }` for a
+  difference already drawn. Name column 8–12rem from 640px, stacked below.
+- `<DiffView layout="split|inline" label>`: a `role="group"` of entries. Side by side it opens with a
+  Before / After head (`aria-hidden`; each cell says which it is). `<DiffRow statuses? what before
+after merged? notes? same?>` is one entry: a pill label with the sign and words ("Changed · Text
+  block 1", the tones of `ChangeMark`, `aria-hidden`: the group is named "changed: Text block 1"), a
+  dashed hairline in the first status's line token (a plain hairline when unchanged), any `notes`,
+  then the two cells. Inline, `merged` is drawn when given, else before above after with visible
+  "Before" / "After" labels. A side that is `null` says "Not there before" or "Removed". `same`
+  draws the entry once across both columns (unchanged, or only moved), so nothing is announced twice.
+- `<DiffUnchanged label defaultOpen?>`: a run of unchanged entries folded into one dashed button
+  ("3 unchanged blocks", chevron, `aria-expanded`, `aria-controls`); its children render only open.
+- `<DiffNote>`: a line in the warning tone with the alert sign that must not be folded into
+  "changed": "Correct answer changed: B → C".
+- `<DiffMedia kind url name alt?>`: an image as a thumbnail (max 12rem high, hairline, `--radius-md`)
+  with its name under it; a video, embed or file as a link card (icon, name, host) that opens in a
+  new window and is named "Intro · youtu.be (opens in a new window)"; an empty address says
+  "No address".
+
+## ChatLog, ChatMessage, ChatTurn, ChatActivity — shipped
+
+A chat with an agent. `<ChatLog label>` is a `role="log"` region round an `<ol>` (it takes a `ref`; a layout
+that gives it a height scrolls it, with `tabIndex={0}`). `<ChatMessage from="you|agent|notice" author?>`:
+who said it is a word above it (`--text-xs` caps, `--text-muted`); the person's own sit on
+`--surface-sunken` with `--radius-lg` and keep their line breaks; a notice is a quiet line led by the info
+icon. `<ChatTurn>` is the line after a turn, between hairlines, holding its name and actions (a quiet link,
+an Undo). `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
+in `--accent`): always rendered, empty between turns, so a new line is announced; no animation.
+
+`<ChatAttachments label items={[{ id, label }]} onRemove? onEmptied?>`: what a message carries besides its
+words, a `<ul>` named by `label` of pill chips (`--accent-soft` / `--accent-soft-text`, an `--accent-line`
+hairline, paperclip icon, the label in words). With `onRemove` each chip ends in a 24px remove button named
+"Remove {label}"; a removed chip hands focus to the one taking its place, else the one before, else
+`onEmptied` (the message box). Without it the chips only say what a sent message carried. Nothing is drawn
+when `items` is empty.
+
+## Attachable — shipped
+
+`<Attachable label attached onAttachedChange>{the block as drawn}</Attachable>`: something drawn that a
+message can carry (a block or a question in a Desktop Studio session's preview). A grid of the content and
+an `IconButton` toggle (`aria-pressed`, named "Attach {label} to your message", tip Attach or Attached,
+paperclip or tick) in its own column, so it never covers the content's own controls. The button is
+transparent until the wrapper is hovered or anything in it has keyboard focus (always shown with
+`hover: none` and while attached); a real button, so attaching never needs a mouse. Attached, a 2px
+`--accent` outline goes round it and the button shows the tick on `--accent-soft`: a sign, not only a
+colour. The wrapper keeps the content on its column's edge (`--space-2` padding, the same negative margin).
+Clicking the content itself does nothing: a click on a block's video, check or Copy keeps doing what it
+does.
 
 ## Explanation — shipped
 
@@ -582,7 +677,9 @@ first and last word ("Asha Rao" → AR), one word's first letter, an email's loc
 `<IconButton label tip? tone="neutral|danger">icon</IconButton>`: a 36px icon-only button for dense list rows
 (rename, move, delete). Quiet (`--text-muted`) until hover (`--surface-hover`); `danger` is `--danger`
 with `--danger-soft` on hover. `label` is the accessible name ("Rename What Git solves"); `tip` is the
-short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). `iconButtonClass(tone?)` and
+short tooltip drawn from `data-tip` on hover and keyboard focus ("Rename"). As a toggle it takes
+`aria-pressed`; pressed it sits on `--accent-soft` with `--accent-soft-text`, and its icon changes too
+(Attach: paperclip, then a tick). `iconButtonClass(tone?)` and
 `Menu`'s `tip` give a menu trigger the same look. A clickable row keeps its buttons above the stretched
 link (`position: relative; z-index: 1`).
 
@@ -757,7 +854,11 @@ glyph) in it instead of a player; no open-in-new-tab link. Never bare text where
 
 ## CourseTile — shipped
 
-`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? />`.
+`<CourseTile as="li" title heading={<Link to=…>{title}</Link>} image? cover? theme chips? summary? extra? meta? action? />`.
+`action` is one control of the tile's own under the meta line (Studio's "Edit with AI" in the desktop app):
+it sits above the title's stretched link on `--z-raised`, so it is a second target beside the tile's one
+link, never nested in it. Keep it to one quiet button (`variant="secondary" size="sm"`); the tile's own
+destination stays the title.
 `cover` replaces the picture with a drawing at its own height: the certificates gallery shows each
 certificate, scaled down, as its cover (the record is still one link, the heading's).
 A course in any list: a 16:9 cover (the course's picture, else its name in Fraunces on its own cover

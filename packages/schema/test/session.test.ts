@@ -64,6 +64,10 @@ describe('authoringSessionSchema accepts', () => {
       session({ status: 'saved', work: { ...work, answersChanged: true } }),
     ],
     ['dates with a UTC offset', session({ createdAt: '2026-05-01T15:30:00+05:30' })],
+    [
+      'a turn that moved the base, with the base from before it kept',
+      session({ turns: [{ ...turn('t1'), baseBefore: 't1.base.json' }] }),
+    ],
   ])('%s', (_name, value) => {
     const parsed = authoringSessionSchema.safeParse(value);
     expect(parsed.success).toBe(true);
@@ -106,6 +110,11 @@ describe('authoringSessionSchema rejects', () => {
       'an empty checkpoint name',
       { turns: [{ ...turn('t1'), checkpoint: '' }] },
       ['turns', 0, 'checkpoint'],
+    ],
+    [
+      'a base kept outside the session folder',
+      { turns: [{ ...turn('t1'), baseBefore: '../t1.base.json' }] },
+      ['turns', 0, 'baseBefore'],
     ],
   ])('%s', (_name, over, path) => {
     const parsed = authoringSessionSchema.safeParse(session(over));

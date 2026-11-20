@@ -56,6 +56,8 @@ const MediaPage = lazyPage(() => import('./studio/MediaPage'), 'MediaPage');
 const QuizBuilderPage = lazyPage(() => import('./studio/QuizBuilderPage'), 'QuizBuilderPage');
 const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage');
 const QuestionBankPage = lazyPage(() => import('./studio/QuestionBankPage'), 'QuestionBankPage');
+// Small: in a browser it only says sessions need the desktop app; the session code is a further chunk.
+const SessionRoute = lazyPage(() => import('./studio/SessionRoute'), 'SessionRoute');
 const StudioCoursesPage = lazyPage(() => import('./studio/StudioCoursesPage'), 'StudioCoursesPage');
 const ProfilePage = lazyPage(() => import('./ProfilePage'), 'ProfilePage');
 // Lazy so the Markdown parser its description needs stays out of the first download.
@@ -174,6 +176,29 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
       </DesktopOnly>
     </RequireRole>
   ),
+  '/studio/sessions/:sessionId': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionRoute />
+      </DesktopOnly>
+    </RequireRole>
+  ),
+  // The session's Review tab: the same page, which reads the path (`DSK-14` fills it).
+  '/studio/sessions/:sessionId/review': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionRoute />
+      </DesktopOnly>
+    </RequireRole>
+  ),
+  // Studio's lesson or Quiz editor over the session's working copy (`DSK-19`): the same page again.
+  '/studio/sessions/:sessionId/items/:itemId': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionRoute />
+      </DesktopOnly>
+    </RequireRole>
+  ),
   '/studio/bank': (
     <RequireRole any={['educator', 'admin']}>
       <DesktopOnly>
@@ -224,6 +249,9 @@ export const FOCUSED: readonly RoutePath[] = [
   '/studio/courses/:courseId/lessons/:lessonId',
   '/studio/courses/:courseId/quiz/:quizId',
   '/studio/courses/:courseId/preview/:itemId',
+  '/studio/sessions/:sessionId',
+  '/studio/sessions/:sessionId/review',
+  '/studio/sessions/:sessionId/items/:itemId',
 ];
 
 /**

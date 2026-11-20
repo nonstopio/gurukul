@@ -47,6 +47,7 @@ function watched(rel) {
   const shipped =
     rel.startsWith('apps/web/src/') ||
     rel.startsWith('packages/ui/src/') ||
+    rel.startsWith('apps/desktop/src/') ||
     rel === 'firebase/firestore.rules' ||
     rel.startsWith('firebase/functions/src/');
   if (!shipped) return false;

@@ -8,8 +8,13 @@ import { useStudio } from './StudioProvider';
 import { markAnswerEdits, sameWork } from './studioModel';
 import type { DraftDoc, Working } from './types';
 
-/** `too-large`: the edits are over `COURSE_BYTES_LIMIT`, kept on the page and this device, not written. */
-export type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict' | 'too-large';
+/**
+ * `too-large`: the edits are over `COURSE_BYTES_LIMIT`, kept on the page and this device, not written.
+ * `incomplete` (a desktop session's editor only, `useSessionDraft`): the edits do not pass the course
+ * schema yet, so the session keeps them in memory until they do.
+ */
+export type SaveState =
+  'saved' | 'dirty' | 'saving' | 'error' | 'conflict' | 'too-large' | 'incomplete';
 
 /**
  * Milliseconds after the last edit before autosave fires. Each save rewrites the whole draft, so a

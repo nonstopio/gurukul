@@ -22,7 +22,8 @@
 #  touches what those jobs cover, this runs them too:
 #
 #    - the end-to-end specs (`npm run e2e`, about a minute) for the app, UI, schema, functions,
-#      rules, seed and e2e paths (.claude/rules/end-to-end.md);
+#      rules, seed and e2e paths, and the desktop shell's code, bundle script and fake `claude`,
+#      which the desktop specs drive (.claude/rules/end-to-end.md);
 #    - the security rules tests (`npm run test:rules`: Firestore and Storage) for the rules and their tests;
 #    - the trigger tests (`npm run test:triggers`) for the functions' src and emulator-test;
 #    - the web build and its size budget (`npm run check:bundle`) for the app, UI and schema.
@@ -71,7 +72,7 @@ fi
 # 100% coverage per workspace, only for the workspaces this push touched. A change to the root
 # config or the lockfile can affect any of them, so it runs them all.
 everything='^(package\.json|package-lock\.json|tsconfig\.base\.json)$'
-for ws in apps/web:@gurukul/web packages/ui:@gurukul/ui firebase/functions:@gurukul/functions; do
+for ws in apps/web:@gurukul/web apps/desktop:@gurukul/desktop packages/ui:@gurukul/ui firebase/functions:@gurukul/functions; do
   dir=${ws%%:*}
   name=${ws#*:}
   if touches "^$dir/" || touches "$everything"; then
@@ -82,7 +83,7 @@ done
 
 # CI's emulator and bundle jobs, for the pushes they would judge. Paths match the e2e rule's.
 app='^(apps/web/src/|packages/ui/src/|packages/schema/src/)'
-e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/)'
+e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/|apps/desktop/(src|scripts|test/fixtures)/)'
 rules='^(firebase/firestore\.rules$|firebase/storage\.rules$|firebase/rules/)'
 triggers='^firebase/functions/(src|emulator-test)/'
 if touches "$e2e" || touches "$triggers" || touches "$rules" || touches "$everything"; then

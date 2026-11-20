@@ -18,6 +18,8 @@ export { AreaSwitcher } from './AreaSwitcher';
 export type { AreaSwitcherItem, AreaSwitcherProps } from './AreaSwitcher';
 export { NavItem } from './NavItem';
 export type { NavItemProps, NavItemRenderProps } from './NavItem';
+export { NavAction } from './NavAction';
+export type { NavActionProps } from './NavAction';
 export { TopBar, TopBarToolsContext, topBarBackClass } from './TopBar';
 export type { TopBarProps } from './TopBar';
 export { Field, Input, Textarea } from './Field';
@@ -34,6 +36,44 @@ export { Tabs } from './Tabs';
 export type { TabItem, TabsProps } from './Tabs';
 export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
+export { ChangeMark } from './ChangeMark';
+export type { ChangeMarkProps, ChangeMarkStatus } from './ChangeMark';
+export {
+  DiffCode,
+  DiffFields,
+  DiffMedia,
+  DiffNote,
+  DiffRow,
+  DiffText,
+  DiffUnchanged,
+  DiffView,
+} from './Diff';
+export type {
+  DiffCodeProps,
+  DiffFieldItem,
+  DiffFieldsProps,
+  DiffMediaKind,
+  DiffMediaProps,
+  DiffNoteProps,
+  DiffRowProps,
+  DiffSide,
+  DiffStatus,
+  DiffTextPart,
+  DiffTextProps,
+  DiffUnchangedProps,
+  DiffViewProps,
+} from './Diff';
+export { Attachable } from './Attachable';
+export type { AttachableProps } from './Attachable';
+export { ChatActivity, ChatAttachments, ChatLog, ChatMessage, ChatTurn } from './Chat';
+export type {
+  ChatActivityProps,
+  ChatAttachment,
+  ChatAttachmentsProps,
+  ChatLogProps,
+  ChatMessageFrom,
+  ChatMessageProps,
+} from './Chat';
 export { Explanation } from './Explanation';
 export type { ExplanationProps, ExplanationVerdict } from './Explanation';
 export { EmptyState } from './EmptyState';
@@ -130,6 +170,7 @@ export {
   MonitorIcon,
   MoonIcon,
   MoreIcon,
+  PaperclipIcon,
   PenIcon,
   PlayIcon,
   PlusIcon,

@@ -10,20 +10,31 @@ import {
   Tabs,
 } from '@gurukul/ui';
 import type { TabItem } from '@gurukul/ui';
-import { useCallback, useState } from 'react';
+import { Suspense, lazy, useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useSession, useUser } from '../auth/AuthProvider';
 import { useAsync } from '../data/useAsync';
+import { isDesktop } from '../desktop/bridge';
 import { courseImageUrl } from '../learn/model';
 import { CourseLimitNotice, Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { pageFor } from '../paging';
 import { useTabParam } from '../useTabParam';
+import { DesktopDownloadCard } from './DesktopDownloadCard';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { CourseListing } from '@gurukul/schema';
 import { educatorSummary, canEdit, inTab, tabCounts } from './studioModel';
 import type { CourseTab } from './studioModel';
+import type { SessionStart } from './session/SessionLauncher';
+
+// The session code is fetched only inside the desktop app; a browser never asks for it.
+const SessionLauncher = lazy(async () => ({
+  default: (await import('./session/SessionLauncher')).SessionLauncher,
+}));
+
+/** "Edit with AI" on a card, inside the desktop app only. */
+type EditWithAi = ((course: CourseListing) => void) | null;
 
 const STATUS = {
   published: { tone: 'accent', label: 'Published' },
@@ -31,12 +42,22 @@ const STATUS = {
   archived: { tone: 'warning', label: 'Archived' },
 } as const;
 
-/** `/studio`: every course the person can see; the ones they may edit open in the course editor. */
+/**
+ * `/studio`: every course the person can see; the ones they may edit open in the course editor.
+ * Inside the desktop app it also offers "New course with AI" and, on each course they may edit,
+ * "Edit with AI" (`.plan/22-desktop-studio.md`, Starting a session); in a browser it shows the
+ * download card for that app instead (Download).
+ */
 export function StudioCoursesPage() {
   const { data } = useStudio();
   const { uid } = useUser();
   const admin = useSession().roles.includes('admin');
   const [creating, setCreating] = useState(false);
+  const desktop = isDesktop();
+  const [aiStart, setAiStart] = useState<SessionStart | null>(null);
+  const editWithAi: EditWithAi = desktop
+    ? (course) => setAiStart({ kind: 'edit', courseId: course.id, courseTitle: course.title })
+    : null;
   const t = useTerms();
   // Summaries only: no course and no draft is read until an editor opens.
   const result = useAsync(useCallback(() => data.listLiveCourses(), [data]));
@@ -49,17 +70,38 @@ export function StudioCoursesPage() {
         eyebrow={t.Studio}
         title={t.Courses}
         lead={`Build courses ${t.chapter} by ${t.chapter}.`}
-        actions={<Button onClick={() => setCreating(true)}>New course</Button>}
+        actions={
+          <>
+            {desktop ? (
+              <Button variant="secondary" onClick={() => setAiStart({ kind: 'new' })}>
+                New course with AI
+              </Button>
+            ) : null}
+            <Button onClick={() => setCreating(true)}>New course</Button>
+          </>
+        }
       />
+      {desktop ? null : <DesktopDownloadCard />}
       <Loaded loadable={result}>
         {(list) => (
           <>
             <CourseLimitNotice courses={list} />
-            <CourseTabs rows={list} uid={uid} admin={admin} onNew={() => setCreating(true)} />
+            <CourseTabs
+              rows={list}
+              uid={uid}
+              admin={admin}
+              onNew={() => setCreating(true)}
+              onEditWithAi={editWithAi}
+            />
           </>
         )}
       </Loaded>
       <NewCourseDialog open={creating} onClose={() => setCreating(false)} editable={editable} />
+      {desktop ? (
+        <Suspense fallback={null}>
+          <SessionLauncher start={aiStart} onClose={() => setAiStart(null)} />
+        </Suspense>
+      ) : null}
     </Page>
   );
 }
@@ -71,11 +113,13 @@ function CourseTabs({
   uid,
   admin,
   onNew,
+  onEditWithAi,
 }: {
   rows: CourseListing[];
   uid: string;
   admin: boolean;
   onNew: () => void;
+  onEditWithAi: EditWithAi;
 }) {
   const counts = tabCounts(rows);
   const [tab, setTab] = useTabParam(COURSE_TAB_IDS);
@@ -100,7 +144,13 @@ function CourseTabs({
       <>
         <ul className="sc-grid">
           {paged.rows.map((row) => (
-            <CourseCard key={row.id} live={row} uid={uid} admin={admin} />
+            <CourseCard
+              key={row.id}
+              live={row}
+              uid={uid}
+              admin={admin}
+              onEditWithAi={onEditWithAi}
+            />
           ))}
           <li className="sc-new">
             <Button variant="secondary" onClick={onNew}>
@@ -140,7 +190,17 @@ function CourseTabs({
  * on screen, two small reads add what the summary cannot know: whether the draft has edits not yet
  * published, and how many learners started it (`courseFacts`).
  */
-function CourseCard({ live, uid, admin }: { live: CourseListing; uid: string; admin: boolean }) {
+function CourseCard({
+  live,
+  uid,
+  admin,
+  onEditWithAi,
+}: {
+  live: CourseListing;
+  uid: string;
+  admin: boolean;
+  onEditWithAi: EditWithAi;
+}) {
   const { data } = useStudio();
   const status = STATUS[live.status];
   const editing = canEdit(live, uid, admin);
@@ -173,6 +233,18 @@ function CourseCard({ live, uid, admin }: { live: CourseListing; uid: string; ad
         live.status === 'draft'
           ? 'Not published yet. Open it to see the draft.'
           : `${live.chapters} ${t.chapters} · ${live.lessons} lessons · ${live.quizzes} ${t.Quizzes}`
+      }
+      action={
+        editing && onEditWithAi ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-label={`Edit with AI: ${live.title}`}
+            onClick={() => onEditWithAi(live)}
+          >
+            Edit with AI
+          </Button>
+        ) : undefined
       }
       meta={
         editing ? (

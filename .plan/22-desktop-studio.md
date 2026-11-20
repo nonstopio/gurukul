@@ -59,9 +59,9 @@ The design follows Anthropic's published rules for Claude Code
 
 So the desktop app **never sees a Claude credential**. It starts the `claude` program and reads
 its output. The app is called Gurukul Studio; its screens may say "runs Claude Code" in plain
-text and nothing more. Written confirmation from Anthropic is a maintainer item (`DSK-01`) and is
-required before the app is offered to Educators (the download card, `DSK-25`), not before
-building or releasing early versions.
+text and nothing more. The maintainer decided (2026-11-20) not to seek written confirmation from
+Anthropic: the published rules above allow this design, so nothing waits on it (`DSK-01`, open
+question 18).
 
 ## Architecture
 
@@ -109,12 +109,12 @@ Four decisions shape it:
 
 | Path | What | New |
 |---|---|---|
-| `apps/desktop/` (`@gurukul/desktop`) | Electron main process, preload bridge, MCP proxy script, installer config | yes |
+| `apps/desktop/` (`@gurukul/desktop`) | Electron main process, preload bridge, the agent's MCP endpoint, installer config | yes |
 | `apps/web/src/desktop/` | The one facade over `window.gurukulDesktop`; nothing else touches it (the pattern `analytics/` uses for `firebase/analytics`) | yes |
 | `apps/web/src/studio/session/` | Session store, course tools, chat panel, workspace, review screen, prompts and skills | yes |
 | `packages/schema/src/session.ts` | The session shape (zod) | yes |
 | `packages/schema/src/changes.ts` | The change engine: what differs between two working copies, down to the field. Imported as `@gurukul/schema/changes`, not from the package index, so its `diff` dependency stays out of the chunk every learner loads | yes |
-| `packages/schema/src/merge.ts` | Three-way merge of working copies | yes |
+| `packages/schema/src/merge.ts` | Three-way merge of working copies, built on the change engine's alignment and rows. Imported as `@gurukul/schema/merge`, for the same reason | yes |
 | `packages/schema/src/writingLint.ts` | The writing lint (pure, no AI) | yes |
 | `apps/web/src/studio/` editors, preview, publish dialog | Reused as they are | no |
 
@@ -131,19 +131,61 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | Call | Does |
 |---|---|
 | `info()` | Bridge version, app version, platform. An old shell with a new site shows "Update the app" |
-| `agent.status()` | Is Claude Code installed, which version, is it new enough |
-| `agent.start({ sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session |
-| `agent.send(sessionId, message)` / `agent.stop(sessionId)` | A message in; stop the current turn |
-| `agent.onEvent(handler)` | Streamed text, tool activity, turn end, errors (sign-in needed, plan limit reached) |
-| `agent.onToolCall(handler)` | A tool call from the agent; the web app runs it and returns the result |
+| `agent.status()` | Is Claude Code installed, which version, is it new enough, is the Educator signed in |
+| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start |
+| `agent.send(sessionId, message)` / `agent.stop(sessionId)` / `agent.close(sessionId)` | A message in; stop the current turn; end the session's process |
+| `agent.forget(agentSessionId)` | Deletes Claude Code's own copy of a chat, for the 30-day clean-up |
+| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id, errors (not installed, too old, not signed in, plan limit reached, crashed) |
+| `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
+| `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
-| `sources.choose / list / reveal` | The session's Sources folder |
+| `sources.choose / list / reveal / read` | The session's Sources folder; `read` takes one plain file name the listing gives |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
 | `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
 The web app reads the bridge only through `apps/web/src/desktop/bridge.ts`. In a browser that
 facade reports "not the desktop app" and every session page shows a card that says so, with the
 download link.
+
+As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
+
+- **Types live in the shell, importable without Electron.** `apps/desktop/src/bridge.ts` holds the
+  call names, argument and result types and the safe-name rule, and imports nothing; the web app
+  imports it as `@gurukul/desktop/bridge`. Not in `packages/schema`: these are not Firestore
+  shapes, and the schema package is in every learner's chunk.
+- **Every call returns a promise**, `info()` included: each one crosses to the main process.
+- **The whole version-1 contract exists from the start.** A call whose item is not built yet checks
+  its arguments, then refuses with "Not available in this version", so a site that calls it early
+  shows a message instead of crashing. Each area's handlers live in their own file
+  (`agentCalls.ts`, `sourcesCalls.ts`, `authCalls.ts`, `appCalls.ts`).
+- **Events (`on…`) go one way, main to window**, only to the window's top frame while it is on an
+  allowed origin. A subscription returns a function that ends it; the page's handler gets plain
+  data, never Electron's event object, and there is no way to listen on any other channel.
+- **The window names a session, never a path.** `sources.*` and `agent.start` take
+  `{ uid, sessionId }`: the shell remembers which folder the Educator picked for that session,
+  outside the session files the window can write, so a compromised page still reaches only the one
+  chosen folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
+  cancelled) is a result, not a rejection.
+- **The web app takes the types only** (`import type`, enforced by ESLint), so no shell code reaches
+  its bundle; `REQUIRED_BRIDGE_VERSION` in `apps/web/src/desktop/bridge.ts` decides "Update the
+  app".
+- **One gate for every call.** The main process registers a typed handler per call; before any
+  runs it checks that the sender is a top frame (no parent) on an allowed origin and that the
+  arguments pass the handler's zod schema. The preload also exposes the object only to the top
+  frame of an allowed origin, which reaches the sandboxed preload as a command-line flag.
+- **`store.*` takes `{ uid, sessionId, path }`.** `path` is relative and `/`-separated, at most four
+  names deep (`checkpoints/t4.json`). Every name is letters, digits, `.`, `_` or `-`, does not start
+  or end with a dot and is not a Windows device name, so no path can leave the session folder.
+  Writes go to a temporary file and are renamed into place; a file is at most 16 MB. `list({ uid })`
+  gives the person's session ids, `list({ uid, sessionId })` the session's files;
+  `remove` without `path` removes the whole session.
+- **Errors say little.** A refused call reaches the window as "Not allowed" or "Invalid
+  arguments"; a disk failure as `store.write failed (EACCES)`. Node's own messages are not passed
+  on or logged, because they hold home-folder paths.
+- **Permissions:** full screen (a lesson's video) and clipboard writes from Gurukul; everything
+  else (camera, microphone, location, notifications) is refused.
+- **The window** opens `/studio`, tries the page again every two seconds when it cannot load
+  (no network, dev server not started), and is single-instance: starting the app again focuses it.
 
 ### Starting Claude Code
 
@@ -154,27 +196,289 @@ claude -p --input-format stream-json --output-format stream-json --verbose \
   --append-system-prompt-file <session>/prompt.md \
   --plugin-dir               <session>/skills/ \
   --mcp-config               <session>/mcp.json \
+  --strict-mcp-config \
+  --setting-sources          "" \
+  --tools                    Skill \
   --allowedTools             "mcp__gurukul__*" \
   --permission-mode          dontAsk \
-  --resume                   <Claude session id, after a restart>
+  --system-prompt-snapshot   off \
+  --session-id               <new UUID, first start>  |  --resume <same UUID, every later start>
 ```
 
-- The working directory is the session's Sources folder, so the only files the agent can read
-  are the ones the Educator put there. `dontAsk` refuses anything not allowed instead of asking.
-- `mcp.json` names a small proxy script shipped in the app. Claude Code starts it; it connects
-  back to the main process over a local socket with a one-time token; the main process forwards
-  each tool call to the window and returns the answer.
-- Stop sends an interrupt. A plan limit or a missing sign-in arrives as an event and the chat
-  says what to do in plain words ("Open a terminal, run `claude` and sign in, then try again").
+Started with `GURUKUL_BRIDGE_TOKEN` in its environment. `mcp.json` holds only the reference
+`${GURUKUL_BRIDGE_TOKEN}`, which Claude Code expands, so the token is never written to a file or
+put on a command line.
+
+- **The environment is an allow-list, not the app's own.** Claude Code obeys environment
+  variables that the flags above do not touch: `ANTHROPIC_BASE_URL` sends every request, with
+  course text and answer keys, to another server (the spike steered `claude` that way itself);
+  `ANTHROPIC_API_KEY` or `CLAUDE_CODE_USE_BEDROCK` bills a key or a cloud account instead of the
+  Educator's plan; `ANTHROPIC_MODEL` changes the model. On Windows a user variable reaches every
+  app, so the bridge passes only: `PATH`, `HOME`, `USER`/`LOGNAME`, `USERPROFILE`, `APPDATA`,
+  `LOCALAPPDATA`, `SystemRoot`, `ComSpec`, `PATHEXT`, `TEMP`/`TMP`/`TMPDIR`, `LANG` and `LC_*`,
+  `CLAUDE_CONFIG_DIR` (an Educator who moved their Claude Code folder keeps their sign-in there),
+  `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` and `NODE_EXTRA_CA_CERTS` (company networks), and
+  `GURUKUL_BRIDGE_TOKEN`. Everything else is dropped, `ANTHROPIC_*`, `CLAUDE_CODE_*`
+  (`CLAUDE_CODE_OAUTH_TOKEN` included: that Educator signs in with `claude` instead), `AWS_*`,
+  `NODE_OPTIONS` and `ELECTRON_*` among them. The allow-list is a constant in the bridge, tested.
+- **`--system-prompt-snapshot off`.** Claude Code 2.1.328 records the system prompt at a
+  conversation's first request and, by default (`on`), sends that record on every resume even
+  when `prompt.md` has changed. The web app hands over the prompt at every start (decision 4), so
+  a prompt fix must reach an open session after a restart: `off` renders it fresh each time.
+  Seen in the spike's review: a resume with a changed `prompt.md` sent the old prompt under the
+  default and the new one with `off`. The help says the default differs under `--bare`, so the
+  flag is pinned, not left to the default.
+- The working directory is the session's Sources folder. `--tools Skill` leaves the agent no
+  built-in tool but the one that loads skills, so it reads sources only through `read_source`.
+  `dontAsk` refuses anything not allowed instead of asking.
+- `--setting-sources ""` and `--strict-mcp-config` keep the Educator's own settings, hooks,
+  skills, notes (`CLAUDE.md`) and MCP servers out, and a `CLAUDE.md`, `.mcp.json` or
+  `.claude/settings.json` dropped into Sources too.
+- `mcp.json` names an HTTP MCP endpoint the main process serves on `127.0.0.1`, with the header
+  `Authorization: Bearer ${GURUKUL_BRIDGE_TOKEN}` and a token minted for that one `claude`
+  process. The main process forwards each tool call to the window and returns the answer. No
+  proxy process, so the packaged app keeps Electron's `RunAsNode` fuse off (Privacy and
+  security). The fallback, if the signed-in check (`DSK-26`) finds the HTTP endpoint wanting, is
+  the stdio proxy the spike also proved, which needs that fuse on.
+- Stop sends a stream-json `interrupt` control request: the turn ends, the process stays. A plan
+  limit or a missing sign-in arrives as an event and the chat says what to do in plain words
+  ("Open a terminal, run `claude` and sign in, then try again").
 - No model picker in v1: Claude Code's own default is used.
 
-**To settle in the spike (`DSK-04`), before the bridge is built:** that stream input and the MCP
-proxy behave as documented on macOS and Windows; how to tell "not signed in" without spending
-plan usage; and how to keep the Educator's personal Claude Code hooks, plugins and notes out of
-the session. The documented switch for that (`--bare`) also skips the subscription sign-in, and
-the documentation says it will become the default for scripted runs, so the launch flags must be
-pinned and re-tested on new Claude Code releases. The spike's findings are written back into
-this section.
+As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`):
+
+- **`agent.status()`** finds `claude` on `PATH` (`claude.exe`, then `claude.cmd`, on Windows),
+  reads `claude --version` against `MIN_CLAUDE_VERSION` (2.1.328, what the flags were checked on)
+  and `claude auth status` for `loggedIn`, each with the allow-listed environment and a 15-second
+  limit. A `claude` that will not run is "not installed"; one that prints no version is "too old".
+  Nothing else `auth status` prints (it names the account) is kept.
+- **`agent.start()`** checks the same, mints the token, starts the endpoint, writes `prompt.md`,
+  the `skills/` plugin (replaced whole each time) and `mcp.json`, starts `claude`, then sends the
+  `initialize` control request: `tokenSource: "none"` ends the process and answers
+  `not_signed_in` before any message is sent; no answer within 30 seconds, or an exit first (an
+  unknown `--resume` id), answers `crashed`. A second start of a running session answers its id.
+- **The session folder's agent files are the shell's.** `prompt.md`, `skills/`, `mcp.json` and the
+  empty working folder `workdir/` (used until `DSK-20` gives a Sources folder, or when the chosen
+  one has gone) are `AGENT_SESSION_NAMES` in `bridge.ts`: `store.write` and `store.remove` refuse
+  them in any case (`MCP.json` is `mcp.json` on macOS and Windows), because a plugin folder can
+  carry hooks and `mcp.json` can name a program to run.
+- **Events.** Without `--include-partial-messages` (not pinned) text arrives a whole assistant
+  text block at a time, each a `text` event. Thinking and the `Skill` tool become `activity`
+  ("Thinking", "Loading the humanize skill"); a course tool's `tool_call` event comes from the
+  endpoint when the call arrives, with the same `callId` as `agent.onToolCall`. An assistant
+  `error`, an `api_retry` with `authentication_failed` or `rate_limit`, or a `rate_limit_event`
+  with `status: "rejected"` (its `resetsAt` becomes the plan limit's reset time; the shape is the
+  Agent SDK's, unconfirmed until `DSK-26`) is reported once per turn and the turn interrupted;
+  that turn ends `failed`. A turn ended by Stop ends `stopped`. A process that ends unasked ends
+  its turn `failed`, then reports `crashed` with its exit code.
+- **Tool calls** wait 120 seconds for `agent.toolResult`; then, or when no window is open, the
+  model gets a sentence saying so. Only the tools `agent.start` listed are offered or run. The SDK's
+  stateless transport answers with its default (SSE), as in the spike.
+- **Closing** closes `claude`'s input, SIGTERM after 5 seconds, SIGKILL 5 seconds later. Quitting
+  the app ends every `claude`, a starting one too, by closing its input and sending SIGTERM in the
+  same moment: no timer outlives the app, and a `claude` with only its input closed would finish
+  its turn after the app had gone.
+- **`agent.forget(id)`** deletes `projects/*/{id}.jsonl` and a `{id}` folder beside it under
+  `CLAUDE_CONFIG_DIR` (else `~/.claude`), reading no other file there.
+- **Windows** is started through `cross-spawn` (MIT), which runs `claude.cmd` via `cmd.exe` with
+  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Proved against
+  the fake in CI on Windows since `DSK-22` (below); the real `claude` there is `DSK-26`.
+- **Tests** never start the real `claude`: `apps/desktop/test/fixtures/fake-claude.mjs` speaks the
+  stream-json above, checks the flags as strictly as 2.1.328 does, keeps a transcript where Claude
+  Code would, and makes its tool calls over the real endpoint with the SDK's client. `DSK-24`
+  reuses it.
+
+**The one-shot ask (`DSK-18`, `apps/desktop/src/agent/ask.ts`, `askArgs` in `launch.ts`).** The
+answer check needs one question answered apart from any session, so the shell runs a second,
+short-lived `claude`:
+
+```
+claude -p --input-format stream-json --output-format stream-json --verbose \
+  --strict-mcp-config --setting-sources "" --tools "" --permission-mode dontAsk \
+  --no-session-persistence
+```
+
+with the same allow-listed environment (no token: there is no endpoint), in an empty folder of its
+own (`{userData}/ask`), never a Sources folder. The prompt is the one stream-json message, never
+an argument; the input is then closed, and the reply's text blocks are the answer. No tools at all
+(`--tools ""`, so no skill loads either), no MCP server (`--strict-mcp-config` with no
+`--mcp-config`), none of the Educator's settings, and no chat kept in Claude Code's folder
+(`--no-session-persistence`: such a chat cannot be resumed, which a one-shot never is). A sign-in
+or plan-limit signal ends it at once, as in a session; otherwise it has 180 seconds, and
+`agent.cancelAsk` ends it. At most two run at once (`MAX_ASKS_RUNNING`, over every session); more
+answer `busy`. A reload of the page or a closed window ends every running ask (`cancelAsks`), so a
+page nobody waits on does not hold the places. The
+spike notes do not show `--json-schema`, so the shell asks for nothing structured: the web app's
+prompt asks for a JSON object and the web app reads and checks it with zod, and the shell stays a
+plain proxy. The call is added to version 1 without raising `BRIDGE_VERSION`: it breaks nothing
+an older site does, and a newer site finds the function missing on an older shell and asks for
+the update. Every way an ask ends without an answer is a result, not a rejection.
+
+The flags are pinned to what the spike saw on Claude Code 2.1.328 and are re-tested on each new
+Claude Code release: the documentation says `--bare` will become the default for scripted runs,
+and `--bare` never reads the subscription sign-in. What the spike settled, and what still needs a
+signed-in macOS and Windows machine, is below.
+
+#### Spike findings (Linux, 2026-11-19)
+
+`DSK-04`, run in a Linux container with Claude Code 2.1.328, Electron 45.2.3 and
+`@modelcontextprotocol/sdk` 1.32.2. No Claude credential was read or printed and no usage was
+spent. Every `claude` ran as an unprivileged user, with an empty environment, an empty `HOME` and
+`CLAUDE_CONFIG_DIR`, inside a network namespace with no route out. Unsetting the four
+`ANTHROPIC_*`/`CLAUDE_CODE_OAUTH_TOKEN` variables was not enough there: the container's host
+supplies a sign-in by another route, and `claude auth status` still said `loggedIn: true`. Where a
+model reply was needed, `claude` was pointed with `ANTHROPIC_BASE_URL` and a dummy key at a local
+stand-in for the Messages API that returns a scripted tool call (no model, nothing leaves the
+machine). That stand-in proves the plumbing, not Anthropic's real replies.
+
+**Flags.** All of the plan's flags exist. `--append-system-prompt-file` (and
+`--system-prompt-file`) work but are not in `claude --help`; a missing file fails at start
+(exit 1, `Error: Append system prompt file not found`). `--output-format stream-json` with `-p`
+refuses to start without `--verbose`. Unknown flags fail at start with exit 1.
+
+| Flag | What it did | Use |
+|---|---|---|
+| (the plan's original flags only) | The Educator's `CLAUDE.md`, a `CLAUDE.md` in Sources, their personal skill, their hooks *and hooks from `Sources/.claude/settings.json`* all reached the session | Not enough |
+| `--strict-mcp-config` | Only `mcp.json`'s server started; user and Sources `.mcp.json` servers did not | Pin |
+| `--setting-sources ""` | Kept out every `CLAUDE.md`, personal skills, user and project hooks; `--plugin-dir` skills and `--mcp-config` still load | Pin |
+| `--tools Skill` | Built-in tools gone (no Bash, Read, Write, Edit, WebFetch, Agent); skills still load; MCP tools still offered | Pin |
+| `--tools ""` | As above, but skills cannot load (no `Skill` tool) | Only if skills move into the prompt |
+| `--disable-slash-commands` | Removes every skill, ours included | No |
+| `--safe-mode` | Also drops `--mcp-config` servers and `--plugin-dir` skills | No |
+| `--restricted` | Keeps Write, Edit and Read; ignores settings files | No |
+| `--bare` | Keeps everything personal out, but its help says OAuth and keychain are never read: no subscription | No |
+| `--permission-mode dontAsk` | A Bash call the model made anyway was refused and listed in the result's `permission_denials`; the `Skill` tool runs without being in `--allowedTools` | Pin |
+| `--session-id <uuid>` | Sets the Claude session id on the first start; reusing it on a later start fails (`Session ID … is already in use`, exit 1) | Pin, first start |
+| `--resume <uuid>` | Reloads the history and keeps the same `session_id`; worked from a different working folder too | Pin, later starts |
+| `--system-prompt-snapshot off` | Default `on` resent the first start's prompt on `--resume`, ignoring a changed `prompt.md`; `off` sent the new one (found in review of this spike) | Pin |
+
+With `--tools Skill` the model still sees Claude Code's built-in skills (`deep-research`,
+`design-sync` and the like) next to ours; without tools they can do nothing. Skills from
+`--plugin-dir` are plugin-shaped (`.claude-plugin/plugin.json`, `skills/<name>/SKILL.md`) and
+named `gurukul:<name>`; a folder of plugins loads each child (per `--help`, not tried).
+
+**Not signed in, without spending usage.** Three signals, in the order the bridge uses them:
+
+1. Before starting a session: `claude auth status` (JSON by default). Signed out: exit 1,
+   `"loggedIn": false`, `"authMethod": "none"`. With a credential: exit 0 and `"loggedIn": true`
+   (seen for an OAuth sign-in supplied by the container's host and for an API key). It works
+   with no network and does not check the credential is still valid: a dummy API key also
+   reports `loggedIn: true`.
+2. Once started, before the first message: the stream-json `initialize` control request
+   (`{"type":"control_request","request_id":"…","request":{"subtype":"initialize"}}`) answers at
+   once with `account.tokenSource` (`"none"` signed out) and, for a key, `account.apiKeySource`.
+3. In a turn: signed out, the turn ends within a second with an `assistant` event carrying
+   `"error": "authentication_failed"` and the text `Not logged in · Please run /login`, then a
+   `result` with `"is_error": true` and `"terminal_reason": "api_error"` (its `subtype` is still
+   `success`). `total_cost_usd` is 0. A rejected credential (HTTP 401) and a rate limit (429)
+   instead arrive as `system` events with `subtype: "api_retry"` and `error:
+   "authentication_failed"` or `"rate_limit"`, `attempt`, `retry_delay_ms` and `max_retries: 10`,
+   with growing delays (seven retries in the first 40 seconds) before the turn would fail; the
+   bridge shows the message on the first one and stops the turn.
+
+Nothing is printed to stderr in any of these cases; exit codes only say how the process ended.
+
+**Stream input and output.** No `system`/`init` event comes until the first message; then one
+comes at the start of every turn, carrying `session_id`, `tools`, `mcp_servers` (with `status`:
+`connected`, `failed`), `plugins`, `skills`, `apiKeySource` and `claude_code_version`. Every
+message event carries `session_id`. A turn ends with exactly one `result`. Messages written
+before `init` are queued, and the process stays up between turns. `claude --version` prints
+`2.1.328 (Claude Code)`.
+
+**Stopping.**
+
+| Action | During a turn | While idle |
+|---|---|---|
+| `interrupt` control request | The turn ends (`[Request interrupted by user]`, then `result` with `subtype: "error_during_execution"`, `terminal_reason: "aborted_streaming"`); the process stays and takes the next message | Answers `success`, nothing else |
+| SIGINT | The same turn end, then the process exits 0 | Exits 0 |
+| SIGTERM | — | Exits 143 |
+| SIGHUP | — | Exits 129 |
+| Close stdin | Waits for the turn to finish, then exits | Exits 0, or 1 if the last turn failed |
+
+So Stop is the control request, closing a session is closing stdin (SIGTERM after a grace
+period), and SIGINT is not used.
+
+**The MCP round trip.** Two transports were proved; the bridge uses the first.
+
+*HTTP endpoint in the parent (chosen).* The parent served MCP over HTTP on `127.0.0.1` (the SDK's
+`StreamableHTTPServerTransport`, stateless) and refused any request without
+`Authorization: Bearer <token>`. `mcp.json` gave `"type": "http"`, the URL and
+`"headers": { "Authorization": "Bearer ${GURUKUL_BRIDGE_TOKEN}" }`, and the token was only in
+`claude`'s environment. Signed out, with the pinned flags and no message sent, `mcp_status`
+showed the server `connected` with its tools; with a wrong token it showed `failed`, `Server
+rejected the configured Authorization header (HTTP 401)`, and Claude Code does not fall back to
+OAuth when that header is set. With the stand-in API, a `mcp__gurukul__get_course` call reached
+the parent and its answer came back as a `tool_result`; the turn ended `success`. One catch:
+`mcp_status` echoes the header with the token expanded, so the bridge never logs control
+responses. No proxy process, no socket path, no named pipe and no `RunAsNode`.
+
+*Stdio proxy (fallback).* A stdio proxy built on the SDK's low-level `Server` forwards
+`tools/list` and `tools/call` over a Unix socket (mode 0600) to the parent, which answered from a
+fixed tool list. Driven by the SDK's own client: list, a call and an unknown tool (returned as
+`isError`) round-trip in about 150 ms, and a wrong or reused token is refused. Started by
+`claude` through `--mcp-config`, the proxy connects and lists its tools even signed out, and with
+the stand-in API a `mcp__gurukul__get_course` call travelled claude → proxy → parent and back
+into the next request as a `tool_result`. Findings that hold for either transport, and for the
+proxy:
+
+- The token is for one `claude` process, not one connection attempt: a resumed process given
+  the previous token was refused and its server showed `"status": "failed"`. Each start mints a
+  new token; it dies with the process.
+- Put the token in the `claude` process's environment. `mcp.json`'s `env`, `${VAR}` references
+  and plain inheritance all work, but the `mcp_status` control request echoes `mcp.json`'s
+  `args` back, so the token must never be an argument.
+- The proxy runs under the app's own binary: `command` is Electron's executable with
+  `ELECTRON_RUN_AS_NODE=1` in `env`. That needs Electron's `RunAsNode` fuse left on in the
+  packaged build, which lets any local program run code as the signed app (Privacy and
+  security). This is why the HTTP endpoint is chosen.
+
+**Electron.** From an Electron 45.2.3 main process under `xvfb-run`, with a hidden sandboxed
+window: `child_process.spawn` of `claude` with piped stdio; `initialize`; one message; a tool call
+through the proxy; an interrupted turn; the next message on the same process; SIGINT during a
+turn; a restart with `--resume`; close stdin. All behaved as above. One trap: an ESM main file
+that does a top-level `await app.whenReady()` never becomes ready (the ready event waits for the
+entry module to finish evaluating); start from `app.whenReady().then(main)`.
+
+**Where Claude Code keeps the chat.** Under the Educator's own Claude config folder
+(`CLAUDE_CONFIG_DIR`, else `~/.claude`): `projects/<Sources path, every non-alphanumeric character
+a dash>/<session id>.jsonl`, mode 0600, with every message and tool result, so course text and
+answer keys. It also lists the session in their own `claude --resume`. `--no-session-persistence`
+is no answer: such a session cannot be resumed. The 30-day clean-up removes it (Where it is
+kept). `claude purge <Sources path>` deletes every session of that Sources folder, an open one
+included, so the bridge deletes the one file instead. An empty `projects/<…>/memory/` folder is
+created too.
+
+**Still needs a signed-in macOS and Windows machine** (none of it could be done here):
+
+- A real model round trip with the pinned flags and the HTTP endpoint: one message, one
+  `gurukul` tool call, a skill loaded, Stop (the spike stopped a streaming turn only; the check
+  stops one with a `gurukul` call pending), resume.
+- The one-shot ask's flags (`DSK-18`): that `--tools ""` with stream-json input and
+  `--no-session-persistence` answer one message and exit once the input closes, and keep no
+  `projects/…/{id}.jsonl`. The fake `claude` assumes both; the signed-in check does not run an
+  ask yet.
+- The subscription sign-in with `--setting-sources ""` and the allow-listed environment: that a
+  Claude plan sign-in (keychain on macOS, the credentials file on Windows) still works, and what
+  `auth status` and `initialize` report for it. An Educator whose sign-in comes from their settings (`apiKeyHelper`, or a cloud
+  provider set in `settings.json`) loses it under `--setting-sources ""`; what to tell them is
+  open.
+- What a real plan limit looks like in the stream (the `rate_limit_event` event, `api_retry` with
+  `rate_limit`, or both) and its reset time.
+- Windows: spawning `claude.exe` (native install) and `claude.cmd` (npm install, which Node
+  starts only through a shell), stopping without POSIX signals (the control request and closing
+  stdin should suffice), paths with spaces, and where the transcript lands.
+- macOS: the packaged, hardened, notarised app with its fuses set serving the HTTP endpoint; that
+  no firewall prompt appears for a `127.0.0.1` listener.
+- Only if the stdio proxy is needed after all: the named pipe on Windows; on macOS a socket path
+  under 104 bytes (a short temporary folder, not `Application Support`) and the hardened runtime
+  with `ELECTRON_RUN_AS_NODE`.
+
+These are `DSK-26`. The maintainer runs them with one command on each signed-in machine,
+`npm run check:claude -w @gurukul/desktop` (`apps/desktop/src/agent/signedInCheck.ts`, steps in
+`docs/desktop-release-setup.md`): it drives the shipped agent manager, flags, environment and
+endpoint against the real `claude`, with a `ping` tool and a test skill, prints a block to paste,
+and asks first because it uses a few messages of the plan. The packaged app's firewall prompt and
+the stdio fallback stay hand checks.
 
 ### Signing in to Gurukul
 
@@ -184,6 +488,45 @@ redirect, a "Desktop" OAuth client), receives an ID token, and the web app calls
 `signInWithCredential`. The `@nonstopio.com` check stays where it is, in the security rules. The
 OAuth client is a maintainer item (`DSK-02`); how its client id reaches the build without
 tripping the secret guard is open question 22.
+
+As built in `DSK-09`:
+
+- **The flow** (`apps/desktop/src/googleSignIn.ts`): OAuth 2.0 for installed apps. Each call makes
+  a fresh PKCE verifier (S256) and a random `state`, listens once on `127.0.0.1` at a port the
+  system picks (redirect URI `http://127.0.0.1:{port}`), and opens Google's consent page with
+  `shell.openExternal` (`prompt=select_account`, `hd=nonstopio.com` as a hint only). The redirect
+  must carry that `state`; anything else is answered "This sign-in has ended" and ignored, so a
+  local program cannot end or hijack it. The code is exchanged at `oauth2.googleapis.com/token`
+  with the verifier through Electron's `net.fetch` (the system proxy applies), and only the
+  `id_token` goes to the window: the access token is dropped, no refresh token is asked for or
+  kept, nothing is written to disk, and no token, code, verifier or secret is logged. The tab
+  says, in plain words, to go back to the app, and the app's window comes to the front.
+- **Endings.** Five minutes without the browser coming back is `timeout`; Cancel on Google's page
+  is `cancelled`; a second call while one waits replaces it (the first answers `cancelled`, its
+  listener closes), so pressing Sign in again after closing the tab just works: in the desktop app
+  the sign-in button stays usable while the browser waits (no spinner), and the waiting hint says
+  so. A token that
+  arrives after the time is up is thrown away.
+- **Contract change:** `GoogleSignInResult`'s reasons gained `not_configured`, for a build made
+  without a client id (a development build with nothing set). Not a breaking change: no site used
+  the call before, so `BRIDGE_VERSION` stays 1.
+- **The web side** (`apps/web/src/auth/service.ts`, the `AuthService` port): in the desktop app
+  (`desktopBridge()` not null) `signIn` calls `auth.googleSignIn()` and then
+  `signInWithCredential(GoogleAuthProvider.credential(idToken))`; in a browser nothing changed
+  (popup, redirect on iOS). Cancelled is quiet, like a closed popup; timeout, not configured and a
+  shell too old for the call ("Not available in this version") each show their own sentence; any
+  other failure shows "Sign-in did not finish". While it waits, the sign-in page says the browser
+  opened. The account check in `AuthProvider` and the rules applies to this sign-in as to any.
+- **The client id and secret** are build-time configuration (open question 22, resolved):
+  `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID` and `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET`, written into
+  `dist/main.cjs` as string literals by `apps/desktop/scripts/bundle.ts` (esbuild `define`), from
+  GitHub Actions secrets in the release build and from the environment or a gitignored
+  `apps/desktop/.env` in development (`apps/desktop/.env.example`). The packaged app never reads
+  them from the Educator's environment. Unset, the call answers `not_configured`.
+- **For `DSK-02`:** Firebase Auth accepts an ID token from another OAuth client of the same Google
+  Cloud project; a client in another project must be added to the Google provider's allow-list in
+  the Firebase console. **For `DSK-21`:** the release workflow's build steps pass the two secrets
+  as environment variables to `npm run build -w @gurukul/desktop`.
 
 ## Sessions
 
@@ -219,7 +562,8 @@ not strings, because Review ticks each one and `set_summary` sets "goals with do
 
 The schema also holds the rules a file must keep: an edit session has a course and a base; a base
 always belongs to a known course, and a new-course session gains both together at its first save
-(keeping `kind: 'new'`); the working course's id and the base's are the session's `courseId`;
+(the schema allows `kind: 'new'` with both; `DSK-16` makes it `kind: 'edit'` then, As built in
+`DSK-16`); the working course's id and the base's are the session's `courseId`;
 checkpoints are plain file names, so a session file cannot point outside its folder; turn and
 to-do ids are unique.
 
@@ -227,13 +571,61 @@ to-do ids are unique.
 
 On the laptop, under the app's data folder, per signed-in person:
 `sessions/{uid}/{sessionId}/` with `session.json`, `checkpoints/{turnId}.json` (a full working
-copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), `prompt.md`, `skills/`
-and `mcp.json`. Source material lives where the Educator can see it:
+copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and the agent's own
+`prompt.md`, `skills/`, `mcp.json` and empty `workdir/`, which only the main process writes. Source material lives where the Educator can see it:
 `Documents/Gurukul Studio/{course slug}/sources/`.
+
+As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/desktop/src/sources.ts`,
+`apps/web/src/studio/session/sources.ts`, `SourcesOffer.tsx`):
+
+- **The shell keeps the choice**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
+  path), beside the session folders and not in one, so no `store.*` call can write it. Removing a
+  whole session (`store.remove` without `path`) forgets it; a choice whose session folder does not
+  exist is forgotten when the app starts, which covers a start dialog closed after choosing.
+- **The start dialog makes the session's id** before the session exists (`StartRequest.id`), because
+  `sources.choose` names a session; `start` then uses that id.
+- **`sources.choose`** opens the system folder dialog in `Documents/Gurukul Studio/{suggestedName}/sources`
+  (created on demand; the course slug for an edit, nothing for a new course, which starts in
+  `Documents/Gurukul Studio`), or in the folder already chosen. A folder inside the app's own data
+  is refused (it holds every session's answer keys). The chosen folder is `claude`'s working
+  directory at the next `agent.start`.
+- **`sources.list`** gives plain files directly in the folder: no folders, no name starting with a
+  dot, no symbolic link that ends outside the folder; at most `MAX_SOURCE_FILES` (1,000), the first
+  by name. The display path writes the home folder as `~`.
+- **`sources.read`** reads only a name that listing gives, opened without following links where the
+  system allows (`O_NOFOLLOW`; not on Windows), of a text type (`SOURCE_TEXT_EXTENSIONS` in
+  `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
+  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB). A file it will not read rejects with
+  one of `SOURCE_REFUSALS`, a sentence `read_source` hands the agent ("save it as text or
+  Markdown"). It logs the size read, never a path, a file name or the text.
+- **`sources.reveal`** opens the folder in Finder or Explorer. When the system cannot (the folder
+  was moved or deleted), it rejects with a fixed sentence, never the system's words with the path
+  in them, and the window says the folder could not be opened.
+- **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
+  answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
+  The session runtime (`createAgentSession`, `DSK-13`) uses it by default and passes it to
+  `defaultToolContext`.
+- **From the workspace** (`DSK-20`'s second half, `SourcesPanel.tsx`), a Sources tab beside Preview and
+  Outline shows the session's folder: read with `sources.list` each time the tab opens (files added in
+  Finder meanwhile appear), its display path and plain files with their sizes (25 to a page), Choose a
+  Sources folder or Change folder, Show in Finder or Explorer, and the notice that what the agent reads
+  is sent to Anthropic under the Educator's own Claude account. A saved or discarded session has no
+  Sources tab. `list_sources` and `read_source` ask the shell on every call, so a folder chosen or
+  changed mid-session is read from the next message on; `claude`'s working folder changes at the next
+  `agent.start`, which is safe because `--resume` works from a different working folder (Spike
+  findings).
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or
 discarded (the title, summary and counts are kept as history).
+
+Claude Code keeps a second copy of the chat, tool results and so answer keys included, in the
+Educator's own Claude config folder: `projects/<Sources path>/<Claude session id>.jsonl`
+(Starting Claude Code, Spike findings). The same 30-day clean-up removes it: the main process
+deletes the one file named by the session's Claude session id (and a folder of that name beside
+it, if any), found by that id under `projects/*/`, because the folder name is Claude Code's own
+encoding of the path. It does not use `claude purge <Sources path>`, which would also delete a
+newer session of the same course.
 
 ### Rules
 
@@ -242,8 +634,11 @@ discarded (the title, summary and counts are kept as history).
 - Closing the app, signing out or losing the network keeps the session.
 - **Discard** needs a typed confirmation of the course title when the session has more than five
   changes; the stored draft is untouched.
-- A session can be saved more than once: after Save to draft it stays open with the new draft as
-  its base ("Saved 11 changes. Keep working, or close the session"). Closing marks it `saved`.
+- **Save to draft closes the session** (changed in `DSK-15`): it is marked `saved` and shows what
+  was saved, with the course editor and Publish…. More work on the course is a new session, which
+  starts from the draft just saved. (The plan first kept a saved session open with the new draft
+  as its base; its turns, checkpoints and Undo all measure from the copy the session started
+  from, so a session that kept going after a save would undo past what the draft now holds.)
 - The agent never publishes, never changes who can open a course, never deletes a course.
 
 ### Starting a session
@@ -252,6 +647,47 @@ From the Studio course list in the desktop app: **New course with AI** and, on e
 person may edit, **Edit with AI**. The start dialog asks for the goal in one free-text box and
 offers the Sources folder. For a new course it asks nothing else; title and slug are settled at
 the first save, when the content exists.
+
+As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.tsx`):
+
+- **The goal is one box of at most 300 characters** (what `goalSchema` holds). It becomes the
+  session's first goal, and its first sentence, cut on a word at 80 characters, the title until
+  the agent sets one (`set_summary`).
+- **Before any read,** the dialog looks at the local files: an open session on that course turns
+  the dialog into "You already have a session on this course" with **Open the session**, and no
+  draft is read. "New course with AI" lists the new-course sessions still open, to pick one up.
+  `start` checks again, so a session opened meanwhile is offered, not doubled.
+- **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person
+  as its Educator, level Foundation and the forest cover: `courseId` stays null, so the schema
+  ignores the id until the first save gives the real slug.
+- **The 30-day clean-up (`sweep`) runs on each visit to the Studio course list in the app.** For a
+  session closed 30 days ago or more (closing is its last change, so `updatedAt` says when) it
+  writes `history.json` (title, summary, counts of turns, changes, goals done, to-dos left, and the
+  Claude session id still to forget), removes every other file with `session.json` last, so a
+  crash midway is retried whole, then calls `agent.forget`. A forget that fails stays in
+  `history.json` and is tried again on the next visit. The agent bridge's own files (`prompt.md`,
+  `skills/`, `mcp.json`, `workdir/`, which `store.remove` refuses one by one) go with the whole
+  folder after `session.json`, and `history.json` is written again; a crash between those two
+  loses only the history line (integration of `DSK-10` and `DSK-11`).
+- **A folder the app cannot read** (a `session.json` that is damaged or written by a newer app, or
+  neither a session nor a history) still holds answer keys, and its closing date cannot be read.
+  The first sweep that finds it writes `unreadable.json` with that day and logs it at warn; the
+  sweep 30 days later removes the whole folder, keeping no history (its title is in the file that
+  cannot be read). A history still beside it is forgotten as usual first. Such a session cannot be
+  opened, so it does not count as the open session on its course: starting another is allowed,
+  rather than offering a session that would not open. A bump of `SESSION_SCHEMA_VERSION` must
+  therefore ship a migration of older files in `read`, or every older session becomes unreadable
+  and is removed 30 days later.
+- **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
+  the releases page, `DESKTOP_RELEASES_PAGE` in `desktop/download.ts`, the one address the download
+  card (`DSK-25`) uses too (`DSK-29`). In the
+  app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
+  (`DSK-13`). Global search offers sessions as records ("Session"),
+  only inside the app.
+- The start dialog already says that the course and the goal go to Anthropic under the Educator's
+  own Claude account, and to leave out client names and internal documents; the Sources offer
+  (`DSK-20`, "Choose a Sources folder") sits between the goal and that notice and says that what
+  the agent reads is sent to Anthropic too.
 
 ## The session workspace
 
@@ -297,6 +733,206 @@ only inside the desktop app).
   drawer over the preview. Below 640px the page says it needs a wider window, like the rest of
   Studio.
 - The header count and checks update after every turn. **Review** is always available.
+
+As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agent.ts`,
+`useAgentSession.ts`, `transcript.ts`, `activity.ts`), before any screen uses it:
+
+- **One runtime per open session** (`createAgentSession`), plain TypeScript, with a thin hook
+  (`useAgentSession({ desktop, uid, sessionId })`) over `useSyncExternalStore`. Its view is the
+  status, the problem, the transcript, the activity line, the working copy, the base,
+  `courseChanges(base, work)`, the turns with their counts, the running turn's count so far, and
+  whether Send, Stop and Undo apply. Statuses: `loading`, `missing`, `closed` (saved or discarded:
+  shown, never changed, no agent started), `connecting`, `unavailable`, `ready`, `working`,
+  `stopping`, `undoing`.
+- **Opening** reads `session.json` and `transcript.jsonl`, asks `agent.status()`, then
+  `agent.start()` with `agentSetup()` and `resumeId` = the session's `agentSessionId`. That id is
+  written only from a `turn_end`, never from `agent.start`'s answer: Claude Code keeps no chat for a
+  session that was never sent a message, so resuming such an id would fail as `crashed`. Not
+  installed, too old, not signed in, plan limit and crashed are each their own problem with its
+  sentence (not signed in is "Open a terminal, run `claude` and sign in, then try again"); a refused
+  bridge call is `app` (with "Check for updates" when the shell lacks the call). **Retry** asks
+  again.
+- **Tool calls run one at a time**, in the order they arrive, each on the result of the one before
+  (`runToolIn` with the session's tools and `defaultToolContext(sources)`), and are answered with
+  `agent.toolResult`: the result text, or the tool's refusal. A result longer than the shell's
+  `MAX_TOOL_RESULT_LENGTH` is refused and changes nothing. Only tools change the working copy.
+- **Every `turn_end` is a turn**, whatever its outcome (`done`, `stopped`, `failed`): its count is
+  `courseChanges` against the working copy the previous saved turn left, then `saveTurn` writes its
+  checkpoint and the session, then the whole chat is written. A failed `saveTurn` keeps the turn's
+  changes in memory and shows "not saved"; the next turn that is written counts them, or Undo takes
+  them back (that unwritten turn is the newest, so Undo writes the session with the working copy
+  `session.json` already holds, and only then reaches the saved turns). A chat that cannot be
+  written is only logged: no course work is lost with it.
+- **A Claude session id with no turn left to write it is written at once.** The shell sends a
+  sign-in failure before the `turn_end` that carries the id; the error has already ended the turn,
+  so the later `turn_end` writes the id alone to `session.json` (never an unwritten turn's changes).
+  Kept only in memory, a closed app would lose it: the next open could not resume that chat, and the
+  30-day clean-up, which forgets Claude Code's copy by this id, would never remove it.
+- **Undo needs the copy from before the first turn.** A new course has no base, and after a save the
+  base is no longer the start, so the first turn's end also writes `checkpoints/start.json`, which
+  `saveTurn` never prunes. Undo reads the checkpoint of the turn before the newest (or
+  `start.json`), and the store's `undoTurn` drops the turn and its checkpoint file. Past the 30 kept
+  checkpoints it answers "no longer kept". Undo restores the working copy only (and, for a turn that
+  brought in a draft that moved, the base it replaced: `DSK-15`); the agent's title, summary, goals
+  and to-dos stay as they are.
+- **The agent is told about undone turns** with the next message, ahead of the Educator's words
+  ("[From Gurukul: the Educator undid your last turn…]"), because its own history still says it
+  made those changes. `MESSAGE_MAX_LENGTH` (60,000) leaves room for that note under the shell's
+  limit.
+- **Stop** is `agent.stop`; the `stopped` turn end then writes the turn like any other. An error
+  event for a plan limit leaves the session waiting (the next message clears it); any other error
+  ends a turn the agent left open as `failed` and makes the session `unavailable`.
+- **A turn already running when the page opened** (the page reloaded mid-turn; `agent.start`
+  answers the running process) is adopted at its first event or tool call, so its tool calls are
+  answered and its end is written. Its line is the Educator's message that started it: `send`
+  writes the chat as soon as the message is sent, not only at the turn's end, so the reloaded page
+  reads it and takes up that turn's id: the newest message, when nothing follows it under its id
+  (the agent's words and a turn's notices are written only at its end) and no turn is written under
+  it. An undone turn's id leaves the session's turns but its "Turn undone" notice follows its
+  message, so a newest message that never reached the disk is not mistaken for it. Only a turn with
+  no such message is "Carried on after the page reloaded". If `agent.status()`
+  said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
+  again.
+- **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
+  (`acquireAgentSession`); the last one to leave ends it at once, or, during a turn, when that turn
+  has been written. The `claude` process is not closed when the page goes: opening the session again
+  reuses it.
+- **The activity line** names what the agent does in plain words, one line per course tool
+  (`TOOL_ACTIVITY`, a test checks every tool has one), never a tool name.
+- **`transcript.jsonl`** holds one entry per line: the Educator's message, each streamed text block,
+  each activity line, and notices (stopped, did not finish, undone, the agent's problems), each with
+  its turn id. It is written when a message is sent and when a turn ends. At most 12 MiB of UTF-8
+  is kept (`TRANSCRIPT_MAX_BYTES`, 4 MiB under the shell's 16 MiB `MAX_FILE_BYTES`), the oldest
+  entries going first; counted in bytes, not characters, because Devanagari or Chinese takes 3
+  bytes a character and a cap in characters let a long chat pass the shell's limit, which refuses
+  the whole file. Damaged lines are skipped when read. Nothing in it is logged.
+
+As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.tsx`,
+`PreviewPanel.tsx`, `Problem.tsx`, `workspace.ts`; components `ChatLog`, `ChatMessage`,
+`ChatTurn`, `ChatActivity` and `ChangeMark` in `@gurukul/ui`):
+
+- **The header** is the focused layout's top bar: back to the Studio courses, the session title,
+  "N changes · checks pass" (or "· 1 check fails") and **Review**. The checks there are the two
+  that stop a save and need no read: Course is valid and Size. Draft is up to date needs a
+  Firestore read and stays with Review (`DSK-14`, read by `DSK-15`). There is no [⋯] menu yet:
+  Save to draft closes a session (`DSK-15`); Discard and a Close without saving are still to come.
+- **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
+  so the header stays and the shared runtime keeps the agent going between the two (`DSK-14` fills
+  it: As built in `DSK-14`, under Review). A turn's line links to `…/review?turn=<turn id>`: the
+  filter Review reads.
+- **The goal is not sent by itself.** A session nothing was said in yet opens with its goal in the
+  message box, so one press of Send starts the work and the Educator can reword it first. Sending
+  spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
+- **The chat** shows the Educator's messages (as typed), the agent's (as markdown, through the
+  player's renderer) and the app's notices; activity entries stay in `transcript.jsonl` but the log
+  shows only the live line, which says "Thinking" until the first activity of a turn. After each
+  finished turn a line "Turn 4 · 4 changes"; a turn that could not be written is listed too ("· not
+  saved", from the runtime view's `unsaved`) because it is the one Undo takes back first. Undo is
+  on the newest line only, behind a confirmation. Enter sends, Shift and Enter is a new line; the
+  next message can be typed during a turn but not sent. When the agent cannot run, a card with
+  the problem's sentence and **Check again** (or **Start it again** after a crash) takes the place
+  of the message box; a shell too old for a call adds **Update the app** (the sidebar item's check,
+  `useUpdateTheApp`). A plan limit, a turn not written and an Undo that cannot be done are notes
+  above the box. A saved or discarded session shows its chat and copy to read, with no box.
+- **The preview** is the learner's block renderer and the Studio preview's Quiz (`PreviewExam`,
+  moved out of `PreviewPage` and shared) over the working copy, one item at a time, picked from a
+  list numbered like the outline ("2.3 · Title (changed)") or with Previous and Next. It opens on
+  the first item that changed. Each added, changed or moved block, and each changed question, is
+  wrapped in a `ChangeMark`: a dashed hairline and a label with a sign and the words ("Changed ·
+  Text block"), its group named "changed: Text block". A removed block leaves a mark where it was,
+  placed as Review places it. Changes to the course details and landing page are not in the player;
+  Outline lists them.
+- **The outline** is the chapter tree with Added, Changed, Removed, Moved and Renamed chips, the
+  course details and landing page above it, removed chapters and items struck through where they
+  used to be; a present item opens in the preview.
+- **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
+  log scrolling inside. The bar's height is measured (`useBlockSize`, a `ResizeObserver` on the
+  `TopBar`'s header), not assumed: a session title of up to 160 characters wraps it to three lines
+  at 1024px, and an assumed one-line bar left the top of the chat under it. The log watches its own
+  height too: the bar is measured after the log has scrolled to its end, so a taller bar would leave
+  the newest message under the card's edge; a log at its end stays there, one the Educator scrolled
+  up in stays put. From 640px to 1023px a Chat button in the header opens it as a drawer
+  (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
+  it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
+  Studio's `DesktopOnly` asks for a wider window.
+
+As built in `DSK-20` (attaching; `apps/web/src/studio/session/attachments.ts`, the runtime's `attach`,
+`Attachable` and `ChatAttachments` in `@gurukul/ui`):
+
+- **An Attach button, not a click anywhere on the block.** Every block and question in the preview has
+  an Attach toggle beside it (`Attachable`, `aria-pressed`), shown on hover and on keyboard focus and
+  always while attached, when a solid outline and a tick mark the block. A click on the block itself
+  does nothing new: its own video, check or Copy must keep working, and a block that answered clicks
+  would be a control without a keyboard. The outline has the same toggle on each chapter, lesson and
+  Quiz still in the course, and on the course details and landing page rows when they are listed.
+  Saved and discarded sessions show none.
+- **Chips above the message box** name each attached part in plain words ("Lesson 3.2 · Text block 2",
+  "Quiz 2.4 · Question 3", "Chapter 2 · Rebase", "Course details"), each with a remove button. A block's
+  number is its place among all the lesson's blocks. Below 1024px the Chat button says "Chat · 2
+  attached". Sent, the message keeps its chips in the chat (the transcript entry's `attachments`).
+- **One API for every screen:** `attach(target)` and `detach(target or key)` on the session runtime (and
+  on `useAgentSession`), where a target is `{ kind: 'course' | 'landing' | 'chapter' | 'item' | 'block'
+  | 'question', ids, label }` and `ids` are the tools' own names (`chapterId`, `itemId`, `blockId`,
+  `questionId`). Review's Ask for a change (`DSK-14`) attaches its row through it. Attaching is possible
+  during a turn (the next message can be typed meanwhile); at most `MAX_ATTACHMENTS` (10) go with one
+  message, a label is cut at 120 characters, and ids are checked as the tools check them.
+- **What the agent gets:** the message starts, after any note about undone turns, with "[From Gurukul:
+  the Educator attached these parts of the course to the message below. …]" and one line per part, its
+  label and then `{"kind":…,…ids}` as JSON; the system prompt ("Attached parts of the course") says
+  what each kind means, which tool takes it, and never to repeat the ids. A test holds the longest
+  message, the undo note and ten parts with the longest labels and ids under the shell's
+  `MAX_MESSAGE_LENGTH`. Sending clears the parts; a message the app refuses keeps them.
+
+As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`,
+`useSessionDraft.ts`, the runtime's `edit`, `keepEdits` and `endEdits` in `agent.ts`,
+`apps/web/src/studio/editorPlace.tsx`):
+
+- **The route is `/studio/sessions/:sessionId/items/:itemId`**, the session page again (desktop app
+  only, unlisted in search): Studio's `LessonEditor` or `QuizBuilder`, picked by the item's type, an
+  unknown id showing the lesson editor's "Lesson not found". "Open in editor" is on the preview's
+  item header and, as a pen icon link, on each Outline row; Review links to the same route
+  (`sessionItemPath`). The back link ("Session") returns to the workspace opened on that item
+  (`?item=lesson:l2`). A saved or discarded session offers no link, and the route says it is closed.
+- **One `DraftApi`, two sources.** The editors take an `EditorPlace` (`draft` or `session`) for their
+  links, and a `DraftApi`: `useDraft` in Studio, `useSessionDraft` in a session. In a session an
+  edit changes the runtime's copy in memory at once and `session.json` a pause later
+  (`HAND_EDIT_WRITE_MS`, 1 s: a local file); no Firestore read or write and no `rev` check. The top
+  bar says "In the session · saved just now". The rail links to the session's other items; there
+  is no "Preview as a Learner" (the workspace is the preview).
+- **A session reads the draft once, so its editors leave out what reads or writes Firestore
+  besides it:** the Quiz builder's first-try scores (the course's stats document) and Save to
+  question bank. Import from the question bank stays: it reads the bank, not the draft, and only
+  when asked. Uploads go to Storage as in Studio, under the session's course; a new course has no
+  course to store them under until its first save, so its Upload tabs say so and offer the link.
+- **Leaving the editor makes the edits one turn by the Educator** (`by: 'educator'`, a checkpoint,
+  `courseChanges` against the copy before them, "Edited by hand: Why Git, Rebase check"), with
+  `checkpoints/start.json` first when it is the session's first turn, and a line in the chat
+  ("Turn 3 · by hand · 2 changes"). Chosen over a quiet period so one visit is one turn and the
+  agent never meets edits half made. Undo and Review treat it as any turn. The agent is told with
+  the next message (`HAND_EDIT_NOTE`), as it is after an Undo; undoing a hand-edit turn tells it
+  the same. What it is still to be told (turns undone, edited by hand) is kept in
+  `agent-note.json` until a message has carried it, so it is told even when the app closed, or
+  every screen let the session go, in between (the plan was silent; a counter in memory lost it).
+  The end runs on the next task after the editor unmounts, so React's development double mount
+  does not split one visit in two. Edits that come to nothing make no turn.
+- **Only between turns.** `canEdit` needs an open session with no turn running and no undo being
+  written; Claude Code need not be running. While a turn runs the route says the agent is working,
+  offers Back and Stop, and opens the editor once the turn is written. While hand edits are open,
+  Send and Undo wait. A turn the page did not start (adopted after a reload) first makes open hand
+  edits their own turn.
+- **The working copy must pass the course schema to be kept** (the plan was silent; a session file
+  holds only a valid course, but the editors pass through invalid states: an empty title, a new
+  question with no prompt). Such edits stay in memory ("not kept until complete"); leaving asks
+  first and drops them, back to the last copy written, there and then (`dropIncomplete`), also
+  when the move is to another item through the rail, which keeps the same editor and visit open.
+- **A crash loses no hand edit already written.** Before the first write, `editing.json` keeps the
+  copy from before them; opening the session again makes a turn of what `session.json` holds, then
+  removes it. It is also removed by the next turn written or by Undo of an unwritten turn.
+- **Opening the editor changes nothing by itself.** Studio stores the width and height of an image
+  linked without them once the picture loads; in a session that would be a hand-edit turn nobody
+  made (the seeded Git course's first lesson has such an image). So a session's lesson editor reads
+  a linked image's size only for an address typed there (`sizeLinkedImages` on `BlockScope`);
+  other unsized links get theirs the next time the course is opened in Studio.
 
 ## Review: the whole session at once
 
@@ -430,6 +1066,84 @@ Like the checks on a pull request. Two can stop a save; the rest inform.
 
 Each finding links to its row. Writing and Answers offer "Ask the agent to fix these".
 
+### As built in `DSK-14`
+
+`apps/web/src/studio/session/ReviewPanel.tsx` (the tab), `ReviewDiff.tsx` (one row compared),
+`ReviewChecks.tsx`, `review.ts` (pure view data), `revert.ts` (Undo this item); `DiffView`,
+`DiffRow`, `DiffText`, `DiffCode`, `DiffFields`, `DiffUnchanged`, `DiffNote` and `DiffMedia` in
+`@gurukul/ui`; the runtime's `updateReview` and `educatorTurn`.
+
+- **Contrast.** Body text on `--danger-soft` and `--accent-soft` is 10.9:1 and 11.0:1 in the light
+  theme, 10.8:1 and 9.7:1 in the dark (`--text-body`), so no new "removed" / "added" pair was
+  added. Removed words are struck through, added ones underlined, code lines carry − and +, and
+  each mark is named for a screen reader; the tints only repeat that.
+- **The list** groups rows under their chapter (`groupRows`), in `courseChanges` order, each a
+  button with its status chips and a tick once viewed; the open row has a chevron as well as
+  `aria-current`. The filter is a `Select` ("All changes", "Turn 4 · 4 changes"), not a row of
+  buttons, because a session can have hundreds of turns. A turn compares its checkpoint with the one
+  before it (`start.json` for the first), read from this computer when picked; past the 30 kept it
+  says the turn is no longer kept and offers all changes. The selected row and the turn live in the
+  address (`?row=`, `?turn=`), which the chat's turn lines already use.
+- **The summary** is edited with Edit summary (a box, Save summary, Cancel); each goal is a tick.
+  The goals' words are not edited in Review: they are what the Educator asked for. Both, and the
+  Viewed ticks, are written to `session.json` at once by the runtime's `updateReview` (in turn with
+  tool calls and turn ends, never the working copy, so a turn running meanwhile is written as
+  usual). An edit made while a turn end, an undo or an Educator's turn is being written is laid
+  back over what that write returns, so it stays on screen and goes into the next write; a tool
+  that saw the edit and then set the goals or summary otherwise wins.
+- **Views.** Side by side is offered from 1024px (`useSideBySide`) and falls back to Inline when the
+  window narrows; As a learner only for a lesson or Quiz, with Version (Before, After) when both
+  exist; an added or removed item opens there. Inline, options carry their letters before and
+  after ("B → A." for one that moved) and "(correct before)" or "(correct now)", so the line
+  "Correct answer changed: A → B" points at letters on screen. Text as Source or Rendered appears when a row has a
+  text or callout block whose words changed. An unchanged entry, or one only moved, is drawn once
+  across both columns (`DiffRow same`), so a screen reader does not hear it twice and two copies of
+  a code block do not make two landmarks of one name.
+- **A removed lesson** asks `completedCount` once, when its row is opened (a read; "—" while
+  counting, "Unavailable" if it fails). A Quiz is done when passed, not listed in
+  `completedItemIds`, so a removed Quiz has no count; Review says it leaves the course once saved
+  and published. A new course has no learners to count.
+- **Ask for a change** attaches the row (`rowTarget`: the course details, landing page, chapter,
+  lesson or Quiz, numbered as in the outline) through the runtime's `attach` and goes to the chat,
+  its drawer open below 1024px (router state, read once per arrival). Rows already gone from the
+  course offer none; Undo this item covers them. A message already carrying ten parts gets the
+  outline's sentence instead.
+- **Open in editor** links to `/studio/sessions/:sessionId/items/:itemId` (`DSK-19`) for a lesson
+  or Quiz still in the course.
+- **Undo this item** (`revertRow`) puts back the course details or landing page field by field, a
+  chapter's title and place (an added chapter only when empty; a removed one with its lessons that
+  are not elsewhere now), or a lesson or Quiz whole with its answer keys, `answersChanged` marked as
+  Studio marks it. A chapter, lesson or Quiz that only changed is put back where it is, so what the
+  session added around it keeps its place; a removed or moved one goes into its old chapter after
+  the nearest entry before it that is still there. A removed lesson whose id a Quiz now has (or the
+  other way round) is refused until that one is undone, since the id would be used twice. It is
+  written by `educatorTurn` as a turn of its own with `by: 'educator'` (checkpoint, count, a line in
+  the chat), so the chat's Undo takes it back, and the agent's next message starts with one fixed
+  sentence saying the Educator changed the course by hand (`HAND_EDIT_NOTE`, the same note hand
+  edits use, kept in `agent-note.json` until a message carries it, and counted in the message limit
+  test). It is offered only against the draft (a row of the whole session, not one only in a
+  turn's filter), not for a new course, not for a repeated id, and waits while a turn runs or hand
+  edits are open. A result the course schema refuses (31 chapters, say) is not written. The DSK-19
+  hand edits write their turn through their own `endEdits`, not `educatorTurn`: they are counted
+  against the copy before the visit and kept through a crash by `editing.json`.
+- **Review beside hand edits** (when the two met in one branch): a Review tick, goal or summary
+  written while hand edits are on disk starts from what `session.json` holds, so it never takes
+  them back off it, and one made while their turn is written is laid back over it, as for any turn.
+- **Checks** (`reviewChecks`): Course is valid and Size (warning from `COURSE_BYTES_WARN`) say
+  "stops Save"; `saveBlockers` names them for `DSK-15`. Draft is up to date reads "checked when you
+  save" until `DSK-15` reads the stored rev. Writing lints the rows still there (`lintScope`) and
+  keeps the notes on text the session changed (`onChangedText`): anything in an added row, a field
+  that changed, an outcome added or reworded, and a block or question added or changed, read whole
+  (its prompt, options and explanation belong together: "explain why the answer is right"). Ask
+  the agent to fix these attaches each row a note sits in (at most ten) and puts a prepared message
+  in the box, which the Educator sends. Answers says the second opinion comes with the answer check
+  (`DSK-18`). Ready to publish lists `validateForPublish` and informs only; each issue's Show goes
+  to its row by its code (`issueAt`: the item, the chapter by `PublishIssue.chapterId`, the landing
+  page, the course details, or none for `course.empty`). Left for you lists the
+  open to-dos. Findings are 25 to a page, each with Show for its row when one is listed.
+- **The footer** says "Left for you: N", links Keep working, and holds the place of Save to draft
+  (`DSK-15`), which reads "Save to draft comes next" until then. Nothing on the tab writes Firestore.
+
 ### Save to draft
 
 **Edit session.** The button says "Save 11 changes to draft". Its confirmation says: "This
@@ -459,6 +1173,195 @@ page says: "The draft was saved by Arjun at 14:10, after this session started." 
 The stored draft becomes the new base, Review is drawn again against it, and Save is offered
 again. Nothing is overwritten silently, and there is no "save anyway".
 
+`mergeWorking` and `resolveConflicts(result, choices)` (`packages/schema/src/merge.ts`, imported
+as `@gurukul/schema/merge`) do this, pure and without I/O. They match things the way Review does
+(`changes.ts`: chapters by id, lessons and Quizzes by type and id, repeated ids in order) and take
+"changed" from `courseChanges`, so a merge never disagrees with the rows the Educator reviewed.
+Found while building it:
+
+- The unit is the Review row. Course details and landing page fields merge one by one (the
+  outcomes list is one field: it has no ids). A lesson or Quiz is taken whole from one side, never
+  merged block by block or question by question, so a Quiz always arrives with its own keys. Both
+  sides making the same change, or adding the same item, is no conflict.
+- Conflict keys follow the row keys (`lesson:l2`, `chapter:p3`, and `field:rules.passMark` for a
+  field), so the screen can show both rows. `resolveConflicts` refuses while any conflict has no
+  choice.
+- A change and a move are separate: one side's new words and the other side's new place both land.
+  Removed on one side and only moved or untouched on the other: removed. Removed on one side and
+  changed on the other: a conflict.
+- A chapter removed on one side takes along the items still in it on the other side, and is one
+  conflict (not one per lesson) when that side renamed it or added, changed or moved in a lesson
+  there. Keeping it keeps it as that side has it; removing it sends a lesson moved into it back to
+  where the other side has it, and drops one that was only ever there.
+- An item moved on both sides goes where the session put it; a list reordered on both sides takes
+  the session's order. Either way `orderKept` names the list so the page can say so. An item one
+  side added goes right after the entry before it on that side.
+- The course's own fields that Studio and publishing keep (id, version, status, `publishedAt`,
+  Educators) come from the stored draft. `answersChanged` is set as Studio's save sets it: when
+  the stored draft carries it or the merged keys differ from the stored draft's.
+- Items are matched by type and id, so a lesson on one side and a Quiz on the other under one id
+  (one turned into the other, or both added) are two rows, and the schema would accept a course
+  holding both. The merge never keeps both: when both could stay they are one conflict, keyed by
+  the session's row, and choosing a side keeps only that side's item (and, for a Quiz, its keys).
+- Two copies each within the limits can merge into one over them (31 chapters, 61 lessons in a
+  chapter, over `COURSE_BYTES_LIMIT`). The merged copy goes through Review's checks like any
+  working copy, so "Course is valid" or Size stops that save.
+
+### As built in `DSK-15`
+
+`apps/web/src/studio/session/save.ts` (without React: the check, the words, `saveSession`,
+`bringInDraft`), `SaveToDraft.tsx` (the notice, the footer's Save, the saved card),
+`MergeDialog.tsx` (Bring in their changes), `useDraftCheck.ts` (the stored draft's read); the
+runtime's `saveToDraft` and `bringIn` in `agent.ts`.
+
+- **One write, through Studio's own save.** The page hands the runtime `StudioData.saveDraft`
+  (the transaction with the `rev` check that the editors' autosave uses, `answersChanged` decided
+  against the stored draft inside it); the runtime marks the copy with `markAnswerEdits` against
+  the base first, as the editors mark theirs. Nothing else in a session writes Firestore. While it
+  is written (`saving`), Send, Undo, hand edits, an Educator's turn and Retry wait. Save is offered
+  when the agent cannot run too (Claude Code missing or signed out): saving does not need it. It
+  is not offered while the agent is being started, while a turn runs, an undo or Educator's turn is
+  written, or hand edits are open; the button says which, and why else it waits (Course is valid,
+  Size, the draft moved, nothing changed yet).
+- **After the save** the session is closed as `saved` through the store (`close`; its files go
+  `SESSION_FILES_DAYS` later as for any closed session), its agent's listeners end and
+  `agent.close` ends its `claude`. The base stays the draft it was compared with, so Review still
+  lists what was saved and the saved card says "N changes saved to Draft v(base + 1)". If the draft
+  was written but `session.json` could not be marked saved, the page says so: opened again, the
+  session finds the draft moved (saved by you), brings it in with nothing to choose, and has nothing
+  left to save. Publish… reads the live course once (`getCourse`, fresh) and opens Studio's
+  `PublishDialog` over the saved copy; its links go to the course editor.
+- **A failed save** keeps the session open as it was, says why in plain words (refused by the
+  rules, no connection, anything else), and logs once (`Session save to draft failed`, with the
+  session and course ids). A conflict in the transaction (`DraftConflictError`) is not a failure:
+  the draft is read again and the page shows it moved, so the merge runs again however many times
+  the rev moves between a merge and a save.
+- **The stored draft is read once when the page opens an open edit session** (`useDraftCheck`,
+  mounted where the chat, Review and the editors share it, so moving between them reads nothing
+  more), again only on Check again (after a failed read, which does not stop Save: the
+  transaction checks the rev itself) and after a conflict at save. A rev different from the base's
+  is "moved" (`!==`, not only "past": a rev only grows, and any other answer would fail the save's
+  check anyway). A new course and a closed session read nothing.
+- **Who and when**: "saved by" names the saver from the course's own `educatorNames` (no profile
+  read), "you" for the signed-in person (the Educator in the browser), else "someone else" (an
+  Admin not on the course); the time is "at 14:10" today and "on 18 Nov at 14:10" another day.
+- **Bring in their changes** is a dialog that works out the merge once when it opens: what the
+  draft changed (a count), each list both reordered said in words ("this session's order is
+  kept"), and each conflict with its reason and both changes drawn with Review's `RowDiff` (each
+  side's own row against the base, keyed by the conflict's key; a field conflict shows only its
+  field), and a `Radio` pair, Keep this session's or Keep theirs, 25 conflicts to a page. Its button
+  waits until every conflict has a side. The merged copy must pass the course schema to be
+  written (a session file holds only a valid course), so one over the schema's limits (31
+  chapters) is refused in words rather than saved; Size is left to Review's check, as planned.
+- **The merge is a turn by the Educator** ("Brought in Draft v5, saved by Arjun", a checkpoint,
+  a line in the chat, `HAND_EDIT_NOTE` for the agent's next message) with the stored draft as the
+  new base. It is a turn even when the working copy did not change (0 changes), because the base
+  moved: the turn keeps the base from before it beside its checkpoint (`baseBefore`,
+  `checkpoints/<turn>.base.json`, pruned with the checkpoint), and Undo of it puts back both the
+  copy and that base. Undoing only the copy would compare the copy from before the merge with
+  their draft, call the draft up to date and save over their changes. After that Undo the draft
+  reads as moved again and the merge is offered again. A merge whose kept base is gone cannot be
+  undone ("no longer kept").
+- **The page is keyed by the session** (`SessionView key={sessionId}`): moving to another session
+  in place (global search opens one from a session page) starts its page afresh, so its draft is
+  read for its own course and nothing of the last session's check or chat state carries over.
+- **Why Bring in their changes waits** is said as Save says it (`busyWaits`): the agent starting,
+  hand edits open, a change being written, or a turn running (`DSK-29`). The chat calls the merge
+  turn "draft brought in" (`turnBy`: the one turn with `baseBefore`), not "by hand". A disabled
+  primary button (the merge dialog's, until every conflict has a side) is a flat neutral ground in
+  both themes, with a `--border` edge so it keeps its shape where that ground is close to the
+  page's (the light theme's `--bg`) (`@gurukul/ui` `button.css`).
+- Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
+  a session started on a draft whose `course.publishedAt` is set (any published course) is written
+  but then cannot be read back ("This session is not on this computer"). It belongs to the store
+  (`DSK-11`). Fixed in `DSK-24`, whose
+  first scenario walked into it (As built in `DSK-24`).
+
+### As built in `DSK-16`
+
+A new course from a session: `SaveToDraft.tsx` (`CreateCourseDialog`, and `SaveBar` for a session
+with no base), `studio/CourseAddress.tsx` (the Title and Address fields, shared with Studio's New
+course dialog), `createdBase`, `asCreated` and `CREATED_FILE` in `store.ts`, and the runtime's `courseCreated` in
+`agent.ts`.
+
+- **Review of a new course** compares with nothing, so its list card is **Outline** (every row is
+  Added), it opens on the first lesson or Quiz, and a row shows what it holds: a lesson or Quiz As
+  a learner, the course details, landing page and chapters Inline, with no View choice. A turn picked in the filter still compares
+  its two checkpoints and offers the views as for any session.
+- **Create course and save draft** opens "Create the course": Title (the session's course title,
+  empty while it is still the placeholder "Untitled course") and Address, suggested from the title
+  with Studio's own warning ("Used in links, and it cannot change later."). It calls `createCourse`
+  through `apps/web/src/api/` (blank, with the session's level and cover theme; never a copy). An
+  address already in use says "That address is taken" on the field and keeps the dialog open; any
+  other failure is said in the dialog in words and logged once (`Creating a course failed`).
+- **The session becomes an edit session on the course before the draft is saved** (the plan said
+  "becomes an edit session"; the schema section's "keeping `kind: 'new'`" was dropped for it):
+  `courseCreated(base)` writes `session.json` once with `kind: 'edit'`, the `courseId`, the base
+  and the working copy given the course's id, Educators, status, version, `publishedAt` and the
+  chosen title (`asCreated`), so `courseId` and the base arrive together as the schema asks. The
+  certificate title and cover letter that the placeholder "Untitled course" made, if nothing changed
+  them since, become the course's (found while building it: `set_course_details` changes the
+  certificate title and cover letter only when asked, so a session that only set the title wrote
+  "Untitled course" on the certificate). As an edit session it
+  is the course's one open session (Edit with AI on that course offers it), and a reopened page reads
+  its draft once like any other. It is not a turn: Undo never takes a session back to before its
+  course existed, and a checkpoint from then (`start.json` included) is put back on the course with
+  the title the Educator gave it and the certificate title and cover letter it made (`asCreated`,
+  as for the working copy), so undoing the agent's first turn never writes "Untitled course" over
+  the course at the next save. The agent is told with its next message (`HAND_EDIT_NOTE`), since
+  the course got a title and an address under it.
+- **The base is built, not read**: `createdBase` is the blank course `createCourse` writes, at
+  `CREATED_DRAFT_REV` (1, `firebase/functions/src/stores.ts`). Reading it back would put a network
+  call between the course existing and the session knowing it; Save's own transaction checks the
+  `rev`, so a base that were wrong would read as "the draft moved" and offer the merge, never write
+  over anything.
+- **Never created twice.** Then the draft is saved through `DSK-15`'s save. If that fails the page
+  says the course was created and the draft not saved, and the footer is an edit session's again:
+  Save N changes to draft, against Draft v1. As soon as `createCourse` answers, the runtime keeps the
+  created draft (`pendingCourse`) and writes it to `created.json`, then writes `session.json`. If
+  that write fails, the button becomes **Save the draft**, which notes the course again and saves,
+  with no second `createCourse`. The runtime holds it while the session is open in the app (leaving
+  Review for the chat and coming back keeps it), and `created.json` holds it for a session opened
+  again later (read only while the session has no base). The app closing between `createCourse`
+  answering and the `created.json` write, or neither file being writable and the session then
+  left, is `DSK-28` (below).
+- **The Educator's name** on the created course is the one `createCourse` gives it (`creatorName`:
+  the Google name, else the email's local part), so the base built here matches the draft written
+  (`DSK-29`).
+
+As built in `DSK-28` (a new course created just before the app closed): `CREATING_FILE`
+(`creating.json`) and `creatingSchema` in `store.ts`, `ownCreatedBase` in `save.ts`, the runtime's
+`noteCreating` and `ownCourse`, and `SaveBar`'s create in `SaveToDraft.tsx`.
+
+- **A note before `createCourse`.** Each attempt writes `creating.json` first: the address, the
+  title, and `since`, when the first attempt at that address began (kept while the address stays
+  the same). A note that cannot be written is logged and the attempt goes on as before. The note is
+  read while the session has no base, and Create the course starts from its title and address.
+- **Recognised, not trusted.** When `createCourse` says an address is taken and this session had
+  tried that address before (the note named it before this attempt), the page reads the draft
+  there once (`getDraft`). It is the session's own course only when it is the blank course
+  `createCourse` writes for this person: `rev` 1, saved by them as its only Educator, version 0,
+  never published, no answer keys, nothing changed against `blankCourse` (`courseChanges`), and no
+  older than the note's `since` (10 minutes' allowance for the server's clock,
+  `CREATED_CLOCK_SKEW_MS`), with no other open session on this computer on that course. Then the
+  stored draft is the base and the session is noted as an edit session exactly as after a
+  successful create (`courseCreated`), and saved. The title is the one typed in this attempt
+  (`namedCourse` in `store.ts`, from the note), with the certificate title and cover letter
+  `createCourse` makes from it: the stored blank course keeps the earlier attempt's, so a title
+  changed in the dialog is saved as a change, and Undo of a turn from before the course keeps it
+  too (the note is also read while the base is still that blank course, `rev` 1). That read counts as the page's read of the
+  draft (`useDraftCheck`'s `found`), so the session still reads it once. Anything else (someone
+  else's course, one changed in the browser since, one made before the attempt, a draft that
+  cannot be read) still says "That address is taken".
+- **Why not a nonce in the course.** `createCourse` stores nothing the session could match an
+  attempt id against, and adding one would change the course object; the address, the owner, the
+  blank content and the time say the same without it. A blank course the Educator made at that
+  address in the browser after the attempt began would be taken as the session's own: it is theirs
+  and empty, so nothing is lost.
+- **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
+  'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
+  duplicated course without AI, as in the browser.
+
 ## The agent's tools
 
 One MCP server, `gurukul`. The tool list is built in `apps/web/src/studio/session/tools/` and run
@@ -484,9 +1387,50 @@ Rules every tool follows:
   the agent and the editors cannot disagree about what a valid edit is.
 - **The agent never invents a media address.** For a picture, video or file it calls `add_todo`
   ("Screenshot of the rebase conflict screen, after block 3"). To-dos show in Review as
-  "Left for you" and the Educator adds the media by hand.
+  "Left for you" and the Educator adds the media by hand. Markdown text is held to the same rule:
+  a change that adds a picture (`![…](…)`, a reference picture, or raw media HTML) to a text or
+  callout block, the course description, a check or a Quiz question is refused, read with the
+  parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
+  so the agent can still edit the words around it. The chat is held to it too: the agent's
+  messages are drawn as Markdown without pictures (a picture shows as its words, raw HTML as
+  text), so nothing it writes there makes the app fetch an address. Nor links: a link in the
+  agent's message is drawn as its words and its address in brackets ("the Git book
+  (https://…)"), never as a link, so no click opens an address the words hide (Privacy and
+  security).
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
+
+Each tool is `{ name, description, input (zod), run(state, input, ctx) }`, pure: no React,
+Firestore or bridge. `runTool(state, name, input, ctx)` parses the input, runs the tool and checks
+the result; `toolList()` gives the MCP server each input as JSON Schema (zod's `toJSONSchema`).
+The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`,
+`ctx.sources`), with the clock and the randomness for ids. Found while building it:
+
+- **A draft that is already invalid does not block the agent.** An Educator's draft may hold an
+  untitled chapter or an empty Quiz (Studio saves drafts unfinished). A change is refused only for
+  schema problems it adds, matched by the ids on their path, so moving a broken chapter is not a
+  new problem; and for size, only when it grows a course past the limit. Refusals name the place in
+  words: "In chapter "Basics" (p1) › lesson "Branches" (l2), title cannot be empty."
+- `runTool` also refuses any change to the course's id, Educators, status, version or publish
+  date, and keeps the base as it was, whatever a tool returns.
+- `add_quiz` takes its questions in the same call: the course schema requires at least one, so an
+  empty Quiz would be refused. `questionsShown` defaults to all of them. `remove_question` refuses
+  the last question and points at `remove_item`.
+- Right answers are indexes from 0 into the options given (`correct`); a True or False question
+  always has the answers True and False. Changing a multiple-choice question to single choice
+  without saying which answer is right is refused, never trimmed to the first; so is turning a
+  question into True or False without `correct`, since its old answers become True and False.
+- `add_block` and `set_blocks` write only text, code, callout and check blocks. `update_block`
+  changes only the words of a media block (alt, caption, title, label), never an address or an
+  upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep
+  media), a block with an existing `id` to rewrite it in place (so Review shows Changed, not
+  Removed and Added; every field the block needs is given, as for a new one, and `update_block`
+  is for changing a few), or a block without one to add it.
+- `update_question` keeps answers by id (`{ id, text }`) so a reworded answer stays the same
+  answer, and keeps the right answers marked when `correct` is left out.
+- `read_source` reads only a plain file name that the Sources folder lists: a name with `/` or
+  `\`, `.` or `..`, or one `list` does not give is refused before the bridge is asked. The bridge's
+  read takes that name and never resolves it outside the folder.
 
 ## Writing quality: the humanizer
 
@@ -515,7 +1459,17 @@ way past it. First rules:
   lesson; a heading in Title Case.
 - Quiz: "all of the above" or "none of the above"; the longest option more than twice the median
   length (the long one is usually the right one); an explanation that is empty or only says the
-  option "is correct"; a negative question ("Which is NOT…") without the negative marked.
+  option "is correct"; an explanation that names an option by letter, number or position
+  ("Option B", "B is correct", "the second one"), which means nothing once options are shuffled; a negative question ("Which is NOT…") without
+  the negative marked. The Quiz rules apply to a lesson's check blocks too.
+
+Markdown code (fenced and inline), link targets and addresses are never linted, and spelling is
+not linted. A heading may capitalise names: Gurukul's own terms and a short list of common tool
+names are kept in the file, and acronyms and mixed-case names (GitHub) pass by their shape.
+`lintText(text, field)` lints one text for `lint_writing`; `lintCourse(work, scope?)` lints a
+course, limited by `scope` to the ids of `courseChanges` rows (`course`, `landing`, a chapter, a
+lesson or Quiz) for the Writing check. Exclamation marks are counted over a whole lesson there,
+and the finding sits on the text holding the first one too many.
 
 Example of what the layers are for:
 
@@ -530,8 +1484,88 @@ the question but **not the key**. The app compares its answer with the key; a di
 "Check this answer" on the row. It runs once per changed question and again only if that question
 changes. It uses the Educator's plan, so Review also has "Skip answer check".
 
+As built in `DSK-18` (`apps/web/src/studio/session/answers.ts`, `answerCheck.ts`,
+`useAnswerCheck.ts`, Review's Answers line in `ReviewChecks.tsx`; the shell's `agent.ask`,
+Starting Claude Code):
+
+- **Which questions.** Quiz questions only (the item is "Quiz answers"; a lesson's check block
+  carries its answer in the lesson the learner sees). Every question of an added Quiz, each added or
+  changed question of a changed one, and each whose key alone changed (`answerChanges`); not a
+  question only moved, nor a removed Quiz.
+- **The prompt never sees the key.** `buildAnswerPrompt(course, target)` takes the `Course` alone,
+  so the answer keys cannot be passed in; a test proves no key value reaches the prompt and that a
+  working copy is refused. The question's explanation is left out too, because it usually says why
+  the right option is right. The prompt gives the lesson the question revisits first (wherever it
+  is), then the lessons of the Quiz's chapter, cut at 24,000 characters (`LESSON_TEXT_MAX`); a
+  check block's options are read but not its answer. Options are lettered A, B, C by their place
+  now; the reply is `{"correct": ["B"], "reason": "…"}`, read from the first `{` to the last `}` and
+  checked with zod. The longest question and lessons fit the shell's `MAX_ASK_PROMPT_LENGTH`.
+- **Cached by content.** The key is a 64-bit hash of the prompt (question, options and lesson text)
+  and `ANSWER_PROMPT_VERSION`, so a question is asked again only when it or its lessons change; a
+  key change alone compares the kept answer with the new key. A running ask whose question or
+  lessons changed under it (a turn, hand edits, or Bring in their changes merging a draft that
+  moved) is cancelled and asked again in the new words; an answer kept for the old words no longer
+  matches, so a merge never shows an opinion on words the course no longer has. Two questions with the same words and
+  lessons share one answer. Answers live in `answer-check.json` in the session folder (newest 500),
+  removed with the rest 30 days after the session closes; a failure is not kept, so it is asked
+  again on the next visit. The file also remembers Skip answer check for the session.
+- **When it runs.** While Review is shown, at most two at a time (the shell's `MAX_ASKS_RUNNING`),
+  and only for an open session between turns with no hand edits open (the questions are still
+  changing otherwise). Leaving Review starts nothing new, but a running ask still has its answer
+  written (`acquireAnswerCheck`, shared like the session runtime). A saved or discarded session
+  shows what was found and asks nothing. The two places are shared by every session's check, so
+  `busy` is not a failure: the question waits, and the check asks again after five seconds or as
+  soon as one of its own asks ends. While it waits so, the Answers line says the app's two places
+  are in use elsewhere (`waitingForPlace`, `DSK-29`).
+- **What Review shows.** The Answers line: progress ("0 of 2 checked", a progress bar) with
+  Skip answer check; then "N answers to check" with each disagreement ("Quiz 2.2 · Question 2: A
+  second opinion chose A; the key says B. “…”") and Show, or "N checked, all agree". A Quiz with a
+  disagreement has a "Check this answer" chip in the change list and a callout naming its questions
+  when opened. **Ask the agent to fix these** attaches each disagreeing question (at most ten) and
+  puts a prepared message in the box, as Writing does. Skip answer check stops new asks only: the
+  disagreements already found stay listed, with Ask the agent to fix these, as their rows still
+  show them. A question that could not be checked (too slow, no answer, an answer that could not
+  be read) is listed with why, and Try again asks again. Not installed, too old, signed out and a plan limit stop the check with a
+  sentence and Try again; a shell without `agent.ask` asks for the update. None of it stops Save:
+  Save (`DSK-15`) waits for nothing the answer check does, whether it runs, disagrees or failed
+  (`test/session-save-answers.test.tsx`).
+- **Logs** name the session, Quiz and question ids and the outcome, never the question, an option,
+  a key or the reply.
+
 The humanizer makes text plain. It does not make facts true: technical accuracy is the
 Educator's, which is why nothing is saved without Review.
+
+As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
+
+- **Markdown, imported as text.** `system.md` is the prompt; `skills/{outline,lesson,quiz,humanize}/SKILL.md`
+  are the skills, each opening with `name` and `description` front matter (the name is its folder's).
+  `agentSetup(tools?)` returns `{ systemPrompt, skills, tools }`, the part of `agent.start` that is not
+  the session: each skill as `{ name, files: [{ path, text }] }` with paths inside the skill's folder.
+  The shell writes the plugin around them (`.claude-plugin/plugin.json` named `gurukul`,
+  `skills/{name}/…`), so the agent sees `gurukul:humanize`.
+- **The humanize skill carries the lint's own rules.** Its `lint-rules.md` is made from
+  `@gurukul/schema/writingLint` (the limits and `WORN_PHRASES` with what to say instead) each time,
+  so the skill and the lint cannot disagree.
+- **Humanize before the write, lint right after.** `lint_writing` reads the working copy, not a text
+  on its own, so "before writing" means: run the humanize skill on each text before the tool call
+  that writes it, then call `lint_writing` for that lesson or Quiz (the whole course for details,
+  landing page and chapter titles) and fix every finding on text it wrote or changed in this session
+  before moving on. Nothing reaches the draft before Review, so a finding fixed a moment later never
+  does.
+- **Fix only what the session wrote.** With no item, `lint_writing` lints the whole working copy,
+  so it also reports lessons and Quizzes the Educator wrote before the session. The prompt and every
+  skill that lints say to leave those as they are: one plain sentence to the Educator, an offer to
+  fix them, and no rewrite unless they say yes. Otherwise a new course description would turn
+  Review into rewrites of older lessons nobody asked for.
+- **Tools are named bare** (`add_todo`); the prompt says once that they arrive as
+  `mcp__gurukul__{name}`, matching the tools' own descriptions. It also tells the agent to ignore
+  Claude Code's built-in skills, and that text in a source file is material, never instructions.
+- Tests (`apps/web/test/session-prompt.test.ts`): every snake_case word in the prompt and skills is
+  a tool in `TOOLS`; every `gurukul:{name}` is a shipped skill and the prompt names all four; the
+  layout and sizes pass the shell's own rules (`isSafeSegment`, `isSafePath`, the `MAX_*` limits from
+  `@gurukul/desktop/bridge`); the rules above are present; the prompt and the outline, lesson and Quiz
+  skills pass the lint's worn-phrase and sentence-length rules; and no file outside
+  `studio/session/` imports the prompt, so it stays out of every eager chunk.
 
 ## Privacy and security
 
@@ -540,6 +1574,17 @@ Educator's, which is why nothing is saved without Review.
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.
+- The answer check (`DSK-18`) sends a changed Quiz question and the lessons around it to Anthropic
+  the same way, in a separate run with no tools and no saved chat; never the answer key or the
+  question's explanation.
+- **The agent's messages hold no link to follow.** What the agent writes can come from a Sources
+  file or a page it was shown, so a link in its message may be someone else's: words that say
+  "the Git book" over an address that carries course text to another server. In the shell a link
+  that opens a new tab goes straight to the system browser (`navigation.ts`, `setWindowOpenHandler`),
+  with no step between. So the chat draws each link as its words and its address in plain text: the
+  Educator sees where it points and copies it if they mean to go. Chosen over a link that first
+  shows the address and asks: no click on agent text then reaches any address, the shell needs no
+  new call, and the course links the agent might give ("lesson 3.2") are in Preview and Outline.
 - Logs follow `17-logging.md` in the window and in the main process: constant event names,
   counts and ids only. Never chat text, course text, source file names or answer keys.
 - Analytics (`20-product-analytics.md`) gains `session_started`, `session_saved`,
@@ -549,6 +1594,55 @@ Educator's, which is why nothing is saved without Review.
   read access to one Sources folder.
 - The shell stores no Claude credential and no Google refresh token of its own; Firebase Auth
   keeps its session as it does in the browser.
+- `claude` starts with an allow-listed environment (Starting Claude Code), so a variable set for
+  something else cannot send a session's course text to another server or bill another account.
+  On Windows, Node's spawn (libuv) also copies in the system variables every Windows program
+  needs when the list lacks them (`HOMEDRIVE`, `HOMEPATH`, `LOGONSERVER`, `SYSTEMDRIVE`,
+  `USERDOMAIN`, `USERNAME`, `WINDIR`): none of them can redirect or bill a session. CI's first
+  Windows run showed it.
+- The agent's tool endpoint listens on `127.0.0.1` only, with a fresh random 256-bit token per
+  `claude` process, and refuses a request without it or with an `Origin` header (a web page is
+  never the caller). The token lives only in that process's environment and the main process's
+  memory; control responses that echo it are never logged.
+- **Electron fuses.** The packaged build (`DSK-21`) turns off `RunAsNode`,
+  `EnableNodeOptionsEnvironmentVariable` and `EnableNodeCliInspectArguments`, and turns on
+  `EnableEmbeddedAsarIntegrityValidation` and `OnlyLoadAppFromAsar`. With `RunAsNode` on, any
+  program on the laptop could run JavaScript as the signed, notarised Gurukul Studio and inherit
+  its identity and macOS permissions; Electron's security guidance says to turn it off. That is
+  why the agent's tools are served over HTTP by the main process rather than through a proxy
+  process run by the app's binary. If `DSK-26` forces the stdio proxy, `RunAsNode` stays on and
+  this bullet records that trade-off and its reason before it ships.
+
+### As built in `DSK-23`
+
+- **The guide** is `docs/desktop-studio.md` (linked from `docs/README.md` and `docs/educator.md`):
+  install on a Mac or Windows (SmartScreen's More info, then Run anyway, while the installer is
+  unsigned), install Claude Code and sign in to it in a terminal (`claude`, then `/login`), sign in
+  to Gurukul, a first session from start to publish, the Sources folder, plan limits, where the
+  files live and when they go, and a table for each card the chat shows when the agent cannot run.
+  It names Claude Code only as Anthropic's program. It describes what is built: Discard is left
+  out until it exists.
+- **The privacy page** (`/privacy`, `PrivacyPage.tsx`) has a card, Gurukul Studio sessions: what a
+  session sends to Anthropic under the Educator's own account (the course parts it works on with
+  their answer keys, the messages and attached parts, the Sources files the agent reads; the
+  second opinion gets the question and lessons, never the key; no learner data), what stays on the
+  laptop and for how long, and that Gurukul stores only the draft at Save. "What we measure" names
+  the session events. Since what is collected changed, `POLICY_VERSION` is `2026-11-20`: everyone
+  accepts once more (`20-product-analytics.md`, Consent).
+- **The events** (`analytics/events.ts`): `session_started { kind }` from `SessionLauncher` when
+  `start` answers `started` (not for Open the session, not on a reopen); `session_saved { kind,
+  change_band, turn_band }` from Review's `SaveBar` when `saveSession` answers `saved`, once per
+  save. Counts go in bands (`countBand` in `studio/session/events.ts`: `0`, `1-5`, `6-20`, `21-50`,
+  `51+`) rather than exact numbers, so a record with its time and role cannot single out one
+  person's session (the plan said "counts only"; bands are the narrower reading). `kind` is `new`
+  when the save is the one that created the course (Create course and save draft, or Save the
+  draft for a course created but not yet noted); the session is an edit session by then
+  (`DSK-16`), so a new course whose first save failed and was saved again from the footer reports
+  `edit`. `session_discarded` has the same shape and is typed, but **nothing sends it**: no Discard
+  exists yet (The session workspace, "Discard and a Close without saving are still to come"), which
+  is `DSK-32`. Whoever builds Discard sends it after `store.close(session, 'discarded')`
+  succeeds, with `sessionBands`. The privacy page already names discarding, so that needs no
+  second `POLICY_VERSION` change.
 
 ## Cost
 
@@ -556,10 +1650,17 @@ Educator's, which is why nothing is saved without Review.
   once, where forty minutes of hand editing autosaves dozens of times. No new collection, no new
   function, no Storage. `11-deployment-and-cost.md` is unaffected.
 - **AI: nothing for NonStop.** Each Educator uses their own Claude plan. When a plan's limit is
-  reached the chat says so and the session waits.
+  reached the chat says so and the session waits. The answer check (`DSK-18`) spends one short
+  request per changed Quiz question, once per version of it, and Skip answer check stops it.
 - **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
-  first, as Morph does, which shows a SmartScreen warning; a certificate is a separate yearly cost
-  to be quoted (`DSK-22`). Builds and update files are hosted free on GitHub Releases.
+  first, as Morph does, which shows a SmartScreen warning. Signing it (`DSK-22`, open question 23):
+  Azure Artifact Signing (formerly Trusted Signing) at about $9.99 a month (some $120 a year) is
+  open only to organisations in the US, Canada, the EU, the UK, Australia, New Zealand, Japan,
+  South Korea, Singapore, Switzerland, Norway and Israel, and India is not on that list. For an
+  India-registered NonStop io the likely cost is therefore an OV certificate on a certificate
+  authority's cloud key service, roughly $200 to $600 a year, plus a follow-up change to sign
+  with it (As built in `DSK-22`, below). Builds and update files are hosted free on GitHub
+  Releases. The Windows CI job runs only when the desktop shell, the schema or the install changed.
 
 ## Releases, versions and updates: from the first build
 
@@ -585,6 +1686,12 @@ across under this repository's MIT licence.
   the point of the thin shell.
 - First release: `desktop-v0.1.0`. The app shows its version in Settings and reports it through
   `info()`.
+- As built (`DSK-21`): `scripts/desktop-version.mjs` (tested in `scripts/test/`) does all of this.
+  With no `desktop-v*` tag the version is `0.1.0` whatever the commits say (a bump of `0.0.0` would
+  make a lone `fix` `0.0.1`). "Touched `apps/desktop/`" means a non-merge commit since the last tag
+  changed a file there; with no tag, any such commit ever. Only `apps/desktop/` counts:
+  `@gurukul/schema` is bundled into the shell too, but a schema change ships in the next desktop
+  release rather than making one, because today the shell uses only its logging helpers.
 
 ### The release workflow (`.github/workflows/desktop-release.yml`)
 
@@ -595,42 +1702,143 @@ requests never build installers; `npm run check` in CI covers the workspace.
 |---|---|---|
 | Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
 | Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
-| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user | Same; unsigned until `DSK-22` |
-| Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests | Same |
+| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user; signed with Azure Artifact Signing when its settings exist (`DSK-22`), else unsigned | Same, plus signing (Morph's Windows build is unsigned) |
+| Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests since the last desktop tag, marked Latest. Checks every expected file is there first | `gh release create` instead of `softprops/action-gh-release`: one third-party action fewer with write access |
 
 Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
 reinstalls), Node 22 from `.nvmrc`, one release at a time through a concurrency group.
 
+As built (`DSK-21`), `apps/desktop/electron-builder.yml`:
+
+- **The app ships no `node_modules`.** esbuild already bundles zod, `@gurukul/schema` and
+  `electron-updater` into `dist/main.cjs`, so the app holds `dist/main.cjs`, `dist/preload.cjs` and
+  `package.json` only. `electron-builder` and `electron-updater` are dev dependencies, pinned
+  (26.18.1, 6.8.12, both MIT). The packaged `package.json` is named `gurukul-studio`
+  (`extraMetadata`), which names the Linux executable and the updater's cache folder; the app's own
+  name and data folder come from `productName`, Gurukul Studio, in development and packaged alike.
+- **Fuses** as Privacy and security lists, plus `GrantFileProtocolExtraPrivileges` off (the window
+  never loads `file://`). Checked on a Linux unpacked build: the fuses read as set, the app starts,
+  and `ELECTRON_RUN_AS_NODE=1` no longer runs it as Node.
+- **Entitlements** (`resources/entitlements.mac.plist`): `allow-jit` and
+  `allow-unsigned-executable-memory`. Morph also has `disable-library-validation`; it is left off
+  because the app loads no native module of its own. The first signed release confirms it
+  launches (the hand check below).
+- **Icon:** `resources/icon.png`, 1024px, rendered from `apps/web/public/favicon.svg`;
+  electron-builder makes the `.icns` and `.ico` from it.
+- Linux builds an unpacked folder only (`target: dir`), for checking the packaging; nothing is
+  published for it.
+
 Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`). `docs/desktop-release-setup.md` is
-Morph's step-by-step guide with the names changed.
+`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`); and
+`GURUKUL_DESKTOP_GOOGLE_CLIENT_ID`, `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET` (`DSK-02`), which the
+bundle writes into the app (Signing in to Gurukul); and, for Windows signing once it is bought,
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` with four repository variables
+(`DSK-22`, below). `docs/desktop-release-setup.md` is Morph's step-by-step guide with the names
+changed, plus the Windows signing section Morph does not have.
 
 Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 `Gurukul-Studio-Setup-{version}.exe`. App id `com.nonstopio.gurukul.studio`.
+
+As built in `DSK-22` (what could be done without the certificate or a Windows PC):
+
+- **Signing is ready to switch on, for Azure Artifact Signing only.** It was chosen because it
+  costs about a tenth of a certificate, needs no hardware or certificate file, and electron-builder
+  supports it (`win.azureSignOptions`). But Microsoft issues its public-trust certificates only to
+  organisations in twelve listed countries and regions (the EU counted as one), and India is not
+  among them (checked 20 Nov 2026), so it is open to NonStop io only if its legal entity is
+  registered in one of them: the maintainer confirms that first. A `.pfx` (`WIN_CSC_LINK`) is no
+  longer issued, since keys must sit in hardware from June 2023, so for an India-registered NonStop
+  io the route is an OV certificate on a certificate authority's cloud key service, which is not
+  built: it needs a `win.signtoolOptions.sign` script calling that authority's tool, that
+  authority's secrets in `scripts/desktop-win-signing.mjs` and its tests, the tool installed and
+  the secrets passed in `desktop-release.yml`'s Windows job, and this note and the setup doc's
+  settings table updated (`docs/desktop-release-setup.md` section 10 lists it).
+  `scripts/desktop-win-signing.mjs` (tested in `scripts/test/`) reads three secrets
+  (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) and four variables
+  (`WIN_SIGN_ENDPOINT`, `WIN_SIGN_ACCOUNT`, `WIN_SIGN_PROFILE`, `WIN_SIGN_PUBLISHER`): none set,
+  the installer is unsigned as before; all set, `desktop-release.yml` adds the
+  `-c.win.azureSignOptions.*` flags to the Windows build only; some set, the build fails naming
+  what is missing. `electron-builder.yml` names no account. The publisher name goes into
+  `app-update.yml`, so a signed app installs only updates signed by the same publisher (the
+  default `verifyUpdateCodeSignature`): once signed, signing must never be switched off. Steps:
+  `docs/desktop-release-setup.md` section 10.
+- **The agent bridge's tests run on Windows in CI** (`Desktop agent bridge (Windows)` in `ci.yml`,
+  `vitest run test/agent` on `windows-latest`), only when the desktop shell, `packages/schema`, the
+  install or `ci.yml` changed (a `changes` job diffs the trees; the `ci` gate accepts that job
+  skipped only when `changes` passed and said so). The fake `claude` is a `claude.cmd` wrapper
+  there, so every real-process test goes through `cmd.exe` as npm's install does; every test path
+  has a space; an argument round trip checks the pinned flags (an empty `--setting-sources`
+  value, `mcp__gurukul__*`, paths with spaces, `&` and brackets) through the `.cmd` wrapper and a
+  `claude.exe`. The rest of the desktop suite (`store`, `sources`) still assumes POSIX paths and is
+  not run on Windows.
+- **Ending `claude` on Windows ends its whole tree.** Node's `kill` there is `TerminateProcess` on
+  the one process, and `claude.cmd` runs as `cmd.exe` with `claude` under it: Stop's fallback,
+  close and quit would have ended `cmd.exe` alone and left `claude` running its turn. The Node
+  adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
+  instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
+  cancelled-ask test, which checks the fake's own `node` is gone. A program that never started
+  is not killed at all: Node's `kill` throws `EINVAL` for it on Windows (CI's first run).
+- **Removing a folder `claude` ran in waits for it on Windows.** Windows refuses to remove a
+  process's working folder while it runs, and `taskkill` ends the tree a moment after it is
+  called, so the signed-in check's clean-up retries while `EBUSY` lasts (CI's first run).
+- **Left for the maintainer** (`DSK-30`): confirm where NonStop io is registered, choose and buy the
+  signing (open question 23; for an India-registered company, the certificate route and its
+  follow-up change, `DSK-31`), set its settings, install a signed release on a real Windows PC and check the
+  signature and SmartScreen, the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
+  `claude.exe` and `claude.cmd` (`DSK-26`).
 
 ### Updates (`apps/desktop/src/updates.ts`, from Morph's `electron/updates.ts`)
 
 - Packaged macOS and Windows builds only; development builds never check.
 - Checks at launch and every six hours, downloads in the background, **never opens a dialog on
   its own**.
-- When a download finishes the shell tells the window (`app.onUpdateReady(version)`) and Studio's
-  sidebar shows an "Update ready" item. Clicking it restarts and installs; a normal Quit installs
+- When a download finishes the shell tells the window (`app.onUpdateReady(version)`) and the
+  sidebar shows an "Update ready" item (in every area's sidebar inside the desktop app, not only
+  Studio's: the update is the app's, and hiding the item on Learn pages would only hide it). Clicking it restarts and installs; a normal Quit installs
   it too. If the install fails the app stays open, the item goes away and the next check tries
   again.
+- **The restart never waits on a page that asks to stay.** Studio's unsaved draft and the
+  console's unsaved forms ask with `beforeunload`; Electron then cancels the quit without a word
+  (measured on Electron 45: no updater error, `will-quit` never fires), so the item would spin until
+  the Educator quit, and on Windows the NSIS installer has already started before `app.quit()` is
+  refused. The rule: the web asks its own page first (a cancelable `beforeunload` it dispatches
+  itself, `unsavedWork()`), and with unsaved work it installs nothing and says "Save your work
+  first", keeping the item. Otherwise it calls `app.installUpdate()`, and while that install runs
+  the shell lets the page go (`will-prevent-unload` → `preventDefault`), since the page already
+  said nothing would be lost; Studio's draft keeps a copy on this device on the way out either way.
+  An install that has not quit the app after 30 seconds counts as failed (`Update install timed
+  out`): the item goes and the next check tries again. A normal Quit with unsaved work is still
+  refused by the page, as before; a downloaded update then waits for the next Quit.
 - **Check for updates…** in the app menu checks on demand and says "up to date", "already
   checking", or points at the sidebar item.
 - An open session is safe across the restart: it is written to disk after every turn.
 - Two kinds of "out of date" stay separate. A new **shell** arrives through this updater. A new
   **web app** arrives with a normal deploy; if it needs a newer bridge than the installed shell
-  has, the page says "Update the app" and offers Check for updates.
+  has, the page says "Update the app" and offers Check for updates. As built, that is the same
+  sidebar place: "Update the app" asks the shell (`app.checkForUpdate`), says what it found, and
+  installs if the update is already downloaded; if it is still downloading, the item waits for
+  `app.onUpdateReady` and becomes "Update ready". Session pages (`DSK-11`) still show their own card for
+  `needs_update`, which now carries the bridge for those two calls.
 - Changes from Morph: the `log` helper instead of `console.warn`, wording in Gurukul's voice, and
   the logic tested in Vitest at 100% with the updater, dialog and timer injected (Morph's
   `scripts/check-updates.cjs` cases, ported).
 - The updater reads GitHub Releases of this repository. The web app pushes tags but creates no
-  GitHub Releases, so "latest release" is always a desktop one; that must stay true. To confirm
-  when building: that `electron-updater`'s GitHub provider accepts the `desktop-v` tag prefix. If
-  it does not, use its generic provider pointed at
-  `github.com/nonstopio/gurukul/releases/latest/download/`.
+  GitHub Releases, so "latest release" is always a desktop one; that must stay true.
+- **The `desktop-v` prefix works with the GitHub provider** (read in `electron-updater` 6.8.12,
+  `out/providers/GitHubProvider.js`, while building `DSK-21`). Without prereleases it asks
+  `github.com/nonstopio/gurukul/releases/latest` for the latest release's `tag_name`, uses that
+  name as it is in `releases/download/{tag}/latest-mac.yml` (or `latest.yml`), and reads the
+  version from that file, never from the tag; its tag pattern (`/tag/(v?[^/]+)$`) matches
+  `desktop-v0.2.0`. Only the prerelease path parses tags as semver, and would skip ours, so
+  desktop releases are never prereleases. The generic provider is not needed.
+- As built: `updates.ts` (over injected `autoUpdater`, message box, interval and window events),
+  `menu.ts` (Check for updates… in the app menu on macOS, under Help on Windows), and
+  `app.checkForUpdate` answering `up_to_date`, `checking`, `downloading`, `ready`, `unsupported`
+  or `failed` without a dialog; only the menu shows one. `electron-updater`'s own logger is off
+  (its lines hold URLs and paths); the shell logs `Update downloading`, `Update ready`,
+  `Update installing` with the version, and failures with the error code only. The web app watches
+  once per page (`apps/web/src/desktop/updates.ts`), and asks the shell once at load, because the
+  download can finish before the page subscribes.
 
 ### Download
 
@@ -644,8 +1852,31 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   releases. If the request fails it links to the releases page.
 - In the desktop app the same place shows the session buttons instead. One feature tip points at
   the card (`adding-feature-tips`).
-- The card is the announcement to Educators, so it waits for Anthropic's answer (`DSK-01`). The
-  pipeline and the updater do not: early releases are on GitHub for the people building the app.
+- The card is the announcement to Educators. It ships with the first release that has it, without
+  a switch: no written confirmation from Anthropic is awaited (`DSK-01`).
+- As built (`DSK-25`): `apps/web/src/desktop/download.ts` and `studio/DesktopDownloadCard.tsx`,
+  drawn by `StudioCoursesPage` above the tabs when `isDesktop()` is false (the course list's lazy
+  chunk; nothing in the first download). The request goes when the card is first drawn and its
+  answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
+  storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
+  share one, with the shell's contributors request too; a refusal (404 before the first release,
+  the rate limit) is kept as "nothing", a network failure is not, nor a request GitHub has not
+  answered in `RELEASE_TIMEOUT_MS` (8 s, ended then, so the card falls back to the releases page;
+  `DSK-29`). An installer counts only under
+  the exact name `electron-builder.yml` gives it for the tag's version
+  (`Gurukul-Studio-{v}-arm64.dmg`, `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it
+  downloads from this repository's release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes
+  from `navigator.userAgentData` (Chromium, with `architecture` telling an Intel Mac), else the
+  platform and user agent; a Mac seen by Safari or Firefox cannot say its chip and is taken to be
+  Apple Silicon, with Intel offered next to it. An iPad's Safari also says it is a Mac; a touch
+  screen (`maxTouchPoints` above 1) marks it as an iPad, a system the app is not built for. Install
+  steps are shown only for an installer that matches the visitor's system: on Linux, a phone, an
+  iPad, or a release without that system's installer, the card names the installers it has and
+  guesses no steps. No release, a failed request or no
+  installer it knows: "Get Gurukul Studio from GitHub" to the releases page. Tip `desktop-app`
+  points at the card's download button and opens above it, so it does not cover the other
+  installers listed under it (`DSK-29`). The site sets no Content-Security-Policy, so nothing to add
+  for `api.github.com`; the end-to-end specs already block it (`EXTERNAL`) and see the fallback.
 
 ### Housekeeping
 
@@ -669,6 +1900,51 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   start a session, a turn that changes a lesson, Review, Save to draft, the draft holds the
   change; a new course; a stale draft and a merge. No test calls Anthropic.
 - Screens are checked at 1280px, 1024px and 640px, in both themes, by keyboard.
+
+### As built in `DSK-24`
+
+`e2e/tests/desktop-studio.spec.ts` over `e2e/support/desktop.ts`, run by `npm run e2e` with the web
+specs (one Playwright project, the same emulators, the same reset before each test).
+
+- **The built shell, not a copy.** Global setup bundles `apps/desktop` with its own bundle script
+  into `e2e/dist/desktop` (a `package.json` and `dist/`, as an installer holds them) and each test
+  starts it fresh with Playwright's `_electron.launch`: its own `--user-data-dir`, `--no-sandbox`
+  (CI and containers), `--ozone-platform=headless` (no display needed, so no `xvfb-run`), and
+  `--proxy-server` at a port nothing serves, so nothing but `127.0.0.1` is reachable from the
+  window. CI's e2e job fetches Electron's binary (`require('electron')`, which
+  `ELECTRON_SKIP_BINARY_DOWNLOAD` does not stop) and caches it.
+- **Linux, not Windows.** The fake is put on `PATH` as a `#!/bin/sh` wrapper and the window uses
+  Linux's headless mode, so on Windows the desktop specs are skipped and the shell is not bundled
+  (`e2e/support/desktop-platform.mjs`, tested by listing the specs as each platform). `npm run e2e`
+  and the pre-push hook still run there for every web spec, rather than refusing a Windows
+  contributor's push of a web change. CI runs the desktop specs on Linux.
+- **The test page is a development build's only.** The shell opens the e2e app because
+  `GURUKUL_DESKTOP_TEST_URL` names it: `testUrl` in `apps/desktop/src/config.ts` reads it only when
+  `app.isPackaged` is false, and only as `http` on `127.0.0.1` or `localhost` with a port; it then
+  joins the allowed origins. A packaged build ignores it and logs `Test page ignored` (tested).
+- **Sign-in is the shell's own flow.** The window's Sign in with Google calls `auth.googleSignIn`;
+  the test stands in for Google in the main process only, answering `shell.openExternal` with the
+  loopback redirect and its `state`, and the token endpoint (`net.fetch`) with an unsigned ID token
+  the Auth emulator accepts. PKCE, the listener and `signInWithCredential` all run as shipped. The
+  bundle is built with a made-up client id.
+- **The fake Claude Code** is `apps/desktop/test/fixtures/fake-claude.mjs`, on `PATH`, steered by a
+  scenario file in `CLAUDE_CONFIG_DIR` (the allow-listed environment passes nothing else). Its tool
+  calls go to the shell's real MCP endpoint with the bearer token, so the window's tools change the
+  working copy. It gained `capture`, which keeps an id from a tool's answer for a later input
+  (`"${chapter}"`), because the app makes the ids.
+- **Scenarios.** An edit session on the seeded, published Git course: a turn renames a lesson,
+  Firestore unchanged until Save, the row in Review, no per-change accept button, Save to draft,
+  the stored draft holds it at the next `rev` with its `publishedAt` kept. A new course: a turn sets
+  the title and adds a chapter, a lesson and a block, Create course and save draft, the course and
+  its draft exist. A stale draft: someone saves the same lesson and another one through the REST
+  API mid-session; Save finds it moved and writes nothing, Bring in their changes asks for the one
+  conflict, Keep this session's, Save, and the draft holds both the session's lesson and their other
+  change.
+- **Found by the first scenario, fixed here:** a session on a published course could not be opened
+  (As built in `DSK-15`). `session.json` held `publishedAt` as seconds and nanoseconds; the store now
+  reads it back as a `StoredTimestamp` (`store.ts`) the course schema accepts, and
+  `StudioData.saveDraft` writes the stored draft's own `publishedAt`, so the look-alike never
+  reaches Firestore.
 
 ## Phases
 

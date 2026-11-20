@@ -20,6 +20,8 @@ import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { log } from '../log';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useEditorLinks } from './editorPlace';
+import type { EditorPlace } from './editorPlace';
 import { DraftGate } from './DraftGate';
 import { EditorBar, PreviewLink } from './EditorBar';
 import { lessonsOf } from './lessonEdit';
@@ -53,20 +55,32 @@ export function QuizBuilderPage() {
   const t = useTerms();
   return (
     <DraftGate draft={draft} title={`${t.Quiz} builder`}>
-      {(work) => <Builder draft={draft} work={work} courseId={courseId} quizId={quizId} />}
+      {(work) => (
+        <QuizBuilder
+          draft={draft}
+          work={work}
+          place={{ kind: 'draft', courseId }}
+          quizId={quizId}
+        />
+      )}
     </DraftGate>
   );
 }
 
-function Builder({
+/**
+ * The Quiz builder over a working copy: Studio's draft, or a desktop session's (`place`), whose
+ * `draft` is then `useSessionDraft`. A session reads no learner stats and offers no Save to question
+ * bank: it writes Firestore only at Save to draft.
+ */
+export function QuizBuilder({
   draft,
   work,
-  courseId,
+  place,
   quizId,
 }: {
   draft: DraftApi;
   work: Working;
-  courseId: string;
+  place: EditorPlace;
   quizId: string;
 }) {
   const { data, checks } = useStudio();
@@ -74,8 +88,18 @@ function Builder({
   const toast = useToast();
   const t = useTerms();
   const consoleApi = useConsole();
+  const quiz = findQuiz(work.course, quizId);
+  const links = useEditorLinks(place, work, {
+    id: quizId,
+    key: `quiz:${quizId}`,
+    title: quiz?.title || t.Quiz,
+  });
+  const statsOf = links.firestore ? links.uploadCourseId : null;
   const stats = useAsync(
-    useCallback(() => consoleApi.data.courseStats(courseId), [consoleApi, courseId]),
+    useCallback(
+      async () => (statsOf === null ? null : consoleApi.data.courseStats(statsOf)),
+      [consoleApi, statsOf],
+    ),
   );
   const asked = useSearchParams()[0].get('question');
   const [selectedId, setSelectedId] = useState<string | null>(asked);
@@ -89,29 +113,24 @@ function Builder({
     [work, checks],
   );
 
-  const quiz = findQuiz(work.course, quizId);
-  const crumbs = [
-    { label: t.Studio, render: (p: object) => <Link to="/studio" {...p} /> },
-    {
-      label: work.course.title,
-      render: (p: object) => <Link to={`/studio/courses/${courseId}`} {...p} />,
-    },
-    { label: quiz?.title || t.Quiz },
-  ];
-  const back = {
-    to: `/studio/courses/${courseId}`,
-    label: nameOf(work.course.title, 'Untitled course'),
-  };
+  const { back, crumbs } = links;
+  const source = place.kind;
   if (!quiz) {
     return (
-      <EditorBar title={`${t.Quiz} not found`} back={back} crumbs={crumbs} draft={draft}>
+      <EditorBar
+        title={`${t.Quiz} not found`}
+        back={back}
+        crumbs={crumbs}
+        draft={draft}
+        source={source}
+      >
         <EmptyState
           headingAs="h2"
           title={`This ${t.Quiz} does not exist`}
           mascot="notFound"
           action={
-            <Link className={buttonClass('secondary')} to={`/studio/courses/${courseId}`}>
-              Back to the course
+            <Link className={buttonClass('secondary')} to={back.to}>
+              {links.backWords}
             </Link>
           }
         >
@@ -138,7 +157,7 @@ function Builder({
     toast.show('Added from the question bank', { tone: 'success' });
   };
   const saveToBank = async (entry: Keyed, tags: string[]) => {
-    const ids = { courseId, quizId, questionId: entry.question.id };
+    const ids = { courseId: links.uploadCourseId, quizId, questionId: entry.question.id };
     // A second click before the button shows it is busy must not store the question twice.
     if (banking.current.has(entry.question.id)) return;
     banking.current.add(entry.question.id);
@@ -175,10 +194,13 @@ function Builder({
         back={back}
         crumbs={crumbs}
         draft={draft}
+        source={source}
         actions={
-          <PreviewLink draft={draft} to={`/studio/courses/${courseId}/preview/${quizId}`}>
-            {`Try it as ${article(t.learner)}`}
-          </PreviewLink>
+          links.previewPath === null ? undefined : (
+            <PreviewLink draft={draft} to={links.previewPath}>
+              {`Try it as ${article(t.learner)}`}
+            </PreviewLink>
+          )
         }
       >
         <div className="studio-cols">
@@ -247,7 +269,7 @@ function Builder({
                   draft.update((w) => updateQuestion(w, quizId, keyed.question.id, edit))
                 }
                 onDelete={() => setDeleting(keyed.question.id)}
-                onSaveToBank={(tags) => void saveToBank(keyed, tags)}
+                onSaveToBank={links.firestore ? (tags) => void saveToBank(keyed, tags) : undefined}
                 savingToBank={bankingIds.has(keyed.question.id)}
               />
             ) : (
@@ -285,7 +307,9 @@ function Builder({
             setDeleting(null);
           }}
         >
-          The question and its answer key are removed from the draft.
+          {source === 'session'
+            ? 'The question and its answer key are removed from this session’s copy of the course. Undo in the chat brings them back.'
+            : 'The question and its answer key are removed from the draft.'}
         </ConfirmDialog>
       ) : null}
     </>

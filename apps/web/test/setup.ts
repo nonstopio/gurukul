@@ -2,6 +2,7 @@ import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { forgetAsync } from '../src/data/useAsync';
 import { POLICY_VERSION } from '../src/privacy/policy';
+import type * as Download from '../src/desktop/download';
 
 // The app and its editors load lazily, so under a full-suite run the first screen can take longer
 // than Testing Library's 1 s default to appear. A wait only lasts this long when it fails.
@@ -30,3 +31,12 @@ vi.mock('../src/studio/blocks/CodeField', async () => await import('./codeFieldS
 // The shell's foot asks GitHub for the contributors; no test reaches the internet. The list is
 // empty unless a test says otherwise; `contributors.test.ts` takes the real module back.
 vi.mock('../src/contributors', () => ({ loadContributors: vi.fn(() => Promise.resolve([])) }));
+
+// Studio's download card asks GitHub for the latest desktop release; no test reaches the internet.
+// There is none, on an unknown system, unless a test says otherwise; `desktop-download.test.tsx`
+// takes the real loader and detection back.
+vi.mock('../src/desktop/download', async (importActual) => ({
+  ...(await importActual<typeof Download>()),
+  loadLatestRelease: vi.fn(() => Promise.resolve(null)),
+  detectSystem: vi.fn(() => Promise.resolve(null)),
+}));

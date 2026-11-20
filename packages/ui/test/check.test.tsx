@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -70,5 +72,39 @@ describe('Radio', () => {
     expect(container.querySelector('.g-check--radio.r')).toBeTruthy();
     expect(container.querySelectorAll('.g-check__label')).toHaveLength(2);
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('draws no radio of a group with nothing chosen as chosen, though browsers call them indeterminate', () => {
+    const style = document.createElement('style');
+    // jsdom resolves no var(): the two fills this asks about get colours of their own.
+    style.textContent = readFileSync(resolve(import.meta.dirname, '../src/check.css'), 'utf8')
+      .replaceAll('var(--accent)', 'rgb(10, 106, 70)')
+      .replaceAll('var(--surface)', 'rgb(255, 255, 255)');
+    document.head.append(style);
+    try {
+      const { container } = render(
+        <>
+          <Radio name="side" label="Keep this session’s" onChange={() => {}} />
+          <Radio name="side" label="Keep theirs" onChange={() => {}} />
+          <Checkbox aria-label="Plain" checked={false} onChange={() => {}} />
+          <Checkbox aria-label="Some" indeterminate checked={false} onChange={() => {}} />
+          <Checkbox aria-label="All" checked onChange={() => {}} />
+        </>,
+      );
+      const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(radios.every((r) => !r.checked && r.matches(':indeterminate'))).toBe(true);
+      const [mine, theirs, plain, some, all] = [
+        ...container.querySelectorAll<HTMLElement>('.g-check__box'),
+      ].map((box) => getComputedStyle(box).backgroundColor);
+      expect(all).not.toBe(plain);
+      expect(some).toBe(all);
+      expect(mine).toBe(plain);
+      expect(theirs).toBe(plain);
+      // The chosen one fills once picked.
+      fireEvent.click(screen.getByText('Keep theirs'));
+      expect(radios[1]?.checked).toBe(true);
+    } finally {
+      style.remove();
+    }
   });
 });

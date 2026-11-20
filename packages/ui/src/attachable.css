@@ -1,0 +1,35 @@
+.g-attachable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2);
+  /* Room inside the outline, without moving the content off the column's edge. */
+  margin: calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+}
+.g-attachable__body {
+  min-width: 0;
+}
+/* Out of sight until the block is hovered or something in it has focus; always while attached. */
+.g-attachable__button {
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+.g-attachable:hover > .g-attachable__button,
+.g-attachable:focus-within > .g-attachable__button,
+.g-attachable--attached > .g-attachable__button {
+  opacity: 1;
+}
+/* No hover on a touch screen: the button stays in sight. */
+@media (hover: none) {
+  .g-attachable__button {
+    opacity: 1;
+  }
+}
+.g-attachable--attached {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}

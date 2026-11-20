@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  NavAction,
   NavItem,
   Sidebar,
   SidebarGroup,
@@ -52,6 +53,62 @@ describe('NavItem', () => {
     expect(el.className).toContain('g-nav-item--current');
     fireEvent.click(el);
     expect(onNavigate).toHaveBeenCalledOnce();
+  });
+});
+
+describe('NavAction', () => {
+  it('is a button named by its label and detail, with a decorative icon', async () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <Sidebar brand="G" label="Main">
+        <SidebarGroup label="Gurukul Studio">
+          <NavAction
+            icon={<svg data-testid="i" />}
+            detail="Restart to install 0.2.0"
+            onClick={onClick}
+            className="x"
+          >
+            Update ready
+          </NavAction>
+        </SidebarGroup>
+      </Sidebar>,
+    );
+    const button = screen.getByRole('button', {
+      name: 'Update ready',
+      description: 'Restart to install 0.2.0',
+    });
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button.className).toBe('g-nav-item g-nav-item--action x');
+    expect(button.hasAttribute('aria-busy')).toBe(false);
+    expect(screen.getByTestId('i').parentElement?.getAttribute('aria-hidden')).toBe('true');
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows a spinner in place of the icon and takes no clicks while loading', () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <NavAction icon={<svg data-testid="i" />} loading onClick={onClick}>
+        Update ready
+      </NavAction>,
+    );
+    const button = screen.getByRole('button', { name: 'Update ready' }) as HTMLButtonElement;
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.disabled).toBe(true);
+    expect(screen.queryByTestId('i')).toBeNull();
+    expect(container.querySelector('.g-btn__spinner')?.getAttribute('aria-hidden')).toBe('true');
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('draws no icon or detail when given none, and can be disabled', () => {
+    const { container } = render(<NavAction disabled>Check for updates</NavAction>);
+    expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelector('.g-nav-item__icon')).toBeNull();
+    expect(container.querySelector('.g-nav-item__detail')).toBeNull();
+    expect(screen.getByRole('button').hasAttribute('aria-describedby')).toBe(false);
+    expect(screen.getByRole('button').hasAttribute('aria-labelledby')).toBe(false);
   });
 });
 
@@ -122,6 +179,12 @@ describe('TopBar', () => {
       </TopBarToolsContext.Provider>,
     );
     expect(screen.getByRole('button', { name: 'Theme tool' })).toBeTruthy();
+  });
+
+  it('hands its header to a ref, so a page can measure it', () => {
+    let header: HTMLElement | null = null;
+    render(<TopBar title="Git basics" ref={(el) => void (header = el)} />);
+    expect(header).toBe(screen.getByRole('banner'));
   });
 
   it('draws the title as a paragraph when the page has its own heading', () => {

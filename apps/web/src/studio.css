@@ -106,6 +106,43 @@
   text-align: center;
 }
 
+/* ---- The desktop app's download card (browser only) ---- */
+.sc-download__body {
+  display: grid;
+  gap: var(--space-5);
+}
+/* The install steps sit beside the offer once the content column is wide enough for both. */
+@media (width >= 80rem) {
+  .sc-download__body:has(> .sc-download__steps) {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+.sc-download__intro,
+.sc-download__offer,
+.sc-download__steps {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.sc-download__lead {
+  margin: 0;
+  max-width: 65ch;
+}
+.sc-download__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+.sc-download__steps ol {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
 /* ---- Course editor ---- */
 .sc-editor {
   display: grid;
@@ -654,4 +691,503 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* ---- Desktop sessions (studio/session/) ---- */
+.ss-resume,
+.ss-goals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.ss-resume p,
+.ss-resume ul {
+  margin: 0;
+}
+.ss-resume ul,
+.ss-goals {
+  padding-left: var(--space-5);
+}
+.ss-resume ul {
+  display: grid;
+  gap: var(--space-1);
+}
+.ss-resume a {
+  color: var(--accent);
+}
+.ss-sources {
+  display: grid;
+  gap: var(--space-2);
+}
+.ss-sources__title {
+  margin: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.ss-sources__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+.ss-sources__path {
+  font: var(--text-sm) / var(--leading-snug) var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.ss-sources__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ss-sources__files {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-sources__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.ss-sources__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---- The session workspace: chat beside the preview from 1024px, a drawer below ---- */
+/* The two ways out while hand edits wait for the agent's turn (`HandEditor`). */
+.ss-wait__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.ss-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.ss-workspace {
+  display: grid;
+  gap: var(--space-6);
+}
+.ss-chat,
+.ss-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ss-chat__log {
+  min-height: 6rem;
+  overflow-y: auto;
+}
+/* Under the words of a sent message: what it carried. */
+.ss-chat__attached {
+  margin-top: var(--space-2);
+}
+.ss-composer {
+  display: grid;
+  gap: var(--space-3);
+}
+.ss-composer__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+@media (width >= 64rem) {
+  .ss-workspace {
+    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    align-items: start;
+  }
+  /*
+   * The chat stays in view under the sticky top bar while the preview scrolls; its log scrolls
+   * inside. `--ss-bar` is the bar's measured height (`SessionPage`): a long title wraps it to two
+   * or three lines. Before it is measured, the height of a bar on one line.
+   */
+  .ss-chat {
+    --ss-bar-height: var(--ss-bar, calc(var(--control-height) + var(--space-3) * 2));
+    position: sticky;
+    top: calc(var(--ss-bar-height) + var(--space-4));
+    max-height: calc(100dvh - var(--ss-bar-height) - var(--space-8));
+  }
+  .ss-chat__log {
+    flex: 1 1 auto;
+  }
+}
+.ss-pane {
+  min-width: 0;
+}
+/* Takes room only while the agent works. */
+.ss-pane__activity:empty {
+  min-height: 0;
+}
+.ss-pane__activity:not(:empty) {
+  margin-bottom: var(--space-4);
+}
+.ss-preview {
+  display: grid;
+  gap: var(--space-6);
+}
+.ss-preview__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.ss-preview__pick {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.ss-preview__step {
+  display: flex;
+  gap: var(--space-2);
+}
+.ss-preview__block {
+  min-width: 0;
+}
+.ss-outline {
+  display: grid;
+  gap: var(--space-4);
+}
+.ss-outline__list,
+.ss-outline__items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-outline__chapter {
+  display: grid;
+  gap: var(--space-2);
+}
+.ss-outline__items {
+  padding-left: var(--space-5);
+}
+.ss-outline__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+h3.ss-outline__row {
+  font-weight: 600;
+  color: var(--text);
+}
+.ss-outline__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Attach sits at the end of its row, chapters and items alike. */
+.ss-outline__attach {
+  margin-left: auto;
+}
+.ss-outline__gone {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* ---- Review: the change list, the selected change and the checks (wide: list and checks left) ---- */
+.ss-review {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+@media (width >= 64rem) {
+  .ss-review {
+    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    /* The second row takes what the change's height leaves, so Checks sits right under the list. */
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'list detail'
+      'checks detail';
+    align-items: start;
+  }
+  .ss-review__list {
+    grid-area: list;
+  }
+  .ss-review__detail {
+    grid-area: detail;
+  }
+  .ss-review__checks {
+    grid-area: checks;
+  }
+}
+.ss-review__list,
+.ss-review__detail,
+.ss-review__checks {
+  min-width: 0;
+}
+.ss-review__summary,
+.ss-review__changes,
+.ss-review__row-detail,
+.ss-review__question,
+.ss-review__section {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ss-review__goals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ss-review__h3,
+.ss-review__count,
+.ss-review__chapter,
+.ss-review__left {
+  margin: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.ss-review__goals legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+.ss-review__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ss-review__edit {
+  display: grid;
+  gap: var(--space-4);
+}
+.ss-review__edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.ss-review__tree,
+.ss-review__items {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-review__group {
+  display: grid;
+  gap: var(--space-1);
+}
+.ss-review__chapter {
+  padding: var(--space-2) 0 0;
+}
+.ss-review__items {
+  padding-left: var(--space-5);
+}
+.ss-review__row {
+  min-width: 0;
+}
+.ss-review__pick {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  row-gap: var(--space-1);
+  width: 100%;
+  height: auto;
+  text-align: left;
+  white-space: normal;
+}
+/* The name is laid out at its own width: chips that do not fit beside it ("Check this answer" in
+   the 24rem list at 1024px) go to a line of their own instead of squeezing it onto two. */
+.ss-review__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ss-review__marker {
+  display: inline-flex;
+  flex: none;
+  width: var(--space-4);
+}
+.ss-review__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.ss-review__head,
+.ss-review__tools,
+.ss-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ss-review__title {
+  margin: 0;
+  font: 600 var(--text-lg) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ss-review__options {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-review__letter {
+  font-weight: 600;
+}
+.ss-review__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.ss-review__left {
+  margin-right: auto;
+}
+.ss-checks,
+.ss-checks__findings {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-checks__item {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ss-checks__title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+}
+.ss-checks__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 0.1em;
+}
+.ss-checks__item--pass .ss-checks__icon {
+  color: var(--accent);
+}
+.ss-checks__item--warn .ss-checks__icon {
+  color: var(--warning);
+}
+.ss-checks__item--fail .ss-checks__icon {
+  color: var(--danger);
+}
+.ss-checks__item--info .ss-checks__icon {
+  color: var(--text-muted);
+}
+.ss-checks__findings {
+  gap: var(--space-2);
+  padding-left: var(--space-6);
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.ss-checks__progress {
+  justify-self: stretch;
+}
+.ss-checks__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ss-checks__actions:empty {
+  display: none;
+}
+.ss-review__answers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  overflow-wrap: anywhere;
+}
+.ss-checks__findings li {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Session: Save to draft and Bring in their changes (DSK-15) ---- */
+.ss-save {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  max-width: var(--width-form);
+}
+.ss-save .sc-help {
+  text-align: right;
+}
+.ss-save__saved {
+  display: grid;
+  gap: var(--space-4);
+}
+.ss-save__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ss-merge,
+.ss-merge__conflict > section,
+.ss-merge__side {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ss-merge__conflicts {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-merge__conflict {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.ss-merge__sides {
+  display: grid;
+  gap: var(--space-5);
+}
+.ss-merge__h3,
+.ss-merge__h4,
+.ss-merge__legend {
+  margin: 0;
+  padding: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ss-merge__h3 {
+  font-size: var(--text-md);
+}
+.ss-merge__choice {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ss-merge__legend {
+  margin-bottom: var(--space-2);
 }

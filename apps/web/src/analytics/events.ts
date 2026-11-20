@@ -38,7 +38,28 @@ export interface AnalyticsEvents {
   course_assign: { course_id: string; assignee_count: number };
   /** Something failed and was caught: an API call or a screen that crashed. */
   app_error: { source: 'api' | 'route'; code: string };
+  /**
+   * An Educator started a Gurukul Studio session in the desktop app (`SessionLauncher`): a new
+   * course, or an edit of one. Not sent when an open session is opened again.
+   */
+  session_started: { kind: SessionKind };
+  /**
+   * A session's working copy was written to the draft (`SaveBar`). `kind` is `new` when the course
+   * was created for this save. How many changes and turns, in bands only.
+   */
+  session_saved: { kind: SessionKind; change_band: CountBand; turn_band: CountBand };
+  /** An Educator discarded a session, leaving the draft untouched. Bands only, as for a save. */
+  session_discarded: { kind: SessionKind; change_band: CountBand; turn_band: CountBand };
 }
+
+/** A Gurukul Studio session builds a new course or edits one. */
+export type SessionKind = 'new' | 'edit';
+
+/**
+ * A count in a band (`countBand`, `studio/session/events.ts`): enough to see how big sessions are,
+ * without exact numbers that, with a time and a role, could point at one person's work.
+ */
+export type CountBand = '0' | '1-5' | '6-20' | '21-50' | '51+';
 
 export type EventName = keyof AnalyticsEvents;
 

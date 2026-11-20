@@ -97,6 +97,26 @@ describe('CourseTile', () => {
     expect(container.querySelector('article')?.hasAttribute('data-selected')).toBe(false);
   });
 
+  it('puts its own action under the meta line, beside the title link and not inside it', async () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      tile({ meta: 'y', action: <button onClick={onClick}>Edit with AI</button> }),
+    );
+    const action = screen.getByRole('button', { name: 'Edit with AI' });
+    expect(action.closest('a')).toBeNull();
+    expect(action.parentElement?.className).toBe('g-course-tile__action');
+    expect(container.querySelector('.g-course-tile__meta + .g-course-tile__action')).toBeTruthy();
+    fireEvent.click(action);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('has no action row without an action', () => {
+    const { container } = render(tile());
+    expect(container.querySelector('.g-course-tile__action')).toBeNull();
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(tile({ summary: 'x', meta: 'y' }));
     expect(await axeViolations(container)).toEqual([]);

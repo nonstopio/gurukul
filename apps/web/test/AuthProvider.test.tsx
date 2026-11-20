@@ -9,6 +9,7 @@ import {
   useUser,
 } from '../src/auth/AuthProvider';
 import { RequireRole } from '../src/auth/RequireRole';
+import { DESKTOP_SIGN_IN_MESSAGES, SignInProblem } from '../src/auth/service';
 import { useAsync } from '../src/data/useAsync';
 import { NONSTOP, fakeAuth } from './fake-auth';
 
@@ -160,6 +161,18 @@ describe('AuthProvider', () => {
     f.service.signIn = (() => Promise.resolve()) as never;
     await act(async () => screen.getByText('in').click());
     expect(out()).toBe('signedOut|learner|');
+  });
+
+  it('shows a sign-in problem the person can act on in its own words, as a warning log', async () => {
+    const f = setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const problem = new SignInProblem('timeout', DESKTOP_SIGN_IN_MESSAGES.timeout);
+    f.service.signIn = (() => Promise.reject(problem)) as never;
+    act(() => f.emitUser(null));
+    await act(async () => screen.getByText('in').click());
+    expect(out()).toBe(`signedOut|learner|${DESKTOP_SIGN_IN_MESSAGES.timeout}`);
+    expect(warn).toHaveBeenCalledWith('Sign-in failed', { reason: 'timeout' });
+    warn.mockRestore();
   });
 
   it('useUser throws unless somebody is signed in', () => {

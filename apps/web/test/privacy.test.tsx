@@ -33,6 +33,23 @@ describe('the pages', () => {
     expect(screen.getByText(new RegExp(POLICY_VERSION))).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to Gurukul' })).toBeTruthy();
   });
+  it('says what a Gurukul Studio session sends to Anthropic, and what Gurukul keeps', () => {
+    render(
+      <MemoryRouter>
+        <PrivacyPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { name: 'Gurukul Studio sessions' })).toBeTruthy();
+    expect(screen.getByText('Sent to Anthropic, under the Educator’s own account:')).toBeTruthy();
+    expect(
+      screen.getByText(
+        /a separate run that gets a question and the lessons around it, never the answer key/,
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/No learner data is sent/)).toBeTruthy();
+    expect(screen.getByText(/nothing until the Educator chooses Save to draft/)).toBeTruthy();
+    expect(screen.getByText(/discarding a Gurukul Studio session/)).toBeTruthy();
+  });
   it('is reachable without signing in', async () => {
     await openApp('/privacy', { signedIn: false });
     expect(await screen.findByRole('heading', { name: 'Privacy policy' })).toBeTruthy();

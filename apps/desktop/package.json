@@ -1,0 +1,38 @@
+{
+  "name": "@gurukul/desktop",
+  "productName": "Gurukul Studio",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gurukul Studio desktop shell: an Electron window over the web app, with the window.gurukulDesktop bridge. Plan: .plan/22-desktop-studio.md.",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/main.cjs",
+  "exports": {
+    "./bridge": "./src/bridge.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && npm run bundle",
+    "bundle": "tsx scripts/bundle.ts",
+    "dev": "npm run bundle && electron .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "check:claude": "tsx scripts/check-claude.ts"
+  },
+  "dependencies": {
+    "@gurukul/schema": "^0.0.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "cross-spawn": "7.0.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "6.0.6",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.1",
+    "electron-updater": "6.8.12",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  },
+  "author": "NonStop io",
+  "homepage": "https://github.com/nonstopio/gurukul"
+}

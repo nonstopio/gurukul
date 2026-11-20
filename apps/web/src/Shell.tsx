@@ -33,6 +33,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { LinkProps } from 'react-router';
 import { useSession, useUser } from './auth/AuthProvider';
+import { DesktopUpdateItem } from './desktop/DesktopUpdateItem';
 import { useConsole } from './console/ConsoleProvider';
 import { useLearnerData } from './data/DataProvider';
 import { useAudience } from './data/useAudience';
@@ -48,8 +49,14 @@ import { focusPageOnArrival, pageStart } from './routeFocus';
 import { AREAS, destinationsFor } from './navigation';
 import { GlobalSearchProvider, SearchTrigger } from './navigation/GlobalSearch';
 import { localizeLabel, localizePage } from './navigation/localize';
-import { courseSource, editableCourseSource, peopleLookup } from './navigation/records';
+import {
+  courseSource,
+  editableCourseSource,
+  peopleLookup,
+  sessionSource,
+} from './navigation/records';
 import { TrackClick } from './analytics/react/Track';
+import { isDesktop } from './desktop/bridge';
 import { ShellFooter } from './ShellFooter';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useStudio } from './studio/StudioProvider';
@@ -103,8 +110,13 @@ export function Frame({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
   // for Educators and Admins also the courses they may edit, from Studio's own list.
   const t = useTerms();
   const audience = useAudience();
+  // Inside the desktop app, their authoring sessions on this computer too.
   const sources = useMemo(
-    () => [courseSource(data, uid, audience), editableCourseSource(studioData, uid, admin, t)],
+    () => [
+      courseSource(data, uid, audience),
+      editableCourseSource(studioData, uid, admin, t),
+      ...(isDesktop() ? [sessionSource(uid, t)] : []),
+    ],
     [data, studioData, uid, admin, t, audience],
   );
   // People for Admins, by the Learners page's own prefix search, as they type.
@@ -318,6 +330,8 @@ export function Shell({ areas = AREAS }: { areas?: readonly AreaNavigation[] }) 
               })}
             </SidebarGroup>
           ))}
+          {/* Inside the desktop app only: its "Update ready" item. Nothing in a browser. */}
+          <DesktopUpdateItem />
         </Sidebar>
       }
     >

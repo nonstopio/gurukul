@@ -89,6 +89,8 @@ export interface PublishIssue {
   /** What to fix, in words an Educator understands. */
   message: string;
   itemId?: string;
+  /** For `chapter.title`, and `id.duplicate` on a chapter: which chapter. */
+  chapterId?: string;
   blockId?: string;
   questionId?: string;
   /** For `course.outcome.blank`: which outcome, from 0. */
@@ -313,21 +315,18 @@ function contentIssues(course: Course, answers: AnswerKeys, ctx: PublishContext)
   }
 
   const seen = new Set<string>();
-  const dupe = (id: string, itemId?: string) => {
+  const dupe = (id: string, at: { itemId: string } | { chapterId: string }) => {
     if (seen.has(id))
-      out.push({
-        code: 'id.duplicate',
-        message: `The id "${id}" is used twice.`,
-        ...(itemId ? { itemId } : {}),
-      });
+      out.push({ code: 'id.duplicate', message: `The id "${id}" is used twice.`, ...at });
     seen.add(id);
   };
   course.chapters.forEach((p) => {
-    dupe(p.id);
-    if (blank(p.title)) out.push({ code: 'chapter.title', message: 'A chapter needs a title.' });
+    dupe(p.id, { chapterId: p.id });
+    if (blank(p.title))
+      out.push({ code: 'chapter.title', message: 'A chapter needs a title.', chapterId: p.id });
   });
   for (const item of items) {
-    dupe(item.id, item.id);
+    dupe(item.id, { itemId: item.id });
     if (blank(item.title))
       out.push({
         code: 'item.title',
@@ -338,7 +337,7 @@ function contentIssues(course: Course, answers: AnswerKeys, ctx: PublishContext)
       if (item.blocks.length === 0)
         out.push({ code: 'lesson.empty', message: 'This lesson is empty.', itemId: item.id });
       for (const b of item.blocks) {
-        dupe(b.id, item.id);
+        dupe(b.id, { itemId: item.id });
         out.push(...blockIssues(item.id, b, ctx));
       }
     } else {
@@ -356,7 +355,7 @@ function contentIssues(course: Course, answers: AnswerKeys, ctx: PublishContext)
         });
       }
       for (const q of item.questions) {
-        dupe(q.id, item.id);
+        dupe(q.id, { itemId: item.id });
         out.push(...questionIssues(item.id, q, answers[item.id]?.[q.id]));
       }
     }

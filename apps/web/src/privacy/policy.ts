@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
  * The version of the privacy policy people accept to sign in. Change it whenever `PrivacyPage`
  * changes what is collected: everyone is then asked again, once, before they see a page.
  */
-export const POLICY_VERSION = '2026-11-01';
+export const POLICY_VERSION = '2026-11-20';
 
 const KEY = 'gurukul.privacy.accepted';
 const listeners = new Set<() => void>();

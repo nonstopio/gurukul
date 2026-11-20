@@ -66,6 +66,15 @@ export const TIPS: readonly Tip[] = [
     text: 'Turn tips off here. Turn them on again to see every one from the start.',
   },
   {
+    id: 'desktop-app',
+    where: ['/studio'],
+    el: '.sc-download__offer .g-btn',
+    // Above the button: below it the card lists the other installers, which the tip would cover.
+    side: 'top',
+    title: 'Build by chatting',
+    text: 'Get the desktop app to build or edit a course by chatting with an AI, then review every change before it reaches the draft.',
+  },
+  {
     id: 'image-upload',
     where: ['/studio/courses/:courseId/lessons/:lessonId'],
     el: '.g-tabs__list[aria-label="Image source"] [role="tab"][id$="-tab-upload"]',

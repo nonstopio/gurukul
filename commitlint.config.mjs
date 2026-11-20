@@ -13,7 +13,7 @@
 // enforced from the first commit rather than written down and hoped for.
 //
 // The same type and scope lists are configured on the pull-request title check in
-// .github/workflows/ci.yml (squash merges make the PR title the commit on main). Change both
+// .github/workflows/pr-title.yml (squash merges make the PR title the commit on main). Change both
 // together, and the table in .claude/skills/writing-commit-messages/reference.md.
 
 export const TYPES = [
@@ -32,6 +32,7 @@ export const TYPES = [
 
 export const SCOPES = [
   'web',
+  'desktop',
   'ui',
   'functions',
   'rules',
