@@ -1063,3 +1063,68 @@ h3.ss-outline__row {
   gap: var(--space-1);
   overflow-wrap: anywhere;
 }
+
+/* ---- Session: Save to draft and Bring in their changes (DSK-15) ---- */
+.ss-save {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  max-width: var(--width-form);
+}
+.ss-save .sc-help {
+  text-align: right;
+}
+.ss-save__saved {
+  display: grid;
+  gap: var(--space-4);
+}
+.ss-save__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ss-merge,
+.ss-merge__conflict > section,
+.ss-merge__side {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.ss-merge__conflicts {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-merge__conflict {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.ss-merge__sides {
+  display: grid;
+  gap: var(--space-5);
+}
+.ss-merge__h3,
+.ss-merge__h4,
+.ss-merge__legend {
+  margin: 0;
+  padding: 0;
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ss-merge__h3 {
+  font-size: var(--text-md);
+}
+.ss-merge__choice {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ss-merge__legend {
+  margin-bottom: var(--space-2);
+}

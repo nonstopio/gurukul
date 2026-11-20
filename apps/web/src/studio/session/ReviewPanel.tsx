@@ -52,18 +52,26 @@ import {
   turnFiles,
 } from './review';
 import type { Numbers } from './review';
+import { MergeDialog } from './MergeDialog';
+import { draftCheckLine } from './save';
+import { DraftMovedNotice, SaveBar, SavedCard } from './SaveToDraft';
 import { createSessionStore } from './store';
 import type { AgentSessionHandle } from './useAgentSession';
+import type { DraftCheckApi } from './useDraftCheck';
 import { useSideBySide } from './useSideBySide';
-import { turnLabel } from './workspace';
+import { headerChecks, turnLabel } from './workspace';
 
 /*
  * The session's Review tab (`.plan/22-desktop-studio.md`, Review: the whole session at once): the
  * summary and goals, every change against the draft the session started from (or one turn's), the
  * selected row compared side by side, inline or as a learner, the checks, and the way back to the
  * chat. Reviewing is one decision at the end: a row offers Viewed, Ask for a change, Open in editor
- * and Undo this item, and nothing accepts it on its own. Nothing here writes Firestore; the one
- * read is the count of learners who completed a removed lesson, when that row is opened.
+ * and Undo this item, and nothing accepts it on its own. The footer's Save to draft (`DSK-15`) is the
+ * session's one Firestore write; a draft saved meanwhile is brought in first (`MergeDialog`). A new
+ * course (`DSK-16`) has nothing to compare with: its list is the Outline, and each row shows what it
+ * holds (a lesson or Quiz as a learner sees it) instead of a difference. The
+ * reads are the stored draft's (`useDraftCheck`, once when the page opens) and the count of learners
+ * who completed a removed lesson, when that row is opened.
  */
 
 /** Where the chat opens with this message ready, or with a part just attached (below 1024px, its drawer). */
@@ -155,11 +163,14 @@ export function ReviewPanel({
   desktop,
   uid,
   sessionId,
+  draft,
 }: {
   agent: AgentSessionHandle;
   desktop: GurukulDesktop;
   uid: string;
   sessionId: string;
+  /** The stored draft against the session's base (`DSK-15`). */
+  draft: DraftCheckApi;
 }) {
   const t = useTerms();
   const toast = useToast();
@@ -187,8 +198,27 @@ export function ReviewPanel({
   const listNumbers = useMemo(() => numbersOf((compared?.after ?? work).course), [compared, work]);
   const workNumbers = useMemo(() => numbersOf(work.course), [work]);
   const viewed = useMemo(() => new Set(session.viewed), [session.viewed]);
-  const selected = rows.find((r) => r.key === params.get('row')) ?? rows[0] ?? null;
+  // A new course compared with nothing opens on its first lesson or Quiz, as a learner sees it.
+  const opening =
+    compared?.before === null ? rows.find((r) => r.kind === 'lesson' || r.kind === 'quiz') : null;
+  const selected = rows.find((r) => r.key === params.get('row')) ?? opening ?? rows[0] ?? null;
   const [undoing, setUndoing] = useState<ChangeRow | null>(null);
+  const [merging, setMerging] = useState(false);
+  const { check } = draft;
+  const stopsSave = useMemo(() => headerChecks(work), [work]);
+  // A draft that moved is brought in from the notice at the top of the tab.
+  const draftLine = {
+    ...draftCheckLine(check),
+    action:
+      check.state === 'failed' ? (
+        <>
+          <p className="sc-help">Save still checks it before it writes.</p>
+          <Button variant="secondary" onClick={draft.recheck}>
+            Check again
+          </Button>
+        </>
+      ) : null,
+  };
 
   const go = (next: { turn?: string | null; row?: string | null }) => {
     const search = new URLSearchParams(params);
@@ -245,6 +275,15 @@ export function ReviewPanel({
 
   return (
     <>
+      {session.status === 'saved' ? <SavedCard agent={agent} /> : null}
+      {check.state === 'moved' ? (
+        <DraftMovedNotice
+          check={check}
+          uid={uid}
+          canSave={agent.canSave}
+          onBringIn={() => setMerging(true)}
+        />
+      ) : null}
       <SummaryCard
         open={open}
         summary={session.summary}
@@ -253,7 +292,7 @@ export function ReviewPanel({
         onSave={(patch) => agent.updateReview(patch)}
       />
       <div className="ss-review">
-        <Card title="Changes" className="ss-review__list">
+        <Card title={agent.base === null ? 'Outline' : 'Changes'} className="ss-review__list">
           <ChangeList
             turns={agent.turns}
             turnId={turnIndex < 0 ? null : turnId}
@@ -339,16 +378,33 @@ export function ReviewPanel({
           open={open}
           onShow={(row) => go({ turn: null, row: row.key })}
           onAsk={ask}
+          draft={draftLine}
         />
       </div>
-      <div className="ss-review__footer">
-        <p className="ss-review__left">{`Left for you: ${leftForYou}`}</p>
-        <Link className={buttonClass('secondary')} to={`/studio/sessions/${sessionId}`}>
-          Keep working
-        </Link>
-        {/* The Save to draft button (`DSK-15`) takes this place. */}
-        <p className="sc-help">Save to draft comes next.</p>
-      </div>
+      {open ? (
+        <div className="ss-review__footer">
+          <p className="ss-review__left">{`Left for you: ${leftForYou}`}</p>
+          <Link className={buttonClass('secondary')} to={`/studio/sessions/${sessionId}`}>
+            Keep working
+          </Link>
+          <SaveBar
+            agent={agent}
+            draft={draft}
+            uid={uid}
+            sessionId={sessionId}
+            valid={stopsSave.valid}
+            overLimit={stopsSave.overLimit}
+          />
+        </div>
+      ) : null}
+      {merging && check.state === 'moved' ? (
+        <MergeDialog
+          agent={agent}
+          stored={check.stored}
+          uid={uid}
+          onClose={() => setMerging(false)}
+        />
+      ) : null}
       {undoing ? (
         <ConfirmDialog
           title="Undo this item?"
@@ -609,9 +665,11 @@ function RowDetail({
   const item = itemRow ? itemOf(itemRow) : null;
   const added = row.statuses.includes('added');
   const removed = row.statuses.includes('removed');
+  // A new course compared with nothing (`DSK-16`) shows what each row holds, never a difference.
+  const fresh = compared.before === null;
   // Something added has no before, and something removed no after: both open as a learner sees them.
   const [view, setView] = useState<View>(
-    item && (added || removed) ? 'learner' : wide ? 'split' : 'inline',
+    item && (added || removed) ? 'learner' : wide && !fresh ? 'split' : 'inline',
   );
   const shown: View = view === 'split' && !wide ? 'inline' : view;
   const [mode, setMode] = useState<TextMode>('source');
@@ -619,11 +677,13 @@ function RowDetail({
   const lesson = row.kind === 'lesson' && removed && courseId !== null ? row.id : null;
   const completed = useCompleted(courseId, lesson);
   const name = rowName(row, numbers);
-  const views: { value: View; label: string }[] = [
-    ...(wide ? [{ value: 'split' as const, label: 'Side by side' }] : []),
-    { value: 'inline', label: 'Inline' },
-    ...(item ? [{ value: 'learner' as const, label: 'As a learner' }] : []),
-  ];
+  const views: { value: View; label: string }[] = fresh
+    ? []
+    : [
+        ...(wide ? [{ value: 'split' as const, label: 'Side by side' }] : []),
+        { value: 'inline', label: 'Inline' },
+        ...(item ? [{ value: 'learner' as const, label: 'As a learner' }] : []),
+      ];
 
   const learner = () => {
     // Only a lesson or Quiz row offers this view, and only on a side it has: something added
@@ -641,7 +701,9 @@ function RowDetail({
         <StatusChips statuses={row.statuses} />
       </div>
       <div className="ss-review__tools">
-        <SegmentedControl label="View" value={shown} options={views} onChange={setView} />
+        {views.length > 0 ? (
+          <SegmentedControl label="View" value={shown} options={views} onChange={setView} />
+        ) : null}
         {shown !== 'learner' && hasProse(row) ? (
           <SegmentedControl
             label="Show text as"

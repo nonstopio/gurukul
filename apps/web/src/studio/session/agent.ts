@@ -1,4 +1,4 @@
-import { workingSchema } from '@gurukul/schema';
+import { COURSE_BYTES_LIMIT, courseBytes, workingSchema } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
 import type { ChangeRow, CourseChanges } from '@gurukul/schema/changes';
 import type { AuthoringSession, SessionGoal, Turn } from '@gurukul/schema';
@@ -14,15 +14,15 @@ import type {
   TurnOutcome,
 } from '../../desktop/bridge';
 import { log } from '../../log';
-import { nameOf } from '../studioModel';
+import { markAnswerEdits, nameOf } from '../studioModel';
 import type { Working } from '../types';
 import { toolActivity } from './activity';
 import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './attachments';
 import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
-import { START_CHECKPOINT, createSessionStore } from './store';
-import type { SessionStore } from './store';
+import { START_CHECKPOINT, asCreated, createSessionStore } from './store';
+import type { SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
 import type { TranscriptEntry } from './transcript';
@@ -54,9 +54,17 @@ import type { TranscriptEntry } from './transcript';
  *   note    undone turns and turns by the Educator (hand edits, Undo this item) are told to the
  *           agent with the next message; until then `agent-note.json` keeps them, so a runtime
  *           opened later still tells it.
+ *   save    Save to draft (`DSK-15`): the working copy goes to the stored draft through the `write`
+ *           the page hands it (Studio's own save), then the session is closed as `saved`.
+ *   bring   Bring in their changes (`DSK-15`): the merged copy becomes the working copy and the
+ *           stored draft the new base, as a turn by the Educator that keeps the base from before
+ *           it (`baseBefore`), so Undo puts back both the copy and the base.
+ *   create  a new course's first save (`DSK-16`): once the page has created the course, the session
+ *           becomes an edit session on it, its new draft the base, written before the draft is
+ *           saved, so a save that then fails is offered again and the course is never created twice.
  *
- * Firestore is never read or written here: the draft was read once when the session started, and
- * hand edits go to this computer only.
+ * Firestore is never read or written here: the draft was read once when the session started, hand
+ * edits go to this computer only, and Save to draft writes through the function it is given.
  * Nothing logged carries chat text, course text, a source name or an answer key.
  */
 
@@ -164,7 +172,35 @@ export interface AgentSessionView {
   canEdit: boolean;
   /** Hand edits not yet a turn, while an editor has them; null otherwise. */
   handEdits: HandEditsView | null;
+  /**
+   * Save to draft or Bring in their changes may start now (`DSK-15`): the session is open, no turn
+   * runs, no undo, Educator's turn or hand edit is open, the agent is not being started, and no
+   * save or merge is being written. Claude Code need not be running.
+   */
+  canSave: boolean;
+  /** A save to the draft, or the merge of their changes, is being written. */
+  saving: boolean;
+  /**
+   * A new-course session's course that `createCourse` made but the session could not note yet
+   * (`DSK-16`): its draft, kept in the runtime and in `created.json`, so Save offers to note it
+   * and save, and never creates the course again. Null otherwise.
+   */
+  pendingCourse: SessionBase | null;
 }
+
+export type { SessionBase } from './store';
+
+/** What `saveToDraft` did. */
+export type DraftSaveResult =
+  /** Written as `rev`; `kept` is false when `session.json` could not be marked saved. */
+  | { ok: true; rev: number; kept: boolean }
+  /**
+   * Not tried: `busy` (see `canSave`), `new_course` (no draft yet: created at the first save,
+   * `DSK-16`), `invalid` (the course schema or `COURSE_BYTES_LIMIT` refuses the working copy).
+   */
+  | { ok: false; reason: 'busy' | 'new_course' | 'invalid' }
+  /** `write` failed: the draft is as it was, and the session stays open. */
+  | { ok: false; reason: 'error'; error: unknown };
 
 /** What Review changes in the session besides the course. */
 export interface ReviewPatch {
@@ -234,6 +270,33 @@ export interface AgentSession {
   stop(): Promise<void>;
   /** Undoes the newest turn. False when there is none or its checkpoint before is gone. */
   undo(): Promise<boolean>;
+  /**
+   * Save to draft (`DSK-15`): `write` puts the working copy (answer keys marked as Studio marks
+   * them) into the stored draft against the base's `rev`, and answers the new `rev`; the page hands
+   * it Studio's own save. Then the session is closed as `saved`, keeping the base it was compared
+   * with, so Review still shows what was saved; its agent is told to end. Only when `canSave`.
+   */
+  saveToDraft(write: (work: Working, baseRev: number) => Promise<number>): Promise<DraftSaveResult>;
+  /**
+   * Bring in their changes (`DSK-15`): `work` (the merge of this session with the stored draft)
+   * becomes the working copy and `base` (the stored draft) the base, as a turn by the Educator
+   * named `summary` (with no changes when the working copy did not change), which Undo takes back,
+   * base included, and the agent is told of.
+   * Only when `canSave`. False when it could not be written; nothing then changed.
+   */
+  bringIn(base: SessionBase, work: Working, summary: string): Promise<boolean>;
+  /**
+   * A new course's first save (`DSK-16`): the page has created the course, whose draft is `base`.
+   * The session becomes an edit session on it, with `base` as its base and the working copy given
+   * the course's id, Educators and title, written to `session.json` before the draft is saved; then
+   * Save to draft saves it like any edit session. Not a turn: Undo never takes a session back to
+   * before its course existed (a checkpoint from then is put back on the course with its title,
+   * `asCreated`). Only for a new course with no base. `base` is kept at once as `pendingCourse` and
+   * in `created.json`; it is noted only when `canSave`. False when it was not noted (busy, or
+   * `session.json` could not be written): nothing else changed, and `pendingCourse` stays, so the
+   * page offers it again without creating the course again.
+   */
+  courseCreated(base: SessionBase): Promise<boolean>;
   /**
    * A hand edit from Studio's editors: `change` applied to the working copy in memory. False, and
    * nothing changed, when `canEdit` is false. Nothing is written until `keepEdits` or `endEdits`.
@@ -481,6 +544,10 @@ export function createAgentSession({
   } | null = null;
   /** `editing.json` is on disk: removed once the hand edits it notes are a turn or are gone. */
   let handNoted = false;
+  /** Save to draft or Bring in their changes is being written: nothing else changes the course. */
+  let saving = false;
+  /** A course created for this new-course session and not noted in `session.json` yet. */
+  let pendingCourse: SessionBase | null = null;
   let queue: Promise<unknown> = Promise.resolve();
   /**
    * Review edits shown at once but not yet written, in the order they were made. A task that took
@@ -513,7 +580,14 @@ export function createAgentSession({
   const editable = () =>
     session?.status === 'open' &&
     turn === null &&
+    !saving &&
     (status === 'ready' || status === 'connecting' || status === 'unavailable');
+
+  /**
+   * Save to draft or Bring in their changes may start: as for hand edits, with none open, and not
+   * while the agent is being started, so `connect` never sets a status over a closed session.
+   */
+  const savable = () => editable() && hand === null && status !== 'connecting';
 
   const view = (): AgentSessionView => {
     const work = session ? workOf(session) : null;
@@ -534,11 +608,15 @@ export function createAgentSession({
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
       attachments,
       canAttach: session?.status === 'open' && attachments.length < MAX_ATTACHMENTS,
-      canSend: status === 'ready' && hand === null,
+      canSend: status === 'ready' && hand === null && !saving,
       canStop: status === 'working',
-      canUndo: status === 'ready' && hand === null && (turns.length > 0 || unsaved !== null),
+      canUndo:
+        status === 'ready' && hand === null && !saving && (turns.length > 0 || unsaved !== null),
       canEdit: editable(),
       handEdits: hand ? { state: hand.state, savedAt: hand.savedAt } : null,
+      canSave: savable(),
+      saving,
+      pendingCourse,
     };
   };
   let snapshot = view();
@@ -946,6 +1024,14 @@ export function createAgentSession({
     } catch (error) {
       log.warn('Session agent note not read', { sessionId, reason: bridgeFailure(error) });
     }
+    // A course created for this session that it could not note (`created.json`, `DSK-16`).
+    if (found.base === null) {
+      try {
+        pendingCourse = await store.readCreated(sessionId);
+      } catch (error) {
+        log.warn('Session created course not read', { sessionId, reason: bridgeFailure(error) });
+      }
+    }
     // Hand edits the app closed on (`editing.json`): made a turn before the agent starts.
     try {
       const pending = await store.readHandEdits(sessionId);
@@ -982,14 +1068,14 @@ export function createAgentSession({
     open,
 
     async retry() {
-      if (status !== 'unavailable') return;
+      if (status !== 'unavailable' || saving) return;
       if (session === null) return open();
       await connect();
     },
 
     async send(message) {
       const text = message.trim();
-      if (status !== 'ready' || hand || text === '' || text.length > MESSAGE_MAX_LENGTH)
+      if (status !== 'ready' || hand || saving || text === '' || text.length > MESSAGE_MAX_LENGTH)
         return false;
       const running: RunningTurn = { id: newId(), message: text };
       const carried = attachments;
@@ -1052,7 +1138,13 @@ export function createAgentSession({
     },
 
     async undo() {
-      if (status !== 'ready' || hand || !session || (session.turns.length === 0 && !unsaved))
+      if (
+        status !== 'ready' ||
+        hand ||
+        saving ||
+        !session ||
+        (session.turns.length === 0 && !unsaved)
+      )
         return false;
       status = 'undoing';
       problem = null;
@@ -1072,11 +1164,23 @@ export function createAgentSession({
                 ? START_CHECKPOINT
                 : (current.turns[current.turns.length - 2] as Turn).checkpoint;
             const before = await store.readCheckpoint(sessionId, file);
-            if (!before) {
+            // A turn that moved the base (Bring in their changes) puts back the base from before
+            // it too, so the draft check finds the draft moved again and offers the merge again.
+            const baseBefore = last.baseBefore
+              ? await store.readBaseBefore(sessionId, last.baseBefore)
+              : undefined;
+            if (!before || baseBefore === null) {
               problem = UNDO_GONE;
               return false;
             }
-            next = await store.undoTurn(current, before);
+            // A checkpoint from before a new course was created carries the placeholder id and
+            // title: it is put back on the course, with the title the Educator gave it, as
+            // `courseCreated` did (creating the course is not a turn, so Undo keeps it).
+            const copy =
+              current.courseId !== null && before.course.id !== current.courseId
+                ? asCreated(before, (current.base as SessionBase).work.course)
+                : before;
+            next = await store.undoTurn(current, copy, baseBefore);
           }
           session = withReview(next);
           saved = next;
@@ -1128,7 +1232,7 @@ export function createAgentSession({
     },
 
     async educatorTurn(work, summary) {
-      if (status !== 'ready' || hand || session?.status !== 'open') return false;
+      if (status !== 'ready' || hand || saving || session?.status !== 'open') return false;
       status = 'editing';
       problem = null;
       emit();
@@ -1226,7 +1330,170 @@ export function createAgentSession({
         emit();
       }),
 
-    busy: () => turn !== null || status === 'undoing' || status === 'editing' || hand !== null,
+    async saveToDraft(write) {
+      if (!savable()) return { ok: false, reason: 'busy' };
+      const current = session as AuthoringSession;
+      const base = current.base;
+      if (base === null) return { ok: false, reason: 'new_course' };
+      // Marked against the draft it replaces, as Studio's editors mark their edits.
+      const work = markAnswerEdits(workOf(current), base.work as Working);
+      if (
+        !workingSchema.safeParse(work).success ||
+        courseBytes(work.course, work.answers) > COURSE_BYTES_LIMIT
+      )
+        return { ok: false, reason: 'invalid' };
+      saving = true;
+      problem = null;
+      emit();
+      return enqueue(async (): Promise<DraftSaveResult> => {
+        let rev: number;
+        try {
+          rev = await write(work, base.rev);
+        } catch (error) {
+          // The page says why and logs it once; the session stays open as it was.
+          saving = false;
+          emit();
+          return { ok: false, reason: 'error', error };
+        }
+        const done: AuthoringSession = { ...(session as AuthoringSession), work };
+        let kept = true;
+        try {
+          session = await store.close(done, 'saved');
+          saved = session;
+        } catch (error) {
+          // The draft holds the work. Opened again, the session finds the draft moved past its
+          // base and brings it in with nothing to choose, so nothing is lost.
+          log.warn('Session not marked saved', { sessionId, reason: bridgeFailure(error) });
+          session = { ...done, status: 'saved' };
+          kept = false;
+        }
+        saving = false;
+        status = 'closed';
+        activity = null;
+        attachments = [];
+        log.info('Session saved to draft', {
+          sessionId,
+          courseId: current.courseId,
+          rev,
+          changes: courseChanges(base.work as Working, work).count,
+        });
+        // A closed session listens to no agent, and its `claude` is told to end.
+        for (const end of unsubscribe.splice(0)) end();
+        emit();
+        try {
+          await agent.close(sessionId);
+        } catch (error) {
+          log.warn('Agent not closed', { sessionId, reason: bridgeFailure(error) });
+        }
+        return { ok: true, rev, kept };
+      });
+    },
+
+    async bringIn(base, work, summary) {
+      if (!savable()) return false;
+      saving = true;
+      problem = null;
+      emit();
+      return enqueue(async () => {
+        const current = session as AuthoringSession;
+        const before = workOf(saved as AuthoringSession);
+        const count = courseChanges(before, work).count;
+        try {
+          // Always a turn, even when the working copy did not change: the base moves, and Undo of
+          // this turn (or of one before it) must put back the base from before it as well, or the
+          // copy from before the merge would be compared with, and saved over, their draft.
+          const id = newId();
+          const record: Turn = {
+            id,
+            at: now().toISOString(),
+            by: 'educator',
+            summary: turnSummary(summary),
+            checkpoint: `${id}.json`,
+            changes: count,
+            baseBefore: `${id}.base.json`,
+          };
+          if (current.turns.length === 0) await store.saveStart(sessionId, before);
+          await store.saveBaseBefore(
+            sessionId,
+            record.baseBefore as string,
+            current.base as SessionBase,
+          );
+          const written = await store.saveTurn({ ...current, base, work }, record, work);
+          session = withReview(written);
+          saved = written;
+          unsaved = null;
+          // The agent's own history does not know the course or its base changed under it.
+          handEdited = true;
+          await keepNote();
+          notice(id, record.summary);
+          await writeChat();
+          log.info('Session draft brought in', { sessionId, rev: base.rev, changes: count });
+          return true;
+        } catch (error) {
+          log.error('Session draft not brought in', error, { sessionId, rev: base.rev });
+          problem = appProblem(error);
+          return false;
+        } finally {
+          saving = false;
+          emit();
+        }
+      });
+    },
+
+    async courseCreated(base) {
+      if (session === null || session.status !== 'open' || session.base !== null) return false;
+      const courseId = base.work.course.id;
+      // Kept before anything else, so the course is never created twice while the app is open,
+      // and in `created.json` for a runtime opened later.
+      pendingCourse = base;
+      emit();
+      try {
+        await store.saveCreated(sessionId, base);
+      } catch (error) {
+        log.warn('Session created course not kept', {
+          sessionId,
+          courseId,
+          reason: bridgeFailure(error),
+        });
+      }
+      if (!savable()) return false;
+      saving = true;
+      problem = null;
+      emit();
+      return enqueue(async () => {
+        const current = session as AuthoringSession;
+        const ofCourse = (work: Working): Working => asCreated(work, base.work.course);
+        try {
+          const written = await store.save({
+            ...current,
+            kind: 'edit',
+            courseId,
+            base,
+            work: ofCourse(workOf(current)),
+          });
+          session = withReview(written);
+          // A turn that could not be written stays the newest: Undo goes back to the copy before
+          // it, now on the course too.
+          saved = { ...written, work: ofCourse(workOf(saved as AuthoringSession)) };
+          pendingCourse = null;
+          // Its own history does not know the course has a title and an address now.
+          handEdited = true;
+          await keepNote();
+          log.info('Session course created', { sessionId, courseId });
+          return true;
+        } catch (error) {
+          log.error('Session course not noted', error, { sessionId, courseId });
+          problem = appProblem(error);
+          return false;
+        } finally {
+          saving = false;
+          emit();
+        }
+      });
+    },
+
+    busy: () =>
+      turn !== null || status === 'undoing' || status === 'editing' || hand !== null || saving,
 
     settled: () => queue.then(noop),
 

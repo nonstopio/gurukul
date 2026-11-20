@@ -29,8 +29,8 @@ import type { CheckState, Numbers } from './review';
 /*
  * Review's checks, like the checks on a pull request (`.plan/22-desktop-studio.md`, Checks): two can
  * stop a save (Course is valid, Size), the rest inform. Each finding links to its row; Writing offers
- * to send its findings to the agent. Draft is up to date and Answers are seams the save (`DSK-15`)
- * and the answer check (`DSK-18`) fill.
+ * to send its findings to the agent. Draft is up to date comes from the save (`DSK-15`), which
+ * reads the stored draft; Answers is a seam the answer check (`DSK-18`) fills.
  */
 
 const ICON: Record<CheckState, ReactNode> = {
@@ -127,6 +127,7 @@ export function ReviewChecks({
   open,
   onShow,
   onAsk,
+  draft,
   className,
 }: {
   work: Working;
@@ -137,6 +138,8 @@ export function ReviewChecks({
   open: boolean;
   onShow: (row: ChangeRow) => void;
   onAsk: (targets: readonly AttachTarget[], draft: string) => void;
+  /** Draft is up to date, from the stored draft (`DSK-15`), with what can be done about it. */
+  draft: { state: CheckState; title: string; action?: ReactNode };
   className?: string;
 }) {
   const { checks: publishChecks } = useStudio();
@@ -185,7 +188,9 @@ export function ReviewChecks({
                 : ''
           }`}
         />
-        <CheckLine state="info" title="Draft is up to date: checked when you save" />
+        <CheckLine state={draft.state} title={draft.title}>
+          {draft.action}
+        </CheckLine>
         <CheckLine
           state={writing.length === 0 ? 'pass' : 'warn'}
           title={

@@ -154,7 +154,9 @@ async function open(
   for (const file of init.drop ?? []) fake.files.delete(`u1/${id}/checkpoints/${file}`);
   const agent = fakeAgent(fake.desktop);
   installDesktop(fake.desktop);
-  const studio = init.studio ?? fakeStudio({ courses: [{ live: GIT, draft: draftDoc(GIT) }] });
+  // The stored draft is the one the session started from, unless a test moves it.
+  const studio =
+    init.studio ?? fakeStudio({ courses: [{ live: GIT, draft: draftDoc(GIT, { rev: 3 }) }] });
   const app = await openApp(init.path?.(id) ?? `/studio/sessions/${id}/review`, {
     roles: ['educator'],
     studio,
@@ -665,7 +667,10 @@ describe('Review', () => {
     expect(screen.getByText('0 changes · 0 viewed')).toBeTruthy();
     expect(screen.queryByRole('combobox', { name: 'Show' })).toBeNull();
     expect(screen.getByText('Left for you: 0', { selector: '.ss-review__left' })).toBeTruthy();
-    expect(screen.getByText('Save to draft comes next.')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Save 0 changes to draft' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(screen.getByText('Nothing has changed yet.')).toBeTruthy();
     const keep = screen.getAllByRole('link', { name: 'Keep working' });
     expect(keep[0]?.getAttribute('href')).toBe(`/studio/sessions/${s.id}`);
   });
@@ -806,9 +811,36 @@ describe('Review', () => {
     });
     expect(await screen.findByText('A new course: everything in it is added.')).toBeTruthy();
     await ready(s);
-    pick(/^1\.1 · Lesson l1/);
-    expect(within(detail()).queryByRole('button', { name: /^More for/ })).toBeNull();
+    // Nothing to compare with: the list is the outline, and a row shows what it holds.
+    expect(screen.getByRole('region', { name: 'Outline' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Changes' })).toBeNull();
+    // It opens on the first lesson, as a learner sees it, with no view to pick.
+    expect(within(detail()).getByRole('heading', { name: /^1\.1 · Lesson l1/ })).toBeTruthy();
     expect(within(detail()).getByText('Body of l1')).toBeTruthy();
+    expect(within(detail()).queryByRole('button', { name: 'Inline' })).toBeNull();
+    expect(within(detail()).queryByRole('button', { name: /^More for/ })).toBeNull();
+    // The course details show what they hold, with no Side by side to pick (1024px wide).
+    pick(/^Course details/);
+    expect(within(detail()).getByRole('heading', { name: 'Course details' })).toBeTruthy();
+    expect(within(detail()).queryByRole('button', { name: 'Side by side' })).toBeNull();
+    expect(within(detail()).queryByRole('button', { name: 'Inline' })).toBeNull();
+  });
+
+  it('a new course’s turn is still a difference: its first turn compares with the blank course', async () => {
+    const s = await open({
+      kind: 'new',
+      turns: [
+        (w) =>
+          change(w, (c) => {
+            c.title = 'Code review';
+          }),
+      ],
+      path: (id) => `/studio/sessions/${id}/review?turn=t1`,
+    });
+    expect(await screen.findByText('1 change · 0 viewed')).toBeTruthy();
+    await ready(s);
+    expect(screen.getByRole('region', { name: 'Outline' })).toBeTruthy();
+    expect(within(detail()).getByRole('button', { name: 'Inline' })).toBeTruthy();
   });
 });
 
@@ -824,7 +856,7 @@ describe('Review’s checks', () => {
     ).toBeTruthy();
     const c = checks();
     expect(within(c).getByText(/^Size \d+ KB of 900 KB$/)).toBeTruthy();
-    expect(within(c).getByText('Draft is up to date: checked when you save')).toBeTruthy();
+    expect(await within(c).findByText('Draft is up to date')).toBeTruthy();
     expect(within(c).getByText('Writing: no notes')).toBeTruthy();
     expect(within(c).getByText('Answers: second opinion comes with the answer check')).toBeTruthy();
     expect(within(c).getByText('Ready to publish')).toBeTruthy();
@@ -945,7 +977,8 @@ describe('Review and the session’s editors together', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Lesson l1' })).toBeTruthy();
     expect(screen.getByText(/^In the session · saved/)).toBeTruthy();
     expect(screen.getByDisplayValue('Rebase before you open a pull request.')).toBeTruthy();
-    expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+    // Only the page's one check of the stored draft, made when it opened.
+    expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
 
     fireEvent.change(title, { target: { value: 'Why rebase' } });
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));

@@ -4,6 +4,7 @@ import {
   SESSION_SCHEMA_VERSION,
   authoringSessionSchema,
   blankCourse,
+  sessionBaseSchema,
   workingSchema,
 } from '@gurukul/schema';
 import type { AuthoringSession, Turn, WorkingCopy } from '@gurukul/schema';
@@ -24,9 +25,11 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/session.json            the session (`authoringSessionSchema`)
  *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
  *   sessions/{uid}/{sessionId}/checkpoints/start.json  the working copy before the first turn
+ *   sessions/{uid}/{sessionId}/checkpoints/{file}      the base before a turn that moved it
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
+ *   sessions/{uid}/{sessionId}/created.json            a new course's draft, once `createCourse` made it
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -69,6 +72,14 @@ export const EDITING_FILE = 'editing.json';
  */
 export const AGENT_NOTE_FILE = 'agent-note.json';
 
+/**
+ * A new-course session's created course (`DSK-16`): the draft `createCourse` wrote (`createdBase`),
+ * written as soon as the course exists and before `session.json` makes the session an edit session
+ * on it, so a session that could not note it, opened again later, saves it without creating the
+ * course twice. Read only while the session is still a new course with no base.
+ */
+export const CREATED_FILE = 'created.json';
+
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
 export const GOAL_MAX_LENGTH = 300;
@@ -76,6 +87,86 @@ export const GOAL_MAX_LENGTH = 300;
 const TITLE_LENGTH = 80;
 /** The working course of a new-course session, until the first save gives it its slug. */
 export const NEW_COURSE_ID = 'new-course';
+/** A new-course session's course title until the agent or the Educator gives it one. */
+export const NEW_COURSE_TITLE = 'Untitled course';
+
+/** The `rev` of the draft `createCourse` writes for a new course (`firebase/functions/src/stores.ts`). */
+export const CREATED_DRAFT_REV = 1;
+
+/**
+ * The working copy as part of the course it belongs to: the course's own fields that Studio and
+ * publishing keep (id, Educators, status, version, `publishedAt`) taken from `owner`, as a merge
+ * takes them from the stored draft. A new-course session's copies from before the course was
+ * created (`DSK-16`) carry the placeholder id; this gives them the course's.
+ */
+export function onCourse<W extends WorkingCopy>(work: W, owner: WorkingCopy['course']): W {
+  const { id, educatorIds, educatorNames, status, version, publishedAt } = owner;
+  return {
+    ...work,
+    course: { ...work.course, id, educatorIds, educatorNames, status, version, publishedAt },
+  };
+}
+
+/**
+ * A new-course session's working copy once its course is created (`DSK-16`): on that course
+ * (`onCourse`), with the title the Educator gave it, and the certificate title and cover letter
+ * the placeholder "Untitled course" gave it, where nothing changed them since, made the course's
+ * own (`created` is the blank course `createCourse` wrote, which derives both from the title).
+ */
+export function asCreated<W extends WorkingCopy>(work: W, created: WorkingCopy['course']): W {
+  const owned = onCourse(work, created);
+  const { course } = owned;
+  const placeholder = blankCourse({
+    id: NEW_COURSE_ID,
+    title: NEW_COURSE_TITLE,
+    level: course.level,
+    theme: course.cover.theme,
+    educatorId: '',
+  });
+  return {
+    ...owned,
+    course: {
+      ...course,
+      title: created.title,
+      certificate:
+        course.certificate.title === placeholder.certificate.title
+          ? { ...course.certificate, title: created.certificate.title }
+          : course.certificate,
+      cover:
+        course.cover.glyph === placeholder.cover.glyph
+          ? { ...course.cover, glyph: created.cover.glyph }
+          : course.cover,
+    },
+  };
+}
+
+/**
+ * The draft `createCourse` has just written for a new-course session's course (`DSK-16`): a blank
+ * course with the title and address the Educator chose, the session's level, cover theme and
+ * Educator, at `CREATED_DRAFT_REV`. Built here rather than read, so nothing stands between the
+ * course being created and the session noting it; Save's own transaction checks the `rev`.
+ */
+export function createdBase(
+  work: WorkingCopy,
+  init: { courseId: string; title: string; uid: string; at: string },
+): SessionBase {
+  const { course } = work;
+  return {
+    rev: CREATED_DRAFT_REV,
+    savedAt: init.at,
+    work: {
+      course: blankCourse({
+        id: init.courseId,
+        title: init.title,
+        level: course.level,
+        theme: course.cover.theme,
+        educatorId: init.uid,
+        educatorName: course.educatorNames[init.uid],
+      }),
+      answers: {},
+    },
+  };
+}
 
 const at = z.iso.datetime({ offset: true });
 
@@ -108,6 +199,9 @@ const unreadableSchema = z.object({ since: at });
 /** `editing.json`: when the hand edits began, and the working copy before them. */
 export const handEditsSchema = z.object({ since: at, before: workingSchema });
 export type PendingHandEdits = z.infer<typeof handEditsSchema>;
+
+/** The stored draft a session compares with: its `rev`, when it was saved, and its copy. */
+export type SessionBase = z.infer<typeof sessionBaseSchema>;
 
 /** `agent-note.json`: turns undone, and whether the course was edited by hand, since the last message. */
 export const agentNoteSchema = z.object({
@@ -166,10 +260,22 @@ export interface SessionStore {
   /** Writes `checkpoints/start.json`: the working copy before the first turn, for Undo. */
   saveStart(sessionId: string, work: WorkingCopy): Promise<void>;
   /**
-   * Undo of the newest turn: the session without that turn and with `work` (the checkpoint before
-   * it) as its working copy, then the undone turn's checkpoint removed. Answers what was written.
+   * Writes the base from before a turn that moves it (Bring in their changes) to
+   * `checkpoints/{file}`, the turn's `baseBefore`, for Undo. Kept as long as the turn's checkpoint.
    */
-  undoTurn(session: AuthoringSession, work: WorkingCopy): Promise<AuthoringSession>;
+  saveBaseBefore(sessionId: string, file: string, base: SessionBase): Promise<void>;
+  /** The base a turn moved from (`baseBefore`), or null when it was removed or cannot be read. */
+  readBaseBefore(sessionId: string, file: string): Promise<SessionBase | null>;
+  /**
+   * Undo of the newest turn: the session without that turn and with `work` (the checkpoint before
+   * it) as its working copy, and `base` as its base when the turn had moved it; then the undone
+   * turn's checkpoint (and the base it kept) removed. Answers what was written.
+   */
+  undoTurn(
+    session: AuthoringSession,
+    work: WorkingCopy,
+    base?: SessionBase,
+  ): Promise<AuthoringSession>;
   /** Notes that hand edits began (`EDITING_FILE`), with the working copy from before them. */
   saveHandEdits(sessionId: string, pending: PendingHandEdits): Promise<void>;
   /** The hand edits not yet a turn, or null when there are none or the file cannot be read. */
@@ -180,6 +286,10 @@ export interface SessionStore {
   saveAgentNote(sessionId: string, note: AgentNote | null): Promise<void>;
   /** What the agent is still to be told, or null when nothing (or the file cannot be read). */
   readAgentNote(sessionId: string): Promise<AgentNote | null>;
+  /** Writes the draft of the course created for a new-course session (`CREATED_FILE`). */
+  saveCreated(sessionId: string, base: SessionBase): Promise<void>;
+  /** The course created for a new-course session, or null when none (or it cannot be read). */
+  readCreated(sessionId: string): Promise<SessionBase | null>;
   /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
   readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
   /** Replaces the chat file (the newest entries, when it would be too large). */
@@ -402,7 +512,10 @@ export function createSessionStore({
       const next = await save({ ...session, work: valid, turns: [...session.turns, turn] });
       const kept = new Set([
         checkpointPath(START_CHECKPOINT),
-        ...next.turns.slice(-SESSION_CHECKPOINTS_KEPT).map((t) => checkpointPath(t.checkpoint)),
+        ...next.turns
+          .slice(-SESSION_CHECKPOINTS_KEPT)
+          .flatMap((t) => (t.baseBefore ? [t.checkpoint, t.baseBefore] : [t.checkpoint]))
+          .map(checkpointPath),
       ]);
       const stale = (await store.list({ uid, sessionId: session.id })).filter(
         (f) => f.startsWith(checkpointPath('')) && !kept.has(f),
@@ -423,14 +536,31 @@ export function createSessionStore({
       await store.write(file(sessionId, checkpointPath(START_CHECKPOINT)), JSON.stringify(valid));
     },
 
-    async undoTurn(session, work) {
+    async saveBaseBefore(sessionId, name, base) {
+      const valid = sessionBaseSchema.parse(base);
+      await store.write(file(sessionId, checkpointPath(name)), JSON.stringify(valid));
+    },
+
+    async readBaseBefore(sessionId, name) {
+      return parse(await store.read(file(sessionId, checkpointPath(name))), sessionBaseSchema, {
+        sessionId,
+        file: 'base',
+      });
+    },
+
+    async undoTurn(session, work, base) {
       const undone = session.turns.at(-1);
       const next = await save({
         ...session,
+        ...(base ? { base: sessionBaseSchema.parse(base) } : {}),
         work: workingSchema.parse(work),
         turns: session.turns.slice(0, -1),
       });
-      if (undone) await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
+      if (undone) {
+        await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
+        if (undone.baseBefore)
+          await store.remove(file(session.id, checkpointPath(undone.baseBefore)));
+      }
       return next;
     },
 
@@ -462,6 +592,18 @@ export function createSessionStore({
       return parse(await store.read(file(sessionId, AGENT_NOTE_FILE)), agentNoteSchema, {
         sessionId,
         file: 'agent-note',
+      });
+    },
+
+    async saveCreated(sessionId, base) {
+      const valid = sessionBaseSchema.parse(base);
+      await store.write(file(sessionId, CREATED_FILE), JSON.stringify(valid));
+    },
+
+    async readCreated(sessionId) {
+      return parse(await store.read(file(sessionId, CREATED_FILE)), sessionBaseSchema, {
+        sessionId,
+        file: 'created',
       });
     },
 
@@ -508,7 +650,7 @@ export function createSessionStore({
         work = {
           course: blankCourse({
             id: NEW_COURSE_ID,
-            title: 'Untitled course',
+            title: NEW_COURSE_TITLE,
             level: 'foundation',
             theme: 'forest',
             educatorId: uid,

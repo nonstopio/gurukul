@@ -531,7 +531,8 @@ not strings, because Review ticks each one and `set_summary` sets "goals with do
 
 The schema also holds the rules a file must keep: an edit session has a course and a base; a base
 always belongs to a known course, and a new-course session gains both together at its first save
-(keeping `kind: 'new'`); the working course's id and the base's are the session's `courseId`;
+(the schema allows `kind: 'new'` with both; `DSK-16` makes it `kind: 'edit'` then, As built in
+`DSK-16`); the working course's id and the base's are the session's `courseId`;
 checkpoints are plain file names, so a session file cannot point outside its folder; turn and
 to-do ids are unique.
 
@@ -602,8 +603,11 @@ newer session of the same course.
 - Closing the app, signing out or losing the network keeps the session.
 - **Discard** needs a typed confirmation of the course title when the session has more than five
   changes; the stored draft is untouched.
-- A session can be saved more than once: after Save to draft it stays open with the new draft as
-  its base ("Saved 11 changes. Keep working, or close the session"). Closing marks it `saved`.
+- **Save to draft closes the session** (changed in `DSK-15`): it is marked `saved` and shows what
+  was saved, with the course editor and Publish…. More work on the course is a new session, which
+  starts from the draft just saved. (The plan first kept a saved session open with the new draft
+  as its base; its turns, checkpoints and Undo all measure from the copy the session started
+  from, so a session that kept going after a save would undo past what the draft now holds.)
 - The agent never publishes, never changes who can open a course, never deletes a course.
 
 ### Starting a session
@@ -777,8 +781,8 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
 - **The header** is the focused layout's top bar: back to the Studio courses, the session title,
   "N changes · checks pass" (or "· 1 check fails") and **Review**. The checks there are the two
   that stop a save and need no read: Course is valid and Size. Draft is up to date needs a
-  Firestore read and stays with Review (`DSK-14`). There is no [⋯] menu yet: Discard and Close come
-  with Save (`DSK-15`).
+  Firestore read and stays with Review (`DSK-14`, read by `DSK-15`). There is no [⋯] menu yet:
+  Save to draft closes a session (`DSK-15`); Discard and a Close without saving are still to come.
 - **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
   so the header stays and the shared runtime keeps the agent going between the two (`DSK-14` fills
   it: As built in `DSK-14`, under Review). A turn's line links to `…/review?turn=<turn id>`: the
@@ -1169,6 +1173,122 @@ Found while building it:
 - Two copies each within the limits can merge into one over them (31 chapters, 61 lessons in a
   chapter, over `COURSE_BYTES_LIMIT`). The merged copy goes through Review's checks like any
   working copy, so "Course is valid" or Size stops that save.
+
+### As built in `DSK-15`
+
+`apps/web/src/studio/session/save.ts` (without React: the check, the words, `saveSession`,
+`bringInDraft`), `SaveToDraft.tsx` (the notice, the footer's Save, the saved card),
+`MergeDialog.tsx` (Bring in their changes), `useDraftCheck.ts` (the stored draft's read); the
+runtime's `saveToDraft` and `bringIn` in `agent.ts`.
+
+- **One write, through Studio's own save.** The page hands the runtime `StudioData.saveDraft`
+  (the transaction with the `rev` check that the editors' autosave uses, `answersChanged` decided
+  against the stored draft inside it); the runtime marks the copy with `markAnswerEdits` against
+  the base first, as the editors mark theirs. Nothing else in a session writes Firestore. While it
+  is written (`saving`), Send, Undo, hand edits, an Educator's turn and Retry wait. Save is offered
+  when the agent cannot run too (Claude Code missing or signed out): saving does not need it. It
+  is not offered while the agent is being started, while a turn runs, an undo or Educator's turn is
+  written, or hand edits are open; the button says which, and why else it waits (Course is valid,
+  Size, the draft moved, nothing changed yet).
+- **After the save** the session is closed as `saved` through the store (`close`; its files go
+  `SESSION_FILES_DAYS` later as for any closed session), its agent's listeners end and
+  `agent.close` ends its `claude`. The base stays the draft it was compared with, so Review still
+  lists what was saved and the saved card says "N changes saved to Draft v(base + 1)". If the draft
+  was written but `session.json` could not be marked saved, the page says so: opened again, the
+  session finds the draft moved (saved by you), brings it in with nothing to choose, and has nothing
+  left to save. Publish… reads the live course once (`getCourse`, fresh) and opens Studio's
+  `PublishDialog` over the saved copy; its links go to the course editor.
+- **A failed save** keeps the session open as it was, says why in plain words (refused by the
+  rules, no connection, anything else), and logs once (`Session save to draft failed`, with the
+  session and course ids). A conflict in the transaction (`DraftConflictError`) is not a failure:
+  the draft is read again and the page shows it moved, so the merge runs again however many times
+  the rev moves between a merge and a save.
+- **The stored draft is read once when the page opens an open edit session** (`useDraftCheck`,
+  mounted where the chat, Review and the editors share it, so moving between them reads nothing
+  more), again only on Check again (after a failed read, which does not stop Save: the
+  transaction checks the rev itself) and after a conflict at save. A rev different from the base's
+  is "moved" (`!==`, not only "past": a rev only grows, and any other answer would fail the save's
+  check anyway). A new course and a closed session read nothing.
+- **Who and when**: "saved by" names the saver from the course's own `educatorNames` (no profile
+  read), "you" for the signed-in person (the Educator in the browser), else "someone else" (an
+  Admin not on the course); the time is "at 14:10" today and "on 18 Nov at 14:10" another day.
+- **Bring in their changes** is a dialog that works out the merge once when it opens: what the
+  draft changed (a count), each list both reordered said in words ("this session's order is
+  kept"), and each conflict with its reason and both changes drawn with Review's `RowDiff` (each
+  side's own row against the base, keyed by the conflict's key; a field conflict shows only its
+  field), and a `Radio` pair, Keep this session's or Keep theirs, 25 conflicts to a page. Its button
+  waits until every conflict has a side. The merged copy must pass the course schema to be
+  written (a session file holds only a valid course), so one over the schema's limits (31
+  chapters) is refused in words rather than saved; Size is left to Review's check, as planned.
+- **The merge is a turn by the Educator** ("Brought in Draft v5, saved by Arjun", a checkpoint,
+  a line in the chat, `HAND_EDIT_NOTE` for the agent's next message) with the stored draft as the
+  new base. It is a turn even when the working copy did not change (0 changes), because the base
+  moved: the turn keeps the base from before it beside its checkpoint (`baseBefore`,
+  `checkpoints/<turn>.base.json`, pruned with the checkpoint), and Undo of it puts back both the
+  copy and that base. Undoing only the copy would compare the copy from before the merge with
+  their draft, call the draft up to date and save over their changes. After that Undo the draft
+  reads as moved again and the merge is offered again. A merge whose kept base is gone cannot be
+  undone ("no longer kept").
+- **The page is keyed by the session** (`SessionView key={sessionId}`): moving to another session
+  in place (global search opens one from a session page) starts its page afresh, so its draft is
+  read for its own course and nothing of the last session's check or chat state carries over.
+- Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
+  a session started on a draft whose `course.publishedAt` is set (any published course) is written
+  but then cannot be read back ("This session is not on this computer"). It belongs to the store
+  (`DSK-11`).
+
+### As built in `DSK-16`
+
+A new course from a session: `SaveToDraft.tsx` (`CreateCourseDialog`, and `SaveBar` for a session
+with no base), `studio/CourseAddress.tsx` (the Title and Address fields, shared with Studio's New
+course dialog), `createdBase`, `asCreated` and `CREATED_FILE` in `store.ts`, and the runtime's `courseCreated` in
+`agent.ts`.
+
+- **Review of a new course** compares with nothing, so its list card is **Outline** (every row is
+  Added), it opens on the first lesson or Quiz, and a row shows what it holds: a lesson or Quiz As
+  a learner, the course details, landing page and chapters Inline, with no View choice. A turn picked in the filter still compares
+  its two checkpoints and offers the views as for any session.
+- **Create course and save draft** opens "Create the course": Title (the session's course title,
+  empty while it is still the placeholder "Untitled course") and Address, suggested from the title
+  with Studio's own warning ("Used in links, and it cannot change later."). It calls `createCourse`
+  through `apps/web/src/api/` (blank, with the session's level and cover theme; never a copy). An
+  address already in use says "That address is taken" on the field and keeps the dialog open; any
+  other failure is said in the dialog in words and logged once (`Creating a course failed`).
+- **The session becomes an edit session on the course before the draft is saved** (the plan said
+  "becomes an edit session"; the schema section's "keeping `kind: 'new'`" was dropped for it):
+  `courseCreated(base)` writes `session.json` once with `kind: 'edit'`, the `courseId`, the base
+  and the working copy given the course's id, Educators, status, version, `publishedAt` and the
+  chosen title (`asCreated`), so `courseId` and the base arrive together as the schema asks. The
+  certificate title and cover letter that the placeholder "Untitled course" made, if nothing changed
+  them since, become the course's (found while building it: `set_course_details` changes the
+  certificate title and cover letter only when asked, so a session that only set the title wrote
+  "Untitled course" on the certificate). As an edit session it
+  is the course's one open session (Edit with AI on that course offers it), and a reopened page reads
+  its draft once like any other. It is not a turn: Undo never takes a session back to before its
+  course existed, and a checkpoint from then (`start.json` included) is put back on the course with
+  the title the Educator gave it and the certificate title and cover letter it made (`asCreated`,
+  as for the working copy), so undoing the agent's first turn never writes "Untitled course" over
+  the course at the next save. The agent is told with its next message (`HAND_EDIT_NOTE`), since
+  the course got a title and an address under it.
+- **The base is built, not read**: `createdBase` is the blank course `createCourse` writes, at
+  `CREATED_DRAFT_REV` (1, `firebase/functions/src/stores.ts`). Reading it back would put a network
+  call between the course existing and the session knowing it; Save's own transaction checks the
+  `rev`, so a base that were wrong would read as "the draft moved" and offer the merge, never write
+  over anything.
+- **Never created twice.** Then the draft is saved through `DSK-15`'s save. If that fails the page
+  says the course was created and the draft not saved, and the footer is an edit session's again:
+  Save N changes to draft, against Draft v1. As soon as `createCourse` answers, the runtime keeps the
+  created draft (`pendingCourse`) and writes it to `created.json`, then writes `session.json`. If
+  that write fails, the button becomes **Save the draft**, which notes the course again and saves,
+  with no second `createCourse`. The runtime holds it while the session is open in the app (leaving
+  Review for the chat and coming back keeps it), and `created.json` holds it for a session opened
+  again later (read only while the session has no base). Not covered: the app closing between
+  `createCourse` answering and the `created.json` write, or neither file being writable and the
+  session then left; the session is still a new course then, and its address is taken by the empty
+  course just created (another address works; the empty course stays in Studio).
+- **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
+  'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
+  duplicated course without AI, as in the browser.
 
 ## The agent's tools
 

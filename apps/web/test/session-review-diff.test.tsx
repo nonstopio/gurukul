@@ -368,6 +368,7 @@ describe('the checks, drawn on their own', () => {
             open={open}
             onShow={vi.fn()}
             onAsk={onAsk}
+            draft={{ state: 'pass', title: 'Draft is up to date' }}
           />
         </StudioProvider>
       </ToastProvider>,

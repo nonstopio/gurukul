@@ -402,10 +402,10 @@ function places<T extends { after: unknown; before: unknown }>(
   );
 }
 
-function SettingsDiff({ fields }: { fields: readonly FieldChange[] }) {
+function SettingsDiff({ fields, label }: { fields: readonly FieldChange[]; label: string }) {
   if (fields.length === 0) return null;
   return (
-    <section className="ss-review__section" aria-label="Settings">
+    <section className="ss-review__section" aria-label={label}>
       <h3 className="ss-review__h3">Settings</h3>
       <DiffFields items={fieldItems(fields, 'both', 'Settings')} />
     </section>
@@ -433,6 +433,7 @@ export function RowDiff({
   layout,
   mode,
   name,
+  settingsLabel = 'Settings',
 }: {
   row: ChangeRow;
   before: Working | null;
@@ -441,6 +442,8 @@ export function RowDiff({
   mode: TextMode;
   /** The row's name, for the comparison's label. */
   name: string;
+  /** Names a lesson's or Quiz's settings region: unique on the page when several rows are drawn. */
+  settingsLabel?: string;
 }) {
   const t = useTerms();
   const label = `${name}, before and after`;
@@ -495,7 +498,7 @@ export function RowDiff({
               {moveLine(row.move, (before as Working).course, after.course)}
             </p>
           ) : null}
-          <SettingsDiff fields={row.fields} />
+          <SettingsDiff fields={row.fields} label={settingsLabel} />
           <DiffView layout={layout} label={label}>
             {runsOf(row.blocks).map((run) =>
               run.kind === 'changed' ? (
@@ -536,7 +539,7 @@ export function RowDiff({
               {moveLine(row.move, (before as Working).course, after.course)}
             </p>
           ) : null}
-          <SettingsDiff fields={row.fields} />
+          <SettingsDiff fields={row.fields} label={settingsLabel} />
           <DiffView layout={layout} label={label}>
             {runsOf(row.questions).map((run) =>
               run.kind === 'changed' ? (

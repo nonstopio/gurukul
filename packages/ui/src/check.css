@@ -43,13 +43,17 @@
   border-color: var(--accent);
 }
 .g-check__input:checked + .g-check__box,
-.g-check__input:indeterminate + .g-check__box {
+.g-check:not(.g-check--radio) .g-check__input:indeterminate + .g-check__box {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-on);
 }
+/*
+ * Only a checkbox's "some, not all". Browsers also call every radio of a group with nothing chosen
+ * indeterminate, which would draw each one as chosen.
+ */
 .g-check__input:checked + .g-check__box svg,
-.g-check__input:indeterminate + .g-check__box svg {
+.g-check:not(.g-check--radio) .g-check__input:indeterminate + .g-check__box svg {
   scale: 1;
   opacity: 1;
 }

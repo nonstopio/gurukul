@@ -32,6 +32,8 @@ import { UnavailableCard, UpdateTheAppButton } from './Problem';
 import { useAgentSession } from './useAgentSession';
 import { useBlockSize } from './useBlockSize';
 import type { AgentSessionHandle } from './useAgentSession';
+import { useDraftCheck } from './useDraftCheck';
+import type { DraftCheckApi } from './useDraftCheck';
 import { useSideBySide } from './useSideBySide';
 import { headerChecks, headerStatus } from './workspace';
 
@@ -51,12 +53,18 @@ function Back() {
  * count and checks, the chat beside the preview from 1024px (a drawer over it below), and Review
  * (`DSK-14`); and `/studio/sessions/:sessionId/items/:itemId`, Studio's editor over the working copy
  * (`HandEditor`, `DSK-19`). All share one runtime (`useAgentSession`), so leaving the chat for Review
- * or an editor keeps the agent going. Nothing here writes Firestore.
+ * or an editor keeps the agent going, and one read of the stored draft (`useDraftCheck`, `DSK-15`).
+ * Review's Save to draft is the only Firestore write.
  */
 export function SessionPage() {
   const desktop = useDesktop();
+  const { sessionId = '' } = useParams();
   if (desktop.status === 'ready') {
-    return <SessionView desktop={desktop.desktop} platform={desktop.info.platform} />;
+    // Keyed by the session: moving to another one in place (global search opens a session from a
+    // session page) starts its page afresh, its own draft read and its own chat state included.
+    return (
+      <SessionView key={sessionId} desktop={desktop.desktop} platform={desktop.info.platform} />
+    );
   }
   if (desktop.status === 'checking') {
     return (
@@ -110,6 +118,7 @@ function SessionView({ desktop, platform }: { desktop: GurukulDesktop; platform:
   const itemId = useMatch('/studio/sessions/:sessionId/items/:itemId')?.params.itemId;
   const agent = useAgentSession({ desktop, uid, sessionId });
   const { session, status, problem } = agent;
+  const draftCheck = useDraftCheck(session, sessionId);
 
   if (!session) {
     return (
@@ -146,6 +155,7 @@ function SessionView({ desktop, platform }: { desktop: GurukulDesktop; platform:
       uid={uid}
       sessionId={sessionId}
       review={review}
+      draftCheck={draftCheck}
     />
   );
 }
@@ -157,6 +167,7 @@ function Workspace({
   uid,
   sessionId,
   review,
+  draftCheck,
 }: {
   agent: AgentSessionHandle;
   desktop: GurukulDesktop;
@@ -164,6 +175,7 @@ function Workspace({
   uid: string;
   sessionId: string;
   review: boolean;
+  draftCheck: DraftCheckApi;
 }) {
   const session = agent.session as NonNullable<AgentSessionHandle['session']>;
   const work = agent.work as NonNullable<AgentSessionHandle['work']>;
@@ -249,7 +261,13 @@ function Workspace({
       />
       {review ? (
         <Page width="wide">
-          <ReviewPanel agent={agent} desktop={desktop} uid={uid} sessionId={sessionId} />
+          <ReviewPanel
+            agent={agent}
+            desktop={desktop}
+            uid={uid}
+            sessionId={sessionId}
+            draft={draftCheck}
+          />
         </Page>
       ) : (
         <Page width="wide">
