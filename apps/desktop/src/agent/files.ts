@@ -82,6 +82,11 @@ export async function writeSessionFiles(
   return { promptFile, pluginDir, mcpConfig: mcpFile, emptyDir };
 }
 
+/** Makes `dir` (and its parents) if it is not there. */
+export async function ensureFolder(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true });
+}
+
 /** True when `dir` is a folder that exists now. */
 export async function isFolder(dir: string): Promise<boolean> {
   try {

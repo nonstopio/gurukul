@@ -27,6 +27,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
+ *   sessions/{uid}/{sessionId}/answer-check.json       second opinions on Quiz answers (`DSK-18`)
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -68,6 +69,15 @@ export const EDITING_FILE = 'editing.json';
  * closed in between still tells it (`undoNote`, `HAND_EDIT_NOTE` in `agent.ts`).
  */
 export const AGENT_NOTE_FILE = 'agent-note.json';
+
+/**
+ * The answer check (`DSK-18`): each second opinion by its question's hash (`answers.ts`), so it is
+ * asked once per question and again only when that question or its lessons change, and whether
+ * the Educator skipped the check for this session. Removed with the session's other files.
+ */
+export const ANSWER_CHECK_FILE = 'answer-check.json';
+/** Most second opinions kept, the newest first: far more than a session changes questions. */
+export const ANSWER_RESULTS_KEPT = 500;
 
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
@@ -115,6 +125,23 @@ export const agentNoteSchema = z.object({
   handEdited: z.boolean(),
 });
 export type AgentNote = z.infer<typeof agentNoteSchema>;
+
+/** One second opinion: the options it chose (places from 0) and why, for one question's hash. */
+export const answerResultSchema = z.object({
+  hash: z.string().regex(/^[0-9a-f]{16}$/),
+  picked: z.array(z.number().int().min(0).max(7)).max(8),
+  reason: z.string().max(300),
+  at,
+});
+export type AnswerResult = z.infer<typeof answerResultSchema>;
+
+/** `answer-check.json`. */
+export const answerCheckSchema = z.object({
+  schemaVersion: z.literal(1),
+  skipped: z.boolean(),
+  results: z.array(answerResultSchema).max(ANSWER_RESULTS_KEPT),
+});
+export type AnswerCheckFile = z.infer<typeof answerCheckSchema>;
 
 /**
  * Was this file written by a newer app (a `schemaVersion` above this one's)? Only the log says so:
@@ -180,6 +207,10 @@ export interface SessionStore {
   saveAgentNote(sessionId: string, note: AgentNote | null): Promise<void>;
   /** What the agent is still to be told, or null when nothing (or the file cannot be read). */
   readAgentNote(sessionId: string): Promise<AgentNote | null>;
+  /** Writes the answer check's second opinions and its skip (`ANSWER_CHECK_FILE`). */
+  saveAnswerCheck(sessionId: string, check: AnswerCheckFile): Promise<void>;
+  /** The answer check as last written, or null when there is none (or it cannot be read). */
+  readAnswerCheck(sessionId: string): Promise<AnswerCheckFile | null>;
   /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
   readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
   /** Replaces the chat file (the newest entries, when it would be too large). */
@@ -462,6 +493,20 @@ export function createSessionStore({
       return parse(await store.read(file(sessionId, AGENT_NOTE_FILE)), agentNoteSchema, {
         sessionId,
         file: 'agent-note',
+      });
+    },
+
+    async saveAnswerCheck(sessionId, check) {
+      await store.write(
+        file(sessionId, ANSWER_CHECK_FILE),
+        JSON.stringify(answerCheckSchema.parse(check)),
+      );
+    },
+
+    async readAnswerCheck(sessionId) {
+      return parse(await store.read(file(sessionId, ANSWER_CHECK_FILE)), answerCheckSchema, {
+        sessionId,
+        file: 'answer-check',
       });
     },
 

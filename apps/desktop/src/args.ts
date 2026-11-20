@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   MAX_AGENT_TEXT_LENGTH,
+  MAX_ASK_PROMPT_LENGTH,
   MAX_PATH_SEGMENTS,
   MAX_SEGMENT_LENGTH,
   MAX_SKILL_FILES,
@@ -87,6 +88,13 @@ export const toolResult = z.union([
   z.object({ text: resultText }).strict(),
   z.object({ error: resultText }).strict(),
 ]);
+
+/** The window's id for one `agent.ask`. */
+export const askId = z.string().min(1).max(MAX_SEGMENT_LENGTH);
+
+export const askRequest = z
+  .object({ askId, prompt: z.string().min(1).max(MAX_ASK_PROMPT_LENGTH) })
+  .strict();
 
 export const sourcesChoice = z
   .object({ uid: id, sessionId: id, suggestedName: safeName.optional() })

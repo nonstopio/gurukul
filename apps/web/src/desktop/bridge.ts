@@ -4,6 +4,7 @@ import type {
   BridgeErrors,
   DesktopInfo,
   GurukulDesktop,
+  MAX_ASKS_RUNNING as SHELL_MAX_ASKS_RUNNING,
 } from '@gurukul/desktop/bridge';
 import { log } from '../log';
 
@@ -51,6 +52,18 @@ export const AGENT_SESSION_NAMES: typeof SHELL_AGENT_SESSION_NAMES = [
 export function isAgentSessionFile(path: string): boolean {
   const first = (path.split('/')[0] as string).toLowerCase();
   return (AGENT_SESSION_NAMES as readonly string[]).includes(first);
+}
+
+/** The shell's `MAX_ASKS_RUNNING`: most `agent.ask` calls at once. The type makes it equal. */
+export const MAX_ASKS_RUNNING: typeof SHELL_MAX_ASKS_RUNNING = 2;
+
+/**
+ * True when this shell answers `agent.ask` (`DSK-18`). The call came after the first shells
+ * shipped and breaks nothing an older site does, so `BRIDGE_VERSION` stayed 1: a shell without it
+ * simply has no such function, and the answer check asks for the update instead.
+ */
+export function canAsk(desktop: GurukulDesktop): boolean {
+  return typeof (desktop.agent as { ask?: unknown }).ask === 'function';
 }
 
 /** Where the page stands with the desktop app. */

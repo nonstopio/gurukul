@@ -192,6 +192,38 @@ export interface AgentToolCall {
 /** The answer to a tool call: the text for the model, or one sentence saying why not. */
 export type AgentToolResult = { text: string } | { error: string };
 
+/**
+ * `agent.ask`: one question to a separate, one-shot `claude` with no tools, no MCP server, none of
+ * the Educator's settings and no saved chat (`DSK-18`, the second opinion on Quiz answers). The web
+ * app builds the whole prompt; the shell sends it as the one message and gives back the reply's
+ * words, which the web app parses and checks itself, so the shell stays a plain proxy.
+ */
+export interface AgentAskRequest {
+  /** The window's id for this ask, to cancel it with `agent.cancelAsk`. */
+  askId: string;
+  /** At most `MAX_ASK_PROMPT_LENGTH` characters. Never an argument: it goes to `claude`'s input. */
+  prompt: string;
+}
+
+/** Why an ask has no answer. The first four are about Claude Code, not the question. */
+export type AgentAskFailure =
+  | { code: 'not_installed' }
+  | { code: 'too_old'; version: string; minimumVersion: string }
+  | { code: 'not_signed_in' }
+  /** The Educator's Claude plan is used up for now. */
+  | { code: 'plan_limit'; resetsAt: string | null }
+  /** `MAX_ASKS_RUNNING` asks are running already, or this `askId` is. */
+  | { code: 'busy' }
+  /** No answer within the shell's time limit; the process was ended. */
+  | { code: 'timeout' }
+  /** `agent.cancelAsk` ended it. */
+  | { code: 'cancelled' }
+  /** It ended without an answer, or with a reply longer than `MAX_ASK_REPLY_LENGTH`. */
+  | { code: 'failed' };
+
+/** `agent.ask`'s answer: the reply's words, or why there are none. Never a rejection for these. */
+export type AgentAskResult = { ok: true; text: string } | { ok: false; error: AgentAskFailure };
+
 // ---- sources ----
 
 /** A file in a session's Sources folder: a plain name, never a path. */
@@ -287,6 +319,8 @@ export interface BridgeCalls {
   'agent.close'(sessionId: string): void;
   'agent.forget'(agentSessionId: string): void;
   'agent.toolResult'(sessionId: string, callId: string, result: AgentToolResult): void;
+  'agent.ask'(request: AgentAskRequest): AgentAskResult;
+  'agent.cancelAsk'(askId: string): void;
   'sources.choose'(choice: SourcesChoice): SourcesFolder | null;
   'sources.list'(ref: SessionRef): SourcesFolder | null;
   'sources.reveal'(ref: SessionRef): void;
@@ -314,6 +348,8 @@ export const CALLS = [
   'agent.close',
   'agent.forget',
   'agent.toolResult',
+  'agent.ask',
+  'agent.cancelAsk',
   'sources.choose',
   'sources.list',
   'sources.reveal',
@@ -391,6 +427,14 @@ export interface GurukulDesktop {
     forget: BridgeFn<'agent.forget'>;
     /** Answers one `onToolCall`. An unanswered call times out in the shell. */
     toolResult: BridgeFn<'agent.toolResult'>;
+    /**
+     * One question to a one-shot `claude` with no tools, apart from any session (`DSK-18`).
+     * Resolves when it has answered, failed, timed out or been cancelled. Added after the first
+     * shells shipped: a site checks the function is there before calling it.
+     */
+    ask: BridgeFn<'agent.ask'>;
+    /** Ends a running ask, which then answers `cancelled`. An ask not running is no error. */
+    cancelAsk: BridgeFn<'agent.cancelAsk'>;
     onEvent: Subscribe<'agent.onEvent'>;
     onToolCall: Subscribe<'agent.onToolCall'>;
   };
@@ -435,6 +479,12 @@ export const MAX_AGENT_TEXT_LENGTH = 256 * 1024;
 export const MAX_MESSAGE_LENGTH = 64 * 1024;
 /** Longest tool result, in characters: a whole course read back fits with room to spare. */
 export const MAX_TOOL_RESULT_LENGTH = 4 * 1024 * 1024;
+/** Longest `agent.ask` prompt, in characters (64 KiB, as a message). */
+export const MAX_ASK_PROMPT_LENGTH = 65_536;
+/** Longest reply `agent.ask` gives back, in characters; a longer one is `failed`. */
+export const MAX_ASK_REPLY_LENGTH = 16_384;
+/** Most `agent.ask` calls running at once, over every window and session; more answer `busy`. */
+export const MAX_ASKS_RUNNING = 2;
 /** Most skills, files per skill and tools in one `agent.start`. */
 export const MAX_SKILLS = 32;
 export const MAX_SKILL_FILES = 32;

@@ -9,6 +9,7 @@ import {
   CheckIcon,
   Checkbox,
   ChecklistIcon,
+  Chip,
   ChevronRightIcon,
   EmptyState,
   Menu,
@@ -36,7 +37,8 @@ import type { Working } from '../types';
 import type { AttachTarget, AttachWords } from './attachments';
 import { MAX_ATTACHMENTS } from './attachments';
 import { StatusChips } from './PreviewPanel';
-import { ReviewChecks } from './ReviewChecks';
+import type { AnswerQuestion } from './answerCheck';
+import { ReviewChecks, answerWords } from './ReviewChecks';
 import { RowDiff, hasProse } from './ReviewDiff';
 import type { Layout, TextMode } from './ReviewDiff';
 import { canRevert, revertRow } from './revert';
@@ -54,6 +56,7 @@ import {
 import type { Numbers } from './review';
 import { createSessionStore } from './store';
 import type { AgentSessionHandle } from './useAgentSession';
+import { useAnswerCheck } from './useAnswerCheck';
 import { useSideBySide } from './useSideBySide';
 import { turnLabel } from './workspace';
 
@@ -142,6 +145,15 @@ function useCompleted(courseId: string | null, itemId: string | null): number | 
   return count?.itemId === itemId ? count.value : null;
 }
 
+/** While the agent or the Educator is changing the course, the answer check starts nothing new. */
+const BUSY = new Set<AgentSessionHandle['status']>([
+  'loading',
+  'working',
+  'stopping',
+  'undoing',
+  'editing',
+]);
+
 const REFUSALS: Record<RevertRefusal, string> = {
   no_base: 'A new course has no draft to go back to.',
   repeated: 'This id is used twice in the course, so it cannot be put back on its own.',
@@ -189,6 +201,21 @@ export function ReviewPanel({
   const viewed = useMemo(() => new Set(session.viewed), [session.viewed]);
   const selected = rows.find((r) => r.key === params.get('row')) ?? rows[0] ?? null;
   const [undoing, setUndoing] = useState<ChangeRow | null>(null);
+
+  // The second opinion on changed Quiz answers (`DSK-18`): asks start only between turns, with no
+  // hand edits open, in an open session.
+  const answers = useAnswerCheck(
+    { desktop, uid, sessionId },
+    { work, changes, active: open && !BUSY.has(agent.status) && agent.handEdits === null },
+  );
+  const toCheck = useMemo(() => {
+    const byQuiz = new Map<string, AnswerQuestion[]>();
+    for (const q of answers.questions) {
+      if (q.outcome.state !== 'disagrees') continue;
+      byQuiz.set(q.quizId, [...(byQuiz.get(q.quizId) ?? []), q]);
+    }
+    return byQuiz;
+  }, [answers.questions]);
 
   const go = (next: { turn?: string | null; row?: string | null }) => {
     const search = new URLSearchParams(params);
@@ -273,6 +300,7 @@ export function ReviewPanel({
             }
             numbers={listNumbers}
             viewed={viewed}
+            toCheck={toCheck}
             selected={selected}
             onSelect={(row) => go({ row: row.key })}
           />
@@ -288,6 +316,9 @@ export function ReviewPanel({
               courseId={session.courseId}
               sessionId={sessionId}
               open={open}
+              toCheck={
+                selected.kind === 'quiz' && selected.after ? (toCheck.get(selected.id) ?? []) : []
+              }
               viewed={viewed.has(selected.key)}
               onViewed={(on) =>
                 void agent.updateReview({
@@ -337,6 +368,8 @@ export function ReviewPanel({
           numbers={workNumbers}
           words={words}
           open={open}
+          answers={answers}
+          desktop={desktop}
           onShow={(row) => go({ turn: null, row: row.key })}
           onAsk={ask}
         />
@@ -462,6 +495,7 @@ function ChangeList({
   groups,
   numbers,
   viewed,
+  toCheck,
   selected,
   onSelect,
 }: {
@@ -474,6 +508,8 @@ function ChangeList({
   groups: ReturnType<typeof groupRows>;
   numbers: Numbers;
   viewed: ReadonlySet<string>;
+  /** Quiz ids whose answers a second opinion disagreed with. */
+  toCheck: ReadonlyMap<string, readonly AnswerQuestion[]>;
   selected: ChangeRow | null;
   onSelect: (row: ChangeRow) => void;
 }) {
@@ -481,6 +517,7 @@ function ChangeList({
     const name = rowName(row, numbers);
     const current = row.key === selected?.key;
     const seen = viewed.has(row.key);
+    const check = row.kind === 'quiz' && row.after !== null && toCheck.has(row.id);
     return (
       <li key={row.key} className="ss-review__row">
         <Button
@@ -496,9 +533,10 @@ function ChangeList({
           <span className={row.statuses.includes('removed') ? 'ss-outline__gone' : undefined}>
             {name}
           </span>
-          <span className="g-visually-hidden">{`: ${row.statuses.join(', ')}${seen ? ', viewed' : ''}`}</span>
+          <span className="g-visually-hidden">{`: ${row.statuses.join(', ')}${check ? ', check this answer' : ''}${seen ? ', viewed' : ''}`}</span>
           <span className="ss-review__chips" aria-hidden="true">
             <StatusChips statuses={row.statuses} />
+            {check ? <Chip tone="warning">Check this answer</Chip> : null}
             {seen ? <CheckIcon size={16} /> : null}
           </span>
         </Button>
@@ -581,6 +619,7 @@ function RowDetail({
   courseId,
   sessionId,
   open,
+  toCheck,
   viewed,
   onViewed,
   target,
@@ -596,6 +635,8 @@ function RowDetail({
   courseId: string | null;
   sessionId: string;
   open: boolean;
+  /** This Quiz's questions a second opinion disagreed with (`DSK-18`). */
+  toCheck: readonly AnswerQuestion[];
   viewed: boolean;
   onViewed: (on: boolean) => void;
   target: AttachTarget | null;
@@ -701,6 +742,15 @@ function RowDetail({
           />
         ) : null}
       </div>
+      {toCheck.length > 0 ? (
+        <Callout tone="warning" title="Check this answer">
+          <ul className="ss-review__answers">
+            {toCheck.map((q) => (
+              <li key={q.questionId}>{`Question ${q.position}: ${answerWords(q) as string}`}</li>
+            ))}
+          </ul>
+        </Callout>
+      ) : null}
       {removed && item ? (
         <Callout tone="warning" title="Removed from the course">
           <p>

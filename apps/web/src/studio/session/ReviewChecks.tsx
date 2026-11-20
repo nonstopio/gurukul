@@ -8,13 +8,20 @@ import {
   DEFAULT_PAGE_SIZE,
   InfoIcon,
   Pagination,
+  ProgressBar,
   pageOf,
 } from '@gurukul/ui';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useStudio } from '../StudioProvider';
+import type { GurukulDesktop } from '../../desktop/bridge';
 import type { Working } from '../types';
+import type { AnswerFailure, AnswerProblem, AnswerQuestion } from './answerCheck';
+import { answersFixMessage, lettersOf } from './answers';
+import { MAX_ATTACHMENTS, questionTarget } from './attachments';
 import type { AttachTarget, AttachWords } from './attachments';
+import { UpdateTheAppButton, Words } from './Problem';
+import type { AnswerCheckHandle } from './useAnswerCheck';
 import {
   WRITING_FIX_MESSAGE,
   fixTargets,
@@ -28,9 +35,10 @@ import type { CheckState, Numbers } from './review';
 
 /*
  * Review's checks, like the checks on a pull request (`.plan/22-desktop-studio.md`, Checks): two can
- * stop a save (Course is valid, Size), the rest inform. Each finding links to its row; Writing offers
- * to send its findings to the agent. Draft is up to date and Answers are seams the save (`DSK-15`)
- * and the answer check (`DSK-18`) fill.
+ * stop a save (Course is valid, Size), the rest inform. Each finding links to its row; Writing and
+ * Answers offer to send their findings to the agent. Draft is up to date is a seam the save
+ * (`DSK-15`) fills. Answers is the second opinion on changed Quiz questions (`DSK-18`,
+ * `answerCheck.ts`): progress while it runs, each disagreement and failure, Skip answer check.
  */
 
 const ICON: Record<CheckState, ReactNode> = {
@@ -118,6 +126,180 @@ function Findings({
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+const FAILURE_WORDS: Record<AnswerFailure, string> = {
+  timeout: 'It took too long.',
+  failed: 'Claude Code did not answer.',
+  unreadable: 'Its answer could not be read.',
+  busy: 'Too many checks were running at once.',
+};
+
+/** "Quiz 2.4 · Question 3". */
+export function questionName(q: AnswerQuestion, numbers: Numbers, words: AttachWords): string {
+  return `${words.quiz} ${numbers.items.get(`quiz:${q.quizId}`) as string} · Question ${q.position}`;
+}
+
+/** What the second opinion said about one question, without its name; null until it has. */
+export function answerWords(q: AnswerQuestion): string | null {
+  const o = q.outcome;
+  if (o.state === 'disagrees') {
+    const why = o.reason === '' ? '' : ` “${o.reason}”`;
+    return `A second opinion chose ${lettersOf(o.picked)}; the key says ${lettersOf(o.key)}.${why}`;
+  }
+  if (o.state === 'failed') return `No second opinion. ${FAILURE_WORDS[o.reason]}`;
+  return null;
+}
+
+/** Why the answer check cannot run now, in words (`command` spans shown as code). */
+export function answerProblemWords(problem: AnswerProblem): string {
+  switch (problem.code) {
+    case 'needs_update':
+      return 'This version of Gurukul Studio cannot ask for a second opinion. Update the app, then open Review again.';
+    case 'not_installed':
+      return 'Claude Code is not on this computer, so no second opinion can be asked for.';
+    case 'too_old':
+      return `Claude Code ${problem.version} is older than this app needs (${problem.minimumVersion}). Open a terminal, run \`claude update\`, then try again.`;
+    case 'not_signed_in':
+      return 'Open a terminal, run `claude` and sign in, then try again.';
+    case 'plan_limit':
+      return 'Your Claude plan has reached its limit for now. Try again once it resets.';
+  }
+}
+
+/** The Answers line: the second opinion on every Quiz question this session added or changed. */
+function AnswersLine({
+  answers,
+  rows,
+  numbers,
+  words,
+  open,
+  desktop,
+  onShow,
+  onAsk,
+}: {
+  answers: AnswerCheckHandle;
+  rows: readonly ChangeRow[];
+  numbers: Numbers;
+  words: AttachWords;
+  open: boolean;
+  desktop: GurukulDesktop;
+  onShow: (row: ChangeRow) => void;
+  onAsk: (targets: readonly AttachTarget[], draft: string) => void;
+}) {
+  const { questions, done, pending, disagreements, problem } = answers;
+  const total = questions.length;
+  if (!answers.loaded) return <CheckLine state="info" title="Answers: reading earlier checks" />;
+  if (total === 0) return <CheckLine state="pass" title="Answers: no Quiz questions changed" />;
+  if (answers.skipped) {
+    return (
+      <CheckLine state="info" title="Answers: skipped for this session">
+        <p className="sc-help">
+          No second opinion is asked for, so none of your Claude plan is used for it.
+        </p>
+        {open ? (
+          <Button variant="secondary" onClick={answers.resume}>
+            Check answers
+          </Button>
+        ) : null}
+      </CheckLine>
+    );
+  }
+  const failed = questions.filter((q) => q.outcome.state === 'failed').length;
+  const progress = pending > 0 ? ` · ${done} of ${total} checked` : '';
+  const [state, title]: [CheckState, string] =
+    disagreements > 0
+      ? ['warn', `Answers: ${plural(disagreements, 'answer', 'answers')} to check${progress}`]
+      : pending > 0
+        ? ['info', `Answers: ${done} of ${total} checked`]
+        : failed > 0
+          ? ['info', `Answers: ${failed} not checked`]
+          : ['pass', `Answers: ${total} checked, all agree`];
+  const line = (q: AnswerQuestion) =>
+    `${questionName(q, numbers, words)}: ${answerWords(q) as string}`;
+  const disagreeing = questions.filter((q) => q.outcome.state === 'disagrees');
+  const findings = questions
+    .filter((q) => answerWords(q) !== null)
+    .map((q): Finding => ({
+      key: `a:${q.quizId}:${q.questionId}`,
+      text: line(q),
+      row: rowFor(rows, { itemId: q.quizId }),
+    }));
+  const ask = () => {
+    const sent = disagreeing.slice(0, MAX_ATTACHMENTS);
+    onAsk(
+      sent.map((q) =>
+        questionTarget(
+          words,
+          q.quizId,
+          numbers.items.get(`quiz:${q.quizId}`) as string,
+          q.questionId,
+          q.position,
+        ),
+      ),
+      answersFixMessage(sent.map(line)),
+    );
+  };
+  return (
+    <CheckLine state={state} title={title}>
+      {problem ? (
+        <>
+          <p className="sc-help">
+            <Words text={answerProblemWords(problem)} />
+          </p>
+          {problem.code === 'needs_update' ? (
+            <UpdateTheAppButton desktop={desktop} variant="secondary" />
+          ) : (
+            <Button variant="secondary" onClick={answers.retry}>
+              Try again
+            </Button>
+          )}
+        </>
+      ) : pending > 0 && answers.active ? (
+        <>
+          <ProgressBar
+            className="ss-checks__progress"
+            value={(done / total) * 100}
+            label="Answer check"
+            caption={`${done} of ${total}`}
+            valueText={`${done} of ${total} questions checked`}
+          />
+          <p className="sc-help">
+            A separate Claude Code run answers each new or changed question from the lessons,
+            without the answer key. It uses your Claude plan, and nothing it finds stops Save.
+          </p>
+        </>
+      ) : pending > 0 ? (
+        <p className="sc-help">
+          {open
+            ? 'The check waits until the agent finishes its turn and your edits are kept.'
+            : 'This session is closed, so the rest were not checked.'}
+        </p>
+      ) : null}
+      {findings.length > 0 ? (
+        <Findings label="Answers to check" items={findings} numbers={numbers} onShow={onShow} />
+      ) : null}
+      {open ? (
+        <div className="ss-checks__actions">
+          {disagreeing.length > 0 ? (
+            <Button variant="secondary" onClick={ask}>
+              Ask the agent to fix these
+            </Button>
+          ) : null}
+          {failed > 0 && pending === 0 && problem === null ? (
+            <Button variant="secondary" onClick={answers.retry}>
+              Try again
+            </Button>
+          ) : null}
+          {pending > 0 ? (
+            <Button variant="quiet" onClick={answers.skip}>
+              Skip answer check
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </CheckLine>
+  );
+}
+
 export function ReviewChecks({
   work,
   changes,
@@ -125,6 +307,8 @@ export function ReviewChecks({
   numbers,
   words,
   open,
+  answers,
+  desktop,
   onShow,
   onAsk,
   className,
@@ -135,6 +319,8 @@ export function ReviewChecks({
   numbers: Numbers;
   words: AttachWords;
   open: boolean;
+  answers: AnswerCheckHandle;
+  desktop: GurukulDesktop;
   onShow: (row: ChangeRow) => void;
   onAsk: (targets: readonly AttachTarget[], draft: string) => void;
   className?: string;
@@ -217,8 +403,16 @@ export function ReviewChecks({
             </>
           ) : null}
         </CheckLine>
-        {/* The answer check (`DSK-18`) fills this line, and offers to send what it finds. */}
-        <CheckLine state="info" title="Answers: second opinion comes with the answer check" />
+        <AnswersLine
+          answers={answers}
+          rows={rows}
+          numbers={numbers}
+          words={words}
+          open={open}
+          desktop={desktop}
+          onShow={onShow}
+          onAsk={onAsk}
+        />
         <CheckLine
           state={publish.length === 0 ? 'pass' : 'info'}
           title={

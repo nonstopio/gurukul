@@ -1,17 +1,35 @@
-import type {
-  AgentError,
-  AgentStartRequest,
-  AgentStartResult,
-  AgentStatus,
-  AgentToolResult,
-  SessionRef,
+import path from 'node:path';
+import {
+  MAX_ASKS_RUNNING,
+  type AgentAskRequest,
+  type AgentAskResult,
+  type AgentError,
+  type AgentStartRequest,
+  type AgentStartResult,
+  type AgentStatus,
+  type AgentToolResult,
+  type SessionRef,
 } from '../bridge';
 import type { EventSender } from '../events';
 import type { Logger } from '../log';
+import { runAsk, type AskRun } from './ask';
 import { startToolEndpoint } from './endpoint';
-import { claudeConfigDir, forgetTranscript, isFolder, writeSessionFiles } from './files';
+import {
+  claudeConfigDir,
+  ensureFolder,
+  forgetTranscript,
+  isFolder,
+  writeSessionFiles,
+} from './files';
 import { findClaude, runCommand } from './find';
-import { MIN_CLAUDE_VERSION, childEnv, claudeArgs, isAtLeast, parseVersion } from './launch';
+import {
+  MIN_CLAUDE_VERSION,
+  askArgs,
+  childEnv,
+  claudeArgs,
+  isAtLeast,
+  parseVersion,
+} from './launch';
 import type { AgentPlatform } from './platform';
 import { AgentNotRunningError, createRun, type AgentRun } from './run';
 
@@ -38,6 +56,11 @@ export interface AgentManagerOptions {
    * Without it, every session works in an empty folder of its own.
    */
   sourcesFolder?: (ref: SessionRef) => Promise<string | null>;
+  /**
+   * The empty folder a one-shot `agent.ask` runs in (`DSK-18`): `{userData}/ask` by default, beside
+   * the session folders and in none of them. Nothing is written to it.
+   */
+  askDir?: string;
   log: Logger;
 }
 
@@ -49,11 +72,17 @@ export interface AgentManager {
   close(sessionId: string): Promise<void>;
   forget(agentSessionId: string): Promise<void>;
   toolResult(sessionId: string, callId: string, result: AgentToolResult): void;
-  /** Ends every session's process now, a starting one too: the app is quitting. */
+  /** One question to a one-shot `claude` with no tools (`askArgs`), at most `MAX_ASKS_RUNNING` at once. */
+  ask(request: AgentAskRequest): Promise<AgentAskResult>;
+  /** Ends a running ask; it answers `cancelled`. */
+  cancelAsk(askId: string): void;
+  /** Ends every session's process and every ask now, a starting one too: the app is quitting. */
   closeAll(): void;
 }
 
-type Found = { ok: true; file: string; version: string } | { ok: false; error: AgentError };
+type Found =
+  | { ok: true; file: string; version: string }
+  | { ok: false; error: Extract<AgentError, { code: 'not_installed' | 'too_old' }> };
 
 /** True when `claude auth status` printed JSON saying it is signed in. */
 export function isSignedIn(stdout: string): boolean {
@@ -71,6 +100,9 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
   // Every process not yet ended, including one still answering `initialize`: what quitting kills.
   const processes = new Set<AgentRun>();
   const starting = new Map<string, Promise<AgentStartResult>>();
+  // Every ask from the moment it is taken, its process once started: what `cancelAsk` ends.
+  const asks = new Map<string, { cancelled: boolean; run: AskRun | null }>();
+  const askDir = options.askDir ?? path.join(path.dirname(options.sessionsRoot), 'ask');
   // Short commands get the allow-listed environment too, so they see what a session would.
   const commandOptions = () => ({
     cwd: platform.homeDir,
@@ -167,7 +199,52 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
     return { ok: true, agentSessionId };
   };
 
+  const ask = async (
+    request: AgentAskRequest,
+    slot: { cancelled: boolean; run: AskRun | null },
+  ) => {
+    const found = await find();
+    if (!found.ok) return found;
+    await ensureFolder(askDir);
+    if (slot.cancelled) return { ok: false, error: { code: 'cancelled' } } as const;
+    let child;
+    try {
+      child = platform.spawn(found.file, askArgs(), {
+        cwd: askDir,
+        env: childEnv(platform.env, platform.platform),
+      });
+    } catch {
+      return { ok: false, error: { code: 'failed' } } as const;
+    }
+    slot.run = runAsk({ child, prompt: request.prompt, clock: platform.clock });
+    return slot.run.result;
+  };
+
   return {
+    async ask(request) {
+      if (asks.size >= MAX_ASKS_RUNNING || asks.has(request.askId)) {
+        return { ok: false, error: { code: 'busy' } };
+      }
+      const slot = { cancelled: false, run: null as AskRun | null };
+      asks.set(request.askId, slot);
+      let result: AgentAskResult;
+      try {
+        result = await ask(request, slot);
+      } finally {
+        asks.delete(request.askId);
+      }
+      // The outcome only: the prompt and the reply hold course text.
+      log.info('Agent ask ended', { outcome: result.ok ? 'answered' : result.error.code });
+      return result;
+    },
+
+    cancelAsk(askId) {
+      const slot = asks.get(askId);
+      if (slot === undefined) return;
+      slot.cancelled = true;
+      slot.run?.cancel();
+    },
+
     async status() {
       const found = await find();
       if (!found.ok) {
@@ -230,6 +307,10 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
 
     closeAll() {
       for (const run of processes) run.kill();
+      for (const slot of asks.values()) {
+        slot.cancelled = true;
+        slot.run?.cancel();
+      }
     },
   };
 }

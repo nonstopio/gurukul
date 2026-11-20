@@ -137,6 +137,7 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | `agent.forget(agentSessionId)` | Deletes Claude Code's own copy of a chat, for the 30-day clean-up |
 | `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id, errors (not installed, too old, not signed in, plan limit reached, crashed) |
 | `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
+| `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
 | `sources.choose / list / reveal / read` | The session's Sources folder; `read` takes one plain file name the listing gives |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
@@ -287,6 +288,30 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
   Code would, and makes its tool calls over the real endpoint with the SDK's client. `DSK-24`
   reuses it.
 
+**The one-shot ask (`DSK-18`, `apps/desktop/src/agent/ask.ts`, `askArgs` in `launch.ts`).** The
+answer check needs one question answered apart from any session, so the shell runs a second,
+short-lived `claude`:
+
+```
+claude -p --input-format stream-json --output-format stream-json --verbose \
+  --strict-mcp-config --setting-sources "" --tools "" --permission-mode dontAsk \
+  --no-session-persistence
+```
+
+with the same allow-listed environment (no token: there is no endpoint), in an empty folder of its
+own (`{userData}/ask`), never a Sources folder. The prompt is the one stream-json message, never
+an argument; the input is then closed, and the reply's text blocks are the answer. No tools at all
+(`--tools ""`, so no skill loads either), no MCP server (`--strict-mcp-config` with no
+`--mcp-config`), none of the Educator's settings, and no chat kept in Claude Code's folder
+(`--no-session-persistence`: such a chat cannot be resumed, which a one-shot never is). A sign-in
+or plan-limit signal ends it at once, as in a session; otherwise it has 180 seconds, and
+`agent.cancelAsk` ends it. At most two run at once (`MAX_ASKS_RUNNING`); more answer `busy`. The
+spike notes do not show `--json-schema`, so the shell asks for nothing structured: the web app's
+prompt asks for a JSON object and the web app reads and checks it with zod, and the shell stays a
+plain proxy. The call is added to version 1 without raising `BRIDGE_VERSION`: it breaks nothing
+an older site does, and a newer site finds the function missing on an older shell and asks for
+the update. Every way an ask ends without an answer is a result, not a rejection.
+
 The flags are pinned to what the spike saw on Claude Code 2.1.328 and are re-tested on each new
 Claude Code release: the documentation says `--bare` will become the default for scripted runs,
 and `--bare` never reads the subscription sign-in. What the spike settled, and what still needs a
@@ -426,6 +451,10 @@ created too.
 - A real model round trip with the pinned flags and the HTTP endpoint: one message, one
   `gurukul` tool call, a skill loaded, Stop (the spike stopped a streaming turn only; the check
   stops one with a `gurukul` call pending), resume.
+- The one-shot ask's flags (`DSK-18`): that `--tools ""` with stream-json input and
+  `--no-session-persistence` answer one message and exit once the input closes, and keep no
+  `projects/…/{id}.jsonl`. The fake `claude` assumes both; the signed-in check does not run an
+  ask yet.
 - The subscription sign-in with `--setting-sources ""` and the allow-listed environment: that a
   Claude plan sign-in (keychain on macOS, the credentials file on Windows) still works, and what
   `auth status` and `initialize` report for it. An Educator whose sign-in comes from their settings (`apiKeyHelper`, or a cloud
@@ -1292,6 +1321,45 @@ the question but **not the key**. The app compares its answer with the key; a di
 "Check this answer" on the row. It runs once per changed question and again only if that question
 changes. It uses the Educator's plan, so Review also has "Skip answer check".
 
+As built in `DSK-18` (`apps/web/src/studio/session/answers.ts`, `answerCheck.ts`,
+`useAnswerCheck.ts`, Review's Answers line in `ReviewChecks.tsx`; the shell's `agent.ask`,
+Starting Claude Code):
+
+- **Which questions.** Quiz questions only (the item is "Quiz answers"; a lesson's check block
+  carries its answer in the lesson the learner sees). Every question of an added Quiz, each added or
+  changed question of a changed one, and each whose key alone changed (`answerChanges`); not a
+  question only moved, nor a removed Quiz.
+- **The prompt never sees the key.** `buildAnswerPrompt(course, target)` takes the `Course` alone,
+  so the answer keys cannot be passed in; a test proves no key value reaches the prompt and that a
+  working copy is refused. The question's explanation is left out too, because it usually says why
+  the right option is right. The prompt gives the lesson the question revisits first (wherever it
+  is), then the lessons of the Quiz's chapter, cut at 24,000 characters (`LESSON_TEXT_MAX`); a
+  check block's options are read but not its answer. Options are lettered A, B, C by their place
+  now; the reply is `{"correct": ["B"], "reason": "…"}`, read from the first `{` to the last `}` and
+  checked with zod. The longest question and lessons fit the shell's `MAX_ASK_PROMPT_LENGTH`.
+- **Cached by content.** The key is a 64-bit hash of the prompt (question, options and lesson text)
+  and `ANSWER_PROMPT_VERSION`, so a question is asked again only when it or its lessons change; a
+  key change alone compares the kept answer with the new key. Two questions with the same words and
+  lessons share one answer. Answers live in `answer-check.json` in the session folder (newest 500),
+  removed with the rest 30 days after the session closes; a failure is not kept, so it is asked
+  again on the next visit. The file also remembers Skip answer check for the session.
+- **When it runs.** While Review is shown, at most two at a time (the shell's `MAX_ASKS_RUNNING`),
+  and only for an open session between turns with no hand edits open (the questions are still
+  changing otherwise). Leaving Review starts nothing new, but a running ask still has its answer
+  written (`acquireAnswerCheck`, shared like the session runtime). A saved or discarded session
+  shows what was found and asks nothing.
+- **What Review shows.** The Answers line: progress ("0 of 2 checked", a progress bar) with
+  Skip answer check; then "N answers to check" with each disagreement ("Quiz 2.2 · Question 2: A
+  second opinion chose A; the key says B. “…”") and Show, or "N checked, all agree". A Quiz with a
+  disagreement has a "Check this answer" chip in the change list and a callout naming its questions
+  when opened. **Ask the agent to fix these** attaches each disagreeing question (at most ten) and
+  puts a prepared message in the box, as Writing does. A question that could not be checked (too
+  slow, no answer, an answer that could not be read, too many at once) is listed with why, and Try
+  again asks again. Not installed, too old, signed out and a plan limit stop the check with a
+  sentence and Try again; a shell without `agent.ask` asks for the update. None of it stops Save.
+- **Logs** name the session, Quiz and question ids and the outcome, never the question, an option,
+  a key or the reply.
+
 The humanizer makes text plain. It does not make facts true: technical accuracy is the
 Educator's, which is why nothing is saved without Review.
 
@@ -1334,6 +1402,9 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.
+- The answer check (`DSK-18`) sends a changed Quiz question and the lessons around it to Anthropic
+  the same way, in a separate run with no tools and no saved chat; never the answer key or the
+  question's explanation.
 - **The agent's messages hold no link to follow.** What the agent writes can come from a Sources
   file or a page it was shown, so a link in its message may be someone else's: words that say
   "the Git book" over an address that carries course text to another server. In the shell a link
@@ -1372,7 +1443,8 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   once, where forty minutes of hand editing autosaves dozens of times. No new collection, no new
   function, no Storage. `11-deployment-and-cost.md` is unaffected.
 - **AI: nothing for NonStop.** Each Educator uses their own Claude plan. When a plan's limit is
-  reached the chat says so and the session waits.
+  reached the chat says so and the session waits. The answer check (`DSK-18`) spends one short
+  request per changed Quiz question, once per version of it, and Skip answer check stops it.
 - **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
   first, as Morph does, which shows a SmartScreen warning; a certificate is a separate yearly cost
   to be quoted (`DSK-22`). Builds and update files are hosted free on GitHub Releases.

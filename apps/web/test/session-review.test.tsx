@@ -826,7 +826,7 @@ describe('Review’s checks', () => {
     expect(within(c).getByText(/^Size \d+ KB of 900 KB$/)).toBeTruthy();
     expect(within(c).getByText('Draft is up to date: checked when you save')).toBeTruthy();
     expect(within(c).getByText('Writing: no notes')).toBeTruthy();
-    expect(within(c).getByText('Answers: second opinion comes with the answer check')).toBeTruthy();
+    expect(await within(c).findByText('Answers: no Quiz questions changed')).toBeTruthy();
     expect(within(c).getByText('Ready to publish')).toBeTruthy();
     expect(within(c).getByText('Left for you: 0')).toBeTruthy();
     expect(c.querySelectorAll('.g-visually-hidden')[0]?.textContent).toBe('Passes: ');

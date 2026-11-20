@@ -31,9 +31,15 @@
 //   { "controlRequest": true }      asks the bridge a control request and waits for its answer
 //   { "exit": 3 }                   exits at once with that code
 //   { "recall": true }              says back the last tool result in the transcript (history kept)
+//   { "echoPrompt": true }          says back the words of the message that started the turn
+//   { "hang": true }                never answers, even with its input closed, until killed
+// A one-shot `agent.ask` (DSK-18) starts it with neither --session-id nor --resume, no
+// --append-system-prompt-file, no --mcp-config and --no-session-persistence: it then gets a new
+// session id, keeps no transcript file, offers no tools (`--tools ""`) and answers turns[0].
 // Signed out ("loggedIn": false), `initialize` answers tokenSource "none" and every turn fails as
 // the spike recorded: an assistant error `authentication_failed`, then an error result.
 
+import { randomUUID } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
@@ -74,7 +80,7 @@ const VALUED = new Set([
   '--session-id',
   '--resume',
 ]);
-const SWITCHES = new Set(['-p', '--verbose', '--strict-mcp-config']);
+const SWITCHES = new Set(['-p', '--verbose', '--strict-mcp-config', '--no-session-persistence']);
 const flags = {};
 for (let i = 0; i < argv.length; i += 1) {
   const arg = argv[i];
@@ -91,9 +97,13 @@ function fail(message) {
 if (flags['--output-format'] === 'stream-json' && !flags['--verbose']) {
   fail('Error: When using --print, --output-format=stream-json requires --verbose');
 }
-if (!existsSync(flags['--append-system-prompt-file'] ?? '')) {
+if (
+  flags['--append-system-prompt-file'] !== undefined &&
+  !existsSync(flags['--append-system-prompt-file'])
+) {
   fail('Error: Append system prompt file not found');
 }
+const persist = !flags['--no-session-persistence'];
 
 const projectDir = path.join(configDir, 'projects', process.cwd().replace(/[^A-Za-z0-9]/g, '-'));
 const transcriptOf = (id) => {
@@ -108,15 +118,24 @@ const transcriptOf = (id) => {
 
 let sessionId;
 if (flags['--resume'] !== undefined) {
+  if (!persist) fail('Error: --resume cannot be used with --no-session-persistence');
   sessionId = flags['--resume'];
   if (transcriptOf(sessionId) === null) fail(`No conversation found with session ID: ${sessionId}`);
-} else {
+} else if (flags['--session-id'] !== undefined) {
   sessionId = flags['--session-id'];
   if (transcriptOf(sessionId) !== null) fail(`Error: Session ID ${sessionId} is already in use.`);
+} else {
+  sessionId = randomUUID();
 }
-mkdirSync(path.join(projectDir, 'memory'), { recursive: true });
 const transcript = path.join(projectDir, `${sessionId}.jsonl`);
-appendFileSync(transcript, '');
+// Without persistence the chat lives only in memory, as Claude Code keeps none on disk.
+const memory = [];
+const keep = (text) => (persist ? appendFileSync(transcript, text) : memory.push(text));
+const kept = () => (persist ? readFileSync(transcript, 'utf8') : memory.join(''));
+if (persist) {
+  mkdirSync(path.join(projectDir, 'memory'), { recursive: true });
+  appendFileSync(transcript, '');
+}
 
 mkdirSync(configDir, { recursive: true });
 appendFileSync(
@@ -129,6 +148,10 @@ appendFileSync(
 let mcp = null;
 let mcpStatus = 'pending';
 async function connect() {
+  if (flags['--mcp-config'] === undefined) {
+    mcpStatus = 'none';
+    return;
+  }
   const config = JSON.parse(readFileSync(flags['--mcp-config'], 'utf8')).mcpServers.gurukul;
   const headers = Object.fromEntries(
     Object.entries(config.headers ?? {}).map(([k, v]) => [
@@ -153,7 +176,7 @@ const connecting = connect();
 
 function print(value) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
-  appendFileSync(transcript, `${JSON.stringify(value)}\n`);
+  keep(`${JSON.stringify(value)}\n`);
 }
 const assistant = (content, extra = {}) =>
   print({
@@ -234,8 +257,8 @@ async function runStep(step, state) {
     });
     assistant([{ type: 'text', text: `${answer.isError ? 'tool error' : 'tool'}: ${text}` }]);
   } else if (step.listTools) {
-    const { tools } = await mcp.listTools();
-    assistant([{ type: 'text', text: tools.map((t) => t.name).join(',') }]);
+    const tools = mcp ? (await mcp.listTools()).tools : [];
+    assistant([{ type: 'text', text: tools.map((t) => t.name).join(',') || 'none' }]);
   } else if (step.waitForInterrupt) {
     await new Promise((resolve) => (interrupted = resolve));
     state.aborted = true;
@@ -272,8 +295,15 @@ async function runStep(step, state) {
     assistant([{ type: 'text', text: `control: ${response.subtype}` }]);
   } else if (step.exit !== undefined) {
     process.exit(step.exit);
+  } else if (step.hang) {
+    // A timer keeps Node from exiting once the input has closed and nothing else is pending.
+    setInterval(() => undefined, 1000);
+    await new Promise(() => undefined);
+  } else if (step.echoPrompt) {
+    const words = state.message.message.content.map((c) => c.text).join('');
+    assistant([{ type: 'text', text: words }]);
   } else if (step.recall) {
-    const results = readFileSync(transcript, 'utf8')
+    const results = kept()
       .split('\n')
       .filter((l) => l.includes('"tool_result"'))
       .map((l) => JSON.parse(l).message.content[0].content);
@@ -282,22 +312,25 @@ async function runStep(step, state) {
 }
 
 async function runTurn(message) {
-  appendFileSync(transcript, `${JSON.stringify(message)}\n`);
+  keep(`${JSON.stringify(message)}\n`);
   await connecting;
   print({
     type: 'system',
     subtype: 'init',
     session_id: sessionId,
     cwd: process.cwd(),
-    tools: [
-      'Skill',
-      ...(mcp ? (await mcp.listTools()).tools.map((t) => `mcp__gurukul__${t.name}`) : []),
-    ],
-    mcp_servers: [{ name: 'gurukul', status: mcpStatus }],
+    tools:
+      flags['--tools'] === ''
+        ? []
+        : [
+            'Skill',
+            ...(mcp ? (await mcp.listTools()).tools.map((t) => `mcp__gurukul__${t.name}`) : []),
+          ],
+    mcp_servers: mcpStatus === 'none' ? [] : [{ name: 'gurukul', status: mcpStatus }],
     skills: pluginSkills(),
     claude_code_version: version,
   });
-  const state = { n: 0, aborted: false, failed: false, interrupt: false };
+  const state = { n: 0, aborted: false, failed: false, interrupt: false, message };
   currentTurn = state;
   if (!loggedIn) {
     assistant([{ type: 'text', text: 'Not logged in · Please run /login' }], {

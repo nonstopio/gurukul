@@ -14,6 +14,23 @@ import type { Working } from '../src/studio/types';
 import { axeViolations } from './axe';
 import { lesson, makeCourse } from './fake-data';
 import { fakeStudio } from './fake-studio';
+import { fakeDesktop } from './fake-desktop';
+import type { AnswerCheckHandle } from '../src/studio/session/useAnswerCheck';
+
+/** An answer check with nothing to check, as a session with no changed Quiz has. */
+const NO_ANSWERS: AnswerCheckHandle = {
+  loaded: true,
+  skipped: false,
+  active: true,
+  problem: null,
+  questions: [],
+  done: 0,
+  pending: 0,
+  disagreements: 0,
+  skip: vi.fn(),
+  resume: vi.fn(),
+  retry: vi.fn(),
+};
 
 const base = (): Working => ({ course: makeCourse(), answers: { q1: { k1: ['a'] } } });
 
@@ -366,6 +383,8 @@ describe('the checks, drawn on their own', () => {
             numbers={numbersOf(work.course)}
             words={{ lesson: 'Lesson', quiz: 'Quiz', chapter: 'Chapter' }}
             open={open}
+            answers={NO_ANSWERS}
+            desktop={fakeDesktop().desktop}
             onShow={vi.fn()}
             onAsk={onAsk}
           />
