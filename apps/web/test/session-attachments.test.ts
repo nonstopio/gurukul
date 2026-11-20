@@ -55,6 +55,23 @@ describe('attached parts of the course', () => {
     expect(attachmentKey(renamed)).toBe('course');
   });
 
+  it('keys ids in their fixed order, whatever order they were written in', () => {
+    const reversed: AttachTarget = {
+      kind: 'block',
+      ids: { blockId: 'b2', itemId: 'l1' },
+      label: 'x',
+    };
+    expect(attachmentKey(reversed)).toBe('block:l1:b2');
+    expect(attachmentKey(cleanTarget(reversed) as AttachTarget)).toBe('block:l1:b2');
+  });
+
+  it('never gives two parts one key when an id holds a colon', () => {
+    const a: AttachTarget = { kind: 'block', ids: { itemId: 'x:a', blockId: 'b' }, label: 'A' };
+    const b: AttachTarget = { kind: 'block', ids: { itemId: 'x', blockId: 'a:b' }, label: 'B' };
+    expect(attachmentKey(a)).not.toBe(attachmentKey(b));
+    expect(attachmentKey(a)).toBe('block:x%3Aa:b');
+  });
+
   it('keeps a label to one line and cuts a long one on a word', () => {
     expect(attachmentLabel('  Lesson\n3.2  ')).toBe('Lesson 3.2');
     expect(attachmentLabel('   ')).toBe('Untitled');

@@ -122,9 +122,10 @@ function Attach({ target, children }: { target: AttachTarget; children: ReactNod
   );
 }
 
+/** A label is running words, so "Lesson" stays itself in every label set, as in the eyebrow. */
 function useAttachWords(): AttachWords {
   const t = useTerms();
-  return { lesson: t.Lesson, quiz: t.Quiz, chapter: t.Chapter };
+  return { lesson: 'Lesson', quiz: t.Quiz, chapter: t.Chapter };
 }
 
 /** Status words as chips: a word on its tone, never the colour alone. */

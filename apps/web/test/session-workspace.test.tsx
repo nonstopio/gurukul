@@ -49,6 +49,7 @@ async function open(
     course?: typeof GIT;
     path?: (id: string) => string;
     info?: () => Promise<typeof DESKTOP_INFO>;
+    labels?: 'generic' | 'gurukul';
   } = {},
 ) {
   // A new id each time: a runtime still writing a turn outlives its test (`acquireAgentSession`).
@@ -72,6 +73,7 @@ async function open(
   const app = await openApp(init.path?.(id) ?? `/studio/sessions/${id}`, {
     roles: ['educator'],
     studio: studio(),
+    ...(init.labels ? { labels: init.labels } : {}),
   });
   return {
     ...fake,
@@ -480,6 +482,24 @@ describe('attaching parts of the course to a message', () => {
     fireEvent.click(within(outline).getByRole('button', { name: /^Attach Landing page/ }));
     expect(within(chips() as HTMLElement).getAllByRole('listitem')).toHaveLength(4);
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('names lessons "Lesson" in the Gurukul names too, as the preview does', async () => {
+    await open({ labels: 'gurukul' });
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    expect(screen.getByText('Lesson 1.1')).toBeTruthy();
+    fireEvent.click(attachButton('Lesson 1.1 · Text block 1'));
+    expect(within(chips() as HTMLElement).getByText('Lesson 1.1 · Text block 1')).toBeTruthy();
+    choose(screen.getByRole('combobox', { name: 'Lesson or Pariksha' }), '2.2 · Quiz I');
+    fireEvent.click(attachButton('Pariksha 2.2 · Question 1'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    const outline = screen.getByRole('tabpanel', { name: 'Outline' });
+    for (const name of ['Parva 1 · Basics', 'Lesson 1.1 · Lesson l1', 'Pariksha 2.2 · Quiz I']) {
+      expect(
+        within(outline).getByRole('button', { name: `Attach ${name} to your message` }),
+      ).toBeTruthy();
+    }
+    expect(screen.queryByText(/Adhyaya/)).toBeNull();
   });
 
   it('says when a message already carries as many parts as it can', async () => {

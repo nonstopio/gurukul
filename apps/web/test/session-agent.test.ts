@@ -649,6 +649,21 @@ describe('attached parts of the course', () => {
     expect(s.state().attachments).toEqual([]);
   });
 
+  it('takes a part off by the object it was attached with, its ids in any order', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    const reversed: AttachTarget = {
+      kind: 'block',
+      ids: { blockId: 'b1', itemId: 'l1' },
+      label: 'Lesson 1.1 · Text block 1',
+    };
+    expect(s.runtime.attach(reversed)).toBe(true);
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.state().attachments).toHaveLength(1);
+    s.runtime.detach(reversed);
+    expect(s.state().attachments).toEqual([]);
+  });
+
   it('refuses past the limit, and ids that are not ids, but cuts a long label', async () => {
     const s = await setup();
     await s.runtime.open();

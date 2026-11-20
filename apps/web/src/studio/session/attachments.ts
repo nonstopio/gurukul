@@ -49,9 +49,25 @@ export type AttachKind = AttachTarget['kind'];
 /** The target of one kind, its ids known. */
 export type TargetOf<K extends AttachKind> = Extract<AttachTarget, { kind: K }>;
 
-/** One key per attachable part, whatever its label: `block:l1:b2`. */
+/** Each kind's ids, in the one order its key names them. */
+const ID_ORDER: { [K in AttachKind]: readonly (keyof TargetOf<K>['ids'])[] } = {
+  course: [],
+  landing: [],
+  chapter: ['chapterId'],
+  item: ['itemId'],
+  block: ['itemId', 'blockId'],
+  question: ['itemId', 'questionId'],
+};
+
+/**
+ * One key per attachable part, whatever its label: `block:l1:b2`. The ids go in their kind's fixed
+ * order, whatever order the caller wrote them in (`cleanTarget` rebuilds them in the schema's), and
+ * each is escaped, so a ':' inside an id can never make two parts share a key.
+ */
 export function attachmentKey(target: Pick<AttachTarget, 'kind' | 'ids'>): string {
-  return [target.kind, ...Object.values(target.ids)].join(':');
+  const ids = target.ids as Record<string, string>;
+  const order: readonly string[] = ID_ORDER[target.kind];
+  return [target.kind, ...order.map((f) => encodeURIComponent(String(ids[f])))].join(':');
 }
 
 /** A label cut to `ATTACHMENT_LABEL_MAX` on a word, on one line. Never empty. */
@@ -86,7 +102,10 @@ export function attachmentNote(targets: readonly AttachTarget[]): string {
 
 /** The words for what is attached, in labels (`Lesson 3.2 · Text block 2`). */
 export interface AttachWords {
-  /** "Lesson" (never a label set's name: lessons have one name). */
+  /**
+   * "Lesson", in every label set: a label is running words, and Lesson is not substituted in
+   * running words (`.plan/00-vision-and-scope.md`, label sets), unlike Chapter and Quiz.
+   */
   lesson: string;
   /** `useTerms().Quiz`: "Quiz" or "Pariksha". */
   quiz: string;
