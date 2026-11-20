@@ -10,7 +10,7 @@ import { nodeAgentPlatform } from '../../src/agent/node';
 import type { AgentPlatform, SpawnFn } from '../../src/agent/platform';
 import { MAX_ASK_REPLY_LENGTH } from '../../src/bridge';
 import { createLogger } from '../../src/log';
-import { fakeClaudeHome, type FakeClaudeScenario } from './fakeClaude';
+import { fakeClaudeHome, isRunning, PLATFORM, type FakeClaudeScenario } from './fakeClaude';
 import { fakeChild, fakeClock, fakePlatform } from './fakes';
 
 /**
@@ -378,7 +378,7 @@ async function realSetup(scenario: FakeClaudeScenario) {
   homes.push(home);
   const manager = createAgentManager({
     platform: nodeAgentPlatform(
-      'linux',
+      PLATFORM,
       { ...home.env, ANTHROPIC_BASE_URL: 'http://127.0.0.1:9/elsewhere' },
       home.home,
     ),
@@ -419,14 +419,19 @@ describe('agent.ask over a real process', () => {
     });
   });
 
-  it('cancels a claude that does not answer', async () => {
+  it('cancels a claude that does not answer, and the program itself ends', async () => {
     const { manager } = await realSetup({ turns: [[{ hang: true }]] });
     const { home } = { home: homes[homes.length - 1] as (typeof homes)[number] };
     const answer = manager.ask({ askId: 'a1', prompt: 'Q' });
-    await vi.waitFor(async () => {
-      if ((await home.runs()).length === 0) throw new Error('not started yet');
+    const run = await vi.waitFor(async () => {
+      const [first] = await home.runs();
+      if (first === undefined) throw new Error('not started yet');
+      return first;
     });
     manager.cancelAsk('a1');
     await expect(answer).resolves.toEqual({ ok: false, error: { code: 'cancelled' } });
+    // Not only the wrapper: on Windows that is `cmd.exe`, and ending it alone would leave the
+    // `claude` under it hanging (`killTree` in node.ts).
+    await vi.waitFor(() => expect(isRunning(run.pid)).toBe(false), { timeout: 10_000 });
   });
 });

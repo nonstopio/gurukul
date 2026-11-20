@@ -22,7 +22,7 @@ import { attachmentKey } from './attachments';
 import type { AttachTarget } from './attachments';
 import { ProblemNote, UnavailableCard, Words } from './Problem';
 import type { AgentSessionHandle } from './useAgentSession';
-import { chatLines, turnLabel } from './workspace';
+import { chatLines, turnBy, turnLabel } from './workspace';
 
 /** Where Review opens on one turn's changes (`DSK-14` reads `turn`). */
 export const reviewPath = (sessionId: string, turnId?: string) =>
@@ -141,7 +141,7 @@ export function ChatPanel({
                   className={buttonClass('quiet', undefined, 'sm')}
                   to={reviewPath(sessionId, line.turn.id)}
                 >
-                  {turnLabel(line.number, line.turn.changes, line.saved, line.turn.by)}
+                  {turnLabel(line.number, line.turn.changes, line.saved, turnBy(line.turn))}
                 </Link>
                 {line.newest && canUndo ? (
                   <Button

@@ -292,6 +292,12 @@ function AnswersLine({
             A separate Claude Code run answers each new or changed question from the lessons,
             without the answer key. It uses your Claude plan, and nothing it finds stops Save.
           </p>
+          {answers.waitingForPlace ? (
+            <p className="sc-help">
+              Waiting for a free place: the app checks two answers at a time, and both are in use
+              elsewhere (another session’s check, or a page you left). This check goes on by itself.
+            </p>
+          ) : null}
         </>
       ) : pending > 0 ? (
         <p className="sc-help">

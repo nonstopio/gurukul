@@ -10,10 +10,8 @@ import {
 import { Suspense, lazy } from 'react';
 import { Link } from 'react-router';
 import { isDesktop } from '../desktop/bridge';
+import { DESKTOP_RELEASES_PAGE } from '../desktop/download';
 import { useTerms } from '../labels/useTerms';
-
-/** Where the desktop app's installers are published (`.plan/22-desktop-studio.md`, Download). */
-export const DESKTOP_RELEASES_URL = 'https://github.com/nonstopio/gurukul/releases/latest';
 
 // The session code is its own chunk, fetched only inside the desktop app: a browser never asks for it.
 const SessionPage = lazy(async () => ({
@@ -52,7 +50,7 @@ function NeedsDesktopApp() {
           headingAs="h2"
           mascot="notFound"
           action={
-            <a className={buttonClass('primary')} href={DESKTOP_RELEASES_URL}>
+            <a className={buttonClass('primary')} href={DESKTOP_RELEASES_PAGE}>
               Get the desktop app
             </a>
           }

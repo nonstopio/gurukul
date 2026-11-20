@@ -3,8 +3,8 @@
 Gurukul Studio, the desktop app (`apps/desktop`), is released through GitHub Releases of
 `nonstopio/gurukul` by `.github/workflows/desktop-release.yml`. The macOS build is signed with an
 Apple Developer ID and notarised, so it opens on any Mac without a warning; it is not submitted to
-the Mac App Store. The Windows build is unsigned until a Windows certificate is bought (`DSK-22`),
-so Windows shows a SmartScreen warning on the first run.
+the Mac App Store. The Windows build is signed once Windows signing is set up (section 10,
+`DSK-22`); until then it is unsigned and Windows shows a SmartScreen warning on the first run.
 
 This guide is adapted from Morph's `docs/release-setup.md`. The design is in
 `.plan/22-desktop-studio.md` (Releases, versions and updates).
@@ -200,11 +200,145 @@ beyond the scripted replies; your home folder is written `~`.
 The check does not cover the packaged, hardened macOS app's firewall prompt: install a release
 (step 7), start a session in it and confirm no prompt appears.
 
+## 10. Windows signing (`DSK-22`)
+
+Unsigned, the installer works but Windows says **Windows protected your PC** on the first run, and
+the Educator has to choose **More info → Run anyway**. Signed, the installer and the app name NonStop
+io as the publisher. The release workflow signs with Azure Artifact Signing as soon as its settings
+exist, and stays unsigned while none do. That route needs no code change to switch on, but it may
+not be open to NonStop io (below); the certificate-authority route needs a follow-up change first.
+
+### Which signing to buy
+
+**First, confirm the country NonStop io's legal entity is registered in.** That decides the route,
+because Microsoft's cheap option is not open everywhere.
+
+**Azure Artifact Signing** (formerly Trusted Signing) is what the release workflow is built for:
+about **$9.99 a month** (Basic: 5,000 signatures a month, far more than a release uses), no
+hardware, no certificate file to keep, and electron-builder supports it directly.
+Microsoft validates the organisation (legal name, address, business records) and holds the key.
+But its public-trust certificates are only for organisations in the United States, Canada, the
+European Union, the United Kingdom, Australia, New Zealand, Japan, South Korea, Singapore,
+Switzerland, Norway and Israel (Microsoft's quickstart, checked on 20 Nov 2026:
+https://learn.microsoft.com/azure/artifact-signing/quickstart). **India is not on the list.** If
+NonStop io is registered in India, this route is closed: do not open an Azure subscription or
+start an identity validation for it, which would fail. Use it only if the entity is registered in
+one of those countries, and check the list again before paying; then follow the next section.
+
+**For an India-registered NonStop io: an OV code-signing certificate from a certificate
+authority**, on that authority's cloud key service (for example DigiCert KeyLocker, SSL.com
+eSigner or Certum SimplySign), roughly $200 to $600 a year. Since June 2023 the industry rules keep
+code-signing keys in hardware, so no authority sells a `.pfx` file any more: the old `WIN_CSC_LINK`
+and `WIN_CSC_KEY_PASSWORD` route works only with a certificate issued before then, which has
+expired by now. An EV certificate costs more and, since 2024, no longer skips SmartScreen's
+reputation check, so it is not worth the difference.
+
+This route is **not built yet**. Choosing it needs a follow-up change, before the first signed
+release, once the authority (and so its signing tool) is known:
+
+1. A signing script, `apps/desktop/scripts/win-sign.cjs` or similar, set as electron-builder's
+   `win.signtoolOptions.sign`: it calls the authority's tool (DigiCert's `smctl`, SSL.com's
+   `CodeSignTool`, Certum's SimplySign with `signtool`) for each file electron-builder hands it,
+   with an RFC 3161 timestamp.
+2. `scripts/desktop-win-signing.mjs` and its tests: that authority's secrets (an API key or
+   account credentials, and the certificate's id) in place of the Azure ones, the same rule (none
+   set is unsigned, some set fails), and the `-c` flags for the script instead of
+   `win.azureSignOptions`.
+3. `desktop-release.yml`: install the authority's tool in the Windows job and pass its secrets to
+   that job only, as the Azure ones are passed now.
+4. This section and `.plan/22-desktop-studio.md` (As built in `DSK-22`): the new settings table.
+
+Either way SmartScreen also weighs reputation: a newly signed app can still warn for its first
+downloads until enough Windows PCs have run it. Signing is what lets that reputation build.
+
+### Set up Azure Artifact Signing (only if NonStop io is eligible)
+
+1. In the Azure portal (https://portal.azure.com/), with a subscription NonStop io pays for, open
+   **Subscriptions → (the subscription) → Resource providers** and register
+   `Microsoft.CodeSigning`.
+2. Create an **Artifact Signing account** (search **Artifact Signing Accounts**): pick a resource
+   group, a region and the **Basic** tier. Its **Overview** shows the **Account URI**, for
+   example `https://eus.codesigning.azure.net/`: that is `WIN_SIGN_ENDPOINT`. The account's name is `WIN_SIGN_ACCOUNT`.
+3. Give yourself the **Artifact Signing Identity Verifier** role on the account (**Access control
+   (IAM)**), then open **Identity validations**, choose **Organization**, **New identity →
+   Public**, and enter NonStop io's legal details exactly as registered. Microsoft checks
+   them; this takes days, and may ask for documents.
+4. When the validation shows **Completed**, open **Certificate profiles → Create → Public Trust**,
+   name it (for example `gurukul-studio`: `WIN_SIGN_PROFILE`) and pick the validation. The
+   certificate's subject name is the organisation name from step 3, character for character: that
+   is `WIN_SIGN_PUBLISHER`.
+5. In **Microsoft Entra ID → App registrations → New registration**, register
+   `Gurukul Studio release signing`. Copy the **Directory (tenant) ID** (`AZURE_TENANT_ID`) and
+   **Application (client) ID** (`AZURE_CLIENT_ID`). Under **Certificates & secrets**, add a client
+   secret and copy its **Value** at once (`AZURE_CLIENT_SECRET`); note when it expires.
+6. Back on the Artifact Signing account, **Access control (IAM) → Add role assignment**: role
+   **Artifact Signing Certificate Profile Signer**, member the app from step 5.
+7. Add the settings at https://github.com/nonstopio/gurukul/settings/secrets/actions: the three
+   credentials as repository **Secrets**, the four names on the **Variables** tab (they are not
+   secret: the publisher name is shown in every installer).
+
+| Name                  | Kind     | Value                                          |
+| --------------------- | -------- | ---------------------------------------------- |
+| `AZURE_TENANT_ID`     | Secret   | Directory (tenant) ID, step 5                  |
+| `AZURE_CLIENT_ID`     | Secret   | Application (client) ID, step 5                |
+| `AZURE_CLIENT_SECRET` | Secret   | The client secret's value, step 5              |
+| `WIN_SIGN_ENDPOINT`   | Variable | The account URI, step 2                        |
+| `WIN_SIGN_ACCOUNT`    | Variable | The Artifact Signing account name, step 2      |
+| `WIN_SIGN_PROFILE`    | Variable | The certificate profile name, step 4           |
+| `WIN_SIGN_PUBLISHER`  | Variable | The certificate's subject name exactly, step 4 |
+
+The workflow passes these to the Windows build only. With none of the seven set the installer is
+unsigned, as before; with some but not all, **Check the Windows signing settings** fails and names
+what is missing, so a half-finished setup can never ship an unsigned build by accident. A wrong
+value fails at signing, with Microsoft's message.
+
+Source: https://learn.microsoft.com/azure/artifact-signing/quickstart. The endpoints kept their
+form (`https://<region>.codesigning.azure.net`) after the rename; electron-builder reaches the
+service through Microsoft's `TrustedSigning` PowerShell module (`Invoke-TrustedSigning` in the
+build log).
+
+### Before the first signed release: the gotchas
+
+- **Never switch signing off again once a signed release is out.** A signed app records its
+  publisher (`publisherName` in its `app-update.yml`) and installs only updates signed by the same
+  publisher; an unsigned update would be refused on every installed copy. The same holds for
+  changing `WIN_SIGN_PUBLISHER`: it must stay the certificate's subject name.
+- **The client secret expires** (Azure's maximum is two years). Put a reminder in the calendar;
+  an expired one fails the Windows build, and nothing is released until it is replaced.
+- The unsigned versions already installed update to the first signed one without trouble: they
+  have no publisher to check.
+
+### Verify on a Windows PC
+
+1. After the release, download `Gurukul-Studio-Setup-X.Y.Z.exe` in a browser and run it. It must
+   name the publisher; SmartScreen may still warn while reputation builds (above).
+2. In PowerShell, check the installer and the installed app:
+
+   ```powershell
+   Get-AuthenticodeSignature "$env:USERPROFILE\Downloads\Gurukul-Studio-Setup-X.Y.Z.exe" | Format-List Status, SignerCertificate
+   Get-AuthenticodeSignature "$env:LOCALAPPDATA\Programs\Gurukul Studio\Gurukul Studio.exe" | Format-List Status, SignerCertificate
+   Select-String publisherName "$env:LOCALAPPDATA\Programs\Gurukul Studio\resources\app-update.yml"
+   ```
+
+   Both must say `Status : Valid` with the publisher as the subject's `CN`, and `app-update.yml`
+   must name the same publisher.
+
+3. Run the upgrade check (section 8) on that PC between two signed releases, and the signed-in
+   check (section 9) with `claude.exe` and `claude.cmd`.
+
+CI already runs the agent bridge's tests on Windows (`Desktop agent bridge (Windows)` in
+`ci.yml`, on pull requests that touch `apps/desktop/`), with the fake `claude` as a `claude.cmd`
+and paths with spaces; this section is what CI cannot do.
+
 ## When something goes wrong
 
 - **A secret is missing or wrong**: the macOS job says which, or electron-builder fails at signing
   (`CSC_LINK`, `CSC_KEY_PASSWORD`) or at notarisation (the `APPLE_*` three). Fix the secret and
   re-run the failed jobs; the version and tag are recomputed from the same commit.
+- **Windows signing fails**: **Check the Windows signing settings** names a missing setting; a
+  failure in **Build installers** after `Invoke-TrustedSigning` is Microsoft's (an expired client
+  secret, a missing role assignment, a profile name that does not match). Fix it and re-run the
+  failed jobs.
 - **A release went out broken**: publish a fixed one with a new merge. Never delete a release that
   installed apps may already have downloaded; a newer version replaces it.
 - **No release appeared**: the merge touched nothing under `apps/desktop/`, or CI failed on it.

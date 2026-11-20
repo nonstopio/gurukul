@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_FILE_BYTES } from '@gurukul/desktop/bridge';
-import { SESSION_CHECKPOINTS_KEPT, authoringSessionSchema } from '@gurukul/schema';
+import { SESSION_CHECKPOINTS_KEPT, authoringSessionSchema, blankCourse } from '@gurukul/schema';
 import type { AuthoringSession, Turn } from '@gurukul/schema';
 import {
   HISTORY_FILE,
@@ -11,8 +11,10 @@ import {
   UNREADABLE_FILE,
   checkpointPath,
   createSessionStore,
+  creatorName,
   historyOf,
   isDue,
+  namedCourse,
   sessionHistorySchema,
   sessionPath,
   titleFromGoal,
@@ -97,6 +99,42 @@ describe('titleFromGoal', () => {
 
   it('cuts a long run with no space where it must', () => {
     expect(titleFromGoal('x'.repeat(200))).toBe(`${'x'.repeat(79)}…`);
+  });
+});
+
+describe('creatorName', () => {
+  it('names the Educator as createCourse does: Google name, else the email’s local part', () => {
+    expect(creatorName({ displayName: ' Priya N ', email: 'priya@nonstopio.com' })).toBe('Priya N');
+    expect(creatorName({ displayName: '  ', email: 'priya.n@nonstopio.com' })).toBe('priya.n');
+    expect(creatorName({ displayName: null, email: 'priya@nonstopio.com' })).toBe('priya');
+    expect(creatorName({ displayName: null, email: null })).toBeUndefined();
+  });
+});
+
+describe('namedCourse', () => {
+  const made = blankCourse({
+    id: 'code-review',
+    title: 'Code review',
+    level: 'foundation',
+    theme: 'forest',
+    educatorId: 'u1',
+    educatorName: 'Priya N',
+  });
+  const note = (slug: string, title: string) => ({ slug, title, since: '2026-11-19T10:00:00Z' });
+
+  it('keeps the title the last attempt at the address typed, and what createCourse makes of it', () => {
+    expect(namedCourse(made, note('code-review', 'Better name'))).toEqual({
+      ...made,
+      title: 'Better name',
+      certificate: { title: 'Better name' },
+      cover: { ...made.cover, glyph: 'B' },
+    });
+  });
+
+  it('is the course itself with no note, a note for another address, or the same title', () => {
+    expect(namedCourse(made, null)).toBe(made);
+    expect(namedCourse(made, note('code-review-2', 'Better name'))).toBe(made);
+    expect(namedCourse(made, note('code-review', 'Code review'))).toBe(made);
   });
 });
 

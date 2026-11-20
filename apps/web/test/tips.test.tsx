@@ -90,6 +90,14 @@ describe('tip rows', () => {
       for (const p of t.where) expect(ROUTE_PATHS).toContain(p);
     }
   });
+
+  it('opens the desktop app tip above its button, off the installers listed under it', () => {
+    // Measured at 1024px: opened below, the bubble covered "Other installers" and its links.
+    expect(TIPS.find((t) => t.id === 'desktop-app')).toMatchObject({
+      el: '.sc-download__offer .g-btn',
+      side: 'top',
+    });
+  });
 });
 
 describe('tip storage', () => {

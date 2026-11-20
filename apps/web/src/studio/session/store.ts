@@ -4,7 +4,9 @@ import {
   SESSION_SCHEMA_VERSION,
   authoringSessionSchema,
   blankCourse,
+  courseSchema,
   sessionBaseSchema,
+  slug,
   workingSchema,
 } from '@gurukul/schema';
 import type { AuthoringSession, TimestampLike, Turn, WorkingCopy } from '@gurukul/schema';
@@ -29,6 +31,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
+ *   sessions/{uid}/{sessionId}/creating.json           the address a new course is being created at
  *   sessions/{uid}/{sessionId}/created.json            a new course's draft, once `createCourse` made it
  *   sessions/{uid}/{sessionId}/answer-check.json       second opinions on Quiz answers (`DSK-18`)
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
@@ -82,6 +85,16 @@ export const AGENT_NOTE_FILE = 'agent-note.json';
 export const CREATED_FILE = 'created.json';
 
 /**
+ * A new-course session's attempt to create its course (`DSK-28`): the address and title asked of
+ * `createCourse`, and since when, written before the call. When the app closed (or could keep
+ * neither `created.json` nor `session.json`) after the course was created but before the session
+ * noted it, the next attempt at that address finds it taken; this note is what lets the session
+ * read the draft there once and recognise the blank course it made (`ownCreatedBase` in
+ * `save.ts`), instead of saying the address is taken. Read only while the session has no base.
+ */
+export const CREATING_FILE = 'creating.json';
+
+/**
  * The answer check (`DSK-18`): each second opinion by its question's hash (`answers.ts`), so it is
  * asked once per question and again only when that question or its lessons change, and whether
  * the Educator skipped the check for this session. Removed with the session's other files.
@@ -102,6 +115,18 @@ export const NEW_COURSE_TITLE = 'Untitled course';
 
 /** The `rev` of the draft `createCourse` writes for a new course (`firebase/functions/src/stores.ts`). */
 export const CREATED_DRAFT_REV = 1;
+
+/**
+ * The name `createCourse` gives the course's first Educator (`displayName` in
+ * `firebase/functions/src/courses.ts`): the Google name, else the email's local part; none when
+ * neither is known.
+ */
+export function creatorName(user: {
+  displayName: string | null;
+  email: string | null;
+}): string | undefined {
+  return user.displayName?.trim() || user.email?.split('@')[0] || undefined;
+}
 
 /**
  * The working copy as part of the course it belongs to: the course's own fields that Studio and
@@ -151,6 +176,34 @@ export function asCreated<W extends WorkingCopy>(work: W, created: WorkingCopy['
 }
 
 /**
+ * The course a new-course session is put on (`asCreated`), named as the Educator named it last
+ * (`DSK-28`): `created` is the blank course `createCourse` wrote, and `note` the session's last
+ * attempt at its address. When an earlier attempt made the course and this one found it, the title
+ * typed this time is the one kept, with the certificate title and cover letter `createCourse`
+ * derives from it; the stored draft keeps its own, so Save writes the new title as a change.
+ * `created` itself when the note is for another address or gives the same title.
+ */
+export function namedCourse(
+  created: WorkingCopy['course'],
+  note: CreatingNote | null,
+): WorkingCopy['course'] {
+  if (note === null || note.slug !== created.id || note.title === created.title) return created;
+  const named = blankCourse({
+    id: created.id,
+    title: note.title,
+    level: created.level,
+    theme: created.cover.theme,
+    educatorId: '',
+  });
+  return {
+    ...created,
+    title: named.title,
+    certificate: { ...created.certificate, title: named.certificate.title },
+    cover: { ...created.cover, glyph: named.cover.glyph },
+  };
+}
+
+/**
  * The draft `createCourse` has just written for a new-course session's course (`DSK-16`): a blank
  * course with the title and address the Educator chose, the session's level, cover theme and
  * Educator, at `CREATED_DRAFT_REV`. Built here rather than read, so nothing stands between the
@@ -158,7 +211,14 @@ export function asCreated<W extends WorkingCopy>(work: W, created: WorkingCopy['
  */
 export function createdBase(
   work: WorkingCopy,
-  init: { courseId: string; title: string; uid: string; at: string },
+  init: {
+    courseId: string;
+    title: string;
+    uid: string;
+    /** The Educator's name as `createCourse` takes it (`creatorName`). */
+    educatorName: string | undefined;
+    at: string;
+  },
 ): SessionBase {
   const { course } = work;
   return {
@@ -171,7 +231,7 @@ export function createdBase(
         level: course.level,
         theme: course.cover.theme,
         educatorId: init.uid,
-        educatorName: course.educatorNames[init.uid],
+        educatorName: init.educatorName,
       }),
       answers: {},
     },
@@ -219,6 +279,14 @@ export const agentNoteSchema = z.object({
   handEdited: z.boolean(),
 });
 export type AgentNote = z.infer<typeof agentNoteSchema>;
+
+/** `creating.json`: the address and title of the latest attempt, and when the first at it began. */
+export const creatingSchema = z.object({
+  slug,
+  title: courseSchema.shape.title,
+  since: at,
+});
+export type CreatingNote = z.infer<typeof creatingSchema>;
 
 /** One second opinion: the options it chose (places from 0) and why, for one question's hash. */
 export const answerResultSchema = z.object({
@@ -317,6 +385,10 @@ export interface SessionStore {
   saveCreated(sessionId: string, base: SessionBase): Promise<void>;
   /** The course created for a new-course session, or null when none (or it cannot be read). */
   readCreated(sessionId: string): Promise<SessionBase | null>;
+  /** Notes an attempt to create a new-course session's course (`CREATING_FILE`). */
+  saveCreating(sessionId: string, note: CreatingNote): Promise<void>;
+  /** The last attempt to create the course, or null when none (or it cannot be read). */
+  readCreating(sessionId: string): Promise<CreatingNote | null>;
   /** Writes the answer check's second opinions and its skip (`ANSWER_CHECK_FILE`). */
   saveAnswerCheck(sessionId: string, check: AnswerCheckFile): Promise<void>;
   /** The answer check as last written, or null when there is none (or it cannot be read). */
@@ -665,6 +737,18 @@ export function createSessionStore({
       return parse(await store.read(file(sessionId, CREATED_FILE)), sessionBaseSchema, {
         sessionId,
         file: 'created',
+      });
+    },
+
+    async saveCreating(sessionId, note) {
+      const valid = creatingSchema.parse(note);
+      await store.write(file(sessionId, CREATING_FILE), JSON.stringify(valid));
+    },
+
+    async readCreating(sessionId) {
+      return parse(await store.read(file(sessionId, CREATING_FILE)), creatingSchema, {
+        sessionId,
+        file: 'creating',
       });
     },
 

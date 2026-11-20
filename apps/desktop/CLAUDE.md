@@ -23,7 +23,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agent/stream.ts`                                                 | Stream-json both ways, pure: what each output line means                                                             |
 | `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only                          |
 | `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript                      |
-| `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapter interfaces; the real Node adapters (`cross-spawn`)                  |
+| `src/agent/find.ts`, `platform.ts`, `node.ts`                         | Finding `claude` and short commands; the adapters; the real ones (`cross-spawn`, Windows tree kill)                  |
 | `src/agent/signedInCheck.ts`, `checkCli.ts`                           | The signed-in check (`DSK-26`), run by `scripts/check-claude.ts`, against the real `claude`                          |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged                      |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                               |
@@ -83,11 +83,17 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   (`cancelAsks`, from `app.ts`). The prompt goes to its input, never an argument; neither the
   prompt nor the reply is logged.
 - **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
-  stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`;
+  stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`, under a
+  folder with a space, as `claude` (a `/bin/sh` wrapper) or, on Windows, `claude.cmd`;
   `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else. The end-to-end specs
   (`e2e/tests/desktop-studio.spec.ts`, `e2e/support/desktop.ts`) run the same fake against the
   bundled shell: a change to its steps, `src/` or `scripts/bundle.ts` runs `npm run e2e` before a
   push (`scripts/pre-push.sh`).
+- **`test/agent/` runs on Windows too**: CI's `Desktop agent bridge (Windows)` job, when this
+  folder, `packages/schema` or the install changed. A real-process test passes `PLATFORM`, not
+  `'linux'`, to `nodeAgentPlatform`, and builds paths with `path`; a POSIX-only one is
+  `it.skipIf(WINDOWS)` with the reason. On Windows `kill` ends the whole tree (`killTree`,
+  `taskkill /T /F`): `claude.cmd` is `cmd.exe` with `claude` under it.
 - **The signed-in check runs the shipped code, not a copy.** `signedInCheck.ts` drives
   `findClaude`, `runCommand` and `createAgentManager` over the real platform, reading `claude`'s
   output through a tapped `spawn`; a launch change reaches it with no edit. It prints only
@@ -140,6 +146,13 @@ upgrade check: `docs/desktop-release-setup.md`.
 - **The app ships `dist/` and `package.json` only.** `electron-builder.yml` copies no
   `node_modules`, so anything the shell runs must be bundled by esbuild into `dist/main.cjs` (a
   package with native code or files it reads at run time would need the packaging changed first).
+- **Windows signing switches on from settings, not code**: `scripts/desktop-win-signing.mjs` reads
+  the Azure Artifact Signing (formerly Trusted Signing) secrets and variables and adds
+  `-c.win.azureSignOptions.*` to the Windows build; none set is unsigned, some set fails. Azure
+  does not issue to India-registered companies; an OV certificate on a cloud key service needs a
+  follow-up change first (section 10 lists it). Never name an account in
+  `electron-builder.yml`, and never turn signing off after a signed release (installed apps refuse
+  an update from another publisher). Setup: `docs/desktop-release-setup.md` section 10.
 - **The updater never opens a dialog on its own**; only the menu's Check for updates… answers in one.
   `electron-updater`'s own logger stays off (URLs and paths); log through `log`.
 - Check packaging on Linux without signing:

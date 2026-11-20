@@ -8,7 +8,8 @@
 // script is steered through a file in `CLAUDE_CONFIG_DIR`, which is on the list:
 //
 //   $CLAUDE_CONFIG_DIR/fake-claude.json   the scenario (below); missing means signed in, "Done."
-//   $CLAUDE_CONFIG_DIR/fake-claude-runs.jsonl   one line per start: argv, environment names, cwd
+//   $CLAUDE_CONFIG_DIR/fake-claude-runs.jsonl   one line per start: argv, environment names, cwd,
+//     and its own pid (behind a `cmd.exe` wrapper on Windows, so not the pid the bridge started)
 //   $CLAUDE_CONFIG_DIR/projects/<cwd, non-alphanumerics as ->/<session id>.jsonl   the transcript
 //
 // Scenario: { "version": "2.1.328", "loggedIn": true, "apiKeySource": "…" (in `initialize`),
@@ -143,7 +144,7 @@ if (persist) {
 mkdirSync(configDir, { recursive: true });
 appendFileSync(
   path.join(configDir, 'fake-claude-runs.jsonl'),
-  `${JSON.stringify({ argv, env: Object.keys(process.env).sort(), cwd: process.cwd() })}\n`,
+  `${JSON.stringify({ argv, env: Object.keys(process.env).sort(), cwd: process.cwd(), pid: process.pid })}\n`,
 );
 
 // ---- the MCP endpoint ----

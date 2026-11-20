@@ -304,15 +304,32 @@ export function chatLines(
 }
 
 /**
- * "Turn 4 · 4 changes", "Turn 1 · no changes", "Turn 5 · 2 changes · not saved", and for the
- * Educator's hand edits "Turn 6 · by hand · 1 change".
+ * Who made a turn, as its line says it: the agent, the Educator by hand (hand edits, Undo this
+ * item), or Bring in their changes, the one turn that moves the base (`baseBefore`), which is the
+ * stored draft brought in and no hand edit.
+ */
+export type TurnBy = Turn['by'] | 'draft';
+
+export const turnBy = (turn: Pick<Turn, 'by' | 'baseBefore'>): TurnBy =>
+  turn.baseBefore === undefined ? turn.by : 'draft';
+
+const BY_WORDS: Record<TurnBy, string> = {
+  agent: '',
+  educator: ' · by hand',
+  draft: ' · draft brought in',
+};
+
+/**
+ * "Turn 4 · 4 changes", "Turn 1 · no changes", "Turn 5 · 2 changes · not saved", for the
+ * Educator's hand edits "Turn 6 · by hand · 1 change", and for a draft brought in "Turn 7 · draft
+ * brought in · 2 changes".
  */
 export function turnLabel(
   number: number,
   changes: number,
   saved = true,
-  by: Turn['by'] = 'agent',
+  by: TurnBy = 'agent',
 ): string {
   const count = changes === 0 ? 'no changes' : `${changes} ${changes === 1 ? 'change' : 'changes'}`;
-  return `Turn ${number}${by === 'educator' ? ' · by hand' : ''} · ${count}${saved ? '' : ' · not saved'}`;
+  return `Turn ${number}${BY_WORDS[by]} · ${count}${saved ? '' : ' · not saved'}`;
 }

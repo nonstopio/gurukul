@@ -65,7 +65,11 @@ dmg:
       type: link
       path: /Applications
 
-# Unsigned until DSK-22: SmartScreen warns on first run.
+# Signed with Azure Trusted Signing when the release workflow has its settings: it adds
+# `win.azureSignOptions` on the command line (scripts/desktop-win-signing.mjs), so nothing here
+# names an account. Without them the installer is unsigned and SmartScreen warns on first run.
+# verifyUpdateCodeSignature stays on (the default): a signed app installs only updates signed by
+# the same publisher.
 win:
   target:
     - target: nsis

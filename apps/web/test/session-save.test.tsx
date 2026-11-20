@@ -84,6 +84,10 @@ async function open(
     path?: (id: string) => string;
     /** The draft the session starts from, Draft v3: `BASE` by default. */
     base?: Working;
+    /** Overrides on the signed-in Google user. */
+    user?: NonNullable<Parameters<typeof openApp>[1]>['user'];
+    /** Files an earlier run of the app left in the session's folder, written before it opens. */
+    before?: (store: ReturnType<typeof createSessionStore>, id: string) => Promise<void>;
   } = {},
 ) {
   const start = init.base ?? BASE;
@@ -117,6 +121,7 @@ async function open(
     );
   }
   if (init.edit) session = await store.save(init.edit(session));
+  await init.before?.(store, id);
   const agent = fakeAgent(fake.desktop);
   installDesktop(fake.desktop);
   const studio = fakeStudio({ courses: [{ live: GIT, draft: null }] });
@@ -132,6 +137,7 @@ async function open(
     roles: ['educator'],
     studio,
     data: init.data ?? fakeData({ courses: [GIT] }),
+    ...(init.user ? { user: init.user } : {}),
   });
   const disk = () =>
     JSON.parse(fake.files.get(`u1/${id}/session.json`) as string) as AuthoringSession;
@@ -348,7 +354,7 @@ describe('Save to draft', () => {
 
 describe('a new course’s first save', () => {
   /** The draft `createCourse` writes for `code-review`, as Studio would read it. */
-  const created = () =>
+  const created = (over: Partial<DraftDoc> = {}) =>
     draftDoc(
       blankCourse({
         id: 'code-review',
@@ -357,7 +363,7 @@ describe('a new course’s first save', () => {
         theme: 'forest',
         educatorId: 'u1',
       }),
-      { rev: 1, updatedBy: 'u1' },
+      { rev: 1, updatedBy: 'u1', ...over },
     );
 
   /** A new-course session the agent titled "Code review" and gave one chapter. */
@@ -443,6 +449,8 @@ describe('a new course’s first save', () => {
       id: 'code-review',
       title: 'Code review',
       educatorIds: ['u1'],
+      // Named as `createCourse` names the Educator: their Google name.
+      educatorNames: { u1: 'Priya N' },
       certificate: { title: 'Code review' },
     });
     // The session became an edit session on the course, and is closed as saved.
@@ -463,6 +471,8 @@ describe('a new course’s first save', () => {
     expect(await within(form).findByText('That address is taken')).toBeTruthy();
     expect(screen.getByRole('dialog', { name: 'Create the course' })).toBeTruthy();
     expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+    // An address this session never tried before is taken by someone else: nothing is read.
+    expect(s.studio.data.getDraft).not.toHaveBeenCalled();
     expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
     // Typing clears it; a free address creates the course and saves it.
     fireEvent.change(within(form).getByLabelText('Address'), {
@@ -519,7 +529,7 @@ describe('a new course’s first save', () => {
     );
     fireEvent.submit(fields);
     fireEvent.submit(fields);
-    expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1));
     await act(async () => answer({ courseId: 'code-review' }));
     await waitFor(() => expect(s.disk().status).toBe('saved'));
   });
@@ -563,8 +573,12 @@ describe('a new course’s first save', () => {
   it('notes the created course again when this computer could not, without creating it again', async () => {
     const s = await openNew();
     vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
-    // Neither `created.json` nor `session.json` can be written: only the runtime holds the course.
-    s.desktop.store.write.mockRejectedValueOnce(REFUSED).mockRejectedValueOnce(REFUSED);
+    // Neither `creating.json`, `created.json` nor `session.json` can be written: only the runtime
+    // holds the course.
+    s.desktop.store.write
+      .mockRejectedValueOnce(REFUSED)
+      .mockRejectedValueOnce(REFUSED)
+      .mockRejectedValueOnce(REFUSED);
     await create();
     expect(
       await screen.findByText(
@@ -594,6 +608,200 @@ describe('a new course’s first save', () => {
     expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
     expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review' });
     expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[0]).toBe('code-review');
+  });
+
+  it('names the Educator from the email, as createCourse does, when Google gives no name', async () => {
+    const s = await openNew({ user: { displayName: null, email: 'priya.n@nonstopio.com' } });
+    vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
+    await create();
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+    expect(s.disk().base?.work.course.educatorNames).toEqual({ u1: 'priya.n' });
+    expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[1].course.educatorNames).toEqual({
+      u1: 'priya.n',
+    });
+  });
+
+  describe('when the app closed after the course was created, before the session noted it', () => {
+    /** What the earlier run left: the attempt at `code-review`, and nothing after it. */
+    const tried = (slug = 'code-review', title = 'Code review') => ({
+      before: (store: ReturnType<typeof createSessionStore>, id: string) =>
+        store.saveCreating(id, { slug, title, since: '2026-03-01T09:59:00.000Z' }),
+    });
+
+    it('finds its own blank course at the address it tried, reading the draft once, and saves', async () => {
+      const s = await openNew({ ...tried(), drafts: [created()] });
+      expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+      // The dialog starts from the attempt: its title and address.
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      expect((within(form).getByLabelText('Title') as HTMLInputElement).value).toBe('Code review');
+      expect((within(form).getByLabelText('Address') as HTMLInputElement).value).toBe(
+        'code-review',
+      );
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'Created “Code review” and saved its draft as Draft v2. Learners see nothing until you publish.',
+        ),
+      ).toBeTruthy();
+      expect(screen.queryByText('That address is taken')).toBeNull();
+      expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+      expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
+      expect(s.studio.data.getDraft).toHaveBeenCalledWith('code-review');
+      expect(s.studio.data.saveDraft).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.slice(0, 3)).toEqual([
+        'code-review',
+        expect.anything(),
+        1,
+      ]);
+      await waitFor(() => expect(s.disk().status).toBe('saved'));
+      expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review', base: { rev: 1 } });
+      expect(log.info).toHaveBeenCalledWith('Session created course recognised', {
+        sessionId: s.id,
+        courseId: 'code-review',
+      });
+    });
+
+    it('saves the course it finds under the title typed now, not the earlier attempt’s', async () => {
+      const s = await openNew({ ...tried(), drafts: [created()] });
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Better name' } });
+      // The address stays the one the earlier attempt tried.
+      expect((within(form).getByLabelText('Address') as HTMLInputElement).value).toBe(
+        'code-review',
+      );
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'Created “Better name” and saved its draft as Draft v2. Learners see nothing until you publish.',
+        ),
+      ).toBeTruthy();
+      // Saved against the stored blank course as a change to its title, with the certificate
+      // title and cover letter `createCourse` would have made from it.
+      expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[1].course).toMatchObject({
+        id: 'code-review',
+        title: 'Better name',
+        certificate: { title: 'Better name' },
+        cover: { glyph: 'B' },
+      });
+      await waitFor(() => expect(s.disk().status).toBe('saved'));
+      expect(s.disk().base?.work.course.title).toBe('Code review');
+    });
+
+    it('names the course it could not note by the title typed last', async () => {
+      const s = await openNew({ ...tried(), drafts: [created()] });
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Better name' } });
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      // `creating.json` is written; then neither `created.json` nor `session.json` can be.
+      const write = s.desktop.store.write.getMockImplementation();
+      s.desktop.store.write.mockImplementation(async (file, text) => {
+        if (file.path === 'created.json' || file.path === 'session.json') throw REFUSED;
+        return write?.(file, text);
+      });
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'The course “Better name” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.',
+        ),
+      ).toBeTruthy();
+      s.desktop.store.write.mockImplementation(async (file, text) => write?.(file, text));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Save the draft' }));
+      });
+      expect(
+        await screen.findByText(
+          'Created “Better name” and saved its draft as Draft v2. Learners see nothing until you publish.',
+        ),
+      ).toBeTruthy();
+      expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[1].course.title).toBe(
+        'Better name',
+      );
+      expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    });
+
+    it('finds it again in the same run when createCourse answered too late to be heard', async () => {
+      // Made by this attempt: the server dates it after the note.
+      const s = await openNew({ drafts: [created({ updatedAt: new Date(Date.now() + 60_000) })] });
+      // The course was made, but the answer never arrived.
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(
+        Object.assign(new Error('offline'), { code: 'unavailable' }),
+      );
+      const form = await create();
+      expect(await within(form).findByText('The course was not created')).toBeTruthy();
+      expect(s.files.get(`u1/${s.id}/creating.json`)).toContain('"slug":"code-review"');
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      await waitFor(() => expect(s.disk().status).toBe('saved'));
+      expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
+      expect(s.disk().courseId).toBe('code-review');
+    });
+
+    it('still says the address is taken when the course there is not its own', async () => {
+      const theirs = draftDoc(
+        blankCourse({
+          id: 'code-review',
+          title: 'Code review',
+          level: 'foundation',
+          theme: 'forest',
+          educatorId: 'u2',
+        }),
+        { rev: 1, updatedBy: 'u2' },
+      );
+      const s = await openNew({ ...tried(), drafts: [theirs] });
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      const form = await create();
+      expect(await within(form).findByText('That address is taken')).toBeTruthy();
+      expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
+      expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+      expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
+    });
+
+    it('says the address is taken when the draft there cannot be read', async () => {
+      const s = await openNew({ ...tried(), drafts: [new Error('denied')] });
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      const form = await create();
+      expect(await within(form).findByText('That address is taken')).toBeTruthy();
+      expect(log.warn).toHaveBeenCalledWith('Session taken address not read', {
+        sessionId: s.id,
+        courseId: 'code-review',
+      });
+      // Nothing there to read (a course this person cannot open) says the same.
+      vi.mocked(s.studio.data.getDraft).mockResolvedValueOnce(null);
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(within(form).getByText('That address is taken')).toBeTruthy();
+      expect(s.disk().kind).toBe('new');
+    });
+
+    it('reads nothing for an address other than the one it tried', async () => {
+      const s = await openNew({ ...tried('code-review-old', 'Old title'), drafts: [created()] });
+      vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+      fireEvent.click(createButton());
+      const form = await screen.findByRole('dialog', { name: 'Create the course' });
+      fireEvent.change(within(form).getByLabelText('Address'), {
+        target: { value: 'code-review' },
+      });
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+      });
+      expect(await within(form).findByText('That address is taken')).toBeTruthy();
+      expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -856,6 +1064,19 @@ describe('when the draft moved underneath', () => {
     );
   });
 
+  it('names the real reason Bring in their changes waits: here, the agent starting', async () => {
+    const s = await open({ turns: [mine], drafts: [stored(THEIRS)] });
+    // The agent is still being started.
+    vi.mocked(s.agent.status).mockImplementationOnce(() => new Promise(() => undefined));
+    const bring = await screen.findByRole('button', { name: 'Bring in their changes' });
+    await screen.findByText(/^The draft was saved by Arjun/);
+    expect(bring.hasAttribute('disabled')).toBe(true);
+    const notice = bring.closest('.ss-save__actions') as HTMLElement;
+    expect(within(notice).getByText('Wait while the agent starts.')).toBeTruthy();
+    expect(bring.getAttribute('aria-describedby')).toBe('ss-bring-in-wait');
+    expect(within(notice).queryByText('Wait for the agent to finish this turn.')).toBeNull();
+  });
+
   it('offers the merge again after Undo takes the merge back, and never saves over their draft', async () => {
     const s = await open({ turns: [mine], drafts: [stored(THEIRS)] });
     await ready(s);
@@ -874,6 +1095,11 @@ describe('when the draft moved underneath', () => {
     await act(async () => {
       await s.app.router.navigate(`/studio/sessions/${s.id}`);
     });
+    // The chat names the merge for what it is: their draft brought in, not an edit by hand.
+    expect(
+      screen.getByRole('link', { name: 'Turn 2 · draft brought in · 2 changes' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /^Turn 2 · by hand/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo turn 2' }));
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 2' }),

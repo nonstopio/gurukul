@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ALLOWED_ENV, BRIDGE_TOKEN_ENV } from '../../src/agent/launch';
+import { BRIDGE_TOKEN_ENV, isAllowedEnvName } from '../../src/agent/launch';
 import { createAgentManager, type AgentManager } from '../../src/agent/manager';
 import { nodeAgentPlatform } from '../../src/agent/node';
 import type {
@@ -14,11 +14,13 @@ import type {
 } from '../../src/bridge';
 import type { EventSender } from '../../src/events';
 import { createLogger } from '../../src/log';
-import { fakeClaudeHome, type FakeClaudeScenario } from './fakeClaude';
+import { fakeClaudeHome, PLATFORM, WRAPPER_ENV, type FakeClaudeScenario } from './fakeClaude';
 
 /**
  * The real process path: Node's spawn (through cross-spawn), the real HTTP endpoint, the real
  * session files, against the fake `claude` in `test/fixtures/`. Nothing here starts the real one.
+ * Every path has a space in it, and on Windows the fake is `claude.cmd`, started through `cmd.exe`
+ * (CI's Windows job runs this file there).
  */
 
 const homes: Awaited<ReturnType<typeof fakeClaudeHome>>[] = [];
@@ -72,7 +74,7 @@ async function setup(
     },
   };
   const platform = nodeAgentPlatform(
-    'linux',
+    PLATFORM,
     {
       ...home.env,
       LC_ALL: 'C',
@@ -170,9 +172,10 @@ describe('a session against a fake claude', () => {
     ]);
     expect(run?.cwd).toBe(path.join(folder, 'workdir'));
     // Only allow-listed names reach claude, plus the token; the token never as an argument.
-    // (`PWD` is set by the `/bin/sh` wrapper that stands in for the program, not by the bridge.)
-    const allowed = new Set<string>([...ALLOWED_ENV, 'LC_ALL', BRIDGE_TOKEN_ENV, 'PWD']);
-    expect(run?.env.filter((name) => !allowed.has(name))).toEqual([]);
+    // (`WRAPPER_ENV` is set by the wrapper that stands in for the program, not by the bridge.)
+    const extra = (name: string) =>
+      !isAllowedEnvName(name, PLATFORM) && name !== BRIDGE_TOKEN_ENV && !WRAPPER_ENV.includes(name);
+    expect(run?.env.filter(extra)).toEqual([]);
     expect(run?.env).toContain(BRIDGE_TOKEN_ENV);
     expect(run?.env).not.toContain('ANTHROPIC_BASE_URL');
 

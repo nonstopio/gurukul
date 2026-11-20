@@ -55,7 +55,7 @@ import {
 } from './review';
 import type { Numbers } from './review';
 import { MergeDialog } from './MergeDialog';
-import { draftCheckLine } from './save';
+import { busyWaits, draftCheckLine } from './save';
 import { DraftMovedNotice, SaveBar, SavedCard } from './SaveToDraft';
 import { createSessionStore } from './store';
 import type { AgentSessionHandle } from './useAgentSession';
@@ -307,7 +307,7 @@ export function ReviewPanel({
         <DraftMovedNotice
           check={check}
           uid={uid}
-          canSave={agent.canSave}
+          wait={busyWaits(agent)}
           onBringIn={() => setMerging(true)}
         />
       ) : null}
@@ -586,7 +586,13 @@ function ChangeList({
           <span className="ss-review__marker" aria-hidden="true">
             {current ? <ChevronRightIcon size={16} /> : null}
           </span>
-          <span className={row.statuses.includes('removed') ? 'ss-outline__gone' : undefined}>
+          <span
+            className={
+              row.statuses.includes('removed')
+                ? 'ss-review__name ss-outline__gone'
+                : 'ss-review__name'
+            }
+          >
             {name}
           </span>
           <span className="g-visually-hidden">{`: ${row.statuses.join(', ')}${check ? ', check this answer' : ''}${seen ? ', viewed' : ''}`}</span>

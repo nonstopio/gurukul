@@ -69,7 +69,8 @@ export const TIPS: readonly Tip[] = [
     id: 'desktop-app',
     where: ['/studio'],
     el: '.sc-download__offer .g-btn',
-    side: 'bottom',
+    // Above the button: below it the card lists the other installers, which the tip would cover.
+    side: 'top',
     title: 'Build by chatting',
     text: 'Get the desktop app to build or edit a course by chatting with an AI, then review every change before it reaches the draft.',
   },

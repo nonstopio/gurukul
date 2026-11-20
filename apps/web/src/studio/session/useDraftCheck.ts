@@ -10,7 +10,10 @@ export interface DraftCheckApi {
   check: DraftCheck;
   /** Reads the stored draft again (Check again). */
   recheck(): void;
-  /** What a save found when the draft moved meanwhile: the draft as read again, or null. */
+  /**
+   * The stored draft as read elsewhere on the page, or null when it could not be: a save that found
+   * it moved, or a new course's own draft found at its address (`DSK-28`). No read follows.
+   */
   found(stored: DraftDoc | null): void;
 }
 
@@ -59,10 +62,12 @@ export function useDraftCheck(
     void readDraft(courseId as string);
   }, [courseId, readDraft]);
 
-  const found = useCallback(
-    (stored: DraftDoc | null) => setRead(stored ? { state: 'read', stored } : { state: 'failed' }),
-    [],
-  );
+  // Read by someone else on this page (a save, or a new course found at its address): the page's
+  // one read is made.
+  const found = useCallback((stored: DraftDoc | null) => {
+    asked.current = true;
+    setRead(stored ? { state: 'read', stored } : { state: 'failed' });
+  }, []);
 
   return {
     check: session ? draftCheck(session, read) : { state: 'checking' },

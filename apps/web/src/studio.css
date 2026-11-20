@@ -996,11 +996,19 @@ h3.ss-outline__row {
   min-width: 0;
 }
 .ss-review__pick {
+  flex-wrap: wrap;
   justify-content: flex-start;
+  row-gap: var(--space-1);
   width: 100%;
   height: auto;
   text-align: left;
   white-space: normal;
+}
+/* The name is laid out at its own width: chips that do not fit beside it ("Check this answer" in
+   the 24rem list at 1024px) go to a line of their own instead of squeezing it onto two. */
+.ss-review__name {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .ss-review__marker {
   display: inline-flex;

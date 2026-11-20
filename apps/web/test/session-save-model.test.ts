@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { blankCourse } from '@gurukul/schema';
 import type { Chapter, Course, Lesson } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
 import type { MergeConflict } from '@gurukul/schema/merge';
@@ -8,6 +9,8 @@ import {
   baseOfDraft,
   bringInDraft,
   bringInSummary,
+  busyWaits,
+  CREATED_CLOCK_SKEW_MS,
   conflictName,
   conflictReason,
   conflictRows,
@@ -17,6 +20,7 @@ import {
   mergeWithDraft,
   movedLine,
   orderLine,
+  ownCreatedBase,
   saveFailure,
   saveSession,
   saveWaits,
@@ -149,6 +153,23 @@ describe('why Save waits', () => {
     );
   });
 
+  it('says why Bring in their changes waits, naming the real reason', () => {
+    const busy = { ...ready, canSave: false };
+    expect(busyWaits(ready)).toBeNull();
+    expect(busyWaits({ ...busy, handEdits: { state: 'saved', savedAt: null } })).toBe(
+      'Leave the editor first: its edits become a turn then.',
+    );
+    expect(busyWaits({ ...busy, status: 'connecting' })).toBe('Wait while the agent starts.');
+    expect(busyWaits({ ...busy, status: 'undoing' })).toBe(
+      'Wait while the last change is written.',
+    );
+    // A save or another merge being written.
+    expect(busyWaits({ ...busy, saving: true })).toBe('Wait while the last change is written.');
+    expect(busyWaits({ ...busy, status: 'working' })).toBe(
+      'Wait for the agent to finish this turn.',
+    );
+  });
+
   it('says why a save failed in plain words, never the error’s own text', () => {
     expect(saveFailure({ code: 'permission-denied' })).toMatch(/^Gurukul refused the save/);
     expect(saveFailure({ code: 'unavailable' })).toMatch(/^Gurukul could not reach the server/);
@@ -157,6 +178,72 @@ describe('why Save waits', () => {
       'The draft could not be saved. Try again; the session is kept on this computer.',
     );
     expect(saveFailure(null)).toMatch(/^The draft could not be saved/);
+  });
+});
+
+describe('a new course found at the address the session tried (DSK-28)', () => {
+  const note = { slug: 'code-review', title: 'Code review', since: '2026-11-19T10:00:00.000Z' };
+  /** The draft `createCourse` writes, made just after the note. */
+  const made = (edit: (c: Course) => void = () => undefined, over = {}) => {
+    const course = blankCourse({
+      id: 'code-review',
+      title: 'Code review, renamed',
+      level: 'advanced',
+      theme: 'sky',
+      educatorId: 'u1',
+      educatorName: 'Priya N',
+    });
+    edit(course);
+    return draftDoc(course, {
+      rev: 1,
+      updatedBy: 'u1',
+      updatedAt: new Date('2026-11-19T10:00:02.000Z'),
+      ...over,
+    });
+  };
+
+  it('is the session’s base when it is the blank course this person’s attempt made', () => {
+    const stored = made();
+    expect(ownCreatedBase(stored, note, 'u1')).toEqual(baseOfDraft(stored));
+    // The server's clock may be a little behind the laptop's; a date it does not give is no proof.
+    expect(
+      ownCreatedBase(
+        made(undefined, {
+          updatedAt: new Date(Date.parse(note.since) - CREATED_CLOCK_SKEW_MS + 1000),
+        }),
+        note,
+        'u1',
+      ),
+    ).not.toBeNull();
+    expect(ownCreatedBase(made(undefined, { updatedAt: null }), note, 'u1')).not.toBeNull();
+  });
+
+  it.each([
+    ['at another address', made(), { ...note, slug: 'code-review-2' }],
+    ['saved again since', made(undefined, { rev: 2 }), note],
+    ['saved by someone else', made(undefined, { updatedBy: 'u2' }), note],
+    ['with another Educator', made((c) => (c.educatorIds = ['u1', 'u2'])), note],
+    ['someone else’s', made((c) => (c.educatorIds = ['u2'])), note],
+    ['published', made((c) => (c.version = 1)), note],
+    ['live', made((c) => (c.status = 'published')), note],
+    [
+      'with a publish date',
+      made((c) => (c.publishedAt = { toMillis: () => 0, toDate: () => new Date(0) })),
+      note,
+    ],
+    ['with answer keys', made(undefined, { answers: { q: {} } }), note],
+    ['with answers marked changed', made(undefined, { answersChanged: true as const }), note],
+    ['no longer blank', made((c) => (c.description = 'Written in the browser.')), note],
+    ['with a chapter', made((c) => c.chapters.push({ id: 'p1', title: 'One', items: [] })), note],
+    [
+      'made before the attempt',
+      made(undefined, {
+        updatedAt: new Date(Date.parse(note.since) - CREATED_CLOCK_SKEW_MS - 1000),
+      }),
+      note,
+    ],
+  ])('is not when the course there is %s', (_why, stored, tried) => {
+    expect(ownCreatedBase(stored, tried, 'u1')).toBeNull();
   });
 });
 

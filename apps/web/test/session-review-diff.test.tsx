@@ -22,6 +22,7 @@ const NO_ANSWERS: AnswerCheckHandle = {
   loaded: true,
   skipped: false,
   active: true,
+  waitingForPlace: false,
   problem: null,
   questions: [],
   done: 0,

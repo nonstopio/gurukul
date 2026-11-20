@@ -66,6 +66,11 @@ export interface AnswerCheckView {
   skipped: boolean;
   /** Asks may start: an open session, between turns, with no hand edits open. */
   active: boolean;
+  /**
+   * The shell said both its places were taken by asks from elsewhere (another session's check, a
+   * page the window left): the check waits for one, `BUSY_RETRY_MS` or one of its own asks ending.
+   */
+  waitingForPlace: boolean;
   problem: AnswerProblem | null;
   questions: AnswerQuestion[];
   /** Questions with a second opinion or a failure. */
@@ -206,6 +211,7 @@ export function createAnswerCheck({
       loaded,
       skipped,
       active,
+      waitingForPlace: backOff !== null,
       problem,
       questions,
       done: count('agrees', 'disagrees', 'failed'),
@@ -275,6 +281,7 @@ export function createAnswerCheck({
       // Another session, or a page this window left, holds the shell's places: the question waits.
       backOff ??= later(() => {
         backOff = null;
+        emit();
         pump();
       });
       outcome = 'busy';

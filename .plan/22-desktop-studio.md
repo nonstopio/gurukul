@@ -281,8 +281,8 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
 - **`agent.forget(id)`** deletes `projects/*/{id}.jsonl` and a `{id}` folder beside it under
   `CLAUDE_CONFIG_DIR` (else `~/.claude`), reading no other file there.
 - **Windows** is started through `cross-spawn` (MIT), which runs `claude.cmd` via `cmd.exe` with
-  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Untested on
-  Windows until `DSK-22`/`DSK-26`.
+  every argument quoted; Node's own `spawn` refuses `.cmd` files without a shell. Proved against
+  the fake in CI on Windows since `DSK-22` (below); the real `claude` there is `DSK-26`.
 - **Tests** never start the real `claude`: `apps/desktop/test/fixtures/fake-claude.mjs` speaks the
   stream-json above, checks the flags as strictly as 2.1.328 does, keeps a transcript where Claude
   Code would, and makes its tool calls over the real endpoint with the SDK's client. `DSK-24`
@@ -679,7 +679,8 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   therefore ship a migration of older files in `read`, or every older session becomes unreadable
   and is removed 30 days later.
 - **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
-  `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
+  the releases page, `DESKTOP_RELEASES_PAGE` in `desktop/download.ts`, the one address the download
+  card (`DSK-25`) uses too (`DSK-29`). In the
   app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
   (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
@@ -1264,6 +1265,12 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
 - **The page is keyed by the session** (`SessionView key={sessionId}`): moving to another session
   in place (global search opens one from a session page) starts its page afresh, so its draft is
   read for its own course and nothing of the last session's check or chat state carries over.
+- **Why Bring in their changes waits** is said as Save says it (`busyWaits`): the agent starting,
+  hand edits open, a change being written, or a turn running (`DSK-29`). The chat calls the merge
+  turn "draft brought in" (`turnBy`: the one turn with `baseBefore`), not "by hand". A disabled
+  primary button (the merge dialog's, until every conflict has a side) is a flat neutral ground in
+  both themes, with a `--border` edge so it keeps its shape where that ground is close to the
+  page's (the light theme's `--bg`) (`@gurukul/ui` `button.css`).
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
@@ -1315,10 +1322,42 @@ course dialog), `createdBase`, `asCreated` and `CREATED_FILE` in `store.ts`, and
   that write fails, the button becomes **Save the draft**, which notes the course again and saves,
   with no second `createCourse`. The runtime holds it while the session is open in the app (leaving
   Review for the chat and coming back keeps it), and `created.json` holds it for a session opened
-  again later (read only while the session has no base). Not covered: the app closing between
-  `createCourse` answering and the `created.json` write, or neither file being writable and the
-  session then left; the session is still a new course then, and its address is taken by the empty
-  course just created (another address works; the empty course stays in Studio).
+  again later (read only while the session has no base). The app closing between `createCourse`
+  answering and the `created.json` write, or neither file being writable and the session then
+  left, is `DSK-28` (below).
+- **The Educator's name** on the created course is the one `createCourse` gives it (`creatorName`:
+  the Google name, else the email's local part), so the base built here matches the draft written
+  (`DSK-29`).
+
+As built in `DSK-28` (a new course created just before the app closed): `CREATING_FILE`
+(`creating.json`) and `creatingSchema` in `store.ts`, `ownCreatedBase` in `save.ts`, the runtime's
+`noteCreating` and `ownCourse`, and `SaveBar`'s create in `SaveToDraft.tsx`.
+
+- **A note before `createCourse`.** Each attempt writes `creating.json` first: the address, the
+  title, and `since`, when the first attempt at that address began (kept while the address stays
+  the same). A note that cannot be written is logged and the attempt goes on as before. The note is
+  read while the session has no base, and Create the course starts from its title and address.
+- **Recognised, not trusted.** When `createCourse` says an address is taken and this session had
+  tried that address before (the note named it before this attempt), the page reads the draft
+  there once (`getDraft`). It is the session's own course only when it is the blank course
+  `createCourse` writes for this person: `rev` 1, saved by them as its only Educator, version 0,
+  never published, no answer keys, nothing changed against `blankCourse` (`courseChanges`), and no
+  older than the note's `since` (10 minutes' allowance for the server's clock,
+  `CREATED_CLOCK_SKEW_MS`), with no other open session on this computer on that course. Then the
+  stored draft is the base and the session is noted as an edit session exactly as after a
+  successful create (`courseCreated`), and saved. The title is the one typed in this attempt
+  (`namedCourse` in `store.ts`, from the note), with the certificate title and cover letter
+  `createCourse` makes from it: the stored blank course keeps the earlier attempt's, so a title
+  changed in the dialog is saved as a change, and Undo of a turn from before the course keeps it
+  too (the note is also read while the base is still that blank course, `rev` 1). That read counts as the page's read of the
+  draft (`useDraftCheck`'s `found`), so the session still reads it once. Anything else (someone
+  else's course, one changed in the browser since, one made before the attempt, a draft that
+  cannot be read) still says "That address is taken".
+- **Why not a nonce in the course.** `createCourse` stores nothing the session could match an
+  attempt id against, and adding one would change the course object; the address, the owner, the
+  blank content and the time say the same without it. A blank course the Educator made at that
+  address in the browser after the attempt began would be taken as the session's own: it is theirs
+  and empty, so nothing is lost.
 - **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
   'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
   duplicated course without AI, as in the browser.
@@ -1476,7 +1515,8 @@ Starting Claude Code):
   written (`acquireAnswerCheck`, shared like the session runtime). A saved or discarded session
   shows what was found and asks nothing. The two places are shared by every session's check, so
   `busy` is not a failure: the question waits, and the check asks again after five seconds or as
-  soon as one of its own asks ends.
+  soon as one of its own asks ends. While it waits so, the Answers line says the app's two places
+  are in use elsewhere (`waitingForPlace`, `DSK-29`).
 - **What Review shows.** The Answers line: progress ("0 of 2 checked", a progress bar) with
   Skip answer check; then "N answers to check" with each disagreement ("Quiz 2.2 · Question 2: A
   second opinion chose A; the key says B. “…”") and Show, or "N checked, all agree". A Quiz with a
@@ -1609,8 +1649,14 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   reached the chat says so and the session waits. The answer check (`DSK-18`) spends one short
   request per changed Quiz question, once per version of it, and Skip answer check stops it.
 - **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
-  first, as Morph does, which shows a SmartScreen warning; a certificate is a separate yearly cost
-  to be quoted (`DSK-22`). Builds and update files are hosted free on GitHub Releases.
+  first, as Morph does, which shows a SmartScreen warning. Signing it (`DSK-22`, open question 23):
+  Azure Artifact Signing (formerly Trusted Signing) at about $9.99 a month (some $120 a year) is
+  open only to organisations in the US, Canada, the EU, the UK, Australia, New Zealand, Japan,
+  South Korea, Singapore, Switzerland, Norway and Israel, and India is not on that list. For an
+  India-registered NonStop io the likely cost is therefore an OV certificate on a certificate
+  authority's cloud key service, roughly $200 to $600 a year, plus a follow-up change to sign
+  with it (As built in `DSK-22`, below). Builds and update files are hosted free on GitHub
+  Releases. The Windows CI job runs only when the desktop shell, the schema or the install changed.
 
 ## Releases, versions and updates: from the first build
 
@@ -1652,7 +1698,7 @@ requests never build installers; `npm run check` in CI covers the workspace.
 |---|---|---|
 | Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
 | Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
-| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user | Same; unsigned until `DSK-22` |
+| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user; signed with Azure Artifact Signing when its settings exist (`DSK-22`), else unsigned | Same, plus signing (Morph's Windows build is unsigned) |
 | Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests since the last desktop tag, marked Latest. Checks every expected file is there first | `gh release create` instead of `softprops/action-gh-release`: one third-party action fewer with write access |
 
 Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
@@ -1681,11 +1727,57 @@ As built (`DSK-21`), `apps/desktop/electron-builder.yml`:
 Secrets, in GitHub Actions only: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (`DSK-03`); and
 `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID`, `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET` (`DSK-02`), which the
-bundle writes into the app (Signing in to Gurukul). `docs/desktop-release-setup.md` is
-Morph's step-by-step guide with the names changed.
+bundle writes into the app (Signing in to Gurukul); and, for Windows signing once it is bought,
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` with four repository variables
+(`DSK-22`, below). `docs/desktop-release-setup.md` is Morph's step-by-step guide with the names
+changed, plus the Windows signing section Morph does not have.
 
 Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 `Gurukul-Studio-Setup-{version}.exe`. App id `com.nonstopio.gurukul.studio`.
+
+As built in `DSK-22` (what could be done without the certificate or a Windows PC):
+
+- **Signing is ready to switch on, for Azure Artifact Signing only.** It was chosen because it
+  costs about a tenth of a certificate, needs no hardware or certificate file, and electron-builder
+  supports it (`win.azureSignOptions`). But Microsoft issues its public-trust certificates only to
+  organisations in twelve listed countries and regions (the EU counted as one), and India is not
+  among them (checked 20 Nov 2026), so it is open to NonStop io only if its legal entity is
+  registered in one of them: the maintainer confirms that first. A `.pfx` (`WIN_CSC_LINK`) is no
+  longer issued, since keys must sit in hardware from June 2023, so for an India-registered NonStop
+  io the route is an OV certificate on a certificate authority's cloud key service, which is not
+  built: it needs a `win.signtoolOptions.sign` script calling that authority's tool, that
+  authority's secrets in `scripts/desktop-win-signing.mjs` and its tests, the tool installed and
+  the secrets passed in `desktop-release.yml`'s Windows job, and this note and the setup doc's
+  settings table updated (`docs/desktop-release-setup.md` section 10 lists it).
+  `scripts/desktop-win-signing.mjs` (tested in `scripts/test/`) reads three secrets
+  (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) and four variables
+  (`WIN_SIGN_ENDPOINT`, `WIN_SIGN_ACCOUNT`, `WIN_SIGN_PROFILE`, `WIN_SIGN_PUBLISHER`): none set,
+  the installer is unsigned as before; all set, `desktop-release.yml` adds the
+  `-c.win.azureSignOptions.*` flags to the Windows build only; some set, the build fails naming
+  what is missing. `electron-builder.yml` names no account. The publisher name goes into
+  `app-update.yml`, so a signed app installs only updates signed by the same publisher (the
+  default `verifyUpdateCodeSignature`): once signed, signing must never be switched off. Steps:
+  `docs/desktop-release-setup.md` section 10.
+- **The agent bridge's tests run on Windows in CI** (`Desktop agent bridge (Windows)` in `ci.yml`,
+  `vitest run test/agent` on `windows-latest`), only when the desktop shell, `packages/schema`, the
+  install or `ci.yml` changed (a `changes` job diffs the trees; the `ci` gate accepts that job
+  skipped only when `changes` passed and said so). The fake `claude` is a `claude.cmd` wrapper
+  there, so every real-process test goes through `cmd.exe` as npm's install does; every test path
+  has a space; an argument round trip checks the pinned flags (an empty `--setting-sources`
+  value, `mcp__gurukul__*`, paths with spaces, `&` and brackets) through the `.cmd` wrapper and a
+  `claude.exe`. The rest of the desktop suite (`store`, `sources`) still assumes POSIX paths and is
+  not run on Windows.
+- **Ending `claude` on Windows ends its whole tree.** Node's `kill` there is `TerminateProcess` on
+  the one process, and `claude.cmd` runs as `cmd.exe` with `claude` under it: Stop's fallback,
+  close and quit would have ended `cmd.exe` alone and left `claude` running its turn. The Node
+  adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
+  instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
+  cancelled-ask test, which checks the fake's own `node` is gone.
+- **Left for the maintainer:** confirm where NonStop io is registered, choose and buy the signing
+  (open question 23; for an India-registered company, the certificate route and its follow-up
+  change), set its settings, install a signed release on a real Windows PC and check the
+  signature and SmartScreen, the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
+  `claude.exe` and `claude.cmd` (`DSK-26`).
 
 ### Updates (`apps/desktop/src/updates.ts`, from Morph's `electron/updates.ts`)
 
@@ -1760,7 +1852,9 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
   storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
   share one, with the shell's contributors request too; a refusal (404 before the first release,
-  the rate limit) is kept as "nothing", a network failure is not. An installer counts only under
+  the rate limit) is kept as "nothing", a network failure is not, nor a request GitHub has not
+  answered in `RELEASE_TIMEOUT_MS` (8 s, ended then, so the card falls back to the releases page;
+  `DSK-29`). An installer counts only under
   the exact name `electron-builder.yml` gives it for the tag's version
   (`Gurukul-Studio-{v}-arm64.dmg`, `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it
   downloads from this repository's release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes
@@ -1772,7 +1866,8 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   iPad, or a release without that system's installer, the card names the installers it has and
   guesses no steps. No release, a failed request or no
   installer it knows: "Get Gurukul Studio from GitHub" to the releases page. Tip `desktop-app`
-  points at the card's download button. The site sets no Content-Security-Policy, so nothing to add
+  points at the card's download button and opens above it, so it does not cover the other
+  installers listed under it (`DSK-29`). The site sets no Content-Security-Policy, so nothing to add
   for `api.github.com`; the end-to-end specs already block it (`EXTERNAL`) and see the fallback.
 
 ### Housekeeping

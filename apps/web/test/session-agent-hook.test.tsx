@@ -128,6 +128,8 @@ describe('agentSessionSource', () => {
     const base = { rev: 1, savedAt: null, work: { course: makeCourse(), answers: {} } };
     expect(await source.bringIn(base, base.work, 'x')).toBe(false);
     expect(await source.courseCreated(base)).toBe(false);
+    await source.noteCreating('git', 'Git');
+    expect(await source.ownCourse(draftDoc(makeCourse()))).toBeNull();
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });
