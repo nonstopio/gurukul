@@ -11,7 +11,12 @@ import {
   undoNote,
 } from '../src/studio/session/agent';
 import type { AgentSessionOptions } from '../src/studio/session/agent';
-import { EDITING_FILE, START_CHECKPOINT, createSessionStore } from '../src/studio/session/store';
+import {
+  AGENT_NOTE_FILE,
+  EDITING_FILE,
+  START_CHECKPOINT,
+  createSessionStore,
+} from '../src/studio/session/store';
 import type { SessionStore } from '../src/studio/session/store';
 import { TRANSCRIPT_FILE, parseTranscript } from '../src/studio/session/transcript';
 import type { Working } from '../src/studio/types';
@@ -82,7 +87,33 @@ async function setup(init: Init = {}) {
   const disk = () => JSON.parse(fake.files.get('u1/s1/session.json') as string) as AuthoringSession;
   const chat = () => parseTranscript(fake.files.get(`u1/s1/${TRANSCRIPT_FILE}`) ?? '').entries;
   const noted = () => fake.files.has(`u1/s1/${EDITING_FILE}`);
-  return { ...fake, ...agent, store, runtime, disk, chat, noted, state: runtime.getState };
+  const note = () => fake.files.get(`u1/s1/${AGENT_NOTE_FILE}`);
+  /** A new runtime over the same files, as after the app closed or every screen let it go. */
+  const reopen = async () => {
+    const next = createAgentSession({
+      desktop: fake.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store,
+      now: () => T0,
+      newId: () => `t${++n}`,
+      ...init.options,
+    });
+    await next.open();
+    return next;
+  };
+  return {
+    ...fake,
+    ...agent,
+    store,
+    runtime,
+    disk,
+    chat,
+    noted,
+    note,
+    reopen,
+    state: runtime.getState,
+  };
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -493,5 +524,108 @@ describe('hand edits in a session', () => {
       ['educator', 1],
       ['agent', 1],
     ]);
+  });
+});
+
+describe('what the agent is told after the runtime ends', () => {
+  it('tells a new runtime’s agent of hand edits made before it, once', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    await s.runtime.endEdits();
+    expect(JSON.parse(s.note() as string)).toEqual({ undone: 0, handEdited: true });
+    s.runtime.dispose();
+
+    const next = await s.reopen();
+    expect(await next.send('Shorten it.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_EDIT_NOTE}Shorten it.`);
+    await next.settled();
+    expect(s.note()).toBeUndefined();
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await next.settled();
+    next.dispose();
+
+    const third = await s.reopen();
+    expect(await third.send('Go on.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', 'Go on.');
+  });
+
+  it('tells a new runtime’s agent of turns undone before it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await agentTurn(s, 'Git basics');
+    expect(await s.runtime.undo()).toBe(true);
+    s.runtime.dispose();
+
+    const next = await s.reopen();
+    expect(await next.send('Go on.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${undoNote(1)}Go on.`);
+  });
+
+  it('logs a note it could not write or read, and still tells this runtime’s agent', async () => {
+    const s = await setup({
+      store: (store) => ({
+        ...store,
+        saveAgentNote: () => Promise.reject(FAILED),
+        readAgentNote: () => Promise.reject(FAILED),
+      }),
+    });
+    await s.runtime.open();
+    expect(log.warn).toHaveBeenCalledWith('Session agent note not read', {
+      sessionId: 's1',
+      reason: 'failed',
+    });
+    expect(s.state().status).toBe('ready');
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    await s.runtime.endEdits();
+    expect(log.warn).toHaveBeenCalledWith('Session agent note not saved', {
+      sessionId: 's1',
+      reason: 'failed',
+    });
+    expect(await s.runtime.send('Shorten it.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', `${HAND_EDIT_NOTE}Shorten it.`);
+  });
+});
+
+describe('dropping edits the session cannot keep yet', () => {
+  it('goes back to the last copy kept and keeps the visit open', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    // Nothing to drop before any hand edit.
+    await s.runtime.dropIncomplete();
+    expect(s.state().handEdits).toBeNull();
+
+    s.runtime.edit(retitle('l1', 'Why Git'));
+    expect(await s.runtime.keepEdits()).toBe(true);
+    // Edits that pass the course schema are not dropped.
+    await s.runtime.dropIncomplete();
+    expect(titleOf(s.state().work, 'l1')).toBe('Why Git');
+
+    s.runtime.edit(retitle('l2', ''));
+    expect(await s.runtime.keepEdits()).toBe(false);
+    await s.runtime.dropIncomplete();
+    expect(titleOf(s.state().work, 'l2')).toBe('Lesson l2');
+    expect(titleOf(s.state().work, 'l1')).toBe('Why Git');
+    expect(s.state().handEdits?.state).toBe('saved');
+    expect(s.state().turns).toEqual([]);
+
+    s.runtime.edit(retitle('l2', 'Rebase'));
+    await s.runtime.endEdits();
+    expect(s.state().turns.map((t) => t.changes)).toEqual([2]);
+  });
+
+  it('goes back to the copy from before the edits when none was kept', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.edit(retitle('l1', ''));
+    await s.runtime.dropIncomplete();
+    expect(titleOf(s.state().work, 'l1')).toBe('Lesson l1');
+    await s.runtime.endEdits();
+    expect(s.state().turns).toEqual([]);
   });
 });

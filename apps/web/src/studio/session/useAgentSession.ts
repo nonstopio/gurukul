@@ -61,7 +61,7 @@ export function acquireAgentSession(
 /** What the Educator can do with a session, from any screen showing it. */
 type SessionActions = Pick<
   AgentSession,
-  'send' | 'stop' | 'undo' | 'retry' | 'edit' | 'keepEdits' | 'endEdits'
+  'send' | 'stop' | 'undo' | 'retry' | 'edit' | 'keepEdits' | 'endEdits' | 'dropIncomplete'
 >;
 
 /** What the session screens get: the view, and what the Educator can do. */
@@ -119,6 +119,7 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     edit: (change) => held?.edit(change) ?? false,
     keepEdits: async () => (held ? held.keepEdits() : false),
     endEdits: async () => held?.endEdits(),
+    dropIncomplete: async () => held?.dropIncomplete(),
   };
 }
 
@@ -141,5 +142,6 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     edit: source.edit,
     keepEdits: source.keepEdits,
     endEdits: source.endEdits,
+    dropIncomplete: source.dropIncomplete,
   };
 }

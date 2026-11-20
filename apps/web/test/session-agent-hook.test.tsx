@@ -119,6 +119,7 @@ describe('agentSessionSource', () => {
     expect(source.edit((w) => w)).toBe(false);
     expect(await source.keepEdits()).toBe(false);
     await source.endEdits();
+    await source.dropIncomplete();
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });

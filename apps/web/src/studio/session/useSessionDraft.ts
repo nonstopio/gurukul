@@ -16,8 +16,8 @@ const nothing = () => undefined;
 
 /**
  * Editors just left, by session, whose hand edits become a turn on the next task unless an editor
- * on the same session mounts first and takes them over: React mounts twice in development, and a
- * linked image reports its size from its first effect, so ending at once would split one visit.
+ * on the same session mounts first and takes them over: React mounts twice in development, so ending
+ * at once would split one visit.
  */
 const ending = new Map<
   string,
@@ -30,7 +30,8 @@ const ending = new Map<
  * draft. An edit goes to the runtime's copy in memory (`edit`), and to `session.json` a pause later
  * (`keepEdits`); never to Firestore, and with no `rev` check, since nothing else writes the copy.
  * Leaving the editor makes the edits one turn by the Educator (`endEdits`, on the next task). There is no conflict and
- * no backup on this device: the session file is both.
+ * no backup on this device: the session file is both, so `reload` means only "drop the edits that
+ * cannot be kept yet" (`dropIncomplete`).
  */
 export function useSessionDraft(
   agent: AgentSessionHandle,
@@ -39,7 +40,7 @@ export function useSessionDraft(
   { desktop, uid, sessionId }: Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>,
 ): DraftApi {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const { edit, keepEdits } = agent;
+  const { edit, keepEdits, dropIncomplete } = agent;
 
   // The editor's own hold on the runtime, so the turn is written even when this was the last
   // screen showing the session; the window going away writes what is not on disk yet.
@@ -80,6 +81,13 @@ export function useSessionDraft(
     [edit, keepEdits],
   );
 
+  // `LeaveGuard` calls it when the Educator leaves edits the session cannot keep yet: they go, and
+  // the visit goes on (moving to another item through the rail keeps this editor mounted).
+  const reload = useCallback(() => {
+    clearTimeout(timer.current);
+    void dropIncomplete();
+  }, [dropIncomplete]);
+
   const { handEdits } = agent;
   return {
     status: 'ready',
@@ -89,7 +97,7 @@ export function useSessionDraft(
     save: handEdits?.state ?? 'saved',
     update,
     saveNow,
-    reload: nothing,
+    reload,
     backupAt: null,
     restoreBackup: nothing,
     discardBackup: nothing,

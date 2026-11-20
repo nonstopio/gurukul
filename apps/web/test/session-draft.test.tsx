@@ -42,6 +42,7 @@ async function setup(edits: { accepted?: boolean } = {}) {
     ...held.session.getState(),
     edit: vi.fn(() => edits.accepted ?? true),
     keepEdits: vi.fn(async () => true),
+    dropIncomplete: vi.fn(async () => undefined),
   } as unknown as AgentSessionHandle;
   const work = session.work as Working;
   const hook = renderHook(() => useSessionDraft(agent, session, work, key));
@@ -57,7 +58,6 @@ describe('useSessionDraft', () => {
     expect(draft.save).toBe('saved');
     expect(draft.savedAt).toEqual(new Date(session.updatedAt));
     expect(draft.backupAt).toBeNull();
-    expect(draft.reload()).toBeUndefined();
     expect(draft.restoreBackup()).toBeUndefined();
     expect(draft.discardBackup()).toBeUndefined();
     hook.unmount();
@@ -79,6 +79,18 @@ describe('useSessionDraft', () => {
     expect(await hook.result.current.saveNow()).toBe(true);
     vi.advanceTimersByTime(HAND_EDIT_WRITE_MS);
     expect(agent.keepEdits).toHaveBeenCalledTimes(2);
+    hook.unmount();
+    held.release();
+  });
+
+  it('drops edits it cannot keep on reload, with no write left waiting', async () => {
+    vi.useFakeTimers();
+    const { hook, agent, held } = await setup();
+    act(() => hook.result.current.update((w) => w));
+    hook.result.current.reload();
+    expect(agent.dropIncomplete).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(HAND_EDIT_WRITE_MS);
+    expect(agent.keepEdits).not.toHaveBeenCalled();
     hook.unmount();
     held.release();
   });

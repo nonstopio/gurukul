@@ -26,6 +26,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/checkpoints/start.json  the working copy before the first turn
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
+ *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
  *   sessions/{uid}/{sessionId}/history.json            what is kept 30 days after it was closed
  *   sessions/{uid}/{sessionId}/unreadable.json         when `sweep` first found the folder unreadable
  *
@@ -60,6 +61,13 @@ export const START_CHECKPOINT = 'start.json';
  * a turn, so a session opened after the app closed mid-edit still makes them one.
  */
 export const EDITING_FILE = 'editing.json';
+
+/**
+ * What the agent has not been told yet (`DSK-19`): turns undone and hand edits made since its last
+ * message. Written when either happens and removed once a message carries the note, so an app
+ * closed in between still tells it (`undoNote`, `HAND_EDIT_NOTE` in `agent.ts`).
+ */
+export const AGENT_NOTE_FILE = 'agent-note.json';
 
 const DAY_MS = 86_400_000;
 /** A goal is one box of free text, held to what `goalSchema` stores. */
@@ -100,6 +108,13 @@ const unreadableSchema = z.object({ since: at });
 /** `editing.json`: when the hand edits began, and the working copy before them. */
 export const handEditsSchema = z.object({ since: at, before: workingSchema });
 export type PendingHandEdits = z.infer<typeof handEditsSchema>;
+
+/** `agent-note.json`: turns undone, and whether the course was edited by hand, since the last message. */
+export const agentNoteSchema = z.object({
+  undone: z.number().int().min(0).max(10_000),
+  handEdited: z.boolean(),
+});
+export type AgentNote = z.infer<typeof agentNoteSchema>;
 
 /**
  * Was this file written by a newer app (a `schemaVersion` above this one's)? Only the log says so:
@@ -161,6 +176,10 @@ export interface SessionStore {
   readHandEdits(sessionId: string): Promise<PendingHandEdits | null>;
   /** Forgets the note once the hand edits are a turn (or came to nothing). */
   clearHandEdits(sessionId: string): Promise<void>;
+  /** Writes what the agent is to be told with the next message (`AGENT_NOTE_FILE`); null removes it. */
+  saveAgentNote(sessionId: string, note: AgentNote | null): Promise<void>;
+  /** What the agent is still to be told, or null when nothing (or the file cannot be read). */
+  readAgentNote(sessionId: string): Promise<AgentNote | null>;
   /** The chat, oldest first; empty when there is none yet. Damaged lines are left out. */
   readTranscript(sessionId: string): Promise<TranscriptEntry[]>;
   /** Replaces the chat file (the newest entries, when it would be too large). */
@@ -429,6 +448,21 @@ export function createSessionStore({
 
     async clearHandEdits(sessionId) {
       await store.remove(file(sessionId, EDITING_FILE));
+    },
+
+    async saveAgentNote(sessionId, note) {
+      if (note === null) return store.remove(file(sessionId, AGENT_NOTE_FILE));
+      await store.write(
+        file(sessionId, AGENT_NOTE_FILE),
+        JSON.stringify(agentNoteSchema.parse(note)),
+      );
+    },
+
+    async readAgentNote(sessionId) {
+      return parse(await store.read(file(sessionId, AGENT_NOTE_FILE)), agentNoteSchema, {
+        sessionId,
+        file: 'agent-note',
+      });
     },
 
     async readTranscript(sessionId) {

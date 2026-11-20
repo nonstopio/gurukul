@@ -170,6 +170,97 @@ describe('Open in editor from the session workspace', () => {
     expect(titleOf(s.disk().work, 'l1')).toBe('Lesson l1');
   });
 
+  it('makes no turn of a visit that only measured a linked image', async () => {
+    const image = {
+      type: 'image' as const,
+      id: 'l1-img',
+      url: 'https://example.com/graph.png',
+      alt: 'A graph',
+    };
+    const s = await open({
+      path: (id) => itemPath(id, 'l1'),
+      edit: (session) => ({
+        ...session,
+        work: {
+          ...session.work,
+          course: {
+            ...session.work.course,
+            chapters: session.work.course.chapters.map((c, i) =>
+              i === 0
+                ? {
+                    ...c,
+                    items: c.items.map((item) =>
+                      item.id === 'l1' ? { ...item, blocks: [image] } : item,
+                    ),
+                  }
+                : c,
+            ),
+          },
+        },
+      }),
+    });
+    await screen.findByLabelText('Lesson title');
+    const loaded = (width: number, height: number) => {
+      const img = screen.getByRole('img', { name: 'A graph' });
+      Object.defineProperty(img, 'naturalWidth', { value: width, configurable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: height, configurable: true });
+      fireEvent.load(img);
+    };
+    // The picture loads: in Studio its size would be stored, an edit nobody made here.
+    loaded(800, 600);
+    expect(screen.getByText(/^In the session · saved/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Session' }));
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    // Send opens once the visit has ended, turn or not.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask for a change' }), {
+      target: { value: 'Shorten it.' },
+    });
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+    expect(screen.queryByRole('link', { name: /^Turn/ })).toBeNull();
+    expect(s.disk().turns).toEqual([]);
+
+    // An address typed in the session is a new image, and its size is read as in Studio.
+    fireEvent.click(screen.getByRole('link', { name: 'Open in editor' }));
+    const group = await screen.findByRole('group', { name: 'Image block' });
+    fireEvent.change(within(group).getByLabelText('Image address'), {
+      target: { value: 'https://example.com/other.png' },
+    });
+    loaded(400, 300);
+    fireEvent.click(screen.getByRole('link', { name: 'Session' }));
+    await screen.findByRole('link', { name: /^Turn 1 · by hand/ });
+    const blocks = (s.disk().work.course.chapters[0]?.items[0] as ReturnType<typeof lesson>)
+      .blocks as unknown[];
+    expect(blocks[0]).toMatchObject({
+      url: 'https://example.com/other.png',
+      width: 400,
+      height: 300,
+    });
+  });
+
+  it('drops edits it cannot keep when the Educator moves to another item and leaves them', async () => {
+    const s = await open({ path: (id) => itemPath(id, 'l1') });
+    const title = (await screen.findByLabelText('Lesson title')) as HTMLInputElement;
+    fireEvent.change(title, { target: { value: '' } });
+    const rail = screen.getByRole('navigation', { name: 'Lessons in this course' });
+    fireEvent.click(within(rail).getByRole('link', { name: 'Lesson l2' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave with unfinished edits?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Leave and drop them' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lesson l2' })).toBeTruthy();
+    // Dropped now, not when the editor closes: the rail and the bar say so, and leaving asks nothing.
+    await waitFor(() => expect(within(rail).getByRole('link', { name: 'Lesson l1' })).toBeTruthy());
+    expect(within(rail).queryByRole('link', { name: 'Untitled lesson' })).toBeNull();
+    expect(screen.getByText(/^In the session · saved/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Session' }));
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l2' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Turn/ })).toBeNull();
+    expect(titleOf(s.disk().work, 'l1')).toBe('Lesson l1');
+  });
+
   it('uploads a PDF from a session’s editor to the course, as Studio does', async () => {
     vi.mocked(pdfBlurHash).mockResolvedValue(undefined);
     const s = await open({ path: (id) => itemPath(id, 'l1') });

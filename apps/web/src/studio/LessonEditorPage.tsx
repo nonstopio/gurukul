@@ -255,6 +255,7 @@ export function LessonEditor({
                       uid={uid}
                       uploadedImages={hosted}
                       uploadsOff={courseId === null ? NEW_COURSE_UPLOADS : undefined}
+                      sizeLinkedImages={source === 'draft'}
                     >
                       <BlockPreviewFrame
                         block={block}

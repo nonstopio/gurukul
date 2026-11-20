@@ -824,9 +824,11 @@ As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`
   ("Turn 3 · by hand · 2 changes"). Chosen over a quiet period so one visit is one turn and the
   agent never meets edits half made. Undo and Review treat it as any turn. The agent is told with
   the next message (`HAND_EDIT_NOTE`), as it is after an Undo; undoing a hand-edit turn tells it
-  the same. The end runs on the next task after the editor unmounts, so React's development double
-  mount, or an image reporting its size from its first effect, does not split one visit in two.
-  Edits that come to nothing make no turn.
+  the same. What it is still to be told (turns undone, edited by hand) is kept in
+  `agent-note.json` until a message has carried it, so it is told even when the app closed, or
+  every screen let the session go, in between (the plan was silent; a counter in memory lost it).
+  The end runs on the next task after the editor unmounts, so React's development double mount
+  does not split one visit in two. Edits that come to nothing make no turn.
 - **Only between turns.** `canEdit` needs an open session with no turn running and no undo being
   written; Claude Code need not be running. While a turn runs the route says the agent is working,
   offers Back and Stop, and opens the editor once the turn is written. While hand edits are open,
@@ -835,12 +837,16 @@ As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`
 - **The working copy must pass the course schema to be kept** (the plan was silent; a session file
   holds only a valid course, but the editors pass through invalid states: an empty title, a new
   question with no prompt). Such edits stay in memory ("not kept until complete"); leaving asks
-  first and drops them, back to the last copy written.
+  first and drops them, back to the last copy written, there and then (`dropIncomplete`), also
+  when the move is to another item through the rail, which keeps the same editor and visit open.
 - **A crash loses no hand edit already written.** Before the first write, `editing.json` keeps the
   copy from before them; opening the session again makes a turn of what `session.json` holds, then
   removes it. It is also removed by the next turn written or by Undo of an unwritten turn.
-- Opening the editor can itself be a change: an image linked without its size gets its width and
-  height from the loaded picture, as in Studio, and that shows as a changed Image block.
+- **Opening the editor changes nothing by itself.** Studio stores the width and height of an image
+  linked without them once the picture loads; in a session that would be a hand-edit turn nobody
+  made (the seeded Git course's first lesson has such an image). So a session's lesson editor reads
+  a linked image's size only for an address typed there (`sizeLinkedImages` on `BlockScope`);
+  other unsized links get theirs the next time the course is opened in Studio.
 
 ## Review: the whole session at once
 

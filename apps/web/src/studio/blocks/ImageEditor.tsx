@@ -21,12 +21,15 @@ const LAYOUTS = [
  * hear. Link comes first and is the default for a new block and a linked image, since a link costs
  * no storage; the Upload tab (where an uploaded image opens) checks the file in the browser,
  * previews it, and uploads it to Cloud Storage. Layout, Open full size and Border work for both; a linked
- * image's width and height are read from the loaded preview so the lesson does not jump.
+ * image's width and height are read from the loaded preview so the lesson does not jump (in a desktop
+ * session only for an address typed there: `sizeLinkedImages`).
  */
 export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
   const [tab, setTab] = useState(block.upload ? 'upload' : 'link');
   const source = useImageUpload(block, onChange);
-  const { uploadsOff } = useBlockScope();
+  const { uploadsOff, sizeLinkedImages = true } = useBlockScope();
+  // An address typed here is a new image, whose size is read wherever the editor is.
+  const [typed, setTyped] = useState(false);
   const picked = 'picked' in source.stage ? source.stage.picked : undefined;
   // A new block's stand-in address is not an image: nothing to preview until there is a real one.
   const src = picked?.previewUrl ?? (block.url === PLACEHOLDER_IMAGE ? '' : block.url);
@@ -58,6 +61,7 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
                   // A typed address is the image now: an upload still running, or a file waiting
                   // for Upload, must not replace it (`drop` makes sure the upload writes nothing).
                   source.drop();
+                  setTyped(true);
                   // The size and the upload belong to the old image; the preview reads the new
                   // address once it loads.
                   onChange(
@@ -160,7 +164,7 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<'image'>) {
             blurHash={picked ? undefined : block.upload?.blurHash}
             caption={block.caption}
             onSize={
-              block.upload || picked
+              block.upload || picked || !(sizeLinkedImages || typed)
                 ? undefined
                 : ({ width, height }) => {
                     if (width !== block.width || height !== block.height) {

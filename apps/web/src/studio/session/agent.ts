@@ -43,6 +43,8 @@ import type { TranscriptEntry } from './transcript';
  *           the session and the chat written to disk (`saveTurn`), so a restart loses nothing.
  *   stop    `agent.stop`: the turn ends, and what it had changed stays as its checkpoint.
  *   undo    the newest turn goes; the checkpoint before it becomes the working copy again.
+ *   note    undone turns and hand edits are told to the agent with the next message; until then
+ *           `agent-note.json` keeps them, so a runtime opened later still tells it.
  *
  * Firestore is never read or written here: the draft was read once when the session started, and
  * hand edits go to this computer only.
@@ -195,6 +197,11 @@ export interface AgentSession {
    * course schema yet are dropped, back to the last copy that did.
    */
   endEdits(): Promise<void>;
+  /**
+   * Drops hand edits that do not pass the course schema yet, back to the last copy that did, and
+   * keeps the editor's visit open: the Educator chose to leave them for another item.
+   */
+  dropIncomplete(): Promise<void>;
   /** True while a turn runs, an undo is written or hand edits are open: keep listening until then. */
   busy(): boolean;
   /** Resolves once every tool call, turn end and undo already received has been handled. */
@@ -386,8 +393,10 @@ export function createAgentSession({
   let turn: RunningTurn | null = null;
   /** Turns undone since the agent was last told. */
   let undone = 0;
-  /** Hand-edit turns (made or undone) since the agent was last told. */
-  let handEdited = 0;
+  /** A hand-edit turn was made or undone since the agent was last told. */
+  let handEdited = false;
+  /** `agent-note.json` is on disk: the two above, kept for a runtime opened after this one. */
+  let noteKept = false;
   /**
    * Hand edits not yet a turn. `before` is the copy `session.json` held before them (what the turn
    * is counted against, and what `editing.json` keeps); `start` the copy in memory then, which an
@@ -527,6 +536,33 @@ export function createAgentSession({
     }
   };
 
+  /**
+   * `agent-note.json` as `undone` and `handEdited` stand: written while there is something to tell
+   * the agent, removed once a message has told it, so the note survives the runtime (`open` reads
+   * it). Only logged on failure: the note in memory still goes with this runtime's next message.
+   */
+  const keepNote = async () => {
+    const note = undone > 0 || handEdited ? { undone, handEdited } : null;
+    if (note === null && !noteKept) return;
+    try {
+      await store.saveAgentNote(sessionId, note);
+      noteKept = note !== null;
+    } catch (error) {
+      log.warn('Session agent note not saved', { sessionId, reason: bridgeFailure(error) });
+    }
+  };
+
+  /**
+   * The session with hand edits that do not pass the course schema dropped, back to the last copy
+   * written (or, before any, the copy from before them); the session as it is when they pass.
+   */
+  const withoutIncomplete = (pending: { start: Working; kept: Working | null }) => {
+    const current = session as AuthoringSession;
+    if (workingSchema.safeParse(workOf(current)).success) return current;
+    log.warn('Session hand edits dropped', { sessionId, reason: 'incomplete' });
+    return { ...current, work: pending.kept ?? pending.start };
+  };
+
   /** Removes `editing.json` once nothing it notes is left to make a turn of. Only logged on failure. */
   const forgetHandNote = async () => {
     if (!handNoted) return;
@@ -582,11 +618,7 @@ export function createAgentSession({
   const finishEdits = async (): Promise<void> => {
     const pending = hand;
     if (!pending) return;
-    let current = session as AuthoringSession;
-    if (!workingSchema.safeParse(workOf(current)).success) {
-      current = { ...current, work: pending.kept ?? pending.start };
-      log.warn('Session hand edits dropped', { sessionId, reason: 'incomplete' });
-    }
+    const current = withoutIncomplete(pending);
     hand = null;
     session = current;
     if (courseChanges(pending.start, workOf(current)).count === 0) {
@@ -611,7 +643,7 @@ export function createAgentSession({
       changes: changes.count,
     };
     notice(id, record.summary);
-    handEdited += 1;
+    handEdited = true;
     emit();
     try {
       if (current.turns.length === 0) await store.saveStart(sessionId, pending.before);
@@ -626,6 +658,7 @@ export function createAgentSession({
       problem = NOT_SAVED;
       unsaved = record;
     }
+    await keepNote();
     await writeChat();
     emit();
   };
@@ -783,6 +816,17 @@ export function createAgentSession({
       status = 'closed';
       return emit();
     }
+    // What an earlier runtime had not told the agent yet, read before hand edits add to it.
+    try {
+      const note = await store.readAgentNote(sessionId);
+      if (note) {
+        noteKept = true;
+        undone = note.undone;
+        handEdited = note.handEdited;
+      }
+    } catch (error) {
+      log.warn('Session agent note not read', { sessionId, reason: bridgeFailure(error) });
+    }
     // Hand edits the app closed on (`editing.json`): made a turn before the agent starts.
     try {
       const pending = await store.readHandEdits(sessionId);
@@ -836,10 +880,11 @@ export function createAgentSession({
       say({ kind: 'educator', turnId: running.id, at: now().toISOString(), text });
       emit();
       try {
-        const notes = (undone > 0 ? undoNote(undone) : '') + (handEdited > 0 ? HAND_EDIT_NOTE : '');
+        const notes = (undone > 0 ? undoNote(undone) : '') + (handEdited ? HAND_EDIT_NOTE : '');
         await agent.send(sessionId, notes + text);
         undone = 0;
-        handEdited = 0;
+        handEdited = false;
+        void enqueue(keepNote);
         return true;
       } catch (error) {
         log.warn('Agent message not sent', { sessionId, reason: bridgeFailure(error) });
@@ -898,8 +943,9 @@ export function createAgentSession({
           saved = next;
           unsaved = null;
           // The agent's own history says it made an agent turn; a hand edit it never knew of.
-          if (last.by === 'educator') handEdited += 1;
+          if (last.by === 'educator') handEdited = true;
           else undone += 1;
+          await keepNote();
           await forgetHandNote();
           notice(last.id, 'Turn undone: the course is back as it was before it.');
           await writeChat();
@@ -937,6 +983,18 @@ export function createAgentSession({
     keepEdits: () => enqueue(writeEdits),
 
     endEdits: () => enqueue(finishEdits),
+
+    dropIncomplete: () =>
+      enqueue(async () => {
+        const pending = hand;
+        if (!pending) return;
+        const next = withoutIncomplete(pending);
+        if (next === session) return;
+        session = next;
+        // Back to a copy on disk already, or (before any write) to the one from before the edits.
+        pending.state = 'saved';
+        emit();
+      }),
 
     busy: () => turn !== null || status === 'undoing' || hand !== null,
 
