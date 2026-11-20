@@ -59,10 +59,34 @@ export function ChatPanel({
   const working = status === 'working' || status === 'stopping';
 
   // The newest message in view as the chat grows.
+  const atEnd = useRef(true);
   useEffect(() => {
     const el = log.current as HTMLDivElement;
     el.scrollTop = el.scrollHeight;
+    atEnd.current = true;
   }, [lines.length, activity]);
+
+  // And as the log's own height changes: the top bar is measured after the log has scrolled, and a
+  // long title, or one the agent sets, makes it taller and the sticky chat shorter. A log the
+  // Educator scrolled up in stays where they left it.
+  useEffect(() => {
+    const el = log.current as HTMLDivElement;
+    const onScroll = () => {
+      atEnd.current = el.scrollHeight - el.clientHeight - el.scrollTop <= 1;
+    };
+    el.addEventListener('scroll', onScroll);
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            if (atEnd.current) el.scrollTop = el.scrollHeight;
+          });
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      observer?.disconnect();
+    };
+  }, []);
 
   // Stop, Send and Undo come and go with a turn: focus that would be lost returns to the box.
   const was = useRef(status);

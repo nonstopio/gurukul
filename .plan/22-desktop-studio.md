@@ -741,8 +741,11 @@ As built in `DSK-13` (first half, the runtime; `apps/web/src/studio/session/agen
   answers the running process) is adopted at its first event or tool call, so its tool calls are
   answered and its end is written. Its line is the Educator's message that started it: `send`
   writes the chat as soon as the message is sent, not only at the turn's end, so the reloaded page
-  reads it and takes up that turn's id (the newest message with no turn written under its id).
-  Only a turn with no such message is "Carried on after the page reloaded". If `agent.status()`
+  reads it and takes up that turn's id: the newest message, when nothing follows it under its id
+  (the agent's words and a turn's notices are written only at its end) and no turn is written under
+  it. An undone turn's id leaves the session's turns but its "Turn undone" notice follows its
+  message, so a newest message that never reached the disk is not mistaken for it. Only a turn with
+  no such message is "Carried on after the page reloaded". If `agent.status()`
   said the agent cannot run, the session stays `unavailable` after that turn ends, and Retry asks
   again.
 - **Leaving the page does not lose a turn.** Every component showing a session shares one runtime
@@ -800,7 +803,10 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
 - **Width.** From 1024px the chat is a card beside the preview, sticky under the top bar with its
   log scrolling inside. The bar's height is measured (`useBlockSize`, a `ResizeObserver` on the
   `TopBar`'s header), not assumed: a session title of up to 160 characters wraps it to three lines
-  at 1024px, and an assumed one-line bar left the top of the chat under it. From 640px to 1023px a Chat button in the header opens it as a drawer
+  at 1024px, and an assumed one-line bar left the top of the chat under it. The log watches its own
+  height too: the bar is measured after the log has scrolled to its end, so a taller bar would leave
+  the newest message under the card's edge; a log at its end stays there, one the Educator scrolled
+  up in stays put. From 640px to 1023px a Chat button in the header opens it as a drawer
   (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
   it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
   Studio's `DesktopOnly` asks for a wider window.

@@ -235,7 +235,11 @@ describe('the session workspace', () => {
     await screen.findByRole('log', { name: 'Chat with the agent' });
     const workspace = () => document.querySelector('.ss-workspace') as HTMLElement;
     const bar = screen.getByRole('heading', { level: 1 }).closest('header');
-    expect(observed.map((o) => o.target)).toEqual([bar]);
+    // The bar is measured; the chat log is watched too, to keep its newest message in view.
+    expect(observed.map((o) => o.target)).toEqual([
+      screen.getByRole('log', { name: 'Chat with the agent' }),
+      bar,
+    ]);
     await waitFor(() => expect(workspace().style.getPropertyValue('--ss-bar')).toBe('118px'));
     // The title changes (the agent sets one) and the bar with it.
     height = 68;
@@ -245,6 +249,67 @@ describe('the session workspace', () => {
     expect(workspace().style.getPropertyValue('--ss-bar')).toBe('68px');
     s.app.unmount();
     expect(observed.every((o) => o.disconnected)).toBe(true);
+  });
+
+  it('keeps the newest message in view when a taller bar makes the chat log shorter', async () => {
+    // jsdom lays nothing out: the test moves the log's box as a browser would, and reports it.
+    const watching = new Map<Element, () => void>();
+    const disconnected: Element[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        private target: Element | null = null;
+        constructor(private readonly callback: () => void) {}
+        observe(target: Element) {
+          this.target = target;
+          watching.set(target, this.callback);
+        }
+        disconnect() {
+          disconnected.push(this.target as Element);
+        }
+      },
+    );
+    const s = await open();
+    const chat = await screen.findByRole('log', { name: 'Chat with the agent' });
+    let clientHeight = 313;
+    let scrollTop = 0;
+    const scrollHeight = 1000;
+    Object.defineProperties(chat, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => clientHeight },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        // A browser keeps scrollTop within what the box can scroll.
+        set: (v: number) => (scrollTop = Math.max(0, Math.min(v, scrollHeight - clientHeight))),
+      },
+    });
+    const resized = (height: number) => {
+      clientHeight = height;
+      scrollTop = Math.min(scrollTop, scrollHeight - clientHeight);
+      act(() => (watching.get(chat) as () => void)());
+    };
+    // Opened at its newest message.
+    chat.scrollTop = scrollHeight;
+    fireEvent.scroll(chat);
+    expect(scrollTop).toBe(687);
+    // A three-line title makes the bar 50px taller, and the log 50px shorter: it stays at the end.
+    resized(263);
+    expect(scrollTop).toBe(737);
+    // Read further up, the Educator stays where they are when the log changes height.
+    chat.scrollTop = 200;
+    fireEvent.scroll(chat);
+    resized(313);
+    expect(scrollTop).toBe(200);
+    resized(263);
+    expect(scrollTop).toBe(200);
+    // Back at the end, it follows again.
+    chat.scrollTop = scrollHeight;
+    fireEvent.scroll(chat);
+    resized(313);
+    expect(scrollTop).toBe(687);
+    s.app.unmount();
+    expect(disconnected).toContain(chat);
   });
 
   it('draws the agent’s links as words with their address, so no click follows one', async () => {
