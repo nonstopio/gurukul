@@ -38,6 +38,31 @@ export { Callout } from './Callout';
 export type { CalloutProps, CalloutTone } from './Callout';
 export { ChangeMark } from './ChangeMark';
 export type { ChangeMarkProps, ChangeMarkStatus } from './ChangeMark';
+export {
+  DiffCode,
+  DiffFields,
+  DiffMedia,
+  DiffNote,
+  DiffRow,
+  DiffText,
+  DiffUnchanged,
+  DiffView,
+} from './Diff';
+export type {
+  DiffCodeProps,
+  DiffFieldItem,
+  DiffFieldsProps,
+  DiffMediaKind,
+  DiffMediaProps,
+  DiffNoteProps,
+  DiffRowProps,
+  DiffSide,
+  DiffStatus,
+  DiffTextPart,
+  DiffTextProps,
+  DiffUnchangedProps,
+  DiffViewProps,
+} from './Diff';
 export { Attachable } from './Attachable';
 export type { AttachableProps } from './Attachable';
 export { ChatActivity, ChatAttachments, ChatLog, ChatMessage, ChatTurn } from './Chat';

@@ -1,0 +1,319 @@
+/* A difference between two versions: words, code lines, fields, rows. Marks always carry a sign or a
+   text decoration; the soft grounds only repeat them (text on them reaches 4.5:1 in both themes). */
+.g-diff-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.g-diff-text__removed,
+.g-diff-text__added {
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration-thickness: 1px;
+}
+.g-diff-text__removed {
+  background: var(--danger-soft);
+  text-decoration-line: line-through;
+}
+.g-diff-text__added {
+  background: var(--accent-soft);
+  text-decoration-line: underline;
+  text-underline-offset: 0.18em;
+}
+
+.g-diff-code__pre {
+  margin: 0;
+  font: inherit;
+}
+.g-diff-code {
+  margin: 0;
+  padding: var(--space-2) 0;
+  overflow-x: auto;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-lg);
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-mono);
+  color: var(--text);
+}
+.g-diff-code:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-diff-code__line {
+  display: block;
+  min-width: max-content;
+  padding-right: var(--space-4);
+  white-space: pre;
+}
+.g-diff-code__sign {
+  display: inline-block;
+  width: var(--space-8);
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.g-diff-code__line--removed {
+  background: var(--danger-soft);
+}
+.g-diff-code__line--removed .g-diff-code__sign {
+  color: var(--danger);
+}
+.g-diff-code__line--added {
+  background: var(--accent-soft);
+}
+.g-diff-code__line--added .g-diff-code__sign {
+  color: var(--accent-soft-text);
+}
+
+.g-diff-fields {
+  container: diff-fields / inline-size;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.g-diff-fields__row {
+  display: grid;
+  gap: var(--space-1);
+}
+.g-diff-fields dt {
+  font-weight: 600;
+  color: var(--text);
+}
+.g-diff-fields dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.g-diff-fields__arrow {
+  color: var(--text-muted);
+}
+.g-diff-fields__unset {
+  font-style: italic;
+  color: var(--text-muted);
+}
+/* Name beside value only where the list itself has room: a column of a side-by-side row does not. */
+@container diff-fields (width >= 28rem) {
+  .g-diff-fields__row {
+    grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}
+
+.g-diff {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-diff__head {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.g-diff-row {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.g-diff-row--added {
+  border: 1px dashed var(--accent-line);
+}
+.g-diff-row--changed,
+.g-diff-row--renamed {
+  border: 1px dashed var(--warning-line);
+}
+.g-diff-row--moved {
+  border: 1px dashed var(--info-line);
+}
+.g-diff-row--removed {
+  border: 1px dashed var(--danger-line);
+}
+.g-diff-row__label {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--space-2);
+  min-height: 24px;
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  color: var(--text-muted);
+}
+.g-diff-row--added .g-diff-row__label {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.g-diff-row--changed .g-diff-row__label,
+.g-diff-row--renamed .g-diff-row__label {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.g-diff-row--moved .g-diff-row__label {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.g-diff-row--removed .g-diff-row__label {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.g-diff-row__cells {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.g-diff-row__stack {
+  display: grid;
+  gap: var(--space-3);
+}
+.g-diff-row__cell,
+.g-diff-row__merged {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+  font: 400 var(--text-sm) / var(--leading-body) var(--font-ui);
+  color: var(--text-body);
+}
+.g-diff-row__side {
+  margin: 0;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.g-diff-row__none {
+  margin: 0;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.g-diff-unchanged {
+  display: grid;
+  gap: var(--space-3);
+}
+.g-diff-unchanged__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  font: 500 var(--text-sm) / 1 var(--font-ui);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease);
+}
+.g-diff-unchanged__toggle:hover {
+  color: var(--text);
+}
+.g-diff-unchanged__toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-diff-unchanged__chevron {
+  transform: rotate(-90deg);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.g-diff-unchanged__toggle[aria-expanded='true'] .g-diff-unchanged__chevron {
+  transform: none;
+}
+.g-diff-unchanged__body {
+  display: grid;
+  gap: var(--space-4);
+}
+.g-diff-unchanged__body[hidden] {
+  display: none;
+}
+
+.g-diff-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--warning-line);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft);
+  font: 600 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--warning);
+}
+.g-diff-note__icon {
+  flex: none;
+  margin-top: 0.1em;
+}
+
+.g-diff-media {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  font: 500 var(--text-sm) / var(--leading-snug) var(--font-ui);
+  color: var(--text-body);
+}
+.g-diff-media--empty {
+  font-style: italic;
+  color: var(--text-muted);
+}
+.g-diff-media--image {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+.g-diff-media--image img {
+  max-width: 100%;
+  max-height: 12rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+.g-diff-media--image figcaption {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.g-diff-media--link {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.g-diff-media--link:hover {
+  border-color: var(--border-strong);
+}
+.g-diff-media--link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.g-diff-media__text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.g-diff-media__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.g-diff-media__host {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

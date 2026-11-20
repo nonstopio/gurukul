@@ -335,6 +335,42 @@ a pill label at the top with a sign (plus, pen, swap, bin) and the words ("Chang
 `--warning-soft` / `--warning`, moved `--info-soft` / `--info`, removed `--danger-soft` / `--danger`, the
 pairs `Chip` uses. Without children (something removed) only the mark is drawn. Never colour alone.
 
+## DiffView, DiffRow, DiffText, DiffCode, DiffFields, DiffUnchanged, DiffNote, DiffMedia — shipped
+
+A difference between two versions of the same thing (a Desktop Studio session's Review). Every mark
+has a sign or a text decoration and hidden words for a screen reader; the soft grounds only repeat
+them (body text reaches 4.5:1 on `--danger-soft` and `--accent-soft` in both themes, so no new role
+was needed).
+
+- `<DiffText parts side?>`: a word difference (`{ op: 'same' | 'added' | 'removed', text }[]`, the
+  shape of `DiffPart` in `@gurukul/schema/changes`). Removed runs are `<del>` struck through on
+  `--danger-soft`, added runs `<ins>` underlined on `--accent-soft`, each led by a hidden
+  "removed: " or "added: "; a run of spaces alone is not marked. `side="before"` keeps the removed
+  runs, `"after"` the added ones, `"both"` (default) everything in one text.
+- `<DiffCode parts side? label>`: a line difference in `--font-mono` on `--surface-sunken`, a
+  `--radius-lg` well that scrolls sideways inside itself (focusable, named by `label`). The gutter
+  shows − (in `--danger`) and + (in `--accent-soft-text`), hidden from a screen reader, which hears
+  "removed line: " and "added line: "; changed lines sit on their soft ground.
+- `<DiffFields items>`: a `<dl>` of fields, one per line, as "Pass mark 70% → 80%" (the arrow hidden,
+  "changed to" read instead; `null` reads "Not set" in italics), or `{ label, change }` for a
+  difference already drawn. Name column 8–12rem from 640px, stacked below.
+- `<DiffView layout="split|inline" label>`: a `role="group"` of entries. Side by side it opens with a
+  Before / After head (`aria-hidden`; each cell says which it is). `<DiffRow statuses? what before
+after merged? notes? same?>` is one entry: a pill label with the sign and words ("Changed · Text
+  block 1", the tones of `ChangeMark`, `aria-hidden`: the group is named "changed: Text block 1"), a
+  dashed hairline in the first status's line token (a plain hairline when unchanged), any `notes`,
+  then the two cells. Inline, `merged` is drawn when given, else before above after with visible
+  "Before" / "After" labels. A side that is `null` says "Not there before" or "Removed". `same`
+  draws the entry once across both columns (unchanged, or only moved), so nothing is announced twice.
+- `<DiffUnchanged label defaultOpen?>`: a run of unchanged entries folded into one dashed button
+  ("3 unchanged blocks", chevron, `aria-expanded`, `aria-controls`); its children render only open.
+- `<DiffNote>`: a line in the warning tone with the alert sign that must not be folded into
+  "changed": "Correct answer changed: B → C".
+- `<DiffMedia kind url name alt?>`: an image as a thumbnail (max 12rem high, hairline, `--radius-md`)
+  with its name under it; a video, embed or file as a link card (icon, name, host) that opens in a
+  new window and is named "Intro · youtu.be (opens in a new window)"; an empty address says
+  "No address".
+
 ## ChatLog, ChatMessage, ChatTurn, ChatActivity — shipped
 
 A chat with an agent. `<ChatLog label>` is a `role="log"` region round an `<ol>` (it takes a `ref`; a layout

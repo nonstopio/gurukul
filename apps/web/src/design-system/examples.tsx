@@ -764,7 +764,89 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   ChatActivity: 'inside the ChatLog example (the live line under the log)',
   OptionCardGroup: 'inside the OptionCard example',
   OptionCardRow: 'inside the OptionCard example',
+  DiffRow: 'inside the DiffView example',
+  DiffUnchanged: 'inside the DiffView example (the folded run of unchanged blocks)',
+  DiffNote: 'inside the DiffView example (the changed correct answer)',
+  DiffText: 'inside the DiffView and DiffFields examples',
+  DiffCode: 'inside the DiffView example',
 };
+
+const DIFF_WORDS: ui.DiffTextPart[] = [
+  { op: 'same', text: 'Rebase before you ' },
+  { op: 'removed', text: 'raise' },
+  { op: 'added', text: 'open' },
+  { op: 'same', text: ' a pull request.' },
+];
+
+function DiffViewExample() {
+  const [layout, setLayout] = useState<'split' | 'inline'>('split');
+  return (
+    <div className="ds-stack">
+      <SegmentedControl
+        label="View"
+        value={layout}
+        options={[
+          { value: 'split', label: 'Side by side' },
+          { value: 'inline', label: 'Inline' },
+        ]}
+        onChange={setLayout}
+      />
+      <ui.DiffView layout={layout} label="Lesson 3.2, before and after">
+        <ui.DiffRow
+          statuses={['changed']}
+          what="Text block 1"
+          before={<ui.DiffText parts={DIFF_WORDS} side="before" />}
+          after={<ui.DiffText parts={DIFF_WORDS} side="after" />}
+          merged={<ui.DiffText parts={DIFF_WORDS} />}
+        />
+        <ui.DiffUnchanged label="2 unchanged blocks">
+          <ui.DiffRow what="Text block 2" before={null} after={<p>Fetch first.</p>} same />
+          <ui.DiffRow what="Text block 3" before={null} after={<p>Then rebase.</p>} same />
+        </ui.DiffUnchanged>
+        <ui.DiffRow
+          statuses={['changed']}
+          what="Code block 4"
+          before={
+            <ui.DiffCode
+              label="Code, before"
+              side="before"
+              parts={[
+                { op: 'same', text: 'git fetch\n' },
+                { op: 'removed', text: 'git merge main\n' },
+                { op: 'added', text: 'git rebase origin/main\n' },
+              ]}
+            />
+          }
+          after={
+            <ui.DiffCode
+              label="Code, after"
+              side="after"
+              parts={[
+                { op: 'same', text: 'git fetch\n' },
+                { op: 'removed', text: 'git merge main\n' },
+                { op: 'added', text: 'git rebase origin/main\n' },
+              ]}
+            />
+          }
+        />
+        <ui.DiffRow
+          statuses={['changed']}
+          what="Question 2"
+          notes={<ui.DiffNote>Correct answer changed: B → C</ui.DiffNote>}
+          before={<p>Which command replays your commits?</p>}
+          after={<p>Which command replays your commits?</p>}
+          same
+        />
+        <ui.DiffRow
+          statuses={['added']}
+          what="Check block 5"
+          before={null}
+          after={<p>Your branch is two days behind main. What do you run first?</p>}
+        />
+      </ui.DiffView>
+    </div>
+  );
+}
 
 function AttachableExample() {
   const [attached, setAttached] = useState<readonly string[]>(['text']);
@@ -1182,6 +1264,36 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
           <CodeBlock code="git fetch origin" />
         </ChangeMark>
         <ChangeMark statuses={['removed']} what="Image block" />
+      </div>
+    ),
+  },
+  DiffView: {
+    rule: 'One change compared, side by side from 1024px or inline: a sign and a word for what happened, unchanged runs folded, a changed answer on its own warning line.',
+    Example: DiffViewExample,
+  },
+  DiffFields: {
+    rule: 'Settings and fields that changed, one per line as before → after ("Pass mark 70% → 80%"); "Not set" in words.',
+    Example: () => (
+      <ui.DiffFields
+        items={[
+          { label: 'Pass mark', before: '70%', after: '80%' },
+          { label: 'Caption', before: null, after: 'The rebase screen' },
+          { label: 'Title', change: <ui.DiffText parts={DIFF_WORDS} /> },
+        ]}
+      />
+    ),
+  },
+  DiffMedia: {
+    rule: 'A media block in a comparison: an image as a thumbnail, anything else as a link card that opens in a new window.',
+    Example: () => (
+      <div className="ds-stack">
+        <ui.DiffMedia
+          kind="video"
+          url="https://www.youtube.com/watch?v=example"
+          name="Rebase in two minutes"
+        />
+        <ui.DiffMedia kind="file" url="https://example.com/rebase.pdf" name="Rebase cheat sheet" />
+        <ui.DiffMedia kind="image" url="" name="Conflict screen" />
       </div>
     ),
   },
