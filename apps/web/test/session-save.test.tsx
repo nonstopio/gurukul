@@ -608,6 +608,41 @@ describe('when the draft moved underneath', () => {
     );
   });
 
+  it('offers the merge again after Undo takes the merge back, and never saves over their draft', async () => {
+    const s = await open({ turns: [mine], drafts: [stored(THEIRS)] });
+    await ready(s);
+    fireEvent.click(await screen.findByRole('button', { name: 'Bring in their changes' }));
+    const merge = dialog('Bring in their changes');
+    for (const region of ['Course details · Title', '1.1 · Why Git'])
+      fireEvent.click(
+        within(within(merge).getByRole('region', { name: region })).getByRole('radio', {
+          name: 'Keep this session’s',
+        }),
+      );
+    fireEvent.click(within(merge).getByRole('button', { name: 'Bring in their changes' }));
+    await screen.findByText('Their changes are in. Review now compares with Draft v4.');
+
+    // Undo, from the chat, takes back the merge and the base it moved to.
+    await act(async () => {
+      await s.app.router.navigate(`/studio/sessions/${s.id}`);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 2' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 2' }),
+    );
+    await waitFor(() => expect(s.disk().base?.rev).toBe(3));
+    await act(async () => {
+      await s.app.router.navigate(`/studio/sessions/${s.id}/review`);
+    });
+    expect(
+      await screen.findByText(/^The draft was saved by Arjun on .+, after this session started\.$/),
+    ).toBeTruthy();
+    expect(saveButton().hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Bring in their changes first.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Bring in their changes' })).toBeTruthy();
+    expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+  });
+
   it('reads the next session’s own draft when the page moves to another session in place', async () => {
     // Global search can open a session from a session page: the page stays mounted.
     const OTHER = makeCourse({ id: 'other', title: 'Other course' });

@@ -248,14 +248,72 @@ describe('Bring in their changes in the runtime', () => {
     expect(s.agent.send).toHaveBeenCalledWith('s1', `${HAND_EDIT_NOTE}Carry on.`);
   });
 
-  it('moves only the base when the working copy does not change', async () => {
+  it('is a turn with no changes when the working copy does not change, since the base moves', async () => {
     const s = await setup();
     await renameTurn(s, 'Git, plainly');
     const base = theirBase(s, () => undefined);
     expect(await s.runtime.bringIn(base, s.state().work as Working, 'Brought in')).toBe(true);
     expect(s.disk().base?.rev).toBe(6);
-    expect(s.disk().turns).toHaveLength(1);
+    expect(s.disk().turns).toMatchObject([
+      { by: 'agent' },
+      { by: 'educator', changes: 0, baseBefore: 't2.base.json' },
+    ]);
     expect(s.state().changes?.count).toBe(1);
+  });
+
+  it('puts back the base from before it on Undo, so a save cannot go over their draft', async () => {
+    const s = await setup();
+    const base = theirBase(s, (c) => {
+      c.summary = 'Their summary.';
+    });
+    const merged = edited(s.state().work as Working, (c) => {
+      c.summary = 'Their summary.';
+    });
+    expect(await s.runtime.bringIn(base, merged, 'Brought in')).toBe(true);
+    expect(s.files.has('u1/s1/checkpoints/t1.base.json')).toBe(true);
+    expect(s.state().changes?.count).toBe(0);
+
+    expect(await s.runtime.undo()).toBe(true);
+    // The copy from before the merge, compared with the draft from before it: nothing to save,
+    // and the stored draft (rev 6) reads as moved again, so the page offers the merge again.
+    expect(s.disk().base?.rev).toBe(4);
+    expect(s.state().base?.course.summary).not.toBe('Their summary.');
+    expect(s.state().changes?.count).toBe(0);
+    expect(s.state().turns).toHaveLength(0);
+    expect(s.files.has('u1/s1/checkpoints/t1.base.json')).toBe(false);
+    expect(s.files.has('u1/s1/checkpoints/t1.json')).toBe(false);
+    // A save now goes against rev 4, which Studio's transaction refuses while the draft is at 6.
+    const write = vi.fn(async (_work: Working, rev: number) => rev + 1);
+    await s.runtime.saveToDraft(write);
+    expect(write.mock.calls[0]?.[1]).toBe(4);
+  });
+
+  it('puts back the base on Undo of a turn made before a merge that changed nothing', async () => {
+    const s = await setup();
+    await renameTurn(s, 'Git, plainly');
+    // Their draft changed the title too; this session's was kept.
+    const base = theirBase(s, (c) => {
+      c.title = 'Git for teams';
+    });
+    expect(await s.runtime.bringIn(base, s.state().work as Working, 'Brought in')).toBe(true);
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.disk().base?.rev).toBe(4);
+    expect(await s.runtime.undo()).toBe(true);
+    // Back where it started, against the draft it started from: their title is not undone.
+    expect(s.disk().base?.rev).toBe(4);
+    expect(s.state().changes?.count).toBe(0);
+  });
+
+  it('cannot undo a merge whose base from before it is no longer on this computer', async () => {
+    const s = await setup();
+    await renameTurn(s, 'Git, plainly');
+    const base = theirBase(s, () => undefined);
+    expect(await s.runtime.bringIn(base, s.state().work as Working, 'Brought in')).toBe(true);
+    s.files.delete('u1/s1/checkpoints/t2.base.json');
+    expect(await s.runtime.undo()).toBe(false);
+    expect(s.state().problem?.code).toBe('undo_unavailable');
+    expect(s.disk().base?.rev).toBe(6);
+    expect(s.disk().turns).toHaveLength(2);
   });
 
   it('writes nothing when it cannot, and refuses while busy', async () => {

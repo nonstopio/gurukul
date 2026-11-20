@@ -28,6 +28,19 @@ export const workingSchema = z.object({
 });
 export type WorkingCopy = z.infer<typeof workingSchema>;
 
+/** A file name inside the session's `checkpoints/` folder; never a path. */
+const checkpointFile = z
+  .string()
+  .max(200)
+  .regex(/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/, 'a plain file name, without folders');
+
+/** The stored draft a session compares with: its `rev`, when it was saved, and its copy. */
+export const sessionBaseSchema = z.object({
+  rev: z.number().int().min(0),
+  savedAt: at.nullable(),
+  work: workingSchema,
+});
+
 /** One step of a session: who made it, what it did in a line, and the checkpoint file to go back to. */
 export const turnSchema = z.object({
   id,
@@ -35,13 +48,15 @@ export const turnSchema = z.object({
   by: z.enum(['agent', 'educator']),
   /** One line, for the timeline. */
   summary: z.string().max(300),
-  /** File name inside the session's `checkpoints/` folder, e.g. `<turnId>.json`; never a path. */
-  checkpoint: z
-    .string()
-    .max(200)
-    .regex(/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/, 'a plain file name, without folders'),
+  /** File name inside the session's `checkpoints/` folder, e.g. `<turnId>.json`. */
+  checkpoint: checkpointFile,
   /** How many Review rows (`courseChanges` against the turn before) this turn changed: "Turn 4 · 4 changes". */
   changes: z.number().int().min(0),
+  /**
+   * Only on a turn that moved the base (Bring in their changes): the file in `checkpoints/` that
+   * holds the base from before it (`sessionBaseSchema`), which Undo of this turn puts back.
+   */
+  baseBefore: checkpointFile.optional(),
 });
 export type Turn = z.infer<typeof turnSchema>;
 
@@ -83,13 +98,7 @@ export const authoringSessionSchema = z
     summary: z.string().max(4_000),
     status: z.enum(['open', 'saved', 'discarded']),
     /** The stored draft the session started from or last saved to; null for a new course. */
-    base: z
-      .object({
-        rev: z.number().int().min(0),
-        savedAt: at.nullable(),
-        work: workingSchema,
-      })
-      .nullable(),
+    base: sessionBaseSchema.nullable(),
     /** The course and answer keys as changed so far. */
     work: workingSchema,
     turns: z.array(turnSchema).max(10_000),

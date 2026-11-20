@@ -14,7 +14,7 @@ export default {
   detail: [
     'In the desktop app, Review’s Save to draft replaces the draft with the session’s version in one write, after a confirmation. Learners see nothing until you publish.',
     'The button says why it waits: a course that is not valid or is over the size limit, a turn still running, or a draft saved by someone else after the session started.',
-    'Bring in their changes takes what only they changed and asks, for each thing both of you changed, whether to keep this session’s or theirs, showing both. Then Review compares with their draft and Save is offered again.',
+    'Bring in their changes takes what only they changed and asks, for each thing both of you changed, whether to keep this session’s or theirs, showing both. Then Review compares with their draft and Save is offered again. Undo takes the merge back like any turn, and then offers it again.',
     'Once saved, the session shows what was saved, with Open the course editor and Publish.',
   ],
 } satisfies ChangelogEntry;

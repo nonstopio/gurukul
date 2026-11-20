@@ -1221,8 +1221,16 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
   chapters) is refused in words rather than saved; Size is left to Review's check, as planned.
 - **The merge is a turn by the Educator** ("Brought in Draft v5, saved by Arjun", a checkpoint,
   a line in the chat, `HAND_EDIT_NOTE` for the agent's next message) with the stored draft as the
-  new base, so Undo takes it back like any turn; when the working copy did not change, only the
-  base moves and there is no turn.
+  new base. It is a turn even when the working copy did not change (0 changes), because the base
+  moved: the turn keeps the base from before it beside its checkpoint (`baseBefore`,
+  `checkpoints/<turn>.base.json`, pruned with the checkpoint), and Undo of it puts back both the
+  copy and that base. Undoing only the copy would compare the copy from before the merge with
+  their draft, call the draft up to date and save over their changes. After that Undo the draft
+  reads as moved again and the merge is offered again. A merge whose kept base is gone cannot be
+  undone ("no longer kept").
+- **The page is keyed by the session** (`SessionView key={sessionId}`): moving to another session
+  in place (global search opens one from a session page) starts its page afresh, so its draft is
+  read for its own course and nothing of the last session's check or chat state carries over.
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store

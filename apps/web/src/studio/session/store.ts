@@ -4,6 +4,7 @@ import {
   SESSION_SCHEMA_VERSION,
   authoringSessionSchema,
   blankCourse,
+  sessionBaseSchema,
   workingSchema,
 } from '@gurukul/schema';
 import type { AuthoringSession, Turn, WorkingCopy } from '@gurukul/schema';
@@ -24,6 +25,7 @@ import type { TranscriptEntry } from './transcript';
  *   sessions/{uid}/{sessionId}/session.json            the session (`authoringSessionSchema`)
  *   sessions/{uid}/{sessionId}/checkpoints/{file}      the working copy after a turn, newest 30 kept
  *   sessions/{uid}/{sessionId}/checkpoints/start.json  the working copy before the first turn
+ *   sessions/{uid}/{sessionId}/checkpoints/{file}      the base before a turn that moved it
  *   sessions/{uid}/{sessionId}/transcript.jsonl        the chat (`transcript.ts`)
  *   sessions/{uid}/{sessionId}/editing.json            hand edits not yet a turn: the copy before them
  *   sessions/{uid}/{sessionId}/agent-note.json         what the agent is told with the next message
@@ -109,6 +111,9 @@ const unreadableSchema = z.object({ since: at });
 export const handEditsSchema = z.object({ since: at, before: workingSchema });
 export type PendingHandEdits = z.infer<typeof handEditsSchema>;
 
+/** The stored draft a session compares with: its `rev`, when it was saved, and its copy. */
+export type SessionBase = z.infer<typeof sessionBaseSchema>;
+
 /** `agent-note.json`: turns undone, and whether the course was edited by hand, since the last message. */
 export const agentNoteSchema = z.object({
   undone: z.number().int().min(0).max(10_000),
@@ -166,10 +171,22 @@ export interface SessionStore {
   /** Writes `checkpoints/start.json`: the working copy before the first turn, for Undo. */
   saveStart(sessionId: string, work: WorkingCopy): Promise<void>;
   /**
-   * Undo of the newest turn: the session without that turn and with `work` (the checkpoint before
-   * it) as its working copy, then the undone turn's checkpoint removed. Answers what was written.
+   * Writes the base from before a turn that moves it (Bring in their changes) to
+   * `checkpoints/{file}`, the turn's `baseBefore`, for Undo. Kept as long as the turn's checkpoint.
    */
-  undoTurn(session: AuthoringSession, work: WorkingCopy): Promise<AuthoringSession>;
+  saveBaseBefore(sessionId: string, file: string, base: SessionBase): Promise<void>;
+  /** The base a turn moved from (`baseBefore`), or null when it was removed or cannot be read. */
+  readBaseBefore(sessionId: string, file: string): Promise<SessionBase | null>;
+  /**
+   * Undo of the newest turn: the session without that turn and with `work` (the checkpoint before
+   * it) as its working copy, and `base` as its base when the turn had moved it; then the undone
+   * turn's checkpoint (and the base it kept) removed. Answers what was written.
+   */
+  undoTurn(
+    session: AuthoringSession,
+    work: WorkingCopy,
+    base?: SessionBase,
+  ): Promise<AuthoringSession>;
   /** Notes that hand edits began (`EDITING_FILE`), with the working copy from before them. */
   saveHandEdits(sessionId: string, pending: PendingHandEdits): Promise<void>;
   /** The hand edits not yet a turn, or null when there are none or the file cannot be read. */
@@ -402,7 +419,10 @@ export function createSessionStore({
       const next = await save({ ...session, work: valid, turns: [...session.turns, turn] });
       const kept = new Set([
         checkpointPath(START_CHECKPOINT),
-        ...next.turns.slice(-SESSION_CHECKPOINTS_KEPT).map((t) => checkpointPath(t.checkpoint)),
+        ...next.turns
+          .slice(-SESSION_CHECKPOINTS_KEPT)
+          .flatMap((t) => (t.baseBefore ? [t.checkpoint, t.baseBefore] : [t.checkpoint]))
+          .map(checkpointPath),
       ]);
       const stale = (await store.list({ uid, sessionId: session.id })).filter(
         (f) => f.startsWith(checkpointPath('')) && !kept.has(f),
@@ -423,14 +443,31 @@ export function createSessionStore({
       await store.write(file(sessionId, checkpointPath(START_CHECKPOINT)), JSON.stringify(valid));
     },
 
-    async undoTurn(session, work) {
+    async saveBaseBefore(sessionId, name, base) {
+      const valid = sessionBaseSchema.parse(base);
+      await store.write(file(sessionId, checkpointPath(name)), JSON.stringify(valid));
+    },
+
+    async readBaseBefore(sessionId, name) {
+      return parse(await store.read(file(sessionId, checkpointPath(name))), sessionBaseSchema, {
+        sessionId,
+        file: 'base',
+      });
+    },
+
+    async undoTurn(session, work, base) {
       const undone = session.turns.at(-1);
       const next = await save({
         ...session,
+        ...(base ? { base: sessionBaseSchema.parse(base) } : {}),
         work: workingSchema.parse(work),
         turns: session.turns.slice(0, -1),
       });
-      if (undone) await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
+      if (undone) {
+        await store.remove(file(session.id, checkpointPath(undone.checkpoint)));
+        if (undone.baseBefore)
+          await store.remove(file(session.id, checkpointPath(undone.baseBefore)));
+      }
       return next;
     },
 

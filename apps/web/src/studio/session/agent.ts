@@ -22,7 +22,7 @@ import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
 import { START_CHECKPOINT, createSessionStore } from './store';
-import type { SessionStore } from './store';
+import type { SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
 import type { TranscriptEntry } from './transcript';
@@ -57,7 +57,8 @@ import type { TranscriptEntry } from './transcript';
  *   save    Save to draft (`DSK-15`): the working copy goes to the stored draft through the `write`
  *           the page hands it (Studio's own save), then the session is closed as `saved`.
  *   bring   Bring in their changes (`DSK-15`): the merged copy becomes the working copy and the
- *           stored draft the new base, as a turn by the Educator when the copy changed.
+ *           stored draft the new base, as a turn by the Educator that keeps the base from before
+ *           it (`baseBefore`), so Undo puts back both the copy and the base.
  *
  * Firestore is never read or written here: the draft was read once when the session started, hand
  * edits go to this computer only, and Save to draft writes through the function it is given.
@@ -178,8 +179,7 @@ export interface AgentSessionView {
   saving: boolean;
 }
 
-/** The stored draft a session compares with: its `rev`, when it was saved, and its copy. */
-export type SessionBase = NonNullable<AuthoringSession['base']>;
+export type { SessionBase } from './store';
 
 /** What `saveToDraft` did. */
 export type DraftSaveResult =
@@ -270,8 +270,9 @@ export interface AgentSession {
   saveToDraft(write: (work: Working, baseRev: number) => Promise<number>): Promise<DraftSaveResult>;
   /**
    * Bring in their changes (`DSK-15`): `work` (the merge of this session with the stored draft)
-   * becomes the working copy and `base` (the stored draft) the base. When the working copy changed,
-   * it is a turn by the Educator named `summary`, which Undo takes back and the agent is told of.
+   * becomes the working copy and `base` (the stored draft) the base, as a turn by the Educator
+   * named `summary` (with no changes when the working copy did not change), which Undo takes back,
+   * base included, and the agent is told of.
    * Only when `canSave`. False when it could not be written; nothing then changed.
    */
   bringIn(base: SessionBase, work: Working, summary: string): Promise<boolean>;
@@ -1131,11 +1132,16 @@ export function createAgentSession({
                 ? START_CHECKPOINT
                 : (current.turns[current.turns.length - 2] as Turn).checkpoint;
             const before = await store.readCheckpoint(sessionId, file);
-            if (!before) {
+            // A turn that moved the base (Bring in their changes) puts back the base from before
+            // it too, so the draft check finds the draft moved again and offers the merge again.
+            const baseBefore = last.baseBefore
+              ? await store.readBaseBefore(sessionId, last.baseBefore)
+              : undefined;
+            if (!before || baseBefore === null) {
               problem = UNDO_GONE;
               return false;
             }
-            next = await store.undoTurn(current, before);
+            next = await store.undoTurn(current, before, baseBefore);
           }
           session = withReview(next);
           saved = next;
@@ -1354,32 +1360,34 @@ export function createAgentSession({
         const before = workOf(saved as AuthoringSession);
         const count = courseChanges(before, work).count;
         try {
-          if (count === 0) {
-            // Nothing in the working copy changed: only the base moves, and there is no turn.
-            const written = await store.save({ ...current, base, work });
-            session = withReview(written);
-            saved = written;
-          } else {
-            const id = newId();
-            const record: Turn = {
-              id,
-              at: now().toISOString(),
-              by: 'educator',
-              summary: turnSummary(summary),
-              checkpoint: `${id}.json`,
-              changes: count,
-            };
-            if (current.turns.length === 0) await store.saveStart(sessionId, before);
-            const written = await store.saveTurn({ ...current, base, work }, record, work);
-            session = withReview(written);
-            saved = written;
-            unsaved = null;
-            // The agent's own history does not know the course changed under it.
-            handEdited = true;
-            await keepNote();
-            notice(id, record.summary);
-            await writeChat();
-          }
+          // Always a turn, even when the working copy did not change: the base moves, and Undo of
+          // this turn (or of one before it) must put back the base from before it as well, or the
+          // copy from before the merge would be compared with, and saved over, their draft.
+          const id = newId();
+          const record: Turn = {
+            id,
+            at: now().toISOString(),
+            by: 'educator',
+            summary: turnSummary(summary),
+            checkpoint: `${id}.json`,
+            changes: count,
+            baseBefore: `${id}.base.json`,
+          };
+          if (current.turns.length === 0) await store.saveStart(sessionId, before);
+          await store.saveBaseBefore(
+            sessionId,
+            record.baseBefore as string,
+            current.base as SessionBase,
+          );
+          const written = await store.saveTurn({ ...current, base, work }, record, work);
+          session = withReview(written);
+          saved = written;
+          unsaved = null;
+          // The agent's own history does not know the course or its base changed under it.
+          handEdited = true;
+          await keepNote();
+          notice(id, record.summary);
+          await writeChat();
           log.info('Session draft brought in', { sessionId, rev: base.rev, changes: count });
           return true;
         } catch (error) {
