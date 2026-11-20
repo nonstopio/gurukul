@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { nodeAgentPlatform } from './agent/node';
 import { main } from './app';
+import { TEST_URL_VARIABLE } from './config';
 import { googleClient } from './googleClient';
 import { log } from './log';
 
@@ -32,5 +33,7 @@ void main({
     process.env.GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET,
   ),
   agent: nodeAgentPlatform(process.platform, process.env, os.homedir()),
+  // The end-to-end tests' own app; app.ts ignores it in a packaged build.
+  testUrl: process.env[TEST_URL_VARIABLE],
   log,
 });

@@ -20,6 +20,9 @@
 //   { "skill": "humanize" }         the Skill tool loading gurukul:humanize
 //   { "tool": "get_course", "input": {…} }  a call through the MCP endpoint; the answer's text is
 //                                    then said back as "tool: <text>" (or "tool error: <text>").
+//                                    "capture": { "chapter": "Added chapter (\\S+)" } keeps the
+//                                    first group of each pattern found in the answer, and a later
+//                                    input's "${chapter}" is replaced by it (ids the app makes).
 //                                    An interrupt while the call is pending cancels the request
 //                                    and ends the turn; with "waitsForAnswer": true the turn
 //                                    ends only once the answer is in. Which of the two the real
@@ -210,6 +213,20 @@ let lastFailed = false;
 const pendingControls = new Map();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** What `capture` kept, by name, for the rest of this process. */
+const captured = {};
+/** A tool input with every "${name}" in its strings replaced by what `capture` kept. */
+function withCaptured(value) {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{(\w+)\}/g, (whole, name) => captured[name] ?? whole);
+  }
+  if (Array.isArray(value)) return value.map(withCaptured);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withCaptured(v)]));
+  }
+  return value;
+}
+
 async function runStep(step, state) {
   if (step.text !== undefined) assistant([{ type: 'text', text: step.text }]);
   else if (step.thinking) assistant([{ type: 'thinking', thinking: '…' }]);
@@ -224,11 +241,10 @@ async function runStep(step, state) {
     ]);
   } else if (step.tool !== undefined) {
     const id = `toolu_${state.n++}`;
-    assistant([
-      { type: 'tool_use', id, name: `mcp__gurukul__${step.tool}`, input: step.input ?? {} },
-    ]);
+    const input = withCaptured(step.input ?? {});
+    assistant([{ type: 'tool_use', id, name: `mcp__gurukul__${step.tool}`, input }]);
     const request = new AbortController();
-    const call = mcp.callTool({ name: step.tool, arguments: step.input ?? {} }, undefined, {
+    const call = mcp.callTool({ name: step.tool, arguments: input }, undefined, {
       signal: request.signal,
     });
     const answer = step.waitsForAnswer
@@ -240,6 +256,10 @@ async function runStep(step, state) {
       return;
     }
     const text = answer.content.map((c) => c.text).join('');
+    for (const [name, pattern] of Object.entries(step.capture ?? {})) {
+      const found = new RegExp(pattern).exec(text);
+      if (found) captured[name] = found[1];
+    }
     print({
       type: 'user',
       message: {

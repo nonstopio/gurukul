@@ -22,7 +22,8 @@
 #  touches what those jobs cover, this runs them too:
 #
 #    - the end-to-end specs (`npm run e2e`, about a minute) for the app, UI, schema, functions,
-#      rules, seed and e2e paths (.claude/rules/end-to-end.md);
+#      rules, seed and e2e paths, and the desktop shell's code, bundle script and fake `claude`,
+#      which the desktop specs drive (.claude/rules/end-to-end.md);
 #    - the security rules tests (`npm run test:rules`: Firestore and Storage) for the rules and their tests;
 #    - the trigger tests (`npm run test:triggers`) for the functions' src and emulator-test;
 #    - the web build and its size budget (`npm run check:bundle`) for the app, UI and schema.
@@ -82,7 +83,7 @@ done
 
 # CI's emulator and bundle jobs, for the pushes they would judge. Paths match the e2e rule's.
 app='^(apps/web/src/|packages/ui/src/|packages/schema/src/)'
-e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/)'
+e2e='^(apps/web/src/|packages/ui/src/|packages/schema/src/|firebase/functions/src/|firebase/firestore\.rules$|firebase/seed/|e2e/|apps/desktop/(src|scripts|test/fixtures)/)'
 rules='^(firebase/firestore\.rules$|firebase/storage\.rules$|firebase/rules/)'
 triggers='^firebase/functions/(src|emulator-test)/'
 if touches "$e2e" || touches "$triggers" || touches "$rules" || touches "$everything"; then

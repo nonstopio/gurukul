@@ -1267,7 +1267,8 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
-  (`DSK-11`).
+  (`DSK-11`). Fixed in `DSK-24`, whose
+  first scenario walked into it (As built in `DSK-24`).
 
 ### As built in `DSK-16`
 
@@ -1796,6 +1797,46 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   start a session, a turn that changes a lesson, Review, Save to draft, the draft holds the
   change; a new course; a stale draft and a merge. No test calls Anthropic.
 - Screens are checked at 1280px, 1024px and 640px, in both themes, by keyboard.
+
+### As built in `DSK-24`
+
+`e2e/tests/desktop-studio.spec.ts` over `e2e/support/desktop.ts`, run by `npm run e2e` with the web
+specs (one Playwright project, the same emulators, the same reset before each test).
+
+- **The built shell, not a copy.** Global setup bundles `apps/desktop` with its own bundle script
+  into `e2e/dist/desktop` (a `package.json` and `dist/`, as an installer holds them) and each test
+  starts it fresh with Playwright's `_electron.launch`: its own `--user-data-dir`, `--no-sandbox`
+  (CI and containers), `--ozone-platform=headless` (no display needed, so no `xvfb-run`), and
+  `--proxy-server` at a port nothing serves, so nothing but `127.0.0.1` is reachable from the
+  window. CI's e2e job fetches Electron's binary (`require('electron')`, which
+  `ELECTRON_SKIP_BINARY_DOWNLOAD` does not stop) and caches it.
+- **The test page is a development build's only.** The shell opens the e2e app because
+  `GURUKUL_DESKTOP_TEST_URL` names it: `testUrl` in `apps/desktop/src/config.ts` reads it only when
+  `app.isPackaged` is false, and only as `http` on `127.0.0.1` or `localhost` with a port; it then
+  joins the allowed origins. A packaged build ignores it and logs `Test page ignored` (tested).
+- **Sign-in is the shell's own flow.** The window's Sign in with Google calls `auth.googleSignIn`;
+  the test stands in for Google in the main process only, answering `shell.openExternal` with the
+  loopback redirect and its `state`, and the token endpoint (`net.fetch`) with an unsigned ID token
+  the Auth emulator accepts. PKCE, the listener and `signInWithCredential` all run as shipped. The
+  bundle is built with a made-up client id.
+- **The fake Claude Code** is `apps/desktop/test/fixtures/fake-claude.mjs`, on `PATH`, steered by a
+  scenario file in `CLAUDE_CONFIG_DIR` (the allow-listed environment passes nothing else). Its tool
+  calls go to the shell's real MCP endpoint with the bearer token, so the window's tools change the
+  working copy. It gained `capture`, which keeps an id from a tool's answer for a later input
+  (`"${chapter}"`), because the app makes the ids.
+- **Scenarios.** An edit session on the seeded, published Git course: a turn renames a lesson,
+  Firestore unchanged until Save, the row in Review, no per-change accept button, Save to draft,
+  the stored draft holds it at the next `rev` with its `publishedAt` kept. A new course: a turn sets
+  the title and adds a chapter, a lesson and a block, Create course and save draft, the course and
+  its draft exist. A stale draft: someone saves the same lesson and another one through the REST
+  API mid-session; Save finds it moved and writes nothing, Bring in their changes asks for the one
+  conflict, Keep this session's, Save, and the draft holds both the session's lesson and their other
+  change.
+- **Found by the first scenario, fixed here:** a session on a published course could not be opened
+  (As built in `DSK-15`). `session.json` held `publishedAt` as seconds and nanoseconds; the store now
+  reads it back as a `StoredTimestamp` (`store.ts`) the course schema accepts, and
+  `StudioData.saveDraft` writes the stored draft's own `publishedAt`, so the look-alike never
+  reaches Firestore.
 
 ## Phases
 
