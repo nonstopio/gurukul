@@ -423,11 +423,15 @@ describe('agent.ask over a real process', () => {
     const { manager } = await realSetup({ turns: [[{ hang: true }]] });
     const { home } = { home: homes[homes.length - 1] as (typeof homes)[number] };
     const answer = manager.ask({ askId: 'a1', prompt: 'Q' });
-    const run = await vi.waitFor(async () => {
-      const [first] = await home.runs();
-      if (first === undefined) throw new Error('not started yet');
-      return first;
-    });
+    // A real start: through `cmd.exe` on a Windows runner it can take more than waitFor's 1 s.
+    const run = await vi.waitFor(
+      async () => {
+        const [first] = await home.runs();
+        if (first === undefined) throw new Error('not started yet');
+        return first;
+      },
+      { timeout: 10_000 },
+    );
     manager.cancelAsk('a1');
     await expect(answer).resolves.toEqual({ ok: false, error: { code: 'cancelled' } });
     // Not only the wrapper: on Windows that is `cmd.exe`, and ending it alone would leave the
