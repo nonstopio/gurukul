@@ -1599,16 +1599,20 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
 - As built (`DSK-25`): `apps/web/src/desktop/download.ts` and `studio/DesktopDownloadCard.tsx`,
   drawn by `StudioCoursesPage` above the tabs when `isDesktop()` is false (the course list's lazy
   chunk; nothing in the first download). The request goes when the card is first drawn and its
-  answer is kept for the page; a refusal (404 before the first release, the rate limit) is kept as
-  "nothing", a network failure is not. An installer counts only under the exact name
-  `electron-builder.yml` gives it for the tag's version (`Gurukul-Studio-{v}-arm64.dmg`,
-  `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it downloads from this repository's
-  release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes
+  answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
+  storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
+  share one, with the shell's contributors request too; a refusal (404 before the first release,
+  the rate limit) is kept as "nothing", a network failure is not. An installer counts only under
+  the exact name `electron-builder.yml` gives it for the tag's version
+  (`Gurukul-Studio-{v}-arm64.dmg`, `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it
+  downloads from this repository's release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes
   from `navigator.userAgentData` (Chromium, with `architecture` telling an Intel Mac), else the
   platform and user agent; a Mac seen by Safari or Firefox cannot say its chip and is taken to be
-  Apple Silicon, with Intel offered next to it. Install steps are shown only for an installer that
-  matches the visitor's system: on Linux, a phone, or a release without that system's installer,
-  the card names the installers it has and guesses no steps. No release, a failed request or no
+  Apple Silicon, with Intel offered next to it. An iPad's Safari also says it is a Mac; a touch
+  screen (`maxTouchPoints` above 1) marks it as an iPad, a system the app is not built for. Install
+  steps are shown only for an installer that matches the visitor's system: on Linux, a phone, an
+  iPad, or a release without that system's installer, the card names the installers it has and
+  guesses no steps. No release, a failed request or no
   installer it knows: "Get Gurukul Studio from GitHub" to the releases page. Tip `desktop-app`
   points at the card's download button. The site sets no Content-Security-Policy, so nothing to add
   for `api.github.com`; the end-to-end specs already block it (`EXTERNAL`) and see the fallback.

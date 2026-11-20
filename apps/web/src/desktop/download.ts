@@ -4,7 +4,7 @@ import { log } from '../log';
  * Where Gurukul Studio's installers come from, for the download card in Studio
  * (`.plan/22-desktop-studio.md`, Download). The desktop app's releases are this repository's
  * GitHub Releases, tagged `desktop-vX.Y.Z`; the web app pushes tags only, never releases, so the
- * latest release is always a desktop one. No key, no Firestore: one public request per page.
+ * latest release is always a desktop one. No key, no Firestore: one public request per tab session.
  */
 
 /** The systems Gurukul Studio is built for, in the order they are offered when nothing says otherwise. */
@@ -71,15 +71,55 @@ export function toDesktopRelease(data: unknown): DesktopRelease | null {
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
+/** Key in sessionStorage holding the tab's answer: GitHub's shape, so reading it checks it again. */
+export const RELEASE_KEY = 'gurukul.desktopRelease';
+
+/** A release back in the shape GitHub gave it, with only the installers kept. */
+function toAnswer(release: DesktopRelease | null) {
+  return (
+    release && {
+      tag_name: `desktop-v${release.version}`,
+      assets: release.downloads.map(({ file, url }) => ({ name: file, browser_download_url: url })),
+    }
+  );
+}
+
 /**
- * A loader for the latest desktop release, remembered for the life of the page: the card asks
- * once however often it is drawn (GitHub allows 60 unauthenticated calls an hour per address).
- * A refusal (no release yet, the rate limit) is remembered as null too; a network failure is
- * not, so the next card tries again. Never throws.
+ * The tab's stored answer: `undefined` when there is none (or storage is off or holds something
+ * unreadable), else the release or null. Stored text is read through `toDesktopRelease` again, so
+ * an edited value can never point a download anywhere else.
+ */
+function stored(): DesktopRelease | null | undefined {
+  try {
+    const raw = sessionStorage.getItem(RELEASE_KEY);
+    return raw === null ? undefined : toDesktopRelease(JSON.parse(raw));
+  } catch {
+    return undefined;
+  }
+}
+
+function keep(release: DesktopRelease | null): DesktopRelease | null {
+  try {
+    sessionStorage.setItem(RELEASE_KEY, JSON.stringify(toAnswer(release)));
+  } catch {
+    // Storage off (private mode): the page still remembers it; the next page asks again.
+  }
+  return release;
+}
+
+/**
+ * A loader for the latest desktop release, asked once per tab session: the answer is kept in
+ * sessionStorage, as `contributors.ts` keeps its list, and in memory for the page. GitHub allows 60
+ * unauthenticated calls an hour per address, and Educators in one office share one address with
+ * each other and with the shell's contributors request, so a reload or a new page must not ask
+ * again. A refusal (no release yet, the rate limit) or an unreadable answer is kept as null too; a
+ * network failure is not, so the next card tries again. Never throws.
  */
 export function latestReleaseLoader(get: Fetch = (url, init) => fetch(url, init)) {
   let kept: Promise<DesktopRelease | null> | null = null;
   const ask = async (): Promise<DesktopRelease | null> => {
+    const hit = stored();
+    if (hit !== undefined) return hit;
     let res: Response;
     try {
       res = await get(LATEST_API, { headers: { Accept: 'application/vnd.github+json' } });
@@ -91,17 +131,17 @@ export function latestReleaseLoader(get: Fetch = (url, init) => fetch(url, init)
     if (res.status === 404) {
       // Not a failure: no desktop release has been published yet.
       log.info('No desktop release yet');
-      return null;
+      return keep(null);
     }
     if (!res.ok) {
       log.warn('Desktop release lookup failed', { status: res.status });
-      return null;
+      return keep(null);
     }
     try {
-      return toDesktopRelease(await res.json());
+      return keep(toDesktopRelease(await res.json()));
     } catch {
       log.warn('Desktop release lookup failed', { reason: 'unreadable' });
-      return null;
+      return keep(null);
     }
   };
   return (): Promise<DesktopRelease | null> => (kept ??= ask());
@@ -114,6 +154,7 @@ export const loadLatestRelease = latestReleaseLoader();
 export interface NavigatorLike {
   platform?: string;
   userAgent?: string;
+  maxTouchPoints?: number;
   userAgentData?: {
     platform?: string;
     getHighEntropyValues?: (hints: string[]) => Promise<{ architecture?: string }>;
@@ -121,10 +162,12 @@ export interface NavigatorLike {
 }
 
 /**
- * The visitor's own system, or null when it is none Gurukul Studio is built for (Linux, a phone).
- * Chromium says so through `userAgentData`, and on a Mac whether the chip is Intel (`x86`). Other
- * browsers say only "Mac", and Safari says "MacIntel" on Apple Silicon too: a Mac is taken to be
- * Apple Silicon, what every Mac sold since 2020 has, and the Intel installer is offered beside it.
+ * The visitor's own system, or null when it is none Gurukul Studio is built for (Linux, a phone,
+ * an iPad). Chromium says so through `userAgentData`, and on a Mac whether the chip is Intel
+ * (`x86`). Other browsers say only "Mac", and Safari says "MacIntel" on Apple Silicon too: a Mac is
+ * taken to be Apple Silicon, what every Mac sold since 2020 has, and the Intel installer is offered
+ * beside it. An iPad's Safari says "MacIntel" and "Macintosh" as well; only its touch screen
+ * (`maxTouchPoints` above 1, where a Mac has none) tells it apart.
  */
 export async function detectSystem(
   nav: NavigatorLike = navigator as NavigatorLike,
@@ -133,7 +176,7 @@ export async function detectSystem(
   const said = `${data?.platform ?? ''} ${nav.platform ?? ''} ${nav.userAgent ?? ''}`.toLowerCase();
   if (/iphone|ipad|android/.test(said)) return null;
   if (said.includes('win')) return 'windows';
-  if (!said.includes('mac')) return null;
+  if (!said.includes('mac') || (nav.maxTouchPoints ?? 0) > 1) return null;
   try {
     const { architecture } = (await data?.getHighEntropyValues?.(['architecture'])) ?? {};
     return architecture === 'x86' ? 'mac-intel' : 'mac-arm';

@@ -35,7 +35,7 @@ const STEPS: Record<DesktopSystem, { title: string; steps: string[] }> = {
 /**
  * "Build a course by chatting": the browser Studio's offer of the desktop app
  * (`.plan/22-desktop-studio.md`, Download). It asks GitHub for the latest desktop release when it is
- * first drawn (once per page), offers the installer for the visitor's own system first with that
+ * first drawn (once per tab session), offers the installer for the visitor's own system first with that
  * system's install steps, the other installers after it, and every release on GitHub. With no
  * release, a failed request or no installer it knows, it links to the releases page. Inside the
  * desktop app Studio shows the session buttons instead, so the page never draws this there.

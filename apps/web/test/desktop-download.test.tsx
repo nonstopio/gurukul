@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as Download from '../src/desktop/download';
 import { detectSystem, loadLatestRelease } from '../src/desktop/download';
 import type { DesktopRelease } from '../src/desktop/download';
@@ -16,10 +16,17 @@ const { log } = await import('../src/log');
 
 // `test/setup.ts` stands in for the loader and the detection everywhere; these are the real ones.
 const real = await vi.importActual<typeof Download>('../src/desktop/download');
-const { toDesktopRelease, latestReleaseLoader, offerFor, DESKTOP_RELEASES_PAGE } = real;
+const { toDesktopRelease, latestReleaseLoader, offerFor, DESKTOP_RELEASES_PAGE, RELEASE_KEY } =
+  real;
+
+// The loader keeps its answer for the tab session; each test starts in a fresh tab.
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -156,8 +163,77 @@ describe('latestReleaseLoader', () => {
     const fetch = vi.fn(() => Promise.resolve(json(ANSWER)));
     vi.stubGlobal('fetch', fetch);
     expect(await latestReleaseLoader()()).toEqual(RELEASE);
+    sessionStorage.clear();
     expect(await real.loadLatestRelease()).toEqual(RELEASE);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers a reload or another page in the same tab from sessionStorage', async () => {
+    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
+    // A reload starts with a new loader and nothing in memory.
+    const again = vi.fn(() => Promise.resolve(json({ message: 'rate limited' }, 403)));
+    expect(await latestReleaseLoader(again)()).toEqual(RELEASE);
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(again).not.toHaveBeenCalled();
+  });
+
+  it('keeps a refusal or an unreadable answer for the tab, so a rate-limited tab stops asking', async () => {
+    for (const res of [
+      json({ message: 'rate limited' }, 403),
+      json({ message: 'Not Found' }, 404),
+      new Response('<html>', { status: 200 }),
+    ]) {
+      sessionStorage.clear();
+      expect(await latestReleaseLoader(() => Promise.resolve(res))()).toBeNull();
+      expect(sessionStorage.getItem(RELEASE_KEY)).toBe('null');
+      const again = vi.fn(() => Promise.resolve(json(ANSWER)));
+      expect(await latestReleaseLoader(again)()).toBeNull();
+      expect(again).not.toHaveBeenCalled();
+    }
+  });
+
+  it('keeps nothing for the tab after a network failure', async () => {
+    const load = latestReleaseLoader(() => Promise.reject(new TypeError('Failed to fetch')));
+    expect(await load()).toBeNull();
+    expect(sessionStorage.getItem(RELEASE_KEY)).toBeNull();
+  });
+
+  it('checks a stored answer again, so an edited one points nowhere else', async () => {
+    sessionStorage.setItem(
+      RELEASE_KEY,
+      JSON.stringify({
+        tag_name: 'desktop-v0.3.0',
+        assets: [asset(ARM, `https://evil.example.com/${ARM}`), asset(WIN)],
+      }),
+    );
+    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+    expect(await latestReleaseLoader(get)()).toEqual({
+      version: '0.3.0',
+      downloads: [RELEASE.downloads[2]],
+    });
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('asks GitHub when the stored text is unreadable', async () => {
+    sessionStorage.setItem(RELEASE_KEY, '{');
+    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('still asks once per page when storage is blocked (private mode)', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+    const load = latestReleaseLoader(get);
+    expect(await load()).toEqual(RELEASE);
+    expect(await load()).toEqual(RELEASE);
+    expect(get).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -208,7 +284,21 @@ describe('detectSystem', () => {
       }),
     ).toBeNull();
     expect(await real.detectSystem({ platform: 'Linux x86_64' })).toBeNull();
+    // A Mac has no touch screen; a Windows laptop may, and stays Windows.
+    expect(await real.detectSystem({ platform: 'MacIntel', maxTouchPoints: 0 })).toBe('mac-arm');
+    expect(await real.detectSystem({ platform: 'Win32', maxTouchPoints: 10 })).toBe('windows');
     expect(await real.detectSystem({})).toBeNull();
+  });
+
+  it('takes an iPad, whose Safari says it is a Mac, to be no system the app is built for', async () => {
+    expect(
+      await real.detectSystem({
+        platform: 'MacIntel',
+        userAgent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        maxTouchPoints: 5,
+      }),
+    ).toBeNull();
   });
 
   it('reads the page’s own navigator by default', async () => {
