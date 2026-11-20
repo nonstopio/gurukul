@@ -1635,8 +1635,8 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   draft for a course created but not yet noted); the session is an edit session by then
   (`DSK-16`), so a new course whose first save failed and was saved again from the footer reports
   `edit`. `session_discarded` has the same shape and is typed, but **nothing sends it**: no Discard
-  exists yet (The session workspace, "Discard and a Close without saving are still to come"), and
-  it has no tracker row. Whoever builds Discard sends it after `store.close(session, 'discarded')`
+  exists yet (The session workspace, "Discard and a Close without saving are still to come"), which
+  is `DSK-32`. Whoever builds Discard sends it after `store.close(session, 'discarded')`
   succeeds, with `sessionBands`. The privacy page already names discarding, so that needs no
   second `POLICY_VERSION` change.
 
@@ -1773,9 +1773,9 @@ As built in `DSK-22` (what could be done without the certificate or a Windows PC
   adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
   instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
   cancelled-ask test, which checks the fake's own `node` is gone.
-- **Left for the maintainer:** confirm where NonStop io is registered, choose and buy the signing
-  (open question 23; for an India-registered company, the certificate route and its follow-up
-  change), set its settings, install a signed release on a real Windows PC and check the
+- **Left for the maintainer** (`DSK-30`): confirm where NonStop io is registered, choose and buy the
+  signing (open question 23; for an India-registered company, the certificate route and its
+  follow-up change, `DSK-31`), set its settings, install a signed release on a real Windows PC and check the
   signature and SmartScreen, the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
   `claude.exe` and `claude.cmd` (`DSK-26`).
 
