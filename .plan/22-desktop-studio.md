@@ -531,7 +531,8 @@ not strings, because Review ticks each one and `set_summary` sets "goals with do
 
 The schema also holds the rules a file must keep: an edit session has a course and a base; a base
 always belongs to a known course, and a new-course session gains both together at its first save
-(keeping `kind: 'new'`); the working course's id and the base's are the session's `courseId`;
+(the schema allows `kind: 'new'` with both; `DSK-16` makes it `kind: 'edit'` then, As built in
+`DSK-16`); the working course's id and the base's are the session's `courseId`;
 checkpoints are plain file names, so a session file cannot point outside its folder; turn and
 to-do ids are unique.
 
@@ -1235,6 +1236,54 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
   (`DSK-11`).
+
+### As built in `DSK-16`
+
+A new course from a session: `SaveToDraft.tsx` (`CreateCourseDialog`, and `SaveBar` for a session
+with no base), `studio/CourseAddress.tsx` (the Title and Address fields, shared with Studio's New
+course dialog), `createdBase` and `onCourse` in `store.ts`, and the runtime's `courseCreated` in
+`agent.ts`.
+
+- **Review of a new course** compares with nothing, so its list card is **Outline** (every row is
+  Added), it opens on the first lesson or Quiz, and a row shows what it holds: a lesson or Quiz As
+  a learner, the course details, landing page and chapters Inline, with no View choice. A turn picked in the filter still compares
+  its two checkpoints and offers the views as for any session.
+- **Create course and save draft** opens "Create the course": Title (the session's course title,
+  empty while it is still the placeholder "Untitled course") and Address, suggested from the title
+  with Studio's own warning ("Used in links, and it cannot change later."). It calls `createCourse`
+  through `apps/web/src/api/` (blank, with the session's level and cover theme; never a copy). An
+  address already in use says "That address is taken" on the field and keeps the dialog open; any
+  other failure is said in the dialog in words and logged once (`Creating a course failed`).
+- **The session becomes an edit session on the course before the draft is saved** (the plan said
+  "becomes an edit session"; the schema section's "keeping `kind: 'new'`" was dropped for it):
+  `courseCreated(base)` writes `session.json` once with `kind: 'edit'`, the `courseId`, the base
+  and the working copy given the course's id, Educators, status, version, `publishedAt` and the
+  chosen title (`asCreated`), so `courseId` and the base arrive together as the schema asks. The
+  certificate title and cover letter that the placeholder "Untitled course" made, if nothing changed
+  them since, become the course's (found while building it: `set_course_details` changes the
+  certificate title and cover letter only when asked, so a session that only set the title wrote
+  "Untitled course" on the certificate). As an edit session it
+  is the course's one open session (Edit with AI on that course offers it), and a reopened page reads
+  its draft once like any other. It is not a turn: Undo never takes a session back to before its
+  course existed, and a checkpoint from then (`start.json` included) is given the course's id when
+  Undo puts it back (`onCourse`). The agent is told with its next message (`HAND_EDIT_NOTE`), since
+  the course got a title and an address under it.
+- **The base is built, not read**: `createdBase` is the blank course `createCourse` writes, at
+  `CREATED_DRAFT_REV` (1, `firebase/functions/src/stores.ts`). Reading it back would put a network
+  call between the course existing and the session knowing it; Save's own transaction checks the
+  `rev`, so a base that were wrong would read as "the draft moved" and offer the merge, never write
+  over anything.
+- **Never created twice.** Then the draft is saved through `DSK-15`'s save. If that fails the page
+  says the course was created and the draft not saved, and the footer is an edit session's again:
+  Save N changes to draft, against Draft v1. If `session.json` could not be written after the
+  course was created, the page keeps the created draft and its button becomes **Save the draft**,
+  which notes the course again and saves, with no second `createCourse`. Not covered: the app
+  closing between `createCourse` answering and that write; the session is still a new course then,
+  and its address is taken by the empty course just created (another address works; the empty
+  course stays in Studio).
+- **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
+  'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
+  duplicated course without AI, as in the browser.
 
 ## The agent's tools
 

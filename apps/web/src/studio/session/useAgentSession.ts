@@ -75,6 +75,7 @@ type SessionActions = Pick<
   | 'dropIncomplete'
   | 'saveToDraft'
   | 'bringIn'
+  | 'courseCreated'
 >;
 
 /** What the session screens get: the view, and what the Educator can do. */
@@ -144,6 +145,7 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     saveToDraft: async (write) =>
       held ? held.saveToDraft(write) : { ok: false, reason: 'busy' as const },
     bringIn: async (base, work, summary) => (held ? held.bringIn(base, work, summary) : false),
+    courseCreated: async (base) => (held ? held.courseCreated(base) : false),
   };
 }
 
@@ -173,5 +175,6 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     dropIncomplete: source.dropIncomplete,
     saveToDraft: source.saveToDraft,
     bringIn: source.bringIn,
+    courseCreated: source.courseCreated,
   };
 }

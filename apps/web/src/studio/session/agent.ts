@@ -21,7 +21,7 @@ import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './a
 import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
-import { START_CHECKPOINT, createSessionStore } from './store';
+import { START_CHECKPOINT, asCreated, createSessionStore, onCourse } from './store';
 import type { SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
@@ -59,6 +59,9 @@ import type { TranscriptEntry } from './transcript';
  *   bring   Bring in their changes (`DSK-15`): the merged copy becomes the working copy and the
  *           stored draft the new base, as a turn by the Educator that keeps the base from before
  *           it (`baseBefore`), so Undo puts back both the copy and the base.
+ *   create  a new course's first save (`DSK-16`): once the page has created the course, the session
+ *           becomes an edit session on it, its new draft the base, written before the draft is
+ *           saved, so a save that then fails is offered again and the course is never created twice.
  *
  * Firestore is never read or written here: the draft was read once when the session started, hand
  * edits go to this computer only, and Save to draft writes through the function it is given.
@@ -276,6 +279,16 @@ export interface AgentSession {
    * Only when `canSave`. False when it could not be written; nothing then changed.
    */
   bringIn(base: SessionBase, work: Working, summary: string): Promise<boolean>;
+  /**
+   * A new course's first save (`DSK-16`): the page has created the course, whose draft is `base`.
+   * The session becomes an edit session on it, with `base` as its base and the working copy given
+   * the course's id, Educators and title, written to `session.json` before the draft is saved; then
+   * Save to draft saves it like any edit session. Not a turn: Undo never takes a session back to
+   * before its course existed (a checkpoint from then gets the course's id, `onCourse`). Only when
+   * `canSave` and the session is a new course with no base. False when it could not be written;
+   * nothing then changed, and the page offers it again without creating the course again.
+   */
+  courseCreated(base: SessionBase): Promise<boolean>;
   /**
    * A hand edit from Studio's editors: `change` applied to the working copy in memory. False, and
    * nothing changed, when `canEdit` is false. Nothing is written until `keepEdits` or `endEdits`.
@@ -1141,7 +1154,12 @@ export function createAgentSession({
               problem = UNDO_GONE;
               return false;
             }
-            next = await store.undoTurn(current, before, baseBefore);
+            // A checkpoint from before a new course was created carries the placeholder id.
+            const copy =
+              current.courseId !== null && before.course.id !== current.courseId
+                ? onCourse(before, (current.base as SessionBase).work.course)
+                : before;
+            next = await store.undoTurn(current, copy, baseBefore);
           }
           session = withReview(next);
           saved = next;
@@ -1392,6 +1410,43 @@ export function createAgentSession({
           return true;
         } catch (error) {
           log.error('Session draft not brought in', error, { sessionId, rev: base.rev });
+          problem = appProblem(error);
+          return false;
+        } finally {
+          saving = false;
+          emit();
+        }
+      });
+    },
+
+    async courseCreated(base) {
+      if (!savable() || session?.base !== null) return false;
+      saving = true;
+      problem = null;
+      emit();
+      return enqueue(async () => {
+        const current = session as AuthoringSession;
+        const courseId = base.work.course.id;
+        const ofCourse = (work: Working): Working => asCreated(work, base.work.course);
+        try {
+          const written = await store.save({
+            ...current,
+            kind: 'edit',
+            courseId,
+            base,
+            work: ofCourse(workOf(current)),
+          });
+          session = withReview(written);
+          // A turn that could not be written stays the newest: Undo goes back to the copy before
+          // it, now on the course too.
+          saved = { ...written, work: ofCourse(workOf(saved as AuthoringSession)) };
+          // Its own history does not know the course has a title and an address now.
+          handEdited = true;
+          await keepNote();
+          log.info('Session course created', { sessionId, courseId });
+          return true;
+        } catch (error) {
+          log.error('Session course not noted', error, { sessionId, courseId });
           problem = appProblem(error);
           return false;
         } finally {

@@ -1,19 +1,25 @@
 import type { Course } from '@gurukul/schema';
 import type { CourseChanges } from '@gurukul/schema/changes';
-import { Button, Callout, Card, buttonClass, useToast } from '@gurukul/ui';
+import { Button, Callout, Card, Dialog, buttonClass, useToast } from '@gurukul/ui';
 import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { useAnalytics } from '../../analytics/react/context';
+import { userMessageOf } from '../../api';
 import { useLearnerData } from '../../data/DataProvider';
 import { useTerms } from '../../labels/useTerms';
 import { toastError } from '../../errors';
 import { log } from '../../log';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { CourseAddressFields, isAddressTaken, useCourseAddress } from '../CourseAddress';
 import { PublishDialog } from '../PublishDialog';
 import { useStudio } from '../StudioProvider';
 import type { Working } from '../types';
+import type { SessionBase } from './agent';
 import { saveBlockers } from './review';
 import { movedLine, saveSession, saveWaits } from './save';
 import type { DraftCheck } from './save';
+import { NEW_COURSE_TITLE, createdBase } from './store';
 import type { DraftCheckApi } from './useDraftCheck';
 import type { AgentSessionHandle } from './useAgentSession';
 
@@ -21,7 +27,10 @@ import type { AgentSessionHandle } from './useAgentSession';
  * Save to draft on the Review tab (`.plan/22-desktop-studio.md`, Save to draft): the one Firestore
  * write a session makes, through Studio's own save. The button says why it waits; its confirmation
  * names the draft it replaces; a draft saved meanwhile turns into Bring in their changes; a saved
- * session shows what was saved, with the course editor and Publish… beside it.
+ * session shows what was saved, with the course editor and Publish… beside it. A new course
+ * (`DSK-16`) asks for its title and address instead, creates the course through `createCourse`,
+ * makes the session an edit session on it, and only then saves the draft: a save that fails is
+ * offered again as an edit session's, so the course is never created twice.
  */
 
 const changesWord = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'}`;
@@ -55,6 +64,72 @@ export function DraftMovedNotice({
   );
 }
 
+/** What creating the course came to, for the dialog: created, the address taken, or why not. */
+type Created = 'created' | 'taken' | { problem: string };
+
+const CREATE_FORM = 'ss-create-course';
+
+/** A new course's first save: its title and address (`DSK-16`), then Create course and save draft. */
+function CreateCourseDialog({
+  initialTitle,
+  count,
+  onClose,
+  onCreate,
+}: {
+  initialTitle: string;
+  count: number;
+  onClose: () => void;
+  onCreate: (title: string, slug: string) => Promise<Created>;
+}) {
+  const t = useTerms();
+  const address = useCourseAddress(initialTitle);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!address.valid || busy) return;
+    setBusy(true);
+    setProblem(null);
+    const result = await onCreate(address.title.trim(), address.slug);
+    // Created: the page has closed the dialog and goes on to save the draft.
+    if (result === 'created') return;
+    if (result === 'taken') address.markTaken();
+    else setProblem(result.problem);
+    setBusy(false);
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Create the course"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={CREATE_FORM} disabled={!address.valid} loading={busy}>
+            Create course and save draft
+          </Button>
+        </>
+      }
+    >
+      <form id={CREATE_FORM} className="sc-form" onSubmit={(e) => void submit(e)}>
+        {problem ? (
+          <Callout tone="warning" title="The course was not created" role="alert" mascot="error">
+            <p>{problem}</p>
+          </Callout>
+        ) : null}
+        <p>
+          {`Gurukul creates the course with this title and address, then saves this session’s ${changesWord(count)} to its draft. ${t.Learners} see nothing until you publish.`}
+        </p>
+        <CourseAddressFields address={address} />
+      </form>
+    </Dialog>
+  );
+}
+
 /** The footer's Save to draft: the button, why it waits, its confirmation and what went wrong. */
 export function SaveBar({
   agent,
@@ -71,21 +146,22 @@ export function SaveBar({
   valid: boolean;
   overLimit: boolean;
 }) {
-  const { data } = useStudio();
+  const { data, service } = useStudio();
+  const analytics = useAnalytics();
   const toast = useToast();
   const t = useTerms();
   const [confirming, setConfirming] = useState(false);
+  const [creating, setCreating] = useState(false);
+  /**
+   * The draft of a course created for this session that the session could not note: Save then
+   * notes it again, and never creates the course a second time.
+   */
+  const [created, setCreated] = useState<SessionBase | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const session = agent.session as NonNullable<AgentSessionHandle['session']>;
+  const work = agent.work as Working;
   // Worked out whenever there is a working copy, as on every session screen.
   const count = (agent.changes as CourseChanges).count;
-
-  // A new course is created at its first save, with its title and slug (`DSK-16`).
-  if (session.base === null) {
-    return <p className="sc-help">Creating the course and saving its draft comes next.</p>;
-  }
-  const baseRev = session.base.rev;
-  const courseId = session.courseId as string;
   const wait = saveWaits(
     agent,
     draft.check,
@@ -93,14 +169,17 @@ export function SaveBar({
     count,
   );
 
-  const save = async () => {
+  /** The draft saved through Studio's own save; `title` names a course just created. */
+  const save = async (courseId: string, title?: string) => {
     setConfirming(false);
     setFailure(null);
     const outcome = await saveSession(agent, data, { uid, sessionId, courseId });
     switch (outcome.status) {
       case 'saved':
         toast.show(
-          `Saved ${changesWord(count)} to Draft v${outcome.rev}. ${t.Learners} see nothing until you publish.`,
+          title === undefined
+            ? `Saved ${changesWord(count)} to Draft v${outcome.rev}. ${t.Learners} see nothing until you publish.`
+            : `Created “${title}” and saved its draft as Draft v${outcome.rev}. ${t.Learners} see nothing until you publish.`,
           { tone: 'success' },
         );
         if (!outcome.kept)
@@ -120,9 +199,57 @@ export function SaveBar({
         setFailure('Save could not start just now. Wait for the agent to finish, then try again.');
         return;
       case 'failed':
-        setFailure(outcome.message);
+        setFailure(
+          title === undefined
+            ? outcome.message
+            : `The course “${title}” was created, but its draft was not saved. ${outcome.message}`,
+        );
     }
   };
+
+  /** The course exists: the session becomes an edit session on it, then the draft is saved. */
+  const note = async (base: SessionBase) => {
+    const title = base.work.course.title;
+    setFailure(null);
+    if (!(await agent.courseCreated(base))) {
+      setCreated(base);
+      setFailure(
+        `The course “${title}” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.`,
+      );
+      return;
+    }
+    setCreated(null);
+    await save(base.work.course.id, title);
+  };
+
+  const create = async (title: string, slug: string): Promise<Created> => {
+    setFailure(null);
+    try {
+      const { courseId } = await service.createCourse({
+        title,
+        slug,
+        level: work.course.level,
+        theme: work.course.cover.theme,
+        duplicateFrom: null,
+      });
+      analytics.track('course_create', { course_id: courseId });
+      setCreating(false);
+      await note(createdBase(work, { courseId, title, uid, at: new Date().toISOString() }));
+      return 'created';
+    } catch (error) {
+      if (isAddressTaken(error)) return 'taken';
+      log.error('Creating a course failed', error, { sessionId });
+      return { problem: userMessageOf(error, 'Could not create the course. Try again.') };
+    }
+  };
+
+  // A new course is created at its first save (`DSK-16`); once created it has a base.
+  const fresh = session.base === null;
+  const label = !fresh
+    ? `Save ${changesWord(count)} to draft`
+    : created
+      ? 'Save the draft'
+      : 'Create course and save draft';
 
   return (
     <div className="ss-save">
@@ -130,9 +257,11 @@ export function SaveBar({
         loading={agent.saving}
         disabled={wait !== null}
         aria-describedby={wait === null ? undefined : 'ss-save-wait'}
-        onClick={() => setConfirming(true)}
+        onClick={() =>
+          !fresh ? setConfirming(true) : created ? void note(created) : setCreating(true)
+        }
       >
-        {`Save ${changesWord(count)} to draft`}
+        {label}
       </Button>
       {wait === null ? null : (
         <p id="ss-save-wait" className="sc-help">
@@ -144,16 +273,24 @@ export function SaveBar({
           <p>{failure}</p>
         </Callout>
       ) : null}
-      {confirming ? (
+      {confirming && session.base ? (
         <ConfirmDialog
           title="Save to draft?"
           confirmLabel={`Save ${changesWord(count)} to draft`}
           tone="primary"
           onClose={() => setConfirming(false)}
-          onConfirm={() => void save()}
+          onConfirm={() => void save(session.courseId as string)}
         >
-          {`This replaces Draft v${baseRev} with this session’s version. ${t.Learners} see nothing until you publish.`}
+          {`This replaces Draft v${session.base.rev} with this session’s version. ${t.Learners} see nothing until you publish.`}
         </ConfirmDialog>
+      ) : null}
+      {creating ? (
+        <CreateCourseDialog
+          initialTitle={work.course.title === NEW_COURSE_TITLE ? '' : work.course.title}
+          count={count}
+          onClose={() => setCreating(false)}
+          onCreate={create}
+        />
       ) : null}
     </div>
   );

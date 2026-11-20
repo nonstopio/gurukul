@@ -3,7 +3,12 @@ import { COURSE_BYTES_LIMIT } from '@gurukul/schema';
 import type { AuthoringSession, Course } from '@gurukul/schema';
 import { HAND_EDIT_NOTE, createAgentSession } from '../src/studio/session/agent';
 import type { SessionBase } from '../src/studio/session/agent';
-import { START_CHECKPOINT, createSessionStore } from '../src/studio/session/store';
+import {
+  CREATED_DRAFT_REV,
+  START_CHECKPOINT,
+  createSessionStore,
+  createdBase,
+} from '../src/studio/session/store';
 import { TRANSCRIPT_FILE, parseTranscript } from '../src/studio/session/transcript';
 import type { Working } from '../src/studio/types';
 import { makeCourse } from './fake-data';
@@ -348,5 +353,127 @@ describe('Bring in their changes in the runtime', () => {
     expect(await s.runtime.educatorTurn(s.state().work as Working, 'Mine')).toBe(false);
     release();
     expect(await bringing).toBe(true);
+  });
+});
+
+describe('A new course’s first save in the runtime', () => {
+  /** The draft `createCourse` wrote for the session's course, as the page builds it. */
+  const created = (s: Setup, title = 'Code review') =>
+    createdBase(s.state().work as Working, {
+      courseId: 'code-review',
+      title,
+      uid: 'u1',
+      at: T0.toISOString(),
+    });
+
+  it('makes the session an edit session on the created course, with its draft as the base', async () => {
+    const s = await setup({ kind: 'new' });
+    await renameTurn(s, 'Reviewing code');
+    expect(await s.runtime.saveToDraft(vi.fn())).toEqual({ ok: false, reason: 'new_course' });
+
+    expect(await s.runtime.courseCreated(created(s, 'Code review, plainly'))).toBe(true);
+    expect(s.disk()).toMatchObject({
+      kind: 'edit',
+      courseId: 'code-review',
+      status: 'open',
+      base: { rev: CREATED_DRAFT_REV, savedAt: T0.toISOString() },
+    });
+    // The working copy is the course's now: its id and the title the Educator gave it.
+    expect(s.disk().work.course).toMatchObject({
+      id: 'code-review',
+      title: 'Code review, plainly',
+      educatorIds: ['u1'],
+      // What the placeholder title made, and nothing changed since, follows the real title.
+      certificate: { title: 'Code review, plainly' },
+      cover: { glyph: 'C' },
+    });
+    expect(s.disk().base?.work.course).toMatchObject({
+      id: 'code-review',
+      title: 'Code review, plainly',
+      chapters: [],
+    });
+    expect(s.state()).toMatchObject({ saving: false, canSave: true, problem: null });
+    expect(log.info).toHaveBeenCalledWith('Session course created', {
+      sessionId: 's1',
+      courseId: 'code-review',
+    });
+    // Only once: it has a course now.
+    expect(await s.runtime.courseCreated(created(s))).toBe(false);
+
+    // Undo of a turn from before the course existed keeps the session on its course.
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.disk().work.course).toMatchObject({ id: 'code-review', title: 'Untitled course' });
+    expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review', base: { rev: 1 } });
+
+    // The agent is told the course changed under it.
+    expect(await s.runtime.send('Carry on.')).toBe(true);
+    expect(s.agent.send).toHaveBeenLastCalledWith('s1', expect.stringContaining(HAND_EDIT_NOTE));
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+
+    // Then it saves like any edit session, against the created draft.
+    const write = vi.fn(async (_work: Working, rev: number) => rev + 1);
+    expect(await s.runtime.saveToDraft(write)).toEqual({ ok: true, rev: 2, kept: true });
+    expect(write.mock.calls[0]?.[1]).toBe(CREATED_DRAFT_REV);
+    expect(write.mock.calls[0]?.[0].course.id).toBe('code-review');
+  });
+
+  it('keeps a turn that could not be written the one Undo takes back, on the course', async () => {
+    const s = await setup({ kind: 'new' });
+    const saveTurn = s.store.saveTurn;
+    s.store.saveTurn = vi.fn().mockRejectedValueOnce(REFUSED).mockImplementation(saveTurn);
+    await renameTurn(s, 'Reviewing code');
+    expect(s.state().unsaved).not.toBeNull();
+
+    expect(await s.runtime.courseCreated(created(s))).toBe(true);
+    expect(s.disk().work.course).toMatchObject({ id: 'code-review', title: 'Code review' });
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state().unsaved).toBeNull();
+    expect(s.disk().work.course).toMatchObject({ id: 'code-review', title: 'Code review' });
+    expect(s.disk().courseId).toBe('code-review');
+  });
+
+  it('writes nothing when it cannot, and refuses an edit session or a busy one', async () => {
+    const s = await setup({ kind: 'new' });
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.courseCreated(created(s))).toBe(false);
+    expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
+    expect(s.state()).toMatchObject({ saving: false, problem: { code: 'app' } });
+    expect(s.state().session?.base).toBeNull();
+    expect(log.error).toHaveBeenCalledWith('Session course not noted', REFUSED, {
+      sessionId: 's1',
+      courseId: 'code-review',
+    });
+    // A certificate title and cover letter the session chose are kept.
+    expect(
+      await s.runtime.educatorTurn(
+        edited(s.state().work as Working, (c) => {
+          c.certificate.title = 'Reviewer';
+          c.cover.glyph = 'R';
+        }),
+        'Named the certificate',
+      ),
+    ).toBe(true);
+    // Asked again, it is noted: the course is not created again for it.
+    expect(await s.runtime.courseCreated(created(s))).toBe(true);
+    expect(s.disk().courseId).toBe('code-review');
+    expect(s.disk().work.course).toMatchObject({
+      title: 'Code review',
+      certificate: { title: 'Reviewer' },
+      cover: { glyph: 'R' },
+    });
+
+    const edit = await setup();
+    expect(await edit.runtime.courseCreated(created(edit))).toBe(false);
+
+    const busy = await setup({ kind: 'new' });
+    expect(await busy.runtime.send('Start.')).toBe(true);
+    expect(await busy.runtime.courseCreated(created(busy))).toBe(false);
+    expect(busy.disk().kind).toBe('new');
   });
 });

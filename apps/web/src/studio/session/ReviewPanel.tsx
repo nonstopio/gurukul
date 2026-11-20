@@ -67,7 +67,9 @@ import { headerChecks, turnLabel } from './workspace';
  * selected row compared side by side, inline or as a learner, the checks, and the way back to the
  * chat. Reviewing is one decision at the end: a row offers Viewed, Ask for a change, Open in editor
  * and Undo this item, and nothing accepts it on its own. The footer's Save to draft (`DSK-15`) is the
- * session's one Firestore write; a draft saved meanwhile is brought in first (`MergeDialog`). The
+ * session's one Firestore write; a draft saved meanwhile is brought in first (`MergeDialog`). A new
+ * course (`DSK-16`) has nothing to compare with: its list is the Outline, and each row shows what it
+ * holds (a lesson or Quiz as a learner sees it) instead of a difference. The
  * reads are the stored draft's (`useDraftCheck`, once when the page opens) and the count of learners
  * who completed a removed lesson, when that row is opened.
  */
@@ -196,7 +198,10 @@ export function ReviewPanel({
   const listNumbers = useMemo(() => numbersOf((compared?.after ?? work).course), [compared, work]);
   const workNumbers = useMemo(() => numbersOf(work.course), [work]);
   const viewed = useMemo(() => new Set(session.viewed), [session.viewed]);
-  const selected = rows.find((r) => r.key === params.get('row')) ?? rows[0] ?? null;
+  // A new course compared with nothing opens on its first lesson or Quiz, as a learner sees it.
+  const opening =
+    compared?.before === null ? rows.find((r) => r.kind === 'lesson' || r.kind === 'quiz') : null;
+  const selected = rows.find((r) => r.key === params.get('row')) ?? opening ?? rows[0] ?? null;
   const [undoing, setUndoing] = useState<ChangeRow | null>(null);
   const [merging, setMerging] = useState(false);
   const { check } = draft;
@@ -287,7 +292,7 @@ export function ReviewPanel({
         onSave={(patch) => agent.updateReview(patch)}
       />
       <div className="ss-review">
-        <Card title="Changes" className="ss-review__list">
+        <Card title={agent.base === null ? 'Outline' : 'Changes'} className="ss-review__list">
           <ChangeList
             turns={agent.turns}
             turnId={turnIndex < 0 ? null : turnId}
@@ -660,9 +665,11 @@ function RowDetail({
   const item = itemRow ? itemOf(itemRow) : null;
   const added = row.statuses.includes('added');
   const removed = row.statuses.includes('removed');
+  // A new course compared with nothing (`DSK-16`) shows what each row holds, never a difference.
+  const fresh = compared.before === null;
   // Something added has no before, and something removed no after: both open as a learner sees them.
   const [view, setView] = useState<View>(
-    item && (added || removed) ? 'learner' : wide ? 'split' : 'inline',
+    item && (added || removed) ? 'learner' : wide && !fresh ? 'split' : 'inline',
   );
   const shown: View = view === 'split' && !wide ? 'inline' : view;
   const [mode, setMode] = useState<TextMode>('source');
@@ -670,11 +677,13 @@ function RowDetail({
   const lesson = row.kind === 'lesson' && removed && courseId !== null ? row.id : null;
   const completed = useCompleted(courseId, lesson);
   const name = rowName(row, numbers);
-  const views: { value: View; label: string }[] = [
-    ...(wide ? [{ value: 'split' as const, label: 'Side by side' }] : []),
-    { value: 'inline', label: 'Inline' },
-    ...(item ? [{ value: 'learner' as const, label: 'As a learner' }] : []),
-  ];
+  const views: { value: View; label: string }[] = fresh
+    ? []
+    : [
+        ...(wide ? [{ value: 'split' as const, label: 'Side by side' }] : []),
+        { value: 'inline', label: 'Inline' },
+        ...(item ? [{ value: 'learner' as const, label: 'As a learner' }] : []),
+      ];
 
   const learner = () => {
     // Only a lesson or Quiz row offers this view, and only on a side it has: something added
@@ -692,7 +701,9 @@ function RowDetail({
         <StatusChips statuses={row.statuses} />
       </div>
       <div className="ss-review__tools">
-        <SegmentedControl label="View" value={shown} options={views} onChange={setView} />
+        {views.length > 0 ? (
+          <SegmentedControl label="View" value={shown} options={views} onChange={setView} />
+        ) : null}
         {shown !== 'learner' && hasProse(row) ? (
           <SegmentedControl
             label="Show text as"

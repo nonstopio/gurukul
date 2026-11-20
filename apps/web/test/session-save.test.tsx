@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { blankCourse } from '@gurukul/schema';
 import type { AuthoringSession, Chapter, Course, Lesson } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +11,7 @@ import { fakeData, makeCourse } from './fake-data';
 import { fakeAgent, fakeDesktop, installDesktop, uninstallDesktop } from './fake-desktop';
 import { draftDoc, fakeStudio } from './fake-studio';
 import { openApp } from './harness';
+import { apiFailure } from './studio-fixtures';
 
 vi.mock('../src/log', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -335,17 +337,236 @@ describe('Save to draft', () => {
     ).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Saved to the draft' })).toBeTruthy();
   });
+});
 
-  it('leaves a new course to its first save, and does not read a draft', async () => {
-    const s = await open({ kind: 'new' });
+describe('a new course’s first save', () => {
+  /** The draft `createCourse` writes for `code-review`, as Studio would read it. */
+  const created = () =>
+    draftDoc(
+      blankCourse({
+        id: 'code-review',
+        title: 'Code review',
+        level: 'foundation',
+        theme: 'forest',
+        educatorId: 'u1',
+      }),
+      { rev: 1, updatedBy: 'u1' },
+    );
+
+  /** A new-course session the agent titled "Code review" and gave one chapter. */
+  const titled = (s: AuthoringSession): AuthoringSession => ({
+    ...s,
+    work: change(s.work as Working, (c) => {
+      c.title = 'Code review';
+      c.chapters = [{ id: 'p1', title: 'Basics', items: [] }];
+    }),
+  });
+
+  const openNew = async (init: Parameters<typeof open>[0] = {}) => {
+    const s = await open({ kind: 'new', edit: titled, drafts: [created()], ...init });
     await ready(s);
-    expect(
-      await screen.findByText('Creating the course and saving its draft comes next.'),
-    ).toBeTruthy();
+    return s;
+  };
+
+  const createButton = () => screen.getByRole('button', { name: 'Create course and save draft' });
+
+  /** Opens Create the course and presses its Create course and save draft. */
+  async function create(address?: string) {
+    fireEvent.click(createButton());
+    const form = await screen.findByRole('dialog', { name: 'Create the course' });
+    if (address !== undefined)
+      fireEvent.change(within(form).getByLabelText('Address'), { target: { value: address } });
+    await act(async () => {
+      fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+    });
+    return form;
+  }
+
+  it('asks for the title and address, creates the course, then saves its draft once', async () => {
+    const s = await openNew();
     expect(
       within(checks()).getByText('Draft is up to date: a new course has no draft yet'),
     ).toBeTruthy();
     expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+
+    // The title comes from the session's course; the address from the title, with its warning.
+    fireEvent.click(createButton());
+    const form = await screen.findByRole('dialog', { name: 'Create the course' });
+    expect(
+      within(form).getByText(
+        'Gurukul creates the course with this title and address, then saves this session’s 3 changes to its draft. Learners see nothing until you publish.',
+      ),
+    ).toBeTruthy();
+    expect((within(form).getByLabelText('Title') as HTMLInputElement).value).toBe('Code review');
+    expect((within(form).getByLabelText('Address') as HTMLInputElement).value).toBe('code-review');
+    expect(within(form).getByText('Used in links, and it cannot change later.')).toBeTruthy();
+    expect(await axeViolations(form)).toEqual([]);
+    // Cancel creates nothing.
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Create the course' })).toBeNull();
+    expect(s.studio.service.createCourse).not.toHaveBeenCalled();
+
+    vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
+    await create();
+    expect(
+      await screen.findByText(
+        'Created “Code review” and saved its draft as Draft v2. Learners see nothing until you publish.',
+      ),
+    ).toBeTruthy();
+    expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    expect(s.studio.service.createCourse).toHaveBeenCalledWith({
+      title: 'Code review',
+      slug: 'code-review',
+      level: 'foundation',
+      theme: 'forest',
+      duplicateFrom: null,
+    });
+    expect(s.studio.data.saveDraft).toHaveBeenCalledTimes(1);
+    const [courseId, work, rev, uid] = vi.mocked(s.studio.data.saveDraft).mock.calls[0] ?? [];
+    expect([courseId, rev, uid]).toEqual(['code-review', 1, 'u1']);
+    expect((work as Working).course).toMatchObject({
+      id: 'code-review',
+      title: 'Code review',
+      educatorIds: ['u1'],
+      certificate: { title: 'Code review' },
+    });
+    // The session became an edit session on the course, and is closed as saved.
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+    expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review', base: { rev: 1 } });
+    expect(s.disk().work.course.id).toBe('code-review');
+    const saved = screen.getByRole('region', { name: 'Saved to the draft' });
+    expect(
+      within(saved).getByRole('link', { name: 'Open the course editor' }).getAttribute('href'),
+    ).toBe('/studio/courses/code-review');
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it('says an address is taken and keeps the dialog open; another one goes on', async () => {
+    const s = await openNew();
+    vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(apiFailure('CRS_1002'));
+    const form = await create();
+    expect(await within(form).findByText('That address is taken')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Create the course' })).toBeTruthy();
+    expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+    expect(s.disk()).toMatchObject({ kind: 'new', courseId: null, base: null });
+    // Typing clears it; a free address creates the course and saves it.
+    fireEvent.change(within(form).getByLabelText('Address'), {
+      target: { value: 'code-review-2' },
+    });
+    expect(within(form).queryByText('That address is taken')).toBeNull();
+    vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review-2' });
+    await act(async () => {
+      fireEvent.click(within(form).getByRole('button', { name: 'Create course and save draft' }));
+    });
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+    expect(s.disk().courseId).toBe('code-review-2');
+    expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[0]).toBe('code-review-2');
+  });
+
+  it('says why the course was not created, in words, and logs it once', async () => {
+    const s = await openNew();
+    vi.mocked(s.studio.service.createCourse).mockRejectedValueOnce(new Error('internal detail'));
+    const form = await create();
+    expect(await within(form).findByText('Could not create the course. Try again.')).toBeTruthy();
+    expect(within(form).getByText('The course was not created')).toBeTruthy();
+    expect(screen.queryByText(/internal detail/)).toBeNull();
+    expect(log.error).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith('Creating a course failed', expect.any(Error), {
+      sessionId: s.id,
+    });
+    expect(s.disk().kind).toBe('new');
+  });
+
+  it('starts with an empty title while the course is still untitled', async () => {
+    const s = await openNew({
+      edit: (x) => ({
+        ...x,
+        work: change(x.work as Working, (c) => {
+          c.chapters = [{ id: 'p1', title: 'Basics', items: [] }];
+        }),
+      }),
+    });
+    fireEvent.click(createButton());
+    const form = await screen.findByRole('dialog', { name: 'Create the course' });
+    expect((within(form).getByLabelText('Title') as HTMLInputElement).value).toBe('');
+    const submit = within(form).getByRole('button', {
+      name: 'Create course and save draft',
+    }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    // Enter in a field does nothing while the title is missing, nor a second time while creating.
+    const fields = submit.form as HTMLFormElement;
+    fireEvent.submit(fields);
+    expect(s.studio.service.createCourse).not.toHaveBeenCalled();
+    fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Code review' } });
+    let answer: (v: { courseId: string }) => void = () => undefined;
+    vi.mocked(s.studio.service.createCourse).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    fireEvent.submit(fields);
+    fireEvent.submit(fields);
+    expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    await act(async () => answer({ courseId: 'code-review' }));
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+  });
+
+  it('offers the save again when the draft fails after the course was created, never creating it twice', async () => {
+    const s = await openNew();
+    vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
+    vi.mocked(s.studio.data.saveDraft).mockRejectedValueOnce(
+      Object.assign(new Error('offline'), { code: 'unavailable' }),
+    );
+    await create();
+    expect(
+      await screen.findByText(
+        'The course “Code review” was created, but its draft was not saved. Gurukul could not reach the server. Check the connection and try again; the session is kept on this computer.',
+      ),
+    ).toBeTruthy();
+    // On this computer it is an edit session on the new course now, still open.
+    expect(s.disk()).toMatchObject({
+      kind: 'edit',
+      courseId: 'code-review',
+      status: 'open',
+      base: { rev: 1 },
+    });
+    expect(log.error).toHaveBeenCalledWith('Session save to draft failed', expect.any(Error), {
+      sessionId: s.id,
+      courseId: 'code-review',
+    });
+    // Save is offered as an edit session's: against Draft v1, and the course is not created again.
+    expect(screen.queryByRole('button', { name: 'Create course and save draft' })).toBeNull();
+    await save(saveButton().textContent as string);
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+    expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    expect(s.studio.data.saveDraft).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(s.studio.data.saveDraft).mock.calls[1]?.slice(0, 3)).toEqual([
+      'code-review',
+      expect.anything(),
+      1,
+    ]);
+  });
+
+  it('notes the created course again when this computer could not, without creating it again', async () => {
+    const s = await openNew();
+    vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED);
+    await create();
+    expect(
+      await screen.findByText(
+        'The course “Code review” was created, but this computer could not note it, so its draft was not saved. Save the draft again: the course is not created twice.',
+      ),
+    ).toBeTruthy();
+    expect(s.disk()).toMatchObject({ kind: 'new', courseId: null });
+    expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
+
+    // Save the draft notes it and saves, with no second createCourse and no dialog.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save the draft' }));
+    });
+    await waitFor(() => expect(s.disk().status).toBe('saved'));
+    expect(screen.queryByRole('dialog', { name: 'Create the course' })).toBeNull();
+    expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
+    expect(s.disk()).toMatchObject({ kind: 'edit', courseId: 'code-review' });
+    expect(vi.mocked(s.studio.data.saveDraft).mock.calls[0]?.[0]).toBe('code-review');
   });
 });
 

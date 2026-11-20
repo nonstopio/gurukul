@@ -78,6 +78,86 @@ export const GOAL_MAX_LENGTH = 300;
 const TITLE_LENGTH = 80;
 /** The working course of a new-course session, until the first save gives it its slug. */
 export const NEW_COURSE_ID = 'new-course';
+/** A new-course session's course title until the agent or the Educator gives it one. */
+export const NEW_COURSE_TITLE = 'Untitled course';
+
+/** The `rev` of the draft `createCourse` writes for a new course (`firebase/functions/src/stores.ts`). */
+export const CREATED_DRAFT_REV = 1;
+
+/**
+ * The working copy as part of the course it belongs to: the course's own fields that Studio and
+ * publishing keep (id, Educators, status, version, `publishedAt`) taken from `owner`, as a merge
+ * takes them from the stored draft. A new-course session's copies from before the course was
+ * created (`DSK-16`) carry the placeholder id; this gives them the course's.
+ */
+export function onCourse<W extends WorkingCopy>(work: W, owner: WorkingCopy['course']): W {
+  const { id, educatorIds, educatorNames, status, version, publishedAt } = owner;
+  return {
+    ...work,
+    course: { ...work.course, id, educatorIds, educatorNames, status, version, publishedAt },
+  };
+}
+
+/**
+ * A new-course session's working copy once its course is created (`DSK-16`): on that course
+ * (`onCourse`), with the title the Educator gave it, and the certificate title and cover letter
+ * the placeholder "Untitled course" gave it, where nothing changed them since, made the course's
+ * own (`created` is the blank course `createCourse` wrote, which derives both from the title).
+ */
+export function asCreated<W extends WorkingCopy>(work: W, created: WorkingCopy['course']): W {
+  const owned = onCourse(work, created);
+  const { course } = owned;
+  const placeholder = blankCourse({
+    id: NEW_COURSE_ID,
+    title: NEW_COURSE_TITLE,
+    level: course.level,
+    theme: course.cover.theme,
+    educatorId: '',
+  });
+  return {
+    ...owned,
+    course: {
+      ...course,
+      title: created.title,
+      certificate:
+        course.certificate.title === placeholder.certificate.title
+          ? { ...course.certificate, title: created.certificate.title }
+          : course.certificate,
+      cover:
+        course.cover.glyph === placeholder.cover.glyph
+          ? { ...course.cover, glyph: created.cover.glyph }
+          : course.cover,
+    },
+  };
+}
+
+/**
+ * The draft `createCourse` has just written for a new-course session's course (`DSK-16`): a blank
+ * course with the title and address the Educator chose, the session's level, cover theme and
+ * Educator, at `CREATED_DRAFT_REV`. Built here rather than read, so nothing stands between the
+ * course being created and the session noting it; Save's own transaction checks the `rev`.
+ */
+export function createdBase(
+  work: WorkingCopy,
+  init: { courseId: string; title: string; uid: string; at: string },
+): SessionBase {
+  const { course } = work;
+  return {
+    rev: CREATED_DRAFT_REV,
+    savedAt: init.at,
+    work: {
+      course: blankCourse({
+        id: init.courseId,
+        title: init.title,
+        level: course.level,
+        theme: course.cover.theme,
+        educatorId: init.uid,
+        educatorName: course.educatorNames[init.uid],
+      }),
+      answers: {},
+    },
+  };
+}
 
 const at = z.iso.datetime({ offset: true });
 
@@ -545,7 +625,7 @@ export function createSessionStore({
         work = {
           course: blankCourse({
             id: NEW_COURSE_ID,
-            title: 'Untitled course',
+            title: NEW_COURSE_TITLE,
             level: 'foundation',
             theme: 'forest',
             educatorId: uid,

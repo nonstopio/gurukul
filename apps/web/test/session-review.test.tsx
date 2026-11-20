@@ -811,9 +811,36 @@ describe('Review', () => {
     });
     expect(await screen.findByText('A new course: everything in it is added.')).toBeTruthy();
     await ready(s);
-    pick(/^1\.1 · Lesson l1/);
-    expect(within(detail()).queryByRole('button', { name: /^More for/ })).toBeNull();
+    // Nothing to compare with: the list is the outline, and a row shows what it holds.
+    expect(screen.getByRole('region', { name: 'Outline' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Changes' })).toBeNull();
+    // It opens on the first lesson, as a learner sees it, with no view to pick.
+    expect(within(detail()).getByRole('heading', { name: /^1\.1 · Lesson l1/ })).toBeTruthy();
     expect(within(detail()).getByText('Body of l1')).toBeTruthy();
+    expect(within(detail()).queryByRole('button', { name: 'Inline' })).toBeNull();
+    expect(within(detail()).queryByRole('button', { name: /^More for/ })).toBeNull();
+    // The course details show what they hold, with no Side by side to pick (1024px wide).
+    pick(/^Course details/);
+    expect(within(detail()).getByRole('heading', { name: 'Course details' })).toBeTruthy();
+    expect(within(detail()).queryByRole('button', { name: 'Side by side' })).toBeNull();
+    expect(within(detail()).queryByRole('button', { name: 'Inline' })).toBeNull();
+  });
+
+  it('a new course’s turn is still a difference: its first turn compares with the blank course', async () => {
+    const s = await open({
+      kind: 'new',
+      turns: [
+        (w) =>
+          change(w, (c) => {
+            c.title = 'Code review';
+          }),
+      ],
+      path: (id) => `/studio/sessions/${id}/review?turn=t1`,
+    });
+    expect(await screen.findByText('1 change · 0 viewed')).toBeTruthy();
+    await ready(s);
+    expect(screen.getByRole('region', { name: 'Outline' })).toBeTruthy();
+    expect(within(detail()).getByRole('button', { name: 'Inline' })).toBeTruthy();
   });
 });
 
