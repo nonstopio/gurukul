@@ -703,6 +703,26 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+.ss-sources__files {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-sources__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.ss-sources__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 /* ---- The session workspace: chat beside the preview from 1024px, a drawer below ---- */
 .ss-status {
@@ -725,6 +745,10 @@
 .ss-chat__log {
   min-height: 6rem;
   overflow-y: auto;
+}
+/* Under the words of a sent message: what it carried. */
+.ss-chat__attached {
+  margin-top: var(--space-2);
 }
 .ss-composer {
   display: grid;
@@ -812,6 +836,15 @@
 h3.ss-outline__row {
   font-weight: 600;
   color: var(--text);
+}
+.ss-outline__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Attach sits at the end of its row, chapters and items alike. */
+.ss-outline__attach {
+  margin-left: auto;
 }
 .ss-outline__gone {
   text-decoration: line-through;

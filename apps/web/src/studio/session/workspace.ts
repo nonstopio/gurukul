@@ -114,6 +114,7 @@ export function questionMarks(
 
 export interface OutlineItem {
   key: string;
+  id: string;
   type: Item['type'];
   title: string;
   /** "2.3"; null for an item that was removed. */
@@ -123,6 +124,7 @@ export interface OutlineItem {
 
 export interface OutlineChapter {
   key: string;
+  id: string;
   title: string;
   /** "2"; null for a chapter that was removed. */
   number: string | null;
@@ -180,6 +182,7 @@ export function outlineOf(
     );
   const removedItem = (r: Extract<ChangeRow, { kind: 'lesson' | 'quiz' }>): OutlineItem => ({
     key: r.key,
+    id: r.id,
     type: r.kind,
     title: (r.before as Item).title,
     number: null,
@@ -189,6 +192,7 @@ export function outlineOf(
   const kept: OutlineChapter[] = work.chapters.map((chapter, c) => {
     const items: OutlineItem[] = chapter.items.map((item, i) => ({
       key: itemKey(item),
+      id: item.id,
       type: item.type,
       title: item.title,
       number: `${c + 1}.${i + 1}`,
@@ -202,6 +206,7 @@ export function outlineOf(
     );
     return {
       key: `chapter:${chapter.id}`,
+      id: chapter.id,
       title: chapter.title,
       number: String(c + 1),
       statuses: byKey.get(`chapter:${chapter.id}`)?.statuses ?? [],
@@ -216,6 +221,7 @@ export function outlineOf(
     )
     .map((r): OutlineChapter => ({
       key: r.key,
+      id: r.id,
       title: (r.before as Chapter).title,
       number: null,
       statuses: r.statuses,

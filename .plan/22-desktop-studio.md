@@ -573,7 +573,15 @@ As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/deskt
   answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
   The session runtime (`createAgentSession`, `DSK-13`) uses it by default and passes it to
   `defaultToolContext`.
-- Not built here: changing the folder from the workspace, and clicking a block (`DSK-20`'s other half).
+- **From the workspace** (`DSK-20`'s second half, `SourcesPanel.tsx`), a Sources tab beside Preview and
+  Outline shows the session's folder: read with `sources.list` each time the tab opens (files added in
+  Finder meanwhile appear), its display path and plain files with their sizes (25 to a page), Choose a
+  Sources folder or Change folder, Show in Finder or Explorer, and the notice that what the agent reads
+  is sent to Anthropic under the Educator's own Claude account. A saved or discarded session has no
+  Sources tab. `list_sources` and `read_source` ask the shell on every call, so a folder chosen or
+  changed mid-session is read from the next message on; `claude`'s working folder changes at the next
+  `agent.start`, which is safe because `--resume` works from a different working folder (Spike
+  findings).
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or
@@ -796,6 +804,33 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   (`Dialog size="drawer"`); the message being typed lives in the page, so closing the drawer keeps
   it, and the preview's card shows the live activity line while the drawer is shut. Below 640px
   Studio's `DesktopOnly` asks for a wider window.
+
+As built in `DSK-20` (attaching; `apps/web/src/studio/session/attachments.ts`, the runtime's `attach`,
+`Attachable` and `ChatAttachments` in `@gurukul/ui`):
+
+- **An Attach button, not a click anywhere on the block.** Every block and question in the preview has
+  an Attach toggle beside it (`Attachable`, `aria-pressed`), shown on hover and on keyboard focus and
+  always while attached, when a solid outline and a tick mark the block. A click on the block itself
+  does nothing new: its own video, check or Copy must keep working, and a block that answered clicks
+  would be a control without a keyboard. The outline has the same toggle on each chapter, lesson and
+  Quiz still in the course, and on the course details and landing page rows when they are listed.
+  Saved and discarded sessions show none.
+- **Chips above the message box** name each attached part in plain words ("Lesson 3.2 · Text block 2",
+  "Quiz 2.4 · Question 3", "Chapter 2 · Rebase", "Course details"), each with a remove button. A block's
+  number is its place among all the lesson's blocks. Below 1024px the Chat button says "Chat · 2
+  attached". Sent, the message keeps its chips in the chat (the transcript entry's `attachments`).
+- **One API for every screen:** `attach(target)` and `detach(target or key)` on the session runtime (and
+  on `useAgentSession`), where a target is `{ kind: 'course' | 'landing' | 'chapter' | 'item' | 'block'
+  | 'question', ids, label }` and `ids` are the tools' own names (`chapterId`, `itemId`, `blockId`,
+  `questionId`). Review's Ask for a change (`DSK-14`) attaches its row through it. Attaching is possible
+  during a turn (the next message can be typed meanwhile); at most `MAX_ATTACHMENTS` (10) go with one
+  message, a label is cut at 120 characters, and ids are checked as the tools check them.
+- **What the agent gets:** the message starts, after any note about undone turns, with "[From Gurukul:
+  the Educator attached these parts of the course to the message below. …]" and one line per part, its
+  label and then `{"kind":…,…ids}` as JSON; the system prompt ("Attached parts of the course") says
+  what each kind means, which tool takes it, and never to repeat the ids. A test holds the longest
+  message, the undo note and ten parts with the longest labels and ids under the shell's
+  `MAX_MESSAGE_LENGTH`. Sending clears the parts; a message the app refuses keeps them.
 
 ## Review: the whole session at once
 

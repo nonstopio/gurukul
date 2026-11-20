@@ -15,6 +15,13 @@ import {
   undoNote,
 } from '../src/studio/session/agent';
 import type { AgentSessionOptions } from '../src/studio/session/agent';
+import {
+  ATTACHMENT_LABEL_MAX,
+  MAX_ATTACHMENTS,
+  attachmentKey,
+  attachmentNote,
+} from '../src/studio/session/attachments';
+import type { AttachTarget } from '../src/studio/session/attachments';
 import { agentSetup } from '../src/studio/session/prompt';
 import { START_CHECKPOINT, createSessionStore } from '../src/studio/session/store';
 import { TOOLS } from '../src/studio/session/tools';
@@ -546,6 +553,154 @@ describe('turns', () => {
       sessionId: 's1',
       reason: 'refused',
     });
+  });
+});
+
+describe('attached parts of the course', () => {
+  const block: AttachTarget = {
+    kind: 'block',
+    ids: { itemId: 'l1', blockId: 'b1' },
+    label: 'Lesson 1.1 · Text block 1',
+  };
+  const question: AttachTarget = {
+    kind: 'question',
+    ids: { itemId: 'q1', questionId: 'q1a' },
+    label: 'Quiz 1.2 · Question 1',
+  };
+
+  it('sends them with the next message, ids first, and keeps them with it in the chat', async () => {
+    const s = await setup();
+    expect(s.runtime.attach(block)).toBe(false);
+    expect(s.state()).toMatchObject({ attachments: [], canAttach: false });
+    await s.runtime.open();
+    expect(s.state().canAttach).toBe(true);
+    s.changes.mockClear();
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.runtime.attach({ ...block, label: 'The same block' })).toBe(true);
+    expect(s.runtime.attach(question)).toBe(true);
+    expect(s.changes).toHaveBeenCalledTimes(2);
+    expect(s.state().attachments).toEqual([block, question]);
+
+    expect(await s.runtime.send('Make this shorter.')).toBe(true);
+    expect(s.agent.send).toHaveBeenCalledWith(
+      's1',
+      `${attachmentNote([block, question])}Make this shorter.`,
+    );
+    expect(s.state().attachments).toEqual([]);
+    expect(s.state().transcript[0]).toEqual({
+      kind: 'educator',
+      turnId: 't1',
+      at: T0.toISOString(),
+      text: 'Make this shorter.',
+      attachments: [block, question],
+    });
+    // The turn's line is the Educator's words; the chat on disk keeps what was attached.
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(s.disk().turns[0]?.summary).toBe('Make this shorter.');
+    expect(s.chat()[0]).toMatchObject({ attachments: [block, question] });
+  });
+
+  it('puts the note about undone turns before the attached parts', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'One');
+    expect(await s.runtime.undo()).toBe(true);
+    s.runtime.attach(block);
+    await s.runtime.send('Shorter.');
+    expect(s.agent.send).toHaveBeenLastCalledWith(
+      's1',
+      `${undoNote(1)}${attachmentNote([block])}Shorter.`,
+    );
+  });
+
+  it('sends no note and keeps no list when nothing is attached', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('Hello');
+    expect(s.agent.send).toHaveBeenCalledWith('s1', 'Hello');
+    expect(s.state().transcript[0]).not.toHaveProperty('attachments');
+  });
+
+  it('can attach while a turn runs, for the message after it', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.runtime.send('First.');
+    expect(s.runtime.attach(block)).toBe(true);
+    expect(s.state().attachments).toEqual([block]);
+  });
+
+  it('takes a part off by itself or by its key, and ignores one not attached', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.attach(block);
+    s.runtime.attach(question);
+    s.changes.mockClear();
+    s.runtime.detach('course');
+    expect(s.changes).not.toHaveBeenCalled();
+    s.runtime.detach(block);
+    expect(s.state().attachments).toEqual([question]);
+    s.runtime.detach(attachmentKey(question));
+    expect(s.state().attachments).toEqual([]);
+  });
+
+  it('refuses past the limit, and ids that are not ids, but cuts a long label', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    for (let i = 0; i < MAX_ATTACHMENTS; i += 1) {
+      expect(
+        s.runtime.attach({ kind: 'chapter', ids: { chapterId: `c${i}` }, label: `Chapter ${i}` }),
+      ).toBe(true);
+    }
+    expect(s.state().canAttach).toBe(false);
+    expect(s.runtime.attach(block)).toBe(false);
+    // One already attached is still attached.
+    expect(s.runtime.attach({ kind: 'chapter', ids: { chapterId: 'c0' }, label: 'Again' })).toBe(
+      true,
+    );
+    s.runtime.detach('chapter:c0');
+    expect(s.runtime.attach({ ...block, ids: { itemId: 'l1', blockId: '' } })).toBe(false);
+    expect(s.runtime.attach({ ...block, label: `Lesson ${'x'.repeat(200)}` })).toBe(true);
+    expect(s.state().attachments.at(-1)?.label).toHaveLength(ATTACHMENT_LABEL_MAX);
+  });
+
+  it('keeps them when the app does not take the message, with any attached meanwhile', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    s.runtime.attach(block);
+    let refuse: (error: Error) => void = () => undefined;
+    s.agent.send.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
+    const sending = s.runtime.send('Shorter.');
+    expect(s.state().attachments).toEqual([]);
+    s.runtime.attach(question);
+    s.runtime.attach(block);
+    refuse(REFUSED);
+    expect(await sending).toBe(false);
+    expect(s.state().attachments).toEqual([block, question]);
+  });
+
+  it('is not offered for a closed session', async () => {
+    const s = await setup({ edit: (x) => ({ ...x, status: 'discarded' }) });
+    await s.runtime.open();
+    expect(s.state().canAttach).toBe(false);
+    expect(s.runtime.attach(block)).toBe(false);
+  });
+
+  it('stays under the shell’s message limit with the most a message can carry', () => {
+    const id = 'i'.repeat(80);
+    const most = Array.from({ length: MAX_ATTACHMENTS }, (): AttachTarget => ({
+      kind: 'question',
+      ids: { itemId: id, questionId: id },
+      label: 'x'.repeat(ATTACHMENT_LABEL_MAX),
+    }));
+    expect(
+      MESSAGE_MAX_LENGTH + undoNote(SESSION_CHECKPOINTS_KEPT).length + attachmentNote(most).length,
+    ).toBeLessThanOrEqual(MAX_MESSAGE_LENGTH);
   });
 });
 

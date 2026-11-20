@@ -15,6 +15,8 @@ import type {
 import { log } from '../../log';
 import type { Working } from '../types';
 import { toolActivity } from './activity';
+import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './attachments';
+import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
 import { START_CHECKPOINT, createSessionStore } from './store';
@@ -36,6 +38,8 @@ import type { TranscriptEntry } from './transcript';
  *           the session and the chat written to disk (`saveTurn`), so a restart loses nothing.
  *   stop    `agent.stop`: the turn ends, and what it had changed stays as its checkpoint.
  *   undo    the newest turn goes; the checkpoint before it becomes the working copy again.
+ *   attach  a part of the course goes with the next message (`DSK-20`): its ids for the agent, its
+ *           plain label for the chat. Sending carries every attached part, then clears them.
  *
  * Firestore is never read or written here: the draft was read once when the session started.
  * Nothing logged carries chat text, course text, a source name or an answer key.
@@ -112,6 +116,10 @@ export interface AgentSessionView {
   unsaved: Turn | null;
   /** Changes made so far by the turn that is running, against the checkpoint before it. */
   turnChanges: number;
+  /** The parts of the course the next message carries, in the order they were attached. */
+  attachments: readonly AttachTarget[];
+  /** True while the session is open and fewer than `MAX_ATTACHMENTS` are attached. */
+  canAttach: boolean;
   canSend: boolean;
   canStop: boolean;
   /**
@@ -149,8 +157,21 @@ export interface AgentSession {
   open(): Promise<void>;
   /** After `unavailable`: asks again whether Claude Code can run, and starts it. */
   retry(): Promise<void>;
-  /** Starts a turn. False when it was not sent (not ready, empty, too long, or the app refused). */
+  /**
+   * Starts a turn, carrying every attached part, which are then cleared. False when it was not sent
+   * (not ready, empty, too long, or the app refused); the attached parts then stay.
+   */
   send(message: string): Promise<boolean>;
+  /**
+   * Attaches a part of the course to the next message: the chat's chips, the preview's and
+   * outline's Attach buttons, and Review's Ask for a change (`DSK-14`) all go through it. Possible
+   * while a turn runs, since the next message can be typed meanwhile. True when it is attached now
+   * (attaching it again changes nothing); false when the session is not open, `MAX_ATTACHMENTS` are
+   * already attached, or its ids are not ids.
+   */
+  attach(target: AttachTarget): boolean;
+  /** Takes a part off the next message, by the target or its `attachmentKey`. */
+  detach(target: AttachTarget | string): void;
   /** Ends the running turn; what it had changed stays. */
   stop(): Promise<void>;
   /** Undoes the newest turn. False when there is none or its checkpoint before is gone. */
@@ -319,6 +340,7 @@ export function createAgentSession({
   let transcript: TranscriptEntry[] = [];
   let activity: string | null = null;
   let turn: RunningTurn | null = null;
+  let attachments: readonly AttachTarget[] = [];
   /** Turns undone since the agent was last told. */
   let undone = 0;
   let queue: Promise<unknown> = Promise.resolve();
@@ -343,6 +365,8 @@ export function createAgentSession({
       unsaved,
       // A turn runs only once the session is open, so `work` is there.
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
+      attachments,
+      canAttach: session?.status === 'open' && attachments.length < MAX_ATTACHMENTS,
       canSend: status === 'ready',
       canStop: status === 'working',
       canUndo: status === 'ready' && (turns.length > 0 || unsaved !== null),
@@ -610,14 +634,25 @@ export function createAgentSession({
       const text = message.trim();
       if (status !== 'ready' || text === '' || text.length > MESSAGE_MAX_LENGTH) return false;
       const running: RunningTurn = { id: newId(), message: text };
+      const carried = attachments;
       turn = running;
       status = 'working';
       problem = null;
       activity = null;
-      say({ kind: 'educator', turnId: running.id, at: now().toISOString(), text });
+      say({
+        kind: 'educator',
+        turnId: running.id,
+        at: now().toISOString(),
+        text,
+        ...(carried.length > 0 && { attachments: [...carried] }),
+      });
+      attachments = [];
       emit();
       try {
-        await agent.send(sessionId, (undone > 0 ? undoNote(undone) : '') + text);
+        await agent.send(
+          sessionId,
+          (undone > 0 ? undoNote(undone) : '') + attachmentNote(carried) + text,
+        );
         undone = 0;
         return true;
       } catch (error) {
@@ -625,6 +660,11 @@ export function createAgentSession({
         turn = null;
         status = 'ready';
         problem = appProblem(error);
+        // Parts attached meanwhile stay too, after the ones the message carried.
+        attachments = [
+          ...carried,
+          ...attachments.filter((a) => !carried.some((c) => attachmentKey(c) === attachmentKey(a))),
+        ].slice(0, MAX_ATTACHMENTS);
         notice(running.id, 'Not sent.');
         emit();
         return false;
@@ -690,6 +730,26 @@ export function createAgentSession({
           emit();
         }
       });
+    },
+
+    attach(target) {
+      if (session?.status !== 'open') return false;
+      const clean = cleanTarget(target);
+      if (!clean) return false;
+      const key = attachmentKey(clean);
+      if (attachments.some((a) => attachmentKey(a) === key)) return true;
+      if (attachments.length >= MAX_ATTACHMENTS) return false;
+      attachments = [...attachments, clean];
+      emit();
+      return true;
+    },
+
+    detach(target) {
+      const key = typeof target === 'string' ? target : attachmentKey(target);
+      const kept = attachments.filter((a) => attachmentKey(a) !== key);
+      if (kept.length === attachments.length) return;
+      attachments = kept;
+      emit();
     },
 
     busy: () => turn !== null || status === 'undoing',

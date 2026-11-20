@@ -2,6 +2,7 @@ import {
   Button,
   Callout,
   ChatActivity,
+  ChatAttachments,
   ChatLog,
   ChatMessage,
   ChatTurn,
@@ -17,6 +18,8 @@ import type { GurukulDesktop } from '../../desktop/bridge';
 import { Prose } from '../../player/blocks';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { MESSAGE_MAX_LENGTH } from './agent';
+import { attachmentKey } from './attachments';
+import type { AttachTarget } from './attachments';
 import { ProblemNote, UnavailableCard, Words } from './Problem';
 import type { AgentSessionHandle } from './useAgentSession';
 import { chatLines, turnLabel } from './workspace';
@@ -24,6 +27,10 @@ import { chatLines, turnLabel } from './workspace';
 /** Where Review opens on one turn's changes (`DSK-14` reads `turn`). */
 export const reviewPath = (sessionId: string, turnId?: string) =>
   `/studio/sessions/${sessionId}/review${turnId ? `?turn=${encodeURIComponent(turnId)}` : ''}`;
+
+/** Attached parts as chips: keyed by what they point at, named in plain words. */
+const chips = (targets: readonly AttachTarget[]) =>
+  targets.map((t) => ({ id: attachmentKey(t), label: t.label }));
 
 const CLOSED = {
   saved:
@@ -52,6 +59,8 @@ export function ChatPanel({
   onDraft: (text: string) => void;
 }) {
   const { status, problem, transcript, turns, unsaved, activity, canSend, canUndo } = agent;
+  const { attachments, detach } = agent;
+  const attached = useMemo(() => chips(attachments), [attachments]);
   const lines = useMemo(() => chatLines(transcript, turns, unsaved), [transcript, turns, unsaved]);
   const log = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -128,6 +137,13 @@ export function ChatPanel({
             return (
               <ChatMessage key={key} from="you" author="You">
                 {entry.text}
+                {entry.attachments ? (
+                  <ChatAttachments
+                    label="Attached to this message"
+                    items={chips(entry.attachments)}
+                    className="ss-chat__attached"
+                  />
+                ) : null}
               </ChatMessage>
             );
           }
@@ -157,13 +173,21 @@ export function ChatPanel({
         <>
           {problem ? <ProblemNote problem={problem} desktop={desktop} /> : null}
           <form className="ss-composer" onSubmit={onSubmit}>
+            <ChatAttachments
+              label="Attached to your next message"
+              items={attached}
+              onRemove={detach}
+              onEmptied={() => box.current?.focus()}
+            />
             <Textarea
               ref={box}
               label="Ask for a change"
               hint={
                 status === 'connecting'
                   ? 'Starting the agent…'
-                  : 'Enter sends; Shift and Enter start a new line.'
+                  : attached.length === 0
+                    ? 'Enter sends; Shift and Enter start a new line. To point at one part of the course, attach it from the Preview or the Outline.'
+                    : 'Enter sends, with what is attached; Shift and Enter start a new line.'
               }
               rows={3}
               maxLength={MESSAGE_MAX_LENGTH}

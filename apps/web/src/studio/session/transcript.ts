@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_ATTACHMENTS, attachTargetSchema } from './attachments';
 
 /*
  * A session's chat as it is kept on the laptop: `sessions/{uid}/{sessionId}/transcript.jsonl`, one
@@ -20,8 +21,14 @@ const turnId = z.string().min(1).max(80);
 const text = z.string().max(1_000_000);
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [
-  /** What the Educator sent. */
-  z.object({ kind: z.literal('educator'), turnId, at, text }),
+  /** What the Educator sent, with the parts of the course attached to it (`DSK-20`), if any. */
+  z.object({
+    kind: z.literal('educator'),
+    turnId,
+    at,
+    text,
+    attachments: z.array(attachTargetSchema).max(MAX_ATTACHMENTS).optional(),
+  }),
   /** One block of the agent's reply, as Claude Code streamed it. */
   z.object({ kind: z.literal('agent'), turnId, at, text }),
   /** What the agent was doing, in plain words: "Loading the humanize skill", "Adding a block". */

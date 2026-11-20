@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { createAgentSession } from './agent';
 import type { AgentSession, AgentSessionOptions, AgentSessionView } from './agent';
+import type { AttachTarget } from './attachments';
 
 /*
  * One runtime per open session, shared by every component that shows it (the chat, the preview,
@@ -64,6 +65,8 @@ export interface AgentSessionHandle extends AgentSessionView {
   stop(): Promise<void>;
   undo(): Promise<boolean>;
   retry(): Promise<void>;
+  attach(target: AttachTarget): boolean;
+  detach(target: AttachTarget | string): void;
 }
 
 const LOADING: AgentSessionView = {
@@ -78,6 +81,8 @@ const LOADING: AgentSessionView = {
   turns: [],
   unsaved: null,
   turnChanges: 0,
+  attachments: [],
+  canAttach: false,
   canSend: false,
   canStop: false,
   canUndo: false,
@@ -93,6 +98,8 @@ export interface AgentSessionSource {
   stop(): Promise<void>;
   undo(): Promise<boolean>;
   retry(): Promise<void>;
+  attach(target: AttachTarget): boolean;
+  detach(target: AttachTarget | string): void;
 }
 
 /**
@@ -117,6 +124,8 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     stop: async () => held?.stop(),
     undo: async () => (held ? held.undo() : false),
     retry: async () => held?.retry(),
+    attach: (target) => held?.attach(target) ?? false,
+    detach: (target) => held?.detach(target),
   };
 }
 
@@ -130,5 +139,13 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     [desktop, uid, sessionId],
   );
   const view = useSyncExternalStore(source.subscribe, source.getState);
-  return { ...view, send: source.send, stop: source.stop, undo: source.undo, retry: source.retry };
+  return {
+    ...view,
+    send: source.send,
+    stop: source.stop,
+    undo: source.undo,
+    retry: source.retry,
+    attach: source.attach,
+    detach: source.detach,
+  };
 }

@@ -116,6 +116,8 @@ describe('agentSessionSource', () => {
     expect(await source.undo()).toBe(false);
     await source.stop();
     await source.retry();
+    expect(source.attach({ kind: 'course', ids: {}, label: 'Course details' })).toBe(false);
+    source.detach('course');
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });
@@ -129,6 +131,12 @@ describe('useAgentSession', () => {
     );
     await waitFor(() => expect(result.current.status).toBe('ready'));
     expect(result.current.work?.course.title).toBe('Git, the NonStop Way');
+    act(() => {
+      expect(result.current.attach({ kind: 'landing', ids: {}, label: 'Landing page' })).toBe(true);
+    });
+    expect(result.current.attachments).toHaveLength(1);
+    act(() => result.current.detach('landing'));
+    expect(result.current.attachments).toHaveLength(0);
     await act(async () => {
       expect(await result.current.send('Rename the course.')).toBe(true);
     });
