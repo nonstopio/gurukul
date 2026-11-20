@@ -571,7 +571,8 @@ As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/deskt
   in them, and the window says the folder could not be opened.
 - **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
   answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
-  The workspace (`DSK-13`) passes it to `defaultToolContext`.
+  The session runtime (`createAgentSession`, `DSK-13`) uses it by default and passes it to
+  `defaultToolContext`.
 - Not built here: changing the folder from the workspace, and clicking a block (`DSK-20`'s other half).
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
