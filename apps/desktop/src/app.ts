@@ -105,6 +105,8 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   const dev = !app.isPackaged;
   const origins = allowedOrigins(dev);
   let current: WindowLike | null = null;
+  // Set once the agent bridge exists: what a window's page going away ends (`agent.cancelAsks`).
+  let pageGone: () => void = () => undefined;
 
   const open = () => {
     const win = openWindow(
@@ -116,7 +118,11 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     );
     win.on('closed', () => {
       if (current === win) current = null;
+      pageGone();
     });
+    // A reload (or any new page) leaves the old page's one-shot asks unheard: end them, so they
+    // do not hold the shell's places from the new page's (`DSK-18`).
+    win.webContents.on('did-navigate', () => pageGone());
     // The Educator chose Update ready and the web found nothing unsaved; a page that still asks to
     // stay would leave the restart hanging (Electron cancels the quit without a word) and, on
     // Windows, the installer already running beside the open app. Studio's draft keeps a copy on
@@ -198,6 +204,7 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
   });
   // Quitting ends every session's `claude` rather than leaving it to finish a turn unheard.
   app.on('will-quit', () => agent.closeAll());
+  pageGone = () => agent.cancelAsks();
   registerHandlers(
     deps.ipc,
     createHandlers({

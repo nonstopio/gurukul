@@ -301,6 +301,24 @@ describe('the agent manager’s ask', () => {
     manager.cancelAsk('nothing');
   });
 
+  it('ends every ask, and only the asks, when the page that asked is gone', async () => {
+    const { manager, startedFor } = managerSetup();
+    const one = manager.ask({ askId: 'a1', prompt: 'Q1' });
+    const two = manager.ask({ askId: 'a2', prompt: 'Q2' });
+    const first = await startedFor('Q1');
+    await startedFor('Q2');
+    manager.cancelAsks();
+    await expect(one).resolves.toEqual({ ok: false, error: { code: 'cancelled' } });
+    await expect(two).resolves.toEqual({ ok: false, error: { code: 'cancelled' } });
+    expect(first.child.kill).toHaveBeenCalledWith('SIGTERM');
+    // Both places are free for the next page's asks.
+    const next = manager.ask({ askId: 'a3', prompt: 'Q3' });
+    const third = await startedFor('Q3');
+    third.print(text('{}'));
+    third.print(done());
+    await expect(next).resolves.toEqual({ ok: true, text: '{}' });
+  });
+
   it('ends every ask when the app quits', async () => {
     const { manager, startedFor, asks } = managerSetup();
     // One still finding claude: it never starts.

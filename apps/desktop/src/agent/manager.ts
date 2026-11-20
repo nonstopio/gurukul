@@ -76,6 +76,11 @@ export interface AgentManager {
   ask(request: AgentAskRequest): Promise<AgentAskResult>;
   /** Ends a running ask; it answers `cancelled`. */
   cancelAsk(askId: string): void;
+  /**
+   * Ends every running ask: the page that asked was reloaded or its window closed, so nobody waits
+   * for the answers, and they would hold the shell's places from the next page's asks.
+   */
+  cancelAsks(): void;
   /** Ends every session's process and every ask now, a starting one too: the app is quitting. */
   closeAll(): void;
 }
@@ -199,6 +204,13 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
     return { ok: true, agentSessionId };
   };
 
+  function cancelAsks() {
+    for (const slot of asks.values()) {
+      slot.cancelled = true;
+      slot.run?.cancel();
+    }
+  }
+
   const ask = async (
     request: AgentAskRequest,
     slot: { cancelled: boolean; run: AskRun | null },
@@ -305,12 +317,11 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
       }
     },
 
+    cancelAsks,
+
     closeAll() {
       for (const run of processes) run.kill();
-      for (const slot of asks.values()) {
-        slot.cancelled = true;
-        slot.run?.cancel();
-      }
+      cancelAsks();
     },
   };
 }

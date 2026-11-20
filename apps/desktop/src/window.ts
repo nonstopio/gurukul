@@ -79,6 +79,8 @@ export interface WindowLike {
         isMainFrame: boolean,
       ) => void,
     ): unknown;
+    /** The top frame loaded a page: the first one, a reload, or another page. */
+    on(event: 'did-navigate', listener: () => void): unknown;
     /** The page asked to stay (`beforeunload`); `preventDefault` leaves it anyway. */
     on(
       event: 'will-prevent-unload',

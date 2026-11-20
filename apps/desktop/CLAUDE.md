@@ -77,8 +77,9 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   an argument, a file or a log field. Nothing `claude` prints is logged.
 - **`agent.ask` is the only other `claude`** (`askArgs`): no tools, no MCP server, no settings, no
   saved chat, the allow-listed environment without a token, in `{userData}/ask`, at most
-  `MAX_ASKS_RUNNING` at once. The prompt goes to its input, never an argument; neither the prompt
-  nor the reply is logged.
+  `MAX_ASKS_RUNNING` at once over every session. A reload or a closed window ends them all
+  (`cancelAsks`, from `app.ts`). The prompt goes to its input, never an argument; neither the
+  prompt nor the reply is logged.
 - **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
   stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`;
   `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else.

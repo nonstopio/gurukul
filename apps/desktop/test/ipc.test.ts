@@ -56,6 +56,7 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
     ask: vi.fn(async () => ({ ok: true as const, text: '{"correct":["A"]}' })),
     cancelAsk: vi.fn(),
     closeAll: vi.fn(),
+    cancelAsks: vi.fn(),
     ...overrides,
   };
 }
