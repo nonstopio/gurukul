@@ -73,6 +73,8 @@ type SessionActions = Pick<
   | 'keepEdits'
   | 'endEdits'
   | 'dropIncomplete'
+  | 'saveToDraft'
+  | 'bringIn'
 >;
 
 /** What the session screens get: the view, and what the Educator can do. */
@@ -97,6 +99,8 @@ const LOADING: AgentSessionView = {
   canUndo: false,
   canEdit: false,
   handEdits: null,
+  canSave: false,
+  saving: false,
 };
 
 type SessionKey = Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>;
@@ -137,6 +141,9 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     keepEdits: async () => (held ? held.keepEdits() : false),
     endEdits: async () => held?.endEdits(),
     dropIncomplete: async () => held?.dropIncomplete(),
+    saveToDraft: async (write) =>
+      held ? held.saveToDraft(write) : { ok: false, reason: 'busy' as const },
+    bringIn: async (base, work, summary) => (held ? held.bringIn(base, work, summary) : false),
   };
 }
 
@@ -164,5 +171,7 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     keepEdits: source.keepEdits,
     endEdits: source.endEdits,
     dropIncomplete: source.dropIncomplete,
+    saveToDraft: source.saveToDraft,
+    bringIn: source.bringIn,
   };
 }

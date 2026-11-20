@@ -602,8 +602,11 @@ newer session of the same course.
 - Closing the app, signing out or losing the network keeps the session.
 - **Discard** needs a typed confirmation of the course title when the session has more than five
   changes; the stored draft is untouched.
-- A session can be saved more than once: after Save to draft it stays open with the new draft as
-  its base ("Saved 11 changes. Keep working, or close the session"). Closing marks it `saved`.
+- **Save to draft closes the session** (changed in `DSK-15`): it is marked `saved` and shows what
+  was saved, with the course editor and Publish…. More work on the course is a new session, which
+  starts from the draft just saved. (The plan first kept a saved session open with the new draft
+  as its base; its turns, checkpoints and Undo all measure from the copy the session started
+  from, so a session that kept going after a save would undo past what the draft now holds.)
 - The agent never publishes, never changes who can open a course, never deletes a course.
 
 ### Starting a session
@@ -777,8 +780,8 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
 - **The header** is the focused layout's top bar: back to the Studio courses, the session title,
   "N changes · checks pass" (or "· 1 check fails") and **Review**. The checks there are the two
   that stop a save and need no read: Course is valid and Size. Draft is up to date needs a
-  Firestore read and stays with Review (`DSK-14`). There is no [⋯] menu yet: Discard and Close come
-  with Save (`DSK-15`).
+  Firestore read and stays with Review (`DSK-14`, read by `DSK-15`). There is no [⋯] menu yet:
+  Save to draft closes a session (`DSK-15`); Discard and a Close without saving are still to come.
 - **Review is its own route**, `/studio/sessions/:sessionId/review`, the same page reading the path,
   so the header stays and the shared runtime keeps the agent going between the two (`DSK-14` fills
   it: As built in `DSK-14`, under Review). A turn's line links to `…/review?turn=<turn id>`: the
@@ -1169,6 +1172,61 @@ Found while building it:
 - Two copies each within the limits can merge into one over them (31 chapters, 61 lessons in a
   chapter, over `COURSE_BYTES_LIMIT`). The merged copy goes through Review's checks like any
   working copy, so "Course is valid" or Size stops that save.
+
+### As built in `DSK-15`
+
+`apps/web/src/studio/session/save.ts` (without React: the check, the words, `saveSession`,
+`bringInDraft`), `SaveToDraft.tsx` (the notice, the footer's Save, the saved card),
+`MergeDialog.tsx` (Bring in their changes), `useDraftCheck.ts` (the stored draft's read); the
+runtime's `saveToDraft` and `bringIn` in `agent.ts`.
+
+- **One write, through Studio's own save.** The page hands the runtime `StudioData.saveDraft`
+  (the transaction with the `rev` check that the editors' autosave uses, `answersChanged` decided
+  against the stored draft inside it); the runtime marks the copy with `markAnswerEdits` against
+  the base first, as the editors mark theirs. Nothing else in a session writes Firestore. While it
+  is written (`saving`), Send, Undo, hand edits, an Educator's turn and Retry wait. Save is offered
+  when the agent cannot run too (Claude Code missing or signed out): saving does not need it. It
+  is not offered while the agent is being started, while a turn runs, an undo or Educator's turn is
+  written, or hand edits are open; the button says which, and why else it waits (Course is valid,
+  Size, the draft moved, nothing changed yet).
+- **After the save** the session is closed as `saved` through the store (`close`; its files go
+  `SESSION_FILES_DAYS` later as for any closed session), its agent's listeners end and
+  `agent.close` ends its `claude`. The base stays the draft it was compared with, so Review still
+  lists what was saved and the saved card says "N changes saved to Draft v(base + 1)". If the draft
+  was written but `session.json` could not be marked saved, the page says so: opened again, the
+  session finds the draft moved (saved by you), brings it in with nothing to choose, and has nothing
+  left to save. Publish… reads the live course once (`getCourse`, fresh) and opens Studio's
+  `PublishDialog` over the saved copy; its links go to the course editor.
+- **A failed save** keeps the session open as it was, says why in plain words (refused by the
+  rules, no connection, anything else), and logs once (`Session save to draft failed`, with the
+  session and course ids). A conflict in the transaction (`DraftConflictError`) is not a failure:
+  the draft is read again and the page shows it moved, so the merge runs again however many times
+  the rev moves between a merge and a save.
+- **The stored draft is read once when the page opens an open edit session** (`useDraftCheck`,
+  mounted where the chat, Review and the editors share it, so moving between them reads nothing
+  more), again only on Check again (after a failed read, which does not stop Save: the
+  transaction checks the rev itself) and after a conflict at save. A rev different from the base's
+  is "moved" (`!==`, not only "past": a rev only grows, and any other answer would fail the save's
+  check anyway). A new course and a closed session read nothing.
+- **Who and when**: "saved by" names the saver from the course's own `educatorNames` (no profile
+  read), "you" for the signed-in person (the Educator in the browser), else "someone else" (an
+  Admin not on the course); the time is "at 14:10" today and "on 18 Nov at 14:10" another day.
+- **Bring in their changes** is a dialog that works out the merge once when it opens: what the
+  draft changed (a count), each list both reordered said in words ("this session's order is
+  kept"), and each conflict with its reason and both changes drawn with Review's `RowDiff` (each
+  side's own row against the base, keyed by the conflict's key; a field conflict shows only its
+  field), and a `Radio` pair, Keep this session's or Keep theirs, 25 conflicts to a page. Its button
+  waits until every conflict has a side. The merged copy must pass the course schema to be
+  written (a session file holds only a valid course), so one over the schema's limits (31
+  chapters) is refused in words rather than saved; Size is left to Review's check, as planned.
+- **The merge is a turn by the Educator** ("Brought in Draft v5, saved by Arjun", a checkpoint,
+  a line in the chat, `HAND_EDIT_NOTE` for the agent's next message) with the stored draft as the
+  new base, so Undo takes it back like any turn; when the working copy did not change, only the
+  base moves and there is no turn.
+- Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
+  a session started on a draft whose `course.publishedAt` is set (any published course) is written
+  but then cannot be read back ("This session is not on this computer"). It belongs to the store
+  (`DSK-11`).
 
 ## The agent's tools
 

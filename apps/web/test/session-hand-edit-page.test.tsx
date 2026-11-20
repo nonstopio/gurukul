@@ -113,9 +113,9 @@ describe('Open in editor from the session workspace', () => {
     expect(screen.getByText('Edited by hand: Why Git')).toBeTruthy();
     await waitFor(() => expect(s.disk().turns).toMatchObject([{ by: 'educator', changes: 1 }]));
     expect(titleOf(s.disk().work, 'l1')).toBe('Why Git');
-    // Never Firestore.
+    // Never Firestore: the one read is the page's check of the stored draft when it opened.
     expect(s.studio.data.saveDraft).not.toHaveBeenCalled();
-    expect(s.studio.data.getDraft).not.toHaveBeenCalled();
+    expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
   });
 
   it('opens a Quiz from the Outline in the Quiz builder, with nothing that writes Firestore', async () => {

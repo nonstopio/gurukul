@@ -124,6 +124,9 @@ describe('agentSessionSource', () => {
     expect(await source.keepEdits()).toBe(false);
     await source.endEdits();
     await source.dropIncomplete();
+    expect(await source.saveToDraft(async () => 1)).toEqual({ ok: false, reason: 'busy' });
+    const base = { rev: 1, savedAt: null, work: { course: makeCourse(), answers: {} } };
+    expect(await source.bringIn(base, base.work, 'x')).toBe(false);
     expect(s.agent.status).not.toHaveBeenCalled();
     expect(s.listening()).toBe(0);
   });
