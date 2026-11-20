@@ -143,6 +143,14 @@ describe('comparing media and checks', () => {
     const alone = group('changed: Check block 7');
     expect(within(alone).getByText('Correct answer changed: A → B')).toBeTruthy();
     expect(within(alone).getByText('Sure?')).toBeTruthy();
+    // Inline, the letters and the right answers on each side are on screen for the line above.
+    expect(merged.querySelector('.ss-review__options')?.textContent).toBe(
+      'A. Yes (correct before)B. removed: Noadded: Perhaps (correct now)C. removed: Maybe',
+    );
+    // Only the key changed: drawn once, as the learner sees it, letters and all.
+    expect(alone.textContent).toBe(
+      'Changed · Check block 7Correct answer changed: A → BSure?AYesBNo',
+    );
     // Inline, media shows before above after.
     expect(
       [...group('changed: Video block 2').querySelectorAll('.g-diff-row__side')].map(
@@ -239,7 +247,7 @@ describe('comparing a moved lesson and a Quiz', () => {
       chapterOf(c, 'p1').items.push(moved as Quiz);
       answers.q1 = { k1: ['c'], k3: ['b'], k4: ['a'] };
     });
-    draw(b, work, 'quiz:q1');
+    const { view } = draw(b, work, 'quiz:q1');
     expect(screen.getByText('Moved from History, position 2 to Basics, position 3.')).toBeTruthy();
     const added = group('added: Question 2');
     expect(within(added).getByText('Output?')).toBeTruthy();
@@ -255,6 +263,14 @@ describe('comparing a moved lesson and a Quiz', () => {
     expect(before.textContent).toContain('A. removed: A (correct)B. B');
     expect(screen.getByRole('button', { name: '1 unchanged question' })).toBeTruthy();
     expect(await axeViolations(document.body.firstElementChild as Element)).toEqual([]);
+    view.unmount();
+    // Inline (the only view below 1024px): each option's letters before and after, and where it
+    // is right, so "A → B" points at what is on screen.
+    draw(b, work, 'quiz:q1', 'inline');
+    const inline = group('changed and moved: Question 3');
+    expect(inline.querySelector('.ss-review__options')?.textContent).toBe(
+      'A. removed: A (correct before)B → A. BB. added: C (correct now)',
+    );
   });
 
   it('folds unchanged questions, and opens them with their keys', () => {
