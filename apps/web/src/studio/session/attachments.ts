@@ -46,6 +46,8 @@ export const attachTargetSchema = z.discriminatedUnion('kind', [
 ]);
 export type AttachTarget = z.infer<typeof attachTargetSchema>;
 export type AttachKind = AttachTarget['kind'];
+/** The target of one kind, its ids known. */
+export type TargetOf<K extends AttachKind> = Extract<AttachTarget, { kind: K }>;
 
 /** One key per attachable part, whatever its label: `block:l1:b2`. */
 export function attachmentKey(target: Pick<AttachTarget, 'kind' | 'ids'>): string {
@@ -100,7 +102,7 @@ export function chapterTarget(
   words: AttachWords,
   chapter: { id: string; title: string },
   number: string,
-): AttachTarget {
+): TargetOf<'chapter'> {
   return {
     kind: 'chapter',
     ids: { chapterId: chapter.id },
@@ -113,7 +115,7 @@ export function itemTarget(
   words: AttachWords,
   item: { id: string; type: 'lesson' | 'quiz'; title: string },
   number: string,
-): AttachTarget {
+): TargetOf<'item'> {
   const kind = item.type === 'lesson' ? words.lesson : words.quiz;
   return { kind: 'item', ids: { itemId: item.id }, label: named(`${kind} ${number}`, item.title) };
 }
@@ -126,7 +128,7 @@ export function blockTarget(
   block: { id: string },
   blockWords: string,
   position: number,
-): AttachTarget {
+): TargetOf<'block'> {
   return {
     kind: 'block',
     ids: { itemId, blockId: block.id },
@@ -141,7 +143,7 @@ export function questionTarget(
   number: string,
   questionId: string,
   position: number,
-): AttachTarget {
+): TargetOf<'question'> {
   return {
     kind: 'question',
     ids: { itemId, questionId },

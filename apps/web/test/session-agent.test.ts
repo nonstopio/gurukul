@@ -674,7 +674,9 @@ describe('attached parts of the course', () => {
     await s.runtime.open();
     s.runtime.attach(block);
     let refuse: (error: Error) => void = () => undefined;
-    s.agent.send.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
+    s.agent.send.mockImplementationOnce(
+      () => new Promise<undefined>((_, reject) => (refuse = reject)),
+    );
     const sending = s.runtime.send('Shorter.');
     expect(s.state().attachments).toEqual([]);
     s.runtime.attach(question);

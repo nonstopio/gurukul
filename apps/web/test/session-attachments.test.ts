@@ -51,7 +51,8 @@ describe('attached parts of the course', () => {
     expect(attachmentKey(blockTarget(WORDS, 'l1', '3.2', { id: 'b2' }, 'Text block', 2))).toBe(
       'block:l1:b2',
     );
-    expect(attachmentKey({ ...COURSE_TARGET, label: 'Other words' })).toBe('course');
+    const renamed: AttachTarget = { ...COURSE_TARGET, label: 'Other words' };
+    expect(attachmentKey(renamed)).toBe('course');
   });
 
   it('keeps a label to one line and cuts a long one on a word', () => {
