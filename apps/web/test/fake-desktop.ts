@@ -1,6 +1,8 @@
 import { vi } from 'vitest';
 import { isAgentSessionFile } from '../src/desktop/bridge';
 import type {
+  AgentAskRequest,
+  AgentAskResult,
   AgentEvent,
   AgentStartResult,
   AgentStatus,
@@ -85,6 +87,8 @@ export function fakeDesktop(
       close: refuse,
       forget: vi.fn(async () => undefined),
       toolResult: refuse,
+      ask: refuse,
+      cancelAsk: refuse,
       onEvent: vi.fn(() => () => undefined),
       onToolCall: vi.fn(() => () => undefined),
     },
@@ -145,6 +149,9 @@ export function fakeAgent(
       answers.get(callId)?.(result);
       answers.delete(callId);
     }),
+    // The one-shot ask (`DSK-18`) is the test's own: `fakeAsk` plays it.
+    ask: desktop.agent.ask,
+    cancelAsk: desktop.agent.cancelAsk,
     onEvent: vi.fn((handler: (event: AgentEvent) => void) => {
       onEvent.add(handler);
       return () => {
@@ -184,3 +191,50 @@ export function installDesktop(desktop: GurukulDesktop) {
 export function uninstallDesktop() {
   delete (window as { gurukulDesktop?: unknown }).gurukulDesktop;
 }
+
+/**
+ * Plays the shell's `agent.ask` (`DSK-18`) without any `claude`: each ask waits until the test
+ * answers it (`answer`, `reply`, `reject`), and `cancelAsk` ends a waiting one as `cancelled`, as
+ * the shell does. `waiting()` lists the prompts still unanswered, oldest first.
+ */
+export function fakeAsk(desktop: GurukulDesktop) {
+  const open: {
+    request: AgentAskRequest;
+    resolve: (result: AgentAskResult) => void;
+    reject: (error: unknown) => void;
+  }[] = [];
+  const take = (text: string) => {
+    const at = open.findIndex((o) => o.request.prompt.includes(text));
+    if (at < 0) throw new Error('No such ask is waiting');
+    return open.splice(at, 1)[0] as (typeof open)[number];
+  };
+  const ask = vi.fn(
+    (request: AgentAskRequest) =>
+      new Promise<AgentAskResult>((resolve, reject) => open.push({ request, resolve, reject })),
+  );
+  const cancelAsk = vi.fn(async (askId: string) => {
+    const at = open.findIndex((o) => o.request.askId === askId);
+    if (at >= 0) open.splice(at, 1)[0]?.resolve({ ok: false, error: { code: 'cancelled' } });
+  });
+  desktop.agent.ask = ask;
+  desktop.agent.cancelAsk = cancelAsk;
+  return {
+    ask,
+    cancelAsk,
+    waiting: () => open.map((o) => o.request.prompt),
+    /** Answers the oldest waiting ask whose prompt contains `text` (the oldest of all, without). */
+    answer(result: AgentAskResult, text = '') {
+      take(text).resolve(result);
+    },
+    /** A reply in the shape the prompt asks for: `{"correct": [...], "reason": ...}`. */
+    reply(correct: string[], text = '', reason = 'The lesson says so.') {
+      take(text).resolve({ ok: true, text: JSON.stringify({ correct, reason }) });
+    },
+    reject(error: unknown, text = '') {
+      take(text).reject(error);
+    },
+  };
+}
+
+/** Lets every promise already settled run its callbacks: a macrotask after the microtasks. */
+export const flushPromises = () => new Promise<void>((resolve) => setTimeout(resolve, 0));

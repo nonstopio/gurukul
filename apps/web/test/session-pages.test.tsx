@@ -57,12 +57,13 @@ async function desktopWith(
 }
 
 describe('the Studio course list in a browser', () => {
-  it('offers no session buttons', async () => {
+  it('offers no session buttons, and the download card in their place', async () => {
     await openApp('/studio', { roles: ['educator'], studio: studio() });
     expect(await screen.findByRole('link', { name: 'Git' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'New course' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'New course with AI' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit with AI/ })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Build a course by chatting' })).toBeTruthy();
   });
 });
 
@@ -73,6 +74,8 @@ describe('the Studio course list in the desktop app', () => {
     expect(await screen.findByRole('button', { name: 'New course with AI' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Edit with AI: Git' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Edit with AI: Not mine' })).toBeNull();
+    // The app is already here: no download card.
+    expect(screen.queryByRole('region', { name: 'Build a course by chatting' })).toBeNull();
     // The 30-day clean-up looks at this person's sessions on each visit.
     await waitFor(() => expect(d.desktop.store.list).toHaveBeenCalledWith({ uid: 'u1' }));
     expect(await axeViolations(document.body)).toEqual([]);

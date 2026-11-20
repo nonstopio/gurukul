@@ -80,6 +80,8 @@ describe('buildBridge', () => {
     await bridge.store.remove({ uid: 'u', sessionId: 's' });
     await bridge.agent.send('s', 'Hello');
     await bridge.agent.toolResult('s', 'c1', { text: 'ok' });
+    await bridge.agent.ask({ askId: 'a1', prompt: 'Answer it.' });
+    await bridge.agent.cancelAsk('a1');
     await bridge.sources.read({ uid: 'u', sessionId: 's' }, 'notes.md');
     await bridge.auth.googleSignIn();
     await bridge.app.installUpdate();
@@ -91,6 +93,8 @@ describe('buildBridge', () => {
       ['gurukul:store.remove', { uid: 'u', sessionId: 's' }],
       ['gurukul:agent.send', 's', 'Hello'],
       ['gurukul:agent.toolResult', 's', 'c1', { text: 'ok' }],
+      ['gurukul:agent.ask', { askId: 'a1', prompt: 'Answer it.' }],
+      ['gurukul:agent.cancelAsk', 'a1'],
       ['gurukul:sources.read', { uid: 'u', sessionId: 's' }, 'notes.md'],
       ['gurukul:auth.googleSignIn'],
       ['gurukul:app.installUpdate'],

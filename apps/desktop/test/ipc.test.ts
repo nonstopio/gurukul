@@ -53,7 +53,10 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
     close: vi.fn(async () => undefined),
     forget: vi.fn(async () => undefined),
     toolResult: vi.fn(),
+    ask: vi.fn(async () => ({ ok: true as const, text: '{"correct":["A"]}' })),
+    cancelAsk: vi.fn(),
     closeAll: vi.fn(),
+    cancelAsks: vi.fn(),
     ...overrides,
   };
 }
@@ -296,6 +299,8 @@ describe('calls a later item builds', () => {
       ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }],
       'toolResult',
     ],
+    ['agent.ask', [{ askId: 'ask-1', prompt: 'Answer this question.' }], 'ask'],
+    ['agent.cancelAsk', ['ask-1'], 'cancelAsk'],
   ];
 
   it.each(agentCalls)('passes %s through to the agent bridge', async (name, args, method) => {
@@ -311,6 +316,10 @@ describe('calls a later item builds', () => {
       agentSessionId: 'a1',
     });
     await expect(call('agent.status', top())).resolves.toEqual({ state: 'not_installed' });
+    await expect(call('agent.ask', top(), { askId: 'a', prompt: 'p' })).resolves.toEqual({
+      ok: true,
+      text: '{"correct":["A"]}',
+    });
   });
 
   it('says agent.send failed (not_running) for a session with no process', async () => {
@@ -405,6 +414,11 @@ describe('calls a later item builds', () => {
       ['s1', 'c', { text: 'a', error: 'b' }],
     ],
     ['a tool result that is a string', 'agent.toolResult', ['s1', 'c', 'ok']],
+    ['an empty ask', 'agent.ask', [{ askId: 'a', prompt: '' }]],
+    ['an ask longer than the limit', 'agent.ask', [{ askId: 'a', prompt: 'x'.repeat(65_537) }]],
+    ['an ask with a schema', 'agent.ask', [{ askId: 'a', prompt: 'p', schema: {} }]],
+    ['an ask without an id', 'agent.ask', [{ prompt: 'p' }]],
+    ['a cancel without an id', 'agent.cancelAsk', ['']],
     ['a suggested folder name with a slash', 'sources.choose', [{ ...ref, suggestedName: 'a/b' }]],
     ['a Sources folder path', 'sources.list', [{ ...ref, path: '/etc' }]],
     ['a source name with a slash', 'sources.read', [ref, '../secret.md']],

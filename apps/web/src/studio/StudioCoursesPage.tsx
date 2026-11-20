@@ -20,6 +20,7 @@ import { CourseLimitNotice, Loaded } from '../learn/ui';
 import { useTerms } from '../labels/useTerms';
 import { pageFor } from '../paging';
 import { useTabParam } from '../useTabParam';
+import { DesktopDownloadCard } from './DesktopDownloadCard';
 import { NewCourseDialog } from './NewCourseDialog';
 import { useStudio } from './StudioProvider';
 import type { CourseListing } from '@gurukul/schema';
@@ -44,7 +45,8 @@ const STATUS = {
 /**
  * `/studio`: every course the person can see; the ones they may edit open in the course editor.
  * Inside the desktop app it also offers "New course with AI" and, on each course they may edit,
- * "Edit with AI" (`.plan/22-desktop-studio.md`, Starting a session); in a browser nothing changes.
+ * "Edit with AI" (`.plan/22-desktop-studio.md`, Starting a session); in a browser it shows the
+ * download card for that app instead (Download).
  */
 export function StudioCoursesPage() {
   const { data } = useStudio();
@@ -79,6 +81,7 @@ export function StudioCoursesPage() {
           </>
         }
       />
+      {desktop ? null : <DesktopDownloadCard />}
       <Loaded loadable={result}>
         {(list) => (
           <>

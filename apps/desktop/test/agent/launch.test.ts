@@ -4,6 +4,7 @@ import {
   BRIDGE_TOKEN_ENV,
   MIN_CLAUDE_VERSION,
   childEnv,
+  askArgs,
   claudeArgs,
   envValue,
   isAllowedEnvName,
@@ -87,6 +88,41 @@ describe('the allow-listed environment', () => {
     expect(envValue({ Path: 'C:\\bin' }, 'PATH', 'linux')).toBeUndefined();
     expect(envValue({}, 'PATH', 'win32')).toBeUndefined();
     expect(envValue({ PATH: '/bin' }, 'PATH', 'linux')).toBe('/bin');
+  });
+});
+
+describe('askArgs', () => {
+  it('pins a one-shot with no tools, no MCP server, no settings and no saved chat', () => {
+    expect(askArgs()).toEqual([
+      '-p',
+      '--input-format',
+      'stream-json',
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--strict-mcp-config',
+      '--setting-sources',
+      '',
+      '--tools',
+      '',
+      '--permission-mode',
+      'dontAsk',
+      '--no-session-persistence',
+    ]);
+  });
+
+  it('names no file, server or session, so nothing of a session reaches it', () => {
+    const args = askArgs();
+    for (const flag of [
+      '--mcp-config',
+      '--plugin-dir',
+      '--append-system-prompt-file',
+      '--resume',
+      '--session-id',
+      '--allowedTools',
+    ]) {
+      expect(args).not.toContain(flag);
+    }
   });
 });
 

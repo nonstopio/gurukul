@@ -119,6 +119,34 @@ export function claudeArgs(files: LaunchFiles, session: LaunchSession): string[]
   ];
 }
 
+/**
+ * The pinned command line of a one-shot `agent.ask` (`DSK-18`), without the program. The same
+ * stream-json the session uses, with one message and its input then closed; nothing else: no tools
+ * at all (`--tools ""`, so no skill loads either), no MCP server (`--strict-mcp-config` with no
+ * `--mcp-config`), none of the Educator's settings, hooks, notes or skills (`--setting-sources ""`),
+ * `dontAsk` so nothing waits for permission, and no chat kept in Claude Code's folder
+ * (`--no-session-persistence`: such a chat cannot be resumed, which a one-shot never is). The prompt
+ * goes to `claude`'s input, never an argument.
+ */
+export function askArgs(): string[] {
+  return [
+    '-p',
+    '--input-format',
+    'stream-json',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--strict-mcp-config',
+    '--setting-sources',
+    '',
+    '--tools',
+    '',
+    '--permission-mode',
+    'dontAsk',
+    '--no-session-persistence',
+  ];
+}
+
 /** `2.1.328` from `claude --version` (`2.1.328 (Claude Code)`), or null when it says no version. */
 export function parseVersion(output: string): string | null {
   const match = /^\s*v?(\d+)\.(\d+)\.(\d+)/.exec(output);

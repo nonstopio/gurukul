@@ -19,6 +19,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agent/manager.ts`                                                | `agent.*`: status, one `claude` per open session, tool results, `forget`, `closeAll` on quit             |
 | `src/agent/launch.ts`                                                 | The pinned flags, `MIN_CLAUDE_VERSION`, the allow-listed environment (`ALLOWED_ENV`)                     |
 | `src/agent/run.ts`                                                    | One running `claude`: messages in, events out, Stop (`interrupt`), close, tool calls to the window       |
+| `src/agent/ask.ts`                                                    | `agent.ask` (`DSK-18`): one one-shot `claude` (`askArgs`), prompt in, reply's words out, timeout, cancel |
 | `src/agent/stream.ts`                                                 | Stream-json both ways, pure: what each output line means                                                 |
 | `src/agent/endpoint.ts`                                               | The `gurukul` MCP server on `127.0.0.1`: bearer token, no `Origin`, the window's tools only              |
 | `src/agent/files.ts`                                                  | `prompt.md`, the `skills` plugin, `mcp.json`, `workdir/`; removing Claude Code's own transcript          |
@@ -74,6 +75,11 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   tested as constants). Changing either changes `.plan/22-desktop-studio.md` (Starting Claude Code)
   in the same commit. The endpoint's token is only in `claude`'s environment and in memory; never
   an argument, a file or a log field. Nothing `claude` prints is logged.
+- **`agent.ask` is the only other `claude`** (`askArgs`): no tools, no MCP server, no settings, no
+  saved chat, the allow-listed environment without a token, in `{userData}/ask`, at most
+  `MAX_ASKS_RUNNING` at once over every session. A reload or a closed window ends them all
+  (`cancelAsks`, from `app.ts`). The prompt goes to its input, never an argument; neither the
+  prompt nor the reply is logged.
 - **Tests never start the real `claude`.** `test/fixtures/fake-claude.mjs` speaks the spike's
   stream-json and calls the real endpoint; `test/agent/fakeClaude.ts` puts it on `PATH`;
   `test/fixtures/silent-claude.mjs` answers `initialize` and nothing else.

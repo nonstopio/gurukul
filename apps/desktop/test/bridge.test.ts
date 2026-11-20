@@ -4,6 +4,10 @@ import {
   BRIDGE_VERSION,
   CALLS,
   EVENTS,
+  MAX_ASK_PROMPT_LENGTH,
+  MAX_ASK_REPLY_LENGTH,
+  MAX_ASKS_RUNNING,
+  MAX_MESSAGE_LENGTH,
   MAX_PATH_SEGMENTS,
   MAX_SEGMENT_LENGTH,
   MAX_SKILL_PATH_SEGMENTS,
@@ -31,6 +35,8 @@ describe('bridge contract', () => {
       'agent.close',
       'agent.forget',
       'agent.toolResult',
+      'agent.ask',
+      'agent.cancelAsk',
       'sources.choose',
       'sources.list',
       'sources.reveal',
@@ -59,6 +65,12 @@ describe('bridge contract', () => {
 
   it('keeps a skill inside the session folder’s depth', () => {
     expect(MAX_SKILL_PATH_SEGMENTS).toBe(2);
+  });
+
+  it('holds an ask to a message’s length, a short reply and two at a time', () => {
+    expect(MAX_ASK_PROMPT_LENGTH).toBe(MAX_MESSAGE_LENGTH);
+    expect(MAX_ASK_REPLY_LENGTH).toBe(16 * 1024);
+    expect(MAX_ASKS_RUNNING).toBe(2);
   });
 });
 

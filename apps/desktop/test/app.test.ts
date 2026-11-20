@@ -12,7 +12,23 @@ import type { MenuItem } from '../src/menu';
 import { createLogger } from '../src/log';
 import type { ContentsLike } from '../src/navigation';
 import type { WindowLike, WindowOptions } from '../src/window';
+import type * as ManagerModule from '../src/agent/manager';
+import type { AgentManager } from '../src/agent/manager';
 import { fakePlatform } from './agent/fakes';
+
+// The real agent bridge, with each one the shell makes kept, so a test can watch its calls.
+const made = vi.hoisted(() => [] as AgentManager[]);
+vi.mock('../src/agent/manager', async (importOriginal) => {
+  const real = await importOriginal<typeof ManagerModule>();
+  return {
+    ...real,
+    createAgentManager: (options: Parameters<typeof real.createAgentManager>[0]) => {
+      const manager = real.createAgentManager(options);
+      made.push(manager);
+      return manager;
+    },
+  };
+});
 
 let userData: string;
 let home: string;
@@ -48,13 +64,15 @@ function fakeWindow() {
       ),
     },
     close: () => listeners.get('closed')?.(),
+    /** The top frame loads a page: a reload, say. */
+    navigate: () => contentsListeners.get('did-navigate')?.(),
     /** The page asks to stay; true when the shell let it go anyway. */
     vetoUnload: () => {
       const event = { preventDefault: vi.fn() };
       contentsListeners.get('will-prevent-unload')?.(event as never);
       return event.preventDefault.mock.calls.length > 0;
     },
-  } satisfies WindowLike & { close(): void; vetoUnload(): boolean };
+  } satisfies WindowLike & { close(): void; navigate(): void; vetoUnload(): boolean };
 }
 
 function setup({
@@ -273,6 +291,28 @@ describe('startApp', () => {
     await startApp(mac.deps);
     mac.emit('window-all-closed');
     expect(mac.deps.app.quit).not.toHaveBeenCalled();
+  });
+
+  it('ends the one-shot asks when the page is reloaded or the window closes', async () => {
+    const { deps, emit, windows } = setup({ platform: 'darwin' });
+    // A window the Dock opens before start-up has finished closes with no agent bridge yet.
+    let ready: () => void = () => undefined;
+    deps.app.whenReady.mockReturnValueOnce(
+      new Promise<undefined>((resolve) => (ready = () => resolve(undefined))),
+    );
+    const started = startApp(deps);
+    deps.windowCount.mockReturnValue(0);
+    emit('activate');
+    expect(() => windows[0]?.close()).not.toThrow();
+    ready();
+    await started;
+    const agent = made[made.length - 1] as AgentManager;
+    const cancelAsks = vi.spyOn(agent, 'cancelAsks');
+    const win = windows[windows.length - 1] as ReturnType<typeof fakeWindow>;
+    win.navigate();
+    expect(cancelAsks).toHaveBeenCalledTimes(1);
+    win.close();
+    expect(cancelAsks).toHaveBeenCalledTimes(2);
   });
 
   it('answers agent calls with the agent bridge, and ends its processes on quit', async () => {

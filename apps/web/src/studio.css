@@ -106,6 +106,43 @@
   text-align: center;
 }
 
+/* ---- The desktop app's download card (browser only) ---- */
+.sc-download__body {
+  display: grid;
+  gap: var(--space-5);
+}
+/* The install steps sit beside the offer once the content column is wide enough for both. */
+@media (width >= 80rem) {
+  .sc-download__body:has(> .sc-download__steps) {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+.sc-download__intro,
+.sc-download__offer,
+.sc-download__steps {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.sc-download__lead {
+  margin: 0;
+  max-width: 65ch;
+}
+.sc-download__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+.sc-download__steps ol {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
 /* ---- Course editor ---- */
 .sc-editor {
   display: grid;
@@ -1056,6 +1093,24 @@ h3.ss-outline__row {
   padding-left: var(--space-6);
   font: 400 var(--text-sm) / var(--leading-snug) var(--font-ui);
   color: var(--text-body);
+}
+.ss-checks__progress {
+  justify-self: stretch;
+}
+.ss-checks__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ss-checks__actions:empty {
+  display: none;
+}
+.ss-review__answers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  overflow-wrap: anywhere;
 }
 .ss-checks__findings li {
   display: grid;
