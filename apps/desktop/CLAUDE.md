@@ -117,7 +117,9 @@ The desktop specs bundle the shell into `e2e/dist/desktop` (with a made-up Googl
 is never called: `e2e/support/desktop.ts` answers the consent page and the token endpoint in the main
 process), start it with `--no-sandbox --ozone-platform=headless` (no display needed on Linux), a
 fresh `--user-data-dir`, a proxy that does not exist (no internet), the fake on `PATH` and its
-scenario in `CLAUDE_CONFIG_DIR`.
+scenario in `CLAUDE_CONFIG_DIR`. On Windows they are skipped and the shell is not bundled
+(`e2e/support/desktop-platform.mjs`): the fake's wrapper is a `#!/bin/sh` file and the headless
+window is Linux's.
 
 The signed-in check (`docs/desktop-release-setup.md`, step 9) runs with plain Node through `tsx`,
 no Electron: it asks before using the plan, prints `PASS`/`FAIL`/`INFO`/`SKIP` per step and a

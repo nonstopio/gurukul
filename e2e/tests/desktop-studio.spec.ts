@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { Desktop, FakeStep } from '../support/desktop';
 import { expect, signInToDesktop, test } from '../support/desktop';
+import { desktopSpecsSkipped } from '../support/desktop-platform.mjs';
 import { grantRoles, readDoc, readDraft, saveDraftAs } from '../support/emulators';
 import { APP_URL, GIT_COURSE } from '../support/env';
 
@@ -49,7 +50,12 @@ const renameLesson = (itemId: string, title: string): FakeStep[] => [
   { text: 'I renamed the lesson.' },
 ];
 
+const skipped = desktopSpecsSkipped(process.platform);
+
 test.describe('Gurukul Studio desktop app', () => {
+  // Windows runs the web specs only; the shell is not even bundled there (desktop-platform.mjs).
+  test.skip(skipped !== null, skipped ?? '');
+
   test('an edit session changes a lesson, and Save to draft writes it to the draft', async ({
     desktop,
   }) => {

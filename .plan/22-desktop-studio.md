@@ -1810,6 +1810,11 @@ specs (one Playwright project, the same emulators, the same reset before each te
   `--proxy-server` at a port nothing serves, so nothing but `127.0.0.1` is reachable from the
   window. CI's e2e job fetches Electron's binary (`require('electron')`, which
   `ELECTRON_SKIP_BINARY_DOWNLOAD` does not stop) and caches it.
+- **Linux, not Windows.** The fake is put on `PATH` as a `#!/bin/sh` wrapper and the window uses
+  Linux's headless mode, so on Windows the desktop specs are skipped and the shell is not bundled
+  (`e2e/support/desktop-platform.mjs`, tested by listing the specs as each platform). `npm run e2e`
+  and the pre-push hook still run there for every web spec, rather than refusing a Windows
+  contributor's push of a web change. CI runs the desktop specs on Linux.
 - **The test page is a development build's only.** The shell opens the e2e app because
   `GURUKUL_DESKTOP_TEST_URL` names it: `testUrl` in `apps/desktop/src/config.ts` reads it only when
   `app.isPackaged` is false, and only as `http` on `127.0.0.1` or `localhost` with a port; it then
