@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Button, buttonClass } from '../src';
@@ -141,5 +143,41 @@ describe('the axe helper', () => {
   it('does report a real violation, so a clean result means something', async () => {
     const { container } = render(<button type="button" />);
     expect(await axeViolations(container)).toEqual([expect.stringMatching(/^button-name/)]);
+  });
+
+  it('draws a filled button that cannot be pressed on a neutral ground, not a dimmed accent', () => {
+    const style = document.createElement('style');
+    // jsdom resolves no var(): each fill this asks about gets a colour of its own.
+    style.textContent = readFileSync(resolve(import.meta.dirname, '../src/button.css'), 'utf8')
+      .replaceAll('var(--accent)', 'rgb(70, 211, 155)')
+      .replaceAll('var(--danger)', 'rgb(255, 143, 134)')
+      .replaceAll('var(--surface-hover)', 'rgb(28, 41, 35)');
+    document.head.append(style);
+    try {
+      render(
+        <>
+          <Button>Ready</Button>
+          <Button disabled>Waiting</Button>
+          <Button loading>Saving</Button>
+          <Button variant="danger" disabled>
+            Delete
+          </Button>
+          <Button variant="secondary" disabled>
+            Cancel
+          </Button>
+        </>,
+      );
+      const look = (name: string) => getComputedStyle(screen.getByRole('button', { name }));
+      expect(look('Ready').backgroundColor).toBe('rgb(70, 211, 155)');
+      // Half an accent is still a bright green in the dark theme: it read as the one to press.
+      expect(look('Waiting').backgroundColor).toBe('rgb(28, 41, 35)');
+      expect(look('Waiting').opacity).toBe('1');
+      expect(look('Delete').backgroundColor).toBe('rgb(28, 41, 35)');
+      // Waiting on its own click keeps its colour; other variants keep the dimming.
+      expect(look('Saving').backgroundColor).toBe('rgb(70, 211, 155)');
+      expect(look('Cancel').opacity).toBe('0.5');
+    } finally {
+      style.remove();
+    }
   });
 });

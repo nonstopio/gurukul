@@ -16,7 +16,9 @@ Each recipe lists the tokens it uses, its states and its accessibility contract.
 | chrome    | chrome | `--chrome-accent` / `--chrome-accent-on`           | Primary action on dark chrome |
 
 States: hover, `:focus-visible` (`--focus-ring`), disabled (0.5 opacity,
-`not-allowed`). Height `--control-height`. Defaults to `type="button"`.
+`not-allowed`; a disabled primary or danger is a flat `--surface-hover` ground with `--text-subtle`
+and no dimming, because half an accent stays bright in the dark theme and reads as pressable, while
+`loading` keeps its colour). Height `--control-height`. Defaults to `type="button"`.
 
 ## CommandPalette — shipped
 

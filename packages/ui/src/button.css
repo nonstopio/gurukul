@@ -22,6 +22,16 @@
   cursor: not-allowed;
   opacity: 0.5;
 }
+/* A filled button that cannot be pressed takes a neutral ground: half an accent is still a bright
+   green (or red) in the dark theme, and reads as the button to press. One waiting on its own
+   click (`loading`, `aria-busy`) keeps its colour. */
+.g-btn--primary:disabled:not([aria-busy='true']),
+.g-btn--danger:disabled:not([aria-busy='true']) {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text-subtle);
+  opacity: 1;
+}
 .g-btn--primary {
   background: var(--accent);
   color: var(--accent-on);
