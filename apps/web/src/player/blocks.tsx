@@ -28,8 +28,12 @@ function Inline({ md }: { md: string }) {
   );
 }
 
-/** Markdown without raw HTML (react-markdown drops it); links always open in a new tab. */
-export function Prose({ md }: { md: string }) {
+/**
+ * Markdown without raw HTML (react-markdown drops it); links always open in a new tab. With
+ * `pictures={false}` (the agent's chat) a picture is drawn as its words only, so its address is
+ * never fetched (`.plan/22-desktop-studio.md`, The agent's tools).
+ */
+export function Prose({ md, pictures = true }: { md: string; pictures?: boolean }) {
   return (
     <div className="prose">
       <Markdown
@@ -39,6 +43,7 @@ export function Prose({ md }: { md: string }) {
               {children}
             </a>
           ),
+          ...(pictures ? {} : { img: ({ alt }) => <span>{alt}</span> }),
         }}
       >
         {md}

@@ -982,7 +982,9 @@ Rules every tool follows:
   a change that adds a picture (`![…](…)`, a reference picture, or raw media HTML) to a text or
   callout block, the course description, a check or a Quiz question is refused, read with the
   parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
-  so the agent can still edit the words around it.
+  so the agent can still edit the words around it. The chat is held to it too: the agent's
+  messages are drawn as Markdown without pictures (a picture shows as its words, raw HTML as
+  text), so nothing it writes there makes the app fetch an address.
 - There is no tool for publishing, access, roles, assignments, learners, progress, attempts,
   teams, the question bank of other people, or any other course.
 
