@@ -790,6 +790,47 @@ describe('a turn already running when the page opened', () => {
     expect(s.state().transcript.at(-1)).toMatchObject({ kind: 'agent', turnId: 't2' });
   });
 
+  it('does not take an undone turn’s message when the newest one never reached the disk', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await renameTurn(s, 'Git basics');
+    expect(await s.runtime.undo()).toBe(true);
+    expect(s.state().turns).toEqual([]);
+    // The chat write made when the next message is sent fails; the page then reloads mid-turn.
+    const write = s.store.writeTranscript;
+    s.store.writeTranscript = vi.fn().mockRejectedValue(REFUSED);
+    expect(await s.runtime.send('Add a Quiz on rebase.')).toBe(true);
+    await s.runtime.settled();
+    s.runtime.dispose();
+    s.store.writeTranscript = write;
+    const reloaded = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+      newId: () => 'r1',
+    });
+    await reloaded.open();
+    s.emit({ type: 'text', sessionId: 's1', text: 'Added the Quiz.' });
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await reloaded.settled();
+    // Not the undone turn's id or words: the page cannot know the message, and says so.
+    expect(reloaded.getState().turns).toMatchObject([
+      { id: 'r1', summary: 'Carried on after the page reloaded' },
+    ]);
+    expect(s.chat()).toMatchObject([
+      { kind: 'educator', turnId: 't1', text: 'Rename the course to Git basics.' },
+      { kind: 'notice', turnId: 't1', text: expect.stringMatching(/^Turn undone/) },
+      { kind: 'agent', turnId: 'r1', text: 'Added the Quiz.' },
+    ]);
+  });
+
   it('stays unavailable when a turn adopted while the agent could not run ends', async () => {
     const s = await setup({ agent: { status: { state: 'not_signed_in', version: '2.1.328' } } });
     await s.runtime.open();

@@ -486,13 +486,21 @@ export function createAgentSession({
 
   /**
    * The Educator's message the agent is still answering, as the chat on disk keeps it: the newest
-   * message, when no turn is written under its id. `send` writes the chat as soon as a message is
-   * sent, so a page that reloads mid-turn finds it there.
+   * message, when nothing follows it under its id and no turn is written under it. `send` writes
+   * the chat as soon as a message is sent, so a page that reloads mid-turn finds it there; the
+   * agent's words and any notice of the turn are written only at its end. A message something
+   * follows is an answered, refused or undone turn's (an undone turn's id leaves `turns`), so when
+   * the newest message never reached the disk the turn is "carried on", not given an old one's id.
    */
   const pendingMessage = (): RunningTurn | null => {
     const current = session as AuthoringSession;
     const last = transcript.findLast((entry) => entry.kind === 'educator');
-    if (!last || current.turns.some((t) => t.id === last.turnId) || unsaved?.id === last.turnId)
+    if (
+      !last ||
+      transcript.findLast((entry) => entry.turnId === last.turnId) !== last ||
+      current.turns.some((t) => t.id === last.turnId) ||
+      unsaved?.id === last.turnId
+    )
       return null;
     return { id: last.turnId, message: last.text };
   };
