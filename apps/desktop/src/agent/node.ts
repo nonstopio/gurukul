@@ -74,12 +74,13 @@ export function taskkillPath(env: Env): string {
  * `TerminateProcess` on the one process whatever the signal, and npm's `claude.cmd` runs as
  * `cmd.exe` with `claude` (Node) under it: ending only `cmd.exe` leaves `claude` running, its turn
  * going on with nobody listening, and a `claude` that hangs is never ended. `taskkill /T /F` ends
- * the tree. When `taskkill` cannot start or fails, Node's own `kill` is the fallback.
+ * the tree. When `taskkill` cannot start or fails, Node's own `kill` is the fallback. A program
+ * that never started (no pid) has nothing to end: Node's own `kill` would throw `EINVAL` on Windows.
  */
 export function killTree(child: ChildProcess, taskkill: string): void {
   const own = child.kill.bind(child);
   child.kill = (signal) => {
-    if (child.pid === undefined) return own(signal);
+    if (child.pid === undefined) return false;
     const killer = nodeSpawn(taskkill, ['/pid', String(child.pid), '/T', '/F'], {
       stdio: 'ignore',
       windowsHide: true,

@@ -768,7 +768,9 @@ export async function runSignedInCheck(options: SignedInCheckOptions): Promise<C
     return finish();
   } finally {
     manager.closeAll();
-    await rm(root, { recursive: true, force: true });
+    // Windows will not remove a folder a process still runs in, and `taskkill` ends the tree a
+    // moment later: retry while `EBUSY` lasts.
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
 }
 

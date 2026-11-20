@@ -1596,6 +1596,10 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   keeps its session as it does in the browser.
 - `claude` starts with an allow-listed environment (Starting Claude Code), so a variable set for
   something else cannot send a session's course text to another server or bill another account.
+  On Windows, Node's spawn (libuv) also copies in the system variables every Windows program
+  needs when the list lacks them (`HOMEDRIVE`, `HOMEPATH`, `LOGONSERVER`, `SYSTEMDRIVE`,
+  `USERDOMAIN`, `USERNAME`, `WINDIR`): none of them can redirect or bill a session. CI's first
+  Windows run showed it.
 - The agent's tool endpoint listens on `127.0.0.1` only, with a fresh random 256-bit token per
   `claude` process, and refuses a request without it or with an `Origin` header (a web page is
   never the caller). The token lives only in that process's environment and the main process's
@@ -1772,7 +1776,11 @@ As built in `DSK-22` (what could be done without the certificate or a Windows PC
   close and quit would have ended `cmd.exe` alone and left `claude` running its turn. The Node
   adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
   instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
-  cancelled-ask test, which checks the fake's own `node` is gone.
+  cancelled-ask test, which checks the fake's own `node` is gone. A program that never started
+  is not killed at all: Node's `kill` throws `EINVAL` for it on Windows (CI's first run).
+- **Removing a folder `claude` ran in waits for it on Windows.** Windows refuses to remove a
+  process's working folder while it runs, and `taskkill` ends the tree a moment after it is
+  called, so the signed-in check's clean-up retries while `EBUSY` lasts (CI's first run).
 - **Left for the maintainer** (`DSK-30`): confirm where NonStop io is registered, choose and buy the
   signing (open question 23; for an India-registered company, the certificate route and its
   follow-up change, `DSK-31`), set its settings, install a signed release on a real Windows PC and check the

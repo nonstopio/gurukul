@@ -16,10 +16,25 @@ export const PLATFORM = process.platform;
 export const CLAUDE_PROGRAM = PLATFORM === 'win32' ? 'claude.cmd' : 'claude';
 
 /**
- * What the wrapper itself adds to the environment it hands the script: `/bin/sh` sets `PWD`, and
- * `cmd.exe` sets `PROMPT`. Neither comes from the bridge.
+ * What the platform adds to the environment the script sees, none of it from the bridge: `/bin/sh`
+ * sets `PWD`; on Windows `cmd.exe` sets `PROMPT`, and libuv (Node's spawn) copies in the parent's
+ * value of each variable on its list of ones Windows programs need (`required_vars` in libuv's
+ * `src/win/process.c`) when the given environment lacks it. The rest of that list (`PATH`,
+ * `SYSTEMROOT`, `TEMP`, `USERPROFILE`) is allow-listed already.
  */
-export const WRAPPER_ENV: readonly string[] = PLATFORM === 'win32' ? ['PROMPT'] : ['PWD'];
+export const WRAPPER_ENV: readonly string[] =
+  PLATFORM === 'win32'
+    ? [
+        'PROMPT',
+        'HOMEDRIVE',
+        'HOMEPATH',
+        'LOGONSERVER',
+        'SYSTEMDRIVE',
+        'USERDOMAIN',
+        'USERNAME',
+        'WINDIR',
+      ]
+    : ['PWD'];
 
 /**
  * Writes `bin/claude` (`bin\claude.cmd` on Windows): a wrapper that runs `script` with this Node,

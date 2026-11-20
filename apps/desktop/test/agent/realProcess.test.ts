@@ -172,7 +172,7 @@ describe('a session against a fake claude', () => {
     ]);
     expect(run?.cwd).toBe(path.join(folder, 'workdir'));
     // Only allow-listed names reach claude, plus the token; the token never as an argument.
-    // (`WRAPPER_ENV` is set by the wrapper that stands in for the program, not by the bridge.)
+    // (`WRAPPER_ENV` is what the shell, `cmd.exe` or libuv adds on its own, not the bridge.)
     const extra = (name: string) =>
       !isAllowedEnvName(name, PLATFORM) && name !== BRIDGE_TOKEN_ENV && !WRAPPER_ENV.includes(name);
     expect(run?.env.filter(extra)).toEqual([]);
