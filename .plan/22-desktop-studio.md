@@ -424,7 +424,8 @@ created too.
 **Still needs a signed-in macOS and Windows machine** (none of it could be done here):
 
 - A real model round trip with the pinned flags and the HTTP endpoint: one message, one
-  `gurukul` tool call, a skill loaded, Stop, resume.
+  `gurukul` tool call, a skill loaded, Stop (the spike stopped a streaming turn only; the check
+  stops one with a `gurukul` call pending), resume.
 - The subscription sign-in with `--setting-sources ""` and the allow-listed environment: that a
   Claude plan sign-in (keychain on macOS, the credentials file on Windows) still works, and what
   `auth status` and `initialize` report for it. An Educator whose sign-in comes from their settings (`apiKeyHelper`, or a cloud
@@ -441,7 +442,12 @@ created too.
   under 104 bytes (a short temporary folder, not `Application Support`) and the hardened runtime
   with `ELECTRON_RUN_AS_NODE`.
 
-These are `DSK-26`.
+These are `DSK-26`. The maintainer runs them with one command on each signed-in machine,
+`npm run check:claude -w @gurukul/desktop` (`apps/desktop/src/agent/signedInCheck.ts`, steps in
+`docs/desktop-release-setup.md`): it drives the shipped agent manager, flags, environment and
+endpoint against the real `claude`, with a `ping` tool and a test skill, prints a block to paste,
+and asks first because it uses a few messages of the plan. The packaged app's firewall prompt and
+the stdio fallback stay hand checks.
 
 ### Signing in to Gurukul
 

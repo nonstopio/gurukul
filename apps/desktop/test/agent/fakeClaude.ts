@@ -9,7 +9,11 @@ export const FAKE_CLAUDE = fileURLToPath(new URL('../fixtures/fake-claude.mjs', 
 export interface FakeClaudeScenario {
   version?: string;
   loggedIn?: boolean;
+  /** `initialize`'s `account.apiKeySource`, when set. */
+  apiKeySource?: string;
   turns?: Record<string, unknown>[][];
+  /** Played instead of `turns` by a process started with `--resume`. */
+  resumeTurns?: Record<string, unknown>[][];
 }
 
 /**
