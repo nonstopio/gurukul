@@ -679,7 +679,8 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   therefore ship a migration of older files in `read`, or every older session becomes unreadable
   and is removed 30 days later.
 - **The route in a browser** shows a card ("Sessions open in the Gurukul Studio app") linking to
-  `github.com/nonstopio/gurukul/releases/latest` until the download card (`DSK-25`) exists. In the
+  the releases page, `DESKTOP_RELEASES_PAGE` in `desktop/download.ts`, the one address the download
+  card (`DSK-25`) uses too (`DSK-29`). In the
   app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
   (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
@@ -1264,6 +1265,11 @@ runtime's `saveToDraft` and `bringIn` in `agent.ts`.
 - **The page is keyed by the session** (`SessionView key={sessionId}`): moving to another session
   in place (global search opens one from a session page) starts its page afresh, so its draft is
   read for its own course and nothing of the last session's check or chat state carries over.
+- **Why Bring in their changes waits** is said as Save says it (`busyWaits`): the agent starting,
+  hand edits open, a change being written, or a turn running (`DSK-29`). The chat calls the merge
+  turn "draft brought in" (`turnBy`: the one turn with `baseBefore`), not "by hand". A disabled
+  primary button (the merge dialog's, until every conflict has a side) is a flat neutral ground in
+  both themes (`@gurukul/ui` `button.css`).
 - Found while building it, not fixed here: `session.json` cannot hold a Firestore `Timestamp`, so
   a session started on a draft whose `course.publishedAt` is set (any published course) is written
   but then cannot be read back ("This session is not on this computer"). It belongs to the store
@@ -1314,10 +1320,38 @@ course dialog), `createdBase`, `asCreated` and `CREATED_FILE` in `store.ts`, and
   that write fails, the button becomes **Save the draft**, which notes the course again and saves,
   with no second `createCourse`. The runtime holds it while the session is open in the app (leaving
   Review for the chat and coming back keeps it), and `created.json` holds it for a session opened
-  again later (read only while the session has no base). Not covered: the app closing between
-  `createCourse` answering and the `created.json` write, or neither file being writable and the
-  session then left; the session is still a new course then, and its address is taken by the empty
-  course just created (another address works; the empty course stays in Studio).
+  again later (read only while the session has no base). The app closing between `createCourse`
+  answering and the `created.json` write, or neither file being writable and the session then
+  left, is `DSK-28` (below).
+- **The Educator's name** on the created course is the one `createCourse` gives it (`creatorName`:
+  the Google name, else the email's local part), so the base built here matches the draft written
+  (`DSK-29`).
+
+As built in `DSK-28` (a new course created just before the app closed): `CREATING_FILE`
+(`creating.json`) and `creatingSchema` in `store.ts`, `ownCreatedBase` in `save.ts`, the runtime's
+`noteCreating` and `ownCourse`, and `SaveBar`'s create in `SaveToDraft.tsx`.
+
+- **A note before `createCourse`.** Each attempt writes `creating.json` first: the address, the
+  title, and `since`, when the first attempt at that address began (kept while the address stays
+  the same). A note that cannot be written is logged and the attempt goes on as before. The note is
+  read while the session has no base, and Create the course starts from its title and address.
+- **Recognised, not trusted.** When `createCourse` says an address is taken and this session had
+  tried that address before (the note named it before this attempt), the page reads the draft
+  there once (`getDraft`). It is the session's own course only when it is the blank course
+  `createCourse` writes for this person: `rev` 1, saved by them as its only Educator, version 0,
+  never published, no answer keys, nothing changed against `blankCourse` (`courseChanges`), and no
+  older than the note's `since` (10 minutes' allowance for the server's clock,
+  `CREATED_CLOCK_SKEW_MS`), with no other open session on this computer on that course. Then the
+  stored draft is the base and the session is noted as an edit session exactly as after a
+  successful create (`courseCreated`), and saved. That read counts as the page's read of the
+  draft (`useDraftCheck`'s `found`), so the session still reads it once. Anything else (someone
+  else's course, one changed in the browser since, one made before the attempt, a draft that
+  cannot be read) still says "That address is taken".
+- **Why not a nonce in the course.** `createCourse` stores nothing the session could match an
+  attempt id against, and adding one would change the course object; the address, the owner, the
+  blank content and the time say the same without it. A blank course the Educator made at that
+  address in the browser after the attempt began would be taken as the session's own: it is theirs
+  and empty, so nothing is lost.
 - **The entry.** "New course with AI" in the Studio course list (desktop app only) starts `kind:
   'new'` sessions (`DSK-11`). Studio's "Start a new course" card and New course stay the blank or
   duplicated course without AI, as in the browser.
@@ -1475,7 +1509,8 @@ Starting Claude Code):
   written (`acquireAnswerCheck`, shared like the session runtime). A saved or discarded session
   shows what was found and asks nothing. The two places are shared by every session's check, so
   `busy` is not a failure: the question waits, and the check asks again after five seconds or as
-  soon as one of its own asks ends.
+  soon as one of its own asks ends. While it waits so, the Answers line says the app's two places
+  are in use elsewhere (`waitingForPlace`, `DSK-29`).
 - **What Review shows.** The Answers line: progress ("0 of 2 checked", a progress bar) with
   Skip answer check; then "N answers to check" with each disagreement ("Quiz 2.2 · Question 2: A
   second opinion chose A; the key says B. “…”") and Show, or "N checked, all agree". A Quiz with a
@@ -1728,7 +1763,9 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
   storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
   share one, with the shell's contributors request too; a refusal (404 before the first release,
-  the rate limit) is kept as "nothing", a network failure is not. An installer counts only under
+  the rate limit) is kept as "nothing", a network failure is not, nor a request GitHub has not
+  answered in `RELEASE_TIMEOUT_MS` (8 s, ended then, so the card falls back to the releases page;
+  `DSK-29`). An installer counts only under
   the exact name `electron-builder.yml` gives it for the tag's version
   (`Gurukul-Studio-{v}-arm64.dmg`, `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it
   downloads from this repository's release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes
@@ -1740,7 +1777,8 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   iPad, or a release without that system's installer, the card names the installers it has and
   guesses no steps. No release, a failed request or no
   installer it knows: "Get Gurukul Studio from GitHub" to the releases page. Tip `desktop-app`
-  points at the card's download button. The site sets no Content-Security-Policy, so nothing to add
+  points at the card's download button and opens above it, so it does not cover the other
+  installers listed under it (`DSK-29`). The site sets no Content-Security-Policy, so nothing to add
   for `api.github.com`; the end-to-end specs already block it (`EXTERNAL`) and see the fallback.
 
 ### Housekeeping

@@ -64,6 +64,7 @@ const EMPTY: AnswerCheckView = {
   loaded: false,
   skipped: false,
   active: false,
+  waitingForPlace: false,
   problem: null,
   questions: [],
   done: 0,

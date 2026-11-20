@@ -12,6 +12,7 @@ import {
   previewEntries,
   questionMarks,
   rowsByKey,
+  turnBy,
   turnLabel,
 } from '../src/studio/session/workspace';
 import type { Working } from '../src/studio/types';
@@ -276,5 +277,12 @@ describe('chatLines', () => {
     expect(turnLabel(1, 1)).toBe('Turn 1 · 1 change');
     expect(turnLabel(2, 0)).toBe('Turn 2 · no changes');
     expect(turnLabel(5, 2, false)).toBe('Turn 5 · 2 changes · not saved');
+    expect(turnLabel(6, 1, true, 'educator')).toBe('Turn 6 · by hand · 1 change');
+    expect(turnLabel(7, 2, true, 'draft')).toBe('Turn 7 · draft brought in · 2 changes');
+    // Bring in their changes is the turn that moves the base; nothing else keeps one.
+    const turn = { by: 'educator' as const };
+    expect(turnBy(turn)).toBe('educator');
+    expect(turnBy({ ...turn, baseBefore: 't7.base.json' })).toBe('draft');
+    expect(turnBy({ by: 'agent' })).toBe('agent');
   });
 });

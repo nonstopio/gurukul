@@ -10,7 +10,7 @@ import { useTerms } from '../../labels/useTerms';
 import { log } from '../../log';
 import { useStudio } from '../StudioProvider';
 import { SourcesOffer } from './SourcesOffer';
-import { GOAL_MAX_LENGTH, createSessionStore, sessionPath } from './store';
+import { GOAL_MAX_LENGTH, createSessionStore, creatorName, sessionPath } from './store';
 import type { SessionStore } from './store';
 
 /** What the Studio course list asked to start: a new course, or an edit of one it lists. */
@@ -163,7 +163,7 @@ function StartForm({
       const result = await store.start(
         start.kind === 'edit'
           ? { kind: 'edit', courseId: start.courseId, goal, id: sessionId }
-          : { kind: 'new', goal, educatorName: user.displayName ?? undefined, id: sessionId },
+          : { kind: 'new', goal, educatorName: creatorName(user), id: sessionId },
         (id) => data.getDraft(id),
       );
       if (result.status === 'started') {

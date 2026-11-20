@@ -660,6 +660,22 @@ describe('the answer check', () => {
     expect(s.ask).toHaveBeenCalledTimes(6);
   });
 
+  it('says the wait is over when it ends with nothing to ask, as Review left meanwhile', async () => {
+    const s = setup();
+    const { work, changes } = session();
+    await s.check.open();
+    s.check.update({ work, changes, active: true });
+    s.answer({ ok: false, error: { code: 'busy' } }, 'git rebase do');
+    await flushPromises();
+    expect(s.check.getState().waitingForPlace).toBe(true);
+    s.check.setShown(false);
+    const heard = vi.fn();
+    s.check.subscribe(heard);
+    s.waits[0]?.run();
+    expect(heard).toHaveBeenCalled();
+    expect(s.check.getState().waitingForPlace).toBe(false);
+  });
+
   it('waits when the shell’s places are taken elsewhere, and asks again after the wait', async () => {
     // Another session's check, or a page the window left, holds both of the shell's places.
     const s = setup();
@@ -675,7 +691,12 @@ describe('the answer check', () => {
       ['k1', 'waiting'],
       ['k2', 'waiting'],
     ]);
-    expect(s.check.getState()).toMatchObject({ pending: 2, done: 0, problem: null });
+    expect(s.check.getState()).toMatchObject({
+      pending: 2,
+      done: 0,
+      problem: null,
+      waitingForPlace: true,
+    });
     expect(s.ask).toHaveBeenCalledTimes(2);
     expect(s.waits).toHaveLength(1);
     expect(s.check.busy()).toBe(false);
@@ -687,6 +708,7 @@ describe('the answer check', () => {
     });
 
     s.waits[0]?.run();
+    expect(s.check.getState().waitingForPlace).toBe(false);
     expect(s.ask).toHaveBeenCalledTimes(4);
     s.reply(['A'], 'git rebase do');
     await flushPromises();

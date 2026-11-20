@@ -15,14 +15,15 @@ import type {
 } from '../../desktop/bridge';
 import { log } from '../../log';
 import { markAnswerEdits, nameOf } from '../studioModel';
-import type { Working } from '../types';
+import type { DraftDoc, Working } from '../types';
 import { toolActivity } from './activity';
 import { MAX_ATTACHMENTS, attachmentKey, attachmentNote, cleanTarget } from './attachments';
 import type { AttachTarget } from './attachments';
 import { agentSetup } from './prompt';
 import { bridgeSources } from './sources';
+import { ownCreatedBase } from './save';
 import { START_CHECKPOINT, asCreated, createSessionStore } from './store';
-import type { SessionBase, SessionStore } from './store';
+import type { CreatingNote, SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
 import type { TranscriptEntry } from './transcript';
@@ -186,6 +187,11 @@ export interface AgentSessionView {
    * and save, and never creates the course again. Null otherwise.
    */
   pendingCourse: SessionBase | null;
+  /**
+   * A new-course session's last attempt to create its course (`DSK-28`, `creating.json`): the
+   * address and title it asked for, so the next attempt starts from them. Null otherwise.
+   */
+  creating: CreatingNote | null;
 }
 
 export type { SessionBase } from './store';
@@ -297,6 +303,18 @@ export interface AgentSession {
    * page offers it again without creating the course again.
    */
   courseCreated(base: SessionBase): Promise<boolean>;
+  /**
+   * Before `createCourse` (`DSK-28`): notes the address and title about to be asked for in
+   * `creating.json`, keeping when the first attempt at that address began. Only for a new course
+   * with no base. A note that cannot be written is logged; the attempt goes on as before.
+   */
+  noteCreating(slug: string, title: string): Promise<void>;
+  /**
+   * The stored draft at an address this session tried, which `createCourse` now says is taken: its
+   * base when it is the blank course this session's own attempt made (`ownCreatedBase`) and no
+   * other session on this computer is open on it, else null (someone else's course says taken).
+   */
+  ownCourse(stored: DraftDoc): Promise<SessionBase | null>;
   /**
    * A hand edit from Studio's editors: `change` applied to the working copy in memory. False, and
    * nothing changed, when `canEdit` is false. Nothing is written until `keepEdits` or `endEdits`.
@@ -548,6 +566,8 @@ export function createAgentSession({
   let saving = false;
   /** A course created for this new-course session and not noted in `session.json` yet. */
   let pendingCourse: SessionBase | null = null;
+  /** The new-course session's last attempt to create its course (`creating.json`). */
+  let creating: CreatingNote | null = null;
   let queue: Promise<unknown> = Promise.resolve();
   /**
    * Review edits shown at once but not yet written, in the order they were made. A task that took
@@ -617,6 +637,7 @@ export function createAgentSession({
       canSave: savable(),
       saving,
       pendingCourse,
+      creating,
     };
   };
   let snapshot = view();
@@ -1030,6 +1051,12 @@ export function createAgentSession({
         pendingCourse = await store.readCreated(sessionId);
       } catch (error) {
         log.warn('Session created course not read', { sessionId, reason: bridgeFailure(error) });
+      }
+      // The last attempt to create it (`creating.json`, `DSK-28`).
+      try {
+        creating = await store.readCreating(sessionId);
+      } catch (error) {
+        log.warn('Session course attempt not read', { sessionId, reason: bridgeFailure(error) });
       }
     }
     // Hand edits the app closed on (`editing.json`): made a turn before the agent starts.
@@ -1490,6 +1517,40 @@ export function createAgentSession({
           emit();
         }
       });
+    },
+
+    async noteCreating(slug, title) {
+      if (session === null || session.status !== 'open' || session.base !== null) return;
+      // Kept from the first attempt at this address: a course made by that attempt is no older.
+      const since = creating?.slug === slug ? creating.since : now().toISOString();
+      creating = { slug, title, since };
+      emit();
+      try {
+        await store.saveCreating(sessionId, creating);
+      } catch (error) {
+        log.warn('Session course attempt not kept', { sessionId, reason: bridgeFailure(error) });
+      }
+    },
+
+    async ownCourse(stored) {
+      if (creating === null || session === null || session.base !== null) return null;
+      const base = ownCreatedBase(stored, creating, uid);
+      if (base === null) return null;
+      const courseId = base.work.course.id;
+      try {
+        // One open session per course per person: a course another session here noted is not
+        // this one's (this session has no course yet, so it is never the one found).
+        if ((await store.openFor(courseId)) !== null) return null;
+      } catch (error) {
+        log.warn('Session course not recognised', {
+          sessionId,
+          courseId,
+          reason: bridgeFailure(error),
+        });
+        return null;
+      }
+      log.info('Session created course recognised', { sessionId, courseId });
+      return base;
     },
 
     busy: () =>

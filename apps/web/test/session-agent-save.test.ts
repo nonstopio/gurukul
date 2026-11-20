@@ -6,12 +6,14 @@ import type { SessionBase } from '../src/studio/session/agent';
 import {
   CREATED_DRAFT_REV,
   CREATED_FILE,
+  CREATING_FILE,
   START_CHECKPOINT,
   createSessionStore,
   createdBase,
 } from '../src/studio/session/store';
 import { TRANSCRIPT_FILE, parseTranscript } from '../src/studio/session/transcript';
 import type { Working } from '../src/studio/types';
+import { blankCourse } from '@gurukul/schema';
 import { makeCourse } from './fake-data';
 import { AGENT_SESSION_ID, fakeAgent, fakeDesktop } from './fake-desktop';
 import { draftDoc } from './fake-studio';
@@ -364,6 +366,7 @@ describe('A new course’s first save in the runtime', () => {
       courseId: 'code-review',
       title,
       uid: 'u1',
+      educatorName: 'Priya N',
       at: T0.toISOString(),
     });
 
@@ -579,5 +582,128 @@ describe('A new course’s first save in the runtime', () => {
     expect(await busy.runtime.send('Start.')).toBe(true);
     expect(await busy.runtime.courseCreated(created(busy))).toBe(false);
     expect(busy.disk().kind).toBe('new');
+  });
+});
+
+describe('a new course created before the app closed (DSK-28)', () => {
+  /** The blank draft `createCourse` wrote at `code-review` for u1, just after T0. */
+  const made = (educatorId = 'u1') =>
+    draftDoc(
+      blankCourse({
+        id: 'code-review',
+        title: 'Code review',
+        level: 'foundation',
+        theme: 'forest',
+        educatorId,
+      }),
+      { rev: 1, updatedBy: educatorId, updatedAt: new Date(T0.getTime() + 1000) },
+    );
+
+  it('notes each attempt, keeping when the first at an address began, for the next runtime', async () => {
+    const s = await setup({ kind: 'new' });
+    expect(s.state().creating).toBeNull();
+    await s.runtime.noteCreating('code-review', 'Code review');
+    const first = { slug: 'code-review', title: 'Code review', since: T0.toISOString() };
+    expect(s.state().creating).toEqual(first);
+    expect(JSON.parse(s.files.get(`u1/s1/${CREATING_FILE}`) as string)).toEqual(first);
+
+    // The app closed: the next runtime starts from the note.
+    s.runtime.dispose();
+    let at = T0.getTime();
+    const later = () => new Date((at += 60_000));
+    const again = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: later,
+    });
+    await again.open();
+    expect(again.getState().creating).toEqual(first);
+    // The same address again keeps its first date (a course that attempt made is no older); a
+    // new title is kept for the dialog.
+    await again.noteCreating('code-review', 'Code review, plainly');
+    expect(again.getState().creating).toEqual({ ...first, title: 'Code review, plainly' });
+    await again.noteCreating('code-review-2', 'Code review');
+    expect(again.getState().creating?.since).not.toBe(T0.toISOString());
+
+    // Recognised: its own blank course at the address it tried.
+    expect(await again.ownCourse(made())).toBeNull();
+    await again.noteCreating('code-review', 'Code review');
+    const since = again.getState().creating?.since as string;
+    const own = draftDoc(made().course, {
+      rev: 1,
+      updatedBy: 'u1',
+      updatedAt: new Date(Date.parse(since) + 1000),
+    });
+    expect(await again.ownCourse(own)).toMatchObject({
+      rev: 1,
+      work: { course: { id: 'code-review' } },
+    });
+    expect(await again.ownCourse(made('u2'))).toBeNull();
+  });
+
+  it('notes nothing, and recognises nothing, for an edit session or before it opens', async () => {
+    const s = await setup({ open: false });
+    expect(await s.runtime.ownCourse(made())).toBeNull();
+    await s.runtime.noteCreating('code-review', 'Code review');
+    expect(s.files.has(`u1/s1/${CREATING_FILE}`)).toBe(false);
+    await s.runtime.open();
+    await s.runtime.noteCreating('code-review', 'Code review');
+    expect(s.state().creating).toBeNull();
+    expect(s.files.has(`u1/s1/${CREATING_FILE}`)).toBe(false);
+    expect(await s.runtime.ownCourse(made())).toBeNull();
+
+    // A new course with no attempt noted recognises nothing either.
+    const fresh = await setup({ kind: 'new' });
+    expect(await fresh.runtime.ownCourse(made())).toBeNull();
+  });
+
+  it('leaves a course another session on this computer has to that session', async () => {
+    const s = await setup({ kind: 'new' });
+    await s.runtime.noteCreating('code-review', 'Code review');
+    const other = await s.store.start(
+      { kind: 'edit', courseId: 'code-review', goal: 'Another go.', id: 's2' },
+      async () => made(),
+    );
+    expect(other.status).toBe('started');
+    expect(await s.runtime.ownCourse(made())).toBeNull();
+    // Unable to look, it says taken rather than guess.
+    s.desktop.store.list.mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.ownCourse(made())).toBeNull();
+    expect(log.warn).toHaveBeenCalledWith('Session course not recognised', {
+      sessionId: 's1',
+      courseId: 'code-review',
+      reason: 'refused',
+    });
+  });
+
+  it('goes on when the note cannot be written or read', async () => {
+    const s = await setup({ kind: 'new' });
+    s.desktop.store.write.mockRejectedValueOnce(REFUSED);
+    await s.runtime.noteCreating('code-review', 'Code review');
+    expect(s.state().creating).toMatchObject({ slug: 'code-review' });
+    expect(log.warn).toHaveBeenCalledWith('Session course attempt not kept', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
+    const read = s.desktop.store.read.getMockImplementation();
+    s.desktop.store.read.mockImplementation(async (file) => {
+      if (file.path === CREATING_FILE) throw REFUSED;
+      return read?.(file) ?? null;
+    });
+    const reopened = createAgentSession({
+      desktop: s.desktop,
+      uid: 'u1',
+      sessionId: 's1',
+      store: s.store,
+      now: () => T0,
+    });
+    await reopened.open();
+    expect(reopened.getState()).toMatchObject({ creating: null, status: 'ready' });
+    expect(log.warn).toHaveBeenCalledWith('Session course attempt not read', {
+      sessionId: 's1',
+      reason: 'refused',
+    });
   });
 });

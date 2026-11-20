@@ -6,6 +6,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAnalytics } from '../../analytics/react/context';
 import { userMessageOf } from '../../api';
+import { useUser } from '../../auth/AuthProvider';
 import { useLearnerData } from '../../data/DataProvider';
 import { useTerms } from '../../labels/useTerms';
 import { toastError } from '../../errors';
@@ -19,7 +20,7 @@ import type { SessionBase } from './agent';
 import { saveBlockers } from './review';
 import { movedLine, saveSession, saveWaits } from './save';
 import type { DraftCheck } from './save';
-import { NEW_COURSE_TITLE, createdBase } from './store';
+import { NEW_COURSE_TITLE, createdBase, creatorName } from './store';
 import type { DraftCheckApi } from './useDraftCheck';
 import type { AgentSessionHandle } from './useAgentSession';
 
@@ -40,12 +41,13 @@ const courseEditorPath = (courseId: string) => `/studio/courses/${courseId}`;
 export function DraftMovedNotice({
   check,
   uid,
-  canSave,
+  wait,
   onBringIn,
 }: {
   check: Extract<DraftCheck, { state: 'moved' }>;
   uid: string;
-  canSave: boolean;
+  /** Why it cannot be brought in now (`busyWaits`); null when it can. */
+  wait: string | null;
   onBringIn: () => void;
 }) {
   return (
@@ -55,10 +57,19 @@ export function DraftMovedNotice({
         which version to keep. Nothing is overwritten without it.
       </p>
       <div className="ss-save__actions">
-        <Button variant="secondary" disabled={!canSave} onClick={onBringIn}>
+        <Button
+          variant="secondary"
+          disabled={wait !== null}
+          aria-describedby={wait === null ? undefined : 'ss-bring-in-wait'}
+          onClick={onBringIn}
+        >
           Bring in their changes
         </Button>
-        {canSave ? null : <p className="sc-help">Wait for the agent to finish this turn.</p>}
+        {wait === null ? null : (
+          <p id="ss-bring-in-wait" className="sc-help">
+            {wait}
+          </p>
+        )}
       </div>
     </Callout>
   );
@@ -72,17 +83,20 @@ const CREATE_FORM = 'ss-create-course';
 /** A new course's first save: its title and address (`DSK-16`), then Create course and save draft. */
 function CreateCourseDialog({
   initialTitle,
+  initialSlug,
   count,
   onClose,
   onCreate,
 }: {
   initialTitle: string;
+  /** The address of the session's earlier attempt (`DSK-28`), or null to suggest one. */
+  initialSlug: string | null;
   count: number;
   onClose: () => void;
   onCreate: (title: string, slug: string) => Promise<Created>;
 }) {
   const t = useTerms();
-  const address = useCourseAddress(initialTitle);
+  const address = useCourseAddress(initialTitle, initialSlug);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -147,6 +161,7 @@ export function SaveBar({
   overLimit: boolean;
 }) {
   const { data, service } = useStudio();
+  const user = useUser();
   const analytics = useAnalytics();
   const toast = useToast();
   const t = useTerms();
@@ -217,8 +232,28 @@ export function SaveBar({
     if (await agent.courseCreated(base)) await save(base.work.course.id, base.work.course.title);
   };
 
+  /**
+   * The address is taken: when this session tried it before (`DSK-28`: the app may have closed
+   * after `createCourse` made the course but before the session noted it), the draft there is read
+   * once, and the blank course its own attempt made becomes the session's course.
+   */
+  const ownCourse = async (slug: string): Promise<SessionBase | null> => {
+    try {
+      const stored = await data.getDraft(slug);
+      const own = stored && (await agent.ownCourse(stored));
+      // That read is the page's read of the course's draft: the check does not read it again.
+      if (own) draft.found(stored);
+      return own;
+    } catch {
+      log.warn('Session taken address not read', { sessionId, courseId: slug });
+      return null;
+    }
+  };
+
   const create = async (title: string, slug: string): Promise<Created> => {
     setFailure(null);
+    const tried = agent.creating?.slug === slug;
+    await agent.noteCreating(slug, title);
     try {
       const { courseId } = await service.createCourse({
         title,
@@ -229,10 +264,24 @@ export function SaveBar({
       });
       analytics.track('course_create', { course_id: courseId });
       setCreating(false);
-      await note(createdBase(work, { courseId, title, uid, at: new Date().toISOString() }));
+      await note(
+        createdBase(work, {
+          courseId,
+          title,
+          uid,
+          educatorName: creatorName(user),
+          at: new Date().toISOString(),
+        }),
+      );
       return 'created';
     } catch (error) {
-      if (isAddressTaken(error)) return 'taken';
+      if (isAddressTaken(error)) {
+        const own = tried ? await ownCourse(slug) : null;
+        if (own === null) return 'taken';
+        setCreating(false);
+        await note(own);
+        return 'created';
+      }
       log.error('Creating a course failed', error, { sessionId });
       return { problem: userMessageOf(error, 'Could not create the course. Try again.') };
     }
@@ -287,7 +336,11 @@ export function SaveBar({
       ) : null}
       {creating ? (
         <CreateCourseDialog
-          initialTitle={work.course.title === NEW_COURSE_TITLE ? '' : work.course.title}
+          initialTitle={
+            agent.creating?.title ??
+            (work.course.title === NEW_COURSE_TITLE ? '' : work.course.title)
+          }
+          initialSlug={agent.creating?.slug ?? null}
           count={count}
           onClose={() => setCreating(false)}
           onCreate={create}

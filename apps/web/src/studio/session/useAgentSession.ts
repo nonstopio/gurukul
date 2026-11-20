@@ -76,6 +76,8 @@ type SessionActions = Pick<
   | 'saveToDraft'
   | 'bringIn'
   | 'courseCreated'
+  | 'noteCreating'
+  | 'ownCourse'
 >;
 
 /** What the session screens get: the view, and what the Educator can do. */
@@ -103,6 +105,7 @@ const LOADING: AgentSessionView = {
   canSave: false,
   saving: false,
   pendingCourse: null,
+  creating: null,
 };
 
 type SessionKey = Pick<AgentSessionOptions, 'desktop' | 'uid' | 'sessionId'>;
@@ -147,6 +150,8 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
       held ? held.saveToDraft(write) : { ok: false, reason: 'busy' as const },
     bringIn: async (base, work, summary) => (held ? held.bringIn(base, work, summary) : false),
     courseCreated: async (base) => (held ? held.courseCreated(base) : false),
+    noteCreating: async (slug, title) => held?.noteCreating(slug, title),
+    ownCourse: async (stored) => (held ? held.ownCourse(stored) : null),
   };
 }
 
@@ -177,5 +182,7 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
     saveToDraft: source.saveToDraft,
     bringIn: source.bringIn,
     courseCreated: source.courseCreated,
+    noteCreating: source.noteCreating,
+    ownCourse: source.ownCourse,
   };
 }

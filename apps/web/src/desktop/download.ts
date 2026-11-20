@@ -24,8 +24,14 @@ export interface DesktopRelease {
   downloads: DesktopDownload[];
 }
 
-/** Every desktop release, newest first: where to go when the card cannot name an installer. */
+/**
+ * Every desktop release, newest first: where to go when the card cannot name an installer, and
+ * where a browser that opens a session's link is sent for the app (`SessionRoute`).
+ */
 export const DESKTOP_RELEASES_PAGE = 'https://github.com/nonstopio/gurukul/releases';
+
+/** How long the card waits for GitHub before it links to the releases page instead. */
+export const RELEASE_TIMEOUT_MS = 8000;
 
 const LATEST_API = 'https://api.github.com/repos/nonstopio/gurukul/releases/latest';
 const DOWNLOADS = 'https://github.com/nonstopio/gurukul/releases/download/';
@@ -71,6 +77,14 @@ export function toDesktopRelease(data: unknown): DesktopRelease | null {
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
+/** Starts `run` after `ms`; returns what cancels it. Tests play it by hand. */
+type Later = (run: () => void, ms: number) => () => void;
+
+const afterTimeout: Later = (run, ms) => {
+  const timer = setTimeout(run, ms);
+  return () => clearTimeout(timer);
+};
+
 /** Key in sessionStorage holding the tab's answer: GitHub's shape, so reading it checks it again. */
 export const RELEASE_KEY = 'gurukul.desktopRelease';
 
@@ -113,20 +127,33 @@ function keep(release: DesktopRelease | null): DesktopRelease | null {
  * unauthenticated calls an hour per address, and Educators in one office share one address with
  * each other and with the shell's contributors request, so a reload or a new page must not ask
  * again. A refusal (no release yet, the rate limit) or an unreadable answer is kept as null too; a
- * network failure is not, so the next card tries again. Never throws.
+ * network failure is not, nor a request GitHub has not answered in `RELEASE_TIMEOUT_MS` (it is
+ * ended then, so the card stops waiting), and the next card tries again. Never throws.
  */
-export function latestReleaseLoader(get: Fetch = (url, init) => fetch(url, init)) {
+export function latestReleaseLoader(
+  get: Fetch = (url, init) => fetch(url, init),
+  later: Later = afterTimeout,
+) {
   let kept: Promise<DesktopRelease | null> | null = null;
   const ask = async (): Promise<DesktopRelease | null> => {
     const hit = stored();
     if (hit !== undefined) return hit;
     let res: Response;
+    const controller = new AbortController();
+    const stop = later(() => controller.abort(), RELEASE_TIMEOUT_MS);
     try {
-      res = await get(LATEST_API, { headers: { Accept: 'application/vnd.github+json' } });
+      res = await get(LATEST_API, {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: controller.signal,
+      });
     } catch {
-      log.warn('Desktop release lookup failed', { reason: 'network' });
+      log.warn('Desktop release lookup failed', {
+        reason: controller.signal.aborted ? 'timeout' : 'network',
+      });
       kept = null;
       return null;
+    } finally {
+      stop();
     }
     if (res.status === 404) {
       // Not a failure: no desktop release has been published yet.

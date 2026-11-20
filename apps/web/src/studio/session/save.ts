@@ -1,4 +1,4 @@
-import { workingSchema } from '@gurukul/schema';
+import { blankCourse, workingSchema } from '@gurukul/schema';
 import type { Course } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
 import type { ChangeRow, CourseChanges } from '@gurukul/schema/changes';
@@ -10,6 +10,8 @@ import type { DraftDoc, StudioData, Working } from '../types';
 import type { AgentSession, AgentSessionView, SessionBase } from './agent';
 import { fieldName } from './review';
 import type { CheckState, Numbers } from './review';
+import { CREATED_DRAFT_REV } from './store';
+import type { CreatingNote } from './store';
 
 /*
  * Save to draft (`.plan/22-desktop-studio.md`, Save to draft), without React: what the session
@@ -111,10 +113,20 @@ export function saveWaits(
   if (blockers.includes('Size')) return 'The course is over the size limit. Make it smaller first.';
   if (check.state === 'moved') return 'Bring in their changes first.';
   if (changes === 0) return 'Nothing has changed yet.';
+  return busyWaits(view);
+}
+
+/**
+ * Why Save or Bring in their changes waits for the session itself, in words; null when neither
+ * does (`canSave`): hand edits open, the agent starting, a change being written, a turn running.
+ */
+export function busyWaits(
+  view: Pick<AgentSessionView, 'status' | 'canSave' | 'saving' | 'handEdits'>,
+): string | null {
   if (view.canSave) return null;
   if (view.handEdits !== null) return 'Leave the editor first: its edits become a turn then.';
   if (view.status === 'connecting') return 'Wait while the agent starts.';
-  if (view.status === 'undoing' || view.status === 'editing')
+  if (view.status === 'undoing' || view.status === 'editing' || view.saving)
     return 'Wait while the last change is written.';
   return 'Wait for the agent to finish this turn.';
 }
@@ -164,6 +176,52 @@ export async function saveSession(
   }
   log.error('Session save to draft failed', result.error, { sessionId, courseId });
   return { status: 'failed', message: saveFailure(result.error) };
+}
+
+// ─── A new course created before the app closed (`DSK-28`) ──────────────────────────────────────
+
+/**
+ * How much earlier than the session's note the server may date the course: the laptop's clock and
+ * the server's need not agree. A course older than that was not made by this attempt.
+ */
+export const CREATED_CLOCK_SKEW_MS = 10 * 60_000;
+
+/**
+ * The stored draft at the address a new-course session tried (`note`), as the session's base when
+ * it is the course that attempt created and the session never noted: the blank course
+ * `createCourse` writes, at `CREATED_DRAFT_REV`, saved by this person as its only Educator, with no
+ * answer keys, and no older than the attempt. Null for anything else: someone else's course, one
+ * changed since (in the browser, say), or one made before this session tried the address.
+ */
+export function ownCreatedBase(
+  stored: DraftDoc,
+  note: CreatingNote,
+  uid: string,
+): SessionBase | null {
+  const { course } = stored;
+  const blank = blankCourse({
+    id: note.slug,
+    title: course.title,
+    level: course.level,
+    theme: course.cover.theme,
+    educatorId: uid,
+    educatorName: course.educatorNames[uid],
+  });
+  const own =
+    course.id === note.slug &&
+    stored.rev === CREATED_DRAFT_REV &&
+    stored.updatedBy === uid &&
+    course.educatorIds.length === 1 &&
+    course.educatorIds[0] === uid &&
+    course.status === 'draft' &&
+    course.version === 0 &&
+    course.publishedAt === null &&
+    Object.keys(stored.answers).length === 0 &&
+    !stored.answersChanged &&
+    courseChanges({ course: blank, answers: {} }, workOfDraft(stored)).count === 0 &&
+    (stored.updatedAt === null ||
+      stored.updatedAt.getTime() >= Date.parse(note.since) - CREATED_CLOCK_SKEW_MS);
+  return own ? baseOfDraft(stored) : null;
 }
 
 // ─── Bring in their changes ──────────────────────────────────────────────────────────────────────

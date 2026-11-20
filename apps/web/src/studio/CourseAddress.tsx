@@ -29,9 +29,13 @@ export interface CourseAddress {
   slugError: string | undefined;
 }
 
-export function useCourseAddress(initialTitle = ''): CourseAddress {
+/** `initialSlug` is an address already chosen (a session's earlier attempt), kept as if typed. */
+export function useCourseAddress(
+  initialTitle = '',
+  initialSlug: string | null = null,
+): CourseAddress {
   const [title, setTitleNow] = useState(initialTitle);
-  const [typed, setTyped] = useState<string | null>(null);
+  const [typed, setTyped] = useState<string | null>(initialSlug);
   const [taken, setTaken] = useState(false);
   const slug = typed ?? slugify(title);
   return {

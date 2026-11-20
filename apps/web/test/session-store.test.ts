@@ -10,6 +10,7 @@ import {
   UNREADABLE_FILE,
   checkpointPath,
   createSessionStore,
+  creatorName,
   historyOf,
   isDue,
   sessionHistorySchema,
@@ -96,6 +97,15 @@ describe('titleFromGoal', () => {
 
   it('cuts a long run with no space where it must', () => {
     expect(titleFromGoal('x'.repeat(200))).toBe(`${'x'.repeat(79)}…`);
+  });
+});
+
+describe('creatorName', () => {
+  it('names the Educator as createCourse does: Google name, else the email’s local part', () => {
+    expect(creatorName({ displayName: ' Priya N ', email: 'priya@nonstopio.com' })).toBe('Priya N');
+    expect(creatorName({ displayName: '  ', email: 'priya.n@nonstopio.com' })).toBe('priya.n');
+    expect(creatorName({ displayName: null, email: 'priya@nonstopio.com' })).toBe('priya');
+    expect(creatorName({ displayName: null, email: null })).toBeUndefined();
   });
 });
 

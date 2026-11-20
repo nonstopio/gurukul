@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuthoringSession } from '@gurukul/schema';
 import { REQUIRED_BRIDGE_VERSION } from '../src/desktop/bridge';
 import { terms } from '../src/labels/terms';
-import { DESKTOP_RELEASES_URL } from '../src/studio/SessionRoute';
 import { sessionDestinations } from '../src/studio/session/search';
 import { createSessionStore } from '../src/studio/session/store';
 import { axeViolations } from './axe';
@@ -216,7 +215,7 @@ describe('the Studio course list in the desktop app', () => {
     expect((await d.store.list()).sessions).toHaveLength(3);
   });
 
-  it('starts a new course for someone with no Google name', async () => {
+  it('starts a new course for someone with no Google name, named from their email', async () => {
     const d = await desktopWith();
     await openApp('/studio', {
       roles: ['educator'],
@@ -228,7 +227,8 @@ describe('the Studio course list in the desktop app', () => {
     fireEvent.change(await within(dialog).findByRole('textbox'), { target: { value: 'Go.' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Start session' }));
     await waitFor(async () => expect((await d.store.list()).sessions).toHaveLength(1));
-    expect((await d.store.list()).sessions[0]?.work.course.educatorNames).toEqual({});
+    // Named from the email, as `createCourse` will name them.
+    expect((await d.store.list()).sessions[0]?.work.course.educatorNames).toEqual({ u1: 'priya' });
   });
 
   it('drops the look for open sessions when the dialog closes first', async () => {
@@ -391,7 +391,8 @@ describe('the session route in a browser', () => {
       await screen.findByRole('heading', { name: 'Sessions open in the Gurukul Studio app' }),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Get the desktop app' }).getAttribute('href')).toBe(
-      DESKTOP_RELEASES_URL,
+      // One address for the releases, the download card's own (`download.ts`).
+      'https://github.com/nonstopio/gurukul/releases',
     );
     expect(screen.getByRole('link', { name: 'Studio courses' }).getAttribute('href')).toBe(
       '/studio',

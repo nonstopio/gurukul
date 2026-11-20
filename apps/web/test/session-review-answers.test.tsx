@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { AuthoringSession, Course, Question, Quiz } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
@@ -164,6 +166,47 @@ describe('Review’s answer check', () => {
     };
     expect(saved.results).toHaveLength(2);
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('says when it waits because the app’s two places are taken by another session’s check', async () => {
+    const s = await open();
+    await waitFor(() => expect(s.waiting()).toHaveLength(2));
+    await findChecks();
+    expect(answersLine().queryByText(/^Waiting for a free place/)).toBeNull();
+    s.answer({ ok: false, error: { code: 'busy' } }, 'Which one is first?');
+    s.answer({ ok: false, error: { code: 'busy' } }, 'rewrites history');
+    await flushPromises();
+    expect(
+      await answersLine().findByText(
+        'Waiting for a free place: the app checks two answers at a time, and both are in use elsewhere (another session’s check, or a page you left). This check goes on by itself.',
+      ),
+    ).toBeTruthy();
+    // Still no failure: the progress stays, and nothing offers Try again.
+    expect(within(checks()).getByText('Answers: 0 of 2 checked')).toBeTruthy();
+    expect(answersLine().queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('puts the chips on a line of their own rather than squeezing a Quiz’s name onto two', async () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync(resolve(import.meta.dirname, '../src/studio.css'), 'utf8');
+    document.head.append(style);
+    try {
+      const s = await open();
+      await waitFor(() => expect(s.waiting()).toHaveLength(2));
+      s.reply(['A'], 'Which one is first?');
+      s.reply(['A'], 'rewrites history');
+      await flushPromises();
+      const row = await within(list()).findByRole('button', { name: /^2\.2 · Quiz I/ });
+      await waitFor(() => expect(row.textContent).toContain('Check this answer'));
+      // The row wraps, and the name is laid out at its own width: "Changed" and "Check this
+      // answer" no longer fit beside it in the list at 1024px, so they move under it.
+      expect(getComputedStyle(row).flexWrap).toBe('wrap');
+      const name = within(row).getByText('2.2 · Quiz I');
+      expect(getComputedStyle(name).flexBasis).toBe('auto');
+      expect(getComputedStyle(name).flexGrow).toBe('1');
+    } finally {
+      style.remove();
+    }
   });
 
   it('sends the disagreements to the agent with the questions attached', async () => {

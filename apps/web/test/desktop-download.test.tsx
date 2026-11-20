@@ -16,8 +16,14 @@ const { log } = await import('../src/log');
 
 // `test/setup.ts` stands in for the loader and the detection everywhere; these are the real ones.
 const real = await vi.importActual<typeof Download>('../src/desktop/download');
-const { toDesktopRelease, latestReleaseLoader, offerFor, DESKTOP_RELEASES_PAGE, RELEASE_KEY } =
-  real;
+const {
+  toDesktopRelease,
+  latestReleaseLoader,
+  offerFor,
+  DESKTOP_RELEASES_PAGE,
+  RELEASE_KEY,
+  RELEASE_TIMEOUT_MS,
+} = real;
 
 // The loader keeps its answer for the tab session; each test starts in a fresh tab.
 beforeEach(() => {
@@ -114,8 +120,43 @@ describe('latestReleaseLoader', () => {
       'https://api.github.com/repos/nonstopio/gurukul/releases/latest',
       {
         headers: { Accept: 'application/vnd.github+json' },
+        signal: expect.any(AbortSignal),
       },
     );
+  });
+
+  it('gives up on GitHub after a while, ending the request, and asks again on the next card', async () => {
+    let fire: () => void = () => undefined;
+    const cancel = vi.fn();
+    const later = vi.fn((run: () => void) => {
+      fire = run;
+      return cancel;
+    });
+    const get = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      // GitHub never answers: only the end of the request settles it, as fetch does.
+      .mockImplementationOnce(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+          }),
+      )
+      .mockResolvedValueOnce(json(ANSWER));
+    const load = latestReleaseLoader(get, later);
+    const first = load();
+    expect(later).toHaveBeenCalledWith(expect.any(Function), RELEASE_TIMEOUT_MS);
+    expect(RELEASE_TIMEOUT_MS).toBeLessThanOrEqual(10_000);
+    fire();
+    expect(await first).toBeNull();
+    expect(get.mock.calls[0]?.[1].signal?.aborted).toBe(true);
+    expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', { reason: 'timeout' });
+    expect(sessionStorage.getItem(RELEASE_KEY)).toBeNull();
+    // Not kept: the next card asks again, and an answer in time stops the timer.
+    expect(await load()).toEqual(RELEASE);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(cancel).toHaveBeenCalledTimes(2);
   });
 
   it('keeps "no release yet" without calling it a failure', async () => {
