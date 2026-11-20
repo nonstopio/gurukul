@@ -3,6 +3,7 @@ import { blankCourse } from '@gurukul/schema';
 import type { AuthoringSession, Chapter, Course, Lesson } from '@gurukul/schema';
 import { courseChanges } from '@gurukul/schema/changes';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { analytics } from '../src/analytics';
 import { DraftConflictError } from '../src/studio/errors';
 import { createSessionStore } from '../src/studio/session/store';
 import type { DraftDoc, Working } from '../src/studio/types';
@@ -154,6 +155,7 @@ async function save(label: string) {
 describe('Save to draft', () => {
   it('checks the draft once, then writes it once through Studio’s save and shows what was saved', async () => {
     const s = await open({ turns: [mine] });
+    const track = vi.spyOn(analytics, 'track');
     await ready(s);
     expect(await within(checks()).findByText('Draft is up to date')).toBeTruthy();
     expect(s.studio.data.getDraft).toHaveBeenCalledTimes(1);
@@ -180,6 +182,11 @@ describe('Save to draft', () => {
     expect(s.studio.data.saveDraft).toHaveBeenCalledTimes(1);
     const [courseId, work, rev, uid] = vi.mocked(s.studio.data.saveDraft).mock.calls[0] ?? [];
     expect([courseId, rev, uid]).toEqual(['git', 3, 'u1']);
+    // Counted once, in bands: no course id, no title.
+    expect(track.mock.calls.filter(([name]) => name === 'session_saved')).toEqual([
+      ['session_saved', { kind: 'edit', change_band: '1-5', turn_band: '1-5' }],
+    ]);
+    track.mockRestore();
     expect((work as Working).course.title).toBe('Git, plainly');
     await waitFor(() => expect(s.disk().status).toBe('saved'));
 
@@ -407,12 +414,20 @@ describe('a new course’s first save', () => {
     expect(s.studio.service.createCourse).not.toHaveBeenCalled();
 
     vi.mocked(s.studio.service.createCourse).mockResolvedValueOnce({ courseId: 'code-review' });
+    const track = vi.spyOn(analytics, 'track');
     await create();
     expect(
       await screen.findByText(
         'Created “Code review” and saved its draft as Draft v2. Learners see nothing until you publish.',
       ),
     ).toBeTruthy();
+    // A course created for this save is a new course, though the session is an edit session now.
+    expect(track).toHaveBeenCalledWith('session_saved', {
+      kind: 'new',
+      change_band: '1-5',
+      turn_band: '0',
+    });
+    track.mockRestore();
     expect(s.studio.service.createCourse).toHaveBeenCalledTimes(1);
     expect(s.studio.service.createCourse).toHaveBeenCalledWith({
       title: 'Code review',

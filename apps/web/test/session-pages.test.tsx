@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuthoringSession } from '@gurukul/schema';
+import { analytics } from '../src/analytics';
 import { REQUIRED_BRIDGE_VERSION } from '../src/desktop/bridge';
 import { terms } from '../src/labels/terms';
 import { DESKTOP_RELEASES_URL } from '../src/studio/SessionRoute';
@@ -83,6 +84,7 @@ describe('the Studio course list in the desktop app', () => {
 
   it('starts an edit session from one draft read, with no write, and opens it', async () => {
     const d = await desktopWith();
+    const track = vi.spyOn(analytics, 'track');
     const s = studio();
     const app = await openApp('/studio', { roles: ['educator'], studio: s });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit with AI: Git' }));
@@ -103,10 +105,16 @@ describe('the Studio course list in the desktop app', () => {
     // This fake shell has no agent: the workspace says the app needs its update.
     expect(await screen.findByRole('heading', { name: 'Update the app' })).toBeTruthy();
     expect((await d.store.list()).sessions).toHaveLength(1);
+    // Counted once, with its kind and nothing else: no course, no goal.
+    expect(track.mock.calls.filter(([name]) => name === 'session_started')).toEqual([
+      ['session_started', { kind: 'edit' }],
+    ]);
+    track.mockRestore();
   });
 
   it('offers to open the session already open on that course instead of a second', async () => {
     const d = await desktopWith([{ kind: 'edit', courseId: 'git' }]);
+    const track = vi.spyOn(analytics, 'track');
     const s = studio();
     const app = await openApp('/studio', { roles: ['educator'], studio: s });
     fireEvent.click(await screen.findByRole('button', { name: 'Edit with AI: Git' }));
@@ -120,6 +128,9 @@ describe('the Studio course list in the desktop app', () => {
       expect(app.router.state.location.pathname).toBe(`/studio/sessions/${d.made[0]?.id}`),
     );
     expect(s.data.getDraft).not.toHaveBeenCalled();
+    // Opening a session again is not starting one.
+    expect(track).not.toHaveBeenCalledWith('session_started', expect.anything());
+    track.mockRestore();
   });
 
   it('turns to that offer when a session opened on the course while the dialog was up', async () => {
@@ -194,6 +205,7 @@ describe('the Studio course list in the desktop app', () => {
 
   it('starts a new course, offering the new courses already started', async () => {
     const d = await desktopWith([{ kind: 'new' }, { kind: 'edit', courseId: 'git' }]);
+    const track = vi.spyOn(analytics, 'track');
     const s = studio();
     const app = await openApp('/studio', { roles: ['educator'], studio: s });
     fireEvent.click(await screen.findByRole('button', { name: 'New course with AI' }));
@@ -214,6 +226,8 @@ describe('the Studio course list in the desktop app', () => {
     expect(s.data.getDraft).not.toHaveBeenCalled();
     expect(await screen.findByText('A new course: everything in it is added.')).toBeTruthy();
     expect((await d.store.list()).sessions).toHaveLength(3);
+    expect(track).toHaveBeenCalledWith('session_started', { kind: 'new' });
+    track.mockRestore();
   });
 
   it('starts a new course for someone with no Google name', async () => {

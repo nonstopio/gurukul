@@ -98,6 +98,8 @@ Every event also carries `app_version`, `environment`, `platform` and, once sign
 - PII guard: a parameter whose name suggests personal data (`email`, `phone`, `token`,
   `address`...) or whose string value looks like an email or phone number is dropped. Identify by
   Firebase uid only. Search sends the length of the query and the result count, never the words.
+  Desktop Studio sessions send counts in bands (`countBand` in `studio/session/events.ts`: `0`,
+  `1-5`, `6-20`, `21-50`, `51+`), never a course id, a title, chat or course text.
 - Changing what is collected means updating `PrivacyPage` and `POLICY_VERSION` together.
 
 ## Verifying events locally with DebugView
@@ -110,24 +112,27 @@ Every event also carries `app_version`, `environment`, `platform` and, once sign
 
 ## Event catalog
 
-| Event                  | Parameters                                        | Fires                                                                    |
-| ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
-| `page_view`            | `page_path`, `page_title`, `page_location`        | once per navigation (`RouteTracker`)                                     |
-| `login`                | `method`                                          | a person finishes Google sign-in (`AnalyticsSession`)                    |
-| `sign_up`              | `method`                                          | their first ever sign-in, with `login`                                   |
-| `logout`               | none                                              | Sign out (`AuthProvider`)                                                |
-| `search`               | `query_length`, `result_count`, `result_type`     | a result is picked in ⌘K (`GlobalSearch`)                                |
-| `select_content`       | `content_type` (`cta`, `nav`), `content_id`       | sidebar links (`Shell`), Home and course Resume/Start buttons            |
-| `course_start`         | `course_id`                                       | a lesson opens in a course never started (`LessonPage`)                  |
-| `lesson_complete`      | `course_id`, `lesson_id`                          | Mark complete saved (`LessonPage`)                                       |
-| `course_complete`      | `course_id`                                       | the completion page opens for a finished course (`certificates/pages`)   |
-| `quiz_submit`          | `course_id`, `quiz_id`, `passed`, `score_percent` | an attempt is graded (`QuizPage`)                                        |
-| `certificate_view`     | `certificate_id`                                  | a certificate page opens                                                 |
-| `certificate_download` | `certificate_id`                                  | Download PDF is clicked                                                  |
-| `course_create`        | `course_id`                                       | a Studio course is created (`NewCourseDialog`)                           |
-| `course_publish`       | `course_id`                                       | a course is published (`PublishDialog`)                                  |
-| `course_assign`        | `course_id`, `assignee_count`                     | an Admin assignment succeeds, once per course (`AssignPage`)             |
-| `app_error`            | `source` (`api`, `route`), `code`                 | a failed API call (`api/call.ts`) or a crashed screen (`RouteErrorPage`) |
+| Event                  | Parameters                                        | Fires                                                                                  |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `page_view`            | `page_path`, `page_title`, `page_location`        | once per navigation (`RouteTracker`)                                                   |
+| `login`                | `method`                                          | a person finishes Google sign-in (`AnalyticsSession`)                                  |
+| `sign_up`              | `method`                                          | their first ever sign-in, with `login`                                                 |
+| `logout`               | none                                              | Sign out (`AuthProvider`)                                                              |
+| `search`               | `query_length`, `result_count`, `result_type`     | a result is picked in ⌘K (`GlobalSearch`)                                              |
+| `select_content`       | `content_type` (`cta`, `nav`), `content_id`       | sidebar links (`Shell`), Home and course Resume/Start buttons                          |
+| `course_start`         | `course_id`                                       | a lesson opens in a course never started (`LessonPage`)                                |
+| `lesson_complete`      | `course_id`, `lesson_id`                          | Mark complete saved (`LessonPage`)                                                     |
+| `course_complete`      | `course_id`                                       | the completion page opens for a finished course (`certificates/pages`)                 |
+| `quiz_submit`          | `course_id`, `quiz_id`, `passed`, `score_percent` | an attempt is graded (`QuizPage`)                                                      |
+| `certificate_view`     | `certificate_id`                                  | a certificate page opens                                                               |
+| `certificate_download` | `certificate_id`                                  | Download PDF is clicked                                                                |
+| `course_create`        | `course_id`                                       | a Studio course is created (`NewCourseDialog`)                                         |
+| `course_publish`       | `course_id`                                       | a course is published (`PublishDialog`)                                                |
+| `course_assign`        | `course_id`, `assignee_count`                     | an Admin assignment succeeds, once per course (`AssignPage`)                           |
+| `app_error`            | `source` (`api`, `route`), `code`                 | a failed API call (`api/call.ts`) or a crashed screen (`RouteErrorPage`)               |
+| `session_started`      | `kind` (`new`, `edit`)                            | a Gurukul Studio session starts (`SessionLauncher`), not when reopened                 |
+| `session_saved`        | `kind`, `change_band`, `turn_band`                | Save to draft wrote the session (`SaveBar`); `kind` `new` with a course created for it |
+| `session_discarded`    | `kind`, `change_band`, `turn_band`                | typed for Discard, which is not built yet: nothing sends it today                      |
 
 ## Environment variables
 
@@ -147,7 +152,8 @@ Every event also carries `app_version`, `environment`, `platform` and, once sign
 2. GA4 → Admin → Data display → Custom definitions: register each custom **event** parameter as an
    event-scoped dimension: `course_id`, `lesson_id`, `quiz_id`, `passed`, `score_percent`,
    `certificate_id`, `assignee_count`, `content_type`, `content_id`, `query_length`,
-   `result_count`, `result_type`, `source`, `code`, `user_role`, `app_version`. Register `role`
+   `result_count`, `result_type`, `source`, `code`, `kind`, `change_band`, `turn_band`,
+   `user_role`, `app_version`. Register `role`
    as a user-scoped dimension. Parameters only appear in reports after this (up to 24 hours).
 3. GA4 → Admin → Data collection and modification → Data retention: pick the retention period.
 4. Optional: mark `course_complete` and `quiz_submit` as key events.

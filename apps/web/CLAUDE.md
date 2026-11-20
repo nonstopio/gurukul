@@ -52,6 +52,10 @@ Read the root `CLAUDE.md` and `.claude/skills/gurukul-design/SKILL.md` first.
 - Cloud Functions are called only through `src/api/` (`.claude/rules/api-responses.md`): a service
   calls `callApi`, screens branch on `error.code` and show `userMessageOf(e, 'fallback')`, never raw
   error text. ESLint rejects `httpsCallable` elsewhere.
+- Desktop Studio sessions are counted with `session_started` (`SessionLauncher`) and `session_saved`
+  (`SaveBar`), whose sizes go through `studio/session/events.ts` (`countBand`, `sessionBands`): bands,
+  never a course id or text. `session_discarded` is typed for the Discard still to come. Changing
+  what the privacy page says is collected bumps `POLICY_VERSION` with it.
 - Log with `log.<level>('Constant event', { ids })` (`.claude/rules/logging.md`, skill `writing-logs`):
   no `console.*`, no values in the message, no payloads; a `catch` that shows a toast also logs.
 - No course-specific code in the player: if a course needs it, it is a block type.

@@ -3,6 +3,10 @@
 Studio is where courses are built. You can create courses and edit the ones you are granted.
 Other people's courses show as view-only.
 
+To build or change a course by chatting with an AI agent, use the Gurukul Studio desktop app: see
+[Gurukul Studio: build a course by chatting](desktop-studio.md). Everything on this page works the
+same in the browser and in the app.
+
 ## The shape of a course
 
 A course is made of **chapters**. A chapter holds **lessons** and **Quizzes**. Every

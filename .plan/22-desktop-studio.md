@@ -1568,6 +1568,37 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   process run by the app's binary. If `DSK-26` forces the stdio proxy, `RunAsNode` stays on and
   this bullet records that trade-off and its reason before it ships.
 
+### As built in `DSK-23`
+
+- **The guide** is `docs/desktop-studio.md` (linked from `docs/README.md` and `docs/educator.md`):
+  install on a Mac or Windows (SmartScreen's More info, then Run anyway, while the installer is
+  unsigned), install Claude Code and sign in to it in a terminal (`claude`, then `/login`), sign in
+  to Gurukul, a first session from start to publish, the Sources folder, plan limits, where the
+  files live and when they go, and a table for each card the chat shows when the agent cannot run.
+  It names Claude Code only as Anthropic's program. It describes what is built: Discard is left
+  out until it exists.
+- **The privacy page** (`/privacy`, `PrivacyPage.tsx`) has a card, Gurukul Studio sessions: what a
+  session sends to Anthropic under the Educator's own account (the course parts it works on with
+  their answer keys, the messages and attached parts, the Sources files the agent reads; the
+  second opinion gets the question and lessons, never the key; no learner data), what stays on the
+  laptop and for how long, and that Gurukul stores only the draft at Save. "What we measure" names
+  the session events. Since what is collected changed, `POLICY_VERSION` is `2026-11-20`: everyone
+  accepts once more (`20-product-analytics.md`, Consent).
+- **The events** (`analytics/events.ts`): `session_started { kind }` from `SessionLauncher` when
+  `start` answers `started` (not for Open the session, not on a reopen); `session_saved { kind,
+  change_band, turn_band }` from Review's `SaveBar` when `saveSession` answers `saved`, once per
+  save. Counts go in bands (`countBand` in `studio/session/events.ts`: `0`, `1-5`, `6-20`, `21-50`,
+  `51+`) rather than exact numbers, so a record with its time and role cannot single out one
+  person's session (the plan said "counts only"; bands are the narrower reading). `kind` is `new`
+  when the save is the one that created the course (Create course and save draft, or Save the
+  draft for a course created but not yet noted); the session is an edit session by then
+  (`DSK-16`), so a new course whose first save failed and was saved again from the footer reports
+  `edit`. `session_discarded` has the same shape and is typed, but **nothing sends it**: no Discard
+  exists yet (The session workspace, "Discard and a Close without saving are still to come"), and
+  it has no tracker row. Whoever builds Discard sends it after `store.close(session, 'discarded')`
+  succeeds, with `sessionBands`. The privacy page already names discarding, so that needs no
+  second `POLICY_VERSION` change.
+
 ## Cost
 
 - **Firebase: less than today for the same work.** A session reads the draft once and writes it
