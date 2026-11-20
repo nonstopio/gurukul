@@ -151,7 +151,8 @@ describe('the axe helper', () => {
     style.textContent = readFileSync(resolve(import.meta.dirname, '../src/button.css'), 'utf8')
       .replaceAll('var(--accent)', 'rgb(70, 211, 155)')
       .replaceAll('var(--danger)', 'rgb(255, 143, 134)')
-      .replaceAll('var(--surface-hover)', 'rgb(28, 41, 35)');
+      .replaceAll('var(--surface-hover)', 'rgb(28, 41, 35)')
+      .replaceAll('var(--border)', 'rgb(214, 219, 210)');
     document.head.append(style);
     try {
       render(
@@ -173,6 +174,9 @@ describe('the axe helper', () => {
       expect(look('Waiting').backgroundColor).toBe('rgb(28, 41, 35)');
       expect(look('Waiting').opacity).toBe('1');
       expect(look('Delete').backgroundColor).toBe('rgb(28, 41, 35)');
+      // Its edge keeps the button's shape where the ground is near the page's (the light theme).
+      expect(look('Waiting').borderColor).toBe('rgb(214, 219, 210)');
+      expect(look('Delete').borderColor).toBe('rgb(214, 219, 210)');
       // Waiting on its own click keeps its colour; other variants keep the dimming.
       expect(look('Saving').backgroundColor).toBe('rgb(70, 211, 155)');
       expect(look('Cancel').opacity).toBe('0.5');
