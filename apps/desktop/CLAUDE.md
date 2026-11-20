@@ -133,8 +133,10 @@ upgrade check: `docs/desktop-release-setup.md`.
   `node_modules`, so anything the shell runs must be bundled by esbuild into `dist/main.cjs` (a
   package with native code or files it reads at run time would need the packaging changed first).
 - **Windows signing switches on from settings, not code**: `scripts/desktop-win-signing.mjs` reads
-  the Azure Trusted Signing secrets and variables and adds `-c.win.azureSignOptions.*` to the
-  Windows build; none set is unsigned, some set fails. Never name an account in
+  the Azure Artifact Signing (formerly Trusted Signing) secrets and variables and adds
+  `-c.win.azureSignOptions.*` to the Windows build; none set is unsigned, some set fails. Azure
+  does not issue to India-registered companies; an OV certificate on a cloud key service needs a
+  follow-up change first (section 10 lists it). Never name an account in
   `electron-builder.yml`, and never turn signing off after a signed release (installed apps refuse
   an update from another publisher). Setup: `docs/desktop-release-setup.md` section 10.
 - **The updater never opens a dialog on its own**; only the menu's Check for updates… answers in one.

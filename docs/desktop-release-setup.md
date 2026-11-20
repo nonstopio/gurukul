@@ -204,45 +204,64 @@ The check does not cover the packaged, hardened macOS app's firewall prompt: ins
 
 Unsigned, the installer works but Windows says **Windows protected your PC** on the first run, and
 the Educator has to choose **More info → Run anyway**. Signed, the installer and the app name NonStop
-io as the publisher. The release workflow signs as soon as its settings exist, and stays unsigned
-while none do; it never needs a code change to switch on.
+io as the publisher. The release workflow signs with Azure Artifact Signing as soon as its settings
+exist, and stays unsigned while none do. That route needs no code change to switch on, but it may
+not be open to NonStop io (below); the certificate-authority route needs a follow-up change first.
 
 ### Which signing to buy
 
-**Recommended: Azure Trusted Signing**, if NonStop io qualifies (below). About **$9.99 a month**
-(Basic: 5,000 signatures a month, far more than a release uses), no hardware, no certificate file
-to keep, and electron-builder supports it directly, so this is what the workflow is built for.
-Microsoft holds the key and issues short-lived certificates in NonStop io's validated name.
+**First, confirm the country NonStop io's legal entity is registered in.** That decides the route,
+because Microsoft's cheap option is not open everywhere.
 
-The catch is eligibility. Microsoft validates the organisation (legal name, address, business
-history) and, when this was written, offered public-trust signing to organisations in the USA,
-Canada, the EU and the UK only. Check the current list on Microsoft's Trusted Signing page
-(https://learn.microsoft.com/azure/trusted-signing/) before paying; if NonStop io cannot apply,
-this option is closed and the next one is the way.
+**Azure Artifact Signing** (formerly Trusted Signing) is what the release workflow is built for:
+about **$9.99 a month** (Basic: 5,000 signatures a month, far more than a release uses), no
+hardware, no certificate file to keep, and electron-builder supports it directly.
+Microsoft validates the organisation (legal name, address, business records) and holds the key.
+But its public-trust certificates are only for organisations in the United States, Canada, the
+European Union, the United Kingdom, Australia, New Zealand, Japan, South Korea, Singapore,
+Switzerland, Norway and Israel (Microsoft's quickstart, checked on 20 Nov 2026:
+https://learn.microsoft.com/azure/artifact-signing/quickstart). **India is not on the list.** If
+NonStop io is registered in India, this route is closed: do not open an Azure subscription or
+start an identity validation for it, which would fail. Use it only if the entity is registered in
+one of those countries, and check the list again before paying; then follow the next section.
 
-**Otherwise: an OV code-signing certificate from a certificate authority**, on that authority's
-cloud key service (for example DigiCert KeyLocker, SSL.com eSigner or Certum SimplySign), roughly
-$200 to $600 a year. Since June 2023 the industry rules keep code-signing keys in hardware, so no
-authority sells a `.pfx` file any more: the old `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` route
-works only with a certificate issued before then, which has expired by now. Each cloud service has
-its own signing tool, reached from electron-builder through a small `win.signtoolOptions.sign`
-script; that script is not written yet, and choosing this route means a follow-up change to
-`desktop-release.yml` and `scripts/desktop-win-signing.mjs`. An EV certificate costs more and, since
-2024, no longer skips SmartScreen's reputation check, so it is not worth the difference.
+**For an India-registered NonStop io: an OV code-signing certificate from a certificate
+authority**, on that authority's cloud key service (for example DigiCert KeyLocker, SSL.com
+eSigner or Certum SimplySign), roughly $200 to $600 a year. Since June 2023 the industry rules keep
+code-signing keys in hardware, so no authority sells a `.pfx` file any more: the old `WIN_CSC_LINK`
+and `WIN_CSC_KEY_PASSWORD` route works only with a certificate issued before then, which has
+expired by now. An EV certificate costs more and, since 2024, no longer skips SmartScreen's
+reputation check, so it is not worth the difference.
+
+This route is **not built yet**. Choosing it needs a follow-up change, before the first signed
+release, once the authority (and so its signing tool) is known:
+
+1. A signing script, `apps/desktop/scripts/win-sign.cjs` or similar, set as electron-builder's
+   `win.signtoolOptions.sign`: it calls the authority's tool (DigiCert's `smctl`, SSL.com's
+   `CodeSignTool`, Certum's SimplySign with `signtool`) for each file electron-builder hands it,
+   with an RFC 3161 timestamp.
+2. `scripts/desktop-win-signing.mjs` and its tests: that authority's secrets (an API key or
+   account credentials, and the certificate's id) in place of the Azure ones, the same rule (none
+   set is unsigned, some set fails), and the `-c` flags for the script instead of
+   `win.azureSignOptions`.
+3. `desktop-release.yml`: install the authority's tool in the Windows job and pass its secrets to
+   that job only, as the Azure ones are passed now.
+4. This section and `.plan/22-desktop-studio.md` (As built in `DSK-22`): the new settings table.
 
 Either way SmartScreen also weighs reputation: a newly signed app can still warn for its first
 downloads until enough Windows PCs have run it. Signing is what lets that reputation build.
 
-### Set up Azure Trusted Signing
+### Set up Azure Artifact Signing (only if NonStop io is eligible)
 
 1. In the Azure portal (https://portal.azure.com/), with a subscription NonStop io pays for, open
    **Subscriptions → (the subscription) → Resource providers** and register
    `Microsoft.CodeSigning`.
-2. Create a **Trusted Signing account**: pick a resource group, a region and the **Basic** tier.
-   Its **Overview** shows the **Account URI**, for example `https://eus.codesigning.azure.net/`:
-   that is `WIN_SIGN_ENDPOINT`. The account's name is `WIN_SIGN_ACCOUNT`.
-3. In the account, open **Identity validations → New identity → Public**, choose
-   **Organization**, and enter NonStop io's legal details exactly as registered. Microsoft checks
+2. Create an **Artifact Signing account** (search **Artifact Signing Accounts**): pick a resource
+   group, a region and the **Basic** tier. Its **Overview** shows the **Account URI**, for
+   example `https://eus.codesigning.azure.net/`: that is `WIN_SIGN_ENDPOINT`. The account's name is `WIN_SIGN_ACCOUNT`.
+3. Give yourself the **Artifact Signing Identity Verifier** role on the account (**Access control
+   (IAM)**), then open **Identity validations**, choose **Organization**, **New identity →
+   Public**, and enter NonStop io's legal details exactly as registered. Microsoft checks
    them; this takes days, and may ask for documents.
 4. When the validation shows **Completed**, open **Certificate profiles → Create → Public Trust**,
    name it (for example `gurukul-studio`: `WIN_SIGN_PROFILE`) and pick the validation. The
@@ -252,8 +271,8 @@ downloads until enough Windows PCs have run it. Signing is what lets that reputa
    `Gurukul Studio release signing`. Copy the **Directory (tenant) ID** (`AZURE_TENANT_ID`) and
    **Application (client) ID** (`AZURE_CLIENT_ID`). Under **Certificates & secrets**, add a client
    secret and copy its **Value** at once (`AZURE_CLIENT_SECRET`); note when it expires.
-6. Back on the Trusted Signing account, **Access control (IAM) → Add role assignment**: role
-   **Trusted Signing Certificate Profile Signer**, member the app from step 5.
+6. Back on the Artifact Signing account, **Access control (IAM) → Add role assignment**: role
+   **Artifact Signing Certificate Profile Signer**, member the app from step 5.
 7. Add the settings at https://github.com/nonstopio/gurukul/settings/secrets/actions: the three
    credentials as repository **Secrets**, the four names on the **Variables** tab (they are not
    secret: the publisher name is shown in every installer).
@@ -264,7 +283,7 @@ downloads until enough Windows PCs have run it. Signing is what lets that reputa
 | `AZURE_CLIENT_ID`     | Secret   | Application (client) ID, step 5                |
 | `AZURE_CLIENT_SECRET` | Secret   | The client secret's value, step 5              |
 | `WIN_SIGN_ENDPOINT`   | Variable | The account URI, step 2                        |
-| `WIN_SIGN_ACCOUNT`    | Variable | The Trusted Signing account name, step 2       |
+| `WIN_SIGN_ACCOUNT`    | Variable | The Artifact Signing account name, step 2      |
 | `WIN_SIGN_PROFILE`    | Variable | The certificate profile name, step 4           |
 | `WIN_SIGN_PUBLISHER`  | Variable | The certificate's subject name exactly, step 4 |
 
@@ -273,7 +292,10 @@ unsigned, as before; with some but not all, **Check the Windows signing settings
 what is missing, so a half-finished setup can never ship an unsigned build by accident. A wrong
 value fails at signing, with Microsoft's message.
 
-Source: https://learn.microsoft.com/azure/trusted-signing/quickstart
+Source: https://learn.microsoft.com/azure/artifact-signing/quickstart. The endpoints kept their
+form (`https://<region>.codesigning.azure.net`) after the rename; electron-builder reaches the
+service through Microsoft's `TrustedSigning` PowerShell module (`Invoke-TrustedSigning` in the
+build log).
 
 ### Before the first signed release: the gotchas
 

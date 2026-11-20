@@ -1617,11 +1617,14 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
   reached the chat says so and the session waits. The answer check (`DSK-18`) spends one short
   request per changed Quiz question, once per version of it, and Skip answer check stops it.
 - **Installers:** Apple's developer programme is $99 a year (`DSK-03`). Windows ships unsigned at
-  first, as Morph does, which shows a SmartScreen warning. Signing it (`DSK-22`): Azure Trusted
-  Signing at about $9.99 a month (some $120 a year) if NonStop io qualifies, otherwise an OV
-  certificate on a certificate authority's cloud key service at roughly $200 to $600 a year
-  (open question 23). Builds and update files are hosted free on GitHub Releases. The Windows CI
-  job runs only when the desktop shell, the schema or the install changed.
+  first, as Morph does, which shows a SmartScreen warning. Signing it (`DSK-22`, open question 23):
+  Azure Artifact Signing (formerly Trusted Signing) at about $9.99 a month (some $120 a year) is
+  open only to organisations in the US, Canada, the EU, the UK, Australia, New Zealand, Japan,
+  South Korea, Singapore, Switzerland, Norway and Israel, and India is not on that list. For an
+  India-registered NonStop io the likely cost is therefore an OV certificate on a certificate
+  authority's cloud key service, roughly $200 to $600 a year, plus a follow-up change to sign
+  with it (As built in `DSK-22`, below). Builds and update files are hosted free on GitHub
+  Releases. The Windows CI job runs only when the desktop shell, the schema or the install changed.
 
 ## Releases, versions and updates: from the first build
 
@@ -1663,7 +1666,7 @@ requests never build installers; `npm run check` in CI covers the workspace.
 |---|---|---|
 | Next version | Computes `desktop-vX.Y.Z` as above | Same script, with the tag prefix and path filter added |
 | Build (macOS) | `electron-builder --mac --arm64 --x64`: DMG and ZIP, signed, notarised, hardened runtime, `forceCodeSigning` so an unsigned Mac build cannot ship. Fails early, naming the secret, if one of the five is missing | Same |
-| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user; signed with Azure Trusted Signing when its settings exist (`DSK-22`), else unsigned | Same, plus signing (Morph's Windows build is unsigned) |
+| Build (Windows) | `electron-builder --win --x64`: NSIS installer, one click, per user; signed with Azure Artifact Signing when its settings exist (`DSK-22`), else unsigned | Same, plus signing (Morph's Windows build is unsigned) |
 | Create release | One GitHub Release per version with the installers, `latest-mac.yml`, `latest.yml` and blockmaps, notes generated from the merged pull requests since the last desktop tag, marked Latest. Checks every expected file is there first | `gh release create` instead of `softprops/action-gh-release`: one third-party action fewer with write access |
 
 Differences kept on purpose: `npm ci` with the committed lockfile (Morph deletes its lockfile and
@@ -1702,11 +1705,18 @@ Installer names: `Gurukul-Studio-{version}-{arch}.dmg`, `.zip`, and
 
 As built in `DSK-22` (what could be done without the certificate or a Windows PC):
 
-- **Signing is ready to switch on.** Azure Trusted Signing, chosen because it costs about a tenth
-  of a certificate, needs no hardware or certificate file, and electron-builder supports it
-  (`win.azureSignOptions`); a `.pfx` (`WIN_CSC_LINK`) is no longer issued since keys must sit in
-  hardware from June 2023, so a certificate authority's cloud key service is the fallback if
-  NonStop io cannot get Trusted Signing (it needs a custom `sign` script, not written).
+- **Signing is ready to switch on, for Azure Artifact Signing only.** It was chosen because it
+  costs about a tenth of a certificate, needs no hardware or certificate file, and electron-builder
+  supports it (`win.azureSignOptions`). But Microsoft issues its public-trust certificates only to
+  organisations in twelve listed countries and regions (the EU counted as one), and India is not
+  among them (checked 20 Nov 2026), so it is open to NonStop io only if its legal entity is
+  registered in one of them: the maintainer confirms that first. A `.pfx` (`WIN_CSC_LINK`) is no
+  longer issued, since keys must sit in hardware from June 2023, so for an India-registered NonStop
+  io the route is an OV certificate on a certificate authority's cloud key service, which is not
+  built: it needs a `win.signtoolOptions.sign` script calling that authority's tool, that
+  authority's secrets in `scripts/desktop-win-signing.mjs` and its tests, the tool installed and
+  the secrets passed in `desktop-release.yml`'s Windows job, and this note and the setup doc's
+  settings table updated (`docs/desktop-release-setup.md` section 10 lists it).
   `scripts/desktop-win-signing.mjs` (tested in `scripts/test/`) reads three secrets
   (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) and four variables
   (`WIN_SIGN_ENDPOINT`, `WIN_SIGN_ACCOUNT`, `WIN_SIGN_PROFILE`, `WIN_SIGN_PUBLISHER`): none set,
@@ -1731,9 +1741,10 @@ As built in `DSK-22` (what could be done without the certificate or a Windows PC
   adapter (`node.ts`, `killTree`) runs `%SystemRoot%\System32\taskkill.exe /pid <pid> /T /F`
   instead, with Node's own `kill` if `taskkill` cannot start or fails. Proved on Windows by the
   cancelled-ask test, which checks the fake's own `node` is gone.
-- **Left for the maintainer:** choose and buy the signing (open question 23), set the seven
-  settings, install a signed release on a real Windows PC and check the signature and SmartScreen,
-  the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
+- **Left for the maintainer:** confirm where NonStop io is registered, choose and buy the signing
+  (open question 23; for an India-registered company, the certificate route and its follow-up
+  change), set its settings, install a signed release on a real Windows PC and check the
+  signature and SmartScreen, the upgrade check between two signed releases (`DSK-27`), and the signed-in check with
   `claude.exe` and `claude.cmd` (`DSK-26`).
 
 ### Updates (`apps/desktop/src/updates.ts`, from Morph's `electron/updates.ts`)
