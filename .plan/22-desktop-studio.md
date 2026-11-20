@@ -59,9 +59,9 @@ The design follows Anthropic's published rules for Claude Code
 
 So the desktop app **never sees a Claude credential**. It starts the `claude` program and reads
 its output. The app is called Gurukul Studio; its screens may say "runs Claude Code" in plain
-text and nothing more. Written confirmation from Anthropic is a maintainer item (`DSK-01`) and is
-required before the app is offered to Educators (the download card, `DSK-25`), not before
-building or releasing early versions.
+text and nothing more. The maintainer decided (2026-11-20) not to seek written confirmation from
+Anthropic: the published rules above allow this design, so nothing waits on it (`DSK-01`, open
+question 18).
 
 ## Architecture
 
@@ -1328,8 +1328,8 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   releases. If the request fails it links to the releases page.
 - In the desktop app the same place shows the session buttons instead. One feature tip points at
   the card (`adding-feature-tips`).
-- The card is the announcement to Educators, so it waits for Anthropic's answer (`DSK-01`). The
-  pipeline and the updater do not: early releases are on GitHub for the people building the app.
+- The card is the announcement to Educators. It ships with the first release that has it, without
+  a switch: no written confirmation from Anthropic is awaited (`DSK-01`).
 
 ### Housekeeping
 

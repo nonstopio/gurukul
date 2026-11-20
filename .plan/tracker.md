@@ -30,8 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| Desktop Studio | 12 | 10 | 0 | 5 |
-| **Total** | 202 | 11 | 0 | 19 |
+| Desktop Studio | 13 | 10 | 0 | 4 |
+| **Total** | 203 | 11 | 0 | 18 |
 
 ## Pick order
 
@@ -363,7 +363,7 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 
 | ID       | Item | Status | Depends | Notes |
 | -------- | ---- | ------ | ------- | ----- |
-| `DSK-01` | Anthropic confirms the design in writing; NonStop accepts the Commercial Terms | maintainer | — | Open question 18. Needed before public installers, not before building. `22-desktop-studio.md` (What Anthropic allows) |
+| `DSK-01` | Anthropic confirms the design in writing; NonStop accepts the Commercial Terms | done | — | Closed by the maintainer on 2026-11-20 without a written confirmation: the published rules allow the design, so nothing waits on it. Open question 18. `22-desktop-studio.md` (What Anthropic allows) |
 | `DSK-02` | Google "Desktop" OAuth client for sign-in from the app | maintainer | — | Google Cloud console, same project as Firebase (a client in another project must be added to the Google provider's allow-list); client id and secret go to the GitHub Actions secrets `GURUKUL_DESKTOP_GOOGLE_CLIENT_ID` and `GURUKUL_DESKTOP_GOOGLE_CLIENT_SECRET`, and to `apps/desktop/.env` for development (open question 22). Done when a development build of the app signs in with it once through the system browser (`DSK-09` built the flow) |
 | `DSK-03` | Signing: Apple Developer ID and notarisation secrets | maintainer | — | The five secrets Morph's pipeline uses (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) as GitHub Actions secrets on this repository; an existing Developer ID certificate can be reused. Steps: Morph's `docs/release-setup.md` |
 | `DSK-04` | Spike: start Claude Code from Electron and exchange one tool call | done | — | Linux slice, signed out, no usage spent: `22-desktop-studio.md` (Starting Claude Code, Spike findings) pins the launch flags (`--setting-sources ""`, `--strict-mcp-config`, `--tools Skill`, `--system-prompt-snapshot off`, `--session-id` then `--resume`), the allow-listed environment, the not-signed-in signals, Stop as the `interrupt` control request, and the agent's tools as an HTTP MCP endpoint in the main process with the stdio proxy as fallback. The signed-in macOS and Windows half is `DSK-26` |
@@ -388,5 +388,5 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-22` | Windows: signed installer and the agent bridge proven there | todo | `DSK-10`, `DSK-21` | Done when the Windows installer is signed (certificate from the maintainer, open question 23), installs without a SmartScreen warning, updates itself, and the agent bridge passes its tests on Windows |
 | `DSK-23` | Guides, privacy note and analytics events | todo | `DSK-15` | Done when `docs/` has an Educator guide (install, sign in to Claude Code, a first session), the privacy page says what a session sends to Anthropic, and `session_started`, `session_saved`, `session_discarded` are typed events with counts only |
 | `DSK-24` | End-to-end with a fake Claude Code | todo | `DSK-15` | Done when Playwright drives the built shell against the emulators with a script that replays recorded agent output: a session, a turn, Review, Save to draft, a new course, and a stale draft with a merge. No test calls Anthropic |
-| `DSK-25` | Download card in Studio | todo | `DSK-01`, `DSK-21` | Done when the browser Studio's course list shows the card that reads the latest GitHub Release, offers the installer for the visitor's system first (Apple Silicon, Intel, Windows) with its version and install steps, falls back to the releases page, and has a feature tip; in the desktop app the session buttons show instead. Waits for Anthropic's answer because it is the announcement to Educators |
+| `DSK-25` | Download card in Studio | todo | `DSK-21` | Done when the browser Studio's course list shows the card that reads the latest GitHub Release, offers the installer for the visitor's system first (Apple Silicon, Intel, Windows) with its version and install steps, falls back to the releases page, and has a feature tip; in the desktop app the session buttons show instead. Shown to every Educator, with no switch (`DSK-01` closed) |
 | `DSK-27` | Hand upgrade check between two signed desktop releases | maintainer | `DSK-03`, `DSK-21` | Once `DSK-03`'s secrets are set and two `desktop-v*` releases exist: install the older on Apple Silicon, Intel and Windows, see Update ready, restart into the newer, and try Update ready with unsaved work in Studio. Steps: `docs/desktop-release-setup.md` (step 8) |
