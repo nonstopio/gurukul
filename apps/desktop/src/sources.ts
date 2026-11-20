@@ -141,7 +141,7 @@ export interface SourcesManager {
 export class SourcesError extends Error {
   override name = 'SourcesError';
   constructor(
-    readonly reason: keyof SourceRefusals | 'app_data',
+    readonly reason: keyof SourceRefusals | 'app_data' | 'not_shown',
     message: string,
   ) {
     super(message);
@@ -170,10 +170,13 @@ export function displayPath(folder: string, homeDir: string): string {
   return folder.startsWith(homeDir + path.sep) ? `~${folder.slice(homeDir.length)}` : folder;
 }
 
-/** True when `inner` is `outer` or inside it. */
+/**
+ * True when `inner` is `outer` or inside it. Only a first step of exactly `..` leaves `outer`: a
+ * folder named `..x` inside it is still inside.
+ */
 export function isInside(outer: string, inner: string): boolean {
   const rel = path.relative(outer, inner);
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 }
 
 /** The text of a file's bytes, or null when they are not valid UTF-8 text. A BOM is dropped. */
@@ -317,8 +320,14 @@ export function createSources(options: SourcesOptions): SourcesManager {
     async reveal(ref) {
       const folder = await folderOf(ref);
       if (folder === null) return;
-      // Electron answers a failure as text, with the path in it: only that it failed is logged.
-      if ((await opener.openPath(folder)) !== '') log.warn('Sources folder not shown', {});
+      // Electron answers a failure as text, with the path in it: only that it failed is logged,
+      // and the window gets a fixed sentence so it can say so.
+      if ((await opener.openPath(folder)) === '') return;
+      log.warn('Sources folder not shown', {});
+      throw new SourcesError(
+        'not_shown',
+        'The Sources folder could not be opened. It may have been moved or deleted.',
+      );
     },
 
     async read(ref, name) {

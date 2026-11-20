@@ -89,6 +89,9 @@ describe('helpers', () => {
     expect(isInside('/a/b', '/a/b/c')).toBe(true);
     expect(isInside('/a/b', '/a/bc')).toBe(false);
     expect(isInside('/a/b', '/a')).toBe(false);
+    expect(isInside('/a/b', '/a/b/..x')).toBe(true);
+    expect(isInside('/a/b', '/a/b/...')).toBe(true);
+    expect(isInside('/a/b', '/a/..b')).toBe(false);
   });
 
   it('decodes UTF-8 text without its BOM, and refuses anything else', () => {
@@ -182,8 +185,11 @@ describe('sources.choose', () => {
 
   it('refuses a folder inside the app’s own data', async () => {
     const inside = path.join(dataDir, 'sessions', 'u1');
+    // A name that only starts with two dots is still a folder inside, not the one above.
+    const dotted = path.join(dataDir, '..x');
     await mkdir(inside, { recursive: true });
-    for (const pick of [dataDir, inside]) {
+    await mkdir(dotted, { recursive: true });
+    for (const pick of [dataDir, inside, dotted]) {
       const { sources, sink } = setup({ pick });
       const refusal = sources.choose(ref);
       await expect(refusal).rejects.toThrow(SourcesError);
@@ -318,11 +324,17 @@ describe('sources.reveal', () => {
     expect(openPath).toHaveBeenCalledWith(material);
   });
 
-  it('logs that the folder was not shown, without the system’s words', async () => {
+  it('refuses when the folder was not shown, without the system’s words', async () => {
     const { sources, sink } = setup({ opened: 'Failed to open /home/meera/Material' });
     await sources.choose(ref);
-    await sources.reveal(ref);
+    const refusal = sources.reveal(ref);
+    await expect(refusal).rejects.toThrow(SourcesError);
+    await expect(refusal).rejects.toMatchObject({
+      reason: 'not_shown',
+      message: 'The Sources folder could not be opened. It may have been moved or deleted.',
+    });
     expect(sink).toHaveBeenCalledWith('warn', 'Sources folder not shown', {});
+    expect(JSON.stringify(sink.mock.calls)).not.toContain('meera');
   });
 });
 

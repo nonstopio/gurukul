@@ -560,7 +560,9 @@ As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/deskt
   valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB). A file it will not read rejects with
   one of `SOURCE_REFUSALS`, a sentence `read_source` hands the agent ("save it as text or
   Markdown"). It logs the size read, never a path, a file name or the text.
-- **`sources.reveal`** opens the folder in Finder or Explorer.
+- **`sources.reveal`** opens the folder in Finder or Explorer. When the system cannot (the folder
+  was moved or deleted), it rejects with a fixed sentence, never the system's words with the path
+  in them, and the window says the folder could not be opened.
 - **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
   answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
   The workspace (`DSK-13`) passes it to `defaultToolContext`.
