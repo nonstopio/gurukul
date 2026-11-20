@@ -10,7 +10,7 @@ import {
   parseCheckArgs,
 } from '../../src/agent/checkCli';
 import { nodeAgentPlatform } from '../../src/agent/node';
-import { fakeClaudeHome } from './fakeClaude';
+import { CLAUDE_PROGRAM, fakeClaudeHome, PLATFORM } from './fakeClaude';
 
 const homes: Awaited<ReturnType<typeof fakeClaudeHome>>[] = [];
 afterEach(async () => {
@@ -74,7 +74,7 @@ describe('checkClaudeMain', { timeout: 20_000 }, () => {
     const out: string[] = [];
     const code = await checkClaudeMain({
       argv,
-      platform: nodeAgentPlatform('linux', h.env, h.home),
+      platform: nodeAgentPlatform(PLATFORM, h.env, h.home),
       tempDir,
       input,
       write: (t) => out.push(t),
@@ -110,9 +110,13 @@ describe('checkClaudeMain', { timeout: 20_000 }, () => {
   });
 
   it('runs without asking with --yes and answers 1 when a step failed', async () => {
-    const { code, text } = await main(['--yes', '--claude', '/nowhere/claude']);
+    // A name `findClaude` looks for on this system (`\nowhere\claude.cmd` on the current drive on
+    // Windows), in a folder that does not exist.
+    const missing = path.resolve('/nowhere', CLAUDE_PROGRAM);
+    const { code, text } = await main(['--yes', '--claude', missing]);
     expect(code).toBe(1);
     expect(text).not.toContain('Continue?');
+    expect(text).toContain(`${missing} is not there, or may not be run`);
     expect(text).toContain('Result: FAIL (Find claude)');
   });
 });

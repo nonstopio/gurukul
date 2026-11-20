@@ -171,12 +171,15 @@ describe('ending a program on Windows', () => {
     expect(result.code !== 0 || result.signal !== null).toBe(true);
   });
 
+  // Node's own spawn, not the platform's: on Windows cross-spawn starts a file it cannot find
+  // through `cmd.exe`, which has a pid, so a program with none is made here the same everywhere.
   it('kills with Node a program that never started', async () => {
-    const p = nodeAgentPlatform('win32', process.env, root);
-    const child = p.spawn(path.join(root, 'missing'), [], { cwd: root, env: envOf(p) });
-    const failed = new Promise((resolve) => child.on('error', resolve));
+    const child = spawn(path.join(root, 'missing'), [], { stdio: ['pipe', 'pipe', 'ignore'] });
+    const failed = new Promise<NodeJS.ErrnoException>((resolve) => child.on('error', resolve));
+    killTree(child, path.join(root, 'taskkill'));
+    expect(child.pid).toBeUndefined();
     expect(child.kill('SIGTERM')).toBe(false);
-    await failed;
+    expect((await failed).code).toBe('ENOENT');
   });
 
   // A shell script stands in for taskkill.exe, so these run everywhere but Windows; there the
