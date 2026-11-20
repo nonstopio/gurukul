@@ -109,6 +109,7 @@
   padding-right: var(--space-1);
 }
 .g-chat-attachment__x {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -120,6 +121,12 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+}
+/* The visible button is small; this widens the hit area to the 44px target. */
+.g-chat-attachment__x::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 .g-chat-attachment__x:hover {
   background: var(--surface);
