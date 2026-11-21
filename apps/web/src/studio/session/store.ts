@@ -7,6 +7,7 @@ import {
   courseSchema,
   sessionBaseSchema,
   slug,
+  upgradeCourse,
   workingSchema,
 } from '@gurukul/schema';
 import type { AuthoringSession, TimestampLike, Turn, WorkingCopy } from '@gurukul/schema';
@@ -800,7 +801,8 @@ export function createSessionStore({
         const draft = await getDraft(request.courseId);
         if (!draft) return { status: 'no_draft' };
         work = {
-          course: draft.course,
+          // A draft saved at an older schemaVersion is brought to today's shape, as publishing does.
+          course: upgradeCourse(draft.course) as WorkingCopy['course'],
           answers: draft.answers,
           ...(draft.answersChanged ? { answersChanged: true as const } : {}),
         };
