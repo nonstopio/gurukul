@@ -155,6 +155,20 @@ describe('constants and words', () => {
   });
 });
 
+describe('choosing the model', () => {
+  it('changes nothing while a turn runs or before the agent is ready', async () => {
+    const s = await setup();
+    expect(await s.runtime.choose({ model: 'opus' })).toBe(false);
+    await s.runtime.open();
+    expect(s.state().canChoose).toBe(true);
+    expect(await s.runtime.send('Hello')).toBe(true);
+    expect(s.state().canChoose).toBe(false);
+    expect(await s.runtime.choose({ model: 'opus' })).toBe(false);
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+    expect(s.disk()).not.toHaveProperty('model');
+  });
+});
+
 describe('opening', () => {
   it('starts the agent with the prompt, skills and tools, and no resume id the first time', async () => {
     const s = await setup();

@@ -133,10 +133,10 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 |---|---|
 | `info()` | Bridge version, app version, platform. An old shell with a new site shows "Update the app" |
 | `agent.status()` | Is Claude Code installed, which version, is it new enough, is the Educator signed in |
-| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start |
+| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId, model?, effort? })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start. `model` is `opus`, `sonnet` or `haiku`, `effort` is `low`, `medium` or `high`; left out is Claude Code's default |
 | `agent.send(sessionId, message)` / `agent.stop(sessionId)` / `agent.close(sessionId)` | A message in; stop the current turn; end the session's process |
 | `agent.forget(agentSessionId)` | Deletes Claude Code's own copy of a chat, for the 30-day clean-up |
-| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id, errors (not installed, too old, not signed in, plan limit reached, crashed) |
+| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id (and `context`, the tokens the last request read against the model's window, when `claude` reported usage), errors (not installed, too old, not signed in, plan limit reached, crashed) |
 | `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
 | `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
@@ -172,6 +172,10 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   calling a missing function; the app updates itself in the background, so the gap is short. No
   fallback path to the old call is kept: it would be code to maintain for a shell that updates
   itself.
+- **Bridge version 3**: `agent.start` takes an optional `model` and `effort` (the chat bar's
+  pickers). A version 2 shell refuses them (its arguments are strict), so the web app asks for 3 and
+  an older shell shows "Update the app" instead of failing at the first model change. The new
+  `context` field on `turn_end` needs no version: a site that does not read it ignores it.
 - **The web app takes the types only** (`import type`, enforced by ESLint), so no shell code reaches
   its bundle; `REQUIRED_BRIDGE_VERSION` in `apps/web/src/desktop/bridge.ts` decides "Update the
   app".
@@ -208,6 +212,7 @@ claude -p --input-format stream-json --output-format stream-json --verbose \
   --allowedTools             "mcp__gurukul__*" \
   --permission-mode          dontAsk \
   --system-prompt-snapshot   off \
+  [--model <opus|sonnet|haiku>] [--effort <low|medium|high>] \
   --session-id               <new UUID, first start>  |  --resume <same UUID, every later start>
 ```
 
@@ -249,7 +254,21 @@ put on a command line.
 - Stop sends a stream-json `interrupt` control request: the turn ends, the process stays. A plan
   limit or a missing sign-in arrives as an event and the chat says what to do in plain words
   ("Open a terminal, run `claude` and sign in, then try again").
-- No model picker in v1: Claude Code's own default is used.
+- **Model and effort come from the chat's bar** (`ChatBar`, stored per session as optional `model`
+  and `effort` in `session.json`, so older files read as they are). The window names a choice from
+  a list; `args.ts` checks it with zod (`z.enum`, never a string) and `launch.ts` builds
+  `--model opus|sonnet|haiku` and `--effort low|medium|high` itself, so no text from the page is
+  ever an argument. Left out, Claude Code's own default is used and no flag is passed. A change
+  takes effect by closing the agent and starting it again with `--resume`, between turns only (the
+  bar's pickers wait while a turn runs). `claude --help` on 2.1.330 lists `--effort` as low,
+  medium, high, xhigh, max; the bar offers the first three.
+- **Context used**: the shell keeps the input and cache tokens of the newest request (`usage` on
+  each assistant line: `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`)
+  and sends them with `turn_end` as `context: { used, window }`. The window is the largest
+  `contextWindow` in the result's `modelUsage`; when `claude` names none it is 200,000
+  (`DEFAULT_CONTEXT_WINDOW`: the window of all three aliases, a 1M model reports its own). The ring
+  hides until a turn reports usage and again after a model change, and is not kept across a page
+  reload.
 
 As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`):
 

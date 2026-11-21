@@ -177,6 +177,10 @@ export const PaperclipIcon = icon(
     <path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551" />
   </g>,
 );
+export const FolderIcon = icon(
+  'FolderIcon',
+  <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z" />,
+);
 export const PenIcon = icon('PenIcon', <path d="M10.5 2.5l3 3L6 13H3v-3zM9 4l3 3" />);
 export const SendIcon = icon('SendIcon', <path d="M14 2L7 9M14 2l-4.5 12L7 9 2 6.5z" />);
 export const ArrowUpIcon = icon('ArrowUpIcon', <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />);

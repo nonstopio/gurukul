@@ -5,6 +5,10 @@ import { answerKeysSchema } from './draft';
 /** Version of the `session.json` shape; goes up when a field changes meaning, so the app can migrate. */
 export const SESSION_SCHEMA_VERSION = 1;
 
+/** The models and effort levels a session may pick; the desktop shell's lists, held equal by a test. */
+export const SESSION_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export const SESSION_EFFORTS = ['low', 'medium', 'high'] as const;
+
 /** How many checkpoints a session keeps on disk: the newest 30, older ones are deleted. */
 export const SESSION_CHECKPOINTS_KEPT = 30;
 
@@ -123,6 +127,12 @@ export const authoringSessionSchema = z
     viewed: z.array(id).max(10_000),
     /** The Claude Code session to resume; null before the first turn. */
     agentSessionId: z.string().min(1).max(200).nullable(),
+    /**
+     * What the Educator picked in the chat's bar; absent is Claude Code's default. Optional, so a
+     * session written before they existed reads as it is (no schema version bump).
+     */
+    model: z.enum(SESSION_MODELS).optional(),
+    effort: z.enum(SESSION_EFFORTS).optional(),
     createdAt: at,
     updatedAt: at,
   })

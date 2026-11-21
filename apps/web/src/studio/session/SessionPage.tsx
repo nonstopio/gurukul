@@ -222,6 +222,7 @@ function Workspace({
     <ChatPanel
       agent={agent}
       desktop={desktop}
+      platform={platform}
       sessionId={sessionId}
       draft={draft}
       onDraft={setTyped}

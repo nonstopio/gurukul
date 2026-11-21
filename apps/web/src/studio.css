@@ -783,6 +783,31 @@
   display: grid;
   gap: var(--space-3);
 }
+/* The composer's bottom bar: model and effort left, context, Sources and skills right. */
+.ss-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.ss-bar__pick {
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+}
+.ss-bar__fill {
+  flex: 1;
+}
+.ss-bar__context {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: 500 var(--text-xs) / 1 var(--font-ui);
+  color: var(--text-muted);
+}
+.ss-bar__note {
+  font: 400 var(--text-xs) / 1.4 var(--font-ui);
+  color: var(--text-muted);
+}
 .ss-composer__actions {
   display: flex;
   justify-content: flex-end;

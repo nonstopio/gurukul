@@ -178,6 +178,7 @@ export {
   GitHubIcon,
   EmbedIcon,
   FileIcon,
+  FolderIcon,
   GridIcon,
   HomeIcon,
   Icon,

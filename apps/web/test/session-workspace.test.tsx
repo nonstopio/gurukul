@@ -1102,3 +1102,166 @@ describe('the chat of a session already written', () => {
     expect(await screen.findByText(/Press the paperclip on a row of the Outline/)).toBeTruthy();
   });
 });
+
+describe("the chat's bottom bar", () => {
+  const trigger = (name: RegExp | string) => screen.getByRole('button', { name });
+  const pickFrom = async (menu: RegExp, item: string) => {
+    fireEvent.click(trigger(menu));
+    fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(`^${item}`) }));
+  };
+  const startArgs = (s: { agent: { start: { mock: { calls: unknown[] } } } }, n: number) =>
+    (s.agent.start.mock.calls[n] as unknown[] | undefined)?.[0];
+  const ready = async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    return s;
+  };
+
+  it('shows the defaults, no context yet, and lists the skills without letting them be changed', async () => {
+    await ready();
+    expect(trigger('Model: Default model')).toBeTruthy();
+    expect(trigger('Effort: Default effort')).toBeTruthy();
+    expect(screen.queryByRole('progressbar', { name: 'Context used' })).toBeNull();
+    fireEvent.click(trigger('Skills the agent has'));
+    const items = screen.getAllByRole('menuitem').map((i) => i.textContent);
+    expect(items).toEqual([
+      'OutlineAgrees the plan first',
+      'LessonWrites one lesson',
+      'QuizQuestions from lessons',
+      'HumanizePlain, checked writing',
+    ]);
+    expect(screen.getByText('What the agent knows how to do. Read-only.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Outline/ }));
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('starts the agent again with the model and effort picked, resuming the chat, and keeps them', async () => {
+    const s = await ready();
+    await pickFrom(/^Model: Default/, 'Opus');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(2));
+    expect(s.agent.close).toHaveBeenCalledWith(s.id);
+    expect(s.agent.start).toHaveBeenLastCalledWith(expect.objectContaining({ model: 'opus' }));
+    expect(startArgs(s, 1)).not.toHaveProperty('effort');
+    await screen.findByRole('button', { name: 'Model: Opus' });
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).toMatchObject({
+      model: 'opus',
+    });
+
+    await pickFrom(/^Effort: Default/, 'Low');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(3));
+    expect(s.agent.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({ model: 'opus', effort: 'low' }),
+    );
+    fireEvent.click(trigger('Effort: Low'));
+    expect(screen.getByRole('menuitem', { name: /^Low/ }).textContent).toContain('Selected');
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Default/ }));
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(4));
+    await screen.findByRole('button', { name: 'Effort: Default effort' });
+    expect(startArgs(s, 3)).not.toHaveProperty('effort');
+    expect(s.agent.start).toHaveBeenLastCalledWith(expect.objectContaining({ model: 'opus' }));
+    expect(log.info).toHaveBeenCalledWith('Agent model chosen', {
+      sessionId: s.id,
+      model: 'opus',
+      effort: 'default',
+    });
+    await pickFrom(/^Model: Opus/, 'Default');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(5));
+    await screen.findByRole('button', { name: 'Model: Default model' });
+    expect(startArgs(s, 4)).not.toHaveProperty('model');
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).not.toHaveProperty(
+      'model',
+    );
+    // A default is no key at all, so an older file reads the same.
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).not.toHaveProperty(
+      'effort',
+    );
+  });
+
+  it('starts with what the session file already holds', async () => {
+    const fake = fakeDesktop();
+    const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 'held' });
+    const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+      draftDoc(GIT, { rev: 3 }),
+    );
+    if (started.status !== 'started') throw new Error('not started');
+    await store.save({ ...started.session, model: 'haiku', effort: 'high' });
+    const agent = fakeAgent(fake.desktop);
+    installDesktop(fake.desktop);
+    await openApp('/studio/sessions/held', { roles: ['educator'], studio: studio() });
+    await screen.findByRole('button', { name: 'Model: Haiku' });
+    expect(screen.getByRole('button', { name: 'Effort: High' })).toBeTruthy();
+    await waitFor(() => expect(agent.agent.start).toHaveBeenCalled());
+    expect(agent.agent.start).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'haiku', effort: 'high' }),
+    );
+  });
+
+  it('says how full the context is once a turn reports it, and again empty after a change', async () => {
+    const s = await ready();
+    await send(s, 'Rename it');
+    act(() =>
+      s.emit({
+        type: 'turn_end',
+        agentSessionId: 'claude-1',
+        outcome: 'done',
+        context: { used: 46_000, window: 200_000 },
+      }),
+    );
+    const ring = await screen.findByRole('progressbar', { name: 'Context used' });
+    expect(ring.getAttribute('aria-valuenow')).toBe('23');
+    expect(screen.getByText('23%')).toBeTruthy();
+    await pickFrom(/^Model: Default/, 'Sonnet');
+    await waitFor(() =>
+      expect(screen.queryByRole('progressbar', { name: 'Context used' })).toBeNull(),
+    );
+  });
+
+  it('caps the percentage at 100', async () => {
+    const { contextPercent } = await import('../src/studio/session/ChatBar');
+    expect(contextPercent(250_000, 200_000)).toBe(100);
+    expect(contextPercent(1, 200_000)).toBe(0);
+  });
+
+  it('cannot change the model while a turn runs', async () => {
+    const s = await ready();
+    await send(s, 'Go');
+    const model = screen.getByRole('button', { name: 'Model: Default model' });
+    expect((model as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Effort: Default effort' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it('keeps the old choice and says so when it cannot be saved', async () => {
+    const s = await ready();
+    s.desktop.store.write.mockRejectedValueOnce(new Error('store.write failed (EACCES)'));
+    await pickFrom(/^Model: Default/, 'Opus');
+    expect(await screen.findByText(/That choice could not be saved/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Model: Default model' })).toBeTruthy();
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+    expect(log.warn).toHaveBeenCalledWith('Session model not saved', expect.any(Object));
+  });
+
+  it('starts the new agent even when the old one cannot be told to end', async () => {
+    const s = await ready();
+    s.agent.close.mockRejectedValueOnce(new Error('agent.close failed'));
+    await pickFrom(/^Model: Default/, 'Haiku');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(2));
+    expect(log.warn).toHaveBeenCalledWith('Agent not closed', expect.any(Object));
+  });
+
+  it('shows the Sources folder in Finder, and logs when it cannot', async () => {
+    const s = await ready();
+    fireEvent.click(trigger('Show in Finder'));
+    expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
+    fireEvent.click(trigger('Show in Finder'));
+    await waitFor(() =>
+      expect(log.error).toHaveBeenCalledWith('Sources folder not shown', expect.any(Error), {
+        sessionId: s.id,
+      }),
+    );
+  });
+});

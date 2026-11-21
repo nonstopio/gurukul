@@ -4,8 +4,11 @@ import type { ChangeRow, CourseChanges } from '@gurukul/schema/changes';
 import type { AuthoringSession, SessionGoal, Turn } from '@gurukul/schema';
 import { bridgeFailure } from '../../desktop/bridge';
 import type {
+  AgentContext as ContextUsage,
+  AgentEffort,
   AgentError,
   AgentEvent,
+  AgentModel,
   AgentStatus,
   AgentToolCall,
   AgentToolResult,
@@ -62,6 +65,9 @@ import { turnChanged } from './workspace';
  *   note    undone turns and turns by the Educator (hand edits, Undo this item) are told to the
  *           agent with the next message; until then `agent-note.json` keeps them, so a runtime
  *           opened later still tells it.
+ *   choose  the model and effort from the chat's bar: written to `session.json`, then the agent is
+ *           closed and started again with them (`--resume` keeps the chat), only between turns.
+ *           Not a turn: nothing is undone or told to the agent.
  *   save    Save to draft (`DSK-15`): the working copy goes to the stored draft through the `write`
  *           the page hands it (Studio's own save), then the session is closed as `saved`.
  *   bring   Bring in their changes (`DSK-15`): the merged copy becomes the working copy and the
@@ -160,6 +166,13 @@ export interface AgentSessionView {
    * the one Undo takes back first. Null once a later turn is written, or it is undone.
    */
   unsaved: Turn | null;
+  /**
+   * How full the conversation's context was after the newest turn, from the usage `claude` reported;
+   * null until a turn reports one, and again after a model change (the window may differ).
+   */
+  usage: ContextUsage | null;
+  /** The model or effort may be changed now: the agent is ready and nothing else is being written. */
+  canChoose: boolean;
   /** Changes made so far by the turn that is running, against the checkpoint before it. */
   turnChanges: number;
   /** The parts of the course the next message carries, in the order they were attached. */
@@ -281,6 +294,12 @@ export interface AgentSession {
    * copy is then as it was.
    */
   educatorTurn(work: Working, summary: string): Promise<boolean>;
+  /**
+   * The chat bar's model and effort (`null` is Claude Code's default; a key left out stays): written
+   * to `session.json`, then the agent is closed and started again with them, resuming the chat.
+   * Only when `canChoose`. False when it was not changed (not ready, or the write failed).
+   */
+  choose(patch: { model?: AgentModel | null; effort?: AgentEffort | null }): Promise<boolean>;
   /** Ends the running turn; what it had changed stays. */
   stop(): Promise<void>;
   /** Undoes the newest turn. False when there is none or its checkpoint before is gone. */
@@ -417,6 +436,11 @@ const NOT_SAVED: AgentProblem = {
   code: 'not_saved',
   message:
     'The last turn could not be written to this computer, so closing the app now would lose it. Its changes are still here: the next turn writes them again, or Undo takes them back.',
+};
+
+const CHOICE_NOT_SAVED: AgentProblem = {
+  code: 'not_saved',
+  message: 'That choice could not be saved on this computer, so it was not changed. Try again.',
 };
 
 const UNDO_GONE: AgentProblem = {
@@ -586,6 +610,7 @@ export function createAgentSession({
    * turn is undone, a merge's base with it, so `base` is still that blank course then.
    */
   const createdCourse = (base: SessionBase) => namedCourse(base.work.course, creating);
+  let usage: ContextUsage | null = null;
   let queue: Promise<unknown> = Promise.resolve();
   /**
    * Review edits shown at once but not yet written, in the order they were made. A task that took
@@ -643,6 +668,8 @@ export function createAgentSession({
       turns,
       unsaved,
       // A turn runs only once the session is open, so `work` is there.
+      usage,
+      canChoose: status === 'ready' && hand === null && !saving,
       turnChanges: turn ? turnCount(workOf(saved as AuthoringSession), work as Working) : 0,
       attachments,
       canAttach: session?.status === 'open' && attachments.length < MAX_ATTACHMENTS,
@@ -761,6 +788,9 @@ export function createAgentSession({
         ...agentSetup(tools),
         // Only an id a finished turn named: Claude Code keeps no chat for a session never sent to.
         resumeId: current.agentSessionId,
+        // Left out, not undefined: a shell's arguments are strict about names it does not know.
+        ...(current.model !== undefined && { model: current.model }),
+        ...(current.effort !== undefined && { effort: current.effort }),
       });
       if (!started.ok) return unavailable(problemOf(started.error));
       status = turn ? 'working' : 'ready';
@@ -1037,6 +1067,7 @@ export function createAgentSession({
         return emit();
       }
       case 'turn_end':
+        if (event.context) usage = event.context;
         void enqueue(() => endTurn(event.agentSessionId, event.outcome));
         return;
       case 'error':
@@ -1187,6 +1218,51 @@ export function createAgentSession({
         emit();
         return false;
       }
+    },
+
+    async choose(patch) {
+      if (status !== 'ready' || hand || saving) return false;
+      // `base` with the patch laid over it: `null` removes a pick (Claude Code's default).
+      const picked = (base: AuthoringSession): AuthoringSession => {
+        const { model: oldModel, effort: oldEffort, ...rest } = base;
+        const model = patch.model === undefined ? oldModel : patch.model;
+        const effort = patch.effort === undefined ? oldEffort : patch.effort;
+        return {
+          ...rest,
+          ...(model != null && { model }),
+          ...(effort != null && { effort }),
+        };
+      };
+      status = 'connecting';
+      problem = null;
+      emit();
+      return enqueue(async () => {
+        try {
+          const written = await store.save(picked(onDisk()));
+          saved = savedAfter(written);
+          session = { ...picked(session as AuthoringSession), updatedAt: written.updatedAt };
+        } catch (error) {
+          log.warn('Session model not saved', { sessionId, reason: bridgeFailure(error) });
+          status = 'ready';
+          problem = CHOICE_NOT_SAVED;
+          emit();
+          return false;
+        }
+        usage = null;
+        const now = session as AuthoringSession;
+        log.info('Agent model chosen', {
+          sessionId,
+          model: now.model ?? 'default',
+          effort: now.effort ?? 'default',
+        });
+        try {
+          await agent.close(sessionId);
+        } catch (error) {
+          log.warn('Agent not closed', { sessionId, reason: bridgeFailure(error) });
+        }
+        await connect();
+        return true;
+      });
     },
 
     async stop() {

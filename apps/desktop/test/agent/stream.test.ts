@@ -119,13 +119,42 @@ describe('readLine', () => {
     expect(event(undefined)).toEqual([]);
   });
 
+  it('reads the tokens a request read: input and both caches, none when there are none', () => {
+    const usage = (u: unknown) => read({ type: 'assistant', message: { content: [], usage: u } });
+    expect(
+      usage({
+        input_tokens: 10,
+        cache_creation_input_tokens: 20,
+        cache_read_input_tokens: 30,
+        output_tokens: 99,
+      }),
+    ).toEqual([{ kind: 'usage', tokens: 60 }]);
+    expect(usage({ input_tokens: 5 })).toEqual([{ kind: 'usage', tokens: 5 }]);
+    expect(usage({ input_tokens: 0, cache_read_input_tokens: 'x' })).toEqual([]);
+    expect(usage('nope')).toEqual([]);
+  });
+
+  it('reads the largest context window a result names', () => {
+    const window = (modelUsage: unknown) =>
+      (
+        read({ type: 'result', subtype: 'success', modelUsage }) as {
+          contextWindow: number | null;
+        }[]
+      )[0]?.contextWindow;
+    expect(window({ a: { contextWindow: 200000 }, b: { contextWindow: 1000000 } })).toBe(1000000);
+    expect(window({ b: { contextWindow: 1000000 }, a: { contextWindow: 200000 } })).toBe(1000000);
+    expect(window({ a: { contextWindow: 'big' }, b: 3 })).toBeNull();
+    expect(window([])).toBeNull();
+    expect(window(undefined)).toBeNull();
+  });
+
   it('reads a result: done, failed, or aborted by an interrupt', () => {
     expect(read({ type: 'result', subtype: 'success', is_error: false, session_id: 'a' })).toEqual([
-      { kind: 'result', failed: false, aborted: false, agentSessionId: 'a' },
+      { kind: 'result', failed: false, aborted: false, agentSessionId: 'a', contextWindow: null },
     ]);
     // Signed out: subtype still success, is_error true.
     expect(read({ type: 'result', subtype: 'success', is_error: true })).toEqual([
-      { kind: 'result', failed: true, aborted: false, agentSessionId: null },
+      { kind: 'result', failed: true, aborted: false, agentSessionId: null, contextWindow: null },
     ]);
     expect(
       read({
@@ -134,7 +163,9 @@ describe('readLine', () => {
         is_error: true,
         terminal_reason: 'aborted_streaming',
       }),
-    ).toEqual([{ kind: 'result', failed: true, aborted: true, agentSessionId: null }]);
+    ).toEqual([
+      { kind: 'result', failed: true, aborted: true, agentSessionId: null, contextWindow: null },
+    ]);
   });
 
   it('reads a control response’s token source and nothing else of the account', () => {

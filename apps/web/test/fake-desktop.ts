@@ -14,7 +14,7 @@ import type {
 } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
-  bridgeVersion: 2,
+  bridgeVersion: 3,
   appVersion: '0.1.0',
   platform: 'darwin',
 };

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  AGENT_EFFORTS,
+  AGENT_MODELS,
   MAX_AGENT_TEXT_LENGTH,
   MAX_ASK_PROMPT_LENGTH,
   MAX_PATH_SEGMENTS,
@@ -76,6 +78,9 @@ export const agentStartRequest = z
       )
       .max(MAX_TOOLS),
     resumeId: agentSessionId.nullable(),
+    /** A name from the lists, never a flag: `launch.ts` builds `--model` and `--effort`. */
+    model: z.enum(AGENT_MODELS).optional(),
+    effort: z.enum(AGENT_EFFORTS).optional(),
   })
   .strict();
 

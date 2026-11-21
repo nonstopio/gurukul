@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DEFAULT_CONTEXT_WINDOW,
   AgentNotRunningError,
   CLOSE_GRACE_MS,
   TOOL_CALL_TIMEOUT_MS,
@@ -135,6 +136,25 @@ describe('a turn', () => {
       { type: 'turn_end', sessionId: 's1', agentSessionId: 'claude-2', outcome: 'done' },
     ]);
     expect(run.agentSessionId).toBe('claude-2');
+  });
+
+  it('says how full the context is after a turn: the last request against the window', async () => {
+    const { fake, run, result, events } = await live();
+    run.send('Hello');
+    const usage = (input: number) =>
+      fake.print({
+        type: 'assistant',
+        message: { content: [], usage: { input_tokens: input, cache_read_input_tokens: 1000 } },
+      });
+    usage(10);
+    usage(50);
+    result();
+    run.send('Again');
+    result({ modelUsage: { m: { contextWindow: 1_000_000 } } });
+    expect(events.map((e) => (e as { context?: unknown }).context)).toEqual([
+      { used: 1050, window: DEFAULT_CONTEXT_WINDOW },
+      { used: 1050, window: 1_000_000 },
+    ]);
   });
 
   it('takes the Claude session id from the result too', async () => {

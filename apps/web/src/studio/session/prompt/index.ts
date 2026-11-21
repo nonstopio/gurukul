@@ -80,6 +80,17 @@ export const SKILLS: readonly AgentSkill[] = [
   },
 ];
 
+/**
+ * What the chat bar's Skills menu shows, read-only: each skill's name for the Educator and a few
+ * words on what it does. A test holds the keys equal to the names in `SKILLS`.
+ */
+export const SKILL_LABELS: Record<string, { label: string; hint: string }> = {
+  outline: { label: 'Outline', hint: 'Agrees the plan first' },
+  lesson: { label: 'Lesson', hint: 'Writes one lesson' },
+  quiz: { label: 'Quiz', hint: 'Questions from lessons' },
+  humanize: { label: 'Humanize', hint: 'Plain, checked writing' },
+};
+
 /** What `agent.start` takes from the web app besides the session: prompt, skills and tools. */
 export type AgentSetup = Pick<AgentStartRequest, 'systemPrompt' | 'skills' | 'tools'>;
 

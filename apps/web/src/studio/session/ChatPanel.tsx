@@ -42,6 +42,7 @@ import { relativeTime } from '../studioModel';
 import { MESSAGE_MAX_LENGTH } from './agent';
 import { attachmentKey } from './attachments';
 import type { AttachTarget } from './attachments';
+import { ChatBar } from './ChatBar';
 import { ProblemNote, UnavailableCard, Words } from './Problem';
 import type { AgentSessionHandle } from './useAgentSession';
 import { chatLines, turnFooter } from './workspace';
@@ -110,6 +111,7 @@ const CLOSED = {
 export function ChatPanel({
   agent,
   desktop,
+  platform,
   sessionId,
   draft,
   onDraft,
@@ -118,6 +120,7 @@ export function ChatPanel({
 }: {
   agent: AgentSessionHandle;
   desktop: GurukulDesktop;
+  platform: string;
   sessionId: string;
   draft: string;
   onDraft: (text: string) => void;
@@ -372,7 +375,12 @@ export function ChatPanel({
               onEmptied={() => box.current?.focus()}
             />
           </ChatComposer>
-          {/* The composer's bottom bar (model, effort, context, Sources, skills) goes here. */}
+          <ChatBar
+            agent={agent}
+            sources={desktop.sources}
+            sessionId={sessionId}
+            platform={platform}
+          />
           <p className="sc-help">
             This runs Claude Code on this computer, under your own Claude account. The course and
             what you write are sent to Anthropic, so leave out client names and internal documents.

@@ -23,9 +23,11 @@
 /**
  * Raised only when a change breaks a site written for an older shell. 2: `sources.choose` (a folder
  * picker) became `sources.ensure` (a fixed default folder), so a site that asks for 2 cannot run on
- * a shell that has only `choose`, and one asking for 1 never calls `ensure`.
+ * a shell that has only `choose`, and one asking for 1 never calls `ensure`. 3: `agent.start` takes a
+ * `model` and an `effort`, which a version 2 shell refuses (its arguments are strict), so a site that
+ * lets the Educator pick them asks for 3.
  */
-export const BRIDGE_VERSION = 2;
+export const BRIDGE_VERSION = 3;
 
 /**
  * The messages a refused call rejects with. Electron prefixes them ("Error invoking remote method
@@ -126,6 +128,14 @@ export interface AgentTool {
   inputSchema: Record<string, unknown>;
 }
 
+/** The models an Educator may pick: Claude Code's own aliases, never a flag string. */
+export const AGENT_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export type AgentModel = (typeof AGENT_MODELS)[number];
+
+/** The effort levels an Educator may pick (`claude --effort`). */
+export const AGENT_EFFORTS = ['low', 'medium', 'high'] as const;
+export type AgentEffort = (typeof AGENT_EFFORTS)[number];
+
 /** What `agent.start` needs. Everything the agent knows comes from the web app (decision 4). */
 export interface AgentStartRequest extends SessionRef {
   /** Written to the session's `prompt.md` and passed with `--append-system-prompt-file`. */
@@ -138,6 +148,19 @@ export interface AgentStartRequest extends SessionRef {
    * one exists (`sources.ensure`); the web app never passes a path.
    */
   resumeId: string | null;
+  /** The model to run; the shell builds `--model` itself. Left out: Claude Code's default. */
+  model?: AgentModel | undefined;
+  /** How hard it thinks; the shell builds `--effort` itself. Left out: Claude Code's default. */
+  effort?: AgentEffort | undefined;
+}
+
+/**
+ * How full the conversation's context is after a turn: the tokens the last request read (input
+ * and cache) against the model's window.
+ */
+export interface AgentContext {
+  used: number;
+  window: number;
 }
 
 /** Why the agent cannot run, or stopped running. */
@@ -176,7 +199,14 @@ export type AgentEvent =
    */
   | { type: 'tool_call'; sessionId: string; callId: string; name: string }
   /** The turn is over. `agentSessionId` is the id to keep for `resumeId` and `agent.forget`. */
-  | { type: 'turn_end'; sessionId: string; agentSessionId: string; outcome: TurnOutcome }
+  | {
+      type: 'turn_end';
+      sessionId: string;
+      agentSessionId: string;
+      outcome: TurnOutcome;
+      /** Present when `claude` reported usage for the turn. */
+      context?: AgentContext;
+    }
   /** The agent cannot go on. A turn in progress also ends (`turn_end`, `failed`) when it can. */
   | { type: 'error'; sessionId: string; error: AgentError };
 

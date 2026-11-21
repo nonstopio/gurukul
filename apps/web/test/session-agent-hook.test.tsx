@@ -114,6 +114,7 @@ describe('agentSessionSource', () => {
     expect(source.getState().status).toBe('loading');
     expect(await source.send('Hello')).toBe(false);
     expect(await source.undo()).toBe(false);
+    expect(await source.choose({ model: 'opus' })).toBe(false);
     await source.stop();
     await source.retry();
     expect(source.attach({ kind: 'course', ids: {}, label: 'Course details' })).toBe(false);

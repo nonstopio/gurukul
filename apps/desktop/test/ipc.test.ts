@@ -130,7 +130,7 @@ describe('registerHandlers', () => {
 
   it('answers info with the bridge version, app version and platform', async () => {
     await expect(setup().call('info', top())).resolves.toEqual({
-      bridgeVersion: 2,
+      bridgeVersion: 3,
       appVersion: '1.2.3',
       platform: 'darwin',
     });
@@ -289,6 +289,7 @@ describe('calls a later item builds', () => {
     ['agent.status', [], 'status'],
     ['agent.start', [start], 'start'],
     ['agent.start', [{ ...start, resumeId: uuid }], 'start'],
+    ['agent.start', [{ ...start, model: 'opus', effort: 'low' }], 'start'],
     ['agent.send', ['s1', 'Simplify the rebase chapter'], 'send'],
     ['agent.stop', ['s1'], 'stop'],
     ['agent.close', ['s1'], 'close'],
@@ -404,6 +405,12 @@ describe('calls a later item builds', () => {
       [{ ...start, tools: [{ ...start.tools[0], name: 'GetCourse' }] }],
     ],
     ['a resume id that is a path', 'agent.start', [{ ...start, resumeId: '../../x' }]],
+    [
+      'a model that is a flag',
+      'agent.start',
+      [{ ...start, model: '--dangerously-skip-permissions' }],
+    ],
+    ['an effort the list lacks', 'agent.start', [{ ...start, effort: 'max' }]],
     ['a Sources path', 'agent.start', [{ ...start, sourcesDir: '/Users/x' }]],
     ['an empty message', 'agent.send', ['s1', '']],
     ['a message without a session', 'agent.send', ['Hello']],

@@ -61,7 +61,7 @@ colour as text), solid (`--accent` / `--accent-on`) for "Completed".
 
 ## ProgressBar and ProgressRing — shipped
 
-`<ProgressBar value label showValue? caption?>` (`caption` replaces the printed percentage, e.g. "44% · 10 / 22"), `<ProgressRing value label size? stroke?>`. `value` is 0 to 100,
+`<ProgressBar value label showValue? caption?>` (`caption` replaces the printed percentage, e.g. "44% · 10 / 22"), `<ProgressRing value label size? stroke? showValue?>` (`showValue={false}` for a ring too small to print in, e.g. the chat bar's context ring). `value` is 0 to 100,
 rounded and clamped. Track `--border`, fill `--accent-decor`, `--radius-pill`; bar 8px tall, fill
 animates on `--dur-slow`. The element with `role="progressbar"` carries `aria-valuenow/min/max` and
 `aria-label`; the bar prints the percentage beside it (`showValue={false}` to hide), the ring prints it

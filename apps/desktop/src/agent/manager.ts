@@ -168,7 +168,10 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
       const cwd = sources !== null && (await isFolder(sources)) ? sources : files.emptyDir;
       child = platform.spawn(
         found.file,
-        claudeArgs(files, resumeId === null ? { sessionId: agentSessionId } : { resumeId }),
+        claudeArgs(files, resumeId === null ? { sessionId: agentSessionId } : { resumeId }, {
+          model: request.model,
+          effort: request.effort,
+        }),
         { cwd, env: childEnv(platform.env, platform.platform, token) },
       );
     } catch (error) {
@@ -200,7 +203,12 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
     }
     started.markLive();
     runs.set(sessionId, started);
-    log.info('Agent started', { sessionId, resumed: resumeId !== null });
+    log.info('Agent started', {
+      sessionId,
+      resumed: resumeId !== null,
+      model: request.model ?? 'default',
+      effort: request.effort ?? 'default',
+    });
     return { ok: true, agentSessionId };
   };
 

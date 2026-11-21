@@ -12,6 +12,8 @@ export interface ProgressRingProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   size?: number;
   /** Ring thickness in px. Default: 6. */
   stroke?: number;
+  /** Print the percentage in the middle. Turn off for a ring too small to hold it. Default: true. */
+  showValue?: boolean;
 }
 
 /** A circular progress indicator with the percentage printed in the middle. */
@@ -20,6 +22,7 @@ export function ProgressRing({
   label,
   size = 56,
   stroke = 6,
+  showValue = true,
   className,
   ...rest
 }: ProgressRingProps) {
@@ -56,9 +59,11 @@ export function ProgressRing({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
-      <span className="g-ring__text" aria-hidden="true">
-        {pct}%
-      </span>
+      {showValue ? (
+        <span className="g-ring__text" aria-hidden="true">
+          {pct}%
+        </span>
+      ) : null}
     </div>
   );
 }

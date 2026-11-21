@@ -27,8 +27,9 @@ export type * from '@gurukul/desktop/bridge';
  * Raise it with the shell's `BRIDGE_VERSION`, only when this site starts using what an older shell
  * does not have. 2: `sources.ensure` (the fixed default Sources folder) replaced `sources.choose`;
  * every page that needs a session shows "Update the app" on a shell that has only `choose`.
+ * 3: `agent.start` with a `model` and an `effort` (the chat bar); a version 2 shell refuses them.
  */
-export const REQUIRED_BRIDGE_VERSION = 2;
+export const REQUIRED_BRIDGE_VERSION = 3;
 
 /** The shell's refusal messages; the type makes them equal to the shell's own. */
 const ERRORS: BridgeErrors = {

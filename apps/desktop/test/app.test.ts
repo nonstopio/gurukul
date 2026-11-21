@@ -165,7 +165,7 @@ describe('startApp', () => {
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: false,
-      bridgeVersion: 2,
+      bridgeVersion: 3,
     });
   });
 
@@ -178,11 +178,11 @@ describe('startApp', () => {
     ]);
     await expect(
       handlers.get(channel('info'))?.(topFrame('http://127.0.0.1:4173')),
-    ).resolves.toMatchObject({ bridgeVersion: 2 });
+    ).resolves.toMatchObject({ bridgeVersion: 3 });
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: true,
-      bridgeVersion: 2,
+      bridgeVersion: 3,
     });
   });
 
@@ -221,7 +221,7 @@ describe('startApp', () => {
     expect(windows[0]?.loadURL).toHaveBeenCalledWith(PRODUCTION_URL);
     const info = handlers.get(channel('info'));
     await expect(info?.(topFrame('https://gurukul.nonstopio.com'))).resolves.toEqual({
-      bridgeVersion: 2,
+      bridgeVersion: 3,
       appVersion: '0.1.0',
       platform: 'linux',
     });
