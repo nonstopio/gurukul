@@ -181,6 +181,18 @@ describe('start', () => {
     expect(result.status === 'started' && 'answersChanged' in result.session.work).toBe(false);
   });
 
+  it('brings a draft saved at an older schemaVersion up to today before the session keeps it', async () => {
+    const s = setup();
+    const old = { ...makeCourse(), schemaVersion: 3 } as unknown as ReturnType<typeof makeCourse>;
+    const result = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'Go.' }, async () =>
+      draftDoc(old, { rev: 4 }),
+    );
+    expect(result.status).toBe('started');
+    expect(result.status === 'started' && result.session.work.course.schemaVersion).toBe(
+      makeCourse().schemaVersion,
+    );
+  });
+
   it('starts a new course with no base and a blank course, its goal trimmed to fit', async () => {
     const s = setup();
     const goal = `  ${'a'.repeat(400)}`;
