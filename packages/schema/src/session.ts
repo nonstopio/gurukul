@@ -41,6 +41,17 @@ export const sessionBaseSchema = z.object({
   work: workingSchema,
 });
 
+/** Most changed parts a turn names; its `changes` count still says how many there were. */
+export const MAX_TURN_PARTS = 100;
+
+/** One changed course part, as the chat names it: its kind, its title then, and what happened. */
+export const turnPartSchema = z.object({
+  kind: z.enum(['course', 'landing', 'chapter', 'lesson', 'quiz']),
+  title: z.string().max(200),
+  status: z.enum(['added', 'changed', 'removed', 'moved', 'renamed']),
+});
+export type TurnPart = z.infer<typeof turnPartSchema>;
+
 /** One step of a session: who made it, what it did in a line, and the checkpoint file to go back to. */
 export const turnSchema = z.object({
   id,
@@ -57,6 +68,11 @@ export const turnSchema = z.object({
    * holds the base from before it (`sessionBaseSchema`), which Undo of this turn puts back.
    */
   baseBefore: checkpointFile.optional(),
+  /**
+   * What the turn changed, named for the chat's list (`turnParts`): one entry per changed course
+   * part, the first 100 only. Absent on turns written before it existed; the count is still right.
+   */
+  parts: z.array(turnPartSchema).max(MAX_TURN_PARTS).optional(),
 });
 export type Turn = z.infer<typeof turnSchema>;
 

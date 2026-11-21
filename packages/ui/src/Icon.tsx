@@ -179,6 +179,13 @@ export const PaperclipIcon = icon(
 );
 export const PenIcon = icon('PenIcon', <path d="M10.5 2.5l3 3L6 13H3v-3zM9 4l3 3" />);
 export const SendIcon = icon('SendIcon', <path d="M14 2L7 9M14 2l-4.5 12L7 9 2 6.5z" />);
+export const ArrowUpIcon = icon('ArrowUpIcon', <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />);
+export const StopIcon = icon('StopIcon', <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />);
+/** A turn back: going back to how things were before. */
+export const UndoIcon = icon(
+  'UndoIcon',
+  <path d="M6 3.5L2.5 7 6 10.5M2.5 7h7a4 4 0 0 1 0 6.5H7" />,
+);
 export const SettingsIcon = icon(
   'SettingsIcon',
   <>

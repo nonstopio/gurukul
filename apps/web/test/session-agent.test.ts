@@ -373,6 +373,7 @@ describe('turns', () => {
         summary: 'Rename the course.',
         checkpoint: 't1.json',
         changes: 1,
+        parts: [{ kind: 'course', title: '', status: 'changed' }],
       },
     ]);
     const disk = s.disk();
@@ -1484,6 +1485,7 @@ describe('a turn by the Educator', () => {
         summary: 'Put back Course details',
         checkpoint: 't1.json',
         changes: 1,
+        parts: [{ kind: 'course', title: '', status: 'changed' }],
       },
     ]);
     expect(s.disk().work.course.title).toBe('By hand');

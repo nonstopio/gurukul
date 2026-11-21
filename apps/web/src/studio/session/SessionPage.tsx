@@ -225,6 +225,8 @@ function Workspace({
       sessionId={sessionId}
       draft={draft}
       onDraft={setTyped}
+      checks={checks}
+      onPoint={() => setChatOpen(false)}
     />
   );
 

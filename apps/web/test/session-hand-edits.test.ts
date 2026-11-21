@@ -203,6 +203,10 @@ describe('hand edits in a session', () => {
         summary: 'Edited by hand: Why Git, How Git',
         checkpoint: 't1.json',
         changes: 2,
+        parts: [
+          { kind: 'lesson', title: 'Why Git', status: 'changed' },
+          { kind: 'lesson', title: 'How Git', status: 'changed' },
+        ],
       },
     ]);
     expect(s.disk().turns).toHaveLength(1);

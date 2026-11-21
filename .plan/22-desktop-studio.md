@@ -732,7 +732,7 @@ only inside the desktop app).
 │ Agent: I rewrote lessons 3.1  │  └────────────────────────────────────────────────────┘  │
 │ to 3.3 and added a Quiz with  │  ┌────────────────────────────────────────────────────┐  │
 │ six questions.                │  │ Code                                               │  │
-│  ▸ Turn 4 · 4 changes  [Undo] │  │ git fetch origin                                   │  │
+│  Worked 2m 39s, 4 changes [↶] │  │ git fetch origin                                   │  │
 │                               │  └────────────────────────────────────────────────────┘  │
 │ ┌───────────────────────────┐ │                                                          │
 │ │ Ask for a change…         │ │                                                          │
@@ -743,9 +743,19 @@ only inside the desktop app).
 - **Chat.** Streams the agent's reply. While it works, a line says what it is doing in plain words
   ("Rewriting lesson 3.2", "Checking the Quiz"), never tool names. Stop ends the turn; whatever
   the turn had already changed stays and becomes its checkpoint.
-- **Turn chips.** Each finished turn shows "Turn 4 · 4 changes". Clicking it opens Review
-  filtered to that turn. **Undo** on the newest turn restores the checkpoint before it; older
-  turns are undone newest first.
+- **Each turn reads like the Claude desktop app's.** The Educator's message is a right-aligned
+  rounded bubble; the agent's reply is unboxed prose. Above the reply a folded **How it got there**
+  (a button with `aria-expanded`) holds the turn's steps in plain words (its activity entries).
+  Under it, one row per course part the turn changed ("Edited Why rebase", a kind icon, when),
+  six shown and "+N more" for the rest; then a muted footer, "Worked for 2m 39s, 19 changes" (the
+  count links to Review filtered to that turn; a Copy icon button copies the reply), and **Go back
+  to before this** on the newest turn, which restores the checkpoint before it behind its
+  confirmation; older turns are undone newest first. The newest turn ends with "Checked: no new
+  problems" or "Checked: problems to fix before saving", from the same checks as the header. The
+  message box is one rounded box: the attached chips, the text, a round **+** (attach from the
+  Preview or the Outline: it says where to press, since attaching happens beside the block or row)
+  and a round Send, which is Stop while the agent works. Below it a bottom bar for the model,
+  effort, context use, Sources folder and skills is planned (the next stage).
 - **Preview** is the real learner player drawing the working copy (the player that
   `PreviewPage` uses), with a marker on every changed block. **Outline** is the chapter tree with
   Added, Changed, Removed and Moved badges.
@@ -850,10 +860,18 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
 - **The chat** shows the Educator's messages (as typed), the agent's (as markdown, through the
   player's renderer) and the app's notices; activity entries stay in `transcript.jsonl` but the log
-  shows only the live line, which says "Thinking" until the first activity of a turn. After each
-  finished turn a line "Turn 4 · 4 changes"; a turn that could not be written is listed too ("· not
-  saved", from the runtime view's `unsaved`) because it is the one Undo takes back first. Undo is
-  on the newest line only, behind a confirmation. Enter sends, Shift and Enter is a new line; the
+  shows the live line, which says "Thinking" until the first activity of a turn, and folds the
+  entries of a finished turn into its **How it got there** (`chatLines`: the steps ride on the
+  turn's first reply, else on its line). After each finished turn: what it changed, the footer
+  "Worked for 2m 39s, 4 changes" (the time is the Educator's message to the turn's end, read from
+  the transcript, so none is stored; unknown when the chat was cut, and not shown for a turn by
+  hand), the check. A turn that could not be written is listed too ("· not saved", from the runtime
+  view's `unsaved`) because it is the one Undo takes back first. **Go back to before this** is on
+  the newest turn only, behind a confirmation. What a turn changed is `Turn.parts` (`turnChanged`
+  in `workspace.ts`, written with `changes` at every turn): one `{ kind, title, status }` per
+  Review row, the first 100, titles as they were then, so an Undone or renamed part still reads
+  true. It is optional, so turns written before it read as before (`SESSION_SCHEMA_VERSION` did
+  not change) and show their count only. Enter sends, Shift and Enter is a new line; the
   next message can be typed during a turn but not sent. When the agent cannot run, a card with
   the problem's sentence and **Check again** (or **Start it again** after a crash) takes the place
   of the message box; a shell too old for a call adds **Update the app** (the sidebar item's check,

@@ -1,28 +1,51 @@
 import {
+  ArrowUpIcon,
+  BookIcon,
   Button,
   Callout,
   ChatActivity,
   ChatAttachments,
+  ChatChanges,
+  ChatCheck,
+  ChatComposer,
   ChatLog,
   ChatMessage,
+  ChatRoundButton,
+  ChatSteps,
   ChatTurn,
-  SendIcon,
-  Textarea,
-  buttonClass,
+  ChatTurnFooter,
+  ChecklistIcon,
+  CopyIcon,
+  HomeIcon,
+  IconButton,
+  Menu,
+  PlusIcon,
+  SettingsIcon,
+  StopIcon,
+  TextIcon,
+  UndoIcon,
+  chatRoundClass,
+  useToast,
 } from '@gurukul/ui';
-import type { Turn } from '@gurukul/schema';
+import type { ChatChange } from '@gurukul/ui';
+import type { Turn, TurnPart } from '@gurukul/schema';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { Prose } from '../../player/blocks';
+import { useTerms } from '../../labels/useTerms';
+import type { Terms } from '../../labels/terms';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { copyText } from '../media/clipboard';
+import { relativeTime } from '../studioModel';
 import { MESSAGE_MAX_LENGTH } from './agent';
 import { attachmentKey } from './attachments';
 import type { AttachTarget } from './attachments';
 import { ProblemNote, UnavailableCard, Words } from './Problem';
 import type { AgentSessionHandle } from './useAgentSession';
-import { chatLines, turnBy, turnLabel } from './workspace';
+import { chatLines, turnFooter } from './workspace';
+import type { HeaderChecks } from './workspace';
 
 /** Where Review opens on one turn's changes (`DSK-14` reads `turn`). */
 export const reviewPath = (sessionId: string, turnId?: string) =>
@@ -32,6 +55,44 @@ export const reviewPath = (sessionId: string, turnId?: string) =>
 const chips = (targets: readonly AttachTarget[]) =>
   targets.map((t) => ({ id: attachmentKey(t), label: t.label }));
 
+const PART_ICON: Record<TurnPart['kind'], ReactNode> = {
+  course: <SettingsIcon size={16} />,
+  landing: <HomeIcon size={16} />,
+  chapter: <BookIcon size={16} />,
+  lesson: <TextIcon size={16} />,
+  quiz: <ChecklistIcon size={16} />,
+};
+
+const PART_VERB: Record<TurnPart['status'], string> = {
+  added: 'Added',
+  changed: 'Edited',
+  moved: 'Moved',
+  removed: 'Removed',
+  renamed: 'Renamed',
+};
+
+/** A turn's changed parts as the list draws them: "Edited Quiz · Branching", with when. */
+function changeItems(turn: Turn, t: Terms, now: Date): ChatChange[] {
+  const detail = relativeTime(new Date(turn.at), now);
+  return (turn.parts ?? []).map((part, i) => {
+    const title = part.title || 'Untitled';
+    const name =
+      part.kind === 'course'
+        ? 'course details'
+        : part.kind === 'landing'
+          ? 'landing page'
+          : part.kind === 'lesson'
+            ? title
+            : `${t[part.kind === 'quiz' ? 'Quiz' : 'Chapter']} · ${title}`;
+    return {
+      id: `${i}`,
+      icon: PART_ICON[part.kind],
+      label: `${PART_VERB[part.status]} ${name}`,
+      detail,
+    };
+  });
+}
+
 const CLOSED = {
   saved:
     'This session was saved and closed. Its chat and its copy of the course are kept here to read; nothing more changes.',
@@ -40,8 +101,9 @@ const CLOSED = {
 } as const;
 
 /**
- * The session's chat (`.plan/22-desktop-studio.md`, The session workspace): what was said, a line
- * after each written turn with its count and, on the newest, Undo behind a confirmation; the live
+ * The session's chat (`.plan/22-desktop-studio.md`, The session workspace): what was said, and
+ * after each written turn what it changed, its footer with its count and, on the newest, Go back to
+ * before this behind a confirmation, and its check; the live
  * line of what the agent is doing, never a tool name; Stop during a turn; and the message box. The
  * draft message lives with the caller, so it survives the drawer closing.
  */
@@ -51,13 +113,21 @@ export function ChatPanel({
   sessionId,
   draft,
   onDraft,
+  checks,
+  onPoint,
 }: {
   agent: AgentSessionHandle;
   desktop: GurukulDesktop;
   sessionId: string;
   draft: string;
   onDraft: (text: string) => void;
+  /** The working copy's checks, as the top bar shows them: the newest turn says what they found. */
+  checks: HeaderChecks;
+  /** The "+" menu sent the Educator to the Preview or the Outline: the chat gets out of the way. */
+  onPoint: () => void;
 }) {
+  const t = useTerms();
+  const toast = useToast();
   const { status, problem, transcript, turns, unsaved, activity, canSend, canUndo } = agent;
   const { attachments, detach } = agent;
   const attached = useMemo(() => chips(attachments), [attachments]);
@@ -115,11 +185,22 @@ export function ChatPanel({
     event.preventDefault();
     void send();
   };
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
-    event.preventDefault();
-    void send();
+  const copy = async (text: string) => {
+    const copied = await copyText(text);
+    toast.show(copied ? 'Reply copied' : 'Could not copy the reply', {
+      tone: copied ? 'success' : 'danger',
+    });
   };
+  const point = (where: 'Preview' | 'Outline') => {
+    onPoint();
+    toast.show(
+      where === 'Preview'
+        ? 'Press Attach beside a block or question in the Preview, then come back to the chat.'
+        : 'Press the paperclip on a row of the Outline, then come back to the chat.',
+    );
+  };
+  const passing = checks.valid && !checks.overLimit;
+  const now = new Date();
 
   const closed = agent.session && agent.session.status !== 'open' ? agent.session.status : null;
 
@@ -135,22 +216,52 @@ export function ChatPanel({
       <ChatLog label="Chat with the agent" className="ss-chat__log" ref={log} tabIndex={0}>
         {lines.map((line) => {
           if (line.kind === 'turn') {
+            const { lead, count, tail } = turnFooter(line);
             return (
               <ChatTurn key={`turn-${line.turn.id}`}>
-                <Link
-                  className={buttonClass('quiet', undefined, 'sm')}
-                  to={reviewPath(sessionId, line.turn.id)}
+                {line.steps.length > 0 ? (
+                  <ChatSteps label="How it got there" steps={line.steps} />
+                ) : null}
+                <ChatChanges
+                  label="What this turn changed"
+                  items={changeItems(line.turn, t, now)}
+                />
+                <ChatTurnFooter
+                  end={
+                    line.newest && canUndo ? (
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        icon={<UndoIcon />}
+                        onClick={() => setUndoing({ turn: line.turn, number: line.number })}
+                      >
+                        Go back to before this
+                      </Button>
+                    ) : null
+                  }
                 >
-                  {turnLabel(line.number, line.turn.changes, line.saved, turnBy(line.turn))}
-                </Link>
-                {line.newest && canUndo ? (
-                  <Button
-                    variant="quiet"
-                    size="sm"
-                    onClick={() => setUndoing({ turn: line.turn, number: line.number })}
-                  >
-                    {`Undo turn ${line.number}`}
-                  </Button>
+                  {line.reply === '' ? null : (
+                    <IconButton label="Copy reply" onClick={() => void copy(line.reply)}>
+                      <CopyIcon />
+                    </IconButton>
+                  )}
+                  <span>
+                    {lead}
+                    <Link
+                      to={reviewPath(sessionId, line.turn.id)}
+                      aria-label={`${count} in turn ${line.number}, open in Review`}
+                    >
+                      {count}
+                    </Link>
+                    {tail}
+                  </span>
+                </ChatTurnFooter>
+                {line.newest && line.saved ? (
+                  <ChatCheck ok={passing}>
+                    {passing
+                      ? 'Checked: no new problems'
+                      : 'Checked: problems to fix before saving'}
+                  </ChatCheck>
                 ) : null}
               </ChatTurn>
             );
@@ -174,6 +285,9 @@ export function ChatPanel({
           if (entry.kind === 'agent') {
             return (
               <ChatMessage key={key} from="agent" author="Agent">
+                {line.steps.length > 0 ? (
+                  <ChatSteps label="How it got there" steps={line.steps} />
+                ) : null}
                 <Prose md={entry.text} pictures={false} links={false} />
               </ChatMessage>
             );
@@ -196,49 +310,69 @@ export function ChatPanel({
       ) : (
         <>
           {problem ? <ProblemNote problem={problem} desktop={desktop} /> : null}
-          <form className="ss-composer" onSubmit={onSubmit}>
+          <ChatComposer
+            ref={box}
+            className="ss-composer"
+            label="Ask for a change"
+            placeholder={
+              status === 'connecting'
+                ? 'Starting the agent…'
+                : 'Ask for a change. Attach a part from the Preview or Outline.'
+            }
+            hint={
+              attached.length === 0
+                ? 'Enter sends; Shift and Enter start a new line.'
+                : 'Enter sends, with what is attached; Shift and Enter start a new line.'
+            }
+            maxLength={MESSAGE_MAX_LENGTH}
+            value={draft}
+            onChange={onDraft}
+            onSend={() => void send()}
+            onSubmit={onSubmit}
+            start={
+              <Menu
+                label="Add to your message"
+                trigger={<PlusIcon />}
+                triggerClassName={chatRoundClass('plain')}
+                placement="top"
+                align="start"
+                items={[
+                  { label: 'Attach from the Preview', onSelect: () => point('Preview') },
+                  { label: 'Attach from the Outline', onSelect: () => point('Outline') },
+                ]}
+              />
+            }
+            end={
+              working ? (
+                <ChatRoundButton
+                  label="Stop"
+                  tone="primary"
+                  disabled={status === 'stopping'}
+                  aria-busy={status === 'stopping'}
+                  onClick={() => void agent.stop()}
+                >
+                  <StopIcon />
+                </ChatRoundButton>
+              ) : (
+                <ChatRoundButton
+                  label="Send"
+                  tone="primary"
+                  type="submit"
+                  disabled={!canSend || draft.trim() === ''}
+                >
+                  <ArrowUpIcon />
+                </ChatRoundButton>
+              )
+            }
+          >
             <ChatAttachments
               label="Attached to your next message"
               items={attached}
               onRemove={detach}
               onEmptied={() => box.current?.focus()}
             />
-            <Textarea
-              ref={box}
-              label="Ask for a change"
-              hint={
-                status === 'connecting'
-                  ? 'Starting the agent…'
-                  : attached.length === 0
-                    ? 'Enter sends; Shift and Enter start a new line. To point at one part of the course, attach it from the Preview or the Outline.'
-                    : 'Enter sends, with what is attached; Shift and Enter start a new line.'
-              }
-              rows={3}
-              maxLength={MESSAGE_MAX_LENGTH}
-              value={draft}
-              onChange={(event) => onDraft(event.target.value)}
-              onKeyDown={onKeyDown}
-            />
-            <div className="ss-composer__actions">
-              {working ? (
-                <Button
-                  variant="secondary"
-                  loading={status === 'stopping'}
-                  onClick={() => void agent.stop()}
-                >
-                  Stop
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  icon={<SendIcon />}
-                  disabled={!canSend || draft.trim() === ''}
-                >
-                  Send
-                </Button>
-              )}
-            </div>
-          </form>
+          </ChatComposer>
+          {/* The composer's bottom bar (model, effort, context, Sources, skills) goes here. */}
           <p className="sc-help">
             This runs Claude Code on this computer, under your own Claude account. The course and
             what you write are sent to Anthropic, so leave out client names and internal documents.
@@ -247,8 +381,8 @@ export function ChatPanel({
       )}
       {undoing ? (
         <ConfirmDialog
-          title={`Undo turn ${undoing.number}?`}
-          confirmLabel={`Undo turn ${undoing.number}`}
+          title={`Go back to before turn ${undoing.number}?`}
+          confirmLabel={`Go back to before turn ${undoing.number}`}
           onClose={() => setUndoing(null)}
           onConfirm={() => {
             setUndoing(null);

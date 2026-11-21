@@ -41,7 +41,7 @@ async function startSession(window: Page, goal: string): Promise<void> {
 async function sendMessage(window: Page, text: string, turn: string | RegExp): Promise<void> {
   await window.getByLabel('Ask for a change').fill(text);
   await window.getByRole('button', { name: 'Send' }).click();
-  await expect(window.getByText(turn, { exact: true })).toBeVisible();
+  await expect(window.getByRole('link', { name: turn })).toBeVisible();
 }
 
 /** The fake agent's turn: rename a lesson, then say so. */
@@ -67,7 +67,11 @@ test.describe('Gurukul Studio desktop app', () => {
 
     await window.getByRole('button', { name: `Edit with AI: ${GIT_COURSE.title}` }).click();
     await startSession(window, 'Make the first lesson about working in a team.');
-    await sendMessage(window, 'Rename the first lesson for teams.', 'Turn 1 · 1 change');
+    await sendMessage(
+      window,
+      'Rename the first lesson for teams.',
+      '1 change in turn 1, open in Review',
+    );
     // The agent's tool call came back through the shell and changed the working copy.
     await expect(window.getByText('tool: Updated what-git-solves.')).toBeVisible();
     await expect(window.getByText('1 change · checks pass')).toBeVisible();
@@ -126,7 +130,7 @@ test.describe('Gurukul Studio desktop app', () => {
 
     await window.getByRole('button', { name: 'New course with AI' }).click();
     await startSession(window, 'A short course on pair programming.');
-    await sendMessage(window, 'Start with why we pair.', /^Turn 1 · \d+ changes$/);
+    await sendMessage(window, 'Start with why we pair.', /^\d+ changes in turn 1, open in Review$/);
     expect(await readDoc('courses/pairing-at-nonstop')).toBeUndefined();
 
     await window.getByRole('link', { name: 'Review' }).click();
@@ -155,7 +159,11 @@ test.describe('Gurukul Studio desktop app', () => {
     const window = await openStudio(desktop, ['educator', 'admin']);
     await window.getByRole('button', { name: `Edit with AI: ${GIT_COURSE.title}` }).click();
     await startSession(window, 'Shorten the first lesson.');
-    await sendMessage(window, 'Give the first lesson a shorter title.', 'Turn 1 · 1 change');
+    await sendMessage(
+      window,
+      'Give the first lesson a shorter title.',
+      '1 change in turn 1, open in Review',
+    );
 
     // Meanwhile someone saves the draft in the browser: the same lesson, and another one.
     await saveDraftAs(GIT_COURSE.id, 'arjun-uid', (course) =>

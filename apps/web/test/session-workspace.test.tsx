@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Turn } from '@gurukul/schema';
 import type { AgentStartResult, AgentStatus } from '../src/desktop/bridge';
 import { createSessionStore } from '../src/studio/session/store';
 import type { TranscriptEntry } from '../src/studio/session/transcript';
@@ -48,6 +49,8 @@ async function open(
     prepare?: (agent: ReturnType<typeof fakeAgent>['agent']) => void;
     /** The chat already on this computer. */
     transcript?: TranscriptEntry[];
+    /** Turns already written, each with the session's copy of the course as its checkpoint. */
+    turns?: Turn[];
     /** The draft the session starts from; Git by default. */
     course?: typeof GIT;
     path?: (id: string) => string;
@@ -70,6 +73,10 @@ async function open(
     await store.save({ ...started.session, title: goal, goals: [{ text: goal, done: false }] });
   }
   if (init.transcript) await store.writeTranscript(id, init.transcript);
+  if (init.turns && started.status === 'started') {
+    let current = (await store.read(id)) as NonNullable<Awaited<ReturnType<typeof store.read>>>;
+    for (const turn of init.turns) current = await store.saveTurn(current, turn, current.work);
+  }
   const agent = fakeAgent(fake.desktop, {
     ...(init.status ? { status: init.status } : {}),
     ...(init.start ? { start: init.start } : {}),
@@ -105,7 +112,7 @@ async function send(s: Awaited<ReturnType<typeof open>>, text?: string) {
 /** Ends the running turn as the agent would, and waits for it to be written. */
 async function endTurn(s: Awaited<ReturnType<typeof open>>, outcome: 'done' | 'stopped' = 'done') {
   act(() => s.emit({ type: 'turn_end', agentSessionId: 'claude-1', outcome }));
-  await screen.findByRole('link', { name: /^Turn \d/ });
+  await screen.findByRole('link', { name: /in turn \d+, open in Review$/ });
 }
 
 describe('the session workspace', () => {
@@ -190,12 +197,30 @@ describe('the session workspace', () => {
     expect(screen.getByText('1 change · checks pass')).toBeTruthy();
 
     await endTurn(s);
-    const line = screen.getByRole('link', { name: 'Turn 1 · 1 change' });
+    const line = screen.getByRole('link', { name: '1 change in turn 1, open in Review' });
     expect(line.getAttribute('href')).toMatch(
       new RegExp(`^/studio/sessions/${s.id}/review\\?turn=`),
     );
-    expect(screen.getByRole('button', { name: 'Undo turn 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go back to before this' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy();
+    // How it got there: folded, and the steps in plain words once opened.
+    const how = screen.getByRole('button', { name: 'How it got there' });
+    expect(how.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(how);
+    expect(how.getAttribute('aria-expanded')).toBe('true');
+    expect(within(screen.getByRole('log')).getByText('Writing a lesson')).toBeTruthy();
+    // What it changed, with when, then the footer and the check.
+    const changed = within(screen.getByRole('list', { name: 'What this turn changed' }));
+    expect(changed.getByText('Edited Lesson l1')).toBeTruthy();
+    expect(changed.getByText('just now')).toBeTruthy();
+    expect(screen.getByText(/Worked for \d+s,/)).toBeTruthy();
+    expect(screen.getByText('Checked: no new problems')).toBeTruthy();
+    // Copy puts the reply on the clipboard and says so.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy reply' }));
+    expect(await screen.findByText('Reply copied')).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith('I added **one** block.');
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -376,21 +401,21 @@ describe('the session workspace', () => {
       s.call('add_block', { lessonId: 'l1', block: { type: 'markdown', md: 'Extra.' } }),
     );
     await endTurn(s);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
-    const dialog = screen.getByRole('dialog', { name: 'Undo turn 1?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
+    const dialog = screen.getByRole('dialog', { name: 'Go back to before turn 1?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('1 change · checks pass')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(
       await screen.findByText('Turn undone: the course is back as it was before it.'),
     ).toBeTruthy();
     expect(screen.getByText('0 changes · checks pass')).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /^Turn 1/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /in turn 1,/ })).toBeNull();
   });
 
   it('stops a turn, and gives the box back its focus when the turn ends', async () => {
@@ -406,7 +431,7 @@ describe('the session workspace', () => {
     (document.activeElement as HTMLElement | null)?.blur();
     await endTurn(s, 'stopped');
     expect(screen.getByText('Stopped. What this turn had changed is kept.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Turn 1 · no changes' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'no changes in turn 1, open in Review' })).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(box()));
   });
 
@@ -879,10 +904,10 @@ describe('the session workspace when the agent cannot run', () => {
     s.desktop.store.write.mockRejectedValueOnce(new Error('store.write failed (ENOSPC)'));
     await endTurn(s);
     expect(screen.getByText('The last turn is not saved')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Turn 1 · 1 change · not saved' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    expect(screen.getByRole('link', { name: '1 change in turn 1, open in Review' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(await screen.findByText('0 changes · checks pass')).toBeTruthy();
   });
@@ -893,9 +918,9 @@ describe('the session workspace when the agent cannot run', () => {
     await send(s);
     await endTurn(s);
     s.files.delete(`u1/${s.id}/checkpoints/start.json`);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(await screen.findByText('That turn cannot be undone')).toBeTruthy();
   });
@@ -956,5 +981,124 @@ describe('the session page in an app too old for sessions', () => {
     vi.mocked(s.desktop.app.checkForUpdate).mockResolvedValueOnce({ state: 'none' } as never);
     fireEvent.click(screen.getByRole('button', { name: 'Update the app' }));
     await waitFor(() => expect(s.desktop.app.checkForUpdate).toHaveBeenCalled());
+  });
+});
+
+describe('the chat of a session already written', () => {
+  const turn = (id: string, over: Partial<Turn> = {}): Turn => ({
+    id,
+    at: new Date().toISOString(),
+    by: 'agent',
+    summary: id,
+    checkpoint: `${id}.json`,
+    changes: 0,
+    ...over,
+  });
+  const kinds: NonNullable<Turn['parts']> = [
+    { kind: 'course', title: '', status: 'changed' },
+    { kind: 'landing', title: '', status: 'changed' },
+    { kind: 'chapter', title: 'Basics', status: 'renamed' },
+    { kind: 'quiz', title: 'Quiz I', status: 'added' },
+    { kind: 'lesson', title: '', status: 'removed' },
+    { kind: 'lesson', title: 'One', status: 'moved' },
+    { kind: 'lesson', title: 'Two', status: 'added' },
+    { kind: 'lesson', title: 'Three', status: 'changed' },
+  ];
+
+  it('lists what a turn changed, six rows and a pill for the rest, in the Educator’s words', async () => {
+    const entries = (id: string, text: string): TranscriptEntry[] => [
+      { kind: 'educator', turnId: id, at: '2026-11-19T10:00:00.000Z', text: 'Go' },
+      { kind: 'agent', turnId: id, at: '2026-11-19T10:00:05.000Z', text: text },
+    ];
+    await open({
+      labels: 'gurukul',
+      turns: [
+        turn('t1', { changes: 8, parts: kinds, at: '2026-11-19T10:02:39.000Z' }),
+        turn('t2', { changes: 2 }),
+      ],
+      transcript: [
+        ...entries('t1', 'First reply.'),
+        {
+          kind: 'activity',
+          turnId: 't2',
+          at: '2026-11-19T10:03:00.000Z',
+          text: 'Checking the course',
+        },
+      ],
+    });
+    const list = within(await screen.findByRole('list', { name: 'What this turn changed' }));
+    expect(list.getAllByRole('listitem')).toHaveLength(7);
+    expect(list.getByText('Edited course details')).toBeTruthy();
+    expect(list.getByText('Edited landing page')).toBeTruthy();
+    expect(list.getByText('Renamed Parva · Basics')).toBeTruthy();
+    expect(list.getByText('Added Pariksha · Quiz I')).toBeTruthy();
+    expect(list.getByText('Removed Untitled')).toBeTruthy();
+    expect(list.queryByText('Edited Three')).toBeNull();
+    fireEvent.click(list.getByRole('button', { name: '+2 more' }));
+    expect(list.getByText('Edited Three')).toBeTruthy();
+    expect(list.getAllByText('Moved One')).toHaveLength(1);
+    fireEvent.click(list.getByRole('button', { name: 'Show fewer' }));
+    expect(list.queryByText('Edited Three')).toBeNull();
+    // The turn before the newest has no check line of its own, and no copy when no reply.
+    expect(screen.getAllByText('Checked: no new problems')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Copy reply' })).toHaveLength(1);
+    expect(screen.getByText('Worked for 2m 39s,')).toBeTruthy();
+    // A turn with no reply carries its steps on its own line.
+    expect(screen.getAllByRole('button', { name: 'How it got there' })).toHaveLength(1);
+    // Written before the list was kept: the count only.
+    expect(screen.getAllByRole('list', { name: 'What this turn changed' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '2 changes in turn 2, open in Review' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Go back to before this' })).toHaveLength(1);
+  });
+
+  it('says the copy could not be copied, and that it found problems', async () => {
+    const big = makeCourse({
+      id: 'git',
+      title: 'Git',
+      educatorIds: ['u1'],
+      chapters: [
+        {
+          id: 'p1',
+          title: 'Basics',
+          items: [
+            lesson('l1', {
+              blocks: Array.from({ length: 60 }, (_, i) => ({
+                type: 'markdown',
+                id: `b${i}`,
+                md: 'x'.repeat(20_000),
+              })),
+            }),
+          ],
+        },
+      ],
+    });
+    await open({
+      course: big,
+      turns: [turn('t1')],
+      transcript: [
+        { kind: 'educator', turnId: 't1', at: '2026-11-19T10:00:00.000Z', text: 'Go' },
+        { kind: 'agent', turnId: 't1', at: '2026-11-19T10:00:05.000Z', text: 'Done.' },
+      ],
+    });
+    expect(await screen.findByText('Checked: problems to fix before saving')).toBeTruthy();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('no')) },
+      configurable: true,
+    });
+    document.execCommand = vi.fn().mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy reply' }));
+    expect(await screen.findByText('Could not copy the reply')).toBeTruthy();
+  });
+
+  it('points at the Preview and the Outline from the plus menu', async () => {
+    await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    expect(box().getAttribute('placeholder')).toMatch(/^Ask for a change\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Attach from the Preview' }));
+    expect(await screen.findByText(/Press Attach beside a block or question/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Attach from the Outline' }));
+    expect(await screen.findByText(/Press the paperclip on a row of the Outline/)).toBeTruthy();
   });
 });

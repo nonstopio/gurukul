@@ -3,7 +3,11 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 import * as ui from '@gurukul/ui';
 import {
+  ArrowUpIcon,
   Avatar,
+  PlusIcon,
+  TextIcon,
+  UndoIcon,
   AreaSwitcher,
   BarChart,
   BlockFrame,
@@ -16,9 +20,15 @@ import {
   ChangeMark,
   ChatActivity,
   ChatAttachments,
+  ChatChanges,
+  ChatCheck,
+  ChatComposer,
   ChatLog,
   ChatMessage,
+  ChatRoundButton,
+  ChatSteps,
   ChatTurn,
+  ChatTurnFooter,
   Checkbox,
   Chip,
   ChoiceCard,
@@ -762,6 +772,11 @@ export const SHOWN_ELSEWHERE: Readonly<Record<string, string>> = {
   ChatMessage: 'inside the ChatLog example',
   ChatTurn: 'inside the ChatLog example',
   ChatActivity: 'inside the ChatLog example (the live line under the log)',
+  ChatSteps: 'inside the ChatLog example (How it got there)',
+  ChatChanges: 'inside the ChatLog example (what a turn changed)',
+  ChatTurnFooter: 'inside the ChatLog example (the muted line after a turn)',
+  ChatCheck: 'inside the ChatLog example (the check after a turn)',
+  ChatRoundButton: 'inside the ChatComposer example (the plus, Send and Stop)',
   OptionCardGroup: 'inside the OptionCard example',
   OptionCardRow: 'inside the OptionCard example',
   DiffRow: 'inside the DiffView example',
@@ -869,6 +884,31 @@ function AttachableExample() {
         <p>Fetch first, then rebase onto the branch you fetched.</p>
       </Attachable>
     </div>
+  );
+}
+
+function ChatComposerExample() {
+  const [text, setText] = useState('');
+  return (
+    <ChatComposer
+      label="Ask for a change (example)"
+      placeholder="Ask for a change. Attach a part from the Preview or Outline."
+      hint="Enter sends; Shift and Enter start a new line."
+      value={text}
+      onChange={setText}
+      onSend={() => setText('')}
+      onSubmit={(event) => event.preventDefault()}
+      start={
+        <ChatRoundButton label="Add to your message">
+          <PlusIcon />
+        </ChatRoundButton>
+      }
+      end={
+        <ChatRoundButton label="Send" tone="primary" type="submit" disabled={text.trim() === ''}>
+          <ArrowUpIcon />
+        </ChatRoundButton>
+      }
+    />
   );
 }
 
@@ -1306,19 +1346,52 @@ export const EXAMPLES: Readonly<Record<string, Example>> = {
             The rebase chapter is too heavy. Simplify it.
           </ChatMessage>
           <ChatMessage from="agent" author="Agent">
+            <ChatSteps
+              label="How it got there"
+              steps={['Reading the course', 'Rewriting a lesson', 'Checking the course']}
+            />
             <p>I rewrote lessons 3.1 to 3.3 in shorter sentences.</p>
           </ChatMessage>
           <ChatTurn>
-            Turn 1 · 3 changes
-            <Button variant="quiet" size="sm">
-              Undo turn 1
-            </Button>
+            <ChatChanges
+              label="What this turn changed (example)"
+              limit={2}
+              items={[
+                { id: 'a', icon: <TextIcon />, label: 'Edited Why rebase', detail: '2 min ago' },
+                {
+                  id: 'b',
+                  icon: <TextIcon />,
+                  label: 'Edited Rebase or merge',
+                  detail: '2 min ago',
+                },
+                {
+                  id: 'c',
+                  icon: <TextIcon />,
+                  label: 'Edited Resolving conflicts',
+                  detail: '2 min ago',
+                },
+              ]}
+            />
+            <ChatTurnFooter
+              end={
+                <Button variant="quiet" size="sm" icon={<UndoIcon />}>
+                  Go back to before this
+                </Button>
+              }
+            >
+              Worked for 2m 39s, 3 changes
+            </ChatTurnFooter>
+            <ChatCheck ok>Checked: no new problems</ChatCheck>
           </ChatTurn>
           <ChatMessage from="notice">Stopped. What this turn had changed is kept.</ChatMessage>
         </ChatLog>
         <ChatActivity>Rewriting a lesson</ChatActivity>
       </div>
     ),
+  },
+  ChatComposer: {
+    rule: 'The message box: one rounded box with the text, the attached parts above it, a round plus at the start and a round Send (Stop while it works) at the end.',
+    Example: ChatComposerExample,
   },
   ChatAttachments: {
     rule: 'What a message carries besides its words: a chip per part, removable above the message box, read-only under a sent message.',

@@ -1,7 +1,21 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { ChatActivity, ChatAttachments, ChatLog, ChatMessage, ChatTurn } from '../src';
+import {
+  ArrowUpIcon,
+  ChatActivity,
+  ChatAttachments,
+  ChatChanges,
+  ChatCheck,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
+  ChatRoundButton,
+  ChatSteps,
+  ChatTurn,
+  ChatTurnFooter,
+  chatRoundClass,
+} from '../src';
 import { axeViolations } from './axe';
 
 describe('Chat', () => {
@@ -116,5 +130,151 @@ describe('ChatAttachments', () => {
   it('draws nothing when nothing is attached', () => {
     const { container } = render(<ChatAttachments label="Attached" items={[]} />);
     expect(container.childNodes).toHaveLength(0);
+  });
+});
+
+describe('a turn', () => {
+  it('folds its steps away behind a button that says whether it is open', async () => {
+    const { container } = render(
+      <ChatSteps label="How it got there" steps={['Reading', 'Writing']} />,
+    );
+    const button = screen.getByRole('button', { name: 'How it got there' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('ol')?.hasAttribute('hidden')).toBe(true);
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('ol')?.hasAttribute('hidden')).toBe(false);
+    expect(button.getAttribute('aria-controls')).toBe(container.querySelector('ol')?.id);
+    expect(screen.getAllByRole('listitem').map((i) => i.textContent)).toEqual([
+      'Reading',
+      'Writing',
+    ]);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lists what changed, the first rows and a pill for the rest', async () => {
+    const items = Array.from({ length: 4 }, (_, i) => ({
+      id: `${i}`,
+      icon: <span />,
+      label: `Edited part ${i}`,
+      detail: '2 min ago',
+    }));
+    const { container } = render(
+      <ChatChanges label="What this turn changed" items={items} limit={2} className="c" />,
+    );
+    const list = screen.getByRole('list', { name: 'What this turn changed' });
+    expect(list.className).toBe('g-chat-changes c');
+    expect(within(list).getAllByText(/^Edited part/)).toHaveLength(2);
+    const more = screen.getByRole('button', { name: '+2 more' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(within(list).getAllByText(/^Edited part/)).toHaveLength(4);
+    expect(more.textContent).toBe('Show fewer');
+    expect(await axeViolations(container)).toEqual([]);
+    fireEvent.click(more);
+    expect(within(list).getAllByText(/^Edited part/)).toHaveLength(2);
+  });
+
+  it('shows six rows by default with no pill when they all fit, and nothing when empty', () => {
+    const items = Array.from({ length: 6 }, (_, i) => ({
+      id: `${i}`,
+      icon: null,
+      label: `L${i}`,
+      detail: '',
+    }));
+    const { rerender, container } = render(<ChatChanges label="Changed" items={items} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    rerender(<ChatChanges label="Changed" items={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('has a muted footer with actions at its end, and a check in words', async () => {
+    const { container } = render(
+      <ol>
+        <ChatTurn>
+          <ChatTurnFooter end={<button type="button">Go back</button>} className="f">
+            Worked for 1m, 2 changes
+          </ChatTurnFooter>
+          <ChatTurnFooter>No end</ChatTurnFooter>
+          <ChatCheck ok>Checked: no new problems</ChatCheck>
+          <ChatCheck ok={false} className="x">
+            Checked: problems to fix
+          </ChatCheck>
+        </ChatTurn>
+      </ol>,
+    );
+    expect(container.querySelector('.g-chat-turn__foot.f .g-chat-turn__end')?.textContent).toBe(
+      'Go back',
+    );
+    expect(container.querySelectorAll('.g-chat-turn__end')).toHaveLength(1);
+    expect(container.querySelectorAll('.g-chat-check')).toHaveLength(2);
+    expect(container.querySelector('.g-chat-check--problem.x')).not.toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('ChatComposer', () => {
+  function Box({ onSend, onSubmit }: { onSend: () => void; onSubmit?: () => void }) {
+    const [text, setText] = useState('');
+    return (
+      <ChatComposer
+        label="Ask for a change"
+        placeholder="Ask…"
+        hint="Enter sends."
+        value={text}
+        onChange={setText}
+        onSend={onSend}
+        {...(onSubmit ? { onSubmit } : {})}
+        maxLength={50}
+        start={<ChatRoundButton label="Add">+</ChatRoundButton>}
+        end={
+          <ChatRoundButton label="Send" tone="primary" type="submit" className="s">
+            <ArrowUpIcon />
+          </ChatRoundButton>
+        }
+      >
+        <p>Attached</p>
+      </ChatComposer>
+    );
+  }
+
+  it('is a labelled box with a hint read out, the start and end slots, and the children above', async () => {
+    const { container } = render(<Box onSend={() => {}} />);
+    const text = screen.getByRole('textbox', { name: 'Ask for a change' });
+    expect(text.getAttribute('aria-describedby')).toBe(screen.getByText('Enter sends.').id);
+    expect(text.getAttribute('placeholder')).toBe('Ask…');
+    expect(text.getAttribute('maxlength')).toBe('50');
+    expect(screen.getByRole('button', { name: 'Add' }).className).toBe(
+      'g-chat-round g-chat-round--plain',
+    );
+    expect(screen.getByRole('button', { name: 'Send' }).className).toBe(
+      'g-chat-round g-chat-round--primary s',
+    );
+    expect(screen.getByRole('button', { name: 'Send' }).getAttribute('data-tip')).toBe('Send');
+    expect(chatRoundClass()).toBe('g-chat-round g-chat-round--plain');
+    expect(container.querySelector('form > p')?.textContent).toBe('Attached');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('sends on Enter, not on Shift and Enter, and not while composing', () => {
+    const onSend = vi.fn();
+    render(<Box onSend={onSend} />);
+    const text = screen.getByRole('textbox');
+    fireEvent.change(text, { target: { value: 'hi' } });
+    expect((text as HTMLTextAreaElement).value).toBe('hi');
+    fireEvent.keyDown(text, { key: 'a' });
+    fireEvent.keyDown(text, { key: 'Enter', shiftKey: true });
+    fireEvent.keyDown(text, { key: 'Enter', isComposing: true });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.keyDown(text, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the form’s submit to its caller', () => {
+    const onSubmit = vi.fn();
+    render(<Box onSend={() => {}} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });

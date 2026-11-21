@@ -1094,13 +1094,14 @@ describe('when the draft moved underneath', () => {
       await s.app.router.navigate(`/studio/sessions/${s.id}`);
     });
     // The chat names the merge for what it is: their draft brought in, not an edit by hand.
-    expect(
-      screen.getByRole('link', { name: 'Turn 2 · draft brought in · 2 changes' }),
-    ).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /^Turn 2 · by hand/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 2' }));
+    expect(screen.getByRole('link', { name: '2 changes in turn 2, open in Review' })).toBeTruthy();
+    expect(screen.getByText(/Draft brought in,/)).toBeTruthy();
+    expect(screen.queryByText(/By hand,/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 2' }),
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Go back to before turn 2',
+      }),
     );
     await waitFor(() => expect(s.disk().base?.rev).toBe(3));
     await act(async () => {

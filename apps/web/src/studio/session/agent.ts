@@ -33,6 +33,7 @@ import type { CreatingNote, SessionBase, SessionStore } from './store';
 import { TOOLS, defaultToolContext, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
 import type { TranscriptEntry } from './transcript';
+import { turnChanged } from './workspace';
 
 /*
  * The session runtime (`.plan/22-desktop-studio.md`, The session workspace, Starting Claude Code):
@@ -890,7 +891,7 @@ export function createAgentSession({
       by: 'educator',
       summary: handSummary(changes),
       checkpoint: `${id}.json`,
-      changes: changes.count,
+      ...turnChanged(changes),
     };
     notice(id, record.summary);
     handEdited = true;
@@ -940,7 +941,7 @@ export function createAgentSession({
       by: 'agent',
       summary: turnSummary(running.message),
       checkpoint: `${running.id}.json`,
-      changes: courseChanges(before, workOf(current)).count,
+      ...turnChanged(courseChanges(before, workOf(current))),
     };
     try {
       if (current.turns.length === 0) await store.saveStart(sessionId, before);
@@ -1313,7 +1314,7 @@ export function createAgentSession({
           summary: turnSummary(summary),
           checkpoint: `${id}.json`,
           // Counted from the last written copy, so a turn that could not be written is counted too.
-          changes: courseChanges(before, work).count,
+          ...turnChanged(courseChanges(before, work)),
         };
         try {
           if (current.turns.length === 0) await store.saveStart(sessionId, before);
@@ -1463,7 +1464,8 @@ export function createAgentSession({
       return enqueue(async () => {
         const current = session as AuthoringSession;
         const before = workOf(saved as AuthoringSession);
-        const count = courseChanges(before, work).count;
+        const counted = turnChanged(courseChanges(before, work));
+        const count = counted.changes;
         try {
           // Always a turn, even when the working copy did not change: the base moves, and Undo of
           // this turn (or of one before it) must put back the base from before it as well, or the
@@ -1475,7 +1477,7 @@ export function createAgentSession({
             by: 'educator',
             summary: turnSummary(summary),
             checkpoint: `${id}.json`,
-            changes: count,
+            ...counted,
             baseBefore: `${id}.base.json`,
           };
           if (current.turns.length === 0) await store.saveStart(sessionId, before);

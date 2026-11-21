@@ -105,7 +105,7 @@ describe('Open in editor from the session workspace', () => {
     fireEvent.click(back);
 
     // Back in the workspace, on the lesson that was edited, with the hand edits as a turn.
-    const turn = await screen.findByRole('link', { name: 'Turn 1 · by hand · 1 change' });
+    const turn = await screen.findByRole('link', { name: '1 change in turn 1, open in Review' });
     expect(turn).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Why Git' })).toBeTruthy();
     expect(screen.getByText('Edited by hand: Why Git')).toBeTruthy();
@@ -229,7 +229,7 @@ describe('Open in editor from the session workspace', () => {
     });
     loaded(400, 300);
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));
-    await screen.findByRole('link', { name: /^Turn 1 · by hand/ });
+    await screen.findByRole('link', { name: /in turn 1,/ });
     const blocks = (s.disk().work.course.chapters[0]?.items[0] as ReturnType<typeof lesson>)
       .blocks as unknown[];
     expect(blocks[0]).toMatchObject({
@@ -278,7 +278,7 @@ describe('Open in editor from the session workspace', () => {
     const [request] = vi.mocked(s.studio.storage.upload).mock.calls[0] as [{ path: string }];
     expect(request.path).toMatch(/^courses\/git\/media\//);
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));
-    await screen.findByRole('link', { name: /^Turn 1 · by hand/ });
+    await screen.findByRole('link', { name: /in turn 1,/ });
     const blocks = (s.disk().work.course.chapters[0]?.items[0] as ReturnType<typeof lesson>).blocks;
     expect(blocks.at(-1)).toMatchObject({ type: 'file', upload: { name: 'handout.pdf' } });
   });
