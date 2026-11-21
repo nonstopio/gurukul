@@ -57,13 +57,13 @@ async function desktopWith(
 }
 
 describe('the Studio course list in a browser', () => {
-  it('offers no session buttons, and the download card in their place', async () => {
+  it('offers no session buttons, and no download card', async () => {
     await openApp('/studio', { roles: ['educator'], studio: studio() });
     expect(await screen.findByRole('link', { name: 'Git' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'New course' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'New course with AI' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit with AI/ })).toBeNull();
-    expect(screen.getByRole('region', { name: 'Build a course by chatting' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Build a course by chatting' })).toBeNull();
   });
 });
 

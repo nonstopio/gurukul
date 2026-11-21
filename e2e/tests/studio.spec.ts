@@ -14,10 +14,6 @@ test.describe('Educator in Studio', () => {
     await page.goto('/studio');
     await expect(page.getByRole('heading', { level: 1, name: 'Courses' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: GIT_COURSE.title })).toBeVisible();
-    // GitHub is blocked here (`EXTERNAL`), so the desktop app's card falls back to the releases page.
-    await expect(
-      page.getByRole('link', { name: 'Get Gurukul Studio from GitHub' }),
-    ).toHaveAttribute('href', 'https://github.com/nonstopio/gurukul/releases');
     await expectNoSeriousViolations(page);
 
     await page.getByRole('button', { name: 'New course', exact: true }).click();
@@ -60,6 +56,19 @@ test.describe('Educator in Studio', () => {
     await expect
       .poll(() => card.evaluate((el) => getComputedStyle(el).boxShadow))
       .toContain('0px 0px 0px 4px');
+  });
+
+  test('the sidebar offers the desktop app, which links to the releases page', async ({ page }) => {
+    await signedInAsLearner(page, kavya);
+    await grantRoles(kavya.email, ['educator']);
+    await page.goto('/studio');
+    await page.getByRole('link', { name: 'Desktop app' }).click();
+    await expect(page).toHaveURL(/\/studio\/desktop$/);
+    // GitHub is blocked here (`EXTERNAL`), so the card falls back to the releases page.
+    await expect(
+      page.getByRole('link', { name: 'Get Gurukul Studio from GitHub' }),
+    ).toHaveAttribute('href', 'https://github.com/nonstopio/gurukul/releases');
+    await expectNoSeriousViolations(page);
   });
 
   test('publishes a course and it appears in the catalogue', async ({ page }) => {

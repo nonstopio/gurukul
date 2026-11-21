@@ -38,6 +38,7 @@ export const ROUTE_PATHS = [
   '/studio/teams',
   '/studio/bank',
   '/studio/media',
+  '/studio/desktop',
   '/team',
   '/team/assign',
   '/team/:teamId',

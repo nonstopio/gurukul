@@ -10,6 +10,7 @@ import {
   GridIcon,
   HomeIcon,
   ImageIcon,
+  MonitorIcon,
   LanguagesIcon,
   LogOutIcon,
   NavItem,
@@ -188,6 +189,7 @@ const NAV_ICONS: Readonly<Record<string, ComponentType>> = {
   'studio-teams': UsersIcon,
   'studio-bank': ChecklistIcon,
   'studio-media': ImageIcon,
+  'studio-desktop': MonitorIcon,
   'team-teams': UsersIcon,
   'team-assign': SendIcon,
 };

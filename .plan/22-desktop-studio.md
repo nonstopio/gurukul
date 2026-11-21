@@ -1845,18 +1845,18 @@ As built in `DSK-22` (what could be done without the certificate or a Windows PC
 Morph's landing page asks GitHub for the latest release, picks the installer for the visitor's
 system and falls back to the releases page. Gurukul does the same inside Studio:
 
-- The Studio course list in the browser shows a card, "Build a course by chatting". It reads
+- Studio's sidebar has a "Desktop app" page with a card, "Build a course by chatting". It reads
   `api.github.com/repos/nonstopio/gurukul/releases/latest` (public, no key), finds the Apple
   Silicon DMG, the Intel DMG and the Windows installer by file name, puts the visitor's own system
   first, shows the version and the three install steps for that system, and links to all
   releases. If the request fails it links to the releases page.
-- In the desktop app the same place shows the session buttons instead. One feature tip points at
+- The course list does not show it; in the desktop app it shows the session buttons. One feature tip points at
   the card (`adding-feature-tips`).
 - The card is the announcement to Educators. It ships with the first release that has it, without
   a switch: no written confirmation from Anthropic is awaited (`DSK-01`).
 - As built (`DSK-25`): `apps/web/src/desktop/download.ts` and `studio/DesktopDownloadCard.tsx`,
-  drawn by `StudioCoursesPage` above the tabs when `isDesktop()` is false (the course list's lazy
-  chunk; nothing in the first download). The request goes when the card is first drawn and its
+  drawn by `studio/DesktopAppPage` at `/studio/desktop`, a "Desktop app" item in Studio's sidebar (the
+  course list no longer shows it; lazy chunk, nothing in the first download). The request goes when the card is first drawn and its
   answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
   storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
   share one, with the shell's contributors request too; a refusal (404 before the first release,

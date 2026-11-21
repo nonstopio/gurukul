@@ -52,6 +52,7 @@ const TeamsPage = lazyPage(() => import('./console/TeamsPage'), 'TeamsPage');
 const SettingsPage = lazyPage(() => import('./console/SettingsPage'), 'SettingsPage');
 const CourseEditorPage = lazyPage(() => import('./studio/CourseEditorPage'), 'CourseEditorPage');
 const LessonEditorPage = lazyPage(() => import('./studio/LessonEditorPage'), 'LessonEditorPage');
+const DesktopAppPage = lazyPage(() => import('./studio/DesktopAppPage'), 'DesktopAppPage');
 const MediaPage = lazyPage(() => import('./studio/MediaPage'), 'MediaPage');
 const QuizBuilderPage = lazyPage(() => import('./studio/QuizBuilderPage'), 'QuizBuilderPage');
 const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage');
@@ -210,6 +211,13 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
     <RequireRole any={['educator', 'admin']}>
       <DesktopOnly>
         <MediaPage />
+      </DesktopOnly>
+    </RequireRole>
+  ),
+  '/studio/desktop': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <DesktopAppPage />
       </DesktopOnly>
     </RequireRole>
   ),
