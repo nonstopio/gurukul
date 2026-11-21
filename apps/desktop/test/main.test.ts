@@ -38,6 +38,10 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+vi.mock('../src/agent/shellPath', () => ({
+  withUserPath: async (_p: string, env: unknown) => env,
+}));
+
 vi.mock('electron-updater', () => ({ autoUpdater: mocks.autoUpdater }));
 
 vi.mock('electron', () => {
