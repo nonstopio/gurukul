@@ -8,7 +8,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 
 | File                                                                  | Does                                                                                                                             |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge.ts`                                                       | The contract, version 1: calls, events, argument, result and event types, limits, name rules. No imports                         |
+| `src/bridge.ts`                                                       | The contract, version 2: calls, events, argument, result and event types, limits, name rules. No imports                         |
 | `src/config.ts`                                                       | Production URL, dev URL, the e2e test page (`testUrl`), allowed origins. The one place to change the production host             |
 | `src/ipc.ts`                                                          | Typed handler registry and the gate every call passes: top frame, allowed origin, zod args                                       |
 | `src/args.ts`                                                         | The zod pieces the handlers check arguments with                                                                                 |
@@ -44,7 +44,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 - **Only `main.ts` and `preload.ts` import `electron`.** Everything else takes adapters, so it is a
   plain function tested in Vitest at 100%. A new Electron feature adds an adapter interface, not
   logic in the glue.
-- **The whole version-1 contract is in `bridge.ts`**; calls not built yet answer
+- **The whole contract (version 2) is in `bridge.ts`**; calls not built yet answer
   `Not available in this version` (`notAvailable(schema)` in their area's `*Calls.ts`). Building one
   replaces that with a handler in the same file and keeps the schema; its dependencies are added to
   the area function and passed from `createHandlers`. Adding a call: `BridgeCalls`, `CALLS`,
