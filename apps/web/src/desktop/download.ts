@@ -202,7 +202,7 @@ export async function detectSystem(
   const data = nav.userAgentData;
   const said = `${data?.platform ?? ''} ${nav.platform ?? ''} ${nav.userAgent ?? ''}`.toLowerCase();
   if (/iphone|ipad|android/.test(said)) return null;
-  if (said.includes('win')) return 'windows';
+  if (/\bwin/.test(said)) return 'windows'; // not "darwin", which jsdom reports on a Mac
   if (!said.includes('mac') || (nav.maxTouchPoints ?? 0) > 1) return null;
   try {
     const { architecture } = (await data?.getHighEntropyValues?.(['architecture'])) ?? {};
