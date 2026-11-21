@@ -423,15 +423,19 @@ describe('agent.ask over a real process', () => {
     const { manager } = await realSetup({ turns: [[{ hang: true }]] });
     const { home } = { home: homes[homes.length - 1] as (typeof homes)[number] };
     const answer = manager.ask({ askId: 'a1', prompt: 'Q' });
-    const run = await vi.waitFor(async () => {
-      const [first] = await home.runs();
-      if (first === undefined) throw new Error('not started yet');
-      return first;
-    });
+    const run = await vi.waitFor(
+      async () => {
+        const [first] = await home.runs();
+        if (first === undefined) throw new Error('not started yet');
+        return first;
+        // A Windows runner takes over a second to start `cmd.exe` and then `claude`.
+      },
+      { timeout: 15_000 },
+    );
     manager.cancelAsk('a1');
     await expect(answer).resolves.toEqual({ ok: false, error: { code: 'cancelled' } });
     // Not only the wrapper: on Windows that is `cmd.exe`, and ending it alone would leave the
     // `claude` under it hanging (`killTree` in node.ts).
     await vi.waitFor(() => expect(isRunning(run.pid)).toBe(false), { timeout: 10_000 });
-  });
+  }, 30_000);
 });
