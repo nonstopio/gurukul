@@ -59,14 +59,18 @@ async function setup(init: Init = {}) {
     now: () => T0,
     newId: () => 's1',
   });
-  const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on Git.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' },
+  const begun = await store.start(
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(makeCourse(), { rev: 4 }),
   );
-  if (started.status !== 'started') throw new Error('not started');
-  if (init.edit) await store.save(init.edit(started.session));
+  if (begun.status !== 'started') throw new Error('not started');
+  // The session as an earlier version started it: a goal, and the goal as its title.
+  const goal = init.kind === 'new' ? 'A course on Git.' : 'Simplify chapter one.';
+  const started = {
+    ...begun,
+    session: { ...begun.session, title: goal, goals: [{ text: goal, done: false }] },
+  };
+  await store.save(init.edit ? init.edit(started.session) : started.session);
   let n = 0;
   const runtime = createAgentSession({
     desktop: fake.desktop,
@@ -280,14 +284,43 @@ describe('opening', () => {
 });
 
 describe('sources', () => {
+  it('makes the session’s Sources folder before the agent starts, named after the course', async () => {
+    const s = await setup();
+    s.agent.start.mockImplementationOnce(async () => {
+      // The agent works in the folder, so it exists by the time `agent.start` is called.
+      expect(s.desktop.sources.ensure).toHaveBeenCalledTimes(1);
+      return { ok: true, agentSessionId: AGENT_SESSION_ID };
+    });
+    await s.runtime.open();
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({
+      uid: 'u1',
+      sessionId: 's1',
+      suggestedName: 'git',
+    });
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('names no folder for a new course, which has no address yet', async () => {
+    const s = await setup({ kind: 'new' });
+    await s.runtime.open();
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
+  });
+
+  it('starts the agent anyway when the folder cannot be made, and says so in the log', async () => {
+    const s = await setup();
+    s.desktop.sources.ensure.mockRejectedValueOnce(new Error('EACCES'));
+    await s.runtime.open();
+    expect(s.state().status).toBe('ready');
+    expect(log.warn).toHaveBeenCalledWith('Sources folder not made', {
+      sessionId: 's1',
+      reason: 'failed',
+    });
+  });
+
   it('reads the session’s Sources folder through the bridge by default', async () => {
     const s = await setup();
     await s.runtime.open();
     expect(await s.runtime.send('Use my notes.')).toBe(true);
-    expect(await s.call('list_sources', {})).toEqual({
-      error: expect.stringContaining('No Sources folder is set') as unknown,
-    });
-    await s.desktop.sources.choose({ uid: 'u1', sessionId: 's1' });
     expect(await s.call('list_sources', {})).toEqual({
       text: expect.stringContaining('Rebase notes.md') as unknown,
     });

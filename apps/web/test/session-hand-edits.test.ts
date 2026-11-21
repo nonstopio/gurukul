@@ -66,9 +66,7 @@ async function setup(init: Init = {}) {
     newId: () => 's1',
   });
   const started = await real.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on Git.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(makeCourse(), { rev: 4 }),
   );
   if (started.status !== 'started') throw new Error('not started');

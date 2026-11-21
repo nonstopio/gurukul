@@ -241,7 +241,7 @@ describe('list_sources and read_source', () => {
 
   it('refuse when no Sources folder is set', async () => {
     const no =
-      'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+      'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
     expect(await refused(call(toolState(), 'list_sources'))).toBe(no);
     expect(await refused(call(toolState(), 'read_source', { name: 'a.md' }))).toBe(no);
   });
@@ -303,12 +303,12 @@ describe('list_sources and read_source', () => {
     );
   });
 
-  it('refuse while the Educator has not chosen a folder for the session', async () => {
+  it('refuse while the session has no folder yet', async () => {
     const folder = sources({});
     folder.list.mockResolvedValue(null as never);
     const ctx = toolCtx({ sources: folder });
     const no =
-      'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+      'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
     expect(await refused(call(toolState(), 'list_sources', {}, ctx))).toBe(no);
     expect(await refused(call(toolState(), 'read_source', { name: 'a.md' }, ctx))).toBe(no);
     expect(folder.read).not.toHaveBeenCalled();

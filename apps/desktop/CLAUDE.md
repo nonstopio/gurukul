@@ -27,7 +27,7 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
 | `src/agent/signedInCheck.ts`, `checkCli.ts`                           | The signed-in check (`DSK-26`), run by `scripts/check-claude.ts`, against the real `claude`                          |
 | `src/events.ts`                                                       | Main → window events: to the window's top frame on an allowed origin only, payload never logged                      |
 | `src/store.ts`                                                        | Session files: `{userData}/sessions/{uid}/{sessionId}/…`, atomic writes, names checked                               |
-| `src/sources.ts`                                                      | `sources.*`: the chosen folder per session (`{userData}/sources/`), plain text files only, size cap                  |
+| `src/sources.ts`                                                      | `sources.*`: the default folder per session, made on demand (`{userData}/sources/`), plain text files only, size cap |
 | `src/navigation.ts`                                                   | Window stays on Gurukul; other links to the system browser; permissions                                              |
 | `src/window.ts`                                                       | Window options (isolation, sandbox, no Node) and retry when the page cannot load                                     |
 | `src/app.ts`                                                          | Start-up over injected adapters; returns the `Shell` (`events`) for what later sends events                          |

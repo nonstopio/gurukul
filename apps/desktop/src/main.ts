@@ -13,7 +13,6 @@ void main({
   app,
   ipc: ipcMain,
   shell,
-  dialog,
   session: () => session.defaultSession,
   createWindow: (options) => new BrowserWindow(options),
   windowCount: () => BrowserWindow.getAllWindows().length,

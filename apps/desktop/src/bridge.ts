@@ -20,8 +20,12 @@
  * at the end of this file fail until all agree.
  */
 
-/** Raised only when a change breaks a site written for an older shell. */
-export const BRIDGE_VERSION = 1;
+/**
+ * Raised only when a change breaks a site written for an older shell. 2: `sources.choose` (a folder
+ * picker) became `sources.ensure` (a fixed default folder), so a site that asks for 2 cannot run on
+ * a shell that has only `choose`, and one asking for 1 never calls `ensure`.
+ */
+export const BRIDGE_VERSION = 2;
 
 /**
  * The messages a refused call rejects with. Electron prefixes them ("Error invoking remote method
@@ -131,7 +135,7 @@ export interface AgentStartRequest extends SessionRef {
   /**
    * The Claude session id from an earlier start (`--resume`), or null for the first start (the
    * shell then makes one, `--session-id`). The working folder is the session's Sources folder when
-   * one was chosen (`sources.choose`); the web app never passes a path.
+   * one exists (`sources.ensure`); the web app never passes a path.
    */
   resumeId: string | null;
 }
@@ -240,12 +244,12 @@ export interface SourcesFolder {
   files: SourceFile[];
 }
 
-/** `sources.choose`: whose folder, and the name to suggest for a new one. */
+/** `sources.ensure`: whose folder, and the name to make it under. */
 export interface SourcesChoice extends SessionRef {
   /**
-   * A safe name (`isSafeSegment`), usually the course slug: the dialog starts in
-   * `Documents/Gurukul Studio/{suggestedName}/sources`, created if missing. Without one it starts
-   * in `Documents/Gurukul Studio`.
+   * A safe name (`isSafeSegment`), usually the course slug: a session with no folder yet gets
+   * `Documents/Gurukul Studio/{suggestedName}/sources`, created if missing. Without one (a new
+   * course) the shell names it after the session: `Documents/Gurukul Studio/new-course-{id}/sources`.
    */
   suggestedName?: string | undefined;
 }
@@ -321,7 +325,7 @@ export interface BridgeCalls {
   'agent.toolResult'(sessionId: string, callId: string, result: AgentToolResult): void;
   'agent.ask'(request: AgentAskRequest): AgentAskResult;
   'agent.cancelAsk'(askId: string): void;
-  'sources.choose'(choice: SourcesChoice): SourcesFolder | null;
+  'sources.ensure'(choice: SourcesChoice): SourcesFolder;
   'sources.list'(ref: SessionRef): SourcesFolder | null;
   'sources.reveal'(ref: SessionRef): void;
   'sources.read'(ref: SessionRef, name: string): string | null;
@@ -350,7 +354,7 @@ export const CALLS = [
   'agent.toolResult',
   'agent.ask',
   'agent.cancelAsk',
-  'sources.choose',
+  'sources.ensure',
   'sources.list',
   'sources.reveal',
   'sources.read',
@@ -439,9 +443,12 @@ export interface GurukulDesktop {
     onToolCall: Subscribe<'agent.onToolCall'>;
   };
   sources: {
-    /** Opens the system folder picker. Null when the Educator cancels. */
-    choose: BridgeFn<'sources.choose'>;
-    /** The session's chosen folder and its files, or null when none was chosen. */
+    /**
+     * The session's Sources folder, made on demand under `Documents/Gurukul Studio` and remembered,
+     * with its files. The Educator never picks a folder.
+     */
+    ensure: BridgeFn<'sources.ensure'>;
+    /** The session's folder and its files, or null when `ensure` has not made one yet. */
     list: BridgeFn<'sources.list'>;
     /** Shows the folder in Finder or Explorer. */
     reveal: BridgeFn<'sources.reveal'>;

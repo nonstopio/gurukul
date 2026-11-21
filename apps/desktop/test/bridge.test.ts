@@ -21,7 +21,7 @@ import {
 
 describe('bridge contract', () => {
   it('is version 1 with every call of the plan', () => {
-    expect(BRIDGE_VERSION).toBe(1);
+    expect(BRIDGE_VERSION).toBe(2);
     expect(CALLS).toEqual([
       'info',
       'store.read',
@@ -37,7 +37,7 @@ describe('bridge contract', () => {
       'agent.toolResult',
       'agent.ask',
       'agent.cancelAsk',
-      'sources.choose',
+      'sources.ensure',
       'sources.list',
       'sources.reveal',
       'sources.read',

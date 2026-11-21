@@ -129,7 +129,7 @@ export function ChatPanel({
         <p className="sc-help">
           {closed
             ? 'Nothing was said in this session.'
-            : 'Your goal is in the box below: send it to start, or change it first. The agent changes only this copy of the course; the draft changes when you save from Review.'}
+            : 'Say what you want to do in the box below, then send it. The agent changes only this copy of the course; the draft changes when you save from Review.'}
         </p>
       ) : null}
       <ChatLog label="Chat with the agent" className="ss-chat__log" ref={log} tabIndex={0}>
@@ -239,6 +239,10 @@ export function ChatPanel({
               )}
             </div>
           </form>
+          <p className="sc-help">
+            This runs Claude Code on this computer, under your own Claude account. The course and
+            what you write are sent to Anthropic, so leave out client names and internal documents.
+          </p>
         </>
       )}
       {undoing ? (

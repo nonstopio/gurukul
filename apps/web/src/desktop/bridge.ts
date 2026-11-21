@@ -25,9 +25,10 @@ export type * from '@gurukul/desktop/bridge';
 /**
  * The bridge version this web app is written for. A shell that reports less gets "Update the app".
  * Raise it with the shell's `BRIDGE_VERSION`, only when this site starts using what an older shell
- * does not have.
+ * does not have. 2: `sources.ensure` (the fixed default Sources folder) replaced `sources.choose`;
+ * every page that needs a session shows "Update the app" on a shell that has only `choose`.
  */
-export const REQUIRED_BRIDGE_VERSION = 1;
+export const REQUIRED_BRIDGE_VERSION = 2;
 
 /** The shell's refusal messages; the type makes them equal to the shell's own. */
 const ERRORS: BridgeErrors = {
@@ -59,7 +60,7 @@ export const MAX_ASKS_RUNNING: typeof SHELL_MAX_ASKS_RUNNING = 2;
 
 /**
  * True when this shell answers `agent.ask` (`DSK-18`). The call came after the first shells
- * shipped and breaks nothing an older site does, so `BRIDGE_VERSION` stayed 1: a shell without it
+ * shipped and breaks nothing an older site does, so it did not raise `BRIDGE_VERSION`: a shell without it
  * simply has no such function, and the answer check asks for the update instead.
  */
 export function canAsk(desktop: GurukulDesktop): boolean {

@@ -231,7 +231,7 @@ export interface AgentSessionOptions {
   store?: SessionStore;
   /**
    * The session's Sources folder (`DSK-20`); by default the bridge's `sources.*` for this session,
-   * whose `list` is null until the Educator chooses a folder.
+   * whose `list` is null until `connect` has made the folder.
    */
   sources?: SessionSources | null;
   /** What the tools run with; by default `defaultToolContext(sources)`. */
@@ -727,6 +727,24 @@ export function createAgentSession({
     return turn;
   };
 
+  /**
+   * The session's Sources folder, made before the agent starts because it is `claude`'s working
+   * folder: the course's own (`Documents/Gurukul Studio/{slug}/sources`), or one named after the
+   * session for a new course. Idempotent; a session opened before folders were automatic gets its
+   * first here. A failure is only logged: the agent then works in the shell's empty folder.
+   */
+  const ensureSources = async (courseId: string | null) => {
+    try {
+      await desktop.sources.ensure({
+        uid,
+        sessionId,
+        ...(courseId !== null && { suggestedName: courseId }),
+      });
+    } catch (error) {
+      log.warn('Sources folder not made', { sessionId, reason: bridgeFailure(error) });
+    }
+  };
+
   const connect = async () => {
     const current = session as AuthoringSession;
     status = 'connecting';
@@ -735,6 +753,7 @@ export function createAgentSession({
     try {
       const blocked = statusProblem(await agent.status());
       if (blocked) return unavailable(blocked);
+      await ensureSources(current.courseId);
       const started = await agent.start({
         uid,
         sessionId,

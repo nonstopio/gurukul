@@ -37,9 +37,7 @@ async function setup(init: { kind?: 'new' | 'edit'; open?: boolean } = {}) {
     newId: () => 's1',
   });
   const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on Git.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(makeCourse(), { rev: 4, answers: { q1: { k1: ['a'] } } }),
   );
   if (started.status !== 'started') throw new Error('not started');
@@ -662,10 +660,11 @@ describe('a new course created before the app closed (DSK-28)', () => {
   it('leaves a course another session on this computer has to that session', async () => {
     const s = await setup({ kind: 'new' });
     await s.runtime.noteCreating('code-review', 'Code review');
-    const other = await s.store.start(
-      { kind: 'edit', courseId: 'code-review', goal: 'Another go.', id: 's2' },
-      async () => made(),
-    );
+    const other = await createSessionStore({
+      desktop: s.desktop,
+      uid: 'u1',
+      newId: () => 's2',
+    }).start({ kind: 'edit', courseId: 'code-review' }, async () => made());
     expect(other.status).toBe('started');
     expect(await s.runtime.ownCourse(made())).toBeNull();
     // Unable to look, it says taken rather than guess.

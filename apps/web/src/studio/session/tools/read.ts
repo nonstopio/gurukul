@@ -237,7 +237,7 @@ export const listChanges = defineTool({
 export const SOURCE_CHUNK = 50_000;
 
 const NO_SOURCES =
-  'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+  'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
 
 export const listSources = defineTool({
   name: 'list_sources',

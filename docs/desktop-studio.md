@@ -81,13 +81,12 @@ signed in. If you closed the tab by mistake, press **Sign in with Google** again
 ### Start
 
 On the Studio course list, choose **New course with AI**, or **Edit with AI** on a course you
-edit. The start dialog asks one thing: **What do you want to do?** Write the goal in a sentence or
-two, for example "The rebase chapter is too heavy. Simplify it and add a Quiz." You can also choose
-a Sources folder here (see below). Press **Start session**.
+edit. There is no dialog: the session opens at once. Write what you want in the message box, for
+example "The rebase chapter is too heavy. Simplify it and add a Quiz."
 
-A course has one open session per person. If you already have one on that course, the dialog says
-so and offers **Open the session** instead. **New course with AI** lists the new courses you
-started and did not save, so you can pick one up.
+A course has one open session per person. If you already have one on that course, **Edit with AI**
+opens it. **New course with AI** opens the new course you started and have not worked in yet, if
+there is one, so empty sessions do not pile up.
 
 ### Chat
 
@@ -184,9 +183,9 @@ A session can read material you give it: notes, an outline, a transcript, a READ
 in the session's Sources folder and ask the agent to use them ("Build the lessons from the notes in
 Sources").
 
-- Choose it in the start dialog, or later on the **Sources** tab, with **Choose a Sources folder**
-  (**Change folder** once one is chosen). The app suggests `Documents/Gurukul Studio/<course
-address>/sources`; any folder of yours works.
+- Every session has its own folder, made for you: `Documents/Gurukul Studio/<course
+address>/sources` for a course, and a `new-course-…` folder under `Documents/Gurukul Studio` for
+  a new one. The **Sources** tab shows where it is. You do not choose a folder.
 - **Show in Finder** (or **Show in Explorer**) opens it. Files you add while the session is open are
   read from your next message on.
 - The agent reads plain text only: text and Markdown, CSV, JSON, YAML, subtitles, other markup and

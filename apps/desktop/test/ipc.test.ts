@@ -63,7 +63,7 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
 
 function fakeSources(overrides: Partial<SourcesManager> = {}): SourcesManager {
   return {
-    choose: vi.fn(async () => ({ path: '~/Material', files: [] })),
+    ensure: vi.fn(async () => ({ path: '~/Material', files: [] })),
     list: vi.fn(async () => null),
     reveal: vi.fn(async () => undefined),
     read: vi.fn(async () => 'notes'),
@@ -130,7 +130,7 @@ describe('registerHandlers', () => {
 
   it('answers info with the bridge version, app version and platform', async () => {
     await expect(setup().call('info', top())).resolves.toEqual({
-      bridgeVersion: 1,
+      bridgeVersion: 2,
       appVersion: '1.2.3',
       platform: 'darwin',
     });
@@ -335,8 +335,8 @@ describe('calls a later item builds', () => {
   });
 
   const sourcesCalls: [string, unknown[], keyof SourcesManager][] = [
-    ['sources.choose', [ref], 'choose'],
-    ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }], 'choose'],
+    ['sources.ensure', [ref], 'ensure'],
+    ['sources.ensure', [{ ...ref, suggestedName: 'git-basics' }], 'ensure'],
     ['sources.list', [ref], 'list'],
     ['sources.reveal', [ref], 'reveal'],
     ['sources.read', [ref, 'Rebase notes.md'], 'read'],
@@ -350,7 +350,7 @@ describe('calls a later item builds', () => {
 
   it('answers sources calls with what the Sources folder gives', async () => {
     const { call } = setup();
-    await expect(call('sources.choose', top(), ref)).resolves.toEqual({
+    await expect(call('sources.ensure', top(), ref)).resolves.toEqual({
       path: '~/Material',
       files: [],
     });
@@ -419,7 +419,7 @@ describe('calls a later item builds', () => {
     ['an ask with a schema', 'agent.ask', [{ askId: 'a', prompt: 'p', schema: {} }]],
     ['an ask without an id', 'agent.ask', [{ prompt: 'p' }]],
     ['a cancel without an id', 'agent.cancelAsk', ['']],
-    ['a suggested folder name with a slash', 'sources.choose', [{ ...ref, suggestedName: 'a/b' }]],
+    ['a suggested folder name with a slash', 'sources.ensure', [{ ...ref, suggestedName: 'a/b' }]],
     ['a Sources folder path', 'sources.list', [{ ...ref, path: '/etc' }]],
     ['a source name with a slash', 'sources.read', [ref, '../secret.md']],
     ['a source name of ..', 'sources.read', [ref, '..']],

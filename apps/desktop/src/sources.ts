@@ -18,11 +18,11 @@ import type { Logger } from './log';
 import { sessionFolder } from './store';
 
 /**
- * `sources.*` in the main process (`DSK-20`): the Sources folder an Educator picks for a session,
- * the files in it and the text of one of them. The window names a session, never a path: the
- * chosen folder is remembered here, in `{userData}/sources/{uid}/{sessionId}.json`, outside the
- * session files the window can write, so a page cannot point the agent at another folder. Only
- * the Educator picks one, in the system's folder dialog.
+ * `sources.*` in the main process (`DSK-20`): the Sources folder of a session, the files in it and
+ * the text of one of them. The window names a session, never a path: the shell makes the folder
+ * itself, at a fixed place under Documents (`Documents/Gurukul Studio/{name}/sources`), and
+ * remembers it here, in `{userData}/sources/{uid}/{sessionId}.json`, outside the session files the
+ * window can write, so a page cannot point the agent at another folder. Nobody picks a folder.
  *
  * What the agent may read is narrow on purpose: plain files directly in the folder (no folders,
  * no names starting with a dot, no symbolic link that leads out of it), of a text type
@@ -82,7 +82,7 @@ export const SOURCE_TEXT_EXTENSIONS: readonly string[] = [
   '.tsx',
 ];
 
-/** The folder the dialog starts in when no name is suggested: `Documents/Gurukul Studio`. */
+/** The folder every session's Sources folder lives under: `Documents/Gurukul Studio`. */
 export const STUDIO_FOLDER_NAME = 'Gurukul Studio';
 
 /** The parts of Node's `fs/promises` the Sources folder uses; the real one in the app. */
@@ -91,47 +91,40 @@ export type SourcesFs = Pick<
   'mkdir' | 'readdir' | 'realpath' | 'stat' | 'open' | 'readFile' | 'writeFile' | 'rename' | 'rm'
 >;
 
-/** Electron's `dialog.showOpenDialog`, as far as choosing a folder needs it. */
-export interface FolderDialogLike {
-  showOpenDialog(options: {
-    title: string;
-    buttonLabel: string;
-    defaultPath: string;
-    properties: ('openDirectory' | 'createDirectory')[];
-  }): Promise<{ canceled: boolean; filePaths: string[] }>;
-}
-
 /** Electron's `shell.openPath`: opens a folder in Finder or Explorer; answers an error or `''`. */
 export interface FolderOpenerLike {
   openPath(path: string): Promise<string>;
 }
 
 export interface SourcesOptions {
-  /** `{userData}`: the choices go under `sources/`, and no folder inside it may be chosen. */
+  /** `{userData}`: the folder choices go under `sources/`, and no folder inside it is used. */
   dataDir: string;
   /** `{userData}/sessions`: a choice whose session folder is gone is pruned at start. */
   sessionsRoot: string;
-  /** The Documents folder, where the dialog starts. */
+  /** The Documents folder, where the Sources folders are made. */
   documentsDir: string;
   /** Shown as `~` in the display path. */
   homeDir: string;
-  dialog: FolderDialogLike;
   opener: FolderOpenerLike;
   fs?: SourcesFs;
   log: Logger;
 }
 
 export interface SourcesManager {
-  choose(choice: SourcesChoice): Promise<SourcesFolder | null>;
+  /**
+   * The session's Sources folder, made on demand and remembered: the one it already has, else
+   * `Documents/Gurukul Studio/{suggestedName}/sources` (`new-course-{id}` without a name).
+   */
+  ensure(choice: SourcesChoice): Promise<SourcesFolder>;
   list(ref: SessionRef): Promise<SourcesFolder | null>;
   reveal(ref: SessionRef): Promise<void>;
   read(ref: SessionRef, name: string): Promise<string | null>;
-  /** The chosen folder's real path, for `claude`'s working directory; null when none. */
+  /** The session's folder's real path, for `claude`'s working directory; null when none. */
   folderOf(ref: SessionRef): Promise<string | null>;
   /** Forgets the session's choice: its whole session was removed. The folder itself stays. */
   forget(ref: SessionRef): Promise<void>;
   /**
-   * Forgets every choice whose session folder is gone (a start dialog closed after choosing).
+   * Forgets every choice whose session folder is gone (the app closed between the two removals).
    * Never throws; answers how many were forgotten.
    */
   prune(): Promise<number>;
@@ -209,7 +202,7 @@ async function quietly<T>(promise: Promise<T>): Promise<T | null> {
 const READ_FLAGS = fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
 
 export function createSources(options: SourcesOptions): SourcesManager {
-  const { dialog, opener, log, homeDir } = options;
+  const { opener, log, homeDir } = options;
   const fs = options.fs ?? fsPromises;
   const choicesRoot = path.join(options.dataDir, 'sources');
   // The names are checked (`isSafeSegment`) before they make a path.
@@ -259,7 +252,7 @@ export function createSources(options: SourcesOptions): SourcesManager {
     return files.slice(0, MAX_SOURCE_FILES);
   };
 
-  /** The chosen folder as the window sees it; its files are empty when it has gone. */
+  /** The session's folder as the window sees it; its files are empty when it has gone. */
   const describe = async (folder: string): Promise<SourcesFolder> => {
     const root = await quietly(fs.realpath(folder));
     const files = root === null ? [] : await entries(root);
@@ -269,46 +262,35 @@ export function createSources(options: SourcesOptions): SourcesManager {
     };
   };
 
-  /** Where the dialog starts: the suggested folder, created if missing, else Documents. */
-  const startIn = async (suggestedName: string | undefined): Promise<string> => {
-    const studio = path.join(options.documentsDir, STUDIO_FOLDER_NAME);
-    const start =
-      suggestedName === undefined ? studio : path.join(studio, suggestedName, 'sources');
-    try {
-      await fs.mkdir(start, { recursive: true });
-      return start;
-    } catch (error) {
-      log.error('Sources folder not created', error);
-      return options.documentsDir;
-    }
-  };
-
   return {
-    async choose(choice) {
+    async ensure(choice) {
       const ref = { uid: choice.uid, sessionId: choice.sessionId };
-      // `folderOf` checks the names (`choiceFile`) before any dialog opens.
+      // `folderOf` checks the names (`choiceFile`) before anything is made.
       const current = await folderOf(ref);
-      const defaultPath =
-        current !== null && (await quietly(fs.stat(current)))?.isDirectory() === true
-          ? current
-          : await startIn(choice.suggestedName);
-      const picked = await dialog.showOpenDialog({
-        title: 'Choose a Sources folder',
-        buttonLabel: 'Choose',
-        defaultPath,
-        properties: ['openDirectory', 'createDirectory'],
-      });
-      const first = picked.filePaths[0];
-      if (picked.canceled || first === undefined) return null;
-      const folder = await fs.realpath(first);
+      const wanted =
+        current ??
+        path.join(
+          options.documentsDir,
+          STUDIO_FOLDER_NAME,
+          choice.suggestedName ?? `new-course-${ref.sessionId.slice(0, 8)}`,
+          'sources',
+        );
+      // Also makes a folder the Educator deleted since: "created on demand".
+      await fs.mkdir(wanted, { recursive: true });
+      const folder = await fs.realpath(wanted);
       // The app's own data holds every session's answer keys: never the agent's to read.
       if (isInside(await fs.realpath(options.dataDir), folder)) {
         log.warn('Sources folder refused', { reason: 'app_data' });
-        throw new SourcesError('app_data', 'Choose a folder outside Gurukul Studio’s own data.');
+        throw new SourcesError(
+          'app_data',
+          'The Sources folder cannot be inside Gurukul Studio’s own data.',
+        );
       }
-      await remember(ref, folder);
+      if (folder !== current) await remember(ref, folder);
       const listed = await describe(folder);
-      log.info('Sources folder chosen', { sessionId: ref.sessionId, count: listed.files.length });
+      if (current === null) {
+        log.info('Sources folder made', { sessionId: ref.sessionId, count: listed.files.length });
+      }
       return listed;
     },
 

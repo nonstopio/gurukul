@@ -5,6 +5,7 @@ import type { AuthoringSession, Turn } from '@gurukul/schema';
 import {
   HISTORY_FILE,
   NEW_COURSE_ID,
+  NEW_COURSE_TITLE,
   SESSION_FILE,
   START_CHECKPOINT,
   StoredTimestamp,
@@ -17,7 +18,6 @@ import {
   namedCourse,
   sessionHistorySchema,
   sessionPath,
-  titleFromGoal,
 } from '../src/studio/session/store';
 import {
   FILE_MAX_BYTES,
@@ -61,10 +61,14 @@ const getDraft = vi.fn(async (id: string) =>
   id === 'git' ? draftDoc(makeCourse(), { rev: 4, answersChanged: true }) : null,
 );
 
+/**
+ * An edit session as an earlier version started it: its goal in the box, and as its title. A
+ * session now starts with no goal (`start` below), but older ones are still on disk.
+ */
 async function editSession(s: ReturnType<typeof setup>, goal = 'Simplify chapter one.') {
-  const result = await s.store.start({ kind: 'edit', courseId: 'git', goal }, getDraft);
+  const result = await s.store.start({ kind: 'edit', courseId: 'git' }, getDraft);
   if (result.status !== 'started') throw new Error('not started');
-  return result.session;
+  return s.store.save({ ...result.session, title: goal, goals: [{ text: goal, done: false }] });
 }
 
 const turn = (id: string, changes = 1): Turn => ({
@@ -78,28 +82,6 @@ const turn = (id: string, changes = 1): Turn => ({
 
 afterEach(() => {
   vi.clearAllMocks();
-});
-
-describe('titleFromGoal', () => {
-  it('takes the first sentence', () => {
-    expect(titleFromGoal('  Simplify the rebase chapter.  Then add a Quiz. ')).toBe(
-      'Simplify the rebase chapter.',
-    );
-  });
-
-  it('keeps a goal with no sentence end whole', () => {
-    expect(titleFromGoal('Add a Quiz\nat the end')).toBe('Add a Quiz at the end');
-  });
-
-  it('cuts a long sentence on a word', () => {
-    const title = titleFromGoal(`${'word '.repeat(40)}end.`);
-    expect(title.length).toBeLessThanOrEqual(80);
-    expect(title).toMatch(/word…$/);
-  });
-
-  it('cuts a long run with no space where it must', () => {
-    expect(titleFromGoal('x'.repeat(200))).toBe(`${'x'.repeat(79)}…`);
-  });
 });
 
 describe('creatorName', () => {
@@ -147,15 +129,18 @@ describe('sessionPath', () => {
 describe('start', () => {
   it('starts an edit session from the draft, read once, with the draft as its base', async () => {
     const s = setup();
-    const session = await editSession(s);
+    const result = await s.store.start({ kind: 'edit', courseId: 'git' }, getDraft);
+    if (result.status !== 'started') throw new Error('not started');
+    const { session } = result;
     expect(getDraft).toHaveBeenCalledTimes(1);
     expect(session).toMatchObject({
       id: 's1',
       uid: 'u1',
       kind: 'edit',
       courseId: 'git',
-      title: 'Simplify chapter one.',
-      goals: [{ text: 'Simplify chapter one.', done: false }],
+      // No goal yet: the course's own title stands in until the agent sets one.
+      title: makeCourse().title,
+      goals: [],
       status: 'open',
       base: { rev: 4, savedAt: '2026-03-01T10:00:00.000Z' },
       agentSessionId: null,
@@ -174,7 +159,7 @@ describe('start', () => {
 
   it('keeps a draft never saved, and one without the answer mark, as they are', async () => {
     const s = setup();
-    const result = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'Go.' }, async () =>
+    const result = await s.store.start({ kind: 'edit', courseId: 'git' }, async () =>
       draftDoc(makeCourse(), { updatedAt: null }),
     );
     expect(result.status === 'started' && result.session.base?.savedAt).toBeNull();
@@ -184,7 +169,7 @@ describe('start', () => {
   it('brings a draft saved at an older schemaVersion up to today before the session keeps it', async () => {
     const s = setup();
     const old = { ...makeCourse(), schemaVersion: 3 } as unknown as ReturnType<typeof makeCourse>;
-    const result = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'Go.' }, async () =>
+    const result = await s.store.start({ kind: 'edit', courseId: 'git' }, async () =>
       draftDoc(old, { rev: 4 }),
     );
     expect(result.status).toBe('started');
@@ -193,14 +178,13 @@ describe('start', () => {
     );
   });
 
-  it('starts a new course with no base and a blank course, its goal trimmed to fit', async () => {
+  it('starts a new course with no base, a blank course and a plain title', async () => {
     const s = setup();
-    const goal = `  ${'a'.repeat(400)}`;
-    const result = await s.store.start({ kind: 'new', goal, educatorName: 'Meera' }, getDraft);
+    const result = await s.store.start({ kind: 'new', educatorName: 'Meera' }, getDraft);
     expect(getDraft).not.toHaveBeenCalled();
     if (result.status !== 'started') throw new Error('not started');
     expect(result.session).toMatchObject({ kind: 'new', courseId: null, base: null });
-    expect(result.session.goals[0]?.text).toHaveLength(300);
+    expect(result.session).toMatchObject({ title: NEW_COURSE_TITLE, goals: [] });
     expect(result.session.work.course).toMatchObject({
       id: NEW_COURSE_ID,
       educatorIds: ['u1'],
@@ -213,7 +197,7 @@ describe('start', () => {
     const s = setup();
     const first = await editSession(s);
     getDraft.mockClear();
-    const again = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'More.' }, getDraft);
+    const again = await s.store.start({ kind: 'edit', courseId: 'git' }, getDraft);
     expect(again).toEqual({ status: 'already_open', session: first });
     expect(getDraft).not.toHaveBeenCalled();
     expect(await s.store.openFor('git')).toEqual(first);
@@ -228,21 +212,15 @@ describe('start', () => {
 
   it('lets several new courses be open at once', async () => {
     const s = setup();
-    await s.store.start({ kind: 'new', goal: 'One.' }, getDraft);
-    const second = await s.store.start({ kind: 'new', goal: 'Two.' }, getDraft);
+    await s.store.start({ kind: 'new' }, getDraft);
+    const second = await s.store.start({ kind: 'new' }, getDraft);
     expect(second.status).toBe('started');
   });
 
   it('writes nothing for a course with no draft', async () => {
     const s = setup();
-    const result = await s.store.start({ kind: 'edit', courseId: 'gone', goal: 'Go.' }, getDraft);
+    const result = await s.store.start({ kind: 'edit', courseId: 'gone' }, getDraft);
     expect(result).toEqual({ status: 'no_draft' });
-    expect(s.desktop.store.write).not.toHaveBeenCalled();
-  });
-
-  it('refuses to write an invalid session', async () => {
-    const s = setup();
-    await expect(s.store.start({ kind: 'new', goal: '   ' }, getDraft)).rejects.toThrow();
     expect(s.desktop.store.write).not.toHaveBeenCalled();
   });
 });
@@ -265,9 +243,8 @@ describe('read, save and list', () => {
       toJSON: () => ({ seconds: 1_790_000_000, nanoseconds: 250_000_000, type: 'timestamp' }),
     };
     const s = setup();
-    const result = await s.store.start(
-      { kind: 'edit', courseId: 'git', goal: 'Shorter.' },
-      async () => draftDoc({ ...makeCourse(), publishedAt: published }, { rev: 4 }),
+    const result = await s.store.start({ kind: 'edit', courseId: 'git' }, async () =>
+      draftDoc({ ...makeCourse(), publishedAt: published }, { rev: 4 }),
     );
     if (result.status !== 'started') throw new Error('not started');
     const read = await s.store.read('s1');
@@ -334,7 +311,7 @@ describe('read, save and list', () => {
     const s = setup();
     const first = await editSession(s);
     s.at(new Date(T0.getTime() + 1000));
-    await s.store.start({ kind: 'new', goal: 'New.' }, getDraft);
+    await s.store.start({ kind: 'new' }, getDraft);
     const history = historyOf({ ...first, status: 'saved' }, '2026-10-01T00:00:00.000Z');
     s.files.set(`u1/h1/${HISTORY_FILE}`, JSON.stringify({ ...history, id: 'h1' }));
     s.files.set(
@@ -581,7 +558,7 @@ describe('sweep', () => {
   it('leaves open sessions and recent closed ones alone', async () => {
     const s = setup();
     await editSession(s);
-    await s.store.start({ kind: 'new', goal: 'New.' }, getDraft);
+    await s.store.start({ kind: 'new' }, getDraft);
     await s.store.close((await s.store.read('s2')) as AuthoringSession, 'discarded');
     s.at(new Date(T0.getTime() + 29 * DAY));
     expect(await s.store.sweep()).toBe(0);
@@ -765,7 +742,7 @@ describe('sweep of folders it cannot read', () => {
     const s = setup();
     await editSession(s);
     s.files.set(`u1/s1/${SESSION_FILE}`, 'not json');
-    const second = await s.store.start({ kind: 'edit', courseId: 'git', goal: 'Again.' }, getDraft);
+    const second = await s.store.start({ kind: 'edit', courseId: 'git' }, getDraft);
     expect(second.status).toBe('started');
   });
 });

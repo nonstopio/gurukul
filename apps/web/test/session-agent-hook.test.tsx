@@ -20,7 +20,7 @@ async function setup() {
   const fake = fakeDesktop();
   const agent = fakeAgent(fake.desktop);
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 's1' });
-  await store.start({ kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' }, async () =>
+  await store.start({ kind: 'edit', courseId: 'git' }, async () =>
     draftDoc(makeCourse(), { rev: 4 }),
   );
   return { ...fake, ...agent };

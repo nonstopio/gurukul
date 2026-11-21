@@ -96,9 +96,7 @@ async function open(
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
   const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => stored(start, { rev: 3, updatedBy: 'u1' }),
   );
   if (started.status !== 'started') throw new Error('not started');
@@ -1132,13 +1130,10 @@ describe('when the draft moved underneath', () => {
       git: stored(THEIRS),
       other: draftDoc(OTHER, { rev: 7, updatedBy: 'u1' }),
     };
-    await store.start({ kind: 'edit', courseId: 'git', goal: 'A' }, async () =>
+    await store.start({ kind: 'edit', courseId: 'git' }, async () =>
       stored(BASE, { rev: 3, updatedBy: 'u1' }),
     );
-    await store.start(
-      { kind: 'edit', courseId: 'other', goal: 'B' },
-      async () => drafts.other as DraftDoc,
-    );
+    await store.start({ kind: 'edit', courseId: 'other' }, async () => drafts.other as DraftDoc);
     fakeAgent(fake.desktop);
     installDesktop(fake.desktop);
     const studio = fakeStudio({ courses: [{ live: GIT, draft: null }] });

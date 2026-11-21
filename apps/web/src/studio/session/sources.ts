@@ -10,7 +10,7 @@ import type { SessionSources } from './tools/types';
 /*
  * A session's Sources folder (`DSK-20`) as the agent's tools see it (`ctx.sources`), backed by the
  * desktop bridge's `sources.list` and `sources.read` for that one session. The shell keeps which
- * folder was chosen and reads only plain text files the folder lists; this side never sees a path.
+ * folder it made and reads only plain text files the folder lists; this side never sees a path.
  * Loaded only by the desktop session chunk.
  */
 
@@ -53,7 +53,7 @@ export function bridgeSources(
   };
 }
 
-/** "3 files", "1 file", "No files yet": what the start dialog says about a chosen folder. */
+/** "3 files", "1 file", "No files yet": what the Sources tab says about its folder. */
 export function filesLabel(folder: SourcesFolder): string {
   const count = folder.files.length;
   if (count === 0) return 'No files yet';

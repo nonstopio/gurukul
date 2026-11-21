@@ -15,7 +15,8 @@ The web app does not change for anyone who does not install the desktop app.
 
 Meera, an Educator, opens the desktop app and starts a session on "Git, the NonStop Way".
 
-1. She writes the goal: "The rebase chapter is too heavy. Simplify it and add a Quiz."
+1. She presses **Edit with AI** and, in the session's message box, writes what she wants: "The
+   rebase chapter is too heavy. Simplify it and add a Quiz."
 2. She and the agent go back and forth for forty minutes. The agent rewrites three lessons, adds a
    Quiz with six questions and reorders two lessons. **Nothing is saved to Firestore.** The
    preview on the right shows the course as a learner would see it, drawn from the copy on her
@@ -139,7 +140,7 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
 | `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
-| `sources.choose / list / reveal / read` | The session's Sources folder; `read` takes one plain file name the listing gives |
+| `sources.ensure / list / reveal / read` | The session's Sources folder: `ensure` makes it on demand under `Documents/Gurukul Studio` and answers it with its files, nobody picks one; `read` takes one plain file name the listing gives |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
 | `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
@@ -162,10 +163,15 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   allowed origin. A subscription returns a function that ends it; the page's handler gets plain
   data, never Electron's event object, and there is no way to listen on any other channel.
 - **The window names a session, never a path.** `sources.*` and `agent.start` take
-  `{ uid, sessionId }`: the shell remembers which folder the Educator picked for that session,
-  outside the session files the window can write, so a compromised page still reaches only the one
-  chosen folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
+  `{ uid, sessionId }`: the shell makes and remembers the session's folder, outside the session
+  files the window can write, so a compromised page still reaches only that one folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
   cancelled) is a result, not a rejection.
+- **Bridge version 2** (`BRIDGE_VERSION`, `REQUIRED_BRIDGE_VERSION`): `sources.choose` (a folder
+  picker) became `sources.ensure`. The web app asks for 2, so an installed app that still reports 1
+  shows "Update the app" (the sidebar's update item and the session pages' card) instead of
+  calling a missing function; the app updates itself in the background, so the gap is short. No
+  fallback path to the old call is kept: it would be code to maintain for a shell that updates
+  itself.
 - **The web app takes the types only** (`import type`, enforced by ESLint), so no shell code reaches
   its bundle; `REQUIRED_BRIDGE_VERSION` in `apps/web/src/desktop/bridge.ts` decides "Update the
   app".
@@ -575,20 +581,25 @@ copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and th
 `prompt.md`, `skills/`, `mcp.json` and empty `workdir/`, which only the main process writes. Source material lives where the Educator can see it:
 `Documents/Gurukul Studio/{course slug}/sources/`.
 
-As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/desktop/src/sources.ts`,
-`apps/web/src/studio/session/sources.ts`, `SourcesOffer.tsx`):
+As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/sources.ts`,
+`apps/web/src/studio/session/sources.ts`, `SourcesPanel.tsx`):
 
-- **The shell keeps the choice**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
-  path), beside the session folders and not in one, so no `store.*` call can write it. Removing a
-  whole session (`store.remove` without `path`) forgets it; a choice whose session folder does not
-  exist is forgotten when the app starts, which covers a start dialog closed after choosing.
-- **The start dialog makes the session's id** before the session exists (`StartRequest.id`), because
-  `sources.choose` names a session; `start` then uses that id.
-- **`sources.choose`** opens the system folder dialog in `Documents/Gurukul Studio/{suggestedName}/sources`
-  (created on demand; the course slug for an edit, nothing for a new course, which starts in
-  `Documents/Gurukul Studio`), or in the folder already chosen. A folder inside the app's own data
-  is refused (it holds every session's answer keys). The chosen folder is `claude`'s working
-  directory at the next `agent.start`.
+- **Every session gets a fixed Sources folder, with no folder picker.** `sources.ensure` makes it
+  on demand: `Documents/Gurukul Studio/{course slug}/sources` for an edit (the slug is the
+  `suggestedName` the window passes) and `Documents/Gurukul Studio/new-course-{first 8 characters
+  of the session id}/sources` for a new course, which has no slug yet. It stays that folder after
+  the course is created. Two sessions of the same course over time share one folder, which is the
+  point: the notes stay where the Educator put them.
+- **The shell keeps the folder**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
+  path), beside the session folders and not in one, so no `store.*` call can write it. A session
+  from before folders were automatic keeps the folder it already had. Removing a whole session
+  (`store.remove` without `path`) forgets it; a choice whose session folder does not exist is
+  forgotten when the app starts (the app closed between the two removals).
+- **The session runtime calls `sources.ensure` before every `agent.start`** (`connect` in
+  `agent.ts`), because the folder is `claude`'s working directory. A failure is logged and the
+  agent starts in the shell's empty folder; the Sources tab shows the error with Try again. A
+  folder inside the app's own data is refused (it holds every session's answer keys), and a folder
+  the Educator deleted is made again.
 - **`sources.list`** gives plain files directly in the folder: no folders, no name starting with a
   dot, no symbolic link that ends outside the folder; at most `MAX_SOURCE_FILES` (1,000), the first
   by name. The display path writes the home folder as `~`.
@@ -602,18 +613,16 @@ As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/deskt
   was moved or deleted), it rejects with a fixed sentence, never the system's words with the path
   in them, and the window says the folder could not be opened.
 - **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
-  answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
-  The session runtime (`createAgentSession`, `DSK-13`) uses it by default and passes it to
-  `defaultToolContext`.
-- **From the workspace** (`DSK-20`'s second half, `SourcesPanel.tsx`), a Sources tab beside Preview and
-  Outline shows the session's folder: read with `sources.list` each time the tab opens (files added in
-  Finder meanwhile appear), its display path and plain files with their sizes (25 to a page), Choose a
-  Sources folder or Change folder, Show in Finder or Explorer, and the notice that what the agent reads
-  is sent to Anthropic under the Educator's own Claude account. A saved or discarded session has no
-  Sources tab. `list_sources` and `read_source` ask the shell on every call, so a folder chosen or
-  changed mid-session is read from the next message on; `claude`'s working folder changes at the next
-  `agent.start`, which is safe because `--resume` works from a different working folder (Spike
-  findings).
+  answers null before `ensure` has made a folder, and `list_sources` and `read_source` then say the
+  session has no folder yet. The session runtime (`createAgentSession`, `DSK-13`) uses it by default
+  and passes it to `defaultToolContext`.
+- **From the workspace** (`SourcesPanel.tsx`), a Sources tab beside Preview and Outline shows the
+  session's folder: `sources.ensure` each time the tab opens (files added in Finder meanwhile
+  appear), its display path and plain files with their sizes (25 to a page), Show in Finder or
+  Explorer, and the notice that what the agent reads is sent to Anthropic under the Educator's own
+  Claude account. There is no Choose or Change folder. A saved or discarded session has no Sources
+  tab. `list_sources` and `read_source` ask the shell on every call, so files added mid-session are
+  read from the next message on.
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or
@@ -644,19 +653,26 @@ newer session of the same course.
 ### Starting a session
 
 From the Studio course list in the desktop app: **New course with AI** and, on each course the
-person may edit, **Edit with AI**. The start dialog asks for the goal in one free-text box and
-offers the Sources folder. For a new course it asks nothing else; title and slug are settled at
-the first save, when the content exists.
+person may edit, **Edit with AI**. **There is no start dialog**: the click goes straight into the
+session workspace, and the Educator says what they want in the session's own message box. Title and
+slug of a new course are settled at the first save, when the content exists.
 
 As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.tsx`):
 
-- **The goal is one box of at most 300 characters** (what `goalSchema` holds). It becomes the
-  session's first goal, and its first sentence, cut on a word at 80 characters, the title until
-  the agent sets one (`set_summary`).
-- **Before any read,** the dialog looks at the local files: an open session on that course turns
-  the dialog into "You already have a session on this course" with **Open the session**, and no
-  draft is read. "New course with AI" lists the new-course sessions still open, to pick one up.
-  `start` checks again, so a session opened meanwhile is offered, not doubled.
+- **A session starts without a goal.** `goals` begins empty (the schema already allows it, so
+  `SESSION_SCHEMA_VERSION` did not change and older session files read as before). The title is
+  the course's own title for an edit and "Untitled course" for a new course, until the agent sets
+  a title and goals from the first message (`set_summary`, `prompt/system.md`). A session an
+  earlier version started still has its goal, and the message box opens with it.
+- **Edit with AI opens the session already open on that course** when there is one: `start`
+  answers `already_open` from the local files, with no draft read, and the launcher navigates to
+  it. Otherwise it reads the draft once and opens the new session; a course with no draft shows a
+  toast instead.
+- **New course with AI reuses an open new-course session that has no turns yet** instead of piling
+  up empty ones; if every open new-course session already has work in it, a fresh one starts. A
+  start that fails shows a toast and stays on the course list; the next click starts again.
+- **`session_started` fires only when a session is actually created**, not when an open one is
+  reused or opened.
 - **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person
   as its Educator, level Foundation and the forest cover: `courseId` stays null, so the schema
   ignores the id until the first save gives the real slug.
@@ -684,10 +700,11 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
   (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
-- The start dialog already says that the course and the goal go to Anthropic under the Educator's
-  own Claude account, and to leave out client names and internal documents; the Sources offer
-  (`DSK-20`, "Choose a Sources folder") sits between the goal and that notice and says that what
-  the agent reads is sent to Anthropic too.
+- **The disclosure moved into the workspace.** Under the message box a line says that this runs
+  Claude Code on this computer under the Educator's own Claude account, that the course and what
+  they write are sent to Anthropic, and to leave out client names and internal documents; the
+  Sources tab says the same about what the agent reads. The only dialog left in the start flow is
+  the one that says the app is too old, did not answer or is still answering.
 
 ## The session workspace
 
@@ -1570,7 +1587,7 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
 ## Privacy and security
 
 - Course text, source files and answer keys in a session are sent to Anthropic under the
-  Educator's own account. The start dialog and the Sources folder say so, and say not to add
+  Educator's own account. The session workspace (under the message box) and the Sources tab say so, and say not to add
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.

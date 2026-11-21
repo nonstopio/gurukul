@@ -70,7 +70,7 @@ async function session() {
   const fake = fakeDesktop();
   fakeAgent(fake.desktop);
   const files = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 's1' });
-  await files.start({ kind: 'edit', courseId: 'git', goal: 'Fix the Quiz.' }, async () =>
+  await files.start({ kind: 'edit', courseId: 'git' }, async () =>
     draftDoc(makeCourse(), { rev: 3, answers: { q1: { k1: ['a'] } } }),
   );
   const runtime = createAgentSession({ desktop: fake.desktop, uid: 'u1', sessionId: 's1' });

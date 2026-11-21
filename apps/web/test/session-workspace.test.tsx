@@ -42,6 +42,8 @@ async function open(
     status?: AgentStatus;
     start?: AgentStartResult;
     kind?: 'new' | 'edit';
+    /** Keeps the session as the store starts it: no goal, the course's own title. */
+    fresh?: boolean;
     /** Changes the fake agent before the page asks it anything. */
     prepare?: (agent: ReturnType<typeof fakeAgent>['agent']) => void;
     /** The chat already on this computer. */
@@ -58,12 +60,15 @@ async function open(
   const id = `s${sessions}`;
   const fake = fakeDesktop(init.info ? { info: init.info } : {});
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
-  await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+  const started = await store.start(
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(init.course ?? GIT, { rev: 3 }),
   );
+  // A session an earlier version started has a goal and its title; the box still opens with it.
+  if (started.status === 'started' && !init.fresh) {
+    const goal = init.kind === 'new' ? 'A course on code review.' : 'Simplify the basics.';
+    await store.save({ ...started.session, title: goal, goals: [{ text: goal, done: false }] });
+  }
   if (init.transcript) await store.writeTranscript(id, init.transcript);
   const agent = fakeAgent(fake.desktop, {
     ...(init.status ? { status: init.status } : {}),
@@ -142,6 +147,17 @@ describe('the session workspace', () => {
     expect(screen.queryByText(/Your goal is in the box below/)).toBeNull();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy());
     expect(box().value).toBe('');
+  });
+
+  it('opens a session started with no goal on the course’s title and an empty box, with the disclosure', async () => {
+    await open({ fresh: true });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Git' })).toBeTruthy();
+    expect(screen.getByText(/Say what you want to do in the box below/)).toBeTruthy();
+    expect(box().value).toBe('');
+    // What the start dialog used to say stays in view in the workspace.
+    expect(screen.getByText(/runs Claude Code on this computer/i)).toBeTruthy();
+    expect(screen.getByText(/leave out client names and internal documents/)).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
   it('runs a turn: activity in words, Stop, the reply, marks in the preview, and the turn line', async () => {
@@ -706,21 +722,20 @@ describe('the workspace’s Sources tab', () => {
     return screen.getByRole('tabpanel', { name: 'Sources' });
   };
 
-  it('offers a folder when none is chosen, with the notice, and then lists its files', async () => {
+  it('shows the folder made for the session, with the notice and its files', async () => {
     const s = await open();
     await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
-    expect(s.desktop.sources.list).not.toHaveBeenCalled();
     const panel = sourcesTab();
     const group = await within(panel).findByRole('group', { name: 'Sources folder' });
-    expect(s.desktop.sources.list).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
-    expect(within(group).getByText(/sent to Anthropic under your own Claude account/)).toBeTruthy();
-    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
-    expect(await within(group).findByText('~/Material')).toBeTruthy();
-    expect(s.desktop.sources.choose).toHaveBeenCalledWith({
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({
       uid: 'u1',
       sessionId: s.id,
       suggestedName: 'git',
     });
+    expect(within(group).getByText(/sent to Anthropic under your own Claude account/)).toBeTruthy();
+    expect(within(group).getByText('~/Material')).toBeTruthy();
+    // Nobody picks a folder.
+    expect(within(group).queryByRole('button', { name: /folder/i })).toBeNull();
     const files = within(group).getByRole('list', { name: 'Files the agent may read' });
     expect(
       within(files)
@@ -732,6 +747,18 @@ describe('the workspace’s Sources tab', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it('says when the folder cannot be shown', async () => {
+    const s = await open();
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    const group = await within(sourcesTab()).findByRole('group', { name: 'Sources folder' });
+    s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
+    fireEvent.click(within(group).getByRole('button', { name: 'Show in Finder' }));
+    expect(await screen.findByText('The folder could not be opened.')).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Sources folder not shown', expect.any(Error), {
+      sessionId: s.id,
+    });
+  });
+
   it('reads the folder again each time the tab opens, and pages a long list', async () => {
     const s = await open();
     await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
@@ -739,7 +766,7 @@ describe('the workspace’s Sources tab', () => {
       name: `note-${String(i).padStart(2, '0')}.md`,
       bytes: 10,
     }));
-    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files });
+    s.desktop.sources.ensure.mockResolvedValue({ path: '~/Notes', files });
     let panel = sourcesTab();
     const list = await within(panel).findByRole('list', { name: 'Files the agent may read' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(25);
@@ -747,20 +774,19 @@ describe('the workspace’s Sources tab', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Next' }));
     expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
-    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files: [] });
+    s.desktop.sources.ensure.mockResolvedValue({ path: '~/Notes', files: [] });
     panel = sourcesTab();
     expect(
       await within(panel).findByText(/Save notes in the folder as text or Markdown/),
     ).toBeTruthy();
     expect(within(panel).getByText('No files yet')).toBeTruthy();
-    expect(s.desktop.sources.list).toHaveBeenCalledTimes(2);
   });
 
-  it('says when the folder could not be read, and tries again', async () => {
+  it('says when the folder could not be read, and tries again; a new course has no slug to name it', async () => {
     const s = await open({ kind: 'new' });
     await screen.findByRole('heading', { name: 'Nothing to preview yet' });
-    const failure = new Error('sources.list failed');
-    s.desktop.sources.list.mockRejectedValueOnce(failure);
+    const failure = new Error('sources.ensure failed');
+    s.desktop.sources.ensure.mockRejectedValueOnce(failure);
     const panel = sourcesTab();
     expect(within(panel).getByRole('status').getAttribute('aria-busy')).toBe('true');
     expect(await within(panel).findByText('The Sources folder could not be read')).toBeTruthy();
@@ -768,12 +794,8 @@ describe('the workspace’s Sources tab', () => {
       sessionId: s.id,
     });
     fireEvent.click(within(panel).getByRole('button', { name: 'Try again' }));
-    const choose = await within(panel).findByRole('button', { name: 'Choose a Sources folder' });
-    fireEvent.click(choose);
-    // A new course has no slug to suggest yet.
-    await waitFor(() =>
-      expect(s.desktop.sources.choose).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id }),
-    );
+    expect(await within(panel).findByText('~/Material')).toBeTruthy();
+    expect(s.desktop.sources.ensure).toHaveBeenLastCalledWith({ uid: 'u1', sessionId: s.id });
   });
 });
 

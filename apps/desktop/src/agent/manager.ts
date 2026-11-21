@@ -52,7 +52,7 @@ export interface AgentManagerOptions {
   sessionsRoot: string;
   events: EventSender;
   /**
-   * The Sources folder the Educator chose for a session (`sources.choose`, `DSK-20`), or null.
+   * The session's Sources folder (`sources.ensure`, `DSK-20`), or null before one was made.
    * Without it, every session works in an empty folder of its own.
    */
   sourcesFolder?: (ref: SessionRef) => Promise<string | null>;
