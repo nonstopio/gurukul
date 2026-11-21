@@ -377,7 +377,7 @@ describe('the download card in the browser Studio', () => {
   ) {
     vi.mocked(loadLatestRelease).mockResolvedValue(release);
     vi.mocked(detectSystem).mockResolvedValue(system);
-    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    await openApp('/studio/desktop', { roles: ['educator'], studio: studio() });
     const card = await screen.findByRole('region', { name: 'Build a course by chatting' });
     // Settled: the request answered and the card drew what it found.
     await waitFor(() =>
@@ -475,7 +475,7 @@ describe('the download card in the browser Studio', () => {
         answer = resolve;
       }),
     );
-    const app = await openApp('/studio', { roles: ['educator'], studio: studio() });
+    const app = await openApp('/studio/desktop', { roles: ['educator'], studio: studio() });
     const card = await screen.findByRole('region', { name: 'Build a course by chatting' });
     expect(
       within(card).getByText('Looking for the latest version').closest('[aria-busy]'),

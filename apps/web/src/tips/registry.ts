@@ -67,7 +67,7 @@ export const TIPS: readonly Tip[] = [
   },
   {
     id: 'desktop-app',
-    where: ['/studio'],
+    where: ['/studio/desktop'],
     el: '.sc-download__offer .g-btn',
     // Above the button: below it the card lists the other installers, which the tip would cover.
     side: 'top',

@@ -35,6 +35,13 @@ export const navigation = {
       description: 'Videos, images and uploaded files used across courses',
       keywords: ['video', 'image', 'links', 'uploaded', 'upload', 'pdf', 'file size'],
     },
+    {
+      id: 'studio-desktop',
+      path: '/studio/desktop',
+      label: 'Desktop app',
+      description: 'Download Gurukul Studio to build a course by chatting with an AI',
+      keywords: ['download', 'install', 'app', 'chat', 'ai', 'claude', 'mac', 'windows'],
+    },
   ],
   unlisted: {
     '/studio/courses/:courseId': { context: 'needs a course id; reached from the course list' },
