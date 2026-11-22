@@ -10,6 +10,8 @@ import {
   isPlainFileName,
   type SessionRef,
   type SourceFile,
+  type SourceUpload,
+  type SourcesAdded,
   type SourceRefusals,
   type SourcesChoice,
   type SourcesFolder,
@@ -119,6 +121,11 @@ export interface SourcesManager {
   list(ref: SessionRef): Promise<SourcesFolder | null>;
   reveal(ref: SessionRef): Promise<void>;
   read(ref: SessionRef, name: string): Promise<string | null>;
+  /**
+   * Writes the files into the session's folder (`ensure` first), each without following a link and
+   * without overwriting: a name already there becomes `name (2).ext`. Answers the names written.
+   */
+  add(choice: SourcesChoice, files: SourceUpload[]): Promise<SourcesAdded>;
   /** The session's folder's real path, for `claude`'s working directory; null when none. */
   folderOf(ref: SessionRef): Promise<string | null>;
   /** Forgets the session's choice: its whole session was removed. The folder itself stays. */
@@ -200,6 +207,9 @@ async function quietly<T>(promise: Promise<T>): Promise<T | null> {
 // Windows has no `O_NOFOLLOW`: `| undefined` is `| 0` there. Elsewhere a file swapped for a link
 // between the listing and the read is refused by the system.
 const READ_FLAGS = fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
+// A new file only: `O_EXCL` fails on anything already there, a link included.
+const ADD_FLAGS =
+  fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW;
 
 export function createSources(options: SourcesOptions): SourcesManager {
   const { opener, log, homeDir } = options;
@@ -262,36 +272,77 @@ export function createSources(options: SourcesOptions): SourcesManager {
     };
   };
 
+  const ensure = async (choice: SourcesChoice): Promise<SourcesFolder> => {
+    const ref = { uid: choice.uid, sessionId: choice.sessionId };
+    // `folderOf` checks the names (`choiceFile`) before anything is made.
+    const current = await folderOf(ref);
+    const wanted =
+      current ??
+      path.join(
+        options.documentsDir,
+        STUDIO_FOLDER_NAME,
+        choice.suggestedName ?? `new-course-${ref.sessionId.slice(0, 8)}`,
+        'sources',
+      );
+    // Also makes a folder the Educator deleted since: "created on demand".
+    await fs.mkdir(wanted, { recursive: true });
+    const folder = await fs.realpath(wanted);
+    // The app's own data holds every session's answer keys: never the agent's to read.
+    if (isInside(await fs.realpath(options.dataDir), folder)) {
+      log.warn('Sources folder refused', { reason: 'app_data' });
+      throw new SourcesError(
+        'app_data',
+        'The Sources folder cannot be inside Gurukul Studio’s own data.',
+      );
+    }
+    if (folder !== current) await remember(ref, folder);
+    const listed = await describe(folder);
+    if (current === null) {
+      log.info('Sources folder made', { sessionId: ref.sessionId, count: listed.files.length });
+    }
+    return listed;
+  };
+
+  /** Writes `bytes` as `name`, or `name (2)`, `name (3)`… before the extension when it is taken. */
+  const writeNew = async (root: string, name: string, bytes: Uint8Array): Promise<string> => {
+    const ext = path.extname(name);
+    const stem = name.slice(0, name.length - ext.length);
+    for (let n = 1; ; n += 1) {
+      const candidate = n === 1 ? name : `${stem} (${n})${ext}`;
+      const target = path.join(root, candidate);
+      let handle;
+      try {
+        handle = await fs.open(target, ADD_FLAGS, 0o644);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') continue;
+        throw error;
+      }
+      try {
+        await handle.writeFile(bytes);
+      } catch (error) {
+        await handle.close();
+        await fs.rm(target, { force: true });
+        throw error;
+      }
+      await handle.close();
+      return candidate;
+    }
+  };
+
   return {
-    async ensure(choice) {
-      const ref = { uid: choice.uid, sessionId: choice.sessionId };
-      // `folderOf` checks the names (`choiceFile`) before anything is made.
-      const current = await folderOf(ref);
-      const wanted =
-        current ??
-        path.join(
-          options.documentsDir,
-          STUDIO_FOLDER_NAME,
-          choice.suggestedName ?? `new-course-${ref.sessionId.slice(0, 8)}`,
-          'sources',
-        );
-      // Also makes a folder the Educator deleted since: "created on demand".
-      await fs.mkdir(wanted, { recursive: true });
-      const folder = await fs.realpath(wanted);
-      // The app's own data holds every session's answer keys: never the agent's to read.
-      if (isInside(await fs.realpath(options.dataDir), folder)) {
-        log.warn('Sources folder refused', { reason: 'app_data' });
-        throw new SourcesError(
-          'app_data',
-          'The Sources folder cannot be inside Gurukul Studio’s own data.',
-        );
-      }
-      if (folder !== current) await remember(ref, folder);
-      const listed = await describe(folder);
-      if (current === null) {
-        log.info('Sources folder made', { sessionId: ref.sessionId, count: listed.files.length });
-      }
-      return listed;
+    ensure,
+
+    async add(choice, files) {
+      await ensure(choice);
+      const root = await fs.realpath((await folderOf(choice)) as string);
+      const added: string[] = [];
+      for (const file of files) added.push(await writeNew(root, file.name, file.bytes));
+      log.info('Sources added', {
+        sessionId: choice.sessionId,
+        count: added.length,
+        bytes: files.reduce((sum, f) => sum + f.bytes.byteLength, 0),
+      });
+      return { added, folder: await describe(root) };
     },
 
     async list(ref) {

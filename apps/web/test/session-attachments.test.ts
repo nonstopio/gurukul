@@ -110,4 +110,20 @@ describe('attached parts of the course', () => {
     const json = two.split('\n')[1]?.split(': ').slice(1).join(': ');
     expect(JSON.parse(json as string)).toEqual({ kind: 'block', itemId: 'l1', blockId: 'b2' });
   });
+
+  it('names added files to the agent after the parts, and keys them by name', () => {
+    const files: AttachTarget[] = ['a.docx', 'b.xlsx'].map((name) => ({
+      kind: 'file',
+      ids: { name },
+      label: name,
+    }));
+    expect(attachmentNote(files)).toBe(
+      '[From Gurukul: Files added to the Sources folder: a.docx, b.xlsx. Read them with read_source.]\n\n',
+    );
+    expect(attachmentNote([...files, LANDING_TARGET])).toMatch(
+      /^\[From Gurukul: the Educator attached this part[\s\S]*\[From Gurukul: Files added/,
+    );
+    expect(attachmentKey(files[0] as AttachTarget)).toBe('file:a.docx');
+    expect(cleanTarget(files[1] as AttachTarget)).toEqual(files[1]);
+  });
 });

@@ -11,6 +11,8 @@ import {
   MAX_SKILLS,
   MAX_TOOL_RESULT_LENGTH,
   MAX_TOOLS,
+  MAX_SOURCE_ADD_BYTES,
+  MAX_SOURCE_ADD_FILES,
   isPlainFileName,
   isSafePath,
   isSafeSegment,
@@ -106,3 +108,14 @@ export const sourcesChoice = z
   .strict();
 
 export const sourceName = z.string().refine(isPlainFileName, 'Not a file name');
+
+/** A file to add: a plain name that shows in the listing (no leading dot) and at most 25 MB. */
+export const sourceUpload = z
+  .object({
+    name: sourceName.refine((name) => !name.startsWith('.'), 'Not a file name'),
+    bytes: z
+      .instanceof(Uint8Array)
+      .refine((bytes) => bytes.byteLength <= MAX_SOURCE_ADD_BYTES, 'File too large'),
+  })
+  .strict();
+export const sourceUploads = z.array(sourceUpload).min(1).max(MAX_SOURCE_ADD_FILES);

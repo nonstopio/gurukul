@@ -165,7 +165,7 @@ describe('startApp', () => {
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: false,
-      bridgeVersion: 3,
+      bridgeVersion: 4,
     });
   });
 
@@ -178,11 +178,11 @@ describe('startApp', () => {
     ]);
     await expect(
       handlers.get(channel('info'))?.(topFrame('http://127.0.0.1:4173')),
-    ).resolves.toMatchObject({ bridgeVersion: 3 });
+    ).resolves.toMatchObject({ bridgeVersion: 4 });
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: true,
-      bridgeVersion: 3,
+      bridgeVersion: 4,
     });
   });
 
@@ -221,7 +221,7 @@ describe('startApp', () => {
     expect(windows[0]?.loadURL).toHaveBeenCalledWith(PRODUCTION_URL);
     const info = handlers.get(channel('info'));
     await expect(info?.(topFrame('https://gurukul.nonstopio.com'))).resolves.toEqual({
-      bridgeVersion: 3,
+      bridgeVersion: 4,
       appVersion: '0.1.0',
       platform: 'linux',
     });
@@ -387,6 +387,11 @@ describe('Sources folders', () => {
     await expect(handlers.get(channel('sources.read'))?.(event, ref, 'notes.md')).resolves.toBe(
       'Rebase notes',
     );
+    await expect(
+      handlers.get(channel('sources.add'))?.(event, ref, [
+        { name: 'notes.md', bytes: new Uint8Array([97]) },
+      ]),
+    ).resolves.toMatchObject({ added: ['notes (2).md'] });
     await handlers.get(channel('sources.reveal'))?.(event, ref);
     expect(deps.shell.openPath).toHaveBeenCalledWith(folder);
     // Removing the whole session forgets the choice; the folder stays.

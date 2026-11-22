@@ -286,6 +286,81 @@ describe('sources.list', () => {
   });
 });
 
+describe('sources.add', () => {
+  const file = (name: string, text = 'data') => ({ name, bytes: new TextEncoder().encode(text) });
+
+  it('makes the folder and writes the files, any type, answering the listing', async () => {
+    const { sources, sink } = setup();
+    const result = await sources.add(mat, [file('Plan.docx'), file('Sheet.xlsx', 'abc')]);
+    expect(result.added).toEqual(['Plan.docx', 'Sheet.xlsx']);
+    expect(result.folder).toEqual({
+      path: SHOWN,
+      files: [
+        { name: 'Plan.docx', bytes: 4 },
+        { name: 'Sheet.xlsx', bytes: 3 },
+      ],
+    });
+    await expect(readFile(path.join(material, 'Plan.docx'), 'utf8')).resolves.toBe('data');
+    expect(sink).toHaveBeenCalledWith('info', 'Sources added', {
+      sessionId: 's1',
+      count: 2,
+      bytes: 7,
+    });
+    expect(JSON.stringify(sink.mock.calls)).not.toContain('Plan');
+  });
+
+  it('never overwrites: a taken name gets (2), (3) before the extension', async () => {
+    const { sources } = setup();
+    await put('Plan.docx', 'mine');
+    await put('Plan (2).docx', 'mine too');
+    await put('README', 'x');
+    const result = await sources.add(mat, [file('Plan.docx'), file('README'), file('Plan.docx')]);
+    expect(result.added).toEqual(['Plan (3).docx', 'README (2)', 'Plan (4).docx']);
+    await expect(readFile(path.join(material, 'Plan.docx'), 'utf8')).resolves.toBe('mine');
+  });
+
+  it('does not write through a link that holds the name', async () => {
+    const { sources } = setup();
+    const outside = path.join(root, 'outside.txt');
+    await writeFile(outside, 'keep');
+    await symlink(outside, path.join(material, 'a.txt'));
+    const result = await sources.add(mat, [file('a.txt', 'new')]);
+    expect(result.added).toEqual(['a (2).txt']);
+    await expect(readFile(outside, 'utf8')).resolves.toBe('keep');
+  });
+
+  it('removes a half-written file and rethrows when the write fails', async () => {
+    const { sources } = setup({
+      fs: {
+        open: (async (target: string, ...rest: unknown[]) => {
+          const handle = await (
+            fsPromises.open as (...a: unknown[]) => Promise<fsPromises.FileHandle>
+          )(target, ...rest);
+          return {
+            writeFile: async () => {
+              throw new Error('disk full');
+            },
+            close: () => handle.close(),
+          };
+        }) as unknown as SourcesFs['open'],
+      },
+    });
+    await expect(sources.add(mat, [file('a.pdf')])).rejects.toThrow('disk full');
+    await expect(stat(path.join(material, 'a.pdf'))).rejects.toThrow();
+  });
+
+  it('rethrows an error that is not a name clash', async () => {
+    const { sources } = setup({
+      fs: {
+        open: vi.fn(async () => {
+          throw Object.assign(new Error('no'), { code: 'EACCES' });
+        }) as unknown as SourcesFs['open'],
+      },
+    });
+    await expect(sources.add(mat, [file('a.pdf')])).rejects.toThrow('no');
+  });
+});
+
 describe('sources.reveal', () => {
   it('opens the chosen folder, and does nothing without one', async () => {
     const { sources, openPath } = setup();

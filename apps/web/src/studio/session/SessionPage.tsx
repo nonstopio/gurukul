@@ -215,6 +215,8 @@ function Workspace({
     [open, attachments, attach, detach],
   );
   const attached = attachments.length;
+  // Files added from the chat: the Sources tab (a new key) reads the folder again.
+  const [addedFiles, setAddedFiles] = useState(0);
   // Back from an editor, the preview opens on the item that was edited.
   const shown = useSearchParams()[0].get('item');
 
@@ -228,6 +230,7 @@ function Workspace({
       onDraft={setTyped}
       checks={checks}
       onPoint={() => setChatOpen(false)}
+      onAdded={() => setAddedFiles((n) => n + 1)}
     />
   );
 
@@ -300,6 +303,7 @@ function Workspace({
                 sources={
                   open ? (
                     <SourcesPanel
+                      key={addedFiles}
                       sources={desktop.sources}
                       uid={uid}
                       sessionId={sessionId}

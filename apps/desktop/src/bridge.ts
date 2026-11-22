@@ -25,9 +25,10 @@
  * picker) became `sources.ensure` (a fixed default folder), so a site that asks for 2 cannot run on
  * a shell that has only `choose`, and one asking for 1 never calls `ensure`. 3: `agent.start` takes a
  * `model` and an `effort`, which a version 2 shell refuses (its arguments are strict), so a site that
- * lets the Educator pick them asks for 3.
+ * lets the Educator pick them asks for 3. 4: `sources.add` (files dropped on the chat are copied into
+ * the Sources folder), which a version 3 shell does not have, so a site that offers it asks for 4.
  */
-export const BRIDGE_VERSION = 3;
+export const BRIDGE_VERSION = 4;
 
 /**
  * The messages a refused call rejects with. Electron prefixes them ("Error invoking remote method
@@ -284,6 +285,19 @@ export interface SourcesChoice extends SessionRef {
   suggestedName?: string | undefined;
 }
 
+/** One file the window adds to a Sources folder: its name and its bytes, never a path. */
+export interface SourceUpload {
+  /** A plain file name (`isPlainFileName`) not starting with a dot, as the Educator's file is called. */
+  name: string;
+  bytes: Uint8Array;
+}
+
+/** What `sources.add` answers: the names written (a clash is renamed) and the folder afterwards. */
+export interface SourcesAdded {
+  added: string[];
+  folder: SourcesFolder;
+}
+
 /**
  * Why `sources.read` would not read a listed file: the call rejects with one of these sentences,
  * written for the agent to act on. Electron prefixes them like `BRIDGE_ERRORS`, so the web app
@@ -359,6 +373,7 @@ export interface BridgeCalls {
   'sources.list'(ref: SessionRef): SourcesFolder | null;
   'sources.reveal'(ref: SessionRef): void;
   'sources.read'(ref: SessionRef, name: string): string | null;
+  'sources.add'(choice: SourcesChoice, files: SourceUpload[]): SourcesAdded;
   'auth.googleSignIn'(): GoogleSignInResult;
   'app.checkForUpdate'(): UpdateCheck;
   'app.installUpdate'(): void;
@@ -388,6 +403,7 @@ export const CALLS = [
   'sources.list',
   'sources.reveal',
   'sources.read',
+  'sources.add',
   'auth.googleSignIn',
   'app.checkForUpdate',
   'app.installUpdate',
@@ -487,6 +503,13 @@ export interface GurukulDesktop {
      * file. Never resolves a name outside the folder.
      */
     read: BridgeFn<'sources.read'>;
+    /**
+     * Copies files into the session's folder (made first, as `ensure` does), whatever their type:
+     * at most `MAX_SOURCE_ADD_FILES`, each at most `MAX_SOURCE_ADD_BYTES`. A name already there is
+     * kept and the new file becomes `name (2).ext`; nothing is overwritten. Added after the first
+     * shells shipped (bridge version 4).
+     */
+    add: BridgeFn<'sources.add'>;
   };
   auth: {
     /** Google sign-in in the system browser (OAuth with PKCE, loopback redirect). */
@@ -532,6 +555,10 @@ export const MAX_SOURCE_NAME_LENGTH = 255;
 export const MAX_SOURCE_BYTES = 1_048_576;
 /** Most files one `sources.list` gives, the first by name: a listing fits in one tool result. */
 export const MAX_SOURCE_FILES = 1000;
+/** Most files one `sources.add` takes. */
+export const MAX_SOURCE_ADD_FILES = 10;
+/** Largest file `sources.add` takes, in bytes: 25 MB. */
+export const MAX_SOURCE_ADD_BYTES = 26_214_400;
 
 const SEGMENT = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
 /** Names Windows reserves for devices, with or without an extension. */

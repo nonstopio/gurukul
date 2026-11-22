@@ -1103,6 +1103,162 @@ describe('the chat of a session already written', () => {
   });
 });
 
+describe('adding files to the session from the chat', () => {
+  const file = (name: string, text = 'data') => new File([text], name);
+  const pick = async (files: File[]) => {
+    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const click = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add files…' }));
+    expect(click).toHaveBeenCalled();
+    fireEvent.change(input, { target: { files } });
+  };
+  const panel = () => document.querySelector('.ss-chat__panel') as HTMLElement;
+  const dragOf = (types: string[], files: File[] = []) => ({
+    dataTransfer: { types, files },
+  });
+  const chips = () => screen.getByRole('list', { name: 'Attached to your next message' });
+
+  it('adds files from the plus menu, shows them as chips and names them to the agent', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    expect(box().getAttribute('placeholder')).toMatch(/Drop files here/);
+    await pick([file('Plan.docx', 'abc'), file('Sheet.xlsx')]);
+    await waitFor(() => expect(within(chips()).getByText('Plan.docx')).toBeTruthy());
+    expect(within(chips()).getByText('Sheet.xlsx')).toBeTruthy();
+    const call = s.desktop.sources.add.mock.calls[0] as unknown as [
+      unknown,
+      { name: string; bytes: Uint8Array }[],
+    ];
+    expect(call[0]).toEqual({ uid: 'u1', sessionId: s.id, suggestedName: 'git' });
+    expect(call[1].map((f) => [f.name, f.bytes.length])).toEqual([
+      ['Plan.docx', 3],
+      ['Sheet.xlsx', 4],
+    ]);
+    await send(s, 'Make a quiz from this sheet.');
+    expect(s.agent.send).toHaveBeenCalledWith(
+      s.id,
+      '[From Gurukul: Files added to the Sources folder: Plan.docx, Sheet.xlsx. Read them with read_source.]\n\nMake a quiz from this sheet.',
+    );
+    expect(screen.getByRole('list', { name: 'Attached to this message' }).textContent).toBe(
+      'Plan.docxSheet.xlsx',
+    );
+  });
+
+  it('adds files dropped anywhere on the chat, with an overlay while they are over it', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    // Text dragged over is not a file: nothing happens.
+    fireEvent.dragEnter(panel(), dragOf(['text/plain']));
+    fireEvent.dragOver(panel(), dragOf(['text/plain']));
+    fireEvent.dragLeave(panel(), dragOf(['text/plain']));
+    fireEvent.drop(panel(), dragOf(['text/plain']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.dragEnter(panel(), dragOf(['Files']));
+    fireEvent.dragEnter(box(), dragOf(['Files']));
+    fireEvent.dragOver(panel(), dragOf(['Files']));
+    expect(screen.getByText('Drop files to add them to this session')).toBeTruthy();
+    // Crossing into a child and out of it keeps the overlay; leaving the chat removes it.
+    fireEvent.dragLeave(box(), dragOf(['Files']));
+    expect(screen.getByText('Drop files to add them to this session')).toBeTruthy();
+    fireEvent.dragLeave(panel(), dragOf(['Files']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.dragEnter(panel(), dragOf(['Files']));
+    fireEvent.drop(panel(), dragOf(['Files'], [file('Notes.pdf')]));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    await waitFor(() => expect(within(chips()).getByText('Notes.pdf')).toBeTruthy());
+    expect(s.desktop.sources.add).toHaveBeenCalledTimes(1);
+  });
+
+  it('adds files pasted into the box, and leaves pasted text alone', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    fireEvent.paste(box(), { clipboardData: { files: [] } });
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+    fireEvent.paste(box(), { clipboardData: { files: [file('shot.png')] } });
+    await waitFor(() => expect(within(chips()).getByText('shot.png')).toBeTruthy());
+  });
+
+  it('shows the added files in the Sources tab', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+    const tab = screen.getByRole('tabpanel', { name: 'Sources' });
+    await within(tab).findByText('transcript.txt');
+    await pick([file('Plan.docx')]);
+    expect(await within(tab).findByText('Plan.docx')).toBeTruthy();
+    expect(s.desktop.sources.add).toHaveBeenCalled();
+  });
+
+  it('can remove an added file from its chip', async () => {
+    await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    await pick([file('Plan.docx')]);
+    await waitFor(() => expect(within(chips()).getByText('Plan.docx')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Plan.docx' }));
+    expect(screen.queryByRole('list', { name: 'Attached to your next message' })).toBeNull();
+  });
+
+  it('says so, and adds nothing, for too many files or one over 25 MB', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    await pick(Array.from({ length: 11 }, (_, i) => file(`f${i}.txt`)));
+    expect(await screen.findByText(/room for 10 more/)).toBeTruthy();
+    const big = file('big.pdf');
+    Object.defineProperty(big, 'size', { value: 26_214_401 });
+    await pick([big]);
+    expect(
+      await screen.findByText('A file is larger than 25 MB. Add a smaller copy.'),
+    ).toBeTruthy();
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+    // With the message full, none more.
+    await pick(Array.from({ length: 10 }, (_, i) => file(`g${i}.txt`)));
+    await waitFor(() => expect(s.desktop.sources.add).toHaveBeenCalledTimes(1));
+    await pick([file('one-more.txt')]);
+    expect(await screen.findByText(/already carries 10 things/)).toBeTruthy();
+  });
+
+  it('shows progress, then says in plain words when the shell refuses', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    let fail: (error: Error) => void = () => undefined;
+    s.desktop.sources.add.mockImplementationOnce(
+      () => new Promise((_, reject) => void (fail = reject)),
+    );
+    await pick([file('Plan.docx')]);
+    expect(await screen.findByText('Adding files…', { selector: 'p' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true);
+    // A second drop meanwhile is ignored, and Enter does not send.
+    fireEvent.drop(panel(), dragOf(['Files'], [file('Again.docx')]));
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(s.agent.send).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
+    expect(
+      screen.getByRole('menuitem', { name: 'Adding files…' }).getAttribute('aria-disabled'),
+    ).toBe('true');
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    await act(async () => fail(new Error('sources.add failed')));
+    expect(await screen.findByText(/The files could not be added/)).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Files not added', expect.any(Error), {
+      sessionId: s.id,
+    });
+    expect(screen.queryByRole('list', { name: 'Attached to your next message' })).toBeNull();
+  });
+
+  it('adds nothing when the agent cannot run', async () => {
+    const s = await open({ status: { state: 'not_installed' } });
+    await screen.findByText('Claude Code is not on this computer');
+    const chat = document.querySelector('.ss-chat__panel') as HTMLElement;
+    fireEvent.dragEnter(chat, dragOf(['Files']));
+    fireEvent.dragOver(chat, dragOf(['Files']));
+    fireEvent.dragLeave(chat, dragOf(['Files']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.drop(chat, dragOf(['Files'], [file('a.docx')]));
+    fireEvent.paste(chat, { clipboardData: { files: [file('a.docx')] } });
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+  });
+});
+
 describe("the chat's bottom bar", () => {
   const trigger = (name: RegExp | string) => screen.getByRole('button', { name });
   const pickFrom = async (menu: RegExp, item: string) => {

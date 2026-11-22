@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { sessionRef, sourceName, sourcesChoice } from './args';
+import { sessionRef, sourceName, sourceUploads, sourcesChoice } from './args';
 import type { AreaHandlers } from './ipc';
 import type { SourcesManager } from './sources';
 
@@ -17,6 +17,10 @@ export function sourcesCalls(sources: SourcesManager): AreaHandlers<'sources'> {
     'sources.read': {
       args: z.tuple([sessionRef, sourceName]),
       run: (ref, name) => sources.read(ref, name),
+    },
+    'sources.add': {
+      args: z.tuple([sourcesChoice, sourceUploads]),
+      run: (choice, files) => sources.add(choice, files),
     },
   };
 }

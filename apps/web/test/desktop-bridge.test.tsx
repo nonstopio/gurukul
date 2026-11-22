@@ -12,7 +12,7 @@ import {
   type GurukulDesktop,
 } from '../src/desktop/bridge';
 
-const INFO: DesktopInfo = { bridgeVersion: 3, appVersion: '0.1.0', platform: 'darwin' };
+const INFO: DesktopInfo = { bridgeVersion: 4, appVersion: '0.1.0', platform: 'darwin' };
 
 /** A stand-in for the bridge: only `info` is called by the facade. */
 function fakeDesktop(info: () => Promise<DesktopInfo> = async () => INFO): GurukulDesktop {

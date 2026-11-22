@@ -59,3 +59,6 @@ export function filesLabel(folder: SourcesFolder): string {
   if (count === 0) return 'No files yet';
   return count === 1 ? '1 file' : `${count} files`;
 }
+
+/** Largest file the chat adds, in bytes: the shell's `MAX_SOURCE_ADD_BYTES`, 25 MB. */
+export const MAX_ADD_BYTES = 26_214_400;

@@ -14,7 +14,7 @@ import type {
 } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
-  bridgeVersion: 3,
+  bridgeVersion: 4,
   appVersion: '0.1.0',
   platform: 'darwin',
 };
@@ -95,8 +95,9 @@ export function fakeDesktop(
     sources: {
       ensure: vi.fn(
         async (ref: { uid: string; sessionId: string; suggestedName?: string | undefined }) => {
-          chosen.set(session(ref), SOURCES_FOLDER);
-          return SOURCES_FOLDER;
+          const folder = chosen.get(session(ref)) ?? SOURCES_FOLDER;
+          chosen.set(session(ref), folder);
+          return folder;
         },
       ),
       list: vi.fn(
@@ -105,6 +106,25 @@ export function fakeDesktop(
       reveal: vi.fn(async () => undefined),
       read: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
         chosen.get(session(ref))?.files.some((f) => f.name === name) ? `Text of ${name}` : null,
+      ),
+      // Keeps what was added in the folder, as the shell does (without renaming a clash).
+      add: vi.fn(
+        async (
+          ref: { uid: string; sessionId: string },
+          files: { name: string; bytes: Uint8Array }[],
+        ) => {
+          const folder = chosen.get(session(ref)) ?? SOURCES_FOLDER;
+          const added = files.map((f) => f.name);
+          const next = {
+            ...folder,
+            files: [
+              ...folder.files,
+              ...files.map((f) => ({ name: f.name, bytes: f.bytes.length })),
+            ],
+          };
+          chosen.set(session(ref), next);
+          return { added, folder: next };
+        },
       ),
     },
     auth: { googleSignIn: refuse },

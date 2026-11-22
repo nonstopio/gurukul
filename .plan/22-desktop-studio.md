@@ -140,7 +140,7 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 | `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
 | `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
-| `sources.ensure / list / reveal / read` | The session's Sources folder: `ensure` makes it on demand under `Documents/Gurukul Studio` and answers it with its files, nobody picks one; `read` takes one plain file name the listing gives |
+| `sources.ensure / list / reveal / read / add` | The session's Sources folder: `ensure` makes it on demand under `Documents/Gurukul Studio` and answers it with its files, nobody picks one; `read` takes one plain file name the listing gives; `add` takes the same choice as `ensure` and `{ name, bytes }` files, and copies them into the folder |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
 | `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
@@ -172,6 +172,7 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   calling a missing function; the app updates itself in the background, so the gap is short. No
   fallback path to the old call is kept: it would be code to maintain for a shell that updates
   itself.
+- **Bridge version 4**: `sources.add` (files dropped on the chat). A version 3 shell has no such function, so the web app asks for 4.
 - **Bridge version 3**: `agent.start` takes an optional `model` and `effort` (the chat bar's
   pickers). A version 2 shell refuses them (its arguments are strict), so the web app asks for 3 and
   an older shell shows "Update the app" instead of failing at the first model change. The new
@@ -650,6 +651,18 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   Claude account. There is no Choose or Change folder. A saved or discarded session has no Sources
   tab. `list_sources` and `read_source` ask the shell on every call, so files added mid-session are
   read from the next message on.
+- **`sources.add`** (the chat's drop, paste and "+" menu): the window reads each file with
+  `File.arrayBuffer()` and sends `{ name, bytes }`; it never learns or sends a path. The shell takes
+  the same choice as `ensure` (so the folder exists), accepts any file type (Word, Excel, PDF,
+  pictures, text; reading them is a later step), at most `MAX_SOURCE_ADD_FILES` (10) per call and
+  `MAX_SOURCE_ADD_BYTES` (25 MB) each, a plain name that does not start with a dot. It writes
+  without following links and never overwrites: a name already there becomes `name (2).ext`,
+  `name (3).ext`. It answers the names written and the folder listing, and logs only counts.
+- **In the chat,** dropping files anywhere on the panel (an overlay says "Drop files to add them to
+  this session"), pasting files into the box, or "Add files…" in the "+" menu adds them. Each
+  becomes a removable chip above the box (a `file` attached part). Sending names them to the agent
+  ("Files added to the Sources folder: a.docx, b.xlsx. Read them with read_source."), the sent
+  message shows the chips, and the Sources tab reloads.
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or

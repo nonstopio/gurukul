@@ -61,12 +61,15 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
   };
 }
 
+const upload = (name: string) => ({ name, bytes: new Uint8Array([1]) });
+
 function fakeSources(overrides: Partial<SourcesManager> = {}): SourcesManager {
   return {
     ensure: vi.fn(async () => ({ path: '~/Material', files: [] })),
     list: vi.fn(async () => null),
     reveal: vi.fn(async () => undefined),
     read: vi.fn(async () => 'notes'),
+    add: vi.fn(async () => ({ added: ['a.docx'], folder: { path: '~/Material', files: [] } })),
     folderOf: vi.fn(async () => null),
     forget: vi.fn(async () => undefined),
     prune: vi.fn(async () => 0),
@@ -130,7 +133,7 @@ describe('registerHandlers', () => {
 
   it('answers info with the bridge version, app version and platform', async () => {
     await expect(setup().call('info', top())).resolves.toEqual({
-      bridgeVersion: 3,
+      bridgeVersion: 4,
       appVersion: '1.2.3',
       platform: 'darwin',
     });
@@ -341,6 +344,7 @@ describe('calls a later item builds', () => {
     ['sources.list', [ref], 'list'],
     ['sources.reveal', [ref], 'reveal'],
     ['sources.read', [ref, 'Rebase notes.md'], 'read'],
+    ['sources.add', [ref, [{ name: 'Plan.docx', bytes: new Uint8Array([1, 2]) }]], 'add'],
   ];
 
   it.each(sourcesCalls)('passes %s through to the Sources folder', async (name, args, method) => {
@@ -430,6 +434,17 @@ describe('calls a later item builds', () => {
     ['a Sources folder path', 'sources.list', [{ ...ref, path: '/etc' }]],
     ['a source name with a slash', 'sources.read', [ref, '../secret.md']],
     ['a source name of ..', 'sources.read', [ref, '..']],
+    ['no files to add', 'sources.add', [ref, []]],
+    ['too many files to add', 'sources.add', [ref, Array(11).fill(upload('a.docx'))]],
+    ['a file name with a slash', 'sources.add', [ref, [upload('../a.docx')]]],
+    ['a hidden file name', 'sources.add', [ref, [upload('.env')]]],
+    [
+      'a file of 25 MB and a byte',
+      'sources.add',
+      [ref, [{ name: 'a.pdf', bytes: new Uint8Array(26_214_401) }]],
+    ],
+    ['file bytes that are text', 'sources.add', [ref, [{ name: 'a.txt', bytes: 'text' }]]],
+    ['a file with a path', 'sources.add', [ref, [{ ...upload('a.txt'), path: '/etc/a' }]]],
     ['arguments to googleSignIn', 'auth.googleSignIn', ['client']],
   ])('refuses %s', async (_label, name, args) => {
     const { call } = setup();
