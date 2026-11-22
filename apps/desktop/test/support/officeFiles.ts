@@ -48,16 +48,21 @@ export function xlsx(sheets: Record<string, (string | number)[][]>): Promise<Buf
   return zip(files);
 }
 
-/** A one-page PDF that says `text` (letters, digits and spaces only). */
-export function pdf(text: string): Buffer {
-  const stream = `BT /F1 18 Tf 20 100 Td (${text}) Tj ET`;
+/** A PDF with one page per entry of `texts` (letters, digits and spaces only). */
+export function pdfPages(texts: string[]): Buffer {
+  const kids = texts.map((_, i) => `${4 + i * 2} 0 R`).join(' ');
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    `<< /Type /Pages /Kids [${kids}] /Count ${texts.length} >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
   ];
+  texts.forEach((text, i) => {
+    const stream = `BT /F1 18 Tf 20 100 Td (${text}) Tj ET`;
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents ${5 + i * 2} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`,
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    );
+  });
   let out = '%PDF-1.4\n';
   const offsets: number[] = [];
   objects.forEach((body, i) => {
@@ -70,3 +75,6 @@ export function pdf(text: string): Buffer {
   out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(out, 'latin1');
 }
+
+/** A one-page PDF that says `text` (letters, digits and spaces only). */
+export const pdf = (text: string): Buffer => pdfPages([text]);

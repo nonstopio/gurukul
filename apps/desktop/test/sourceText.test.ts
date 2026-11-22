@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_SOURCE_TEXT_CHARS } from '../src/bridge';
 import {
+  MAX_PDF_PAGES,
   MAX_SHEET_COLUMNS,
   MAX_SHEET_ROWS,
   boundText,
@@ -9,7 +10,7 @@ import {
   csvCell,
   imageType,
 } from '../src/sourceText';
-import { docx, pdf, xlsx } from './support/officeFiles';
+import { docx, pdf, pdfPages, xlsx } from './support/officeFiles';
 
 describe('names', () => {
   it('tells the converter or picture type by extension, in any case', () => {
@@ -58,12 +59,57 @@ describe('convertSource', () => {
     expect(await convertSource('pdf', pdf('Hello rebase'))).toContain('Hello rebase');
   });
 
+  it('keeps the line breaks of a PDF', async () => {
+    expect(await convertSource('pdf', pdf('first ) Tj 0 -30 Td (second'))).toBe('first\nsecond');
+  });
+
   it.each(['word', 'sheet', 'pdf'] as const)('rejects a damaged %s file', async (kind) => {
     await expect(convertSource(kind, Buffer.from('not a real file'))).rejects.toThrow();
   });
 
   it('rejects a file with no text in it', async () => {
     await expect(convertSource('word', await docx('', []))).rejects.toThrow('no text');
+  });
+});
+
+describe('resource limits', () => {
+  /** The central directory header of the first entry, and the end record. */
+  const headerAt = (zip: Buffer) => zip.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+  const eocdAt = (zip: Buffer) => zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+
+  it.each(['word', 'sheet'] as const)(
+    'refuses a %s file that declares a huge size',
+    async (kind) => {
+      const zip = kind === 'word' ? await docx('A', ['b']) : await xlsx({ S: [['a']] });
+      zip.writeUInt32LE(0x7fffffff, headerAt(zip) + 24);
+      await expect(convertSource(kind, zip)).rejects.toThrow('too much data');
+      zip.writeUInt32LE(0xffffffff, headerAt(zip) + 24); // ZIP64 marker
+      await expect(convertSource(kind, zip)).rejects.toThrow('too much data');
+    },
+  );
+
+  it('refuses a file with too many entries or a directory that is not there', async () => {
+    const zip = await docx('A', ['b']);
+    zip.writeUInt16LE(10_001, eocdAt(zip) + 10);
+    await expect(convertSource('word', zip)).rejects.toThrow('too many entries');
+    zip.writeUInt16LE(3, eocdAt(zip) + 10);
+    zip.writeUInt32LE(0, eocdAt(zip) + 16);
+    await expect(convertSource('word', zip)).rejects.toThrow('bad directory');
+  });
+
+  it('stops a PDF at the page limit', async () => {
+    const pages = Array.from({ length: MAX_PDF_PAGES + 1 }, (_, i) => `page${i + 1}x`);
+    const text = await convertSource('pdf', pdfPages(pages));
+    expect(text).toContain(`page${MAX_PDF_PAGES}x`);
+    expect(text).not.toContain(`page${MAX_PDF_PAGES + 1}x`);
+  });
+
+  it('stops a PDF once it has more text than is kept', async () => {
+    // text that runs off the page is dropped, so every piece goes back to the start.
+    const big = `${'abcd ) Tj 1 0 0 1 20 100 Tm ('.repeat(MAX_SOURCE_TEXT_CHARS * 0.15)}end`;
+    const text = await convertSource('pdf', pdfPages([big, big, 'lastpage']));
+    expect(text.length).toBeGreaterThan(MAX_SOURCE_TEXT_CHARS);
+    expect(text).not.toContain('lastpage');
   });
 });
 

@@ -645,7 +645,10 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   `MAX_SOURCE_TEXT_CHARS` (200,000) with a note saying the rest was left out. Old `.doc` and `.xls`
   are not read. A file it will not read rejects with one of `SOURCE_REFUSALS`, a sentence
   `read_source` hands the agent: `notText` (names the types that can be read), `tooLarge`,
-  `unreadable` (a damaged, password-protected or text-less Word, Excel or PDF file),
+  `unreadable` (a damaged, password-protected or text-less Word, Excel or PDF file, or a Word or
+  Excel file whose ZIP directory declares more than 200 MB uncompressed or 10,000 entries, checked
+  before the library runs; a PDF is read page by page, at most 500 pages, stopping at the
+  character cap; a worker with resource limits would also catch files that lie about their size),
   `tooLargeDocument`, `imageTooLarge`. It logs the size and kind read, never a path, a file name or
   the text.
 - **`sources.readImage`** (bridge version 5) gives a listed `.png`, `.jpg`, `.jpeg`, `.gif` or

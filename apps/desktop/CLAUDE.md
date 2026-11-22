@@ -59,7 +59,10 @@ bridge). The shell is thin on purpose: screens belong in `apps/web`, never here.
   `{ uid, sessionId }`; the shell remembers the chosen Sources folder itself, outside the session
   files the window can write (`{userData}/sources/`). `sources.read` reads only a name its own
   listing gives: a text type under `MAX_SOURCE_BYTES`, or a Word, Excel or PDF file under
-  `MAX_SOURCE_DOCUMENT_BYTES` converted to text cut at `MAX_SOURCE_TEXT_CHARS`; `sources.readImage`
+  `MAX_SOURCE_DOCUMENT_BYTES` converted to text cut at `MAX_SOURCE_TEXT_CHARS`
+  (a Word or Excel file whose ZIP directory declares over 200 MB or 10,000 entries is refused as `unreadable` before its library runs, and a PDF is
+  read page by page, at most `MAX_PDF_PAGES`, stopping at the character cap; declared sizes can
+  lie, so a worker with resource limits is the next step); `sources.readImage`
   gives a picture under `MAX_SOURCE_IMAGE_BYTES`, which `read_source` returns as an MCP image. A
   refusal is one of `SOURCE_REFUSALS`. Never log a Sources path, file name or text.
 - **Never widen the origins** beyond `config.ts`: that would hand the bridge to another site.
