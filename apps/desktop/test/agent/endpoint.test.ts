@@ -78,6 +78,14 @@ describe('refusal', () => {
 describe('toolCallResult', () => {
   it('gives text, or the window’s sentence as an error', () => {
     expect(toolCallResult({ text: 'ok' })).toEqual({ content: [{ type: 'text', text: 'ok' }] });
+    expect(
+      toolCallResult({ text: 'ok', images: [{ data: 'AQID', mimeType: 'image/png' }] }),
+    ).toEqual({
+      content: [
+        { type: 'text', text: 'ok' },
+        { type: 'image', data: 'AQID', mimeType: 'image/png' },
+      ],
+    });
     expect(toolCallResult({ error: 'No.' })).toEqual({
       content: [{ type: 'text', text: 'No.' }],
       isError: true,

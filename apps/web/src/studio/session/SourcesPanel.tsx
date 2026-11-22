@@ -92,9 +92,9 @@ export function SourcesPanel({
         Sources folder
       </p>
       <p className="sc-help">
-        Notes, outlines or transcripts the agent may read, saved as text or Markdown directly in
-        this folder. What the agent reads is sent to Anthropic under your own Claude account, so
-        leave out client names and internal documents.
+        Notes, outlines, transcripts, Word, Excel and PDF files and pictures the agent may read,
+        saved directly in this folder. What the agent reads is sent to Anthropic under your own
+        Claude account, so leave out client names and internal documents.
       </p>
       <p className="ss-sources__chosen">
         <span className="ss-sources__path">{folder.path}</span>
@@ -117,7 +117,8 @@ function SourceFiles({ folder }: { folder: SourcesFolder }) {
   if (files.length === 0) {
     return (
       <p className="sc-help">
-        Save notes in the folder as text or Markdown, then open this tab again to see them here.
+        Save files in the folder, or drop them on the chat, then open this tab again to see them
+        here.
       </p>
     );
   }

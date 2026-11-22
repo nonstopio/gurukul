@@ -69,6 +69,7 @@ function fakeSources(overrides: Partial<SourcesManager> = {}): SourcesManager {
     list: vi.fn(async () => null),
     reveal: vi.fn(async () => undefined),
     read: vi.fn(async () => 'notes'),
+    readImage: vi.fn(async () => ({ data: 'AQID', mimeType: 'image/png' as const })),
     add: vi.fn(async () => ({ added: ['a.docx'], folder: { path: '~/Material', files: [] } })),
     folderOf: vi.fn(async () => null),
     forget: vi.fn(async () => undefined),
@@ -133,7 +134,7 @@ describe('registerHandlers', () => {
 
   it('answers info with the bridge version, app version and platform', async () => {
     await expect(setup().call('info', top())).resolves.toEqual({
-      bridgeVersion: 4,
+      bridgeVersion: 5,
       appVersion: '1.2.3',
       platform: 'darwin',
     });
@@ -303,6 +304,11 @@ describe('calls a later item builds', () => {
       ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }],
       'toolResult',
     ],
+    [
+      'agent.toolResult',
+      ['s1', 'call-1', { text: '{}', images: [{ data: 'AQID', mimeType: 'image/png' }] }],
+      'toolResult',
+    ],
     ['agent.ask', [{ askId: 'ask-1', prompt: 'Answer this question.' }], 'ask'],
     ['agent.cancelAsk', ['ask-1'], 'cancelAsk'],
   ];
@@ -344,6 +350,7 @@ describe('calls a later item builds', () => {
     ['sources.list', [ref], 'list'],
     ['sources.reveal', [ref], 'reveal'],
     ['sources.read', [ref, 'Rebase notes.md'], 'read'],
+    ['sources.readImage', [ref, 'Diagram.png'], 'readImage'],
     ['sources.add', [ref, [{ name: 'Plan.docx', bytes: new Uint8Array([1, 2]) }]], 'add'],
   ];
 
@@ -423,6 +430,21 @@ describe('calls a later item builds', () => {
       'a tool result with both text and error',
       'agent.toolResult',
       ['s1', 'c', { text: 'a', error: 'b' }],
+    ],
+    [
+      'a tool result with two pictures',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: Array(2).fill({ data: 'AQID', mimeType: 'image/png' }) }],
+    ],
+    [
+      'a tool result with a picture of another type',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: [{ data: 'AQID', mimeType: 'image/svg+xml' }] }],
+    ],
+    [
+      'a tool result with a picture over the limit',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: [{ data: 'A'.repeat(4_200_000), mimeType: 'image/png' }] }],
     ],
     ['a tool result that is a string', 'agent.toolResult', ['s1', 'c', 'ok']],
     ['an empty ask', 'agent.ask', [{ askId: 'a', prompt: '' }]],

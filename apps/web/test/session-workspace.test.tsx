@@ -802,7 +802,7 @@ describe('the workspace’s Sources tab', () => {
     s.desktop.sources.ensure.mockResolvedValue({ path: '~/Notes', files: [] });
     panel = sourcesTab();
     expect(
-      await within(panel).findByText(/Save notes in the folder as text or Markdown/),
+      await within(panel).findByText(/Save files in the folder, or drop them on the chat/),
     ).toBeTruthy();
     expect(within(panel).getByText('No files yet')).toBeTruthy();
   });

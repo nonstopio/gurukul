@@ -14,7 +14,7 @@ import type {
 } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
-  bridgeVersion: 4,
+  bridgeVersion: 5,
   appVersion: '0.1.0',
   platform: 'darwin',
 };
@@ -106,6 +106,11 @@ export function fakeDesktop(
       reveal: vi.fn(async () => undefined),
       read: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
         chosen.get(session(ref))?.files.some((f) => f.name === name) ? `Text of ${name}` : null,
+      ),
+      readImage: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
+        chosen.get(session(ref))?.files.some((f) => f.name === name)
+          ? { data: 'AQID', mimeType: 'image/png' as const }
+          : null,
       ),
       // Keeps what was added in the folder, as the shell does (without renaming a clash).
       add: vi.fn(

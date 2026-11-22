@@ -1,5 +1,6 @@
 import type { Working } from '../../types';
 import type { z } from 'zod';
+import type { AgentImage } from '../../../desktop/bridge';
 import type { SessionGoal, SessionTodo } from '@gurukul/schema';
 
 /**
@@ -57,6 +58,11 @@ export interface SessionSources {
    * with a sentence for the agent.
    */
   read(name: string): Promise<string | null>;
+  /**
+   * A listed picture (png, jpg, gif or webp) as base64 with its media type, or null when there is no
+   * such file; refuses as `read` does. The model sees it when `read_source` returns it.
+   */
+  readImage(name: string): Promise<AgentImage | null>;
 }
 
 /** A listed file the Sources folder will not read; the message is a sentence for the agent. */
@@ -76,8 +82,9 @@ export interface ToolContext {
   sources: SessionSources | null;
 }
 
-/** A tool's answer: the new state and a short text for the model, or a sentence saying why not. */
-export type ToolResult = { state: SessionState; text: string } | { error: string };
+/** A tool's answer: the new state and a short text for the model (and any pictures to show it), or a sentence saying why not. */
+export type ToolResult =
+  { state: SessionState; text: string; images?: AgentImage[] } | { error: string };
 
 /** One tool the agent can call. */
 export interface ToolDef<S extends z.ZodType> {

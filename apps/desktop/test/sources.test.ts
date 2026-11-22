@@ -13,7 +13,13 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_SOURCE_BYTES, MAX_SOURCE_FILES, SOURCE_REFUSALS } from '../src/bridge';
+import {
+  MAX_SOURCE_BYTES,
+  MAX_SOURCE_DOCUMENT_BYTES,
+  MAX_SOURCE_FILES,
+  MAX_SOURCE_IMAGE_BYTES,
+  SOURCE_REFUSALS,
+} from '../src/bridge';
 import { createLogger } from '../src/log';
 import {
   SOURCE_TEXT_EXTENSIONS,
@@ -26,6 +32,7 @@ import {
   type SourcesFs,
 } from '../src/sources';
 import { SessionFileError } from '../src/store';
+import { docx, pdf, xlsx } from './support/officeFiles';
 
 let root: string;
 let home: string;
@@ -391,7 +398,11 @@ describe('sources.read', () => {
     await sources.ensure(mat);
     await put('Rebase notes.md', 'Rebase rewrites history.');
     await expect(sources.read(ref, 'Rebase notes.md')).resolves.toBe('Rebase rewrites history.');
-    expect(sink).toHaveBeenCalledWith('info', 'Source read', { sessionId: 's1', bytes: 24 });
+    expect(sink).toHaveBeenCalledWith('info', 'Source read', {
+      sessionId: 's1',
+      bytes: 24,
+      kind: 'text',
+    });
     expect(JSON.stringify(sink.mock.calls)).not.toContain('Rebase');
   });
 
@@ -428,9 +439,9 @@ describe('sources.read', () => {
   it('refuses a file that is not a text type, or not text inside', async () => {
     const { sources, sink } = setup();
     await sources.ensure(mat);
-    await put('slides.pdf', '%PDF-1.7');
+    await put('deck.pptx', 'PK');
     await put('binary.txt', Buffer.from([0x00, 0x01, 0x02]));
-    for (const name of ['slides.pdf', 'binary.txt']) {
+    for (const name of ['deck.pptx', 'binary.txt']) {
       const refusal = sources.read(ref, name);
       await expect(refusal).rejects.toThrow(SOURCE_REFUSALS.notText);
       await expect(refusal).rejects.toMatchObject({ reason: 'notText' });
@@ -463,6 +474,98 @@ describe('sources.read', () => {
     });
     await expect(growing.sources.read(ref, 'grows.md')).rejects.toThrow(SOURCE_REFUSALS.tooLarge);
     expect(close).toHaveBeenCalled();
+  });
+});
+
+describe('sources.read of Word, Excel and PDF files', () => {
+  it('reads each as text, logging size and kind only', async () => {
+    const { sources, sink } = setup();
+    await sources.ensure(mat);
+    await put('Plan.docx', await docx('Rebase', ['Rebase rewrites history.']));
+    await put('Budget.xlsx', await xlsx({ Topics: [['rebase', 3]] }));
+    await put('Slides.pdf', pdf('Hello rebase'));
+    await expect(sources.read(ref, 'Plan.docx')).resolves.toContain('# Rebase');
+    await expect(sources.read(ref, 'Budget.xlsx')).resolves.toBe('## Sheet: Topics\nrebase,3');
+    await expect(sources.read(ref, 'Slides.pdf')).resolves.toContain('Hello rebase');
+    const kinds = sink.mock.calls.filter((c) => c[1] === 'Source read').map((c) => c[2].kind);
+    expect(kinds).toEqual(['word', 'sheet', 'pdf']);
+    expect(JSON.stringify(sink.mock.calls)).not.toMatch(/Rebase|Plan|Budget|Slides|Topics/);
+  });
+
+  it('cuts the text it gives at the limit', async () => {
+    const { sources } = setup();
+    await sources.ensure(mat);
+    await put('Long.docx', await docx('Long', ['word '.repeat(50_000)]));
+    const text = (await sources.read(ref, 'Long.docx')) as string;
+    expect(text).toContain('left out');
+    expect(text.length).toBeLessThan(200_200);
+  });
+
+  it('refuses a damaged or empty file with the unreadable sentence', async () => {
+    const { sources, sink } = setup();
+    await sources.ensure(mat);
+    await put('Broken.docx', 'not a zip');
+    await put('Locked.pdf', '%PDF-1.7 broken');
+    await put('Empty.docx', await docx('', []));
+    for (const name of ['Broken.docx', 'Locked.pdf', 'Empty.docx']) {
+      await expect(sources.read(ref, name)).rejects.toMatchObject({
+        reason: 'unreadable',
+        message: SOURCE_REFUSALS.unreadable,
+      });
+    }
+    expect(sink).not.toHaveBeenCalledWith('info', 'Source read', expect.anything());
+  });
+
+  it('refuses a document over 25 MB, also when it grew after it was listed', async () => {
+    const { sources } = setup();
+    await sources.ensure(mat);
+    await put('Huge.pdf', Buffer.alloc(MAX_SOURCE_DOCUMENT_BYTES + 1));
+    await expect(sources.read(ref, 'Huge.pdf')).rejects.toThrow(SOURCE_REFUSALS.tooLargeDocument);
+  });
+});
+
+describe('sources.readImage', () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+  it('gives a listed picture as base64 with its media type, logging size and kind only', async () => {
+    const { sources, sink } = setup();
+    await sources.ensure(mat);
+    await put('Diagram.PNG', png);
+    await put('photo.jpeg', png);
+    await expect(sources.readImage(ref, 'Diagram.PNG')).resolves.toEqual({
+      data: png.toString('base64'),
+      mimeType: 'image/png',
+    });
+    await expect(sources.readImage(ref, 'photo.jpeg')).resolves.toMatchObject({
+      mimeType: 'image/jpeg',
+    });
+    expect(sink).toHaveBeenCalledWith('info', 'Source read', {
+      sessionId: 's1',
+      bytes: 4,
+      kind: 'image',
+    });
+    expect(JSON.stringify(sink.mock.calls)).not.toContain('Diagram');
+  });
+
+  it('answers null for a name the listing does not give, or without a folder', async () => {
+    const { sources } = setup();
+    await expect(sources.readImage(ref, 'a.png')).resolves.toBeNull();
+    await sources.ensure(mat);
+    await expect(sources.readImage(ref, '../a.png')).resolves.toBeNull();
+    await expect(sources.readImage(ref, 'missing.png')).resolves.toBeNull();
+  });
+
+  it('refuses a file that is not a picture, or a picture over 3 MB', async () => {
+    const { sources } = setup();
+    await sources.ensure(mat);
+    await put('notes.md');
+    await put('big.png', Buffer.alloc(MAX_SOURCE_IMAGE_BYTES + 1));
+    await put('limit.png', Buffer.alloc(MAX_SOURCE_IMAGE_BYTES));
+    await expect(sources.readImage(ref, 'notes.md')).rejects.toThrow(SOURCE_REFUSALS.notText);
+    await expect(sources.readImage(ref, 'big.png')).rejects.toThrow(SOURCE_REFUSALS.imageTooLarge);
+    await expect(sources.readImage(ref, 'limit.png')).resolves.toMatchObject({
+      mimeType: 'image/png',
+    });
   });
 });
 

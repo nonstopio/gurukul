@@ -18,6 +18,10 @@ export function sourcesCalls(sources: SourcesManager): AreaHandlers<'sources'> {
       args: z.tuple([sessionRef, sourceName]),
       run: (ref, name) => sources.read(ref, name),
     },
+    'sources.readImage': {
+      args: z.tuple([sessionRef, sourceName]),
+      run: (ref, name) => sources.readImage(ref, name),
+    },
     'sources.add': {
       args: z.tuple([sourcesChoice, sourceUploads]),
       run: (choice, files) => sources.add(choice, files),

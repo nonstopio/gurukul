@@ -9,8 +9,8 @@ import type { SessionSources } from './tools/types';
 
 /*
  * A session's Sources folder (`DSK-20`) as the agent's tools see it (`ctx.sources`), backed by the
- * desktop bridge's `sources.list` and `sources.read` for that one session. The shell keeps which
- * folder it made and reads only plain text files the folder lists; this side never sees a path.
+ * desktop bridge's `sources.list`, `sources.read` and `sources.readImage` for that one session. The
+ * shell keeps which folder it made and reads only the text, Word, Excel, PDF and picture files the folder lists; this side never sees a path.
  * Loaded only by the desktop session chunk.
  */
 
@@ -20,9 +20,15 @@ import type { SessionSources } from './tools/types';
  */
 export const SOURCE_REFUSALS: SourceRefusals = {
   notText:
-    'This file is not plain text, so it cannot be read. Ask the Educator to save it in the Sources folder as text or Markdown (.txt or .md).',
+    'This type of file cannot be read. Ask the Educator to save it in the Sources folder as Word (.docx), Excel (.xlsx), PDF, a picture, or text or Markdown (.txt or .md).',
   tooLarge:
     'This file is larger than 1 MB, so it cannot be read. Ask the Educator to split it or save a shorter copy in the Sources folder.',
+  unreadable:
+    'This file could not be read. It may be damaged, protected by a password, or a scan with no text. Ask the Educator for another copy, or for the text pasted into a .txt file.',
+  tooLargeDocument:
+    'This file is larger than 25 MB, so it cannot be read. Ask the Educator to split it or save a smaller copy in the Sources folder.',
+  imageTooLarge:
+    'This picture is larger than 3 MB, so it cannot be shown to you. Ask the Educator to save a smaller copy in the Sources folder.',
 };
 
 /**
@@ -36,20 +42,23 @@ export function sourceRefusal(error: unknown): string | null {
 
 /** The session's Sources folder through the bridge: what `defaultToolContext` takes. */
 export function bridgeSources(
-  sources: Pick<GurukulDesktop['sources'], 'list' | 'read'>,
+  sources: Pick<GurukulDesktop['sources'], 'list' | 'read' | 'readImage'>,
   ref: SessionRef,
 ): SessionSources {
+  /** Runs a read, handing the shell's refusal on as a sentence for the agent. */
+  const refusing = async <T>(read: () => Promise<T>): Promise<T> => {
+    try {
+      return await read();
+    } catch (error) {
+      const sentence = sourceRefusal(error);
+      if (sentence === null) throw error;
+      throw new SourceRefusedError(sentence);
+    }
+  };
   return {
     list: async () => (await sources.list(ref))?.files ?? null,
-    read: async (name) => {
-      try {
-        return await sources.read(ref, name);
-      } catch (error) {
-        const sentence = sourceRefusal(error);
-        if (sentence === null) throw error;
-        throw new SourceRefusedError(sentence);
-      }
-    },
+    read: (name) => refusing(() => sources.read(ref, name)),
+    readImage: (name) => refusing(() => sources.readImage(ref, name)),
   };
 }
 

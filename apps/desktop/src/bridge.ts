@@ -27,8 +27,10 @@
  * `model` and an `effort`, which a version 2 shell refuses (its arguments are strict), so a site that
  * lets the Educator pick them asks for 3. 4: `sources.add` (files dropped on the chat are copied into
  * the Sources folder), which a version 3 shell does not have, so a site that offers it asks for 4.
+ * 5: `sources.readImage` and a tool result that carries pictures (`AgentToolResult.images`), which a
+ * version 4 shell lacks or refuses, so a site whose agent reads pictures asks for 5.
  */
-export const BRIDGE_VERSION = 4;
+export const BRIDGE_VERSION = 5;
 
 /**
  * The messages a refused call rejects with. Electron prefixes them ("Error invoking remote method
@@ -224,8 +226,19 @@ export interface AgentToolCall {
   input: unknown;
 }
 
-/** The answer to a tool call: the text for the model, or one sentence saying why not. */
-export type AgentToolResult = { text: string } | { error: string };
+/** A picture in a tool result: what MCP's `image` content carries, so the model sees it. */
+export interface AgentImage {
+  /** The picture's bytes, base64. */
+  data: string;
+  mimeType: (typeof SOURCE_IMAGE_MIME_TYPES)[number];
+}
+
+/**
+ * The answer to a tool call: the text for the model (with the pictures it should see, at most
+ * `MAX_TOOL_RESULT_IMAGES`), or one sentence saying why not.
+ */
+export type AgentToolResult =
+  { text: string; images?: AgentImage[] | undefined } | { error: string };
 
 /**
  * `agent.ask`: one question to a separate, one-shot `claude` with no tools, no MCP server, none of
@@ -298,18 +311,38 @@ export interface SourcesAdded {
   folder: SourcesFolder;
 }
 
+/** The picture types `sources.readImage` gives, as media types. */
+export const SOURCE_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const;
+
+/** A picture from a Sources folder, ready to hand the model. */
+export type SourceImage = AgentImage;
+
 /**
- * Why `sources.read` would not read a listed file: the call rejects with one of these sentences,
+ * Why `sources.read` or `sources.readImage` would not read a listed file: the call rejects with one of these sentences,
  * written for the agent to act on. Electron prefixes them like `BRIDGE_ERRORS`, so the web app
  * matches the end of the message.
  */
 export const SOURCE_REFUSALS = {
-  /** Not one of the text types the shell reads, or not valid UTF-8 text. */
+  /** Not a type the shell reads, or a text type that is not valid UTF-8 text. */
   notText:
-    'This file is not plain text, so it cannot be read. Ask the Educator to save it in the Sources folder as text or Markdown (.txt or .md).',
-  /** Larger than `MAX_SOURCE_BYTES`. */
+    'This type of file cannot be read. Ask the Educator to save it in the Sources folder as Word (.docx), Excel (.xlsx), PDF, a picture, or text or Markdown (.txt or .md).',
+  /** A text file larger than `MAX_SOURCE_BYTES`. */
   tooLarge:
     'This file is larger than 1 MB, so it cannot be read. Ask the Educator to split it or save a shorter copy in the Sources folder.',
+  /** A Word, Excel or PDF file that is damaged, password-protected or has no text in it. */
+  unreadable:
+    'This file could not be read. It may be damaged, protected by a password, or a scan with no text. Ask the Educator for another copy, or for the text pasted into a .txt file.',
+  /** A Word, Excel or PDF file larger than `MAX_SOURCE_DOCUMENT_BYTES`. */
+  tooLargeDocument:
+    'This file is larger than 25 MB, so it cannot be read. Ask the Educator to split it or save a smaller copy in the Sources folder.',
+  /** A picture larger than `MAX_SOURCE_IMAGE_BYTES`. */
+  imageTooLarge:
+    'This picture is larger than 3 MB, so it cannot be shown to you. Ask the Educator to save a smaller copy in the Sources folder.',
 } as const;
 export type SourceRefusals = typeof SOURCE_REFUSALS;
 
@@ -373,6 +406,7 @@ export interface BridgeCalls {
   'sources.list'(ref: SessionRef): SourcesFolder | null;
   'sources.reveal'(ref: SessionRef): void;
   'sources.read'(ref: SessionRef, name: string): string | null;
+  'sources.readImage'(ref: SessionRef, name: string): SourceImage | null;
   'sources.add'(choice: SourcesChoice, files: SourceUpload[]): SourcesAdded;
   'auth.googleSignIn'(): GoogleSignInResult;
   'app.checkForUpdate'(): UpdateCheck;
@@ -403,6 +437,7 @@ export const CALLS = [
   'sources.list',
   'sources.reveal',
   'sources.read',
+  'sources.readImage',
   'sources.add',
   'auth.googleSignIn',
   'app.checkForUpdate',
@@ -500,9 +535,15 @@ export interface GurukulDesktop {
     reveal: BridgeFn<'sources.reveal'>;
     /**
      * The text of one listed file, by its plain name (`isPlainFileName`); null when there is no such
-     * file. Never resolves a name outside the folder.
+     * file. Text files as they are; Word, Excel and PDF files converted to text, cut at
+     * `MAX_SOURCE_TEXT_CHARS`. Never resolves a name outside the folder.
      */
     read: BridgeFn<'sources.read'>;
+    /**
+     * One listed picture (png, jpg, gif, webp, at most `MAX_SOURCE_IMAGE_BYTES`) as base64 and its
+     * media type; null when there is no such file. Added in bridge version 5.
+     */
+    readImage: BridgeFn<'sources.readImage'>;
     /**
      * Copies files into the session's folder (made first, as `ensure` does), whatever their type:
      * at most `MAX_SOURCE_ADD_FILES`, each at most `MAX_SOURCE_ADD_BYTES`. A name already there is
@@ -551,8 +592,16 @@ export const MAX_SKILL_FILES = 32;
 export const MAX_TOOLS = 128;
 /** Longest name of a file in a Sources folder (most systems allow 255). */
 export const MAX_SOURCE_NAME_LENGTH = 255;
-/** Largest Sources file `sources.read` reads, in bytes: 1 MB (`SOURCE_REFUSALS.tooLarge`). */
+/** Largest text file `sources.read` reads, in bytes: 1 MB (`SOURCE_REFUSALS.tooLarge`). */
 export const MAX_SOURCE_BYTES = 1_048_576;
+/** Largest Word, Excel or PDF file `sources.read` converts: 25 MB, what `sources.add` takes. */
+export const MAX_SOURCE_DOCUMENT_BYTES = 26_214_400;
+/** Largest picture `sources.readImage` gives: 3 MB, which is under 5 MB as base64 (the model's limit). */
+export const MAX_SOURCE_IMAGE_BYTES = 3_145_728;
+/** Most characters of text `sources.read` gives for a converted file; the rest is cut with a note. */
+export const MAX_SOURCE_TEXT_CHARS = 200_000;
+/** Most pictures one tool result carries. */
+export const MAX_TOOL_RESULT_IMAGES = 1;
 /** Most files one `sources.list` gives, the first by name: a listing fits in one tool result. */
 export const MAX_SOURCE_FILES = 1000;
 /** Most files one `sources.add` takes. */

@@ -346,6 +346,19 @@ describe('sources', () => {
       'Rebase notes.md',
     );
   });
+
+  it('hands the shell a picture the agent reads, beside the text', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.desktop.sources.add({ uid: 'u1', sessionId: 's1' }, [
+      { name: 'Diagram.png', bytes: new Uint8Array([1]) },
+    ]);
+    expect(await s.runtime.send('Look at my diagram.')).toBe(true);
+    expect(await s.call('read_source', { name: 'Diagram.png' })).toEqual({
+      text: expect.stringContaining('Shown to you') as unknown,
+      images: [{ data: 'AQID', mimeType: 'image/png' }],
+    });
+  });
 });
 
 describe('turns', () => {

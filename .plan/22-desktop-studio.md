@@ -121,7 +121,9 @@ Four decisions shape it:
 
 Dependencies to add, all MIT-compatible: `electron` (MIT), `electron-builder` (MIT),
 `electron-updater` (MIT), `@modelcontextprotocol/sdk` (MIT), `diff` (BSD-3-Clause, word and line
-differences). Check each licence again when adding it (`.claude/rules/open-source.md`).
+differences), `mammoth` (BSD-2-Clause, Word to Markdown), `read-excel-file` (MIT, Excel sheets) and
+`unpdf` (MIT, PDF text; a bundled PDF.js, no worker), all bundled into the main process for
+`sources.read`. Check each licence again when adding it (`.claude/rules/open-source.md`).
 
 ### The bridge (`window.gurukulDesktop`, version 1)
 
@@ -172,6 +174,8 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   calling a missing function; the app updates itself in the background, so the gap is short. No
   fallback path to the old call is kept: it would be code to maintain for a shell that updates
   itself.
+- **Bridge version 5**: `sources.readImage`, and `agent.toolResult` may carry `images` (so the agent
+  sees a picture). A version 4 shell has neither, so the web app asks for 5.
 - **Bridge version 4**: `sources.add` (files dropped on the chat). A version 3 shell has no such function, so the web app asks for 4.
 - **Bridge version 3**: `agent.start` takes an optional `model` and `effort` (the chat bar's
   pickers). A version 2 shell refuses them (its arguments are strict), so the web app asks for 3 and
@@ -632,11 +636,24 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   dot, no symbolic link that ends outside the folder; at most `MAX_SOURCE_FILES` (1,000), the first
   by name. The display path writes the home folder as `~`.
 - **`sources.read`** reads only a name that listing gives, opened without following links where the
-  system allows (`O_NOFOLLOW`; not on Windows), of a text type (`SOURCE_TEXT_EXTENSIONS` in
-  `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
-  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB). A file it will not read rejects with
-  one of `SOURCE_REFUSALS`, a sentence `read_source` hands the agent ("save it as text or
-  Markdown"). It logs the size read, never a path, a file name or the text.
+  system allows (`O_NOFOLLOW`; not on Windows). Three kinds: a text type (`SOURCE_TEXT_EXTENSIONS`
+  in `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
+  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB); a Word (`.docx`), Excel (`.xlsx`) or
+  PDF file, at most `MAX_SOURCE_DOCUMENT_BYTES` (25 MB), turned into text in the main process by
+  `sourceText.ts` (`mammoth` to Markdown; `read-excel-file` to a `## Sheet: name` heading and CSV
+  rows per sheet, at most 2,000 rows and 50 columns each; `unpdf`'s text, no OCR) and cut at
+  `MAX_SOURCE_TEXT_CHARS` (200,000) with a note saying the rest was left out. Old `.doc` and `.xls`
+  are not read. A file it will not read rejects with one of `SOURCE_REFUSALS`, a sentence
+  `read_source` hands the agent: `notText` (names the types that can be read), `tooLarge`,
+  `unreadable` (a damaged, password-protected or text-less Word, Excel or PDF file),
+  `tooLargeDocument`, `imageTooLarge`. It logs the size and kind read, never a path, a file name or
+  the text.
+- **`sources.readImage`** (bridge version 5) gives a listed `.png`, `.jpg`, `.jpeg`, `.gif` or
+  `.webp` as `{ data (base64), mimeType }`, at most `MAX_SOURCE_IMAGE_BYTES` (3 MB, so under the
+  model's 5 MB limit as base64); the same listing rule and `O_NOFOLLOW`. `read_source` calls it for
+  those names and returns the picture in `AgentToolResult.images` (at most one); the main process
+  sends it to Claude Code as an MCP `image` content block after the text block
+  (`toolCallResult` in `agent/endpoint.ts`), so the model sees it.
 - **`sources.reveal`** opens the folder in Finder or Explorer. When the system cannot (the folder
   was moved or deleted), it rejects with a fixed sentence, never the system's words with the path
   in them, and the window says the folder could not be opened.
@@ -654,7 +671,7 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
 - **`sources.add`** (the chat's drop, paste and "+" menu): the window reads each file with
   `File.arrayBuffer()` and sends `{ name, bytes }`; it never learns or sends a path. The shell takes
   the same choice as `ensure` (so the folder exists), accepts any file type (Word, Excel, PDF,
-  pictures, text; reading them is a later step), at most `MAX_SOURCE_ADD_FILES` (10) per call and
+  pictures, text; `sources.read` and `sources.readImage` read what they can), at most `MAX_SOURCE_ADD_FILES` (10) per call and
   `MAX_SOURCE_ADD_BYTES` (25 MB) each, a plain name that does not start with a dot. It writes
   without following links and never overwrites: a name already there becomes `name (2).ext`,
   `name (3).ext`. It answers the names written and the folder listing, and logs only counts.
@@ -1505,7 +1522,8 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   answer, and keeps the right answers marked when `correct` is left out.
 - `read_source` reads only a plain file name that the Sources folder lists: a name with `/` or
   `\`, `.` or `..`, or one `list` does not give is refused before the bridge is asked. The bridge's
-  read takes that name and never resolves it outside the folder.
+  read takes that name and never resolves it outside the folder. For a picture name it answers with
+  the picture itself (a short text and one image) instead of text.
 
 ## Writing quality: the humanizer
 

@@ -18,7 +18,8 @@ const rejected = (message: string) =>
 describe('sourceRefusal', () => {
   it('finds the shell’s sentence at the end of a rejected read', () => {
     expect(sourceRefusal(rejected(SOURCE_REFUSALS.notText))).toBe(SOURCE_REFUSALS.notText);
-    expect(sourceRefusal(rejected(SOURCE_REFUSALS.tooLarge))).toBe(SOURCE_REFUSALS.tooLarge);
+    for (const sentence of Object.values(SOURCE_REFUSALS))
+      expect(sourceRefusal(rejected(sentence))).toBe(sentence);
   });
 
   it('is null for any other failure', () => {
@@ -46,11 +47,24 @@ describe('bridgeSources', () => {
     await expect(sources.read('missing.md')).resolves.toBeNull();
   });
 
+  it('reads a picture of this session, and hands on a refusal as a sentence', async () => {
+    const { desktop } = fakeDesktop();
+    const sources = bridgeSources(desktop.sources, ref);
+    await desktop.sources.ensure(ref);
+    await expect(sources.readImage('Rebase notes.md')).resolves.toEqual({
+      data: 'AQID',
+      mimeType: 'image/png',
+    });
+    expect(desktop.sources.readImage).toHaveBeenCalledWith(ref, 'Rebase notes.md');
+    desktop.sources.readImage.mockRejectedValueOnce(rejected(SOURCE_REFUSALS.imageTooLarge));
+    await expect(sources.readImage('big.png')).rejects.toBeInstanceOf(SourceRefusedError);
+  });
+
   it('turns the shell’s refusal into a sentence for the agent, and passes other failures on', async () => {
     const read = vi.fn(async () => {
       throw rejected(SOURCE_REFUSALS.notText);
     });
-    const sources = bridgeSources({ list: vi.fn(), read }, ref);
+    const sources = bridgeSources({ list: vi.fn(), read, readImage: vi.fn() }, ref);
     const refusal = sources.read('slides.pdf');
     await expect(refusal).rejects.toBeInstanceOf(SourceRefusedError);
     await expect(refusal).rejects.toThrow(SOURCE_REFUSALS.notText);

@@ -13,6 +13,9 @@ import {
   MAX_TOOLS,
   MAX_SOURCE_ADD_BYTES,
   MAX_SOURCE_ADD_FILES,
+  MAX_SOURCE_IMAGE_BYTES,
+  MAX_TOOL_RESULT_IMAGES,
+  SOURCE_IMAGE_MIME_TYPES,
   isPlainFileName,
   isSafePath,
   isSafeSegment,
@@ -91,8 +94,18 @@ export const callId = z.string().min(1).max(MAX_SEGMENT_LENGTH);
 
 const resultText = z.string().max(MAX_TOOL_RESULT_LENGTH);
 
+/** A picture in a tool result: base64 of at most `MAX_SOURCE_IMAGE_BYTES`, a known media type. */
+const toolImage = z
+  .object({
+    data: z.string().max(Math.ceil((MAX_SOURCE_IMAGE_BYTES * 4) / 3) + 4),
+    mimeType: z.enum(SOURCE_IMAGE_MIME_TYPES),
+  })
+  .strict();
+
 export const toolResult = z.union([
-  z.object({ text: resultText }).strict(),
+  z
+    .object({ text: resultText, images: z.array(toolImage).max(MAX_TOOL_RESULT_IMAGES).optional() })
+    .strict(),
   z.object({ error: resultText }).strict(),
 ]);
 

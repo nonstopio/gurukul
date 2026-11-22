@@ -1037,7 +1037,7 @@ export function createAgentSession({
       for (const p of pendingReview)
         if (p.seq <= seen) p.patch = yieldTo(p.patch, { goals, summary });
       session = withReview({ ...current, work, title, goals, summary, todos }, seen);
-      reply = { text: result.text };
+      reply = { text: result.text, ...(result.images && { images: result.images }) };
       emit();
     }
     try {

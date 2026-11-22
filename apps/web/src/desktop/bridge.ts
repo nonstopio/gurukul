@@ -29,8 +29,10 @@ export type * from '@gurukul/desktop/bridge';
  * every page that needs a session shows "Update the app" on a shell that has only `choose`.
  * 3: `agent.start` with a `model` and an `effort` (the chat bar); a version 2 shell refuses them.
  * 4: `sources.add` (files dropped on the chat); a version 3 shell has no such function.
+ * 5: `sources.readImage` and tool results with pictures (the agent reads pictures); a version 4
+ * shell has no such function and refuses such a result.
  */
-export const REQUIRED_BRIDGE_VERSION = 4;
+export const REQUIRED_BRIDGE_VERSION = 5;
 
 /** The shell's refusal messages; the type makes them equal to the shell's own. */
 const ERRORS: BridgeErrors = {

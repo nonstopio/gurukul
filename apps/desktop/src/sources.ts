@@ -5,11 +5,14 @@ import path from 'node:path';
 import { z } from 'zod';
 import {
   MAX_SOURCE_BYTES,
+  MAX_SOURCE_DOCUMENT_BYTES,
   MAX_SOURCE_FILES,
+  MAX_SOURCE_IMAGE_BYTES,
   SOURCE_REFUSALS,
   isPlainFileName,
   type SessionRef,
   type SourceFile,
+  type SourceImage,
   type SourceUpload,
   type SourcesAdded,
   type SourceRefusals,
@@ -17,6 +20,7 @@ import {
   type SourcesFolder,
 } from './bridge';
 import type { Logger } from './log';
+import { boundText, convertSource, convertedKind, imageType } from './sourceText';
 import { sessionFolder } from './store';
 
 /**
@@ -28,14 +32,16 @@ import { sessionFolder } from './store';
  *
  * What the agent may read is narrow on purpose: plain files directly in the folder (no folders,
  * no names starting with a dot, no symbolic link that leads out of it), of a text type
- * (`SOURCE_TEXT_EXTENSIONS`), valid UTF-8, at most `MAX_SOURCE_BYTES`. A name is read only when the
+ * (`SOURCE_TEXT_EXTENSIONS`, valid UTF-8, at most `MAX_SOURCE_BYTES`), a Word, Excel or PDF file
+ * (turned into text by `sourceText.ts`, at most `MAX_SOURCE_DOCUMENT_BYTES`) or a picture
+ * (`readImage`, at most `MAX_SOURCE_IMAGE_BYTES`). A name is read only when the
  * folder's own listing gives it. Nothing here logs a path, a file name or a byte of content.
  */
 
 /**
  * The file types `sources.read` reads, lower case: plain text, Markdown and other markup, data,
  * subtitles and source code. Anything else (PDF, Word, pictures) is refused with
- * `SOURCE_REFUSALS.notText`, which asks for a text copy.
+ * `SOURCE_REFUSALS.notText`, which names the types that can be read.
  */
 export const SOURCE_TEXT_EXTENSIONS: readonly string[] = [
   // Text and markup
@@ -121,6 +127,8 @@ export interface SourcesManager {
   list(ref: SessionRef): Promise<SourcesFolder | null>;
   reveal(ref: SessionRef): Promise<void>;
   read(ref: SessionRef, name: string): Promise<string | null>;
+  /** The listed picture's bytes as base64 with its media type; null when it is not listed. */
+  readImage(ref: SessionRef, name: string): Promise<SourceImage | null>;
   /**
    * Writes the files into the session's folder (`ensure` first), each without following a link and
    * without overwriting: a name already there becomes `name (2).ext`. Answers the names written.
@@ -329,6 +337,34 @@ export function createSources(options: SourcesOptions): SourcesManager {
     }
   };
 
+  /** The listed file called `name` in the session's folder, or null: only the listing's own names. */
+  const listed = async (ref: SessionRef, name: string): Promise<Entry | null> => {
+    const folder = await folderOf(ref);
+    if (folder === null) return null;
+    const root = await quietly(fs.realpath(folder));
+    if (root === null) return null;
+    // Only a name the folder's own listing gives: never a path, a hidden file or a link out.
+    return (await entries(root)).find((f) => f.name === name) ?? null;
+  };
+
+  /** The file's bytes, or `tooLarge` when it is over `limit` (also if it grew since it was listed). */
+  const readBytes = async (
+    entry: Entry,
+    limit: number,
+    tooLarge: SourcesError,
+  ): Promise<Buffer> => {
+    const handle = await fs.open(entry.real, READ_FLAGS);
+    let bytes: Buffer;
+    try {
+      if ((await handle.stat()).size > limit) throw tooLarge;
+      bytes = await handle.readFile();
+    } finally {
+      await handle.close();
+    }
+    if (bytes.length > limit) throw tooLarge;
+    return bytes;
+  };
+
   return {
     ensure,
 
@@ -364,28 +400,39 @@ export function createSources(options: SourcesOptions): SourcesManager {
     },
 
     async read(ref, name) {
-      const folder = await folderOf(ref);
-      if (folder === null) return null;
-      const root = await quietly(fs.realpath(folder));
-      if (root === null) return null;
-      // Only a name the folder's own listing gives: never a path, a hidden file or a link out.
-      const entry = (await entries(root)).find((f) => f.name === name);
-      if (entry === undefined) return null;
-      if (!isTextSourceName(name)) throw refused('notText');
-      const handle = await fs.open(entry.real, READ_FLAGS);
-      let bytes: Buffer;
-      try {
-        if ((await handle.stat()).size > MAX_SOURCE_BYTES) throw refused('tooLarge');
-        bytes = await handle.readFile();
-      } finally {
-        await handle.close();
+      const entry = await listed(ref, name);
+      if (entry === null) return null;
+      const kind = convertedKind(name);
+      if (kind === null && !isTextSourceName(name)) throw refused('notText');
+      const limit = kind === null ? MAX_SOURCE_BYTES : MAX_SOURCE_DOCUMENT_BYTES;
+      const bytes = await readBytes(
+        entry,
+        limit,
+        refused(kind === null ? 'tooLarge' : 'tooLargeDocument'),
+      );
+      let text: string | null;
+      if (kind === null) text = decodeText(bytes);
+      else {
+        text = await convertSource(kind, bytes).then(boundText, () => null);
+        if (text === null) throw refused('unreadable');
       }
-      // It may have grown since it was measured.
-      if (bytes.length > MAX_SOURCE_BYTES) throw refused('tooLarge');
-      const text = decodeText(bytes);
       if (text === null) throw refused('notText');
-      log.info('Source read', { sessionId: ref.sessionId, bytes: bytes.length });
+      log.info('Source read', {
+        sessionId: ref.sessionId,
+        bytes: bytes.length,
+        kind: kind ?? 'text',
+      });
       return text;
+    },
+
+    async readImage(ref, name) {
+      const entry = await listed(ref, name);
+      if (entry === null) return null;
+      const mimeType = imageType(name);
+      if (mimeType === null) throw refused('notText');
+      const bytes = await readBytes(entry, MAX_SOURCE_IMAGE_BYTES, refused('imageTooLarge'));
+      log.info('Source read', { sessionId: ref.sessionId, bytes: bytes.length, kind: 'image' });
+      return { data: bytes.toString('base64'), mimeType };
     },
 
     // Used unbound (`sourcesFolder: sources.folderOf`): no `this` anywhere here.
