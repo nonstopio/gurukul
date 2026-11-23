@@ -760,10 +760,9 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
   (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
-- **The disclosure moved into the workspace.** Under the message box a line says that this runs
-  Claude Code on this computer under the Educator's own Claude account, that the course and what
-  they write are sent to Anthropic, and to leave out client names and internal documents; the
-  Sources tab says the same about what the agent reads. The only dialog left in the start flow is
+- **No disclosure under the message box.** The chat carries no line about Claude Code and
+  Anthropic (the maintainer asked for it gone); the Sources tab says that what the agent reads is
+  sent to Anthropic under the Educator's own Claude account, and the privacy policy covers it. The only dialog left in the start flow is
   the one that says the app is too old, did not answer or is still answering.
 
 ## The session workspace

@@ -482,10 +482,6 @@ export function ChatPanel({
             sessionId={sessionId}
             platform={platform}
           />
-          <p className="sc-help">
-            This runs Claude Code on this computer, under your own Claude account. The course and
-            what you write are sent to Anthropic, so leave out client names and internal documents.
-          </p>
         </>
       )}
       {undoing ? (

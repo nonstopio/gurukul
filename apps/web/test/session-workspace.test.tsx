@@ -161,9 +161,7 @@ describe('the session workspace', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Git' })).toBeTruthy();
     expect(screen.getByText(/Say what you want to do in the box below/)).toBeTruthy();
     expect(box().value).toBe('');
-    // What the start dialog used to say stays in view in the workspace.
-    expect(screen.getByText(/runs Claude Code on this computer/i)).toBeTruthy();
-    expect(screen.getByText(/leave out client names and internal documents/)).toBeTruthy();
+    expect(screen.queryByText(/runs Claude Code on this computer/i)).toBeNull();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
