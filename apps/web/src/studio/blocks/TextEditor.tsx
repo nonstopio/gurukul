@@ -1,4 +1,12 @@
-import { Button } from '@gurukul/ui';
+import {
+  BoldIcon,
+  Button,
+  CodeIcon,
+  IconButton,
+  ItalicIcon,
+  LinkIcon,
+  ListOrderedIcon,
+} from '@gurukul/ui';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Prose } from '../../player/blocks';
 import { CodeField } from './CodeField';
@@ -10,13 +18,14 @@ import type { BlockEditorProps } from './types';
 
 const TOOLS: Array<{
   label: string;
+  Glyph: typeof BoldIcon;
   apply: (text: string, start: number, end: number) => TextEdit;
 }> = [
-  { label: 'Bold', apply: bold },
-  { label: 'Italic', apply: italic },
-  { label: 'Inline code', apply: inlineCode },
-  { label: 'Link', apply: link },
-  { label: 'Numbered list', apply: numberedList },
+  { label: 'Bold', Glyph: BoldIcon, apply: bold },
+  { label: 'Italic', Glyph: ItalicIcon, apply: italic },
+  { label: 'Inline code', Glyph: CodeIcon, apply: inlineCode },
+  { label: 'Link', Glyph: LinkIcon, apply: link },
+  { label: 'Numbered list', Glyph: ListOrderedIcon, apply: numberedList },
 ];
 
 function Preview({ md }: { md: string }) {
@@ -52,14 +61,14 @@ function MarkdownSource({ block, onChange }: BlockEditorProps<'markdown'>) {
     <div className="studio-text">
       <div className="studio-toolbar" role="toolbar" aria-label="Text formatting">
         {TOOLS.map((tool) => (
-          <Button
+          <IconButton
             key={tool.label}
-            variant="ghost"
+            label={tool.label}
             disabled={preview}
             onClick={() => run(tool.apply)}
           >
-            {tool.label}
-          </Button>
+            <tool.Glyph />
+          </IconButton>
         ))}
         <Button variant="secondary" aria-pressed={preview} onClick={() => setPreview(!preview)}>
           Preview

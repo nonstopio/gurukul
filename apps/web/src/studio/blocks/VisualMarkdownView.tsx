@@ -16,9 +16,27 @@ import {
 import { gfm, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { $prose, $remark, callCommand, getMarkdown, insert, replaceAll } from '@milkdown/kit/utils';
-import { Button, Field, Input } from '@gurukul/ui';
+import {
+  BoldIcon,
+  Button,
+  CodeIcon,
+  Field,
+  Heading2Icon,
+  Heading3Icon,
+  IconButton,
+  Input,
+  ItalicIcon,
+  LinkIcon,
+  ListIcon,
+  ListOrderedIcon,
+  ParagraphIcon,
+  QuoteIcon,
+  RedoIcon,
+  StrikethroughIcon,
+  UndoIcon,
+} from '@gurukul/ui';
 import type { FieldControlProps } from '@gurukul/ui';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { isSafeLinkUrl, keepsMeaning } from './markdownMeaning';
 
@@ -44,22 +62,76 @@ const safeText = $remark('gurukul-safe-text', () => () => (tree: { children: Nod
 /** The toolbar; Link has no command, it asks for an address first. A command's key exists only once an editor has made it, so the click reads it. */
 const TOOLS: Array<{
   name: string;
+  /** The tooltip: the name and the shortcut Milkdown's keymaps bind. */
+  tip: string;
+  Glyph: typeof BoldIcon;
+  /** Starts a new group: a divider shows before this button. */
+  group?: true;
   command?: { key: unknown };
   payload?: unknown;
 }> = [
-  { name: 'Bold', command: toggleStrongCommand },
-  { name: 'Italic', command: toggleEmphasisCommand },
-  { name: 'Strikethrough', command: toggleStrikethroughCommand },
-  { name: 'Heading 2', command: wrapInHeadingCommand, payload: 2 },
-  { name: 'Heading 3', command: wrapInHeadingCommand, payload: 3 },
-  { name: 'Paragraph', command: turnIntoTextCommand },
-  { name: 'Bulleted list', command: wrapInBulletListCommand },
-  { name: 'Numbered list', command: wrapInOrderedListCommand },
-  { name: 'Link' },
-  { name: 'Quote', command: wrapInBlockquoteCommand },
-  { name: 'Code block', command: createCodeBlockCommand },
-  { name: 'Undo', command: undoCommand },
-  { name: 'Redo', command: redoCommand },
+  { name: 'Bold', tip: 'Bold (⌘B / Ctrl+B)', Glyph: BoldIcon, command: toggleStrongCommand },
+  {
+    name: 'Italic',
+    tip: 'Italic (⌘I / Ctrl+I)',
+    Glyph: ItalicIcon,
+    command: toggleEmphasisCommand,
+  },
+  {
+    name: 'Strikethrough',
+    tip: 'Strikethrough (⌘⌥X / Ctrl+Alt+X)',
+    Glyph: StrikethroughIcon,
+    command: toggleStrikethroughCommand,
+  },
+  {
+    name: 'Heading 2',
+    tip: 'Heading 2 (⌘⌥2 / Ctrl+Alt+2)',
+    Glyph: Heading2Icon,
+    group: true,
+    command: wrapInHeadingCommand,
+    payload: 2,
+  },
+  {
+    name: 'Heading 3',
+    tip: 'Heading 3 (⌘⌥3 / Ctrl+Alt+3)',
+    Glyph: Heading3Icon,
+    command: wrapInHeadingCommand,
+    payload: 3,
+  },
+  {
+    name: 'Paragraph',
+    tip: 'Paragraph (⌘⌥0 / Ctrl+Alt+0)',
+    Glyph: ParagraphIcon,
+    command: turnIntoTextCommand,
+  },
+  {
+    name: 'Bulleted list',
+    tip: 'Bulleted list (⌘⌥8 / Ctrl+Alt+8)',
+    Glyph: ListIcon,
+    group: true,
+    command: wrapInBulletListCommand,
+  },
+  {
+    name: 'Numbered list',
+    tip: 'Numbered list (⌘⌥7 / Ctrl+Alt+7)',
+    Glyph: ListOrderedIcon,
+    command: wrapInOrderedListCommand,
+  },
+  { name: 'Link', tip: 'Link', Glyph: LinkIcon, group: true },
+  {
+    name: 'Quote',
+    tip: 'Quote (⌘⇧B / Ctrl+Shift+B)',
+    Glyph: QuoteIcon,
+    command: wrapInBlockquoteCommand,
+  },
+  {
+    name: 'Code block',
+    tip: 'Code block (⌘⌥C / Ctrl+Alt+C)',
+    Glyph: CodeIcon,
+    command: createCodeBlockCommand,
+  },
+  { name: 'Undo', tip: 'Undo (⌘Z / Ctrl+Z)', Glyph: UndoIcon, group: true, command: undoCommand },
+  { name: 'Redo', tip: 'Redo (⌘Y / Ctrl+Y)', Glyph: RedoIcon, command: redoCommand },
 ];
 
 export const LINK_PROBLEM = 'Use an address that starts with https://, http:// or mailto:.';
@@ -223,14 +295,17 @@ export default function VisualMarkdownView({
   return (
     <div className="studio-text" hidden={!ready}>
       <div className="studio-toolbar" role="toolbar" aria-label={`${label} formatting`}>
-        {TOOLS.map(({ name, command, payload }) => (
-          <Button
-            key={name}
-            variant="ghost"
-            onClick={() => (command ? apply(command.key, payload) : setLinking(true))}
-          >
-            {name}
-          </Button>
+        {TOOLS.map(({ name, tip, Glyph, group, command, payload }) => (
+          <Fragment key={name}>
+            {group ? <span className="studio-toolbar-divider" aria-hidden="true" /> : null}
+            <IconButton
+              label={name}
+              tip={tip}
+              onClick={() => (command ? apply(command.key, payload) : setLinking(true))}
+            >
+              <Glyph />
+            </IconButton>
+          </Fragment>
         ))}
       </div>
       {linking ? (
