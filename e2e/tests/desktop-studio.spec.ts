@@ -28,11 +28,8 @@ async function openStudio(desktop: Desktop, roles: Array<'educator' | 'admin'>):
   return window;
 }
 
-/** Fills the start dialog and waits for the session's workspace, its agent ready for a message. */
-async function startSession(window: Page, goal: string): Promise<void> {
-  const dialog = window.getByRole('dialog');
-  await dialog.getByLabel('What do you want to do?').fill(goal);
-  await dialog.getByRole('button', { name: 'Start session' }).click();
+/** Waits for the session's workspace, opened straight away, its agent ready for a message. */
+async function startSession(window: Page): Promise<void> {
   await expect(window).toHaveURL(/\/studio\/sessions\/[\w-]+$/);
   await expect(window.getByRole('heading', { name: 'Chat' })).toBeVisible();
 }
@@ -41,7 +38,7 @@ async function startSession(window: Page, goal: string): Promise<void> {
 async function sendMessage(window: Page, text: string, turn: string | RegExp): Promise<void> {
   await window.getByLabel('Ask for a change').fill(text);
   await window.getByRole('button', { name: 'Send' }).click();
-  await expect(window.getByText(turn, { exact: true })).toBeVisible();
+  await expect(window.getByRole('link', { name: turn })).toBeVisible();
 }
 
 /** The fake agent's turn: rename a lesson, then say so. */
@@ -66,15 +63,19 @@ test.describe('Gurukul Studio desktop app', () => {
     const before = await readDraft(GIT_COURSE.id);
 
     await window.getByRole('button', { name: `Edit with AI: ${GIT_COURSE.title}` }).click();
-    await startSession(window, 'Make the first lesson about working in a team.');
-    await sendMessage(window, 'Rename the first lesson for teams.', 'Turn 1 · 1 change');
+    await startSession(window);
+    await sendMessage(
+      window,
+      'Rename the first lesson for teams.',
+      '1 change in turn 1, open in Review',
+    );
     // The agent's tool call came back through the shell and changed the working copy.
     await expect(window.getByText('tool: Updated what-git-solves.')).toBeVisible();
     await expect(window.getByText('1 change · checks pass')).toBeVisible();
     // Nothing is written to Firestore before Save to draft.
     expect((await readDraft(GIT_COURSE.id)).rev).toBe(before.rev);
 
-    await window.getByRole('link', { name: 'Review' }).click();
+    await window.getByRole('link', { name: 'Review', exact: true }).click();
     const changes = window.getByRole('list', { name: 'Changes' });
     await expect(changes.getByText('What Git solves for a team')).toBeVisible();
     // Review is one decision at the end: no change has a button of its own to accept it.
@@ -125,11 +126,11 @@ test.describe('Gurukul Studio desktop app', () => {
     const window = await openStudio(desktop, ['educator']);
 
     await window.getByRole('button', { name: 'New course with AI' }).click();
-    await startSession(window, 'A short course on pair programming.');
-    await sendMessage(window, 'Start with why we pair.', /^Turn 1 · \d+ changes$/);
+    await startSession(window);
+    await sendMessage(window, 'Start with why we pair.', /^\d+ changes in turn 1, open in Review$/);
     expect(await readDoc('courses/pairing-at-nonstop')).toBeUndefined();
 
-    await window.getByRole('link', { name: 'Review' }).click();
+    await window.getByRole('link', { name: 'Review', exact: true }).click();
     await expect(window.getByRole('heading', { name: 'Outline' })).toBeVisible();
     await window.getByRole('button', { name: 'Create course and save draft' }).click();
     const dialog = window.getByRole('dialog', { name: 'Create the course' });
@@ -154,8 +155,12 @@ test.describe('Gurukul Studio desktop app', () => {
     });
     const window = await openStudio(desktop, ['educator', 'admin']);
     await window.getByRole('button', { name: `Edit with AI: ${GIT_COURSE.title}` }).click();
-    await startSession(window, 'Shorten the first lesson.');
-    await sendMessage(window, 'Give the first lesson a shorter title.', 'Turn 1 · 1 change');
+    await startSession(window);
+    await sendMessage(
+      window,
+      'Give the first lesson a shorter title.',
+      '1 change in turn 1, open in Review',
+    );
 
     // Meanwhile someone saves the draft in the browser: the same lesson, and another one.
     await saveDraftAs(GIT_COURSE.id, 'arjun-uid', (course) =>
@@ -168,7 +173,7 @@ test.describe('Gurukul Studio desktop app', () => {
     );
     const theirs = await readDraft(GIT_COURSE.id);
 
-    await window.getByRole('link', { name: 'Review' }).click();
+    await window.getByRole('link', { name: 'Review', exact: true }).click();
     await window.getByRole('button', { name: 'Save 1 change to draft' }).click();
     await window
       .getByRole('dialog', { name: 'Save to draft?' })

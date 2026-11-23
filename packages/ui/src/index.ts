@@ -65,14 +65,35 @@ export type {
 } from './Diff';
 export { Attachable } from './Attachable';
 export type { AttachableProps } from './Attachable';
-export { ChatActivity, ChatAttachments, ChatLog, ChatMessage, ChatTurn } from './Chat';
+export {
+  ChatActivity,
+  ChatAttachments,
+  ChatChanges,
+  ChatCheck,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
+  ChatRoundButton,
+  ChatSteps,
+  ChatTurn,
+  ChatTurnFooter,
+  chatRoundClass,
+} from './Chat';
 export type {
   ChatActivityProps,
   ChatAttachment,
   ChatAttachmentsProps,
+  ChatChange,
+  ChatChangesProps,
+  ChatCheckProps,
+  ChatComposerProps,
   ChatLogProps,
   ChatMessageFrom,
   ChatMessageProps,
+  ChatRoundButtonProps,
+  ChatRoundTone,
+  ChatStepsProps,
+  ChatTurnFooterProps,
 } from './Chat';
 export { Explanation } from './Explanation';
 export type { ExplanationProps, ExplanationVerdict } from './Explanation';
@@ -157,6 +178,7 @@ export {
   GitHubIcon,
   EmbedIcon,
   FileIcon,
+  FolderIcon,
   GridIcon,
   HomeIcon,
   Icon,
@@ -175,7 +197,10 @@ export {
   PlayIcon,
   PlusIcon,
   SearchIcon,
+  ArrowUpIcon,
   SendIcon,
+  StopIcon,
+  UndoIcon,
   SettingsIcon,
   ShieldIcon,
   SparkIcon,

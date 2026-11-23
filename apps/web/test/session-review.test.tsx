@@ -121,9 +121,7 @@ async function open(
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
   const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () =>
       draftDoc(GIT, {
         rev: 3,
@@ -982,7 +980,7 @@ describe('Review and the session’s editors together', () => {
 
     fireEvent.change(title, { target: { value: 'Why rebase' } });
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));
-    await screen.findByRole('link', { name: 'Turn 2 · by hand · 1 change' });
+    await screen.findByRole('link', { name: '1 change in turn 2, open in Review' });
     await waitFor(() => expect(s.disk().turns.map((t) => t.by)).toEqual(['agent', 'educator']));
 
     // Review lists the lesson under its new title, from both turns.

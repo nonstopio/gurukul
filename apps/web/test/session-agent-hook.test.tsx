@@ -20,7 +20,7 @@ async function setup() {
   const fake = fakeDesktop();
   const agent = fakeAgent(fake.desktop);
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 's1' });
-  await store.start({ kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' }, async () =>
+  await store.start({ kind: 'edit', courseId: 'git' }, async () =>
     draftDoc(makeCourse(), { rev: 4 }),
   );
   return { ...fake, ...agent };
@@ -114,6 +114,7 @@ describe('agentSessionSource', () => {
     expect(source.getState().status).toBe('loading');
     expect(await source.send('Hello')).toBe(false);
     expect(await source.undo()).toBe(false);
+    expect(await source.choose({ model: 'opus' })).toBe(false);
     await source.stop();
     await source.retry();
     expect(source.attach({ kind: 'course', ids: {}, label: 'Course details' })).toBe(false);

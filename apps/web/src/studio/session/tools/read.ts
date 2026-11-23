@@ -237,7 +237,7 @@ export const listChanges = defineTool({
 export const SOURCE_CHUNK = 50_000;
 
 const NO_SOURCES =
-  'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+  'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
 
 export const listSources = defineTool({
   name: 'list_sources',
@@ -250,9 +250,12 @@ export const listSources = defineTool({
   },
 });
 
+/** The picture types `read_source` shows the model instead of reading text. */
+const PICTURE_NAME = /\.(png|jpe?g|gif|webp)$/i;
+
 export const readSource = defineTool({
   name: 'read_source',
-  description: `The text of one file in the Sources folder, ${SOURCE_CHUNK.toLocaleString('en-GB')} characters at a time. When more is left, the answer says the offset to ask for next.`,
+  description: `The text of one file in the Sources folder: plain text, Word (.docx), Excel (.xlsx, one section per sheet) or PDF, ${SOURCE_CHUNK.toLocaleString('en-GB')} characters at a time. When more is left, the answer says the offset to ask for next. A picture (.png, .jpg, .gif, .webp) comes back as the picture itself, which you can see.`,
   input: z.strictObject({
     name: z.string().min(1).max(260).describe('The file name, exactly as list_sources gives it.'),
     offset: z.int().min(0).optional().describe('Where to start, in characters; 0 when left out.'),
@@ -268,6 +271,15 @@ export const readSource = defineTool({
     if (!listed.some((f) => f.name === name)) return refuse(missing);
     let text: string | null;
     try {
+      if (PICTURE_NAME.test(name)) {
+        const image = await ctx.sources.readImage(name);
+        if (image === null) return refuse(missing);
+        return {
+          state,
+          text: JSON.stringify({ name, picture: 'Shown to you with this answer.' }),
+          images: [image],
+        };
+      }
       text = await ctx.sources.read(name);
     } catch (error) {
       // Not text, or too large: the folder says why in a sentence the agent can act on.

@@ -61,12 +61,16 @@ function fakeAgent(overrides: Partial<AgentManager> = {}): AgentManager {
   };
 }
 
+const upload = (name: string) => ({ name, bytes: new Uint8Array([1]) });
+
 function fakeSources(overrides: Partial<SourcesManager> = {}): SourcesManager {
   return {
-    choose: vi.fn(async () => ({ path: '~/Material', files: [] })),
+    ensure: vi.fn(async () => ({ path: '~/Material', files: [] })),
     list: vi.fn(async () => null),
     reveal: vi.fn(async () => undefined),
     read: vi.fn(async () => 'notes'),
+    readImage: vi.fn(async () => ({ data: 'AQID', mimeType: 'image/png' as const })),
+    add: vi.fn(async () => ({ added: ['a.docx'], folder: { path: '~/Material', files: [] } })),
     folderOf: vi.fn(async () => null),
     forget: vi.fn(async () => undefined),
     prune: vi.fn(async () => 0),
@@ -130,7 +134,7 @@ describe('registerHandlers', () => {
 
   it('answers info with the bridge version, app version and platform', async () => {
     await expect(setup().call('info', top())).resolves.toEqual({
-      bridgeVersion: 1,
+      bridgeVersion: 5,
       appVersion: '1.2.3',
       platform: 'darwin',
     });
@@ -289,6 +293,7 @@ describe('calls a later item builds', () => {
     ['agent.status', [], 'status'],
     ['agent.start', [start], 'start'],
     ['agent.start', [{ ...start, resumeId: uuid }], 'start'],
+    ['agent.start', [{ ...start, model: 'opus', effort: 'low' }], 'start'],
     ['agent.send', ['s1', 'Simplify the rebase chapter'], 'send'],
     ['agent.stop', ['s1'], 'stop'],
     ['agent.close', ['s1'], 'close'],
@@ -297,6 +302,11 @@ describe('calls a later item builds', () => {
     [
       'agent.toolResult',
       ['s1', 'call-1', { error: 'A lesson holds at most 60 blocks.' }],
+      'toolResult',
+    ],
+    [
+      'agent.toolResult',
+      ['s1', 'call-1', { text: '{}', images: [{ data: 'AQID', mimeType: 'image/png' }] }],
       'toolResult',
     ],
     ['agent.ask', [{ askId: 'ask-1', prompt: 'Answer this question.' }], 'ask'],
@@ -335,11 +345,13 @@ describe('calls a later item builds', () => {
   });
 
   const sourcesCalls: [string, unknown[], keyof SourcesManager][] = [
-    ['sources.choose', [ref], 'choose'],
-    ['sources.choose', [{ ...ref, suggestedName: 'git-basics' }], 'choose'],
+    ['sources.ensure', [ref], 'ensure'],
+    ['sources.ensure', [{ ...ref, suggestedName: 'git-basics' }], 'ensure'],
     ['sources.list', [ref], 'list'],
     ['sources.reveal', [ref], 'reveal'],
     ['sources.read', [ref, 'Rebase notes.md'], 'read'],
+    ['sources.readImage', [ref, 'Diagram.png'], 'readImage'],
+    ['sources.add', [ref, [{ name: 'Plan.docx', bytes: new Uint8Array([1, 2]) }]], 'add'],
   ];
 
   it.each(sourcesCalls)('passes %s through to the Sources folder', async (name, args, method) => {
@@ -350,7 +362,7 @@ describe('calls a later item builds', () => {
 
   it('answers sources calls with what the Sources folder gives', async () => {
     const { call } = setup();
-    await expect(call('sources.choose', top(), ref)).resolves.toEqual({
+    await expect(call('sources.ensure', top(), ref)).resolves.toEqual({
       path: '~/Material',
       files: [],
     });
@@ -404,6 +416,12 @@ describe('calls a later item builds', () => {
       [{ ...start, tools: [{ ...start.tools[0], name: 'GetCourse' }] }],
     ],
     ['a resume id that is a path', 'agent.start', [{ ...start, resumeId: '../../x' }]],
+    [
+      'a model that is a flag',
+      'agent.start',
+      [{ ...start, model: '--dangerously-skip-permissions' }],
+    ],
+    ['an effort the list lacks', 'agent.start', [{ ...start, effort: 'max' }]],
     ['a Sources path', 'agent.start', [{ ...start, sourcesDir: '/Users/x' }]],
     ['an empty message', 'agent.send', ['s1', '']],
     ['a message without a session', 'agent.send', ['Hello']],
@@ -413,16 +431,42 @@ describe('calls a later item builds', () => {
       'agent.toolResult',
       ['s1', 'c', { text: 'a', error: 'b' }],
     ],
+    [
+      'a tool result with two pictures',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: Array(2).fill({ data: 'AQID', mimeType: 'image/png' }) }],
+    ],
+    [
+      'a tool result with a picture of another type',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: [{ data: 'AQID', mimeType: 'image/svg+xml' }] }],
+    ],
+    [
+      'a tool result with a picture over the limit',
+      'agent.toolResult',
+      ['s1', 'c', { text: 'a', images: [{ data: 'A'.repeat(4_200_000), mimeType: 'image/png' }] }],
+    ],
     ['a tool result that is a string', 'agent.toolResult', ['s1', 'c', 'ok']],
     ['an empty ask', 'agent.ask', [{ askId: 'a', prompt: '' }]],
     ['an ask longer than the limit', 'agent.ask', [{ askId: 'a', prompt: 'x'.repeat(65_537) }]],
     ['an ask with a schema', 'agent.ask', [{ askId: 'a', prompt: 'p', schema: {} }]],
     ['an ask without an id', 'agent.ask', [{ prompt: 'p' }]],
     ['a cancel without an id', 'agent.cancelAsk', ['']],
-    ['a suggested folder name with a slash', 'sources.choose', [{ ...ref, suggestedName: 'a/b' }]],
+    ['a suggested folder name with a slash', 'sources.ensure', [{ ...ref, suggestedName: 'a/b' }]],
     ['a Sources folder path', 'sources.list', [{ ...ref, path: '/etc' }]],
     ['a source name with a slash', 'sources.read', [ref, '../secret.md']],
     ['a source name of ..', 'sources.read', [ref, '..']],
+    ['no files to add', 'sources.add', [ref, []]],
+    ['too many files to add', 'sources.add', [ref, Array(11).fill(upload('a.docx'))]],
+    ['a file name with a slash', 'sources.add', [ref, [upload('../a.docx')]]],
+    ['a hidden file name', 'sources.add', [ref, [upload('.env')]]],
+    [
+      'a file of 25 MB and a byte',
+      'sources.add',
+      [ref, [{ name: 'a.pdf', bytes: new Uint8Array(26_214_401) }]],
+    ],
+    ['file bytes that are text', 'sources.add', [ref, [{ name: 'a.txt', bytes: 'text' }]]],
+    ['a file with a path', 'sources.add', [ref, [{ ...upload('a.txt'), path: '/etc/a' }]]],
     ['arguments to googleSignIn', 'auth.googleSignIn', ['client']],
   ])('refuses %s', async (_label, name, args) => {
     const { call } = setup();

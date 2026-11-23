@@ -157,6 +157,24 @@ describe('claudeArgs', () => {
     ]);
   });
 
+  it('adds --model and --effort before the session flag only when picked', () => {
+    const args = claudeArgs(files, { sessionId: 'id-1' }, { model: 'opus', effort: 'low' });
+    expect(args.slice(-6)).toEqual(['--model', 'opus', '--effort', 'low', '--session-id', 'id-1']);
+    expect(claudeArgs(files, { sessionId: 'id-1' }, { model: 'haiku' }).slice(-4)).toEqual([
+      '--model',
+      'haiku',
+      '--session-id',
+      'id-1',
+    ]);
+    expect(claudeArgs(files, { sessionId: 'id-1' }, { effort: 'high' }).slice(-4)).toEqual([
+      '--effort',
+      'high',
+      '--session-id',
+      'id-1',
+    ]);
+    expect(args).toHaveLength(25 + 4);
+  });
+
   it('resumes on a later start', () => {
     expect(claudeArgs(files, { resumeId: 'id-1' }).slice(-2)).toEqual(['--resume', 'id-1']);
   });

@@ -186,7 +186,27 @@ describe('start', () => {
     await expect(during).resolves.toEqual({ ok: true, agentSessionId: id });
     await expect(manager.start(request())).resolves.toEqual({ ok: true, agentSessionId: id });
     expect(spawn.mock.calls.filter(([, a]) => a[0] === '-p')).toHaveLength(1);
-    expect(sink).toHaveBeenCalledWith('info', 'Agent started', { sessionId: 's1', resumed: false });
+    expect(sink).toHaveBeenCalledWith('info', 'Agent started', {
+      sessionId: 's1',
+      resumed: false,
+      model: 'default',
+      effort: 'default',
+    });
+  });
+
+  it('starts with the model and effort it is given, and logs only their names', async () => {
+    const { manager, spawn, answerInit, sink } = setup();
+    const started = manager.start(request({ model: 'sonnet', effort: 'medium' }));
+    await answerInit();
+    await started;
+    const [, args] = spawn.mock.calls.find(([, a]) => a[0] === '-p') ?? [];
+    expect(args?.slice(-6, -2)).toEqual(['--model', 'sonnet', '--effort', 'medium']);
+    expect(sink).toHaveBeenCalledWith('info', 'Agent started', {
+      sessionId: 's1',
+      resumed: false,
+      model: 'sonnet',
+      effort: 'medium',
+    });
   });
 
   it('resumes with the id it is given, in the chosen Sources folder', async () => {

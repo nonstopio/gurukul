@@ -1,5 +1,6 @@
 import { COURSE_BYTES_LIMIT, courseBytes, workingSchema } from '@gurukul/schema';
-import type { Block, BlockType, Chapter, Course, Item, Turn } from '@gurukul/schema';
+import { MAX_TURN_PARTS } from '@gurukul/schema';
+import type { Block, BlockType, Chapter, Course, Item, Turn, TurnPart } from '@gurukul/schema';
 import type { ChangeRow, CourseChanges, RowStatus } from '@gurukul/schema/changes';
 import type { ChipTone } from '@gurukul/ui';
 import type { Working } from '../types';
@@ -263,14 +264,32 @@ export function headerStatus(count: number, checks: HeaderChecks): string {
 
 /** The chat as the log draws it: messages, and after each finished turn its line. */
 export type ChatLine =
-  | { kind: 'entry'; entry: TranscriptEntry }
-  | { kind: 'turn'; turn: Turn; number: number; newest: boolean; saved: boolean };
+  | {
+      kind: 'entry';
+      entry: TranscriptEntry;
+      /** On a turn's first reply: what the agent did on the way, in order ("How it got there"). */
+      steps: string[];
+    }
+  | {
+      kind: 'turn';
+      turn: Turn;
+      number: number;
+      newest: boolean;
+      saved: boolean;
+      /** The turn's steps, when it had no reply of its own to carry them. */
+      steps: string[];
+      /** The turn's replies as text, for Copy; empty when the agent wrote none. */
+      reply: string;
+      /** Seconds the agent worked, from the Educator's message to the turn's end; null if unknown. */
+      seconds: number | null;
+    };
 
 /**
- * The transcript without its activity entries (the live line says what the agent does; the log
- * keeps what was said), with each finished turn's line after the last entry of that turn: the
- * written turns, then the one that could not be written (`unsaved`), if any. A turn with no entry
- * left (its chat was cut to fit the file) still gets its line, at the end.
+ * The transcript with each finished turn's line after the last entry of that turn: the written
+ * turns, then the one that could not be written (`unsaved`), if any. The activity entries are not
+ * lines of their own: they become the steps of the turn, carried by its first reply (else by its
+ * line), so the log keeps what was said and the steps stay a click away. A turn with no entry left
+ * (its chat was cut to fit the file) still gets its line, at the end.
  */
 export function chatLines(
   transcript: readonly TranscriptEntry[],
@@ -280,27 +299,81 @@ export function chatLines(
   const all = unsaved ? [...turns, unsaved] : [...turns];
   const numbered = new Map(all.map((turn, i) => [turn.id, i]));
   const last = new Map<string, number>();
+  const steps = new Map<string, string[]>();
+  const replies = new Map<string, string[]>();
+  const asked = new Map<string, string>();
   transcript.forEach((entry, i) => {
-    if (entry.turnId !== null && numbered.has(entry.turnId)) last.set(entry.turnId, i);
+    if (entry.turnId === null) return;
+    if (numbered.has(entry.turnId)) last.set(entry.turnId, i);
+    const list = steps.get(entry.turnId) ?? [];
+    if (entry.kind === 'activity' && list[list.length - 1] !== entry.text) list.push(entry.text);
+    steps.set(entry.turnId, list);
+    if (entry.kind === 'agent')
+      replies.set(entry.turnId, [...(replies.get(entry.turnId) ?? []), entry.text]);
+    if (entry.kind === 'educator' && !asked.has(entry.turnId)) asked.set(entry.turnId, entry.at);
   });
-  const line = (turn: Turn): ChatLine => {
+  const line = (turn: Turn, carried: boolean): ChatLine => {
     const i = numbered.get(turn.id) as number;
+    const from = asked.get(turn.id);
     return {
       kind: 'turn',
       turn,
       number: i + 1,
       newest: i === all.length - 1,
       saved: turn !== unsaved,
+      steps: carried ? [] : (steps.get(turn.id) ?? []),
+      reply: (replies.get(turn.id) ?? []).join('\n\n'),
+      seconds:
+        from === undefined || turnBy(turn) !== 'agent'
+          ? null
+          : Math.max(0, Math.round((Date.parse(turn.at) - Date.parse(from)) / 1000)),
     };
   };
   const out: ChatLine[] = [];
+  const carrying = new Set<string>();
   transcript.forEach((entry, i) => {
-    if (entry.kind !== 'activity') out.push({ kind: 'entry', entry });
+    if (entry.kind !== 'activity') {
+      const first = entry.kind === 'agent' && !carrying.has(entry.turnId);
+      if (first) carrying.add(entry.turnId);
+      out.push({
+        kind: 'entry',
+        entry,
+        steps: first ? (steps.get(entry.turnId) as string[]) : [],
+      });
+    }
     const ended = all.find((t) => last.get(t.id) === i);
-    if (ended) out.push(line(ended));
+    if (ended) out.push(line(ended, carrying.has(ended.id)));
   });
-  for (const turn of all) if (!last.has(turn.id)) out.push(line(turn));
+  for (const turn of all) if (!last.has(turn.id)) out.push(line(turn, false));
   return out;
+}
+
+const PART_ORDER: RowStatus[] = ['added', 'removed', 'renamed', 'changed', 'moved'];
+
+/**
+ * A turn's `changes` count and `parts`: one per changed row, named by its title (course details
+ * and the landing page by their kind), with its most telling status. The list is cut at
+ * `MAX_TURN_PARTS`; `changes` still says how many there were.
+ */
+export function turnChanged(changes: CourseChanges): Pick<Turn, 'changes' | 'parts'> {
+  const parts = changes.rows.slice(0, MAX_TURN_PARTS).map((row): TurnPart => {
+    const named =
+      row.kind === 'course' || row.kind === 'landing' ? null : (row.after ?? row.before);
+    return {
+      kind: row.kind,
+      title: named?.title.trim().slice(0, 200) || '',
+      status: PART_ORDER.find((s) => row.statuses.includes(s)) as RowStatus,
+    };
+  });
+  return { changes: changes.count, parts };
+}
+
+/** "45s", "2m 39s", "1h 5m". */
+export function workedFor(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 /**
@@ -332,4 +405,30 @@ export function turnLabel(
 ): string {
   const count = changes === 0 ? 'no changes' : `${changes} ${changes === 1 ? 'change' : 'changes'}`;
   return `Turn ${number}${BY_WORDS[by]} · ${count}${saved ? '' : ' · not saved'}`;
+}
+
+/**
+ * A finished turn's footer in three parts, the middle one a link to Review: "Worked for 2m 39s, "
+ * "19 changes". The agent's own turn says how long it worked when that is known; the others say who
+ * made them, and a turn not written to disk says so.
+ */
+export function turnFooter(line: Extract<ChatLine, { kind: 'turn' }>): {
+  lead: string;
+  count: string;
+  tail: string;
+} {
+  const { changes } = line.turn;
+  const by = turnBy(line.turn);
+  return {
+    lead:
+      by === 'agent'
+        ? line.seconds === null
+          ? ''
+          : `Worked for ${workedFor(line.seconds)}, `
+        : by === 'educator'
+          ? 'By hand, '
+          : 'Draft brought in, ',
+    count: changes === 0 ? 'no changes' : `${changes} ${changes === 1 ? 'change' : 'changes'}`,
+    tail: line.saved ? '' : ' · not saved',
+  };
 }

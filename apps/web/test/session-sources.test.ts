@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { revealLabel } from '../src/studio/session/SourcesOffer';
+import { revealLabel } from '../src/studio/session/SourcesPanel';
 import {
   SOURCE_REFUSALS,
   bridgeSources,
@@ -18,7 +18,8 @@ const rejected = (message: string) =>
 describe('sourceRefusal', () => {
   it('finds the shell’s sentence at the end of a rejected read', () => {
     expect(sourceRefusal(rejected(SOURCE_REFUSALS.notText))).toBe(SOURCE_REFUSALS.notText);
-    expect(sourceRefusal(rejected(SOURCE_REFUSALS.tooLarge))).toBe(SOURCE_REFUSALS.tooLarge);
+    for (const sentence of Object.values(SOURCE_REFUSALS))
+      expect(sourceRefusal(rejected(sentence))).toBe(sentence);
   });
 
   it('is null for any other failure', () => {
@@ -28,11 +29,11 @@ describe('sourceRefusal', () => {
 });
 
 describe('bridgeSources', () => {
-  it('lists null until a folder is chosen, then its files', async () => {
+  it('lists null until a folder is made, then its files', async () => {
     const { desktop } = fakeDesktop();
     const sources = bridgeSources(desktop.sources, ref);
     await expect(sources.list()).resolves.toBeNull();
-    await desktop.sources.choose(ref);
+    await desktop.sources.ensure(ref);
     await expect(sources.list()).resolves.toEqual(SOURCES_FOLDER.files);
     expect(desktop.sources.list).toHaveBeenCalledWith(ref);
   });
@@ -40,17 +41,30 @@ describe('bridgeSources', () => {
   it('reads a file of this session by its plain name', async () => {
     const { desktop } = fakeDesktop();
     const sources = bridgeSources(desktop.sources, ref);
-    await desktop.sources.choose(ref);
+    await desktop.sources.ensure(ref);
     await expect(sources.read('Rebase notes.md')).resolves.toBe('Text of Rebase notes.md');
     expect(desktop.sources.read).toHaveBeenCalledWith(ref, 'Rebase notes.md');
     await expect(sources.read('missing.md')).resolves.toBeNull();
+  });
+
+  it('reads a picture of this session, and hands on a refusal as a sentence', async () => {
+    const { desktop } = fakeDesktop();
+    const sources = bridgeSources(desktop.sources, ref);
+    await desktop.sources.ensure(ref);
+    await expect(sources.readImage('Rebase notes.md')).resolves.toEqual({
+      data: 'AQID',
+      mimeType: 'image/png',
+    });
+    expect(desktop.sources.readImage).toHaveBeenCalledWith(ref, 'Rebase notes.md');
+    desktop.sources.readImage.mockRejectedValueOnce(rejected(SOURCE_REFUSALS.imageTooLarge));
+    await expect(sources.readImage('big.png')).rejects.toBeInstanceOf(SourceRefusedError);
   });
 
   it('turns the shell’s refusal into a sentence for the agent, and passes other failures on', async () => {
     const read = vi.fn(async () => {
       throw rejected(SOURCE_REFUSALS.notText);
     });
-    const sources = bridgeSources({ list: vi.fn(), read }, ref);
+    const sources = bridgeSources({ list: vi.fn(), read, readImage: vi.fn() }, ref);
     const refusal = sources.read('slides.pdf');
     await expect(refusal).rejects.toBeInstanceOf(SourceRefusedError);
     await expect(refusal).rejects.toThrow(SOURCE_REFUSALS.notText);
@@ -63,9 +77,9 @@ describe('bridgeSources', () => {
     const { desktop } = fakeDesktop();
     const ctx = defaultToolContext(bridgeSources(desktop.sources, ref));
     expect(await refused(call(toolState(), 'list_sources', {}, ctx))).toMatch(
-      /^No Sources folder is set/,
+      /^This session has no Sources folder yet/,
     );
-    await desktop.sources.choose(ref);
+    await desktop.sources.ensure(ref);
     expect(await json(call(toolState(), 'list_sources', {}, ctx))).toEqual({
       files: SOURCES_FOLDER.files,
     });
@@ -76,7 +90,7 @@ describe('bridgeSources', () => {
 });
 
 describe('labels', () => {
-  it('counts the files of a chosen folder', () => {
+  it('counts the files of the folder', () => {
     expect(filesLabel({ path: '~/x', files: [] })).toBe('No files yet');
     expect(filesLabel({ path: '~/x', files: [{ name: 'a.md', bytes: 1 }] })).toBe('1 file');
     expect(filesLabel(SOURCES_FOLDER)).toBe('2 files');

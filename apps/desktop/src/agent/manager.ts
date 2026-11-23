@@ -52,7 +52,7 @@ export interface AgentManagerOptions {
   sessionsRoot: string;
   events: EventSender;
   /**
-   * The Sources folder the Educator chose for a session (`sources.choose`, `DSK-20`), or null.
+   * The session's Sources folder (`sources.ensure`, `DSK-20`), or null before one was made.
    * Without it, every session works in an empty folder of its own.
    */
   sourcesFolder?: (ref: SessionRef) => Promise<string | null>;
@@ -168,7 +168,10 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
       const cwd = sources !== null && (await isFolder(sources)) ? sources : files.emptyDir;
       child = platform.spawn(
         found.file,
-        claudeArgs(files, resumeId === null ? { sessionId: agentSessionId } : { resumeId }),
+        claudeArgs(files, resumeId === null ? { sessionId: agentSessionId } : { resumeId }, {
+          model: request.model,
+          effort: request.effort,
+        }),
         { cwd, env: childEnv(platform.env, platform.platform, token) },
       );
     } catch (error) {
@@ -200,7 +203,12 @@ export function createAgentManager(options: AgentManagerOptions): AgentManager {
     }
     started.markLive();
     runs.set(sessionId, started);
-    log.info('Agent started', { sessionId, resumed: resumeId !== null });
+    log.info('Agent started', {
+      sessionId,
+      resumed: resumeId !== null,
+      model: request.model ?? 'default',
+      effort: request.effort ?? 'default',
+    });
     return { ok: true, agentSessionId };
   };
 

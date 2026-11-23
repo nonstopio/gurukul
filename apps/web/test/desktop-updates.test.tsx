@@ -12,7 +12,7 @@ import {
 import { checkMessage, watchUpdates } from '../src/desktop/updates';
 import { axeViolations } from './axe';
 
-const INFO: DesktopInfo = { bridgeVersion: 1, appVersion: '0.1.0', platform: 'darwin' };
+const INFO: DesktopInfo = { bridgeVersion: 5, appVersion: '0.1.0', platform: 'darwin' };
 
 /** A stand-in for the bridge: `info` and the `app` area, which is all the update item uses. */
 function fakeDesktop({

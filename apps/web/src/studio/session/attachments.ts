@@ -43,6 +43,15 @@ export const attachTargetSchema = z.discriminatedUnion('kind', [
     ids: z.strictObject({ itemId: id, questionId: id }),
     label,
   }),
+  /**
+   * A file the Educator added to the Sources folder from the chat (`sources.add`): its name, as the
+   * shell wrote it. Not part of the course: the agent reads it with `read_source`.
+   */
+  z.strictObject({
+    kind: z.literal('file'),
+    ids: z.strictObject({ name: z.string().min(1).max(255) }),
+    label,
+  }),
 ]);
 export type AttachTarget = z.infer<typeof attachTargetSchema>;
 export type AttachKind = AttachTarget['kind'];
@@ -57,6 +66,7 @@ const ID_ORDER: { [K in AttachKind]: readonly (keyof TargetOf<K>['ids'])[] } = {
   item: ['itemId'],
   block: ['itemId', 'blockId'],
   question: ['itemId', 'questionId'],
+  file: ['name'],
 };
 
 /**
@@ -91,6 +101,12 @@ export function cleanTarget(target: AttachTarget): AttachTarget | null {
  * explains ("Attached parts of the course"). Empty when nothing is attached.
  */
 export function attachmentNote(targets: readonly AttachTarget[]): string {
+  const files = targets.filter((t) => t.kind === 'file');
+  const parts = targets.filter((t) => t.kind !== 'file');
+  return partsNote(parts) + filesNote(files);
+}
+
+function partsNote(targets: readonly AttachTarget[]): string {
   if (targets.length === 0) return '';
   const lines = targets.map((t) => `- ${t.label}: ${JSON.stringify({ kind: t.kind, ...t.ids })}`);
   return `[From Gurukul: the Educator attached ${
@@ -98,6 +114,13 @@ export function attachmentNote(targets: readonly AttachTarget[]): string {
   } of the course to the message below. "This", "it" and "here" in it mean ${
     targets.length === 1 ? 'this part' : 'these parts'
   }.]\n${lines.join('\n')}\n\n`;
+}
+
+/** The files added from the chat: their names, and how to read them. */
+function filesNote(files: readonly AttachTarget[]): string {
+  if (files.length === 0) return '';
+  const names = files.map((f) => (f.ids as { name: string }).name).join(', ');
+  return `[From Gurukul: Files added to the Sources folder: ${names}. Read them with read_source.]\n\n`;
 }
 
 /** The words for what is attached, in labels (`Lesson 3.2 · Text block 2`). */

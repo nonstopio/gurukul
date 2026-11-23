@@ -4,6 +4,8 @@
  * source; a change here changes that section in the same commit.
  */
 
+import type { AgentEffort, AgentModel } from '../bridge';
+
 /** The Claude Code version the flags below were checked on (`DSK-04`). Older is "too old". */
 export const MIN_CLAUDE_VERSION = '2.1.328';
 
@@ -83,12 +85,22 @@ export interface LaunchFiles {
 /** First start: a new Claude session id. Later starts: resume the one kept from the first. */
 export type LaunchSession = { sessionId: string } | { resumeId: string };
 
+/** The Educator's picks for a session, already checked by `args.ts`; none is Claude Code's default. */
+export interface LaunchChoice {
+  model?: AgentModel | undefined;
+  effort?: AgentEffort | undefined;
+}
+
 /**
  * The pinned command line, without the program. `--session-id` on the first start (reusing one
  * fails) and `--resume` on every later one. No token and no text from the window is ever an
  * argument: `mcp_status` echoes arguments back.
  */
-export function claudeArgs(files: LaunchFiles, session: LaunchSession): string[] {
+export function claudeArgs(
+  files: LaunchFiles,
+  session: LaunchSession,
+  choice: LaunchChoice = {},
+): string[] {
   return [
     '-p',
     '--input-format',
@@ -113,6 +125,9 @@ export function claudeArgs(files: LaunchFiles, session: LaunchSession): string[]
     'dontAsk',
     '--system-prompt-snapshot',
     'off',
+    // Only a name from `AGENT_MODELS` / `AGENT_EFFORTS` (zod in `args.ts`), never window text.
+    ...(choice.model === undefined ? [] : ['--model', choice.model]),
+    ...(choice.effort === undefined ? [] : ['--effort', choice.effort]),
     ...('sessionId' in session
       ? ['--session-id', session.sessionId]
       : ['--resume', session.resumeId]),

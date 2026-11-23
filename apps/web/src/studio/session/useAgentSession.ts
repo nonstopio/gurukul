@@ -62,6 +62,7 @@ export function acquireAgentSession(
 type SessionActions = Pick<
   AgentSession,
   | 'send'
+  | 'choose'
   | 'stop'
   | 'undo'
   | 'retry'
@@ -95,6 +96,8 @@ const LOADING: AgentSessionView = {
   turns: [],
   unsaved: null,
   turnChanges: 0,
+  usage: null,
+  canChoose: false,
   attachments: [],
   canAttach: false,
   canSend: false,
@@ -135,6 +138,7 @@ export function agentSessionSource(key: SessionKey): AgentSessionSource {
     },
     getState: () => held?.getState() ?? LOADING,
     send: async (message) => (held ? held.send(message) : false),
+    choose: async (patch) => (held ? held.choose(patch) : false),
     stop: async () => held?.stop(),
     undo: async () => (held ? held.undo() : false),
     retry: async () => held?.retry(),
@@ -168,6 +172,7 @@ export function useAgentSession({ desktop, uid, sessionId }: SessionKey): AgentS
   return {
     ...view,
     send: source.send,
+    choose: source.choose,
     stop: source.stop,
     undo: source.undo,
     retry: source.retry,

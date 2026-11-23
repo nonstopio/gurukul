@@ -47,8 +47,19 @@ export type StreamItem =
   | { kind: 'not_signed_in' }
   /** The plan's limit is reached. */
   | { kind: 'plan_limit'; resetsAt: string | null }
-  /** The turn is over. `aborted` when an `interrupt` ended it. */
-  | { kind: 'result'; failed: boolean; aborted: boolean; agentSessionId: string | null }
+  /** What one request read: input and cache tokens, the size of the context so far. */
+  | { kind: 'usage'; tokens: number }
+  /**
+   * The turn is over. `aborted` when an `interrupt` ended it. `contextWindow` is the largest window
+   * `claude` names in `modelUsage`, or null when it names none.
+   */
+  | {
+      kind: 'result';
+      failed: boolean;
+      aborted: boolean;
+      agentSessionId: string | null;
+      contextWindow: number | null;
+    }
   /** The answer to one of the bridge's control requests. */
   | { kind: 'control_response'; requestId: string; tokenSource: string | null }
   /** A control request from `claude`, which the bridge must answer. */
@@ -86,6 +97,23 @@ function isoTime(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** A positive whole number, else null. */
+function count(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** The largest `contextWindow` of the models in a result's `modelUsage`; null when none is named. */
+function contextWindow(modelUsage: unknown): number | null {
+  if (!isObject(modelUsage)) return null;
+  const windows = Object.values(modelUsage).map((m) =>
+    isObject(m) ? count(m.contextWindow) : null,
+  );
+  return windows.reduce<number | null>(
+    (a, w) => (w !== null && (a === null || w > a) ? w : a),
+    null,
+  );
+}
+
 function assistantItems(msg: Json): StreamItem[] {
   // A failed request comes back as an assistant message with `error` and canned words ("Not
   // logged in · Please run /login"): the bridge reports the error and drops the words.
@@ -96,6 +124,12 @@ function assistantItems(msg: Json): StreamItem[] {
   const message = isObject(msg.message) ? msg.message : {};
   const content = Array.isArray(message.content) ? message.content : [];
   const items: StreamItem[] = [];
+  const usage = isObject(message.usage) ? message.usage : {};
+  const tokens =
+    (count(usage.input_tokens) ?? 0) +
+    (count(usage.cache_creation_input_tokens) ?? 0) +
+    (count(usage.cache_read_input_tokens) ?? 0);
+  if (tokens > 0) items.push({ kind: 'usage', tokens });
   for (const block of content) {
     if (!isObject(block)) continue;
     if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
@@ -148,6 +182,7 @@ export function readLine(text: string): StreamItem[] {
           failed: msg.is_error === true || msg.subtype !== 'success',
           aborted: msg.terminal_reason === 'aborted_streaming',
           agentSessionId: str(msg.session_id),
+          contextWindow: contextWindow(msg.modelUsage),
         },
       ];
     case 'control_response': {

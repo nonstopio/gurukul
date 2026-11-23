@@ -21,6 +21,7 @@ import {
 import {
   PLUGIN_NAME,
   SKILLS,
+  SKILL_LABELS,
   SYSTEM_PROMPT,
   agentSetup,
   lintRules,
@@ -76,6 +77,10 @@ describe('the files', () => {
 
   it('ship exactly the four skills, in the order the work uses them', () => {
     expect(SKILLS.map((s) => s.name)).toEqual(SKILL_NAMES);
+  });
+
+  it('name every skill for the chat bar menu, and no other', () => {
+    expect(Object.keys(SKILL_LABELS)).toEqual(SKILL_NAMES);
   });
 });
 

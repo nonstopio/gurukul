@@ -62,6 +62,7 @@ describe('defaultToolContext', () => {
     const sources: SessionSources = {
       list: () => Promise.resolve([]),
       read: () => Promise.resolve(null),
+      readImage: () => Promise.resolve(null),
     };
     expect(defaultToolContext(sources).sources).toBe(sources);
   });

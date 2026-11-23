@@ -14,7 +14,7 @@ import type {
 } from '../src/desktop/bridge';
 
 export const DESKTOP_INFO: DesktopInfo = {
-  bridgeVersion: 1,
+  bridgeVersion: 5,
   appVersion: '0.1.0',
   platform: 'darwin',
 };
@@ -22,7 +22,7 @@ export const DESKTOP_INFO: DesktopInfo = {
 const NOT_AVAILABLE = () =>
   Promise.reject(new Error('Error invoking remote method: Error: Not available in this version'));
 
-/** The folder `sources.choose` picks in the fake: two notes in `~/Material`. */
+/** The folder `sources.ensure` makes in the fake: two notes in `~/Material`. */
 export const SOURCES_FOLDER: SourcesFolder = {
   path: '~/Material',
   files: [
@@ -34,7 +34,7 @@ export const SOURCES_FOLDER: SourcesFolder = {
 /**
  * The desktop bridge in memory: `store.*` keeps files in a map keyed `uid/sessionId/path`, as the
  * shell's store does on disk, and refuses the agent's own files as it does; `sources.*` keeps the
- * folder chosen per session (`choose` picks `SOURCES_FOLDER`, `read` answers a listed name);
+ * folder made per session (`ensure` makes `SOURCES_FOLDER`, `read` answers a listed name);
  * `agent.forget` resolves; the rest refuse as an unbuilt call does.
  */
 export function fakeDesktop(
@@ -93,16 +93,43 @@ export function fakeDesktop(
       onToolCall: vi.fn(() => () => undefined),
     },
     sources: {
-      choose: vi.fn(async (ref: { uid: string; sessionId: string }) => {
-        chosen.set(session(ref), SOURCES_FOLDER);
-        return SOURCES_FOLDER as SourcesFolder | null;
-      }),
+      ensure: vi.fn(
+        async (ref: { uid: string; sessionId: string; suggestedName?: string | undefined }) => {
+          const folder = chosen.get(session(ref)) ?? SOURCES_FOLDER;
+          chosen.set(session(ref), folder);
+          return folder;
+        },
+      ),
       list: vi.fn(
         async (ref: { uid: string; sessionId: string }) => chosen.get(session(ref)) ?? null,
       ),
       reveal: vi.fn(async () => undefined),
       read: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
         chosen.get(session(ref))?.files.some((f) => f.name === name) ? `Text of ${name}` : null,
+      ),
+      readImage: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>
+        chosen.get(session(ref))?.files.some((f) => f.name === name)
+          ? { data: 'AQID', mimeType: 'image/png' as const }
+          : null,
+      ),
+      // Keeps what was added in the folder, as the shell does (without renaming a clash).
+      add: vi.fn(
+        async (
+          ref: { uid: string; sessionId: string },
+          files: { name: string; bytes: Uint8Array }[],
+        ) => {
+          const folder = chosen.get(session(ref)) ?? SOURCES_FOLDER;
+          const added = files.map((f) => f.name);
+          const next = {
+            ...folder,
+            files: [
+              ...folder.files,
+              ...files.map((f) => ({ name: f.name, bytes: f.bytes.length })),
+            ],
+          };
+          chosen.set(session(ref), next);
+          return { added, folder: next };
+        },
       ),
     },
     auth: { googleSignIn: refuse },

@@ -87,9 +87,8 @@ async function open(drafts: DraftDoc[] = [stored(BASE, { rev: 3, updatedBy: 'u1'
   const id = `w${sessions}`;
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
-  const started = await store.start(
-    { kind: 'edit', courseId: 'git', goal: 'Ask better questions.' },
-    async () => stored(BASE, { rev: 3, updatedBy: 'u1' }),
+  const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+    stored(BASE, { rev: 3, updatedBy: 'u1' }),
   );
   if (started.status !== 'started') throw new Error('not started');
   const before = started.session.work as Working;

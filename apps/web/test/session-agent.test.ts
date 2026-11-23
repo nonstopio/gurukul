@@ -59,14 +59,18 @@ async function setup(init: Init = {}) {
     now: () => T0,
     newId: () => 's1',
   });
-  const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on Git.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify chapter one.' },
+  const begun = await store.start(
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(makeCourse(), { rev: 4 }),
   );
-  if (started.status !== 'started') throw new Error('not started');
-  if (init.edit) await store.save(init.edit(started.session));
+  if (begun.status !== 'started') throw new Error('not started');
+  // The session as an earlier version started it: a goal, and the goal as its title.
+  const goal = init.kind === 'new' ? 'A course on Git.' : 'Simplify chapter one.';
+  const started = {
+    ...begun,
+    session: { ...begun.session, title: goal, goals: [{ text: goal, done: false }] },
+  };
+  await store.save(init.edit ? init.edit(started.session) : started.session);
   let n = 0;
   const runtime = createAgentSession({
     desktop: fake.desktop,
@@ -148,6 +152,20 @@ describe('constants and words', () => {
   it('tells the agent how many turns were undone', () => {
     expect(undoNote(1)).toContain('your last turn.');
     expect(undoNote(3)).toContain('your last 3 turns.');
+  });
+});
+
+describe('choosing the model', () => {
+  it('changes nothing while a turn runs or before the agent is ready', async () => {
+    const s = await setup();
+    expect(await s.runtime.choose({ model: 'opus' })).toBe(false);
+    await s.runtime.open();
+    expect(s.state().canChoose).toBe(true);
+    expect(await s.runtime.send('Hello')).toBe(true);
+    expect(s.state().canChoose).toBe(false);
+    expect(await s.runtime.choose({ model: 'opus' })).toBe(false);
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+    expect(s.disk()).not.toHaveProperty('model');
   });
 });
 
@@ -280,14 +298,43 @@ describe('opening', () => {
 });
 
 describe('sources', () => {
+  it('makes the session’s Sources folder before the agent starts, named after the course', async () => {
+    const s = await setup();
+    s.agent.start.mockImplementationOnce(async () => {
+      // The agent works in the folder, so it exists by the time `agent.start` is called.
+      expect(s.desktop.sources.ensure).toHaveBeenCalledTimes(1);
+      return { ok: true, agentSessionId: AGENT_SESSION_ID };
+    });
+    await s.runtime.open();
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({
+      uid: 'u1',
+      sessionId: 's1',
+      suggestedName: 'git',
+    });
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('names no folder for a new course, which has no address yet', async () => {
+    const s = await setup({ kind: 'new' });
+    await s.runtime.open();
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
+  });
+
+  it('starts the agent anyway when the folder cannot be made, and says so in the log', async () => {
+    const s = await setup();
+    s.desktop.sources.ensure.mockRejectedValueOnce(new Error('EACCES'));
+    await s.runtime.open();
+    expect(s.state().status).toBe('ready');
+    expect(log.warn).toHaveBeenCalledWith('Sources folder not made', {
+      sessionId: 's1',
+      reason: 'failed',
+    });
+  });
+
   it('reads the session’s Sources folder through the bridge by default', async () => {
     const s = await setup();
     await s.runtime.open();
     expect(await s.runtime.send('Use my notes.')).toBe(true);
-    expect(await s.call('list_sources', {})).toEqual({
-      error: expect.stringContaining('No Sources folder is set') as unknown,
-    });
-    await s.desktop.sources.choose({ uid: 'u1', sessionId: 's1' });
     expect(await s.call('list_sources', {})).toEqual({
       text: expect.stringContaining('Rebase notes.md') as unknown,
     });
@@ -298,6 +345,19 @@ describe('sources', () => {
       { uid: 'u1', sessionId: 's1' },
       'Rebase notes.md',
     );
+  });
+
+  it('hands the shell a picture the agent reads, beside the text', async () => {
+    const s = await setup();
+    await s.runtime.open();
+    await s.desktop.sources.add({ uid: 'u1', sessionId: 's1' }, [
+      { name: 'Diagram.png', bytes: new Uint8Array([1]) },
+    ]);
+    expect(await s.runtime.send('Look at my diagram.')).toBe(true);
+    expect(await s.call('read_source', { name: 'Diagram.png' })).toEqual({
+      text: expect.stringContaining('Shown to you') as unknown,
+      images: [{ data: 'AQID', mimeType: 'image/png' }],
+    });
   });
 });
 
@@ -340,6 +400,7 @@ describe('turns', () => {
         summary: 'Rename the course.',
         checkpoint: 't1.json',
         changes: 1,
+        parts: [{ kind: 'course', title: '', status: 'changed' }],
       },
     ]);
     const disk = s.disk();
@@ -1451,6 +1512,7 @@ describe('a turn by the Educator', () => {
         summary: 'Put back Course details',
         checkpoint: 't1.json',
         changes: 1,
+        parts: [{ kind: 'course', title: '', status: 'changed' }],
       },
     ]);
     expect(s.disk().work.course.title).toBe('By hand');

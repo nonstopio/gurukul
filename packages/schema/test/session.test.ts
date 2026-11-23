@@ -46,6 +46,19 @@ const turn = (id: string) => ({
   changes: 0,
 });
 
+describe('the model and effort picks', () => {
+  it('read as absent from a session written before they existed, and as picked when present', () => {
+    expect(authoringSessionSchema.parse(session())).not.toHaveProperty('model');
+    const picked = authoringSessionSchema.parse(session({ model: 'opus', effort: 'low' }));
+    expect(picked).toMatchObject({ model: 'opus', effort: 'low' });
+  });
+
+  it('refuse a name outside the lists, which would reach the shell as a flag', () => {
+    expect(authoringSessionSchema.safeParse(session({ model: '--model' })).success).toBe(false);
+    expect(authoringSessionSchema.safeParse(session({ effort: 'max' })).success).toBe(false);
+  });
+});
+
 describe('constants', () => {
   it('pins the documented values', () => {
     expect([SESSION_SCHEMA_VERSION, SESSION_CHECKPOINTS_KEPT, SESSION_FILES_DAYS]).toEqual([

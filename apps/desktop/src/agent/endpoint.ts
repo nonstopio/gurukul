@@ -67,9 +67,11 @@ export function bearerMatches(header: string | undefined, token: string): boolea
 
 /** The MCP answer for a window's result. */
 export function toolCallResult(result: AgentToolResult): CallToolResult {
-  return 'text' in result
-    ? { content: [{ type: 'text', text: result.text }] }
-    : { content: [{ type: 'text', text: result.error }], isError: true };
+  if (!('text' in result))
+    return { content: [{ type: 'text', text: result.error }], isError: true };
+  // Pictures follow the text as MCP `image` content, which Claude Code hands to the model.
+  const images = (result.images ?? []).map((i) => ({ type: 'image' as const, ...i }));
+  return { content: [{ type: 'text', text: result.text }, ...images] };
 }
 
 /** One server for one request: lists the window's tools and forwards each call. */

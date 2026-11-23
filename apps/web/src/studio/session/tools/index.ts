@@ -94,7 +94,8 @@ export async function runToolIn(
   if ('error' in result) return result;
   const next: SessionState = { ...result.state, base: state.base };
   const problem = workProblem(state.work, next.work) ?? sessionProblem(next);
-  return problem === null ? { state: next, text: result.text } : refuse(problem);
+  if (problem !== null) return refuse(problem);
+  return { state: next, text: result.text, ...(result.images && { images: result.images }) };
 }
 
 /** Runs one tool call from the agent against the session's state; see `runToolIn`. */

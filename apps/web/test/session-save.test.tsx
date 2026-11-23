@@ -96,9 +96,7 @@ async function open(
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
   const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => stored(start, { rev: 3, updatedBy: 'u1' }),
   );
   if (started.status !== 'started') throw new Error('not started');
@@ -1096,13 +1094,14 @@ describe('when the draft moved underneath', () => {
       await s.app.router.navigate(`/studio/sessions/${s.id}`);
     });
     // The chat names the merge for what it is: their draft brought in, not an edit by hand.
-    expect(
-      screen.getByRole('link', { name: 'Turn 2 · draft brought in · 2 changes' }),
-    ).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /^Turn 2 · by hand/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 2' }));
+    expect(screen.getByRole('link', { name: '2 changes in turn 2, open in Review' })).toBeTruthy();
+    expect(screen.getByText(/Draft brought in,/)).toBeTruthy();
+    expect(screen.queryByText(/By hand,/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 2' }),
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Go back to before turn 2',
+      }),
     );
     await waitFor(() => expect(s.disk().base?.rev).toBe(3));
     await act(async () => {
@@ -1132,13 +1131,10 @@ describe('when the draft moved underneath', () => {
       git: stored(THEIRS),
       other: draftDoc(OTHER, { rev: 7, updatedBy: 'u1' }),
     };
-    await store.start({ kind: 'edit', courseId: 'git', goal: 'A' }, async () =>
+    await store.start({ kind: 'edit', courseId: 'git' }, async () =>
       stored(BASE, { rev: 3, updatedBy: 'u1' }),
     );
-    await store.start(
-      { kind: 'edit', courseId: 'other', goal: 'B' },
-      async () => drafts.other as DraftDoc,
-    );
+    await store.start({ kind: 'edit', courseId: 'other' }, async () => drafts.other as DraftDoc);
     fakeAgent(fake.desktop);
     installDesktop(fake.desktop);
     const studio = fakeStudio({ courses: [{ live: GIT, draft: null }] });

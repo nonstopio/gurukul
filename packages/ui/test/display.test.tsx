@@ -137,6 +137,14 @@ describe('ProgressRing', () => {
     expect(screen.getByText('25%')).toBeTruthy();
   });
 
+  it('prints no percentage when showValue is off, and still exposes the value', () => {
+    render(<ProgressRing value={23} label="Context used" size={20} stroke={3} showValue={false} />);
+    expect(screen.queryByText('23%')).toBeNull();
+    expect(
+      screen.getByRole('progressbar', { name: 'Context used' }).getAttribute('aria-valuenow'),
+    ).toBe('23');
+  });
+
   it('honours size and stroke, clamps, and takes a class', () => {
     const { container } = render(
       <ProgressRing value={400} label="r" size={80} stroke={8} className="big" />,

@@ -28,9 +28,8 @@ async function setup(edits: { accepted?: boolean } = {}) {
   const fake = fakeDesktop();
   fakeAgent(fake.desktop);
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => sessionId });
-  const started = await store.start(
-    { kind: 'edit', courseId: 'git', goal: 'Simplify.' },
-    async () => draftDoc(makeCourse(), { rev: 4 }),
+  const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+    draftDoc(makeCourse(), { rev: 4 }),
   );
   const session = (started as { session: AuthoringSession }).session;
   const key = { desktop: fake.desktop, uid: 'u1', sessionId };

@@ -343,6 +343,20 @@ describe('Design system: components', () => {
     expect(within(chips).queryByText('Quiz 1.3 · Question 2')).toBeNull();
   });
 
+  it('sends and submits in the ChatComposer example', async () => {
+    const user = userEvent.setup();
+    await openSection('components');
+    const card = within(screen.getByRole('region', { name: 'ChatComposer' }));
+    const box = card.getByRole('textbox', {
+      name: 'Ask for a change (example)',
+    }) as HTMLTextAreaElement;
+    await user.type(box, 'Shorter{Enter}');
+    expect(box.value).toBe('');
+    await user.type(box, 'Again');
+    await user.click(card.getByRole('button', { name: 'Send' }));
+    expect(box.value).toBe('Again');
+  });
+
   it('runs the menus and the filter bar', async () => {
     const user = userEvent.setup();
     await openSection('components');

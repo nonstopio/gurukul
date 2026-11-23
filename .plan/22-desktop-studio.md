@@ -15,7 +15,8 @@ The web app does not change for anyone who does not install the desktop app.
 
 Meera, an Educator, opens the desktop app and starts a session on "Git, the NonStop Way".
 
-1. She writes the goal: "The rebase chapter is too heavy. Simplify it and add a Quiz."
+1. She presses **Edit with AI** and, in the session's message box, writes what she wants: "The
+   rebase chapter is too heavy. Simplify it and add a Quiz."
 2. She and the agent go back and forth for forty minutes. The agent rewrites three lessons, adds a
    Quiz with six questions and reorders two lessons. **Nothing is saved to Firestore.** The
    preview on the right shows the course as a learner would see it, drawn from the copy on her
@@ -120,7 +121,9 @@ Four decisions shape it:
 
 Dependencies to add, all MIT-compatible: `electron` (MIT), `electron-builder` (MIT),
 `electron-updater` (MIT), `@modelcontextprotocol/sdk` (MIT), `diff` (BSD-3-Clause, word and line
-differences). Check each licence again when adding it (`.claude/rules/open-source.md`).
+differences), `mammoth` (BSD-2-Clause, Word to Markdown), `read-excel-file` (MIT, Excel sheets) and
+`unpdf` (MIT, PDF text; a bundled PDF.js, no worker), all bundled into the main process for
+`sources.read`. Check each licence again when adding it (`.claude/rules/open-source.md`).
 
 ### The bridge (`window.gurukulDesktop`, version 1)
 
@@ -132,14 +135,14 @@ builds only). The window cannot navigate anywhere else; other links open in the 
 |---|---|
 | `info()` | Bridge version, app version, platform. An old shell with a new site shows "Update the app" |
 | `agent.status()` | Is Claude Code installed, which version, is it new enough, is the Educator signed in |
-| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start |
+| `agent.start({ uid, sessionId, systemPrompt, skills, tools, resumeId, model?, effort? })` | Starts Claude Code for a session; answers the Claude session id, or why it cannot start. `model` is `opus`, `sonnet` or `haiku`, `effort` is `low`, `medium` or `high`; left out is Claude Code's default |
 | `agent.send(sessionId, message)` / `agent.stop(sessionId)` / `agent.close(sessionId)` | A message in; stop the current turn; end the session's process |
 | `agent.forget(agentSessionId)` | Deletes Claude Code's own copy of a chat, for the 30-day clean-up |
-| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id, errors (not installed, too old, not signed in, plan limit reached, crashed) |
+| `agent.onEvent(handler)` | Streamed text, activity in plain words, tool activity, turn end with the Claude session id (and `context`, the tokens the last request read against the model's window, when `claude` reported usage), errors (not installed, too old, not signed in, plan limit reached, crashed) |
 | `agent.onToolCall(handler)` / `agent.toolResult(sessionId, callId, result)` | A tool call from the agent; the web app runs it and answers with the result |
 | `agent.ask({ askId, prompt })` / `agent.cancelAsk(askId)` | One question to a separate one-shot Claude Code with no tools (`DSK-18`, the answer check); answers the reply's words, or why there are none |
 | `store.read / write / list / remove` | Session files under the app's data folder, per signed-in person |
-| `sources.choose / list / reveal / read` | The session's Sources folder; `read` takes one plain file name the listing gives |
+| `sources.ensure / list / reveal / read / add` | The session's Sources folder: `ensure` makes it on demand under `Documents/Gurukul Studio` and answers it with its files, nobody picks one; `read` takes one plain file name the listing gives; `add` takes the same choice as `ensure` and `{ name, bytes }` files, and copies them into the folder |
 | `auth.googleSignIn()` | Google sign-in in the system browser; returns an ID token |
 | `app.checkForUpdate()` / `app.onUpdateReady(handler)` / `app.installUpdate()` | Asks the updater; hears that a new shell is downloaded; restarts into it |
 
@@ -162,10 +165,22 @@ As built in `DSK-08` (`apps/desktop/CLAUDE.md` has the file map):
   allowed origin. A subscription returns a function that ends it; the page's handler gets plain
   data, never Electron's event object, and there is no way to listen on any other channel.
 - **The window names a session, never a path.** `sources.*` and `agent.start` take
-  `{ uid, sessionId }`: the shell remembers which folder the Educator picked for that session,
-  outside the session files the window can write, so a compromised page still reaches only the one
-  chosen folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
+  `{ uid, sessionId }`: the shell makes and remembers the session's folder, outside the session
+  files the window can write, so a compromised page still reaches only that one folder. An expected failure (`agent.start` when Claude Code is missing, Google sign-in
   cancelled) is a result, not a rejection.
+- **Bridge version 2** (`BRIDGE_VERSION`, `REQUIRED_BRIDGE_VERSION`): `sources.choose` (a folder
+  picker) became `sources.ensure`. The web app asks for 2, so an installed app that still reports 1
+  shows "Update the app" (the sidebar's update item and the session pages' card) instead of
+  calling a missing function; the app updates itself in the background, so the gap is short. No
+  fallback path to the old call is kept: it would be code to maintain for a shell that updates
+  itself.
+- **Bridge version 5**: `sources.readImage`, and `agent.toolResult` may carry `images` (so the agent
+  sees a picture). A version 4 shell has neither, so the web app asks for 5.
+- **Bridge version 4**: `sources.add` (files dropped on the chat). A version 3 shell has no such function, so the web app asks for 4.
+- **Bridge version 3**: `agent.start` takes an optional `model` and `effort` (the chat bar's
+  pickers). A version 2 shell refuses them (its arguments are strict), so the web app asks for 3 and
+  an older shell shows "Update the app" instead of failing at the first model change. The new
+  `context` field on `turn_end` needs no version: a site that does not read it ignores it.
 - **The web app takes the types only** (`import type`, enforced by ESLint), so no shell code reaches
   its bundle; `REQUIRED_BRIDGE_VERSION` in `apps/web/src/desktop/bridge.ts` decides "Update the
   app".
@@ -202,6 +217,7 @@ claude -p --input-format stream-json --output-format stream-json --verbose \
   --allowedTools             "mcp__gurukul__*" \
   --permission-mode          dontAsk \
   --system-prompt-snapshot   off \
+  [--model <opus|sonnet|haiku>] [--effort <low|medium|high>] \
   --session-id               <new UUID, first start>  |  --resume <same UUID, every later start>
 ```
 
@@ -243,7 +259,21 @@ put on a command line.
 - Stop sends a stream-json `interrupt` control request: the turn ends, the process stays. A plan
   limit or a missing sign-in arrives as an event and the chat says what to do in plain words
   ("Open a terminal, run `claude` and sign in, then try again").
-- No model picker in v1: Claude Code's own default is used.
+- **Model and effort come from the chat's bar** (`ChatBar`, stored per session as optional `model`
+  and `effort` in `session.json`, so older files read as they are). The window names a choice from
+  a list; `args.ts` checks it with zod (`z.enum`, never a string) and `launch.ts` builds
+  `--model opus|sonnet|haiku` and `--effort low|medium|high` itself, so no text from the page is
+  ever an argument. Left out, Claude Code's own default is used and no flag is passed. A change
+  takes effect by closing the agent and starting it again with `--resume`, between turns only (the
+  bar's pickers wait while a turn runs). `claude --help` on 2.1.330 lists `--effort` as low,
+  medium, high, xhigh, max; the bar offers the first three.
+- **Context used**: the shell keeps the input and cache tokens of the newest request (`usage` on
+  each assistant line: `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`)
+  and sends them with `turn_end` as `context: { used, window }`. The window is the largest
+  `contextWindow` in the result's `modelUsage`; when `claude` names none it is 200,000
+  (`DEFAULT_CONTEXT_WINDOW`: the window of all three aliases, a 1M model reports its own). The ring
+  hides until a turn reports usage and again after a model change, and is not kept across a page
+  reload.
 
 As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`):
 
@@ -252,6 +282,15 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
   and `claude auth status` for `loggedIn`, each with the allow-listed environment and a 15-second
   limit. A `claude` that will not run is "not installed"; one that prints no version is "too old".
   Nothing else `auth status` prints (it names the account) is kept.
+- **`PATH` when opened from the Dock.** A Mac or Linux app opened from the Dock, Finder or a
+  launcher gets the system's minimal `PATH`, so neither `~/.local/bin/claude` nor the `node` an
+  npm-installed `claude` needs would be found. At start-up `main.ts` runs the login shell
+  (`$SHELL`, else `/bin/zsh` on macOS, `/bin/sh`) with `-ilc`, no stdin and a 5-second limit,
+  reads `PATH` between markers (rc-file noise is ignored) and adds its folders after the current
+  ones for the agent bridge, so finding and starting `claude` both see them (`agent/shellPath.ts`);
+  the current folders stay first, so a launch from a terminal keeps the `claude` it had. If that
+  fails, the current `PATH` plus `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin` and `/usr/local/bin` is used and
+  `Shell PATH not read` is logged with a reason, never the `PATH`. Windows is left as is.
 - **`agent.start()`** checks the same, mints the token, starts the endpoint, writes `prompt.md`,
   the `skills/` plugin (replaced whole each time) and `mcp.json`, starts `claude`, then sends the
   `initialize` control request: `tokenSource: "none"` ends the process and answers
@@ -575,45 +614,76 @@ copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and th
 `prompt.md`, `skills/`, `mcp.json` and empty `workdir/`, which only the main process writes. Source material lives where the Educator can see it:
 `Documents/Gurukul Studio/{course slug}/sources/`.
 
-As built in `DSK-20` (the shell's half and the start dialog's offer; `apps/desktop/src/sources.ts`,
-`apps/web/src/studio/session/sources.ts`, `SourcesOffer.tsx`):
+As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/sources.ts`,
+`apps/web/src/studio/session/sources.ts`, `SourcesPanel.tsx`):
 
-- **The shell keeps the choice**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
-  path), beside the session folders and not in one, so no `store.*` call can write it. Removing a
-  whole session (`store.remove` without `path`) forgets it; a choice whose session folder does not
-  exist is forgotten when the app starts, which covers a start dialog closed after choosing.
-- **The start dialog makes the session's id** before the session exists (`StartRequest.id`), because
-  `sources.choose` names a session; `start` then uses that id.
-- **`sources.choose`** opens the system folder dialog in `Documents/Gurukul Studio/{suggestedName}/sources`
-  (created on demand; the course slug for an edit, nothing for a new course, which starts in
-  `Documents/Gurukul Studio`), or in the folder already chosen. A folder inside the app's own data
-  is refused (it holds every session's answer keys). The chosen folder is `claude`'s working
-  directory at the next `agent.start`.
+- **Every session gets a fixed Sources folder, with no folder picker.** `sources.ensure` makes it
+  on demand: `Documents/Gurukul Studio/{course slug}/sources` for an edit (the slug is the
+  `suggestedName` the window passes) and `Documents/Gurukul Studio/new-course-{first 8 characters
+  of the session id}/sources` for a new course, which has no slug yet. It stays that folder after
+  the course is created. Two sessions of the same course over time share one folder, which is the
+  point: the notes stay where the Educator put them.
+- **The shell keeps the folder**, in `{userData}/sources/{uid}/{sessionId}.json` (the folder's real
+  path), beside the session folders and not in one, so no `store.*` call can write it. A session
+  from before folders were automatic keeps the folder it already had. Removing a whole session
+  (`store.remove` without `path`) forgets it; a choice whose session folder does not exist is
+  forgotten when the app starts (the app closed between the two removals).
+- **The session runtime calls `sources.ensure` before every `agent.start`** (`connect` in
+  `agent.ts`), because the folder is `claude`'s working directory. A failure is logged and the
+  agent starts in the shell's empty folder; the Sources tab shows the error with Try again. A
+  folder inside the app's own data is refused (it holds every session's answer keys), and a folder
+  the Educator deleted is made again.
 - **`sources.list`** gives plain files directly in the folder: no folders, no name starting with a
   dot, no symbolic link that ends outside the folder; at most `MAX_SOURCE_FILES` (1,000), the first
   by name. The display path writes the home folder as `~`.
 - **`sources.read`** reads only a name that listing gives, opened without following links where the
-  system allows (`O_NOFOLLOW`; not on Windows), of a text type (`SOURCE_TEXT_EXTENSIONS` in
-  `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
-  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB). A file it will not read rejects with
-  one of `SOURCE_REFUSALS`, a sentence `read_source` hands the agent ("save it as text or
-  Markdown"). It logs the size read, never a path, a file name or the text.
+  system allows (`O_NOFOLLOW`; not on Windows). Three kinds: a text type (`SOURCE_TEXT_EXTENSIONS`
+  in `sources.ts`: plain text and Markdown, other markup, CSV, JSON, YAML, subtitles, source code),
+  valid UTF-8 with no NUL, at most `MAX_SOURCE_BYTES` (1 MB); a Word (`.docx`), Excel (`.xlsx`) or
+  PDF file, at most `MAX_SOURCE_DOCUMENT_BYTES` (25 MB), turned into text in the main process by
+  `sourceText.ts` (`mammoth` to Markdown; `read-excel-file` to a `## Sheet: name` heading and CSV
+  rows per sheet, at most 2,000 rows and 50 columns each; `unpdf`'s text, no OCR) and cut at
+  `MAX_SOURCE_TEXT_CHARS` (200,000) with a note saying the rest was left out. Old `.doc` and `.xls`
+  are not read. A file it will not read rejects with one of `SOURCE_REFUSALS`, a sentence
+  `read_source` hands the agent: `notText` (names the types that can be read), `tooLarge`,
+  `unreadable` (a damaged, password-protected or text-less Word, Excel or PDF file, or a Word or
+  Excel file whose ZIP directory declares more than 200 MB uncompressed or 10,000 entries, checked
+  before the library runs; a PDF is read page by page, at most 500 pages, stopping at the
+  character cap; a worker with resource limits would also catch files that lie about their size),
+  `tooLargeDocument`, `imageTooLarge`. It logs the size and kind read, never a path, a file name or
+  the text.
+- **`sources.readImage`** (bridge version 5) gives a listed `.png`, `.jpg`, `.jpeg`, `.gif` or
+  `.webp` as `{ data (base64), mimeType }`, at most `MAX_SOURCE_IMAGE_BYTES` (3 MB, so under the
+  model's 5 MB limit as base64); the same listing rule and `O_NOFOLLOW`. `read_source` calls it for
+  those names and returns the picture in `AgentToolResult.images` (at most one); the main process
+  sends it to Claude Code as an MCP `image` content block after the text block
+  (`toolCallResult` in `agent/endpoint.ts`), so the model sees it.
 - **`sources.reveal`** opens the folder in Finder or Explorer. When the system cannot (the folder
   was moved or deleted), it rejects with a fixed sentence, never the system's words with the path
   in them, and the window says the folder could not be opened.
 - **In the window,** `bridgeSources(desktop.sources, { uid, sessionId })` is `ctx.sources`: `list`
-  answers null until a folder is chosen, and `list_sources` and `read_source` then say none is set.
-  The session runtime (`createAgentSession`, `DSK-13`) uses it by default and passes it to
-  `defaultToolContext`.
-- **From the workspace** (`DSK-20`'s second half, `SourcesPanel.tsx`), a Sources tab beside Preview and
-  Outline shows the session's folder: read with `sources.list` each time the tab opens (files added in
-  Finder meanwhile appear), its display path and plain files with their sizes (25 to a page), Choose a
-  Sources folder or Change folder, Show in Finder or Explorer, and the notice that what the agent reads
-  is sent to Anthropic under the Educator's own Claude account. A saved or discarded session has no
-  Sources tab. `list_sources` and `read_source` ask the shell on every call, so a folder chosen or
-  changed mid-session is read from the next message on; `claude`'s working folder changes at the next
-  `agent.start`, which is safe because `--resume` works from a different working folder (Spike
-  findings).
+  answers null before `ensure` has made a folder, and `list_sources` and `read_source` then say the
+  session has no folder yet. The session runtime (`createAgentSession`, `DSK-13`) uses it by default
+  and passes it to `defaultToolContext`.
+- **From the workspace** (`SourcesPanel.tsx`), a Sources tab beside Preview and Outline shows the
+  session's folder: `sources.ensure` each time the tab opens (files added in Finder meanwhile
+  appear), its display path and plain files with their sizes (25 to a page), Show in Finder or
+  Explorer, and the notice that what the agent reads is sent to Anthropic under the Educator's own
+  Claude account. There is no Choose or Change folder. A saved or discarded session has no Sources
+  tab. `list_sources` and `read_source` ask the shell on every call, so files added mid-session are
+  read from the next message on.
+- **`sources.add`** (the chat's drop, paste and "+" button): the window reads each file with
+  `File.arrayBuffer()` and sends `{ name, bytes }`; it never learns or sends a path. The shell takes
+  the same choice as `ensure` (so the folder exists), accepts any file type (Word, Excel, PDF,
+  pictures, text; `sources.read` and `sources.readImage` read what they can), at most `MAX_SOURCE_ADD_FILES` (10) per call and
+  `MAX_SOURCE_ADD_BYTES` (25 MB) each, a plain name that does not start with a dot. It writes
+  without following links and never overwrites: a name already there becomes `name (2).ext`,
+  `name (3).ext`. It answers the names written and the folder listing, and logs only counts.
+- **In the chat,** dropping files anywhere on the panel (an overlay says "Drop files to add them to
+  this session"), pasting files into the box, or the "+" button (Add files, a file picker) adds them. Each
+  becomes a removable chip above the box (a `file` attached part). Sending names them to the agent
+  ("Files added to the Sources folder: a.docx, b.xlsx. Read them with read_source."), the sent
+  message shows the chips, and the Sources tab reloads.
 
 These files hold answer keys. They sit on the laptop of an Educator who may already read those
 keys; they are never uploaded, never logged, and removed 30 days after a session is saved or
@@ -644,19 +714,26 @@ newer session of the same course.
 ### Starting a session
 
 From the Studio course list in the desktop app: **New course with AI** and, on each course the
-person may edit, **Edit with AI**. The start dialog asks for the goal in one free-text box and
-offers the Sources folder. For a new course it asks nothing else; title and slug are settled at
-the first save, when the content exists.
+person may edit, **Edit with AI**. **There is no start dialog**: the click goes straight into the
+session workspace, and the Educator says what they want in the session's own message box. Title and
+slug of a new course are settled at the first save, when the content exists.
 
 As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.tsx`):
 
-- **The goal is one box of at most 300 characters** (what `goalSchema` holds). It becomes the
-  session's first goal, and its first sentence, cut on a word at 80 characters, the title until
-  the agent sets one (`set_summary`).
-- **Before any read,** the dialog looks at the local files: an open session on that course turns
-  the dialog into "You already have a session on this course" with **Open the session**, and no
-  draft is read. "New course with AI" lists the new-course sessions still open, to pick one up.
-  `start` checks again, so a session opened meanwhile is offered, not doubled.
+- **A session starts without a goal.** `goals` begins empty (the schema already allows it, so
+  `SESSION_SCHEMA_VERSION` did not change and older session files read as before). The title is
+  the course's own title for an edit and "Untitled course" for a new course, until the agent sets
+  a title and goals from the first message (`set_summary`, `prompt/system.md`). A session an
+  earlier version started still has its goal, and the message box opens with it.
+- **Edit with AI opens the session already open on that course** when there is one: `start`
+  answers `already_open` from the local files, with no draft read, and the launcher navigates to
+  it. Otherwise it reads the draft once and opens the new session; a course with no draft shows a
+  toast instead.
+- **New course with AI reuses an open new-course session that has no turns yet** instead of piling
+  up empty ones; if every open new-course session already has work in it, a fresh one starts. A
+  start that fails shows a toast and stays on the course list; the next click starts again.
+- **`session_started` fires only when a session is actually created**, not when an open one is
+  reused or opened.
 - **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person
   as its Educator, level Foundation and the forest cover: `courseId` stays null, so the schema
   ignores the id until the first save gives the real slug.
@@ -684,10 +761,10 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
   app, `/studio/sessions/:sessionId` uses the focused layout and shows the session workspace
   (`DSK-13`). Global search offers sessions as records ("Session"),
   only inside the app.
-- The start dialog already says that the course and the goal go to Anthropic under the Educator's
-  own Claude account, and to leave out client names and internal documents; the Sources offer
-  (`DSK-20`, "Choose a Sources folder") sits between the goal and that notice and says that what
-  the agent reads is sent to Anthropic too.
+- **No disclosure under the message box.** The chat carries no line about Claude Code and
+  Anthropic (the maintainer asked for it gone); the Sources tab says that what the agent reads is
+  sent to Anthropic under the Educator's own Claude account, and the privacy policy covers it. The only dialog left in the start flow is
+  the one that says the app is too old, did not answer or is still answering.
 
 ## The session workspace
 
@@ -707,7 +784,7 @@ only inside the desktop app).
 │ Agent: I rewrote lessons 3.1  │  └────────────────────────────────────────────────────┘  │
 │ to 3.3 and added a Quiz with  │  ┌────────────────────────────────────────────────────┐  │
 │ six questions.                │  │ Code                                               │  │
-│  ▸ Turn 4 · 4 changes  [Undo] │  │ git fetch origin                                   │  │
+│  Worked 2m 39s, 4 changes [↶] │  │ git fetch origin                                   │  │
 │                               │  └────────────────────────────────────────────────────┘  │
 │ ┌───────────────────────────┐ │                                                          │
 │ │ Ask for a change…         │ │                                                          │
@@ -718,9 +795,19 @@ only inside the desktop app).
 - **Chat.** Streams the agent's reply. While it works, a line says what it is doing in plain words
   ("Rewriting lesson 3.2", "Checking the Quiz"), never tool names. Stop ends the turn; whatever
   the turn had already changed stays and becomes its checkpoint.
-- **Turn chips.** Each finished turn shows "Turn 4 · 4 changes". Clicking it opens Review
-  filtered to that turn. **Undo** on the newest turn restores the checkpoint before it; older
-  turns are undone newest first.
+- **Each turn reads like the Claude desktop app's.** The Educator's message is a right-aligned
+  rounded bubble; the agent's reply is unboxed prose. Above the reply a folded **How it got there**
+  (a button with `aria-expanded`) holds the turn's steps in plain words (its activity entries).
+  Under it, one row per course part the turn changed ("Edited Why rebase", a kind icon, when),
+  six shown and "+N more" for the rest; then a muted footer, "Worked for 2m 39s, 19 changes" (the
+  count links to Review filtered to that turn; a Copy icon button copies the reply), and **Go back
+  to before this** on the newest turn, which restores the checkpoint before it behind its
+  confirmation; older turns are undone newest first. The newest turn ends with "Checked: no new
+  problems" or "Checked: problems to fix before saving", from the same checks as the header. The
+  message box is one rounded box: the attached chips, the text, a round **+** (attach from the
+  Preview or the Outline: it says where to press, since attaching happens beside the block or row)
+  and a round Send, which is Stop while the agent works. Below it a bottom bar for the model,
+  effort, context use, Sources folder and skills is planned (the next stage).
 - **Preview** is the real learner player drawing the working copy (the player that
   `PreviewPage` uses), with a marker on every changed block. **Outline** is the chapter tree with
   Added, Changed, Removed and Moved badges.
@@ -825,10 +912,18 @@ As built in `DSK-13` (second half, the screens; `SessionPage.tsx`, `ChatPanel.ts
   spends the Educator's plan, so the app never does it unasked. (The plan was silent.)
 - **The chat** shows the Educator's messages (as typed), the agent's (as markdown, through the
   player's renderer) and the app's notices; activity entries stay in `transcript.jsonl` but the log
-  shows only the live line, which says "Thinking" until the first activity of a turn. After each
-  finished turn a line "Turn 4 · 4 changes"; a turn that could not be written is listed too ("· not
-  saved", from the runtime view's `unsaved`) because it is the one Undo takes back first. Undo is
-  on the newest line only, behind a confirmation. Enter sends, Shift and Enter is a new line; the
+  shows the live line, which says "Thinking" until the first activity of a turn, and folds the
+  entries of a finished turn into its **How it got there** (`chatLines`: the steps ride on the
+  turn's first reply, else on its line). After each finished turn: what it changed, the footer
+  "Worked for 2m 39s, 4 changes" (the time is the Educator's message to the turn's end, read from
+  the transcript, so none is stored; unknown when the chat was cut, and not shown for a turn by
+  hand), the check. A turn that could not be written is listed too ("· not saved", from the runtime
+  view's `unsaved`) because it is the one Undo takes back first. **Go back to before this** is on
+  the newest turn only, behind a confirmation. What a turn changed is `Turn.parts` (`turnChanged`
+  in `workspace.ts`, written with `changes` at every turn): one `{ kind, title, status }` per
+  Review row, the first 100, titles as they were then, so an Undone or renamed part still reads
+  true. It is optional, so turns written before it read as before (`SESSION_SCHEMA_VERSION` did
+  not change) and show their count only. Enter sends, Shift and Enter is a new line; the
   next message can be typed during a turn but not sent. When the agent cannot run, a card with
   the problem's sentence and **Check again** (or **Start it again** after a crash) takes the place
   of the message box; a shell too old for a call adds **Update the app** (the sidebar item's check,
@@ -1430,7 +1525,8 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   answer, and keeps the right answers marked when `correct` is left out.
 - `read_source` reads only a plain file name that the Sources folder lists: a name with `/` or
   `\`, `.` or `..`, or one `list` does not give is refused before the bridge is asked. The bridge's
-  read takes that name and never resolves it outside the folder.
+  read takes that name and never resolves it outside the folder. For a picture name it answers with
+  the picture itself (a short text and one image) instead of text.
 
 ## Writing quality: the humanizer
 
@@ -1570,7 +1666,7 @@ As built in `DSK-17` (`apps/web/src/studio/session/prompt/`):
 ## Privacy and security
 
 - Course text, source files and answer keys in a session are sent to Anthropic under the
-  Educator's own account. The start dialog and the Sources folder say so, and say not to add
+  Educator's own account. The session workspace (under the message box) and the Sources tab say so, and say not to add
   client names or internal documents (`.claude/rules/open-source.md` covers the repository; this
   covers what Educators send).
 - No learner data can reach the agent: there is no tool for it.

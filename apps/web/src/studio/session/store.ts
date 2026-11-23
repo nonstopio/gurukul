@@ -105,13 +105,12 @@ export const ANSWER_CHECK_FILE = 'answer-check.json';
 export const ANSWER_RESULTS_KEPT = 500;
 
 const DAY_MS = 86_400_000;
-/** A goal is one box of free text, held to what `goalSchema` stores. */
-export const GOAL_MAX_LENGTH = 300;
-/** A title made from the goal is cut here, on a word, so it fits a top bar. */
-const TITLE_LENGTH = 80;
 /** The working course of a new-course session, until the first save gives it its slug. */
 export const NEW_COURSE_ID = 'new-course';
-/** A new-course session's course title until the agent or the Educator gives it one. */
+/**
+ * A new-course session's course title until the agent or the Educator gives it one, and the title
+ * of the session itself until the agent sets one (`set_summary`).
+ */
 export const NEW_COURSE_TITLE = 'Untitled course';
 
 /** The `rev` of the draft `createCourse` writes for a new course (`firebase/functions/src/stores.ts`). */
@@ -316,14 +315,12 @@ function isNewer(data: unknown): boolean {
 }
 
 /**
- * What a session is started from: a goal, and for an edit session the course. `id` is the new
- * session's id when the start dialog already made one, because the Sources folder is chosen for it
- * (`sources.choose` names a session) before the session exists; otherwise one is made here.
+ * What a session is started from: for an edit session the course, for a new one the Educator's name.
+ * No goal: the Educator says what they want in the session's own message box, and the agent records
+ * the goals.
  */
-export type StartRequest = (
-  | { kind: 'new'; goal: string; educatorName?: string | undefined }
-  | { kind: 'edit'; courseId: string; goal: string }
-) & { id?: string | undefined };
+export type StartRequest =
+  { kind: 'new'; educatorName?: string | undefined } | { kind: 'edit'; courseId: string };
 
 export type StartResult =
   /** Created and written; open it. */
@@ -427,16 +424,6 @@ export interface SessionStoreOptions {
   now?: () => Date;
   /** A new session id: a safe folder name. */
   newId?: () => string;
-}
-
-/** A title from the goal: its first sentence, cut on a word to fit a top bar. */
-export function titleFromGoal(goal: string): string {
-  const flat = goal.replace(/\s+/g, ' ').trim();
-  const sentence = /^(.+?[.!?])(?:\s|$)/.exec(flat)?.[1] ?? flat;
-  if (sentence.length <= TITLE_LENGTH) return sentence;
-  const cut = sentence.slice(0, TITLE_LENGTH - 1);
-  const space = cut.lastIndexOf(' ');
-  return `${(space > TITLE_LENGTH / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
 /** What a closed session leaves behind once its files are removed. */
@@ -791,9 +778,8 @@ export function createSessionStore({
         const open = await openFor(request.courseId);
         if (open) return { status: 'already_open', session: open };
       }
-      const id = request.id ?? newId();
+      const id = newId();
       const createdAt = now().toISOString();
-      const goal = request.goal.trim().slice(0, GOAL_MAX_LENGTH);
       let base: AuthoringSession['base'] = null;
       let work: WorkingCopy;
       if (request.kind === 'edit') {
@@ -826,8 +812,10 @@ export function createSessionStore({
         uid,
         kind: request.kind,
         courseId: request.kind === 'edit' ? request.courseId : null,
-        title: titleFromGoal(goal),
-        goals: [{ text: goal, done: false }],
+        // The course's own title for an edit (a title is at most 160 characters either way), a
+        // placeholder for a new course, until the agent sets one.
+        title: request.kind === 'edit' ? work.course.title : NEW_COURSE_TITLE,
+        goals: [],
         summary: '',
         status: 'open',
         base,

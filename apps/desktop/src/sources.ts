@@ -5,35 +5,43 @@ import path from 'node:path';
 import { z } from 'zod';
 import {
   MAX_SOURCE_BYTES,
+  MAX_SOURCE_DOCUMENT_BYTES,
   MAX_SOURCE_FILES,
+  MAX_SOURCE_IMAGE_BYTES,
   SOURCE_REFUSALS,
   isPlainFileName,
   type SessionRef,
   type SourceFile,
+  type SourceImage,
+  type SourceUpload,
+  type SourcesAdded,
   type SourceRefusals,
   type SourcesChoice,
   type SourcesFolder,
 } from './bridge';
 import type { Logger } from './log';
+import { boundText, convertSource, convertedKind, imageType } from './sourceText';
 import { sessionFolder } from './store';
 
 /**
- * `sources.*` in the main process (`DSK-20`): the Sources folder an Educator picks for a session,
- * the files in it and the text of one of them. The window names a session, never a path: the
- * chosen folder is remembered here, in `{userData}/sources/{uid}/{sessionId}.json`, outside the
- * session files the window can write, so a page cannot point the agent at another folder. Only
- * the Educator picks one, in the system's folder dialog.
+ * `sources.*` in the main process (`DSK-20`): the Sources folder of a session, the files in it and
+ * the text of one of them. The window names a session, never a path: the shell makes the folder
+ * itself, at a fixed place under Documents (`Documents/Gurukul Studio/{name}/sources`), and
+ * remembers it here, in `{userData}/sources/{uid}/{sessionId}.json`, outside the session files the
+ * window can write, so a page cannot point the agent at another folder. Nobody picks a folder.
  *
  * What the agent may read is narrow on purpose: plain files directly in the folder (no folders,
  * no names starting with a dot, no symbolic link that leads out of it), of a text type
- * (`SOURCE_TEXT_EXTENSIONS`), valid UTF-8, at most `MAX_SOURCE_BYTES`. A name is read only when the
+ * (`SOURCE_TEXT_EXTENSIONS`, valid UTF-8, at most `MAX_SOURCE_BYTES`), a Word, Excel or PDF file
+ * (turned into text by `sourceText.ts`, at most `MAX_SOURCE_DOCUMENT_BYTES`) or a picture
+ * (`readImage`, at most `MAX_SOURCE_IMAGE_BYTES`). A name is read only when the
  * folder's own listing gives it. Nothing here logs a path, a file name or a byte of content.
  */
 
 /**
  * The file types `sources.read` reads, lower case: plain text, Markdown and other markup, data,
  * subtitles and source code. Anything else (PDF, Word, pictures) is refused with
- * `SOURCE_REFUSALS.notText`, which asks for a text copy.
+ * `SOURCE_REFUSALS.notText`, which names the types that can be read.
  */
 export const SOURCE_TEXT_EXTENSIONS: readonly string[] = [
   // Text and markup
@@ -82,7 +90,7 @@ export const SOURCE_TEXT_EXTENSIONS: readonly string[] = [
   '.tsx',
 ];
 
-/** The folder the dialog starts in when no name is suggested: `Documents/Gurukul Studio`. */
+/** The folder every session's Sources folder lives under: `Documents/Gurukul Studio`. */
 export const STUDIO_FOLDER_NAME = 'Gurukul Studio';
 
 /** The parts of Node's `fs/promises` the Sources folder uses; the real one in the app. */
@@ -91,47 +99,47 @@ export type SourcesFs = Pick<
   'mkdir' | 'readdir' | 'realpath' | 'stat' | 'open' | 'readFile' | 'writeFile' | 'rename' | 'rm'
 >;
 
-/** Electron's `dialog.showOpenDialog`, as far as choosing a folder needs it. */
-export interface FolderDialogLike {
-  showOpenDialog(options: {
-    title: string;
-    buttonLabel: string;
-    defaultPath: string;
-    properties: ('openDirectory' | 'createDirectory')[];
-  }): Promise<{ canceled: boolean; filePaths: string[] }>;
-}
-
 /** Electron's `shell.openPath`: opens a folder in Finder or Explorer; answers an error or `''`. */
 export interface FolderOpenerLike {
   openPath(path: string): Promise<string>;
 }
 
 export interface SourcesOptions {
-  /** `{userData}`: the choices go under `sources/`, and no folder inside it may be chosen. */
+  /** `{userData}`: the folder choices go under `sources/`, and no folder inside it is used. */
   dataDir: string;
   /** `{userData}/sessions`: a choice whose session folder is gone is pruned at start. */
   sessionsRoot: string;
-  /** The Documents folder, where the dialog starts. */
+  /** The Documents folder, where the Sources folders are made. */
   documentsDir: string;
   /** Shown as `~` in the display path. */
   homeDir: string;
-  dialog: FolderDialogLike;
   opener: FolderOpenerLike;
   fs?: SourcesFs;
   log: Logger;
 }
 
 export interface SourcesManager {
-  choose(choice: SourcesChoice): Promise<SourcesFolder | null>;
+  /**
+   * The session's Sources folder, made on demand and remembered: the one it already has, else
+   * `Documents/Gurukul Studio/{suggestedName}/sources` (`new-course-{id}` without a name).
+   */
+  ensure(choice: SourcesChoice): Promise<SourcesFolder>;
   list(ref: SessionRef): Promise<SourcesFolder | null>;
   reveal(ref: SessionRef): Promise<void>;
   read(ref: SessionRef, name: string): Promise<string | null>;
-  /** The chosen folder's real path, for `claude`'s working directory; null when none. */
+  /** The listed picture's bytes as base64 with its media type; null when it is not listed. */
+  readImage(ref: SessionRef, name: string): Promise<SourceImage | null>;
+  /**
+   * Writes the files into the session's folder (`ensure` first), each without following a link and
+   * without overwriting: a name already there becomes `name (2).ext`. Answers the names written.
+   */
+  add(choice: SourcesChoice, files: SourceUpload[]): Promise<SourcesAdded>;
+  /** The session's folder's real path, for `claude`'s working directory; null when none. */
   folderOf(ref: SessionRef): Promise<string | null>;
   /** Forgets the session's choice: its whole session was removed. The folder itself stays. */
   forget(ref: SessionRef): Promise<void>;
   /**
-   * Forgets every choice whose session folder is gone (a start dialog closed after choosing).
+   * Forgets every choice whose session folder is gone (the app closed between the two removals).
    * Never throws; answers how many were forgotten.
    */
   prune(): Promise<number>;
@@ -207,9 +215,12 @@ async function quietly<T>(promise: Promise<T>): Promise<T | null> {
 // Windows has no `O_NOFOLLOW`: `| undefined` is `| 0` there. Elsewhere a file swapped for a link
 // between the listing and the read is refused by the system.
 const READ_FLAGS = fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
+// A new file only: `O_EXCL` fails on anything already there, a link included.
+const ADD_FLAGS =
+  fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW;
 
 export function createSources(options: SourcesOptions): SourcesManager {
-  const { dialog, opener, log, homeDir } = options;
+  const { opener, log, homeDir } = options;
   const fs = options.fs ?? fsPromises;
   const choicesRoot = path.join(options.dataDir, 'sources');
   // The names are checked (`isSafeSegment`) before they make a path.
@@ -259,7 +270,7 @@ export function createSources(options: SourcesOptions): SourcesManager {
     return files.slice(0, MAX_SOURCE_FILES);
   };
 
-  /** The chosen folder as the window sees it; its files are empty when it has gone. */
+  /** The session's folder as the window sees it; its files are empty when it has gone. */
   const describe = async (folder: string): Promise<SourcesFolder> => {
     const root = await quietly(fs.realpath(folder));
     const files = root === null ? [] : await entries(root);
@@ -269,47 +280,105 @@ export function createSources(options: SourcesOptions): SourcesManager {
     };
   };
 
-  /** Where the dialog starts: the suggested folder, created if missing, else Documents. */
-  const startIn = async (suggestedName: string | undefined): Promise<string> => {
-    const studio = path.join(options.documentsDir, STUDIO_FOLDER_NAME);
-    const start =
-      suggestedName === undefined ? studio : path.join(studio, suggestedName, 'sources');
-    try {
-      await fs.mkdir(start, { recursive: true });
-      return start;
-    } catch (error) {
-      log.error('Sources folder not created', error);
-      return options.documentsDir;
+  const ensure = async (choice: SourcesChoice): Promise<SourcesFolder> => {
+    const ref = { uid: choice.uid, sessionId: choice.sessionId };
+    // `folderOf` checks the names (`choiceFile`) before anything is made.
+    const current = await folderOf(ref);
+    const wanted =
+      current ??
+      path.join(
+        options.documentsDir,
+        STUDIO_FOLDER_NAME,
+        choice.suggestedName ?? `new-course-${ref.sessionId.slice(0, 8)}`,
+        'sources',
+      );
+    // Also makes a folder the Educator deleted since: "created on demand".
+    await fs.mkdir(wanted, { recursive: true });
+    const folder = await fs.realpath(wanted);
+    // The app's own data holds every session's answer keys: never the agent's to read.
+    if (isInside(await fs.realpath(options.dataDir), folder)) {
+      log.warn('Sources folder refused', { reason: 'app_data' });
+      throw new SourcesError(
+        'app_data',
+        'The Sources folder cannot be inside Gurukul Studio’s own data.',
+      );
+    }
+    if (folder !== current) await remember(ref, folder);
+    const listed = await describe(folder);
+    if (current === null) {
+      log.info('Sources folder made', { sessionId: ref.sessionId, count: listed.files.length });
+    }
+    return listed;
+  };
+
+  /** Writes `bytes` as `name`, or `name (2)`, `name (3)`… before the extension when it is taken. */
+  const writeNew = async (root: string, name: string, bytes: Uint8Array): Promise<string> => {
+    const ext = path.extname(name);
+    const stem = name.slice(0, name.length - ext.length);
+    for (let n = 1; ; n += 1) {
+      const candidate = n === 1 ? name : `${stem} (${n})${ext}`;
+      const target = path.join(root, candidate);
+      let handle;
+      try {
+        handle = await fs.open(target, ADD_FLAGS, 0o644);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') continue;
+        throw error;
+      }
+      try {
+        await handle.writeFile(bytes);
+      } catch (error) {
+        await handle.close();
+        await fs.rm(target, { force: true });
+        throw error;
+      }
+      await handle.close();
+      return candidate;
     }
   };
 
+  /** The listed file called `name` in the session's folder, or null: only the listing's own names. */
+  const listed = async (ref: SessionRef, name: string): Promise<Entry | null> => {
+    const folder = await folderOf(ref);
+    if (folder === null) return null;
+    const root = await quietly(fs.realpath(folder));
+    if (root === null) return null;
+    // Only a name the folder's own listing gives: never a path, a hidden file or a link out.
+    return (await entries(root)).find((f) => f.name === name) ?? null;
+  };
+
+  /** The file's bytes, or `tooLarge` when it is over `limit` (also if it grew since it was listed). */
+  const readBytes = async (
+    entry: Entry,
+    limit: number,
+    tooLarge: SourcesError,
+  ): Promise<Buffer> => {
+    const handle = await fs.open(entry.real, READ_FLAGS);
+    let bytes: Buffer;
+    try {
+      if ((await handle.stat()).size > limit) throw tooLarge;
+      bytes = await handle.readFile();
+    } finally {
+      await handle.close();
+    }
+    if (bytes.length > limit) throw tooLarge;
+    return bytes;
+  };
+
   return {
-    async choose(choice) {
-      const ref = { uid: choice.uid, sessionId: choice.sessionId };
-      // `folderOf` checks the names (`choiceFile`) before any dialog opens.
-      const current = await folderOf(ref);
-      const defaultPath =
-        current !== null && (await quietly(fs.stat(current)))?.isDirectory() === true
-          ? current
-          : await startIn(choice.suggestedName);
-      const picked = await dialog.showOpenDialog({
-        title: 'Choose a Sources folder',
-        buttonLabel: 'Choose',
-        defaultPath,
-        properties: ['openDirectory', 'createDirectory'],
+    ensure,
+
+    async add(choice, files) {
+      await ensure(choice);
+      const root = await fs.realpath((await folderOf(choice)) as string);
+      const added: string[] = [];
+      for (const file of files) added.push(await writeNew(root, file.name, file.bytes));
+      log.info('Sources added', {
+        sessionId: choice.sessionId,
+        count: added.length,
+        bytes: files.reduce((sum, f) => sum + f.bytes.byteLength, 0),
       });
-      const first = picked.filePaths[0];
-      if (picked.canceled || first === undefined) return null;
-      const folder = await fs.realpath(first);
-      // The app's own data holds every session's answer keys: never the agent's to read.
-      if (isInside(await fs.realpath(options.dataDir), folder)) {
-        log.warn('Sources folder refused', { reason: 'app_data' });
-        throw new SourcesError('app_data', 'Choose a folder outside Gurukul Studio’s own data.');
-      }
-      await remember(ref, folder);
-      const listed = await describe(folder);
-      log.info('Sources folder chosen', { sessionId: ref.sessionId, count: listed.files.length });
-      return listed;
+      return { added, folder: await describe(root) };
     },
 
     async list(ref) {
@@ -331,28 +400,39 @@ export function createSources(options: SourcesOptions): SourcesManager {
     },
 
     async read(ref, name) {
-      const folder = await folderOf(ref);
-      if (folder === null) return null;
-      const root = await quietly(fs.realpath(folder));
-      if (root === null) return null;
-      // Only a name the folder's own listing gives: never a path, a hidden file or a link out.
-      const entry = (await entries(root)).find((f) => f.name === name);
-      if (entry === undefined) return null;
-      if (!isTextSourceName(name)) throw refused('notText');
-      const handle = await fs.open(entry.real, READ_FLAGS);
-      let bytes: Buffer;
-      try {
-        if ((await handle.stat()).size > MAX_SOURCE_BYTES) throw refused('tooLarge');
-        bytes = await handle.readFile();
-      } finally {
-        await handle.close();
+      const entry = await listed(ref, name);
+      if (entry === null) return null;
+      const kind = convertedKind(name);
+      if (kind === null && !isTextSourceName(name)) throw refused('notText');
+      const limit = kind === null ? MAX_SOURCE_BYTES : MAX_SOURCE_DOCUMENT_BYTES;
+      const bytes = await readBytes(
+        entry,
+        limit,
+        refused(kind === null ? 'tooLarge' : 'tooLargeDocument'),
+      );
+      let text: string | null;
+      if (kind === null) text = decodeText(bytes);
+      else {
+        text = await convertSource(kind, bytes).then(boundText, () => null);
+        if (text === null) throw refused('unreadable');
       }
-      // It may have grown since it was measured.
-      if (bytes.length > MAX_SOURCE_BYTES) throw refused('tooLarge');
-      const text = decodeText(bytes);
       if (text === null) throw refused('notText');
-      log.info('Source read', { sessionId: ref.sessionId, bytes: bytes.length });
+      log.info('Source read', {
+        sessionId: ref.sessionId,
+        bytes: bytes.length,
+        kind: kind ?? 'text',
+      });
       return text;
+    },
+
+    async readImage(ref, name) {
+      const entry = await listed(ref, name);
+      if (entry === null) return null;
+      const mimeType = imageType(name);
+      if (mimeType === null) throw refused('notText');
+      const bytes = await readBytes(entry, MAX_SOURCE_IMAGE_BYTES, refused('imageTooLarge'));
+      log.info('Source read', { sessionId: ref.sessionId, bytes: bytes.length, kind: 'image' });
+      return { data: bytes.toString('base64'), mimeType };
     },
 
     // Used unbound (`sourcesFolder: sources.folderOf`): no `this` anywhere here.

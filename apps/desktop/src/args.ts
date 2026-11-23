@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  AGENT_EFFORTS,
+  AGENT_MODELS,
   MAX_AGENT_TEXT_LENGTH,
   MAX_ASK_PROMPT_LENGTH,
   MAX_PATH_SEGMENTS,
@@ -9,6 +11,11 @@ import {
   MAX_SKILLS,
   MAX_TOOL_RESULT_LENGTH,
   MAX_TOOLS,
+  MAX_SOURCE_ADD_BYTES,
+  MAX_SOURCE_ADD_FILES,
+  MAX_SOURCE_IMAGE_BYTES,
+  MAX_TOOL_RESULT_IMAGES,
+  SOURCE_IMAGE_MIME_TYPES,
   isPlainFileName,
   isSafePath,
   isSafeSegment,
@@ -76,6 +83,9 @@ export const agentStartRequest = z
       )
       .max(MAX_TOOLS),
     resumeId: agentSessionId.nullable(),
+    /** A name from the lists, never a flag: `launch.ts` builds `--model` and `--effort`. */
+    model: z.enum(AGENT_MODELS).optional(),
+    effort: z.enum(AGENT_EFFORTS).optional(),
   })
   .strict();
 
@@ -84,8 +94,18 @@ export const callId = z.string().min(1).max(MAX_SEGMENT_LENGTH);
 
 const resultText = z.string().max(MAX_TOOL_RESULT_LENGTH);
 
+/** A picture in a tool result: base64 of at most `MAX_SOURCE_IMAGE_BYTES`, a known media type. */
+const toolImage = z
+  .object({
+    data: z.string().max(Math.ceil((MAX_SOURCE_IMAGE_BYTES * 4) / 3) + 4),
+    mimeType: z.enum(SOURCE_IMAGE_MIME_TYPES),
+  })
+  .strict();
+
 export const toolResult = z.union([
-  z.object({ text: resultText }).strict(),
+  z
+    .object({ text: resultText, images: z.array(toolImage).max(MAX_TOOL_RESULT_IMAGES).optional() })
+    .strict(),
   z.object({ error: resultText }).strict(),
 ]);
 
@@ -101,3 +121,14 @@ export const sourcesChoice = z
   .strict();
 
 export const sourceName = z.string().refine(isPlainFileName, 'Not a file name');
+
+/** A file to add: a plain name that shows in the listing (no leading dot) and at most 25 MB. */
+export const sourceUpload = z
+  .object({
+    name: sourceName.refine((name) => !name.startsWith('.'), 'Not a file name'),
+    bytes: z
+      .instanceof(Uint8Array)
+      .refine((bytes) => bytes.byteLength <= MAX_SOURCE_ADD_BYTES, 'File too large'),
+  })
+  .strict();
+export const sourceUploads = z.array(sourceUpload).min(1).max(MAX_SOURCE_ADD_FILES);

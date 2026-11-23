@@ -61,7 +61,7 @@ colour as text), solid (`--accent` / `--accent-on`) for "Completed".
 
 ## ProgressBar and ProgressRing — shipped
 
-`<ProgressBar value label showValue? caption?>` (`caption` replaces the printed percentage, e.g. "44% · 10 / 22"), `<ProgressRing value label size? stroke?>`. `value` is 0 to 100,
+`<ProgressBar value label showValue? caption?>` (`caption` replaces the printed percentage, e.g. "44% · 10 / 22"), `<ProgressRing value label size? stroke? showValue?>` (`showValue={false}` for a ring too small to print in, e.g. the chat bar's context ring). `value` is 0 to 100,
 rounded and clamped. Track `--border`, fill `--accent-decor`, `--radius-pill`; bar 8px tall, fill
 animates on `--dur-slow`. The element with `role="progressbar"` carries `aria-valuenow/min/max` and
 `aria-label`; the bar prints the percentage beside it (`showValue={false}` to hide), the ring prints it
@@ -376,15 +376,27 @@ after merged? notes? same?>` is one entry: a pill label with the sign and words 
   new window and is named "Intro · youtu.be (opens in a new window)"; an empty address says
   "No address".
 
-## ChatLog, ChatMessage, ChatTurn, ChatActivity — shipped
+## ChatLog, ChatMessage, ChatTurn, ChatActivity, ChatSteps, ChatChanges, ChatComposer — shipped
 
 A chat with an agent. `<ChatLog label>` is a `role="log"` region round an `<ol>` (it takes a `ref`; a layout
 that gives it a height scrolls it, with `tabIndex={0}`). `<ChatMessage from="you|agent|notice" author?>`:
-who said it is a word above it (`--text-xs` caps, `--text-muted`); the person's own sit on
-`--surface-sunken` with `--radius-lg` and keep their line breaks; a notice is a quiet line led by the info
-icon. `<ChatTurn>` is the line after a turn, between hairlines, holding its name and actions (a quiet link,
-an Undo). `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
+who said it is a word kept for screen readers (visually hidden); the person's own are a right-aligned bubble
+on `--surface-sunken` with `--radius-xl`, up to 85% wide, keeping their line breaks; the agent's is unboxed
+prose; a notice is a quiet line led by the info icon. `<ChatTurn>` is what follows a reply, stacked:
+`<ChatChanges label items={[{ id, icon, label, detail }]} limit=6>` (one bordered row per change, the rest
+behind a "+N more" pill that becomes "Show fewer"), `<ChatTurnFooter end>` (the muted line, links in it
+underlined, actions at its end) and `<ChatCheck ok>` (tick in `--accent` or alert in `--danger`, always with
+words). `<ChatSteps label steps>` goes above a reply in its message: a button with `aria-expanded` and a
+chevron, the steps in a list under it, closed to begin with. `<ChatActivity>` is the live `role="status"` line under the log ("Rewriting a lesson", spark icon
 in `--accent`): always rendered, empty between turns, so a new line is announced; no animation.
+
+`<ChatComposer label placeholder hint value onChange onSend onSubmit start end>` is the message box: a
+`<form>` that is one `--radius-xl` box with the children (the attached chips) above a borderless auto-growing
+`<textarea>` (16px, up to 10rem), and a row under it with `start` at the left (the "+", a `Menu` whose trigger
+takes `chatRoundClass()`) and `end` at the right. The focus ring shows round the box. `hint` is read out with
+the box, never drawn. Enter calls `onSend`; Shift and Enter and an input method's Enter do not.
+`<ChatRoundButton label tone="plain|primary">`: a 44px round icon-only button named by `label` (with the same
+tooltip); `primary` is the filled one (Send, and Stop while the agent works).
 
 `<ChatAttachments label items={[{ id, label }]} onRemove? onEmptied?>`: what a message carries besides its
 words, a `<ul>` named by `label` of pill chips (`--accent-soft` / `--accent-soft-text`, an `--accent-line`

@@ -237,11 +237,14 @@ describe('list_sources and read_source', () => {
   const sources = (files: Record<string, string>) => ({
     list: vi.fn(async () => Object.entries(files).map(([name, t]) => ({ name, bytes: t.length }))),
     read: vi.fn(async (name: string) => files[name] ?? null),
+    readImage: vi.fn(async (name: string) =>
+      name in files ? { data: 'AQID', mimeType: 'image/png' as const } : null,
+    ),
   });
 
   it('refuse when no Sources folder is set', async () => {
     const no =
-      'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+      'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
     expect(await refused(call(toolState(), 'list_sources'))).toBe(no);
     expect(await refused(call(toolState(), 'read_source', { name: 'a.md' }))).toBe(no);
   });
@@ -258,6 +261,30 @@ describe('list_sources and read_source', () => {
       length: 12,
       text: 'Rebase notes',
     });
+  });
+
+  it('shows a picture to the model instead of reading text', async () => {
+    const folder = sources({ 'Diagram.PNG': 'x' });
+    const ctx = toolCtx({ sources: folder });
+    const result = await call(toolState(), 'read_source', { name: 'Diagram.PNG' }, ctx);
+    expect(result).toMatchObject({
+      text: expect.stringContaining('Shown to you') as unknown,
+      images: [{ data: 'AQID', mimeType: 'image/png' }],
+    });
+    expect(folder.read).not.toHaveBeenCalled();
+  });
+
+  it('refuses a listed picture that is gone, and passes on the folder’s sentence for a big one', async () => {
+    const folder = sources({ 'a.webp': 'x' });
+    folder.readImage.mockResolvedValueOnce(null as never);
+    const ctx = toolCtx({ sources: folder });
+    expect(await refused(call(toolState(), 'read_source', { name: 'a.webp' }, ctx))).toBe(
+      'There is no file called "a.webp" in the Sources folder. Call list_sources.',
+    );
+    folder.readImage.mockRejectedValueOnce(new SourceRefusedError('This picture is too big.'));
+    expect(await refused(call(toolState(), 'read_source', { name: 'a.webp' }, ctx))).toBe(
+      'This picture is too big.',
+    );
   });
 
   it('reads a long file in chunks, saying where the next one starts', async () => {
@@ -303,12 +330,12 @@ describe('list_sources and read_source', () => {
     );
   });
 
-  it('refuse while the Educator has not chosen a folder for the session', async () => {
+  it('refuse while the session has no folder yet', async () => {
     const folder = sources({});
     folder.list.mockResolvedValue(null as never);
     const ctx = toolCtx({ sources: folder });
     const no =
-      'No Sources folder is set for this session. Ask the Educator to choose one if you need their material.';
+      'This session has no Sources folder yet. Ask the Educator to try again in a moment if you need their material.';
     expect(await refused(call(toolState(), 'list_sources', {}, ctx))).toBe(no);
     expect(await refused(call(toolState(), 'read_source', { name: 'a.md' }, ctx))).toBe(no);
     expect(folder.read).not.toHaveBeenCalled();

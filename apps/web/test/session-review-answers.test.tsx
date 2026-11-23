@@ -75,9 +75,8 @@ async function open(
   const id = `a${sessions}`;
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
-  const started = await store.start(
-    { kind: 'edit', courseId: 'git', goal: 'Add a question.' },
-    async () => draftDoc(GIT, { rev: 3, answers: { q1: { k1: ['a'] } } }),
+  const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+    draftDoc(GIT, { rev: 3, answers: { q1: { k1: ['a'] } } }),
   );
   if (started.status !== 'started') throw new Error('not started');
   let session = started.session;

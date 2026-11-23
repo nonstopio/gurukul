@@ -39,6 +39,12 @@ export class AgentNotRunningError extends Error {
 
 export type InitResult = { ok: true } | { ok: false; error: AgentError };
 
+/**
+ * The window of every model alias the Educator can pick (Opus, Sonnet, Haiku) unless Claude Code
+ * names another in the turn's result (`modelUsage[...].contextWindow`, which a 1M-token model does).
+ */
+export const DEFAULT_CONTEXT_WINDOW = 200_000;
+
 export interface RunOptions {
   sessionId: string;
   agentSessionId: string;
@@ -84,6 +90,8 @@ export function createRun(options: RunOptions): AgentRun {
   let turnsInFlight = 0;
   let stopRequested = false;
   let errorReported = false;
+  // Tokens the newest request read: input and cache, which is how full the context is.
+  let contextTokens: number | null = null;
   const timers: unknown[] = [];
   const controls = new Map<string, (tokenSource: string | null) => void>();
   const calls = new Map<string, (result: AgentToolResult) => void>();
@@ -107,15 +115,27 @@ export function createRun(options: RunOptions): AgentRun {
     if (turnsInFlight > 0) write(controlRequestLine(options.randomId(), 'interrupt'));
   };
 
+  let contextWindow: number | null = null;
   const endTurn = (outcome: TurnOutcome) => {
     log.info('Agent turn ended', { sessionId, outcome });
-    emit({ type: 'turn_end', sessionId, agentSessionId, outcome });
+    emit({
+      type: 'turn_end',
+      sessionId,
+      agentSessionId,
+      outcome,
+      ...(contextTokens !== null && {
+        context: { used: contextTokens, window: contextWindow ?? DEFAULT_CONTEXT_WINDOW },
+      }),
+    });
   };
 
   const handle = (item: StreamItem) => {
     switch (item.kind) {
       case 'init':
         if (item.agentSessionId !== null) agentSessionId = item.agentSessionId;
+        return;
+      case 'usage':
+        contextTokens = item.tokens;
         return;
       case 'text':
       case 'activity':
@@ -129,6 +149,7 @@ export function createRun(options: RunOptions): AgentRun {
         return;
       case 'result': {
         if (item.agentSessionId !== null) agentSessionId = item.agentSessionId;
+        if (item.contextWindow !== null) contextWindow = item.contextWindow;
         const outcome: TurnOutcome = errorReported
           ? 'failed'
           : stopRequested && item.aborted

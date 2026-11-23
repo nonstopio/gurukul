@@ -1,5 +1,6 @@
 import type { LabelSet } from '@gurukul/schema';
 import { act, render } from '@testing-library/react';
+import { Fragment, StrictMode } from 'react';
 import { createMemoryRouter } from 'react-router';
 import { App } from '../src/App';
 import { appRoutes } from '../src/routes';
@@ -27,6 +28,8 @@ export async function openApp(
     user?: Partial<AuthUser>;
     /** `teamId` of each team the person is on; none by default. */
     teamIds?: string[];
+    /** Renders under React's StrictMode, as `main.tsx` does: effects run twice. */
+    strict?: boolean;
   } = {},
 ) {
   const claims = Object.fromEntries((opts.roles ?? []).map((r) => [r, true]));
@@ -35,15 +38,18 @@ export async function openApp(
   const data = opts.data ?? fakeData();
   const quiz = opts.quiz ?? fakeQuiz();
   const router = createMemoryRouter(appRoutes(), { initialEntries: [path] });
+  const Wrap = opts.strict ? StrictMode : Fragment;
   const view = render(
-    <App
-      service={f.service}
-      data={data.data}
-      quiz={quiz}
-      console={consoleApi}
-      studio={opts.studio ?? fakeStudio()}
-      router={router}
-    />,
+    <Wrap>
+      <App
+        service={f.service}
+        data={data.data}
+        quiz={quiz}
+        console={consoleApi}
+        studio={opts.studio ?? fakeStudio()}
+        router={router}
+      />
+    </Wrap>,
   );
   await act(async () => {
     f.emitUser(opts.signedIn === false ? null : { ...NONSTOP, ...opts.user });

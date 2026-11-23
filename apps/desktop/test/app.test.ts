@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,7 +35,7 @@ let home: string;
 
 beforeEach(async () => {
   userData = await mkdtemp(path.join(tmpdir(), 'gurukul-app-'));
-  home = await mkdtemp(path.join(tmpdir(), 'gurukul-home-'));
+  home = await realpath(await mkdtemp(path.join(tmpdir(), 'gurukul-home-')));
 });
 
 afterEach(async () => {
@@ -104,12 +104,6 @@ function setup({
       openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
       openPath: vi.fn<(path: string) => Promise<string>>(async () => ''),
     },
-    dialog: {
-      showOpenDialog: vi.fn(async () => ({
-        canceled: false,
-        filePaths: [path.join(home, 'Material')],
-      })),
-    },
     session: () => ({
       setPermissionRequestHandler: (h: unknown) => {
         permission.request = h;
@@ -171,7 +165,7 @@ describe('startApp', () => {
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: false,
-      bridgeVersion: 1,
+      bridgeVersion: 5,
     });
   });
 
@@ -184,11 +178,11 @@ describe('startApp', () => {
     ]);
     await expect(
       handlers.get(channel('info'))?.(topFrame('http://127.0.0.1:4173')),
-    ).resolves.toMatchObject({ bridgeVersion: 1 });
+    ).resolves.toMatchObject({ bridgeVersion: 5 });
     expect(sink).toHaveBeenCalledWith('info', 'Desktop shell started', {
       dev: true,
       test: true,
-      bridgeVersion: 1,
+      bridgeVersion: 5,
     });
   });
 
@@ -227,7 +221,7 @@ describe('startApp', () => {
     expect(windows[0]?.loadURL).toHaveBeenCalledWith(PRODUCTION_URL);
     const info = handlers.get(channel('info'));
     await expect(info?.(topFrame('https://gurukul.nonstopio.com'))).resolves.toEqual({
-      bridgeVersion: 1,
+      bridgeVersion: 5,
       appVersion: '0.1.0',
       platform: 'linux',
     });
@@ -376,26 +370,33 @@ describe('startApp', () => {
 });
 
 describe('Sources folders', () => {
-  it('remembers the folder the Educator picks, outside the session files', async () => {
-    await mkdir(path.join(home, 'Material'));
-    await writeFile(path.join(home, 'Material', 'notes.md'), 'Rebase notes');
+  it('makes the session’s folder under Documents and remembers it, outside the session files', async () => {
+    const folder = path.join(home, 'Documents', 'Gurukul Studio', 'git-basics', 'sources');
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, 'notes.md'), 'Rebase notes');
     const { deps, handlers } = setup();
     await startApp(deps);
     const event = topFrame('http://localhost:5173');
     const ref = { uid: 'u1', sessionId: 's1' };
     await expect(
-      handlers.get(channel('sources.choose'))?.(event, { ...ref, suggestedName: 'git-basics' }),
-    ).resolves.toEqual({ path: '~/Material', files: [{ name: 'notes.md', bytes: 12 }] });
-    expect(deps.dialog.showOpenDialog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaultPath: path.join(home, 'Documents', 'Gurukul Studio', 'git-basics', 'sources'),
-      }),
-    );
+      handlers.get(channel('sources.ensure'))?.(event, { ...ref, suggestedName: 'git-basics' }),
+    ).resolves.toEqual({
+      path: '~/Documents/Gurukul Studio/git-basics/sources',
+      files: [{ name: 'notes.md', bytes: 12 }],
+    });
     await expect(handlers.get(channel('sources.read'))?.(event, ref, 'notes.md')).resolves.toBe(
       'Rebase notes',
     );
+    await expect(
+      handlers.get(channel('sources.readImage'))?.(event, ref, 'missing.png'),
+    ).resolves.toBeNull();
+    await expect(
+      handlers.get(channel('sources.add'))?.(event, ref, [
+        { name: 'notes.md', bytes: new Uint8Array([97]) },
+      ]),
+    ).resolves.toMatchObject({ added: ['notes (2).md'] });
     await handlers.get(channel('sources.reveal'))?.(event, ref);
-    expect(deps.shell.openPath).toHaveBeenCalledWith(path.join(home, 'Material'));
+    expect(deps.shell.openPath).toHaveBeenCalledWith(folder);
     // Removing the whole session forgets the choice; the folder stays.
     await handlers.get(channel('store.remove'))?.(event, ref);
     await expect(handlers.get(channel('sources.list'))?.(event, ref)).resolves.toBeNull();

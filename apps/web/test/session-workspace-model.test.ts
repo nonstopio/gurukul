@@ -13,7 +13,10 @@ import {
   questionMarks,
   rowsByKey,
   turnBy,
+  turnChanged,
+  turnFooter,
   turnLabel,
+  workedFor,
 } from '../src/studio/session/workspace';
 import type { Working } from '../src/studio/types';
 import { lesson, makeCourse } from './fake-data';
@@ -270,6 +273,102 @@ describe('chatLines', () => {
       ['t2', 2, false, true],
     ]);
     expect(chatLines([], [turn('t1')]).map((l) => l.kind)).toEqual(['turn']);
+  });
+
+  it('carries a turn’s steps on its first reply, else on its line, with its reply and time', () => {
+    const at = (s: number) => new Date(Date.parse(AT) + s * 1000).toISOString();
+    const transcript: TranscriptEntry[] = [
+      { kind: 'educator', turnId: 't1', at: at(0), text: 'Go' },
+      { kind: 'activity', turnId: 't1', at: at(1), text: 'Reading the course' },
+      { kind: 'activity', turnId: 't1', at: at(2), text: 'Reading the course' },
+      { kind: 'activity', turnId: 't1', at: at(3), text: 'Writing a lesson' },
+      { kind: 'agent', turnId: 't1', at: at(4), text: 'First.' },
+      { kind: 'agent', turnId: 't1', at: at(5), text: 'Second.' },
+      { kind: 'educator', turnId: 't2', at: at(10), text: 'Again' },
+      { kind: 'activity', turnId: 't2', at: at(11), text: 'Checking the course' },
+    ];
+    const ended = (id: string, s: number, by: Turn['by'] = 'agent'): Turn => ({
+      ...turn(id),
+      at: at(s),
+      by,
+    });
+    const lines = chatLines(transcript, [ended('t1', 159), ended('t2', 20)]);
+    const steps = lines.map((l) => l.steps);
+    // Once each, repeated lines folded; only the first reply carries them.
+    expect(steps).toEqual([
+      [],
+      ['Reading the course', 'Writing a lesson'],
+      [],
+      [],
+      [],
+      ['Checking the course'],
+    ]);
+    const [first, second] = lines.filter((l) => l.kind === 'turn');
+    expect(first).toMatchObject({ seconds: 159, reply: 'First.\n\nSecond.' });
+    expect(second).toMatchObject({ seconds: 10, reply: '' });
+    // A turn by hand, or one whose chat was cut, has no time.
+    const hand = chatLines([], [ended('t3', 5, 'educator')])[0];
+    expect(hand).toMatchObject({ seconds: null });
+    expect(
+      chatLines(transcript, [{ ...ended('t1', 5, 'educator'), id: 't1' }]).find(
+        (l) => l.kind === 'turn',
+      ),
+    ).toMatchObject({ seconds: null });
+  });
+
+  it('names what a turn changed, one part per row, cut at the limit', () => {
+    const edited = changed((c) => {
+      (ch(c, 0).items[0] as Item).title = 'New title';
+      c.title = 'Another course';
+      ch(c, 1).items.pop();
+    });
+    const { changes, parts } = turnChanged(courseChanges(work(BASE), work(edited)));
+    expect(changes).toBe(parts?.length);
+    expect(parts).toEqual(
+      expect.arrayContaining([
+        { kind: 'course', title: '', status: 'changed' },
+        { kind: 'lesson', title: 'New title', status: 'changed' },
+      ]),
+    );
+    expect(parts?.some((p) => p.status === 'removed')).toBe(true);
+    const many = {
+      count: 150,
+      answerChanges: [],
+      rows: Array.from({ length: 150 }, (_, i) => ({
+        key: `chapter:${i}`,
+        kind: 'chapter' as const,
+        id: `${i}`,
+        statuses: ['moved' as const, 'renamed' as const],
+        before: null,
+        after: { title: `  ${'x'.repeat(250)}  ` },
+        fields: [],
+      })),
+    };
+    const cut = turnChanged(many as never);
+    expect(cut.changes).toBe(150);
+    expect(cut.parts).toHaveLength(100);
+    expect(cut.parts?.[0]).toMatchObject({ status: 'renamed' });
+    expect(cut.parts?.[0]?.title).toHaveLength(200);
+  });
+
+  it('says how long a turn took and in words who made it', () => {
+    expect(workedFor(45)).toBe('45s');
+    expect(workedFor(159)).toBe('2m 39s');
+    expect(workedFor(3900)).toBe('1h 5m');
+    const line = (t: Partial<Turn>, seconds: number | null, saved = true) =>
+      turnFooter({ ...chatLines([], [{ ...turn('t1', 19), ...t }])[0], seconds, saved } as never);
+    expect(line({}, 159)).toEqual({ lead: 'Worked for 2m 39s, ', count: '19 changes', tail: '' });
+    expect(line({}, null)).toEqual({ lead: '', count: '19 changes', tail: '' });
+    expect(line({ changes: 1 }, null, false)).toEqual({
+      lead: '',
+      count: '1 change',
+      tail: ' · not saved',
+    });
+    expect(line({ changes: 0, by: 'educator' }, null)).toMatchObject({
+      lead: 'By hand, ',
+      count: 'no changes',
+    });
+    expect(line({ by: 'educator', baseBefore: 'b.json' }, null).lead).toBe('Draft brought in, ');
   });
 
   it('names a turn by number and count', () => {

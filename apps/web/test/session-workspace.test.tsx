@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Turn } from '@gurukul/schema';
 import type { AgentStartResult, AgentStatus } from '../src/desktop/bridge';
 import { createSessionStore } from '../src/studio/session/store';
 import type { TranscriptEntry } from '../src/studio/session/transcript';
@@ -42,10 +43,14 @@ async function open(
     status?: AgentStatus;
     start?: AgentStartResult;
     kind?: 'new' | 'edit';
+    /** Keeps the session as the store starts it: no goal, the course's own title. */
+    fresh?: boolean;
     /** Changes the fake agent before the page asks it anything. */
     prepare?: (agent: ReturnType<typeof fakeAgent>['agent']) => void;
     /** The chat already on this computer. */
     transcript?: TranscriptEntry[];
+    /** Turns already written, each with the session's copy of the course as its checkpoint. */
+    turns?: Turn[];
     /** The draft the session starts from; Git by default. */
     course?: typeof GIT;
     path?: (id: string) => string;
@@ -58,13 +63,20 @@ async function open(
   const id = `s${sessions}`;
   const fake = fakeDesktop(init.info ? { info: init.info } : {});
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
-  await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+  const started = await store.start(
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(init.course ?? GIT, { rev: 3 }),
   );
+  // A session an earlier version started has a goal and its title; the box still opens with it.
+  if (started.status === 'started' && !init.fresh) {
+    const goal = init.kind === 'new' ? 'A course on code review.' : 'Simplify the basics.';
+    await store.save({ ...started.session, title: goal, goals: [{ text: goal, done: false }] });
+  }
   if (init.transcript) await store.writeTranscript(id, init.transcript);
+  if (init.turns && started.status === 'started') {
+    let current = (await store.read(id)) as NonNullable<Awaited<ReturnType<typeof store.read>>>;
+    for (const turn of init.turns) current = await store.saveTurn(current, turn, current.work);
+  }
   const agent = fakeAgent(fake.desktop, {
     ...(init.status ? { status: init.status } : {}),
     ...(init.start ? { start: init.start } : {}),
@@ -100,7 +112,7 @@ async function send(s: Awaited<ReturnType<typeof open>>, text?: string) {
 /** Ends the running turn as the agent would, and waits for it to be written. */
 async function endTurn(s: Awaited<ReturnType<typeof open>>, outcome: 'done' | 'stopped' = 'done') {
   act(() => s.emit({ type: 'turn_end', agentSessionId: 'claude-1', outcome }));
-  await screen.findByRole('link', { name: /^Turn \d/ });
+  await screen.findByRole('link', { name: /in turn \d+, open in Review$/ });
 }
 
 describe('the session workspace', () => {
@@ -144,6 +156,15 @@ describe('the session workspace', () => {
     expect(box().value).toBe('');
   });
 
+  it('opens a session started with no goal on the course’s title and an empty box, with the disclosure', async () => {
+    await open({ fresh: true });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Git' })).toBeTruthy();
+    expect(screen.getByText(/Say what you want to do in the box below/)).toBeTruthy();
+    expect(box().value).toBe('');
+    expect(screen.queryByText(/runs Claude Code on this computer/i)).toBeNull();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
   it('runs a turn: activity in words, Stop, the reply, marks in the preview, and the turn line', async () => {
     const s = await open();
     await screen.findByText('0 changes · checks pass');
@@ -174,12 +195,30 @@ describe('the session workspace', () => {
     expect(screen.getByText('1 change · checks pass')).toBeTruthy();
 
     await endTurn(s);
-    const line = screen.getByRole('link', { name: 'Turn 1 · 1 change' });
+    const line = screen.getByRole('link', { name: '1 change in turn 1, open in Review' });
     expect(line.getAttribute('href')).toMatch(
       new RegExp(`^/studio/sessions/${s.id}/review\\?turn=`),
     );
-    expect(screen.getByRole('button', { name: 'Undo turn 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go back to before this' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy();
+    // How it got there: folded, and the steps in plain words once opened.
+    const how = screen.getByRole('button', { name: 'How it got there' });
+    expect(how.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(how);
+    expect(how.getAttribute('aria-expanded')).toBe('true');
+    expect(within(screen.getByRole('log')).getByText('Writing a lesson')).toBeTruthy();
+    // What it changed, with when, then the footer and the check.
+    const changed = within(screen.getByRole('list', { name: 'What this turn changed' }));
+    expect(changed.getByText('Edited Lesson l1')).toBeTruthy();
+    expect(changed.getByText('just now')).toBeTruthy();
+    expect(screen.getByText(/Worked for \d+s,/)).toBeTruthy();
+    expect(screen.getByText('Checked: no new problems')).toBeTruthy();
+    // Copy puts the reply on the clipboard and says so.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy reply' }));
+    expect(await screen.findByText('Reply copied')).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith('I added **one** block.');
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -360,21 +399,21 @@ describe('the session workspace', () => {
       s.call('add_block', { lessonId: 'l1', block: { type: 'markdown', md: 'Extra.' } }),
     );
     await endTurn(s);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
-    const dialog = screen.getByRole('dialog', { name: 'Undo turn 1?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
+    const dialog = screen.getByRole('dialog', { name: 'Go back to before turn 1?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('1 change · checks pass')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(
       await screen.findByText('Turn undone: the course is back as it was before it.'),
     ).toBeTruthy();
     expect(screen.getByText('0 changes · checks pass')).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /^Turn 1/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /in turn 1,/ })).toBeNull();
   });
 
   it('stops a turn, and gives the box back its focus when the turn ends', async () => {
@@ -390,7 +429,7 @@ describe('the session workspace', () => {
     (document.activeElement as HTMLElement | null)?.blur();
     await endTurn(s, 'stopped');
     expect(screen.getByText('Stopped. What this turn had changed is kept.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Turn 1 · no changes' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'no changes in turn 1, open in Review' })).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(box()));
   });
 
@@ -706,21 +745,20 @@ describe('the workspace’s Sources tab', () => {
     return screen.getByRole('tabpanel', { name: 'Sources' });
   };
 
-  it('offers a folder when none is chosen, with the notice, and then lists its files', async () => {
+  it('shows the folder made for the session, with the notice and its files', async () => {
     const s = await open();
     await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
-    expect(s.desktop.sources.list).not.toHaveBeenCalled();
     const panel = sourcesTab();
     const group = await within(panel).findByRole('group', { name: 'Sources folder' });
-    expect(s.desktop.sources.list).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
-    expect(within(group).getByText(/sent to Anthropic under your own Claude account/)).toBeTruthy();
-    fireEvent.click(within(group).getByRole('button', { name: 'Choose a Sources folder' }));
-    expect(await within(group).findByText('~/Material')).toBeTruthy();
-    expect(s.desktop.sources.choose).toHaveBeenCalledWith({
+    expect(s.desktop.sources.ensure).toHaveBeenCalledWith({
       uid: 'u1',
       sessionId: s.id,
       suggestedName: 'git',
     });
+    expect(within(group).getByText(/sent to Anthropic under your own Claude account/)).toBeTruthy();
+    expect(within(group).getByText('~/Material')).toBeTruthy();
+    // Nobody picks a folder.
+    expect(within(group).queryByRole('button', { name: /folder/i })).toBeNull();
     const files = within(group).getByRole('list', { name: 'Files the agent may read' });
     expect(
       within(files)
@@ -732,6 +770,18 @@ describe('the workspace’s Sources tab', () => {
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
+  it('says when the folder cannot be shown', async () => {
+    const s = await open();
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    const group = await within(sourcesTab()).findByRole('group', { name: 'Sources folder' });
+    s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
+    fireEvent.click(within(group).getByRole('button', { name: 'Show in Finder' }));
+    expect(await screen.findByText('The folder could not be opened.')).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Sources folder not shown', expect.any(Error), {
+      sessionId: s.id,
+    });
+  });
+
   it('reads the folder again each time the tab opens, and pages a long list', async () => {
     const s = await open();
     await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
@@ -739,7 +789,7 @@ describe('the workspace’s Sources tab', () => {
       name: `note-${String(i).padStart(2, '0')}.md`,
       bytes: 10,
     }));
-    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files });
+    s.desktop.sources.ensure.mockResolvedValue({ path: '~/Notes', files });
     let panel = sourcesTab();
     const list = await within(panel).findByRole('list', { name: 'Files the agent may read' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(25);
@@ -747,20 +797,19 @@ describe('the workspace’s Sources tab', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Next' }));
     expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
-    s.desktop.sources.list.mockResolvedValue({ path: '~/Notes', files: [] });
+    s.desktop.sources.ensure.mockResolvedValue({ path: '~/Notes', files: [] });
     panel = sourcesTab();
     expect(
-      await within(panel).findByText(/Save notes in the folder as text or Markdown/),
+      await within(panel).findByText(/Save files in the folder, or drop them on the chat/),
     ).toBeTruthy();
     expect(within(panel).getByText('No files yet')).toBeTruthy();
-    expect(s.desktop.sources.list).toHaveBeenCalledTimes(2);
   });
 
-  it('says when the folder could not be read, and tries again', async () => {
+  it('says when the folder could not be read, and tries again; a new course has no slug to name it', async () => {
     const s = await open({ kind: 'new' });
     await screen.findByRole('heading', { name: 'Nothing to preview yet' });
-    const failure = new Error('sources.list failed');
-    s.desktop.sources.list.mockRejectedValueOnce(failure);
+    const failure = new Error('sources.ensure failed');
+    s.desktop.sources.ensure.mockRejectedValueOnce(failure);
     const panel = sourcesTab();
     expect(within(panel).getByRole('status').getAttribute('aria-busy')).toBe('true');
     expect(await within(panel).findByText('The Sources folder could not be read')).toBeTruthy();
@@ -768,12 +817,8 @@ describe('the workspace’s Sources tab', () => {
       sessionId: s.id,
     });
     fireEvent.click(within(panel).getByRole('button', { name: 'Try again' }));
-    const choose = await within(panel).findByRole('button', { name: 'Choose a Sources folder' });
-    fireEvent.click(choose);
-    // A new course has no slug to suggest yet.
-    await waitFor(() =>
-      expect(s.desktop.sources.choose).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id }),
-    );
+    expect(await within(panel).findByText('~/Material')).toBeTruthy();
+    expect(s.desktop.sources.ensure).toHaveBeenLastCalledWith({ uid: 'u1', sessionId: s.id });
   });
 });
 
@@ -857,10 +902,10 @@ describe('the session workspace when the agent cannot run', () => {
     s.desktop.store.write.mockRejectedValueOnce(new Error('store.write failed (ENOSPC)'));
     await endTurn(s);
     expect(screen.getByText('The last turn is not saved')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Turn 1 · 1 change · not saved' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    expect(screen.getByRole('link', { name: '1 change in turn 1, open in Review' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(await screen.findByText('0 changes · checks pass')).toBeTruthy();
   });
@@ -871,9 +916,9 @@ describe('the session workspace when the agent cannot run', () => {
     await send(s);
     await endTurn(s);
     s.files.delete(`u1/${s.id}/checkpoints/start.json`);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo turn 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to before this' }));
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo turn 1' }),
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back to before turn 1' }),
     );
     expect(await screen.findByText('That turn cannot be undone')).toBeTruthy();
   });
@@ -934,5 +979,428 @@ describe('the session page in an app too old for sessions', () => {
     vi.mocked(s.desktop.app.checkForUpdate).mockResolvedValueOnce({ state: 'none' } as never);
     fireEvent.click(screen.getByRole('button', { name: 'Update the app' }));
     await waitFor(() => expect(s.desktop.app.checkForUpdate).toHaveBeenCalled());
+  });
+});
+
+describe('the chat of a session already written', () => {
+  const turn = (id: string, over: Partial<Turn> = {}): Turn => ({
+    id,
+    at: new Date().toISOString(),
+    by: 'agent',
+    summary: id,
+    checkpoint: `${id}.json`,
+    changes: 0,
+    ...over,
+  });
+  const kinds: NonNullable<Turn['parts']> = [
+    { kind: 'course', title: '', status: 'changed' },
+    { kind: 'landing', title: '', status: 'changed' },
+    { kind: 'chapter', title: 'Basics', status: 'renamed' },
+    { kind: 'quiz', title: 'Quiz I', status: 'added' },
+    { kind: 'lesson', title: '', status: 'removed' },
+    { kind: 'lesson', title: 'One', status: 'moved' },
+    { kind: 'lesson', title: 'Two', status: 'added' },
+    { kind: 'lesson', title: 'Three', status: 'changed' },
+  ];
+
+  it('lists what a turn changed, six rows and a pill for the rest, in the Educator’s words', async () => {
+    const entries = (id: string, text: string): TranscriptEntry[] => [
+      { kind: 'educator', turnId: id, at: '2026-11-19T10:00:00.000Z', text: 'Go' },
+      { kind: 'agent', turnId: id, at: '2026-11-19T10:00:05.000Z', text: text },
+    ];
+    await open({
+      labels: 'gurukul',
+      turns: [
+        turn('t1', { changes: 8, parts: kinds, at: '2026-11-19T10:02:39.000Z' }),
+        turn('t2', { changes: 2 }),
+      ],
+      transcript: [
+        ...entries('t1', 'First reply.'),
+        {
+          kind: 'activity',
+          turnId: 't2',
+          at: '2026-11-19T10:03:00.000Z',
+          text: 'Checking the course',
+        },
+      ],
+    });
+    const list = within(await screen.findByRole('list', { name: 'What this turn changed' }));
+    expect(list.getAllByRole('listitem')).toHaveLength(7);
+    expect(list.getByText('Edited course details')).toBeTruthy();
+    expect(list.getByText('Edited landing page')).toBeTruthy();
+    expect(list.getByText('Renamed Parva · Basics')).toBeTruthy();
+    expect(list.getByText('Added Pariksha · Quiz I')).toBeTruthy();
+    expect(list.getByText('Removed Untitled')).toBeTruthy();
+    expect(list.queryByText('Edited Three')).toBeNull();
+    fireEvent.click(list.getByRole('button', { name: '+2 more' }));
+    expect(list.getByText('Edited Three')).toBeTruthy();
+    expect(list.getAllByText('Moved One')).toHaveLength(1);
+    fireEvent.click(list.getByRole('button', { name: 'Show fewer' }));
+    expect(list.queryByText('Edited Three')).toBeNull();
+    // The turn before the newest has no check line of its own, and no copy when no reply.
+    expect(screen.getAllByText('Checked: no new problems')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Copy reply' })).toHaveLength(1);
+    expect(screen.getByText('Worked for 2m 39s,')).toBeTruthy();
+    // A turn with no reply carries its steps on its own line.
+    expect(screen.getAllByRole('button', { name: 'How it got there' })).toHaveLength(1);
+    // Written before the list was kept: the count only.
+    expect(screen.getAllByRole('list', { name: 'What this turn changed' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '2 changes in turn 2, open in Review' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Go back to before this' })).toHaveLength(1);
+  });
+
+  it('says the copy could not be copied, and that it found problems', async () => {
+    const big = makeCourse({
+      id: 'git',
+      title: 'Git',
+      educatorIds: ['u1'],
+      chapters: [
+        {
+          id: 'p1',
+          title: 'Basics',
+          items: [
+            lesson('l1', {
+              blocks: Array.from({ length: 60 }, (_, i) => ({
+                type: 'markdown',
+                id: `b${i}`,
+                md: 'x'.repeat(20_000),
+              })),
+            }),
+          ],
+        },
+      ],
+    });
+    await open({
+      course: big,
+      turns: [turn('t1')],
+      transcript: [
+        { kind: 'educator', turnId: 't1', at: '2026-11-19T10:00:00.000Z', text: 'Go' },
+        { kind: 'agent', turnId: 't1', at: '2026-11-19T10:00:05.000Z', text: 'Done.' },
+      ],
+    });
+    expect(await screen.findByText('Checked: problems to fix before saving')).toBeTruthy();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('no')) },
+      configurable: true,
+    });
+    document.execCommand = vi.fn().mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy reply' }));
+    expect(await screen.findByText('Could not copy the reply')).toBeTruthy();
+  });
+});
+
+describe('adding files to the session from the chat', () => {
+  const file = (name: string, text = 'data') => new File([text], name);
+  const pick = async (files: File[]) => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const click = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Add files' }));
+    expect(click).toHaveBeenCalled();
+    fireEvent.change(input, { target: { files } });
+  };
+  const panel = () => document.querySelector('.ss-chat__panel') as HTMLElement;
+  const dragOf = (types: string[], files: File[] = []) => ({
+    dataTransfer: { types, files },
+  });
+  const chips = () => screen.getByRole('list', { name: 'Attached to your next message' });
+
+  it('adds files from the plus menu, shows them as chips and names them to the agent', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    expect(box().getAttribute('placeholder')).toMatch(/Drop files here/);
+    await pick([file('Plan.docx', 'abc'), file('Sheet.xlsx')]);
+    await waitFor(() => expect(within(chips()).getByText('Plan.docx')).toBeTruthy());
+    expect(within(chips()).getByText('Sheet.xlsx')).toBeTruthy();
+    const call = s.desktop.sources.add.mock.calls[0] as unknown as [
+      unknown,
+      { name: string; bytes: Uint8Array }[],
+    ];
+    expect(call[0]).toEqual({ uid: 'u1', sessionId: s.id, suggestedName: 'git' });
+    expect(call[1].map((f) => [f.name, f.bytes.length])).toEqual([
+      ['Plan.docx', 3],
+      ['Sheet.xlsx', 4],
+    ]);
+    await send(s, 'Make a quiz from this sheet.');
+    expect(s.agent.send).toHaveBeenCalledWith(
+      s.id,
+      '[From Gurukul: Files added to the Sources folder: Plan.docx, Sheet.xlsx. Read them with read_source.]\n\nMake a quiz from this sheet.',
+    );
+    expect(screen.getByRole('list', { name: 'Attached to this message' }).textContent).toBe(
+      'Plan.docxSheet.xlsx',
+    );
+  });
+
+  it('adds files dropped anywhere on the chat, with an overlay while they are over it', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    // Text dragged over is not a file: nothing happens.
+    fireEvent.dragEnter(panel(), dragOf(['text/plain']));
+    fireEvent.dragOver(panel(), dragOf(['text/plain']));
+    fireEvent.dragLeave(panel(), dragOf(['text/plain']));
+    fireEvent.drop(panel(), dragOf(['text/plain']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.dragEnter(panel(), dragOf(['Files']));
+    fireEvent.dragEnter(box(), dragOf(['Files']));
+    fireEvent.dragOver(panel(), dragOf(['Files']));
+    expect(screen.getByText('Drop files to add them to this session')).toBeTruthy();
+    // Crossing into a child and out of it keeps the overlay; leaving the chat removes it.
+    fireEvent.dragLeave(box(), dragOf(['Files']));
+    expect(screen.getByText('Drop files to add them to this session')).toBeTruthy();
+    fireEvent.dragLeave(panel(), dragOf(['Files']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.dragEnter(panel(), dragOf(['Files']));
+    fireEvent.drop(panel(), dragOf(['Files'], [file('Notes.pdf')]));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    await waitFor(() => expect(within(chips()).getByText('Notes.pdf')).toBeTruthy());
+    expect(s.desktop.sources.add).toHaveBeenCalledTimes(1);
+  });
+
+  it('adds files pasted into the box, and leaves pasted text alone', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    fireEvent.paste(box(), { clipboardData: { files: [] } });
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+    fireEvent.paste(box(), { clipboardData: { files: [file('shot.png')] } });
+    await waitFor(() => expect(within(chips()).getByText('shot.png')).toBeTruthy());
+  });
+
+  it('shows the added files in the Sources tab', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+    const tab = screen.getByRole('tabpanel', { name: 'Sources' });
+    await within(tab).findByText('transcript.txt');
+    await pick([file('Plan.docx')]);
+    expect(await within(tab).findByText('Plan.docx')).toBeTruthy();
+    expect(s.desktop.sources.add).toHaveBeenCalled();
+  });
+
+  it('can remove an added file from its chip', async () => {
+    await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    await pick([file('Plan.docx')]);
+    await waitFor(() => expect(within(chips()).getByText('Plan.docx')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Plan.docx' }));
+    expect(screen.queryByRole('list', { name: 'Attached to your next message' })).toBeNull();
+  });
+
+  it('says so, and adds nothing, for too many files or one over 25 MB', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    await pick(Array.from({ length: 11 }, (_, i) => file(`f${i}.txt`)));
+    expect(await screen.findByText(/room for 10 more/)).toBeTruthy();
+    const big = file('big.pdf');
+    Object.defineProperty(big, 'size', { value: 26_214_401 });
+    await pick([big]);
+    expect(
+      await screen.findByText('A file is larger than 25 MB. Add a smaller copy.'),
+    ).toBeTruthy();
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+    // With the message full, none more.
+    await pick(Array.from({ length: 10 }, (_, i) => file(`g${i}.txt`)));
+    await waitFor(() => expect(s.desktop.sources.add).toHaveBeenCalledTimes(1));
+    await pick([file('one-more.txt')]);
+    expect(await screen.findByText(/already carries 10 things/)).toBeTruthy();
+  });
+
+  it('shows progress, then says in plain words when the shell refuses', async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    let fail: (error: Error) => void = () => undefined;
+    s.desktop.sources.add.mockImplementationOnce(
+      () => new Promise((_, reject) => void (fail = reject)),
+    );
+    await pick([file('Plan.docx')]);
+    expect(await screen.findByText('Adding files…', { selector: 'p' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true);
+    // A second drop meanwhile is ignored, and Enter does not send.
+    fireEvent.drop(panel(), dragOf(['Files'], [file('Again.docx')]));
+    fireEvent.keyDown(box(), { key: 'Enter' });
+    expect(s.agent.send).not.toHaveBeenCalled();
+    expect(
+      (screen.getByRole('button', { name: 'Adding files…' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await act(async () => fail(new Error('sources.add failed')));
+    expect(await screen.findByText(/The files could not be added/)).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Files not added', expect.any(Error), {
+      sessionId: s.id,
+    });
+    expect(screen.queryByRole('list', { name: 'Attached to your next message' })).toBeNull();
+  });
+
+  it('adds nothing when the agent cannot run', async () => {
+    const s = await open({ status: { state: 'not_installed' } });
+    await screen.findByText('Claude Code is not on this computer');
+    const chat = document.querySelector('.ss-chat__panel') as HTMLElement;
+    fireEvent.dragEnter(chat, dragOf(['Files']));
+    fireEvent.dragOver(chat, dragOf(['Files']));
+    fireEvent.dragLeave(chat, dragOf(['Files']));
+    expect(screen.queryByText('Drop files to add them to this session')).toBeNull();
+    fireEvent.drop(chat, dragOf(['Files'], [file('a.docx')]));
+    fireEvent.paste(chat, { clipboardData: { files: [file('a.docx')] } });
+    expect(s.desktop.sources.add).not.toHaveBeenCalled();
+  });
+});
+
+describe("the chat's bottom bar", () => {
+  const trigger = (name: RegExp | string) => screen.getByRole('button', { name });
+  const pickFrom = async (menu: RegExp, item: string) => {
+    fireEvent.click(trigger(menu));
+    fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(`^${item}`) }));
+  };
+  const startArgs = (s: { agent: { start: { mock: { calls: unknown[] } } } }, n: number) =>
+    (s.agent.start.mock.calls[n] as unknown[] | undefined)?.[0];
+  const ready = async () => {
+    const s = await open();
+    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
+    return s;
+  };
+
+  it('shows the defaults, no context yet, and lists the skills without letting them be changed', async () => {
+    await ready();
+    expect(trigger('Model: Default model')).toBeTruthy();
+    expect(trigger('Effort: Default effort')).toBeTruthy();
+    expect(screen.queryByRole('progressbar', { name: 'Context used' })).toBeNull();
+    fireEvent.click(trigger('Skills the agent has'));
+    const items = screen.getAllByRole('menuitem').map((i) => i.textContent);
+    expect(items).toEqual([
+      'OutlineAgrees the plan first',
+      'LessonWrites one lesson',
+      'QuizQuestions from lessons',
+      'HumanizePlain, checked writing',
+    ]);
+    expect(screen.getByText('What the agent knows how to do. Read-only.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Outline/ }));
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('starts the agent again with the model and effort picked, resuming the chat, and keeps them', async () => {
+    const s = await ready();
+    await pickFrom(/^Model: Default/, 'Opus');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(2));
+    expect(s.agent.close).toHaveBeenCalledWith(s.id);
+    expect(s.agent.start).toHaveBeenLastCalledWith(expect.objectContaining({ model: 'opus' }));
+    expect(startArgs(s, 1)).not.toHaveProperty('effort');
+    await screen.findByRole('button', { name: 'Model: Opus' });
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).toMatchObject({
+      model: 'opus',
+    });
+
+    await pickFrom(/^Effort: Default/, 'Low');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(3));
+    expect(s.agent.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({ model: 'opus', effort: 'low' }),
+    );
+    fireEvent.click(trigger('Effort: Low'));
+    expect(screen.getByRole('menuitem', { name: /^Low/ }).textContent).toContain('Selected');
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Default/ }));
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(4));
+    await screen.findByRole('button', { name: 'Effort: Default effort' });
+    expect(startArgs(s, 3)).not.toHaveProperty('effort');
+    expect(s.agent.start).toHaveBeenLastCalledWith(expect.objectContaining({ model: 'opus' }));
+    expect(log.info).toHaveBeenCalledWith('Agent model chosen', {
+      sessionId: s.id,
+      model: 'opus',
+      effort: 'default',
+    });
+    await pickFrom(/^Model: Opus/, 'Default');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(5));
+    await screen.findByRole('button', { name: 'Model: Default model' });
+    expect(startArgs(s, 4)).not.toHaveProperty('model');
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).not.toHaveProperty(
+      'model',
+    );
+    // A default is no key at all, so an older file reads the same.
+    expect(JSON.parse(s.files.get(`u1/${s.id}/session.json`) as string)).not.toHaveProperty(
+      'effort',
+    );
+  });
+
+  it('starts with what the session file already holds', async () => {
+    const fake = fakeDesktop();
+    const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 'held' });
+    const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+      draftDoc(GIT, { rev: 3 }),
+    );
+    if (started.status !== 'started') throw new Error('not started');
+    await store.save({ ...started.session, model: 'haiku', effort: 'high' });
+    const agent = fakeAgent(fake.desktop);
+    installDesktop(fake.desktop);
+    await openApp('/studio/sessions/held', { roles: ['educator'], studio: studio() });
+    await screen.findByRole('button', { name: 'Model: Haiku' });
+    expect(screen.getByRole('button', { name: 'Effort: High' })).toBeTruthy();
+    await waitFor(() => expect(agent.agent.start).toHaveBeenCalled());
+    expect(agent.agent.start).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'haiku', effort: 'high' }),
+    );
+  });
+
+  it('says how full the context is once a turn reports it, and again empty after a change', async () => {
+    const s = await ready();
+    await send(s, 'Rename it');
+    act(() =>
+      s.emit({
+        type: 'turn_end',
+        agentSessionId: 'claude-1',
+        outcome: 'done',
+        context: { used: 46_000, window: 200_000 },
+      }),
+    );
+    const ring = await screen.findByRole('progressbar', { name: 'Context used' });
+    expect(ring.getAttribute('aria-valuenow')).toBe('23');
+    expect(screen.getByText('23%')).toBeTruthy();
+    await pickFrom(/^Model: Default/, 'Sonnet');
+    await waitFor(() =>
+      expect(screen.queryByRole('progressbar', { name: 'Context used' })).toBeNull(),
+    );
+  });
+
+  it('caps the percentage at 100', async () => {
+    const { contextPercent } = await import('../src/studio/session/ChatBar');
+    expect(contextPercent(250_000, 200_000)).toBe(100);
+    expect(contextPercent(1, 200_000)).toBe(0);
+  });
+
+  it('cannot change the model while a turn runs', async () => {
+    const s = await ready();
+    await send(s, 'Go');
+    const model = screen.getByRole('button', { name: 'Model: Default model' });
+    expect((model as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Effort: Default effort' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it('keeps the old choice and says so when it cannot be saved', async () => {
+    const s = await ready();
+    s.desktop.store.write.mockRejectedValueOnce(new Error('store.write failed (EACCES)'));
+    await pickFrom(/^Model: Default/, 'Opus');
+    expect(await screen.findByText(/That choice could not be saved/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Model: Default model' })).toBeTruthy();
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+    expect(log.warn).toHaveBeenCalledWith('Session model not saved', expect.any(Object));
+  });
+
+  it('starts the new agent even when the old one cannot be told to end', async () => {
+    const s = await ready();
+    s.agent.close.mockRejectedValueOnce(new Error('agent.close failed'));
+    await pickFrom(/^Model: Default/, 'Haiku');
+    await waitFor(() => expect(s.agent.start).toHaveBeenCalledTimes(2));
+    expect(log.warn).toHaveBeenCalledWith('Agent not closed', expect.any(Object));
+  });
+
+  it('shows the Sources folder in Finder, and logs when it cannot', async () => {
+    const s = await ready();
+    fireEvent.click(trigger('Show in Finder'));
+    expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
+    fireEvent.click(trigger('Show in Finder'));
+    await waitFor(() =>
+      expect(log.error).toHaveBeenCalledWith('Sources folder not shown', expect.any(Error), {
+        sessionId: s.id,
+      }),
+    );
   });
 });

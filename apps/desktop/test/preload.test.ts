@@ -83,6 +83,9 @@ describe('buildBridge', () => {
     await bridge.agent.ask({ askId: 'a1', prompt: 'Answer it.' });
     await bridge.agent.cancelAsk('a1');
     await bridge.sources.read({ uid: 'u', sessionId: 's' }, 'notes.md');
+    await bridge.sources.readImage({ uid: 'u', sessionId: 's' }, 'a.png');
+    const bytes = new Uint8Array([1]);
+    await bridge.sources.add({ uid: 'u', sessionId: 's' }, [{ name: 'a.docx', bytes }]);
     await bridge.auth.googleSignIn();
     await bridge.app.installUpdate();
     expect(invoke.mock.calls).toEqual([
@@ -96,6 +99,8 @@ describe('buildBridge', () => {
       ['gurukul:agent.ask', { askId: 'a1', prompt: 'Answer it.' }],
       ['gurukul:agent.cancelAsk', 'a1'],
       ['gurukul:sources.read', { uid: 'u', sessionId: 's' }, 'notes.md'],
+      ['gurukul:sources.readImage', { uid: 'u', sessionId: 's' }, 'a.png'],
+      ['gurukul:sources.add', { uid: 'u', sessionId: 's' }, [{ name: 'a.docx', bytes }]],
       ['gurukul:auth.googleSignIn'],
       ['gurukul:app.installUpdate'],
     ]);

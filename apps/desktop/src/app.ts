@@ -11,7 +11,7 @@ import { registerHandlers, type IpcLike } from './ipc';
 import type { Logger } from './log';
 import { menuTemplate, type MenuItem } from './menu';
 import { allowPermission, guardContents, type ContentsLike, type ShellLike } from './navigation';
-import { createSources, type FolderDialogLike, type FolderOpenerLike } from './sources';
+import { createSources, type FolderOpenerLike } from './sources';
 import { createSessionStore } from './store';
 import { createUpdates, type UpdateMessage, type UpdaterLike } from './updates';
 import { openWindow, windowOptions, type WindowLike, type WindowOptions } from './window';
@@ -59,8 +59,6 @@ export interface ShellDeps {
   ipc: IpcLike;
   /** Electron's `shell`: links to the system browser, a Sources folder to Finder or Explorer. */
   shell: ShellLike & FolderOpenerLike;
-  /** Electron's `dialog`: the folder picker for `sources.choose`. */
-  dialog: FolderDialogLike;
   /** Called after `whenReady`: Electron's sessions do not exist before it. */
   session(): SessionLike;
   createWindow(options: WindowOptions): WindowLike;
@@ -198,11 +196,10 @@ export async function startApp(deps: ShellDeps): Promise<Shell | null> {
     sessionsRoot,
     documentsDir: app.getPath('documents'),
     homeDir: app.getPath('home'),
-    dialog: deps.dialog,
     opener: deps.shell,
     log,
   });
-  // A start dialog closed after choosing leaves a choice with no session: forget it now.
+  // A folder choice left behind by a session that is gone (the app closed mid-removal): forget it.
   await sources.prune();
   const agent = createAgentManager({
     platform: deps.agent,

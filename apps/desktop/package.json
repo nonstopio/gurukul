@@ -23,6 +23,9 @@
     "@gurukul/schema": "^0.0.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "cross-spawn": "7.0.6",
+    "mammoth": "1.13.0",
+    "read-excel-file": "9.3.20",
+    "unpdf": "2.2.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -31,6 +34,7 @@
     "electron-builder": "26.18.1",
     "electron-updater": "6.8.12",
     "esbuild": "^0.28.2",
+    "jszip": "3.10.2",
     "tsx": "^4.23.15"
   },
   "author": "NonStop io",

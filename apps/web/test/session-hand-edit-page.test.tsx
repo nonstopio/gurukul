@@ -42,9 +42,7 @@ async function open(
   const fake = fakeDesktop();
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
   const started = await store.start(
-    init.kind === 'new'
-      ? { kind: 'new', goal: 'A course on code review.' }
-      : { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
+    init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
     async () => draftDoc(GIT, { rev: 3 }),
   );
   if (started.status !== 'started') throw new Error('not started');
@@ -99,7 +97,7 @@ describe('Open in editor from the session workspace', () => {
         .getAttribute('href'),
     ).toBe(itemPath(s.id, 'q1'));
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Simplify the basics.' })).toBeTruthy();
+    expect(within(crumbs).getByRole('link', { name: 'Git' })).toBeTruthy();
     expect(await axeViolations(document.body)).toEqual([]);
 
     fireEvent.change(title, { target: { value: 'Why Git' } });
@@ -107,7 +105,7 @@ describe('Open in editor from the session workspace', () => {
     fireEvent.click(back);
 
     // Back in the workspace, on the lesson that was edited, with the hand edits as a turn.
-    const turn = await screen.findByRole('link', { name: 'Turn 1 · by hand · 1 change' });
+    const turn = await screen.findByRole('link', { name: '1 change in turn 1, open in Review' });
     expect(turn).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Why Git' })).toBeTruthy();
     expect(screen.getByText('Edited by hand: Why Git')).toBeTruthy();
@@ -231,7 +229,7 @@ describe('Open in editor from the session workspace', () => {
     });
     loaded(400, 300);
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));
-    await screen.findByRole('link', { name: /^Turn 1 · by hand/ });
+    await screen.findByRole('link', { name: /in turn 1,/ });
     const blocks = (s.disk().work.course.chapters[0]?.items[0] as ReturnType<typeof lesson>)
       .blocks as unknown[];
     expect(blocks[0]).toMatchObject({
@@ -280,7 +278,7 @@ describe('Open in editor from the session workspace', () => {
     const [request] = vi.mocked(s.studio.storage.upload).mock.calls[0] as [{ path: string }];
     expect(request.path).toMatch(/^courses\/git\/media\//);
     fireEvent.click(screen.getByRole('link', { name: 'Session' }));
-    await screen.findByRole('link', { name: /^Turn 1 · by hand/ });
+    await screen.findByRole('link', { name: /in turn 1,/ });
     const blocks = (s.disk().work.course.chapters[0]?.items[0] as ReturnType<typeof lesson>).blocks;
     expect(blocks.at(-1)).toMatchObject({ type: 'file', upload: { name: 'handout.pdf' } });
   });
@@ -334,9 +332,8 @@ describe('when hand edits wait', () => {
     let finish: () => void = () => undefined;
     const fake = fakeDesktop();
     const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => 'hx' });
-    const started = await store.start(
-      { kind: 'edit', courseId: 'git', goal: 'Simplify the basics.' },
-      async () => draftDoc(GIT, { rev: 3 }),
+    const started = await store.start({ kind: 'edit', courseId: 'git' }, async () =>
+      draftDoc(GIT, { rev: 3 }),
     );
     if (started.status !== 'started') throw new Error('not started');
     await store.saveHandEdits('hx', {
