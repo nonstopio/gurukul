@@ -34,8 +34,8 @@ that a spec walks through passes every unit test and still turns CI red.
   on first use (`node -e "require('electron')"` in `apps/desktop` fetches it); no display is needed.
   They run on Linux (CI) and are skipped on Windows, where the fake's `#!/bin/sh` wrapper and the
   headless window cannot work (`e2e/support/desktop-platform.mjs`): there `npm run e2e` runs the web
-  specs only, so a desktop change is checked on Linux or by CI. macOS should run them, with a
-  window showing, but nobody has checked yet.
+  specs only, so a desktop change is checked on Linux or by CI. macOS runs them too, with a window
+  showing.
 - **Prerequisites:** Java 21 and Chromium. Where a browser is preinstalled, point at it with
   `PW_CHROMIUM_PATH=/path/to/chrome`; to run one spec, `cd e2e && npx playwright test -g "name"`
   (`npm run e2e -- -g` does not reach Playwright). `E2E_SKIP_FUNCTIONS_BUILD=1` reuses the last
