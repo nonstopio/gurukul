@@ -1,22 +1,17 @@
-import { SegmentedControl, Textarea } from '@gurukul/ui';
+import { Textarea } from '@gurukul/ui';
 import { lazy, Suspense, useState } from 'react';
 import type { ReactNode } from 'react';
 
 // Milkdown is its own chunk: Studio pays for it, learners never do.
 const VisualMarkdownView = lazy(() => import('./VisualMarkdownView'));
 
-const MODES = [
-  { value: 'visual', label: 'Visual' },
-  { value: 'markdown', label: 'Markdown' },
-] as const;
-
 export const LOSSY_WARNING =
-  'This text uses formatting the visual editor cannot keep, so it stays in Markdown.';
+  'This text uses formatting the visual editor cannot keep, so it is shown as Markdown.';
 
 /**
- * A Markdown field with a Visual | Markdown switch. Visual is the default; text the visual editor
- * could not write back unchanged opens in Markdown, with a warning. `children` is the Markdown
- * editor, which each caller draws as it needs (a plain box, or CodeMirror with its own toolbar).
+ * A formatted-text field: the visual editor and nothing else. Text the visual editor could not write
+ * back unchanged (raw HTML, an unsafe link) is shown in `children`, a plain Markdown editor, with a
+ * warning, so it is never rewritten silently. That is automatic, not a choice the Educator makes.
  */
 export function MarkdownField({
   label,
@@ -33,21 +28,17 @@ export function MarkdownField({
   onChange: (md: string) => void;
   children: ReactNode;
 }) {
-  const [mode, setMode] = useState<'visual' | 'markdown'>('visual');
   const [lossy, setLossy] = useState(false);
-  const pick = (next: 'visual' | 'markdown') => {
-    setLossy(false);
-    setMode(next);
-  };
   return (
     <div className="studio-text">
-      <SegmentedControl label={`${label} editor`} value={mode} options={MODES} onChange={pick} />
       {lossy ? (
-        <p role="status" className="studio-muted">
-          {LOSSY_WARNING}
-        </p>
-      ) : null}
-      {mode === 'visual' ? (
+        <>
+          <p role="status" className="studio-muted">
+            {LOSSY_WARNING}
+          </p>
+          {children}
+        </>
+      ) : (
         <Suspense
           fallback={
             <Textarea
@@ -66,14 +57,9 @@ export function MarkdownField({
             error={error}
             value={value}
             onChange={onChange}
-            onLossy={() => {
-              setMode('markdown');
-              setLossy(true);
-            }}
+            onLossy={() => setLossy(true)}
           />
         </Suspense>
-      ) : (
-        children
       )}
     </div>
   );

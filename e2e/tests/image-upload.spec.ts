@@ -22,7 +22,7 @@ async function openNewLesson(page: Page, title: string, slug: string, block = 'I
   // Publishing needs a landing page description and at least two outcomes.
   await page.getByRole('tab', { name: 'Landing page' }).click();
   await page
-    .getByLabel('Description', { exact: true })
+    .getByLabel('Description')
     .fill('For Educators who add pictures and handouts to lessons.');
   await page.getByRole('button', { name: 'Add outcome' }).click();
   await page.getByLabel('Outcome 1', { exact: true }).fill('Upload an image with alt text');

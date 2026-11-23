@@ -35,7 +35,7 @@ test.describe('Educator in Studio', () => {
 
     await page.getByLabel('Lesson title').fill('The cost of a bug');
     await page.getByRole('button', { name: 'Text', exact: true }).click();
-    // Visual mode is the default: type, bold a word, and the Markdown underneath says so.
+    // Type in the visual editor, bold a word, and the block's Preview shows it as a learner sees it.
     // The editor loads on its own: a plain box stands in until the toolbar shows.
     await expect(page.getByRole('button', { name: 'Bold' })).toBeVisible();
     const visual = page.getByLabel('Text', { exact: true });
@@ -45,8 +45,15 @@ test.describe('Educator in Studio', () => {
     await page.keyboard.press('ArrowLeft');
     for (let i = 0; i < 7; i++) await page.keyboard.press('Shift+ArrowLeft');
     await page.getByRole('button', { name: 'Bold' }).click();
-    await page.getByRole('button', { name: 'Markdown', exact: true }).click();
-    await expect(page.getByLabel('Text (Markdown)')).toContainText('**minutes**');
+    await page
+      .getByRole('group', { name: 'View Text' })
+      .getByRole('button', { name: 'Preview' })
+      .click();
+    await expect(page.locator('strong', { hasText: 'minutes' })).toBeVisible();
+    await page
+      .getByRole('group', { name: 'View Text' })
+      .getByRole('button', { name: 'Edit' })
+      .click();
     await expect(saveState).toHaveText(/unsaved changes/);
     await expect(saveState).toHaveText(/· saved/);
 
@@ -93,9 +100,7 @@ test.describe('Educator in Studio', () => {
     await page.getByLabel('Summary').fill('How to read a review comment and answer it well.');
     // Publishing needs a landing page description and at least two outcomes.
     await page.getByRole('tab', { name: 'Landing page' }).click();
-    await page
-      .getByLabel('Description', { exact: true })
-      .fill('For anyone whose code gets reviewed.');
+    await page.getByLabel('Description').fill('For anyone whose code gets reviewed.');
     await page.getByRole('button', { name: 'Add outcome' }).click();
     await page.getByLabel('Outcome 1', { exact: true }).fill('Read a review comment as a question');
     await page.getByRole('button', { name: 'Add outcome' }).click();
@@ -110,9 +115,9 @@ test.describe('Educator in Studio', () => {
     await page.getByRole('link', { name: 'Untitled lesson' }).click();
     await page.getByLabel('Lesson title').fill('A comment is a question');
     await page.getByRole('button', { name: 'Text', exact: true }).click();
-    await page.getByRole('button', { name: 'Markdown', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Bold' })).toBeVisible();
     await page
-      .getByLabel('Text (Markdown)')
+      .getByLabel('Text', { exact: true })
       .fill('Treat each comment as a question, not a verdict.');
     await expect(saveState).toHaveText(/unsaved changes/);
     await expect(saveState).toHaveText(/· saved/);
