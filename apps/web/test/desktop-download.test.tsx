@@ -25,7 +25,7 @@ const {
   RELEASE_TIMEOUT_MS,
 } = real;
 
-// The loader keeps its answer for the tab session; each test starts in a fresh tab.
+// The loader keeps its last answer for the tab as a fallback; each test starts in a fresh tab.
 beforeEach(() => {
   sessionStorage.clear();
 });
@@ -110,12 +110,26 @@ describe('toDesktopRelease', () => {
 describe('latestReleaseLoader', () => {
   const ANSWER = { tag_name: 'desktop-v0.3.0', assets: [asset(ARM), asset(INTEL), asset(WIN)] };
 
-  it('asks GitHub once per page and keeps the answer', async () => {
-    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+  const REFUSED = () => json({ message: 'rate limited' }, 403);
+
+  it('asks GitHub every time, so a new release shows at once', async () => {
+    const NEWER = {
+      tag_name: 'desktop-v0.4.0',
+      assets: [
+        asset(
+          'Gurukul-Studio-0.4.0-arm64.dmg',
+          'https://github.com/nonstopio/gurukul/releases/download/desktop-v0.4.0/Gurukul-Studio-0.4.0-arm64.dmg',
+        ),
+      ],
+    };
+    const get = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(json(ANSWER))
+      .mockResolvedValueOnce(json(NEWER));
     const load = latestReleaseLoader(get);
     expect(await load()).toEqual(RELEASE);
-    expect(await load()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect((await load())?.version).toBe('0.4.0');
+    expect(get).toHaveBeenCalledTimes(2);
     expect(get).toHaveBeenCalledWith(
       'https://api.github.com/repos/nonstopio/gurukul/releases/latest',
       {
@@ -125,25 +139,25 @@ describe('latestReleaseLoader', () => {
     );
   });
 
-  it('gives up on GitHub after a while, ending the request, and asks again on the next card', async () => {
+  it('gives up on GitHub after a while, ending the request, and falls back to the last answer', async () => {
     let fire: () => void = () => undefined;
     const cancel = vi.fn();
     const later = vi.fn((run: () => void) => {
       fire = run;
       return cancel;
     });
+    const never = (_url: string, init: RequestInit) =>
+      // GitHub never answers: only the end of the request settles it, as fetch does.
+      new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError')),
+        );
+      });
     const get = vi
       .fn<(url: string, init: RequestInit) => Promise<Response>>()
-      // GitHub never answers: only the end of the request settles it, as fetch does.
-      .mockImplementationOnce(
-        (_url, init) =>
-          new Promise((_resolve, reject) => {
-            init.signal?.addEventListener('abort', () =>
-              reject(new DOMException('aborted', 'AbortError')),
-            );
-          }),
-      )
-      .mockResolvedValueOnce(json(ANSWER));
+      .mockImplementationOnce(never)
+      .mockResolvedValueOnce(json(ANSWER))
+      .mockImplementationOnce(never);
     const load = latestReleaseLoader(get, later);
     const first = load();
     expect(later).toHaveBeenCalledWith(expect.any(Function), RELEASE_TIMEOUT_MS);
@@ -153,91 +167,66 @@ describe('latestReleaseLoader', () => {
     expect(get.mock.calls[0]?.[1].signal?.aborted).toBe(true);
     expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', { reason: 'timeout' });
     expect(sessionStorage.getItem(RELEASE_KEY)).toBeNull();
-    // Not kept: the next card asks again, and an answer in time stops the timer.
+    // An answer in time stops the timer and is kept; the next timeout shows it.
     expect(await load()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(2);
-    expect(cancel).toHaveBeenCalledTimes(2);
+    const third = load();
+    fire();
+    expect(await third).toEqual(RELEASE);
+    expect(cancel).toHaveBeenCalledTimes(3);
   });
 
   it('keeps "no release yet" without calling it a failure', async () => {
+    sessionStorage.setItem(RELEASE_KEY, JSON.stringify(ANSWER));
     const get = vi.fn(() => Promise.resolve(json({ message: 'Not Found' }, 404)));
-    const load = latestReleaseLoader(get);
-    expect(await load()).toBeNull();
-    expect(await load()).toBeNull();
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(await latestReleaseLoader(get)()).toBeNull();
+    expect(sessionStorage.getItem(RELEASE_KEY)).toBe('null');
     expect(log.info).toHaveBeenCalledWith('No desktop release yet');
     expect(log.warn).not.toHaveBeenCalled();
   });
 
-  it('keeps a refusal (the rate limit) and logs its status', async () => {
-    const get = vi.fn(() => Promise.resolve(json({ message: 'rate limited' }, 403)));
-    const load = latestReleaseLoader(get);
-    expect(await load()).toBeNull();
-    expect(await load()).toBeNull();
-    expect(get).toHaveBeenCalledTimes(1);
+  it('falls back to the tab’s last answer when GitHub refuses (the rate limit)', async () => {
+    const get = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(json(ANSWER))
+      .mockResolvedValueOnce(REFUSED());
+    // A reload starts with a new loader; the answer is in sessionStorage.
+    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
+    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
+    expect(get).toHaveBeenCalledTimes(2);
     expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', { status: 403 });
   });
 
-  it('asks again after a network failure', async () => {
-    const get = vi
-      .fn<(url: string, init: RequestInit) => Promise<Response>>()
-      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-      .mockResolvedValueOnce(json(ANSWER));
-    const load = latestReleaseLoader(get);
-    expect(await load()).toBeNull();
-    expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', { reason: 'network' });
-    expect(await load()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(2);
-  });
-
-  it('is null for an answer that is not JSON', async () => {
-    const load = latestReleaseLoader(() =>
-      Promise.resolve(new Response('<html>', { status: 200 })),
-    );
-    expect(await load()).toBeNull();
+  it('is null when GitHub cannot answer and the tab has no answer yet', async () => {
+    for (const get of [
+      () => Promise.resolve(REFUSED()),
+      () => Promise.resolve(new Response('<html>', { status: 200 })),
+      () => Promise.reject(new TypeError('Failed to fetch')),
+    ]) {
+      expect(await latestReleaseLoader(get)()).toBeNull();
+      expect(sessionStorage.getItem(RELEASE_KEY)).toBeNull();
+    }
     expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', {
       reason: 'unreadable',
     });
+    expect(log.warn).toHaveBeenCalledWith('Desktop release lookup failed', { reason: 'network' });
+  });
+
+  it('falls back to the last answer after a network failure or an unreadable answer', async () => {
+    sessionStorage.setItem(RELEASE_KEY, JSON.stringify(ANSWER));
+    for (const get of [
+      () => Promise.resolve(new Response('<html>', { status: 200 })),
+      () => Promise.reject(new TypeError('Failed to fetch')),
+    ]) {
+      expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
+    }
   });
 
   it('uses the browser’s fetch by default', async () => {
     const fetch = vi.fn(() => Promise.resolve(json(ANSWER)));
     vi.stubGlobal('fetch', fetch);
     expect(await latestReleaseLoader()()).toEqual(RELEASE);
-    sessionStorage.clear();
     expect(await real.loadLatestRelease()).toEqual(RELEASE);
     expect(fetch).toHaveBeenCalledTimes(2);
-  });
-
-  it('answers a reload or another page in the same tab from sessionStorage', async () => {
-    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
-    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
-    // A reload starts with a new loader and nothing in memory.
-    const again = vi.fn(() => Promise.resolve(json({ message: 'rate limited' }, 403)));
-    expect(await latestReleaseLoader(again)()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(1);
-    expect(again).not.toHaveBeenCalled();
-  });
-
-  it('keeps a refusal or an unreadable answer for the tab, so a rate-limited tab stops asking', async () => {
-    for (const res of [
-      json({ message: 'rate limited' }, 403),
-      json({ message: 'Not Found' }, 404),
-      new Response('<html>', { status: 200 }),
-    ]) {
-      sessionStorage.clear();
-      expect(await latestReleaseLoader(() => Promise.resolve(res))()).toBeNull();
-      expect(sessionStorage.getItem(RELEASE_KEY)).toBe('null');
-      const again = vi.fn(() => Promise.resolve(json(ANSWER)));
-      expect(await latestReleaseLoader(again)()).toBeNull();
-      expect(again).not.toHaveBeenCalled();
-    }
-  });
-
-  it('keeps nothing for the tab after a network failure', async () => {
-    const load = latestReleaseLoader(() => Promise.reject(new TypeError('Failed to fetch')));
-    expect(await load()).toBeNull();
-    expect(sessionStorage.getItem(RELEASE_KEY)).toBeNull();
   });
 
   it('checks a stored answer again, so an edited one points nowhere else', async () => {
@@ -248,33 +237,31 @@ describe('latestReleaseLoader', () => {
         assets: [asset(ARM, `https://evil.example.com/${ARM}`), asset(WIN)],
       }),
     );
-    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
-    expect(await latestReleaseLoader(get)()).toEqual({
+    expect(await latestReleaseLoader(() => Promise.resolve(REFUSED()))()).toEqual({
       version: '0.3.0',
       downloads: [RELEASE.downloads[2]],
     });
-    expect(get).not.toHaveBeenCalled();
   });
 
-  it('asks GitHub when the stored text is unreadable', async () => {
+  it('is null when the stored text is unreadable', async () => {
     sessionStorage.setItem(RELEASE_KEY, '{');
-    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
-    expect(await latestReleaseLoader(get)()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(await latestReleaseLoader(() => Promise.resolve(REFUSED()))()).toBeNull();
   });
 
-  it('still asks once per page when storage is blocked (private mode)', async () => {
+  it('still answers when storage is blocked (private mode)', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('blocked', 'SecurityError');
     });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('blocked', 'SecurityError');
     });
-    const get = vi.fn(() => Promise.resolve(json(ANSWER)));
+    const get = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(json(ANSWER))
+      .mockResolvedValueOnce(REFUSED());
     const load = latestReleaseLoader(get);
     expect(await load()).toEqual(RELEASE);
-    expect(await load()).toEqual(RELEASE);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(await load()).toBeNull();
   });
 });
 

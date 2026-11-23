@@ -1952,13 +1952,12 @@ system and falls back to the releases page. Gurukul does the same inside Studio:
   a switch: no written confirmation from Anthropic is awaited (`DSK-01`).
 - As built (`DSK-25`): `apps/web/src/desktop/download.ts` and `studio/DesktopDownloadCard.tsx`,
   drawn by `studio/DesktopAppPage` at `/studio/desktop`, a "Desktop app" item in Studio's sidebar (the
-  course list no longer shows it; lazy chunk, nothing in the first download). The request goes when the card is first drawn and its
-  answer is kept for the tab session (sessionStorage, re-checked when read, and in memory when
-  storage is off), because GitHub's 60 calls an hour are per address and an office's Educators
-  share one, with the shell's contributors request too; a refusal (404 before the first release,
-  the rate limit) is kept as "nothing", a network failure is not, nor a request GitHub has not
-  answered in `RELEASE_TIMEOUT_MS` (8 s, ended then, so the card falls back to the releases page;
-  `DSK-29`). An installer counts only under
+  course list no longer shows it; lazy chunk, nothing in the first download). The request goes every time the card is drawn, so a
+  release shows the moment it is published. GitHub's answer (a release, or none yet: 404) is kept
+  in sessionStorage (re-checked when read) only as a fallback: when GitHub cannot answer (its 60
+  calls an hour are per address and an office's Educators share one, with the shell's contributors
+  request too; a network failure; no answer in `RELEASE_TIMEOUT_MS`, 8 s, ended then; an unreadable
+  answer) the card shows the tab's last answer, or the releases page when it has none (`DSK-29`). An installer counts only under
   the exact name `electron-builder.yml` gives it for the tag's version
   (`Gurukul-Studio-{v}-arm64.dmg`, `-x64.dmg`, `Gurukul-Studio-Setup-{v}.exe`) and only when it
   downloads from this repository's release of that tag; the version shown is the tag without `desktop-v`. The visitor's system comes

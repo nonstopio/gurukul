@@ -4,7 +4,8 @@ import { log } from '../log';
  * Where Gurukul Studio's installers come from, for the download card in Studio
  * (`.plan/22-desktop-studio.md`, Download). The desktop app's releases are this repository's
  * GitHub Releases, tagged `desktop-vX.Y.Z`; the web app pushes tags only, never releases, so the
- * latest release is always a desktop one. No key, no Firestore: one public request per tab session.
+ * latest release is always a desktop one. No key, no Firestore: one public request each time the card
+ * is drawn.
  */
 
 /** The systems Gurukul Studio is built for, in the order they are offered when nothing says otherwise. */
@@ -85,7 +86,10 @@ const afterTimeout: Later = (run, ms) => {
   return () => clearTimeout(timer);
 };
 
-/** Key in sessionStorage holding the tab's answer: GitHub's shape, so reading it checks it again. */
+/**
+ * Key in sessionStorage holding the tab's last answer from GitHub, in GitHub's shape, so reading it
+ * checks it again. Only a fallback: it is shown when GitHub cannot answer, never instead of asking.
+ */
 export const RELEASE_KEY = 'gurukul.desktopRelease';
 
 /** A release back in the shape GitHub gave it, with only the installers kept. */
@@ -99,16 +103,16 @@ function toAnswer(release: DesktopRelease | null) {
 }
 
 /**
- * The tab's stored answer: `undefined` when there is none (or storage is off or holds something
- * unreadable), else the release or null. Stored text is read through `toDesktopRelease` again, so
- * an edited value can never point a download anywhere else.
+ * The tab's last answer, or null when there is none (or storage is off or holds something
+ * unreadable). Stored text is read through `toDesktopRelease` again, so an edited value can never
+ * point a download anywhere else.
  */
-function stored(): DesktopRelease | null | undefined {
+function lastKnown(): DesktopRelease | null {
   try {
     const raw = sessionStorage.getItem(RELEASE_KEY);
-    return raw === null ? undefined : toDesktopRelease(JSON.parse(raw));
+    return raw === null ? null : toDesktopRelease(JSON.parse(raw));
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -116,28 +120,24 @@ function keep(release: DesktopRelease | null): DesktopRelease | null {
   try {
     sessionStorage.setItem(RELEASE_KEY, JSON.stringify(toAnswer(release)));
   } catch {
-    // Storage off (private mode): the page still remembers it; the next page asks again.
+    // Storage off (private mode): nothing to fall back on next time, which is all it costs.
   }
   return release;
 }
 
 /**
- * A loader for the latest desktop release, asked once per tab session: the answer is kept in
- * sessionStorage, as `contributors.ts` keeps its list, and in memory for the page. GitHub allows 60
- * unauthenticated calls an hour per address, and Educators in one office share one address with
- * each other and with the shell's contributors request, so a reload or a new page must not ask
- * again. A refusal (no release yet, the rate limit) or an unreadable answer is kept as null too; a
- * network failure is not, nor a request GitHub has not answered in `RELEASE_TIMEOUT_MS` (it is
- * ended then, so the card stops waiting), and the next card tries again. Never throws.
+ * A loader for the latest desktop release that asks GitHub every time it is called, so a release
+ * shows the moment it is published. GitHub's answer (a release, or none yet: 404) is kept in
+ * sessionStorage. When GitHub cannot answer (its limit of 60 unauthenticated calls an hour per
+ * address, which an office's Educators share; a network failure; no answer in `RELEASE_TIMEOUT_MS`,
+ * when the request is ended; an unreadable answer) the tab's last answer is used instead, or null
+ * when it has none. Never throws.
  */
 export function latestReleaseLoader(
   get: Fetch = (url, init) => fetch(url, init),
   later: Later = afterTimeout,
 ) {
-  let kept: Promise<DesktopRelease | null> | null = null;
-  const ask = async (): Promise<DesktopRelease | null> => {
-    const hit = stored();
-    if (hit !== undefined) return hit;
+  return async (): Promise<DesktopRelease | null> => {
     let res: Response;
     const controller = new AbortController();
     const stop = later(() => controller.abort(), RELEASE_TIMEOUT_MS);
@@ -150,8 +150,7 @@ export function latestReleaseLoader(
       log.warn('Desktop release lookup failed', {
         reason: controller.signal.aborted ? 'timeout' : 'network',
       });
-      kept = null;
-      return null;
+      return lastKnown();
     } finally {
       stop();
     }
@@ -162,16 +161,15 @@ export function latestReleaseLoader(
     }
     if (!res.ok) {
       log.warn('Desktop release lookup failed', { status: res.status });
-      return keep(null);
+      return lastKnown();
     }
     try {
       return keep(toDesktopRelease(await res.json()));
     } catch {
       log.warn('Desktop release lookup failed', { reason: 'unreadable' });
-      return keep(null);
+      return lastKnown();
     }
   };
-  return (): Promise<DesktopRelease | null> => (kept ??= ask());
 }
 
 /** The page's one loader. */
