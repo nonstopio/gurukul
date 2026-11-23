@@ -205,9 +205,12 @@ export function Select({
     };
   }, [open]);
 
+  // Only when the highlighted option changes: on every render, scrolling the list (which places
+  // the popup again) would pull it back to the highlighted option.
   useEffect(() => {
-    if (open) document.getElementById(optionId(active))?.scrollIntoView?.({ block: 'nearest' });
-  });
+    if (open)
+      document.getElementById(`${uid}-option-${active}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, active, uid]);
 
   return (
     <Field

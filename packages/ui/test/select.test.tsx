@@ -308,6 +308,10 @@ describe('Select', () => {
       key('Enter');
       key('End');
       expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' });
+      // Scrolling the list places the popup again, but leaves the list where the person put it.
+      const calls = scroll.mock.calls.length;
+      fireEvent.scroll(screen.getByRole('listbox'));
+      expect(scroll).toHaveBeenCalledTimes(calls);
     } finally {
       delete (Element.prototype as Partial<Element>).scrollIntoView;
     }
