@@ -18,13 +18,11 @@ import {
   CopyIcon,
   HomeIcon,
   IconButton,
-  Menu,
   PlusIcon,
   SettingsIcon,
   StopIcon,
   TextIcon,
   UndoIcon,
-  chatRoundClass,
   useToast,
 } from '@gurukul/ui';
 import type { ChatChange } from '@gurukul/ui';
@@ -122,7 +120,6 @@ export function ChatPanel({
   draft,
   onDraft,
   checks,
-  onPoint,
   onAdded,
 }: {
   agent: AgentSessionHandle;
@@ -133,8 +130,6 @@ export function ChatPanel({
   onDraft: (text: string) => void;
   /** The working copy's checks, as the top bar shows them: the newest turn says what they found. */
   checks: HeaderChecks;
-  /** The "+" menu sent the Educator to the Preview or the Outline: the chat gets out of the way. */
-  onPoint: () => void;
   /** Files were copied into the Sources folder: the Sources tab reads it again. */
   onAdded: () => void;
 }) {
@@ -207,14 +202,6 @@ export function ChatPanel({
     toast.show(copied ? 'Reply copied' : 'Could not copy the reply', {
       tone: copied ? 'success' : 'danger',
     });
-  };
-  const point = (where: 'Preview' | 'Outline') => {
-    onPoint();
-    toast.show(
-      where === 'Preview'
-        ? 'Press Attach beside a block or question in the Preview, then come back to the chat.'
-        : 'Press the paperclip on a row of the Outline, then come back to the chat.',
-    );
   };
   const closed = agent.session && agent.session.status !== 'open' ? agent.session.status : null;
   // The message box is there (so files can be added) unless the session ended or has no agent.
@@ -450,22 +437,13 @@ export function ChatPanel({
                     event.target.value = '';
                   }}
                 />
-                <Menu
-                  label="Add to your message"
-                  trigger={<PlusIcon />}
-                  triggerClassName={chatRoundClass('plain')}
-                  placement="top"
-                  align="start"
-                  items={[
-                    {
-                      label: adding ? 'Adding files…' : 'Add files…',
-                      disabled: adding,
-                      onSelect: () => picker.current?.click(),
-                    },
-                    { label: 'Attach from the Preview', onSelect: () => point('Preview') },
-                    { label: 'Attach from the Outline', onSelect: () => point('Outline') },
-                  ]}
-                />
+                <ChatRoundButton
+                  label={adding ? 'Adding files…' : 'Add files'}
+                  disabled={adding}
+                  onClick={() => picker.current?.click()}
+                >
+                  <PlusIcon />
+                </ChatRoundButton>
               </>
             }
             end={

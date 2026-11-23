@@ -671,7 +671,7 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   Claude account. There is no Choose or Change folder. A saved or discarded session has no Sources
   tab. `list_sources` and `read_source` ask the shell on every call, so files added mid-session are
   read from the next message on.
-- **`sources.add`** (the chat's drop, paste and "+" menu): the window reads each file with
+- **`sources.add`** (the chat's drop, paste and "+" button): the window reads each file with
   `File.arrayBuffer()` and sends `{ name, bytes }`; it never learns or sends a path. The shell takes
   the same choice as `ensure` (so the folder exists), accepts any file type (Word, Excel, PDF,
   pictures, text; `sources.read` and `sources.readImage` read what they can), at most `MAX_SOURCE_ADD_FILES` (10) per call and
@@ -679,7 +679,7 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   without following links and never overwrites: a name already there becomes `name (2).ext`,
   `name (3).ext`. It answers the names written and the folder listing, and logs only counts.
 - **In the chat,** dropping files anywhere on the panel (an overlay says "Drop files to add them to
-  this session"), pasting files into the box, or "Add files…" in the "+" menu adds them. Each
+  this session"), pasting files into the box, or the "+" button (Add files, a file picker) adds them. Each
   becomes a removable chip above the box (a `file` attached part). Sending names them to the agent
   ("Files added to the Sources folder: a.docx, b.xlsx. Read them with read_source."), the sent
   message shows the chips, and the Sources tab reloads.

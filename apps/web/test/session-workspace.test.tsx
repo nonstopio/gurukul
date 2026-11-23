@@ -1089,27 +1089,14 @@ describe('the chat of a session already written', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy reply' }));
     expect(await screen.findByText('Could not copy the reply')).toBeTruthy();
   });
-
-  it('points at the Preview and the Outline from the plus menu', async () => {
-    await open();
-    await waitFor(() => expect(box().value).toBe('Simplify the basics.'));
-    expect(box().getAttribute('placeholder')).toMatch(/^Ask for a change\./);
-    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Attach from the Preview' }));
-    expect(await screen.findByText(/Press Attach beside a block or question/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Attach from the Outline' }));
-    expect(await screen.findByText(/Press the paperclip on a row of the Outline/)).toBeTruthy();
-  });
 });
 
 describe('adding files to the session from the chat', () => {
   const file = (name: string, text = 'data') => new File([text], name);
   const pick = async (files: File[]) => {
-    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const click = vi.spyOn(input, 'click');
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Add files…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add files' }));
     expect(click).toHaveBeenCalled();
     fireEvent.change(input, { target: { files } });
   };
@@ -1232,11 +1219,9 @@ describe('adding files to the session from the chat', () => {
     fireEvent.drop(panel(), dragOf(['Files'], [file('Again.docx')]));
     fireEvent.keyDown(box(), { key: 'Enter' });
     expect(s.agent.send).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Add to your message' }));
     expect(
-      screen.getByRole('menuitem', { name: 'Adding files…' }).getAttribute('aria-disabled'),
-    ).toBe('true');
-    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+      (screen.getByRole('button', { name: 'Adding files…' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     await act(async () => fail(new Error('sources.add failed')));
     expect(await screen.findByText(/The files could not be added/)).toBeTruthy();
     expect(log.error).toHaveBeenCalledWith('Files not added', expect.any(Error), {

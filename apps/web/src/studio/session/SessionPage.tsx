@@ -229,7 +229,6 @@ function Workspace({
       draft={draft}
       onDraft={setTyped}
       checks={checks}
-      onPoint={() => setChatOpen(false)}
       onAdded={() => setAddedFiles((n) => n + 1)}
     />
   );
