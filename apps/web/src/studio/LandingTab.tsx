@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { article } from '../labels/terms';
 import { useTerms } from '../labels/useTerms';
 import { addOutcome, patchCourse, removeOutcome, setCertificate, setOutcome } from './courseEdit';
+import { MarkdownField } from './blocks/MarkdownField';
 import { useStudio } from './StudioProvider';
 import type { Working } from './types';
 
@@ -29,15 +30,23 @@ export function LandingTab({ course, update }: { course: Course; update: Update 
         Landing page
       </h2>
       <Card className="sc-panel">
-        <Textarea
+        <MarkdownField
           label="Description"
-          hint="Required to publish. Markdown works here. Say who the course is for and what it covers."
+          hint="Required to publish. Say who the course is for and what it covers."
           error={issue('course.description')}
-          rows={10}
-          maxLength={10000}
           value={course.description}
-          onChange={(e) => update((w) => patchCourse(w, { description: e.target.value }))}
-        />
+          onChange={(description) => update((w) => patchCourse(w, { description }))}
+        >
+          <Textarea
+            label="Description (Markdown)"
+            hint="Required to publish. Say who the course is for and what it covers."
+            error={issue('course.description')}
+            rows={10}
+            maxLength={10000}
+            value={course.description}
+            onChange={(e) => update((w) => patchCourse(w, { description: e.target.value }))}
+          />
+        </MarkdownField>
       </Card>
       <Card title={`What ${t.learners} will be able to do`} titleAs="h3" className="sc-panel">
         <p className="sc-help">

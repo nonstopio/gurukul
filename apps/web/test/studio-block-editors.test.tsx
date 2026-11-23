@@ -38,15 +38,30 @@ const type = (label: string | RegExp, value: string) =>
 describe('text block editor', () => {
   const md = (text: string): Block => ({ ...newBlock('markdown'), md: text }) as Block;
   const area = () => screen.getByLabelText('Text (Markdown)') as HTMLTextAreaElement;
+  /** Opens the block in its Markdown mode, where the toolbar wraps the selection. */
+  const setupMarkdown = (text: string) => {
+    const view = setup(md(text));
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    return view;
+  };
+
+  it('edits the text visually by default', () => {
+    const { last } = setup(md(''));
+    expect(screen.getByRole('button', { name: 'Visual' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    type('Text', 'Hello');
+    expect(last()).toMatchObject({ md: 'Hello' });
+  });
 
   it('edits the Markdown', () => {
-    const { last } = setup(md(''));
+    const { last } = setupMarkdown('');
     type('Text (Markdown)', 'Hello');
     expect(last()).toMatchObject({ md: 'Hello' });
   });
 
   it('wraps the selected text and keeps it selected', () => {
-    const { last } = setup(md('hello world'));
+    const { last } = setupMarkdown('hello world');
     area().setSelectionRange(0, 5);
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
     expect(last()).toMatchObject({ md: '**hello** world' });
@@ -61,20 +76,20 @@ describe('text block editor', () => {
     ['Link', 'see docs', 4, 8, 'see [docs](https://)'],
     ['Numbered list', 'one\ntwo', 0, 7, '1. one\n2. two'],
   ])('the %s button changes the text', (name, text, start, end, expected) => {
-    const { last } = setup(md(text));
+    const { last } = setupMarkdown(text);
     area().setSelectionRange(start, end);
     fireEvent.click(screen.getByRole('button', { name }));
     expect(last()).toMatchObject({ md: expected });
   });
 
   it('inserts a placeholder when nothing is selected', () => {
-    const { last } = setup(md(''));
+    const { last } = setupMarkdown('');
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
     expect(last()).toMatchObject({ md: '**bold text**' });
   });
 
   it('previews the Markdown as learners see it, and disables the toolbar meanwhile', () => {
-    setup(md('**strong** text'));
+    setupMarkdown('**strong** text');
     const toggle = screen.getByRole('button', { name: 'Preview' });
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
@@ -86,13 +101,13 @@ describe('text block editor', () => {
   });
 
   it('says so when there is nothing to preview', () => {
-    setup(md('  '));
+    setupMarkdown('  ');
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     expect(screen.getByText('Nothing to preview yet.')).toBeTruthy();
   });
 
   it('has no accessibility violations', async () => {
-    const { container } = setup(md('text'));
+    const { container } = setupMarkdown('text');
     expect(await axeViolations(container)).toEqual([]);
   });
 });
@@ -252,8 +267,11 @@ describe('callout block editor', () => {
     expect(last()).toMatchObject({ title: 'Heads up' });
     type('Title (optional)', '');
     expect('title' in last()).toBe(false);
-    type('Text (Markdown)', 'Careful');
+    type('Text', 'Careful');
     expect(last()).toMatchObject({ md: 'Careful' });
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    type('Text (Markdown)', '**Careful**');
+    expect(last()).toMatchObject({ md: '**Careful**' });
   });
 
   it('has no accessibility violations', async () => {

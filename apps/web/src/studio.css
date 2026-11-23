@@ -443,6 +443,24 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
+.studio-visual {
+  min-height: calc(var(--space-8) * 3);
+  max-height: calc(var(--space-8) * 8);
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.studio-visual:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.studio-visual .ProseMirror {
+  min-height: inherit;
+  padding: var(--space-3);
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 .studio-toolbar {
   display: flex;
   flex-wrap: wrap;

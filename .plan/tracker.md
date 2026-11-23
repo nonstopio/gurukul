@@ -21,7 +21,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Learner experience | 20 | 0 | 0 | 0 |
 | Quizzes and certificates | 10 | 0 | 0 | 0 |
 | Admin console and Analytics | 35 | 0 | 0 | 0 |
-| Studio | 20 | 0 | 0 | 0 |
+| Studio | 21 | 0 | 0 | 0 |
 | Design system | 9 | 0 | 0 | 0 |
 | Global search | 5 | 0 | 0 | 0 |
 | Platform, CI and operations | 25 | 1 | 0 | 11 |
@@ -31,7 +31,7 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
 | Desktop Studio | 24 | 2 | 1 | 5 |
-| **Total** | 214 | 3 | 1 | 19 |
+| **Total** | 215 | 3 | 1 | 19 |
 
 ## Pick order
 
@@ -198,6 +198,7 @@ Plan: `08-studio.md`, `design-handoff/03-studio.md`, M5.
 | `STU-19` | Learning rules say what they do | done | — | `apps/web/src/studio/DetailsPanel.tsx` (a `description` on each `ToggleCard`, worded from `itemStates`, `onProgressWritten` and `needsWatching`), test in `apps/web/test/studio-landing.test.tsx` |
 | `STU-20` | A landing page description and two outcomes before publishing | done | — | `packages/schema/src/draft.ts` (`course.description`, `course.outcomes` checks, `MIN_OUTCOMES`, `LANDING_ISSUES`; `publishCourse` refuses with `CRS_1003`), `apps/web/src/studio/LandingTab.tsx` (hints and inline issues), `PublishDialog.tsx` ("Open the Landing page"), `CourseEditorPage.tsx`, tests in `packages/schema/test/draft.test.ts`, `firebase/functions/test/courses.test.ts`, `apps/web/test/studio-landing.test.tsx`. Courses already published stay published |
 | `STU-21` | Publish only when something changed; who can open a course without publishing | done | — | `apps/web/src/studio/CourseEditorPage.tsx` (Publish disabled with "No changes since vN"), `studioModel.ts` (`hasUnpublishedChanges`, `markAnswerEdits`), `useDraft.ts` and `packages/schema/src/draft.ts` (`answersChanged`, removed by `publishCourse`), `AccessCard.tsx` and `VisibilityPicker.tsx` (Who can open this course card), `firebase/functions/src/courses.ts` (`setCourseAccess`, audit `course.access`), `firebase/firestore.rules` (drafts allow `answersChanged: true`), `PublishDialog.tsx` (read-only summary), `DetailsPanel.tsx` (rule names and lines follow the switch) |
+| `STU-22` | Visual (WYSIWYG) editing for Markdown fields | done | — | `apps/web/src/studio/blocks/MarkdownField.tsx` (Visual / Markdown switch, lossy-text warning), `VisualMarkdownView.tsx` (Milkdown, own lazy chunk), `markdownMeaning.ts` (round-trip check on mdast, safe link addresses), used by `TextEditor.tsx`, `CalloutEditor.tsx`, `LandingTab.tsx`; `Prose` in `apps/web/src/player/blocks.tsx` reads GFM (`remark-gfm`). Quiz prompts stay Markdown-only. Tests: `apps/web/test/studio-visual-markdown.test.tsx`, `markdown-meaning.test.ts` |
 
 ## Design system
 

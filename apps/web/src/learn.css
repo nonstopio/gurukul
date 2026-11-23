@@ -408,6 +408,35 @@ a.items__row:hover {
   background: var(--surface-sunken);
   font: var(--text-sm) var(--font-mono);
 }
+.prose table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+.prose th,
+.prose td {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  text-align: start;
+}
+.prose th {
+  background: var(--surface-sunken);
+}
+.prose blockquote {
+  margin-inline: 0;
+  padding-inline-start: var(--space-4);
+  border-inline-start: 3px solid var(--border-strong);
+}
+.prose pre {
+  overflow-x: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+.prose pre code {
+  padding: 0;
+  background: none;
+}
 .embed {
   width: 100%;
   aspect-ratio: 16 / 9;

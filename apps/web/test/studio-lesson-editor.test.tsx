@@ -256,7 +256,7 @@ describe('lesson editor: blocks', () => {
 
   it('edits a block and saves the change', async () => {
     const { studio } = await open();
-    fireEvent.change(await screen.findByLabelText('Text (Markdown)'), {
+    fireEvent.change(await screen.findByLabelText('Text'), {
       target: { value: 'New body' },
     });
     await saveNow();
@@ -270,18 +270,18 @@ describe('lesson editor: blocks', () => {
       ]),
     );
     const group = await screen.findByRole('group', { name: 'Callout block' });
-    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+    expect(within(group).getByLabelText('Text')).toBeTruthy();
     expect(within(group).getByRole('group', { name: 'View Callout' })).toBeTruthy();
     const edit = within(group).getByRole('button', { name: 'Edit' });
     const preview = within(group).getByRole('button', { name: 'Preview' });
     expect(edit.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(preview);
     expect(preview.getAttribute('aria-pressed')).toBe('true');
-    expect(within(group).queryByLabelText('Text (Markdown)')).toBeNull();
+    expect(within(group).queryByLabelText('Text')).toBeNull();
     expect(within(group).getByText('Heads up')).toBeTruthy();
     expect(group.querySelector('code')?.textContent).toBe('--global');
     fireEvent.click(edit);
-    expect(within(group).getByLabelText('Text (Markdown)')).toBeTruthy();
+    expect(within(group).getByLabelText('Text')).toBeTruthy();
   });
 
   it('duplicates a block right after the original with a new id', async () => {

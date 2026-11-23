@@ -1,5 +1,6 @@
 import { Input, SegmentedControl, Textarea } from '@gurukul/ui';
 import { patch } from '../patch';
+import { MarkdownField } from './MarkdownField';
 import type { BlockEditorProps } from './types';
 
 const TONES = [
@@ -23,12 +24,14 @@ export function CalloutEditor({ block, onChange }: BlockEditorProps<'callout'>) 
         value={block.title ?? ''}
         onChange={(e) => onChange(patch(block, { title: e.target.value || undefined }))}
       />
-      <Textarea
-        label="Text (Markdown)"
-        rows={4}
-        value={block.md}
-        onChange={(e) => onChange({ ...block, md: e.target.value })}
-      />
+      <MarkdownField label="Text" value={block.md} onChange={(md) => onChange({ ...block, md })}>
+        <Textarea
+          label="Text (Markdown)"
+          rows={4}
+          value={block.md}
+          onChange={(e) => onChange({ ...block, md: e.target.value })}
+        />
+      </MarkdownField>
     </div>
   );
 }

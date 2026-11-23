@@ -12,6 +12,7 @@ import type { Block, UnsupportedBlock } from '@gurukul/schema';
 import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { formatBytes, isEmbedAllowed, isPlaceholderVideo, videoEmbedUrl } from '@gurukul/schema';
 import { videoMeta } from '../learn/model';
 import { TrackedVideo } from './TrackedVideo';
@@ -59,6 +60,7 @@ export function Prose({
   return (
     <div className="prose">
       <Markdown
+        remarkPlugins={[remarkGfm]}
         components={{
           a: links
             ? ({ href, children }) => (

@@ -2,6 +2,7 @@ import { Button } from '@gurukul/ui';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Prose } from '../../player/blocks';
 import { CodeField } from './CodeField';
+import { MarkdownField } from './MarkdownField';
 import type { CodeFieldHandle } from './codeFieldTypes';
 import { bold, inlineCode, italic, link, numberedList } from './markdownTools';
 import type { TextEdit } from './markdownTools';
@@ -26,8 +27,8 @@ function Preview({ md }: { md: string }) {
   );
 }
 
-/** Markdown in a CodeMirror editor, with a toolbar that wraps the selection and a preview that uses the learner renderer. */
-export function TextEditor({ block, onChange }: BlockEditorProps<'markdown'>) {
+/** The Markdown mode: CodeMirror, with a toolbar that wraps the selection and a preview that uses the learner renderer. */
+function MarkdownSource({ block, onChange }: BlockEditorProps<'markdown'>) {
   const [preview, setPreview] = useState(false);
   const field = useRef<CodeFieldHandle | null>(null);
   const selection = useRef<{ start: number; end: number } | null>(null);
@@ -78,5 +79,14 @@ export function TextEditor({ block, onChange }: BlockEditorProps<'markdown'>) {
         />
       )}
     </div>
+  );
+}
+
+/** A text block: formatted text edited visually, or its Markdown. */
+export function TextEditor({ block, onChange }: BlockEditorProps<'markdown'>) {
+  return (
+    <MarkdownField label="Text" value={block.md} onChange={(md) => onChange({ ...block, md })}>
+      <MarkdownSource block={block} onChange={onChange} />
+    </MarkdownField>
   );
 }

@@ -28,6 +28,12 @@ afterEach(() => {
 // `codefield.test.tsx` takes the real component back with `vi.importActual`.
 vi.mock('../src/studio/blocks/CodeField', async () => await import('./codeFieldStub'));
 
+// Same for the visual editor (Milkdown); `studio-visual-markdown.test.tsx` takes the real one back.
+vi.mock(
+  '../src/studio/blocks/VisualMarkdownView',
+  async () => await import('./visualMarkdownStub'),
+);
+
 // The shell's foot asks GitHub for the contributors; no test reaches the internet. The list is
 // empty unless a test says otherwise; `contributors.test.ts` takes the real module back.
 vi.mock('../src/contributors', () => ({ loadContributors: vi.fn(() => Promise.resolve([])) }));
