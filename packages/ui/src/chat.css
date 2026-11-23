@@ -1,4 +1,6 @@
 .g-chat-log {
+  /* Holds the visually hidden "You" and "Agent" labels, so they scroll with the log, not the page. */
+  position: relative;
   min-width: 0;
 }
 .g-chat-log__list {

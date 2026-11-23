@@ -838,20 +838,24 @@
   gap: var(--space-3);
 }
 @media (width >= 64rem) {
-  .ss-workspace {
-    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
-    align-items: start;
-  }
   /*
-   * The chat stays in view under the sticky top bar while the preview scrolls; its log scrolls
-   * inside. `--ss-bar` is the bar's measured height (`SessionPage`): a long title wraps it to two
-   * or three lines. Before it is measured, the height of a bar on one line.
+   * The page itself does not scroll: the workspace fills the window under the top bar (less the
+   * page's own top and bottom padding), the chat stands still with its log scrolling inside, and
+   * only the course pane scrolls. `--ss-bar` is the bar's measured height (`SessionPage`): a long
+   * title wraps it to two or three lines. Before it is measured, the height of a bar on one line.
    */
-  .ss-chat {
+  .ss-workspace {
     --ss-bar-height: var(--ss-bar, calc(var(--control-height) + var(--space-3) * 2));
-    position: sticky;
-    top: calc(var(--ss-bar-height) + var(--space-4));
-    max-height: calc(100dvh - var(--ss-bar-height) - var(--space-8));
+    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    height: calc(100dvh - var(--ss-bar-height) - var(--space-8) - var(--space-16));
+    min-height: 30rem;
+  }
+  .ss-chat,
+  .ss-workspace > .ss-pane {
+    min-height: 0;
+  }
+  .ss-workspace > .ss-pane {
+    overflow-y: auto;
   }
   .ss-chat__log {
     flex: 1 1 auto;
