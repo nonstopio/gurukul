@@ -30,10 +30,10 @@ describe('withUserPath', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  it('takes PATH from the login shell, ignoring rc-file noise', async () => {
+  it('adds the login shell PATH after the current one, ignoring rc-file noise', async () => {
     const { result, spawn } = run(
       'darwin',
-      { SHELL: '/bin/bash', PATH: '/usr/bin', A: 'b' },
+      { SHELL: '/bin/bash', PATH: '/tmp/fake bin:/usr/bin', A: 'b' },
       (f) => {
         f.printRaw(`welcome\n${MARK}/Users/meera/.local/bin:/usr/bin${MARK}\nbye`);
         f.close(0);
@@ -41,7 +41,7 @@ describe('withUserPath', () => {
     );
     await expect(result).resolves.toEqual({
       SHELL: '/bin/bash',
-      PATH: '/Users/meera/.local/bin:/usr/bin',
+      PATH: '/tmp/fake bin:/usr/bin:/Users/meera/.local/bin',
       A: 'b',
     });
     expect(spawn.mock.calls[0]?.[0]).toBe('/bin/bash');

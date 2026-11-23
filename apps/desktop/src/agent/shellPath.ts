@@ -25,7 +25,11 @@ export function wellKnownDirs(homeDir: string): string[] {
   ];
 }
 
-/** `env` with `PATH` as the login shell has it, or the current one plus the well-known folders. */
+/**
+ * `env` with the login shell's `PATH` folders added after the current ones, or the well-known
+ * folders if the shell cannot be asked. The current folders stay first: a launch from a terminal
+ * (and the end-to-end specs' fake `claude`) keeps the `claude` it was started with.
+ */
 export async function withUserPath(
   platform: string,
   env: Env,
@@ -49,8 +53,9 @@ export async function withUserPath(
   );
   const found =
     result?.code === 0 ? result.stdout.match(new RegExp(`${MARK}(.+)${MARK}`, 's')) : null;
-  if (found?.[1]) return { ...env, PATH: found[1] };
-  log.warn('Shell PATH not read', { reason: result === null ? 'no_answer' : 'unusable' });
-  const dirs = [...(env.PATH ?? '').split(':'), ...wellKnownDirs(homeDir)];
+  if (!found?.[1])
+    log.warn('Shell PATH not read', { reason: result === null ? 'no_answer' : 'unusable' });
+  const added = found?.[1] ? found[1].split(':') : wellKnownDirs(homeDir);
+  const dirs = [...(env.PATH ?? '').split(':'), ...added];
   return { ...env, PATH: [...new Set(dirs.filter((dir) => dir !== ''))].join(':') };
 }

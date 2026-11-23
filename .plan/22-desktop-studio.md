@@ -286,9 +286,10 @@ As built in `DSK-10` (`apps/desktop/src/agent/`, map in `apps/desktop/CLAUDE.md`
   launcher gets the system's minimal `PATH`, so neither `~/.local/bin/claude` nor the `node` an
   npm-installed `claude` needs would be found. At start-up `main.ts` runs the login shell
   (`$SHELL`, else `/bin/zsh` on macOS, `/bin/sh`) with `-ilc`, no stdin and a 5-second limit,
-  reads `PATH` between markers (rc-file noise is ignored) and gives that to the agent bridge, so
-  finding and starting `claude` both see it (`agent/shellPath.ts`). If that fails, the current
-  `PATH` plus `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin` and `/usr/local/bin` is used and
+  reads `PATH` between markers (rc-file noise is ignored) and adds its folders after the current
+  ones for the agent bridge, so finding and starting `claude` both see them (`agent/shellPath.ts`);
+  the current folders stay first, so a launch from a terminal keeps the `claude` it had. If that
+  fails, the current `PATH` plus `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin` and `/usr/local/bin` is used and
   `Shell PATH not read` is logged with a reason, never the `PATH`. Windows is left as is.
 - **`agent.start()`** checks the same, mints the token, starts the endpoint, writes `prompt.md`,
   the `skills/` plugin (replaced whole each time) and `mcp.json`, starts `claude`, then sends the
