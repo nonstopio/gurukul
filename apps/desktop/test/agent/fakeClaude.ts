@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,10 @@ export const WRAPPER_ENV: readonly string[] =
         'USERNAME',
         'WINDIR',
       ]
-    : ['PWD'];
+    : PLATFORM === 'darwin'
+      ? // macOS's `/bin/sh` is bash, which sets `SHLVL`; macOS adds `__CF_USER_TEXT_ENCODING`.
+        ['PWD', 'SHLVL', '__CF_USER_TEXT_ENCODING']
+      : ['PWD'];
 
 /**
  * Writes `bin/claude` (`bin\claude.cmd` on Windows): a wrapper that runs `script` with this Node,
@@ -94,7 +97,8 @@ export function isRunning(pid: number): boolean {
  */
 export async function fakeClaudeHome(scenario: FakeClaudeScenario = {}) {
   // A space in every path, as in Windows' `C:\Users\Meera Rao` and macOS's `Application Support`.
-  const root = await mkdtemp(path.join(tmpdir(), 'gurukul fake claude-'));
+  // Real path: macOS's tmpdir `/var` is a link to `/private/var`, which a child's cwd reports.
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'gurukul fake claude-')));
   const bin = path.join(root, 'bin');
   const home = path.join(root, 'home');
   const config = path.join(root, 'claude-config');
