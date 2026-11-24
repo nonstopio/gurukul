@@ -732,6 +732,13 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
 - **New course with AI reuses an open new-course session that has no turns yet** instead of piling
   up empty ones; if every open new-course session already has work in it, a fresh one starts. A
   start that fails shows a toast and stays on the course list; the next click starts again.
+- **Sessions in progress** (`OpenSessions.tsx`, lazy, desktop app only): above the courses, a
+  card lists every open session on this computer, newest change first, as `CourseTile`s that open
+  the workspace (title, "Editing" or "New course · not created yet", turns, last change; 25 to a
+  page). It replaced the start dialog's "Open sessions" list, which went with the dialog and left
+  a new course's session reachable only through search: an Educator who left it thought the course
+  was lost. Local files only, no Firestore read. Nothing is drawn while it loads, before the app
+  answers, or with no open session; a failed read shows a warning with Try again.
 - **`session_started` fires only when a session is actually created**, not when an open one is
   reused or opened.
 - **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person

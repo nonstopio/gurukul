@@ -130,6 +130,15 @@ test.describe('Gurukul Studio desktop app', () => {
     await sendMessage(window, 'Start with why we pair.', /^\d+ changes in turn 1, open in Review$/);
     expect(await readDoc('courses/pairing-at-nonstop')).toBeUndefined();
 
+    // Leaving the session loses nothing: Studio lists it under Sessions in progress, and it opens again.
+    const session = window.url();
+    await window.getByRole('link', { name: 'Studio courses' }).click();
+    const inProgress = window.getByRole('region', { name: 'Sessions in progress' });
+    await expect(inProgress.getByText('New course · not created yet')).toBeVisible();
+    await inProgress.getByRole('listitem').getByRole('link').click();
+    await expect(window).toHaveURL(session);
+    await expect(window.getByRole('heading', { name: 'Chat' })).toBeVisible();
+
     await window.getByRole('link', { name: 'Review', exact: true }).click();
     await expect(window.getByRole('heading', { name: 'Outline' })).toBeVisible();
     await window.getByRole('button', { name: 'Create course and save draft' }).click();

@@ -31,6 +31,9 @@ import type { SessionStart } from './session/SessionLauncher';
 const SessionLauncher = lazy(async () => ({
   default: (await import('./session/SessionLauncher')).SessionLauncher,
 }));
+const OpenSessions = lazy(async () => ({
+  default: (await import('./session/OpenSessions')).OpenSessions,
+}));
 
 /** "Edit with AI" on a card, inside the desktop app only. */
 type EditWithAi = ((course: CourseListing) => void) | null;
@@ -44,7 +47,8 @@ const STATUS = {
 /**
  * `/studio`: every course the person can see; the ones they may edit open in the course editor.
  * Inside the desktop app it also offers "New course with AI" and, on each course they may edit,
- * "Edit with AI" (`.plan/22-desktop-studio.md`, Starting a session); a browser's Desktop app page
+ * "Edit with AI", and above the courses the sessions still open on this computer
+ * (`.plan/22-desktop-studio.md`, Starting a session); a browser's Desktop app page
  * (`/studio/desktop`) offers the download (Download).
  */
 export function StudioCoursesPage() {
@@ -80,6 +84,11 @@ export function StudioCoursesPage() {
           </>
         }
       />
+      {desktop ? (
+        <Suspense fallback={null}>
+          <OpenSessions />
+        </Suspense>
+      ) : null}
       <Loaded loadable={result}>
         {(list) => (
           <>
