@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/cross-spawn": "6.0.6",
-    "electron": "45.2.3",
+    "electron": "45.4.1",
     "electron-builder": "26.18.1",
     "electron-updater": "6.8.12",
     "esbuild": "^0.28.2",
