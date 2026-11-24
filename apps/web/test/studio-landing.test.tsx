@@ -39,6 +39,21 @@ describe('Course editor: the Landing page publish checks', () => {
     expect(screen.getByText('Fill it in or remove it.')).toBeTruthy();
   });
 
+  it('edits the description visually', async () => {
+    const live = makeCourse({ educatorIds: ['u1'], version: 3 });
+    await openApp(`/studio/courses/${live.id}`, {
+      roles: ['educator'],
+      studio: fakeStudio({ draft: draftDoc(live, { rev: 5, answers: {} }) }),
+      data: fakeData({ courses: [live] }),
+    });
+    fireEvent.click(await screen.findByRole('tab', { name: 'Landing page' }));
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Visual words' } });
+    expect((screen.getByLabelText('Description') as HTMLTextAreaElement).value).toBe(
+      'Visual words',
+    );
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull();
+  });
+
   it('says what each learning rule does, in the chosen names', async () => {
     const live = makeCourse({ educatorIds: ['u1'], version: 3 });
     await openApp(`/studio/courses/${live.id}`, {

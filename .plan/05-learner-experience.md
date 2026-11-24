@@ -96,7 +96,8 @@ elsewhere closes the bubble and keeps the dot. Nothing opens over a dialog or me
 
 One renderer per block type in `apps/web/src/player/blocks/`. Unknown block
 types render a visible "This content needs a newer app version" note.
-Markdown is rendered with a safe renderer (no raw HTML); links open in a new
+Markdown is rendered with a safe renderer (no raw HTML) that reads GitHub-flavoured
+Markdown (strikethrough, tables, task lists); links open in a new
 tab with `rel="noopener"`. Embeds only from an allow-list (YouTube, Loom,
 Google Drive, CodeSandbox, StackBlitz).
 

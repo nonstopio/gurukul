@@ -32,6 +32,13 @@ describe('Prose', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(document.querySelector('script')).toBeNull();
   });
+
+  it('reads GitHub-flavoured Markdown: strikethrough, tables and task lists', () => {
+    render(<Prose md={'~~old~~\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n- [x] done'} />);
+    expect(document.querySelector('del')?.textContent).toBe('old');
+    expect(screen.getByRole('table')).toBeTruthy();
+    expect(screen.getByRole('checkbox').hasAttribute('disabled')).toBe(true);
+  });
 });
 
 describe('BlockView', () => {

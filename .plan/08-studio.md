@@ -105,7 +105,16 @@ worked there (checked in a browser at 768px, 680px and 640px).
 
 - Title; ordered blocks with drag handle, duplicate, delete, and a "+" above each block that
   opens the block types and inserts the chosen one there (the palette below adds at the end).
-- Block palette: Text (markdown with a small toolbar), Video, Code, Callout,
+- Markdown fields (the Text block, a Callout's text, the course description) are edited visually,
+  with an icon toolbar; there is no Markdown mode to switch to. Visual (Milkdown, lazy-loaded) edits
+  the formatted text: bold, italic, strikethrough, headings (H2, H3), bulleted and numbered lists,
+  links, quotes and code blocks, with undo and redo. Markdown stays the stored format. No underline
+  (Markdown has none); no raw HTML; links only to http(s) and mailto addresses. Before showing the
+  editor, the app parses and re-serialises the text and compares the two trees; if anything would
+  change meaning, that field falls back, automatically and with a warning, to a plain Markdown
+  editor and nothing is rewritten until the Educator edits. Every block has Edit | Preview in its
+  header. Quiz prompts stay Markdown-only (one line).
+- Block palette: Text (formatted, edited visually), Video, Code, Callout,
   Image (URL + required alt text), Embed (allow-listed), File (link), Check
   (ungraded inline question). Planned: Image and File gain an **Upload** tab beside Link (images
   and PDFs within the upload policy, with a preview, layouts and guidance when a file is too big):

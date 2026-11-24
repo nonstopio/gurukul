@@ -190,6 +190,48 @@ export const UndoIcon = icon(
   'UndoIcon',
   <path d="M6 3.5L2.5 7 6 10.5M2.5 7h7a4 4 0 0 1 0 6.5H7" />,
 );
+/** The formatting-toolbar icons below are original drawings on the 16 grid. */
+export const BoldIcon = icon(
+  'BoldIcon',
+  <path d="M4.5 2.5h4a2.5 2.5 0 0 1 0 5h-4zM4.5 7.5h4.5a2.5 2.5 0 0 1 0 5H4.5z" />,
+);
+export const ItalicIcon = icon('ItalicIcon', <path d="M10 2.5H6.5M9.5 13.5H6M9.8 2.5L6.2 13.5" />);
+export const StrikethroughIcon = icon(
+  'StrikethroughIcon',
+  <path d="M3 8h10M10.8 5A3 2.2 0 0 0 8 3.5c-1.8 0-3 .9-3 2.1 0 .9.6 1.5 1.6 1.9M5.2 11a3 2.2 0 0 0 2.8 1.5c1.8 0 3-.9 3-2.1 0-.5-.2-.9-.6-1.2" />,
+);
+export const Heading2Icon = icon(
+  'Heading2Icon',
+  <path d="M2 3v8M8 3v8M2 7h6M10.5 7.5a1.8 1.5 0 1 1 3 1c-.4.6-1.7 1.4-3 3h3.2" />,
+);
+export const Heading3Icon = icon(
+  'Heading3Icon',
+  <path d="M2 3v8M8 3v8M2 7h6M10.5 8a1.7 1.4 0 1 1 1.5 1.5 1.7 1.4 0 1 1-1.5 1.8" />,
+);
+export const ParagraphIcon = icon(
+  'ParagraphIcon',
+  <path d="M7 13.5v-11M10.5 13.5v-11M10.5 2.5H6.2a3 3 0 0 0 0 6H7" />,
+);
+export const ListIcon = icon(
+  'ListIcon',
+  <path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4v.01M2.5 8v.01M2.5 12v.01" />,
+);
+export const ListOrderedIcon = icon(
+  'ListOrderedIcon',
+  <path d="M7 4h6.5M7 8h6.5M7 12h6.5M2.5 3l1-.5v3M2.3 9.5a.9.9 0 1 1 1.6.6L2.3 11.5h1.8" />,
+);
+export const LinkIcon = icon(
+  'LinkIcon',
+  <path d="M6.8 9.2a2.5 2.5 0 0 0 3.5 0l2.4-2.4a2.5 2.5 0 0 0-3.5-3.5l-.9.9M9.2 6.8a2.5 2.5 0 0 0-3.5 0L3.3 9.2a2.5 2.5 0 0 0 3.5 3.5l.9-.9" />,
+);
+export const QuoteIcon = icon(
+  'QuoteIcon',
+  <path d="M2.5 8.5h3v3.5h-3zM2.5 8.5c0-2.5 1-3.8 3-4.5M9.5 8.5h3v3.5h-3zM9.5 8.5c0-2.5 1-3.8 3-4.5" />,
+);
+export const RedoIcon = icon(
+  'RedoIcon',
+  <path d="M10 3.5L13.5 7 10 10.5M13.5 7h-7a4 4 0 0 0 0 6.5H9" />,
+);
 export const SettingsIcon = icon(
   'SettingsIcon',
   <>

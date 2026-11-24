@@ -12,7 +12,7 @@ const VIEWS = [
 
 /**
  * A block's frame with an Edit | Preview switch in its header: the editor swaps for what a learner sees,
- * drawn by the learner's own renderer. Text keeps its toolbar Preview, which also swaps in place.
+ * drawn by the learner's own renderer.
  */
 export function BlockPreviewFrame({
   block,
@@ -23,26 +23,19 @@ export function BlockPreviewFrame({
   onChange: (block: Block) => void;
 }) {
   const [preview, setPreview] = useState(false);
-  const own = block.type === 'markdown';
   return (
     <BlockFrame
       {...frame}
       controls={
-        own ? undefined : (
-          <SegmentedControl
-            label={`View ${frame.label}`}
-            value={preview ? 'preview' : 'edit'}
-            options={VIEWS}
-            onChange={(view) => setPreview(view === 'preview')}
-          />
-        )
+        <SegmentedControl
+          label={`View ${frame.label}`}
+          value={preview ? 'preview' : 'edit'}
+          options={VIEWS}
+          onChange={(view) => setPreview(view === 'preview')}
+        />
       }
     >
-      {preview && !own ? (
-        <BlockView block={block} />
-      ) : (
-        <BlockEditor block={block} onChange={onChange} />
-      )}
+      {preview ? <BlockView block={block} /> : <BlockEditor block={block} onChange={onChange} />}
     </BlockFrame>
   );
 }

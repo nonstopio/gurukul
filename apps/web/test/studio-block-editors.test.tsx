@@ -37,58 +37,12 @@ const type = (label: string | RegExp, value: string) =>
 
 describe('text block editor', () => {
   const md = (text: string): Block => ({ ...newBlock('markdown'), md: text }) as Block;
-  const area = () => screen.getByLabelText('Text (Markdown)') as HTMLTextAreaElement;
 
-  it('edits the Markdown', () => {
+  it('edits the text visually, with no Markdown switch', () => {
     const { last } = setup(md(''));
-    type('Text (Markdown)', 'Hello');
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull();
+    type('Text', 'Hello');
     expect(last()).toMatchObject({ md: 'Hello' });
-  });
-
-  it('wraps the selected text and keeps it selected', () => {
-    const { last } = setup(md('hello world'));
-    area().setSelectionRange(0, 5);
-    fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
-    expect(last()).toMatchObject({ md: '**hello** world' });
-    expect(area().value).toBe('**hello** world');
-    expect([area().selectionStart, area().selectionEnd]).toEqual([2, 7]);
-    expect(document.activeElement).toBe(area());
-  });
-
-  it.each([
-    ['Italic', 'say hi', 4, 6, 'say *hi*'],
-    ['Inline code', 'run ls', 4, 6, 'run `ls`'],
-    ['Link', 'see docs', 4, 8, 'see [docs](https://)'],
-    ['Numbered list', 'one\ntwo', 0, 7, '1. one\n2. two'],
-  ])('the %s button changes the text', (name, text, start, end, expected) => {
-    const { last } = setup(md(text));
-    area().setSelectionRange(start, end);
-    fireEvent.click(screen.getByRole('button', { name }));
-    expect(last()).toMatchObject({ md: expected });
-  });
-
-  it('inserts a placeholder when nothing is selected', () => {
-    const { last } = setup(md(''));
-    fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
-    expect(last()).toMatchObject({ md: '**bold text**' });
-  });
-
-  it('previews the Markdown as learners see it, and disables the toolbar meanwhile', () => {
-    setup(md('**strong** text'));
-    const toggle = screen.getByRole('button', { name: 'Preview' });
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByText('strong').tagName).toBe('STRONG');
-    expect(screen.queryByLabelText('Text (Markdown)')).toBeNull();
-    expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(toggle);
-    expect(area().value).toBe('**strong** text');
-  });
-
-  it('says so when there is nothing to preview', () => {
-    setup(md('  '));
-    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
-    expect(screen.getByText('Nothing to preview yet.')).toBeTruthy();
   });
 
   it('has no accessibility violations', async () => {
@@ -252,7 +206,7 @@ describe('callout block editor', () => {
     expect(last()).toMatchObject({ title: 'Heads up' });
     type('Title (optional)', '');
     expect('title' in last()).toBe(false);
-    type('Text (Markdown)', 'Careful');
+    type('Text', 'Careful');
     expect(last()).toMatchObject({ md: 'Careful' });
   });
 

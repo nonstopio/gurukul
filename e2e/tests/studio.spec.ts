@@ -35,9 +35,25 @@ test.describe('Educator in Studio', () => {
 
     await page.getByLabel('Lesson title').fill('The cost of a bug');
     await page.getByRole('button', { name: 'Text', exact: true }).click();
+    // Type in the visual editor, bold a word, and the block's Preview shows it as a learner sees it.
+    // The editor loads on its own: a plain box stands in until the toolbar shows.
+    await expect(page.getByRole('button', { name: 'Bold' })).toBeVisible();
+    const visual = page.getByLabel('Text', { exact: true });
+    await visual.fill('A bug found in review costs minutes.');
+    // Select "minutes" (not the full stop) with the keyboard.
+    await page.keyboard.press('End');
+    await page.keyboard.press('ArrowLeft');
+    for (let i = 0; i < 7; i++) await page.keyboard.press('Shift+ArrowLeft');
+    await page.getByRole('button', { name: 'Bold' }).click();
     await page
-      .getByLabel('Text (Markdown)')
-      .fill('A bug found in review costs minutes. The same bug found in production costs days.');
+      .getByRole('group', { name: 'View Text' })
+      .getByRole('button', { name: 'Preview' })
+      .click();
+    await expect(page.locator('strong', { hasText: 'minutes' })).toBeVisible();
+    await page
+      .getByRole('group', { name: 'View Text' })
+      .getByRole('button', { name: 'Edit' })
+      .click();
     await expect(saveState).toHaveText(/unsaved changes/);
     await expect(saveState).toHaveText(/· saved/);
 
@@ -99,8 +115,9 @@ test.describe('Educator in Studio', () => {
     await page.getByRole('link', { name: 'Untitled lesson' }).click();
     await page.getByLabel('Lesson title').fill('A comment is a question');
     await page.getByRole('button', { name: 'Text', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Bold' })).toBeVisible();
     await page
-      .getByLabel('Text (Markdown)')
+      .getByLabel('Text', { exact: true })
       .fill('Treat each comment as a question, not a verdict.');
     await expect(saveState).toHaveText(/unsaved changes/);
     await expect(saveState).toHaveText(/· saved/);
