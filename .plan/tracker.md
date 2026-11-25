@@ -30,8 +30,8 @@ request whose body says `Tracker: ABC-NN` is the claim on an item; there is no "
 | Course media uploads | 12 | 0 | 0 | 1 |
 | Plan upkeep | 2 | 0 | 0 | 0 |
 | Managers | 6 | 0 | 0 | 0 |
-| Desktop Studio | 24 | 2 | 1 | 5 |
-| **Total** | 215 | 3 | 1 | 19 |
+| Desktop Studio | 25 | 2 | 1 | 5 |
+| **Total** | 216 | 3 | 1 | 19 |
 
 ## Pick order
 
@@ -389,3 +389,4 @@ Plan: `22-desktop-studio.md`, M8, decided with the maintainer on 2026-11-18.
 | `DSK-30` | Windows signing bought and set up; a signed install on a real PC | maintainer | `DSK-22` | Confirm the country NonStop io's legal entity is registered in: Azure Artifact Signing issues only to organisations in its listed countries, and India is not one. Then choose and buy the signing (open question 23: Azure Artifact Signing if eligible, else an OV certificate on a certificate authority's cloud key service, which needs `DSK-31` first), set its three secrets and four variables (`docs/desktop-release-setup.md` section 10), and install a signed release on a real Windows PC: the signature checks, no SmartScreen warning, Update ready between two signed releases (`DSK-27`). Never switch signing off after a signed release |
 | `DSK-31` | Windows signing with an OV certificate on a cloud key service | blocked | `DSK-22` | Waits on `DSK-30`'s first step: needed only if NonStop io is registered where Azure Artifact Signing does not issue (India). Then a `win.signtoolOptions.sign` script calling the chosen authority's tool, its secrets in `scripts/desktop-win-signing.mjs` and its tests, the tool installed and the secrets passed in the Windows job of `.github/workflows/desktop-release.yml`, and the settings table in `docs/desktop-release-setup.md` section 10 and `22-desktop-studio.md` (As built in `DSK-22`) |
 | `DSK-32` | Discard a session, and Close without saving | todo | `DSK-15`, `DSK-23` | The plan's session rules (`22-desktop-studio.md`, Rules: Discard needs the course title typed when the session has more than five changes; the stored draft is untouched) and the workspace note "Discard and a Close without saving are still to come". Done when a session can be discarded (`store.close(session, 'discarded')`, its files swept as a saved one's are) and closed without saving, and `session_discarded` is sent with `sessionBands` once the close succeeds (`DSK-23`, As built). Found by `DSK-23` |
+| `DSK-33` | Session history: every past session, on this computer | done | `DSK-11`, `DSK-13` | `apps/web/src/studio/session/SessionHistoryPage.tsx` at `/studio/sessions` (desktop app only, unlisted in `navigation/areas/studio.ts`; `SessionHistoryRoute` in `studio/SessionRoute.tsx`; Session history button on `StudioCoursesPage`): every open, saved and discarded session, and the records of ones whose files the 30-day sweep removed, with name, summary, course, start, last activity and span, turns, changes and goals; search and a `?status=` filter, 25 to a page. Pure data in `sessionHistory.ts`; local files only through `store.list`. Tests: `apps/web/test/session-history.test.tsx`. `22-desktop-studio.md` (Session history) |

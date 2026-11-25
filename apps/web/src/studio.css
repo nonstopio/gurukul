@@ -1254,3 +1254,18 @@ h3.ss-outline__row {
 .ss-merge__legend {
   margin-bottom: var(--space-2);
 }
+
+/* Session history: the line under a session's name, and quieter facts. */
+.sh-summary {
+  margin: var(--space-1) 0 0;
+  color: var(--text-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  max-width: 48ch;
+}
+.sh-muted {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}

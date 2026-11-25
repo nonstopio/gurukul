@@ -222,6 +222,12 @@ Code's copy of its chat are removed; only its title, summary and counts are kept
 clean-up runs when you open the Studio course list in the app. Your Sources folder is never
 removed.
 
+**Session history** (the button beside New course with AI) lists every session you have done on
+this computer, open, saved or discarded: its name, summary, course, when it started and last
+changed, turns, changes and goals. Search it or filter by status. A session whose files are still
+here opens its chat; after the 30 days only its record is left. It reads files on your computer
+only.
+
 What a session sends to Anthropic, and what Gurukul keeps, is on the [privacy
 page](https://gurukul.nonstopio.com/privacy), under **Gurukul Studio sessions**.
 

@@ -711,6 +711,27 @@ newer session of the same course.
   from, so a session that kept going after a save would undo past what the draft now holds.)
 - The agent never publishes, never changes who can open a course, never deletes a course.
 
+### Session history
+
+**Every session this person has done in the app can be found again, from the Studio course list's
+Session history, at `/studio/sessions`** (`DSK-33`). Open sessions were already listed there as
+Sessions in progress; a saved or discarded session had no way back once the person left it.
+
+- **Local files only.** The page reads `store.list` (the same call the 30-day clean-up and global
+  search make): no Firestore read, no new bridge call, nothing uploaded. Desktop app only; a browser
+  shows the "needs the desktop app" card. It is not in global search or the sidebar for that
+  reason (`unlisted` in `navigation/areas/studio.ts`); the way in is the button on the course list.
+- **One row per session**, newest activity first: name, summary, status (Open, Saved, Discarded),
+  course (a new course says so), when it started, when it was last changed (when it was closed, for
+  a saved or discarded one) and the span between, turns and changes, goals done and to-dos left.
+  A session whose files are still on the computer opens its workspace and chat, read-only once
+  closed. After the 30-day clean-up only its `history.json` is left, so its row is a record: the
+  same facts, no link, and a line saying the chat and files were removed.
+- **Search and a status filter** (`?status=open|saved|discarded` in the address) over name,
+  summary and course; 25 rows a page. Pure view data is `session/sessionHistory.ts`.
+- The span is first change to last, not time spent chatting: the app does not record when a
+  window was open.
+
 ### Starting a session
 
 From the Studio course list in the desktop app: **New course with AI** and, on each course the

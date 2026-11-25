@@ -59,6 +59,7 @@ const PreviewPage = lazyPage(() => import('./studio/PreviewPage'), 'PreviewPage'
 const QuestionBankPage = lazyPage(() => import('./studio/QuestionBankPage'), 'QuestionBankPage');
 // Small: in a browser it only says sessions need the desktop app; the session code is a further chunk.
 const SessionRoute = lazyPage(() => import('./studio/SessionRoute'), 'SessionRoute');
+const SessionHistoryRoute = lazyPage(() => import('./studio/SessionRoute'), 'SessionHistoryRoute');
 const StudioCoursesPage = lazyPage(() => import('./studio/StudioCoursesPage'), 'StudioCoursesPage');
 const ProfilePage = lazyPage(() => import('./ProfilePage'), 'ProfilePage');
 // Lazy so the Markdown parser its description needs stays out of the first download.
@@ -174,6 +175,14 @@ export const ROUTES: Readonly<Record<RoutePath, ReactElement>> = {
     <RequireRole any={['educator', 'admin']}>
       <DesktopOnly>
         <PreviewPage />
+      </DesktopOnly>
+    </RequireRole>
+  ),
+  // Every session done on this computer (the sidebar layout, not the focused one).
+  '/studio/sessions': (
+    <RequireRole any={['educator', 'admin']}>
+      <DesktopOnly>
+        <SessionHistoryRoute />
       </DesktopOnly>
     </RequireRole>
   ),
