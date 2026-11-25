@@ -580,12 +580,62 @@ describe('the session’s folder for the agent, and forgetting it', () => {
     await expect(folderOf(ref)).resolves.toBeNull();
   });
 
-  it('forgets a session’s choice and keeps the folder', async () => {
-    const { sources } = setup();
+  it('forgets a session’s choice and keeps a folder that holds anything', async () => {
+    const { sources, sink } = setup();
     await sources.ensure(mat);
+    await put('notes.md');
     await sources.forget(ref);
     await expect(sources.list(ref)).resolves.toBeNull();
+    expect(await readdir(material)).toEqual(['notes.md']);
+    await expect(sources.forget(ref)).resolves.toBeUndefined();
+    expect(sink).not.toHaveBeenCalledWith('info', 'Sources folder removed', expect.anything());
+  });
+
+  it('removes an empty folder, and the course folder above it when that is empty too', async () => {
+    const { sources, sink } = setup();
+    await sources.ensure(mat);
+    await sources.forget(ref);
+    await expect(stat(material)).rejects.toThrow();
+    await expect(stat(path.dirname(material))).rejects.toThrow();
+    expect((await stat(path.join(documents, 'Gurukul Studio'))).isDirectory()).toBe(true);
+    expect(sink).toHaveBeenCalledWith('info', 'Sources folder removed', {
+      sessionId: 's1',
+      reason: 'empty',
+    });
+    // The course folder holding anything else stays.
+    await sources.ensure(mat);
+    await writeFile(path.join(path.dirname(material), 'outline.md'), '');
+    await sources.forget(ref);
+    await expect(stat(material)).rejects.toThrow();
+    expect(await readdir(path.dirname(material))).toEqual(['outline.md']);
+  });
+
+  it('keeps an empty folder another session still names', async () => {
+    const { sources } = setup();
+    await sources.ensure(mat);
+    await sources.ensure({ uid: 'u2', sessionId: 's2', suggestedName: 'material' });
+    // Another course's folder names nothing of this one.
+    await sources.ensure({ uid: 'u2', sessionId: 's3', suggestedName: 'other' });
+    await sources.forget(ref);
     expect((await stat(material)).isDirectory()).toBe(true);
+    await sources.forget({ uid: 'u2', sessionId: 's2' });
+    await expect(stat(material)).rejects.toThrow();
+  });
+
+  it('never removes a folder it did not make', async () => {
+    const { sources } = setup();
+    const other = path.join(home, 'Elsewhere', 'sources');
+    const odd = path.join(documents, 'Gurukul Studio', 'material', 'notes');
+    for (const folder of [other, odd]) {
+      await mkdir(folder, { recursive: true });
+      await mkdir(path.dirname(choiceFile()), { recursive: true });
+      await writeFile(choiceFile(), JSON.stringify({ folder }));
+      await sources.forget(ref);
+      expect((await stat(folder)).isDirectory()).toBe(true);
+    }
+    // No choice at all, or one that cannot be read: nothing to remove.
+    await expect(sources.forget(ref)).resolves.toBeUndefined();
+    await writeFile(choiceFile(), '{');
     await expect(sources.forget(ref)).resolves.toBeUndefined();
   });
 
@@ -602,7 +652,12 @@ describe('the session’s folder for the agent, and forgetting it', () => {
     await expect(sources.prune()).resolves.toBe(3);
     expect(await readdir(path.join(dataDir, 'sources', 'u1'))).toEqual(['s2.json']);
     expect(await readdir(path.join(dataDir, 'sources', 'u2'))).toEqual([]);
-    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 3 });
+    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 3, emptied: 0 });
+    // The last session naming the folder pruned: the empty folder goes with it.
+    await rm(path.join(dataDir, 'sessions', 'u1', 's2'), { recursive: true });
+    await expect(sources.prune()).resolves.toBe(1);
+    await expect(stat(material)).rejects.toThrow();
+    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 1, emptied: 1 });
   });
 
   it('logs and goes on when pruning fails', async () => {

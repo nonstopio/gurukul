@@ -617,8 +617,8 @@ copy after each turn, the newest 30 kept), `transcript.jsonl` (the chat), and th
 As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/sources.ts`,
 `apps/web/src/studio/session/sources.ts`, `SourcesPanel.tsx`):
 
-- **Every session gets a fixed Sources folder, with no folder picker.** `sources.ensure` makes it
-  on demand: `Documents/Gurukul Studio/{course slug}/sources` for an edit (the slug is the
+- **Every session gets a fixed Sources folder, with no folder picker, made on first use.**
+  `sources.ensure` makes it on demand: `Documents/Gurukul Studio/{course slug}/sources` for an edit (the slug is the
   `suggestedName` the window passes) and `Documents/Gurukul Studio/new-course-{first 8 characters
   of the session id}/sources` for a new course, which has no slug yet. It stays that folder after
   the course is created. Two sessions of the same course over time share one folder, which is the
@@ -627,9 +627,21 @@ As built in `DSK-20` and reworked when the start dialog went (`apps/desktop/src/
   path), beside the session folders and not in one, so no `store.*` call can write it. A session
   from before folders were automatic keeps the folder it already had. Removing a whole session
   (`store.remove` without `path`) forgets it; a choice whose session folder does not exist is
-  forgotten when the app starts (the app closed between the two removals).
-- **The session runtime calls `sources.ensure` before every `agent.start`** (`connect` in
-  `agent.ts`), because the folder is `claude`'s working directory. A failure is logged and the
+  forgotten when the app starts (the app closed between the two removals). A forgotten choice's
+  folder is removed when it is still empty and no other session names it, and then its
+  `{name}` folder when that is empty too (`removeIfUnused`, by `rmdir`, so a folder holding
+  anything stays; only a `Gurukul Studio/{name}/sources` folder the shell makes, never another).
+- **Nothing is made for a session nobody has used.** Opening a session that has no Claude chat
+  (`agentSessionId` null) and no Sources folder (`sources.list` answers null) checks
+  `agent.status()` and is ready without starting `claude` (`deferred` in `agent.ts`). The folder
+  is made at the first use: the first message (the agent starts then, so the first reply is a
+  second or two slower once), the Sources tab, Show in Finder, or files added to the chat. Found
+  on 2026-11-25: every opened session left an empty `new-course-…` folder in Documents.
+- **The session runtime calls `sources.ensure` before every `agent.start`** (`startAgent` in
+  `agent.ts`), because the folder is `claude`'s working directory. Claude Code keeps a chat under
+  its working folder and resumes it only from there, so the agent never starts before the folder
+  exists unless making it failed: a session with a chat starts at once on open, and a deferred one
+  starts at its first message, in its folder. A failure to make it is logged and the
   agent starts in the shell's empty folder; the Sources tab shows the error with Try again. A
   folder inside the app's own data is refused (it holds every session's answer keys), and a folder
   the Educator deleted is made again.
@@ -710,6 +722,27 @@ newer session of the same course.
   as its base; its turns, checkpoints and Undo all measure from the copy the session started
   from, so a session that kept going after a save would undo past what the draft now holds.)
 - The agent never publishes, never changes who can open a course, never deletes a course.
+
+### Session history
+
+**Every session this person has done in the app can be found again, from the Studio course list's
+Session history, at `/studio/sessions`** (`DSK-33`). Open sessions were already listed there as
+Sessions in progress; a saved or discarded session had no way back once the person left it.
+
+- **Local files only.** The page reads `store.list` (the same call the 30-day clean-up and global
+  search make): no Firestore read, no new bridge call, nothing uploaded. Desktop app only; a browser
+  shows the "needs the desktop app" card. It is not in global search or the sidebar for that
+  reason (`unlisted` in `navigation/areas/studio.ts`); the way in is the button on the course list.
+- **One row per session**, newest activity first: name, summary, status (Open, Saved, Discarded),
+  course (a new course says so), when it started, when it was last changed (when it was closed, for
+  a saved or discarded one) and the span between, turns and changes, goals done and to-dos left.
+  A session whose files are still on the computer opens its workspace and chat, read-only once
+  closed. After the 30-day clean-up only its `history.json` is left, so its row is a record: the
+  same facts, no link, and a line saying the chat and files were removed.
+- **Search and a status filter** (`?status=open|saved|discarded` in the address) over name,
+  summary and course; 25 rows a page. Pure view data is `session/sessionHistory.ts`.
+- The span is first change to last, not time spent chatting: the app does not record when a
+  window was open.
 
 ### Starting a session
 

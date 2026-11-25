@@ -96,7 +96,16 @@ export const STUDIO_FOLDER_NAME = 'Gurukul Studio';
 /** The parts of Node's `fs/promises` the Sources folder uses; the real one in the app. */
 export type SourcesFs = Pick<
   typeof fsPromises,
-  'mkdir' | 'readdir' | 'realpath' | 'stat' | 'open' | 'readFile' | 'writeFile' | 'rename' | 'rm'
+  | 'mkdir'
+  | 'readdir'
+  | 'realpath'
+  | 'stat'
+  | 'open'
+  | 'readFile'
+  | 'writeFile'
+  | 'rename'
+  | 'rm'
+  | 'rmdir'
 >;
 
 /** Electron's `shell.openPath`: opens a folder in Finder or Explorer; answers an error or `''`. */
@@ -136,11 +145,14 @@ export interface SourcesManager {
   add(choice: SourcesChoice, files: SourceUpload[]): Promise<SourcesAdded>;
   /** The session's folder's real path, for `claude`'s working directory; null when none. */
   folderOf(ref: SessionRef): Promise<string | null>;
-  /** Forgets the session's choice: its whole session was removed. The folder itself stays. */
+  /**
+   * Forgets the session's choice: its whole session was removed. Its folder is removed too when it
+   * is still empty and no other session names it (`removeIfUnused`); one holding anything stays.
+   */
   forget(ref: SessionRef): Promise<void>;
   /**
-   * Forgets every choice whose session folder is gone (the app closed between the two removals).
-   * Never throws; answers how many were forgotten.
+   * Forgets every choice whose session folder is gone (the app closed between the two removals),
+   * and removes their folders as `forget` does. Never throws; answers how many were forgotten.
    */
   prune(): Promise<number>;
 }
@@ -234,6 +246,53 @@ export function createSources(options: SourcesOptions): SourcesManager {
     if (parsed.success) return parsed.data.folder;
     log.warn('Sources choice unreadable', { sessionId: ref.sessionId });
     return null;
+  };
+
+  /** The folder a choice file names, or null; read quietly, for the clean-up only. */
+  const choiceAt = async (file: string): Promise<string | null> => {
+    const parsed = choiceSchema.safeParse(
+      parseJson((await quietly(fs.readFile(file, 'utf8'))) ?? ''),
+    );
+    return parsed.success ? parsed.data.folder : null;
+  };
+
+  /** Every remembered choice file, anyone's on this computer: `{uid}/{file}` under `choicesRoot`. */
+  const choiceFiles = async (): Promise<{ uid: string; file: string }[]> => {
+    const found: { uid: string; file: string }[] = [];
+    for (const uid of (await quietly(fs.readdir(choicesRoot))) ?? []) {
+      for (const file of (await quietly(fs.readdir(path.join(choicesRoot, uid)))) ?? []) {
+        found.push({ uid, file });
+      }
+    }
+    return found;
+  };
+
+  /** Whether any remembered choice still names `folder`. */
+  const stillNamed = async (folder: string): Promise<boolean> => {
+    for (const { uid, file } of await choiceFiles()) {
+      if ((await choiceAt(path.join(choicesRoot, uid, file))) === folder) return true;
+    }
+    return false;
+  };
+
+  /**
+   * A forgotten session's folder, removed when nothing is in it and no other session names it: its
+   * `sources` folder, then the `{name}` folder above it when that is empty too. Only a folder this
+   * shell makes (`Gurukul Studio/{name}/sources`). `rmdir` removes an empty folder only, so one that
+   * holds anything, even a file added meanwhile, stays. Never throws.
+   */
+  const removeIfUnused = async (folder: string | null): Promise<boolean> => {
+    if (folder === null) return false;
+    const named = path.dirname(folder);
+    if (
+      path.basename(folder) !== 'sources' ||
+      path.basename(path.dirname(named)) !== STUDIO_FOLDER_NAME
+    )
+      return false;
+    if (await stillNamed(folder)) return false;
+    if ((await quietly(fs.rmdir(folder).then(() => true))) === null) return false;
+    await quietly(fs.rmdir(named));
+    return true;
   };
 
   const remember = async (ref: SessionRef, folder: string) => {
@@ -442,25 +501,34 @@ export function createSources(options: SourcesOptions): SourcesManager {
     },
 
     async forget(ref) {
-      await fs.rm(choiceFile(ref), { force: true });
+      const file = choiceFile(ref);
+      const folder = await choiceAt(file);
+      await fs.rm(file, { force: true });
+      if (await removeIfUnused(folder)) {
+        log.info('Sources folder removed', { sessionId: ref.sessionId, reason: 'empty' });
+      }
     },
 
     async prune() {
       let removed = 0;
+      const folders: (string | null)[] = [];
       try {
-        for (const uid of (await quietly(fs.readdir(choicesRoot))) ?? []) {
-          for (const file of (await quietly(fs.readdir(path.join(choicesRoot, uid)))) ?? []) {
-            const sessionId = file.endsWith('.json') ? file.slice(0, -'.json'.length) : file;
-            if (await quietly(fs.stat(path.join(options.sessionsRoot, uid, sessionId)))) continue;
-            await fs.rm(path.join(choicesRoot, uid, file), { force: true, recursive: true });
-            removed += 1;
-          }
+        for (const { uid, file } of await choiceFiles()) {
+          const sessionId = file.endsWith('.json') ? file.slice(0, -'.json'.length) : file;
+          if (await quietly(fs.stat(path.join(options.sessionsRoot, uid, sessionId)))) continue;
+          const choice = path.join(choicesRoot, uid, file);
+          folders.push(await choiceAt(choice));
+          await fs.rm(choice, { force: true, recursive: true });
+          removed += 1;
         }
       } catch (error) {
         // Start-up goes on: a choice left behind names a session that no longer exists.
         log.error('Sources choices not pruned', error);
       }
-      if (removed > 0) log.info('Sources choices pruned', { count: removed });
+      // After every choice is gone, so two pruned sessions sharing a folder do not keep it.
+      let emptied = 0;
+      for (const folder of folders) if (await removeIfUnused(folder)) emptied += 1;
+      if (removed > 0) log.info('Sources choices pruned', { count: removed, emptied });
       return removed;
     },
   };

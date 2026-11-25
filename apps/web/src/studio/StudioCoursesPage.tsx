@@ -1,5 +1,6 @@
 import {
   Button,
+  buttonClass,
   Chip,
   CourseTile,
   EmptyState,
@@ -76,9 +77,14 @@ export function StudioCoursesPage() {
         actions={
           <>
             {desktop ? (
-              <Button variant="secondary" onClick={() => setAiStart({ kind: 'new' })}>
-                New course with AI
-              </Button>
+              <>
+                <Link className={buttonClass('secondary')} to="/studio/sessions">
+                  Session history
+                </Link>
+                <Button variant="secondary" onClick={() => setAiStart({ kind: 'new' })}>
+                  New course with AI
+                </Button>
+              </>
             ) : null}
             <Button onClick={() => setCreating(true)}>New course</Button>
           </>

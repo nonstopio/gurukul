@@ -31,12 +31,27 @@ export function SessionRoute() {
   );
 }
 
-function NeedsDesktopApp() {
+// Own chunk too: the history table is only fetched inside the app.
+const SessionHistoryPage = lazy(async () => ({
+  default: (await import('./session/SessionHistoryPage')).SessionHistoryPage,
+}));
+
+/** `/studio/sessions`: the history of every session on this computer; a browser is told why not. */
+export function SessionHistoryRoute() {
+  if (!isDesktop()) return <NeedsDesktopApp title="Session history" />;
+  return (
+    <Suspense fallback={<PageSkeleton width="wide" label="Reading sessions" />}>
+      <SessionHistoryPage />
+    </Suspense>
+  );
+}
+
+function NeedsDesktopApp({ title = 'Session' }: { title?: string }) {
   const t = useTerms();
   return (
     <>
       <TopBar
-        title="Session"
+        title={title}
         back={
           <Link className={topBarBackClass} to="/studio">
             <ChevronLeftIcon size={16} />

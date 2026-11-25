@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Turn } from '@gurukul/schema';
+import { COURSE_BYTES_LIMIT } from '@gurukul/schema';
+import type { AnswerKeys, Turn } from '@gurukul/schema';
 import type { AgentStartResult, AgentStatus } from '../src/desktop/bridge';
 import { createSessionStore } from '../src/studio/session/store';
 import type { TranscriptEntry } from '../src/studio/session/transcript';
@@ -53,6 +54,8 @@ async function open(
     turns?: Turn[];
     /** The draft the session starts from; Git by default. */
     course?: typeof GIT;
+    /** The draft's answer keys; none by default. */
+    answers?: AnswerKeys;
     path?: (id: string) => string;
     info?: () => Promise<typeof DESKTOP_INFO>;
     labels?: 'generic' | 'gurukul';
@@ -65,7 +68,8 @@ async function open(
   const store = createSessionStore({ desktop: fake.desktop, uid: 'u1', newId: () => id });
   const started = await store.start(
     init.kind === 'new' ? { kind: 'new' } : { kind: 'edit', courseId: 'git' },
-    async () => draftDoc(init.course ?? GIT, { rev: 3 }),
+    async () =>
+      draftDoc(init.course ?? GIT, { rev: 3, ...(init.answers && { answers: init.answers }) }),
   );
   // A session an earlier version started has a goal and its title; the box still opens with it.
   if (started.status === 'started' && !init.fresh) {
@@ -99,6 +103,13 @@ async function open(
     call: (name: string, input: unknown) => agent.call(name, input, id),
   };
 }
+
+/**
+ * Answer keys that put the draft past `COURSE_BYTES_LIMIT`, which counts the course and its keys
+ * together. The bulk is in the keys because the page never draws them: as Markdown, the preview
+ * parsed over a megabyte and these tests ran past their timeout on a slow runner.
+ */
+const OVER_THE_LIMIT: AnswerKeys = { q1: { q1a: ['x'.repeat(COURSE_BYTES_LIMIT)] } };
 
 const box = () => screen.getByRole('textbox', { name: 'Ask for a change' }) as HTMLTextAreaElement;
 
@@ -556,27 +567,7 @@ describe('the session workspace', () => {
 
   it('says when a check that stops a save fails', async () => {
     // A draft already past the size limit (Studio saves drafts unfinished).
-    const big = makeCourse({
-      id: 'git',
-      title: 'Git',
-      educatorIds: ['u1'],
-      chapters: [
-        {
-          id: 'p1',
-          title: 'Basics',
-          items: [
-            lesson('l1', {
-              blocks: Array.from({ length: 60 }, (_, i) => ({
-                type: 'markdown',
-                id: `b${i}`,
-                md: 'x'.repeat(20_000),
-              })),
-            }),
-          ],
-        },
-      ],
-    });
-    await open({ course: big });
+    await open({ answers: OVER_THE_LIMIT });
     expect(await screen.findByText('0 changes · 1 check fails')).toBeTruthy();
   });
 });
@@ -1050,28 +1041,8 @@ describe('the chat of a session already written', () => {
   });
 
   it('says the copy could not be copied, and that it found problems', async () => {
-    const big = makeCourse({
-      id: 'git',
-      title: 'Git',
-      educatorIds: ['u1'],
-      chapters: [
-        {
-          id: 'p1',
-          title: 'Basics',
-          items: [
-            lesson('l1', {
-              blocks: Array.from({ length: 60 }, (_, i) => ({
-                type: 'markdown',
-                id: `b${i}`,
-                md: 'x'.repeat(20_000),
-              })),
-            }),
-          ],
-        },
-      ],
-    });
     await open({
-      course: big,
+      answers: OVER_THE_LIMIT,
       turns: [turn('t1')],
       transcript: [
         { kind: 'educator', turnId: 't1', at: '2026-11-19T10:00:00.000Z', text: 'Go' },
@@ -1394,7 +1365,15 @@ describe("the chat's bottom bar", () => {
   it('shows the Sources folder in Finder, and logs when it cannot', async () => {
     const s = await ready();
     fireEvent.click(trigger('Show in Finder'));
-    expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    // Made first, on first use: a session nobody has used has no folder yet.
+    await waitFor(() =>
+      expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id }),
+    );
+    expect(s.desktop.sources.ensure).toHaveBeenLastCalledWith({
+      uid: 'u1',
+      sessionId: s.id,
+      suggestedName: 'git',
+    });
     s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
     fireEvent.click(trigger('Show in Finder'));
     await waitFor(() =>

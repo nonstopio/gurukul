@@ -44,6 +44,10 @@ export const navigation = {
     },
   ],
   unlisted: {
+    '/studio/sessions': {
+      context:
+        'desktop app only (a browser has no sessions); reached from Session history on the course list, so the sidebar and search in a browser never offer it',
+    },
     '/studio/courses/:courseId': { context: 'needs a course id; reached from the course list' },
     '/studio/courses/:courseId/lessons/:lessonId': {
       context: 'needs a course and a lesson id; reached from the course editor',
