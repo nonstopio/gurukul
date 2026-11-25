@@ -47,11 +47,13 @@ type Init = {
   edit?: (session: AuthoringSession) => AuthoringSession;
   agent?: Parameters<typeof fakeAgent>[1];
   options?: Partial<AgentSessionOptions>;
+  /** No Sources folder until `ensure` makes one (`fakeDesktop`'s `noSources`). */
+  noSources?: boolean;
 };
 
 /** A session on disk, a fake bridge with a working agent, and the runtime over them (not opened). */
 async function setup(init: Init = {}) {
-  const fake = fakeDesktop();
+  const fake = fakeDesktop({ ...(init.noSources && { noSources: true }) });
   const agent = fakeAgent(fake.desktop, init.agent);
   const store = createSessionStore({
     desktop: fake.desktop,
@@ -312,6 +314,90 @@ describe('sources', () => {
       suggestedName: 'git',
     });
     expect(s.agent.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes nothing for a session nobody has used, until the first message', async () => {
+    const s = await setup({ kind: 'new', noSources: true });
+    await s.runtime.open();
+    expect(s.state().status).toBe('ready');
+    expect(s.desktop.sources.ensure).not.toHaveBeenCalled();
+    expect(s.agent.start).not.toHaveBeenCalled();
+    expect(log.debug).toHaveBeenCalledWith('Agent start deferred', { sessionId: 's1' });
+    // A model picked meanwhile is kept for the start; still nothing is made.
+    expect(await s.runtime.choose({ model: 'haiku' })).toBe(true);
+    expect(s.state().status).toBe('ready');
+    expect(s.agent.start).not.toHaveBeenCalled();
+    expect(s.desktop.sources.ensure).not.toHaveBeenCalled();
+    // The first message: the folder, then the agent in it, then the message.
+    s.agent.start.mockImplementationOnce(async () => {
+      expect(s.desktop.sources.ensure).toHaveBeenCalledWith({ uid: 'u1', sessionId: 's1' });
+      expect(s.agent.send).not.toHaveBeenCalled();
+      return { ok: true, agentSessionId: AGENT_SESSION_ID };
+    });
+    expect(await s.runtime.send('Start a course on Git.')).toBe(true);
+    expect(s.agent.start).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: 'u1', sessionId: 's1', resumeId: null, model: 'haiku' }),
+    );
+    expect(s.agent.send).toHaveBeenCalledWith('s1', 'Start a course on Git.');
+    expect(s.state().status).toBe('working');
+    // Started once: the next message goes straight to it.
+    s.emit({
+      type: 'turn_end',
+      sessionId: 's1',
+      agentSessionId: AGENT_SESSION_ID,
+      outcome: 'done',
+    });
+    await s.runtime.settled();
+    expect(await s.runtime.send('And a Quiz.')).toBe(true);
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts at once a session whose chat Claude Code keeps, folder or not', async () => {
+    const s = await setup({
+      noSources: true,
+      edit: (session) => ({ ...session, agentSessionId: AGENT_SESSION_ID }),
+    });
+    await s.runtime.open();
+    expect(s.agent.start).toHaveBeenCalledWith(
+      expect.objectContaining({ resumeId: AGENT_SESSION_ID }),
+    );
+    expect(s.desktop.sources.ensure).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts at once when it cannot tell whether the folder exists', async () => {
+    const s = await setup({ noSources: true });
+    s.desktop.sources.list.mockRejectedValueOnce(new Error('sources.list failed'));
+    await s.runtime.open();
+    expect(s.agent.start).toHaveBeenCalledTimes(1);
+    expect(log.warn).toHaveBeenCalledWith('Sources folder not listed', {
+      sessionId: 's1',
+      reason: 'failed',
+    });
+  });
+
+  it('says why the agent cannot start at the first message, and starts on retry', async () => {
+    const s = await setup({ noSources: true });
+    await s.runtime.open();
+    s.agent.start.mockResolvedValueOnce({ ok: false, error: { code: 'not_signed_in' } });
+    expect(await s.runtime.send('Simplify chapter one.')).toBe(false);
+    expect(s.state()).toMatchObject({ status: 'unavailable', problem: { code: 'not_signed_in' } });
+    expect(s.agent.send).not.toHaveBeenCalled();
+    expect(s.state().transcript.map((e) => e.text)).toEqual(['Simplify chapter one.', 'Not sent.']);
+    // The folder was made with the attempt, so Try again starts the agent at once.
+    await s.runtime.retry();
+    expect(s.agent.start).toHaveBeenCalledTimes(2);
+    expect(s.state().status).toBe('ready');
+  });
+
+  it('tries the start again with the next message when the app did not answer', async () => {
+    const s = await setup({ noSources: true });
+    await s.runtime.open();
+    s.agent.start.mockRejectedValueOnce(REFUSED);
+    expect(await s.runtime.send('Simplify chapter one.')).toBe(false);
+    expect(s.state()).toMatchObject({ status: 'ready', problem: { code: 'app' } });
+    expect(await s.runtime.send('Simplify chapter one.')).toBe(true);
+    expect(s.agent.start).toHaveBeenCalledTimes(2);
+    expect(s.agent.send).toHaveBeenCalledTimes(1);
   });
 
   it('names no folder for a new course, which has no address yet', async () => {

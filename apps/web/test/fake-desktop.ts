@@ -38,7 +38,16 @@ export const SOURCES_FOLDER: SourcesFolder = {
  * `agent.forget` resolves; the rest refuse as an unbuilt call does.
  */
 export function fakeDesktop(
-  init: { files?: Record<string, string>; info?: () => Promise<DesktopInfo> } = {},
+  init: {
+    files?: Record<string, string>;
+    info?: () => Promise<DesktopInfo>;
+    /**
+     * No session has a Sources folder until `ensure` makes one: `list` answers null before it, and
+     * the runtime defers the agent of a session with no chat. Left out, `list` answers
+     * `SOURCES_FOLDER` for every session, as for one opened before, and the agent starts on open.
+     */
+    noSources?: boolean;
+  } = {},
 ) {
   const files = new Map(Object.entries(init.files ?? {}));
   const key = (uid: string, sessionId: string, path: string) => `${uid}/${sessionId}/${path}`;
@@ -101,7 +110,8 @@ export function fakeDesktop(
         },
       ),
       list: vi.fn(
-        async (ref: { uid: string; sessionId: string }) => chosen.get(session(ref)) ?? null,
+        async (ref: { uid: string; sessionId: string }) =>
+          chosen.get(session(ref)) ?? (init.noSources ? null : SOURCES_FOLDER),
       ),
       reveal: vi.fn(async () => undefined),
       read: vi.fn(async (ref: { uid: string; sessionId: string }, name: string) =>

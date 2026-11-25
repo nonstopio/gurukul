@@ -1394,7 +1394,15 @@ describe("the chat's bottom bar", () => {
   it('shows the Sources folder in Finder, and logs when it cannot', async () => {
     const s = await ready();
     fireEvent.click(trigger('Show in Finder'));
-    expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id });
+    // Made first, on first use: a session nobody has used has no folder yet.
+    await waitFor(() =>
+      expect(s.desktop.sources.reveal).toHaveBeenCalledWith({ uid: 'u1', sessionId: s.id }),
+    );
+    expect(s.desktop.sources.ensure).toHaveBeenLastCalledWith({
+      uid: 'u1',
+      sessionId: s.id,
+      suggestedName: 'git',
+    });
     s.desktop.sources.reveal.mockRejectedValueOnce(new Error('sources.reveal failed'));
     fireEvent.click(trigger('Show in Finder'));
     await waitFor(() =>

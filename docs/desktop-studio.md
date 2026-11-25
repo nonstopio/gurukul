@@ -185,7 +185,9 @@ Sources").
 
 - Every session has its own folder, made for you: `Documents/Gurukul Studio/<course
 address>/sources` for a course, and a `new-course-…` folder under `Documents/Gurukul Studio` for
-  a new one. The **Sources** tab shows where it is. You do not choose a folder.
+  a new one. The **Sources** tab shows where it is. You do not choose a folder. It is made the
+  first time you use the session (your first message, the Sources tab, Show in Finder, or files
+  you add), so opening a session and leaving it makes nothing.
 - **Show in Finder** (or **Show in Explorer**) opens it. Files you add while the session is open are
   read from your next message on.
 - The agent reads plain text only: text and Markdown, CSV, JSON, YAML, subtitles, other markup and
@@ -215,11 +217,13 @@ A session lives on your computer only, until you save it:
   on a Mac, `%APPDATA%\Gurukul Studio\sessions` on Windows. Do not edit these files.
 - **Claude Code's own copy of the chat** is in Claude Code's folder (`~/.claude/projects` on a
   Mac, `%USERPROFILE%\.claude\projects` on Windows).
-- **Your Sources folder** is wherever you chose; the app never changes it.
+- **Your Sources folder** is under `Documents/Gurukul Studio`; the app never changes the files in
+  it.
 
 An open session is kept until you save it. 30 days after a session is saved, its files and Claude
 Code's copy of its chat are removed; only its title, summary and counts are kept, as history. The
-clean-up runs when you open the Studio course list in the app. Your Sources folder is never
+clean-up runs when you open the Studio course list in the app. Your Sources folder is removed
+with it only when it is empty and no other session uses it; a folder with anything in it is never
 removed.
 
 **Session history** (the button beside New course with AI) lists every session you have done on

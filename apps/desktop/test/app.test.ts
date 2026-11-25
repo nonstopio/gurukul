@@ -407,7 +407,7 @@ describe('Sources folders', () => {
     await mkdir(path.join(userData, 'sources', 'u1'), { recursive: true });
     await writeFile(path.join(userData, 'sources', 'u1', 's9.json'), '{"folder":"/x"}');
     await startApp(deps);
-    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 1 });
+    expect(sink).toHaveBeenCalledWith('info', 'Sources choices pruned', { count: 1, emptied: 0 });
   });
 });
 

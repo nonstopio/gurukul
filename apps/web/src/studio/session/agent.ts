@@ -44,8 +44,10 @@ import { turnChanged } from './workspace';
  *
  *   open    reads the session and its chat from this computer, asks `agent.status()`, then
  *           `agent.start()` with the prompt, skills and tools (`agentSetup`), resuming the Claude
- *           session the last finished turn named.
- *   send    one message is one turn. The agent's tool calls run here, one at a time, against the
+ *           session the last finished turn named. A session with no Claude chat and no Sources
+ *           folder yet starts nothing (`deferred`): opening it makes no folder.
+ *   send    one message is one turn. The first one of a deferred session makes the Sources folder
+ *           and starts the agent in it, before the message goes. The agent's tool calls run here, one at a time, against the
  *           working copy in memory (`runTool`).
  *   edit    hand edits from Studio's own editors (`DSK-19`), only between turns: each changes the
  *           working copy in memory and, at a pause, `session.json`; leaving the editor makes them one
@@ -432,6 +434,14 @@ export function appProblem(error: unknown): AgentProblem {
   };
 }
 
+/** The agent of a deferred session could not start at its first message (`send`). */
+class AgentNotStarted extends Error {
+  override name = 'AgentNotStarted';
+  constructor(readonly problem: AgentProblem) {
+    super(problem.code);
+  }
+}
+
 const NOT_SAVED: AgentProblem = {
   code: 'not_saved',
   message:
@@ -575,6 +585,11 @@ export function createAgentSession({
   let transcript: TranscriptEntry[] = [];
   let activity: string | null = null;
   let turn: RunningTurn | null = null;
+  /**
+   * Ready, but the agent is not started: the session has no Claude chat and no Sources folder, so
+   * nothing is made until the first message (`startAgent` from `send`).
+   */
+  let deferred = false;
   let attachments: readonly AttachTarget[] = [];
   /** Turns undone since the agent was last told. */
   let undone = 0;
@@ -773,6 +788,41 @@ export function createAgentSession({
     }
   };
 
+  /**
+   * Whether the agent can wait for the first message: no Claude chat to resume, and no Sources
+   * folder yet (`sources.list` answers null before one is made). Claude Code keeps a chat under its
+   * working folder, so a session with a chat always starts at once, in the folder it started in. A
+   * listing that fails counts as a folder: the session starts as it always did.
+   */
+  const canDefer = async (current: AuthoringSession) => {
+    if (current.agentSessionId !== null) return false;
+    try {
+      return (await desktop.sources.list({ uid, sessionId })) === null;
+    } catch (error) {
+      log.warn('Sources folder not listed', { sessionId, reason: bridgeFailure(error) });
+      return false;
+    }
+  };
+
+  /** Makes the Sources folder, then starts the agent in it: a problem when it cannot start. */
+  const startAgent = async (current: AuthoringSession): Promise<AgentProblem | null> => {
+    await ensureSources(current.courseId);
+    const started = await agent.start({
+      uid,
+      sessionId,
+      ...agentSetup(tools),
+      // Only an id a finished turn named: Claude Code keeps no chat for a session never sent to.
+      resumeId: current.agentSessionId,
+      // Left out, not undefined: a shell's arguments are strict about names it does not know.
+      ...(current.model !== undefined && { model: current.model }),
+      ...(current.effort !== undefined && { effort: current.effort }),
+    });
+    if (!started.ok) return problemOf(started.error);
+    deferred = false;
+    log.info('Agent started', { sessionId, resumed: current.agentSessionId !== null });
+    return null;
+  };
+
   const connect = async () => {
     const current = session as AuthoringSession;
     status = 'connecting';
@@ -781,20 +831,15 @@ export function createAgentSession({
     try {
       const blocked = statusProblem(await agent.status());
       if (blocked) return unavailable(blocked);
-      await ensureSources(current.courseId);
-      const started = await agent.start({
-        uid,
-        sessionId,
-        ...agentSetup(tools),
-        // Only an id a finished turn named: Claude Code keeps no chat for a session never sent to.
-        resumeId: current.agentSessionId,
-        // Left out, not undefined: a shell's arguments are strict about names it does not know.
-        ...(current.model !== undefined && { model: current.model }),
-        ...(current.effort !== undefined && { effort: current.effort }),
-      });
-      if (!started.ok) return unavailable(problemOf(started.error));
+      if (await canDefer(current)) {
+        deferred = true;
+        status = 'ready';
+        log.debug('Agent start deferred', { sessionId });
+        return emit();
+      }
+      const failed = await startAgent(current);
+      if (failed) return unavailable(failed);
       status = turn ? 'working' : 'ready';
-      log.info('Agent started', { sessionId, resumed: current.agentSessionId !== null });
       emit();
     } catch (error) {
       log.error('Agent not started', error, { sessionId });
@@ -1211,6 +1256,10 @@ export function createAgentSession({
       attachments = [];
       emit();
       try {
+        if (deferred) {
+          const failed = await startAgent(session as AuthoringSession);
+          if (failed) throw new AgentNotStarted(failed);
+        }
         await agent.send(
           sessionId,
           (undone > 0 ? undoNote(undone) : '') +
@@ -1227,8 +1276,10 @@ export function createAgentSession({
       } catch (error) {
         log.warn('Agent message not sent', { sessionId, reason: bridgeFailure(error) });
         turn = null;
-        status = 'ready';
-        problem = appProblem(error);
+        // Not installed, not signed in, too old at the first message: the card open would show.
+        const notStarted = error instanceof AgentNotStarted;
+        status = notStarted ? 'unavailable' : 'ready';
+        problem = notStarted ? error.problem : appProblem(error);
         // Parts attached meanwhile stay too, after the ones the message carried.
         attachments = [
           ...carried,

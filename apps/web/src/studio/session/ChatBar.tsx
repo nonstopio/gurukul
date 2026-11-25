@@ -59,7 +59,7 @@ export function ChatBar({
   platform,
 }: {
   agent: AgentSessionHandle;
-  sources: Pick<GurukulDesktop['sources'], 'reveal'>;
+  sources: Pick<GurukulDesktop['sources'], 'ensure' | 'reveal'>;
   sessionId: string;
   platform: string;
 }) {
@@ -88,9 +88,14 @@ export function ChatBar({
     );
   };
   const reveal = () => {
-    sources.reveal({ uid, sessionId }).catch((error: unknown) => {
-      log.error('Sources folder not shown', error, { sessionId });
-    });
+    const courseId = (session as NonNullable<typeof session>).courseId;
+    // A session nobody has used has no folder yet: asking to see it makes it (first use).
+    sources
+      .ensure({ uid, sessionId, ...(courseId !== null && { suggestedName: courseId }) })
+      .then(() => sources.reveal({ uid, sessionId }))
+      .catch((error: unknown) => {
+        log.error('Sources folder not shown', error, { sessionId });
+      });
   };
   return (
     <div className="ss-bar" role="group" aria-label="Agent settings">

@@ -30,7 +30,7 @@ describe('sourceRefusal', () => {
 
 describe('bridgeSources', () => {
   it('lists null until a folder is made, then its files', async () => {
-    const { desktop } = fakeDesktop();
+    const { desktop } = fakeDesktop({ noSources: true });
     const sources = bridgeSources(desktop.sources, ref);
     await expect(sources.list()).resolves.toBeNull();
     await desktop.sources.ensure(ref);
@@ -74,7 +74,7 @@ describe('bridgeSources', () => {
   });
 
   it('backs the agent’s list_sources and read_source', async () => {
-    const { desktop } = fakeDesktop();
+    const { desktop } = fakeDesktop({ noSources: true });
     const ctx = defaultToolContext(bridgeSources(desktop.sources, ref));
     expect(await refused(call(toolState(), 'list_sources', {}, ctx))).toMatch(
       /^This session has no Sources folder yet/,
