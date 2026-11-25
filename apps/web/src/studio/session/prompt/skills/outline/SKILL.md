@@ -25,8 +25,9 @@ change; twelve written lessons are not.
 - Give each lesson its minutes, usually 5 to 15.
 - Put a Quiz at the end of a chapter when the chapter teaches something worth checking. Say which
   lessons it revisits.
-- Name the pictures, videos and files the course will need. You never make them; they become
-  to-dos for the Educator.
+- Name the pictures, videos and files the course will need. You never make them or their links.
+  A link the Educator typed in the chat goes in its lesson; the rest become to-dos for the
+  Educator.
 
 ## 3. Ask the Educator
 
@@ -45,6 +46,7 @@ with one line on what the learner can do afterwards. Then ask whether to go ahea
 - Set the outcomes with `set_landing`, then call `lint_writing` with no item. Fix each finding on
   text you wrote or changed: the titles and outcomes. Leave the rest of the course as it is.
 - Record the agreed plan with `set_summary`: the title and one goal per agreed piece of work.
-- Add a to-do with `add_todo` for every picture, video or file the outline needs.
+- Add a to-do with `add_todo` for every picture, video or file the outline needs that the
+  Educator gave no link for.
 
 Then write the lessons one by one with `gurukul:lesson`.

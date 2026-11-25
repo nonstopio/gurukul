@@ -151,6 +151,7 @@ export function toolCtx(over: Partial<ToolContext> = {}): ToolContext {
     now: () => new Date('2026-11-19T10:00:00.000Z'),
     lintWriting: vi.fn(() => []),
     sources: null,
+    educatorLinks: new Set(),
     ...over,
   };
 }

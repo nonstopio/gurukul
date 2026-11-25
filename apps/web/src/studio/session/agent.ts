@@ -33,7 +33,7 @@ import {
   namedCourse,
 } from './store';
 import type { CreatingNote, SessionBase, SessionStore } from './store';
-import { TOOLS, defaultToolContext, runToolIn } from './tools';
+import { TOOLS, defaultToolContext, linksIn, runToolIn } from './tools';
 import type { SessionSources, SessionState, Tool, ToolContext } from './tools';
 import type { TranscriptEntry } from './transcript';
 import { turnChanged } from './workspace';
@@ -1014,6 +1014,23 @@ export function createAgentSession({
     unavailable(next);
   };
 
+  /**
+   * The addresses the Educator typed in this session's chat, for the media rule (`tools/media.ts`).
+   * Only their own words count: `educator` entries hold what they typed, never the notes the app
+   * puts ahead of it for the agent (attachments, files added, hand edits, undone turns). `send`
+   * adds the message before the agent sees it, and `open` reads the chat back, so a link counts in
+   * the turn it was sent in, in later turns and after the app opens the session again.
+   */
+  let links: { chat: readonly TranscriptEntry[]; found: ReadonlySet<string> } | null = null;
+  const educatorLinks = (): ReadonlySet<string> => {
+    if (links?.chat !== transcript)
+      links = {
+        chat: transcript,
+        found: linksIn(transcript.flatMap((e) => (e.kind === 'educator' ? [e.text] : []))),
+      };
+    return links.found;
+  };
+
   const runCall = async (call: AgentToolCall) => {
     const current = session as AuthoringSession;
     const seen = reviewSeq;
@@ -1025,7 +1042,10 @@ export function createAgentSession({
       summary: current.summary,
       todos: current.todos,
     };
-    const result = await runToolIn(tools, state, call.name, call.input, context);
+    const result = await runToolIn(tools, state, call.name, call.input, {
+      ...context,
+      educatorLinks: educatorLinks(),
+    });
     let reply: AgentToolResult;
     if ('error' in result) reply = { error: result.error };
     else if (result.text.length > TOOL_RESULT_MAX_LENGTH) {

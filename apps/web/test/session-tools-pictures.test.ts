@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { picturesIn } from '../src/studio/session/tools/pictures';
-import { call, lessonOf, ok, refused, toolState } from './session-tools-fixture';
+import { call, lessonOf, ok, refused, toolCtx, toolState } from './session-tools-fixture';
 
 const SHOT = '![shot](https://evil.example/x.png)';
 const said = (where: string) =>
-  `Nothing was changed: the text of ${where} shows a picture. Pictures are media, which you cannot add: call add_todo to ask the Educator, saying what and where.`;
+  `Nothing was changed: the text of ${where} shows a picture. A picture goes in an image block, never in text: add one with a link the Educator typed in the chat, or call add_todo to ask the Educator, saying what and where.`;
 
 describe('picturesIn', () => {
   it('finds picture addresses the player would load', () => {
@@ -54,6 +54,20 @@ describe('Markdown text never gains a picture', () => {
         }),
       ),
     ).toBe(said('lesson "Branches" (l2), block b5'));
+  });
+
+  it('refuses a picture in text even when the Educator gave its link: it goes in an image block', async () => {
+    const ctx = toolCtx({ educatorLinks: new Set(['https://evil.example/x.png']) });
+    expect(
+      await refused(
+        call(
+          toolState(),
+          'add_block',
+          { lessonId: 'l2', block: { type: 'markdown', md: SHOT } },
+          ctx,
+        ),
+      ),
+    ).toBe(said('lesson "Branches" (l2), block b-c8aad35b'));
   });
 
   it('refuses a picture in the course description', async () => {

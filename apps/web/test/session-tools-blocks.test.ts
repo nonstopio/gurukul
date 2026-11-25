@@ -55,9 +55,12 @@ describe('add_block', () => {
     expect(text).toBe(`Added markdown block ${made.id} at position 1.`);
   });
 
-  it('never accepts a media block or an address', async () => {
+  it('never accepts a file block, an upload or an address on a text block', async () => {
     for (const block of [
-      { type: 'image', url: 'https://example.com/a.png', alt: 'A' },
+      { type: 'file', url: 'https://example.com/a.pdf', label: 'A' },
+      { type: 'image', url: 'https://example.com/a.png', alt: 'A', upload: { path: 'x' } },
+      { type: 'image', url: 'https://example.com/a.png', alt: 'A', width: 10, height: 10 },
+      { type: 'video', url: 'https://youtu.be/abc123', provider: 'loom' },
       { type: 'markdown', md: 'x', url: 'https://example.com' },
     ])
       expect(await refused(call(toolState(), 'add_block', { lessonId: 'l1', block }))).toMatch(

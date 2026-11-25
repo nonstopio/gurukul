@@ -95,6 +95,46 @@ test.describe('Gurukul Studio desktop app', () => {
     expect(await desktop.sessionStarts()).toBe(1);
   });
 
+  test('a video link the Educator pastes becomes a block; a link they never gave is refused', async ({
+    desktop,
+  }) => {
+    // A placeholder id (`TODO_…`): the preview shows "Video coming soon" and loads nothing.
+    const pasted = 'https://youtu.be/TODO_rebase_demo';
+    await desktop.setScenario({
+      turns: [
+        [
+          {
+            tool: 'add_block',
+            input: { lessonId: FIRST_LESSON, block: { type: 'video', url: pasted }, position: 1 },
+          },
+          {
+            tool: 'add_block',
+            input: {
+              lessonId: FIRST_LESSON,
+              block: { type: 'video', url: 'https://youtu.be/TODO_made_up' },
+            },
+          },
+          { text: 'I added your video at the start.' },
+        ],
+      ],
+    });
+    const window = await openStudio(desktop, ['educator', 'admin']);
+    await window.getByRole('button', { name: `Edit with AI: ${GIT_COURSE.title}` }).click();
+    await startSession(window);
+    await sendMessage(
+      window,
+      `Add this at the start of the first lesson: ${pasted}.`,
+      '1 change in turn 1, open in Review',
+    );
+    await expect(
+      window.getByText(/^tool: Added video block b-[0-9a-f]+ at position 1\.$/),
+    ).toBeVisible();
+    await expect(
+      window.getByText(/^tool error: Nothing was changed: .* did not give in this session's chat/),
+    ).toBeVisible();
+    await expect(window.getByText('1 change · checks pass')).toBeVisible();
+  });
+
   test('a new course session adds a chapter and a lesson, and Create course saves it', async ({
     desktop,
   }) => {

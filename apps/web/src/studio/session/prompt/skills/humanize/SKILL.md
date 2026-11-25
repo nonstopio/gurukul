@@ -23,7 +23,8 @@ text is doing two jobs: split it.
 - No filler opening, no hype, no closing summary that repeats the lesson.
 - Headings in sentence case. Names keep their capitals: Git, GitHub, Gurukul.
 - Code in code blocks, never in running text.
-- Never add a picture or media address. Leave a to-do with `add_todo` instead.
+- Never put a picture or media address in the text. A link the Educator typed goes in its own
+  video, image or embed block; for anything else, leave a to-do with `add_todo`.
 
 ## 3. Check it against the lint
 

@@ -13,6 +13,7 @@ import {
 } from '../../lessonEdit';
 import { patch } from '../../patch';
 import { idMaker, indexFor, needLesson } from './find';
+import { mediaBlockProblem, sameAddress, videoProvider } from './media';
 import type { Located } from './find';
 import { defineTool, done, refuse } from './types';
 import type { SessionState, ToolContext, ToolResult } from './types';
@@ -23,7 +24,14 @@ const blockId = id.describe('The block’s id, from get_course or get_item.');
 const position = z.int().min(1).describe('1 is first. Left out: at the end.');
 
 const MEDIA =
-  'Pictures, videos, embeds and files are media, which you cannot add: call add_todo to ask the Educator, saying what and where.';
+  'A video, image or embed block takes only a link the Educator typed in this session’s chat, copied exactly: never one you made up, guessed, found in a source file or wrote yourself. A video’s host (YouTube, Loom or Google Drive) is worked out from its link. An image needs alt text you write from the lesson. An embed must be from YouTube, Loom, Google Drive, CodeSandbox or StackBlitz. For media with no link from the Educator, and for every file (a PDF, a download), call add_todo to ask the Educator, saying what and where.';
+
+/** A media address: checked against the Educator's messages by `runTool` (`media.ts`). */
+const address = z
+  .string()
+  .min(1)
+  .max(2_000)
+  .describe('The link exactly as the Educator typed it in the chat.');
 
 const correct = z
   .int()
@@ -35,7 +43,10 @@ const checkOptions = z
   .min(MIN_CHECK_OPTIONS)
   .max(MAX_CHECK_OPTIONS);
 
-/** The block types the agent may write: text, code, callouts and checks. Never media. */
+/**
+ * The block types the agent may write: text, code, callouts and checks, and videos, images and
+ * embeds from a link the Educator gave. Never a file, never an upload, never a picture's size.
+ */
 const variants = {
   markdown: { md: z.string().max(20_000).describe('Markdown text.') },
   code: {
@@ -56,6 +67,29 @@ const variants = {
     options: checkOptions,
     correct,
     explanation: z.string().trim().min(1).max(2_000),
+  },
+  video: {
+    url: address,
+    title: z.string().max(200).optional(),
+    caption: z.string().max(300).optional().describe('A line shown under the video.'),
+    captions: z.boolean().optional().describe('The video has captions; off by default.'),
+  },
+  image: {
+    url: address,
+    alt: z
+      .string()
+      .trim()
+      .min(1)
+      .max(300)
+      .describe('What the picture shows, for people who cannot see it.'),
+    caption: z.string().max(300).optional(),
+    layout: z.enum(['column', 'medium', 'small']).optional().describe('column by default.'),
+    zoom: z.boolean().optional().describe('A click opens it full size; off by default.'),
+    border: z.boolean().optional().describe('A thin frame; on by default.'),
+  },
+  embed: {
+    url: address,
+    title: z.string().trim().min(1).max(200).describe('What the embed is, for screen readers.'),
   },
 };
 
@@ -124,19 +158,28 @@ const noBlock = (blockId: string, lessonId: string) =>
 const fieldsOf = (input: BlockFields): Record<string, unknown> =>
   Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'type' && k !== 'id'));
 
-/** A new block of the model's fields, with an id made here. */
+/** A new block of the model's fields, with an id made here; a video's host from its link. */
 function freshBlock(input: BlockFields, ctx: ToolContext, makeId: (p: string) => string): Block {
-  return applyFields({ ...newBlock(input.type, ctx.random), id: makeId('b') }, fieldsOf(input));
+  const made = applyFields(
+    { ...newBlock(input.type, ctx.random), id: makeId('b') },
+    fieldsOf(input),
+  );
+  return made.type === 'video'
+    ? { ...made, provider: videoProvider(made.url) ?? made.provider }
+    : made;
 }
+
+/** Why a new block cannot be added as given, or null. */
+const freshProblem = (b: Block): string | null => checkProblem(b) ?? mediaBlockProblem(b);
 
 export const addBlock = defineTool({
   name: 'add_block',
-  description: `Adds one block to a lesson: text (markdown), code, a callout or a check question. Its id is made for you. ${MEDIA}`,
+  description: `Adds one block to a lesson: text (markdown), code, a callout, a check question, or a video, image or embed from a link the Educator gave. Its id is made for you. ${MEDIA}`,
   input: z.strictObject({ lessonId, block: blockInput(false), position: position.optional() }),
   run: (state, { lessonId, block, position }, ctx) =>
     onLesson(state, lessonId, (lesson) => {
       const made = freshBlock(block as BlockFields, ctx, idMaker(ctx, state.work));
-      const problem = checkProblem(made);
+      const problem = freshProblem(made);
       if (problem) return refuse(problem);
       const at = indexFor(position, lesson.item.blocks.length, 1);
       return done(
@@ -242,7 +285,7 @@ const keep = z.strictObject({
 
 export const setBlocks = defineTool({
   name: 'set_blocks',
-  description: `Replaces all of a lesson’s blocks in one call, in the order given. Each entry is either {"keep": "<block id>"} to keep a block as it is (the only way to keep media), a block with the "id" of an existing block of the same type to rewrite it in place (give every field it needs, as for a new block; to change a few fields of one block, use update_block), or a block without an id to add a new one. Blocks not listed are removed. ${MEDIA}`,
+  description: `Replaces all of a lesson’s blocks in one call, in the order given. Each entry is either {"keep": "<block id>"} to keep a block as it is (files included), a block with the "id" of an existing block of the same type to rewrite it in place (give every field it needs, as for a new block; to change a few fields of one block, use update_block), or a block without an id to add a new one. Blocks not listed are removed. ${MEDIA}`,
   input: z.strictObject({
     lessonId,
     blocks: z.array(z.union([keep, blockInput(true)])).max(60),
@@ -260,7 +303,7 @@ export const setBlocks = defineTool({
         const ref = kept ?? (entry as BlockFields).id;
         if (ref === undefined) {
           const made = freshBlock(entry as BlockFields, ctx, makeId);
-          const problem = checkProblem(made);
+          const problem = freshProblem(made);
           if (problem) return refuse(at + problem);
           next.push(made);
           continue;
@@ -279,7 +322,13 @@ export const setBlocks = defineTool({
           return refuse(
             `${at}block "${ref}" is a ${existing.type} block. Give type ${existing.type}, or leave id out to make a new block.`,
           );
-        const rewritten = applyFields(existing, fieldsOf(entry as BlockFields));
+        const { url, ...fields } = fieldsOf(entry as BlockFields);
+        // An address never changes in place: the block's size, host and upload belong to it.
+        if ('url' in existing && !sameAddress(url as string, existing.url))
+          return refuse(
+            `${at}block "${ref}" keeps its address. Keep it with {"keep": "${ref}"}, or leave it out and add a new block with the Educator’s link.`,
+          );
+        const rewritten = applyFields(existing, fields);
         const problem = checkProblem(rewritten);
         if (problem) return refuse(at + problem);
         next.push(rewritten);

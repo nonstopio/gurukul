@@ -485,6 +485,69 @@ describe('turns', () => {
     expect(s.state().turnChanges).toBe(2);
   });
 
+  describe('media links the Educator typed', () => {
+    const LINK = 'https://youtu.be/abc123';
+    const video = (url = LINK) => ({ lessonId: 'l1', block: { type: 'video', url } });
+    const added = { text: expect.stringMatching(/^Added video block b-/) };
+    const refusedLink = { error: expect.stringMatching(/did not give in this session's chat/) };
+
+    it('counts a link in the very turn it was sent in, and in later turns', async () => {
+      const s = await setup();
+      await s.runtime.open();
+      expect(await s.runtime.send(`Add this after the intro: ${LINK}.`)).toBe(true);
+      expect(await s.call('add_block', video())).toEqual(added);
+      s.emit({
+        type: 'turn_end',
+        sessionId: 's1',
+        agentSessionId: AGENT_SESSION_ID,
+        outcome: 'done',
+      });
+      await s.runtime.settled();
+      expect(await s.runtime.send('And once more at the end.')).toBe(true);
+      // Two calls with nothing said between them: the links are read from the chat once.
+      expect(await s.call('add_block', video())).toEqual(added);
+      expect(await s.call('add_block', video())).toEqual(added);
+      expect(await s.call('add_block', video('https://youtu.be/other99'))).toEqual(refusedLink);
+    });
+
+    it('counts a link from the chat on disk when the session opens again', async () => {
+      const s = await setup();
+      s.files.set(
+        `u1/s1/${TRANSCRIPT_FILE}`,
+        `${JSON.stringify({ kind: 'educator', turnId: 't0', at: T0.toISOString(), text: `Use ${LINK}` })}\n`,
+      );
+      await s.runtime.open();
+      expect(await s.runtime.send('Add the video now.')).toBe(true);
+      expect(await s.call('add_block', video())).toEqual(added);
+    });
+
+    it('counts only the Educator’s words: not the agent’s reply, a notice or the app’s notes', async () => {
+      const s = await setup();
+      s.files.set(
+        `u1/s1/${TRANSCRIPT_FILE}`,
+        [
+          { kind: 'educator', turnId: 't0', at: T0.toISOString(), text: 'Find a video.' },
+          { kind: 'agent', turnId: 't0', at: T0.toISOString(), text: `How about ${LINK}?` },
+          { kind: 'activity', turnId: 't0', at: T0.toISOString(), text: LINK },
+          { kind: 'notice', turnId: null, at: T0.toISOString(), text: LINK },
+        ]
+          .map((e) => `${JSON.stringify(e)}\n`)
+          .join(''),
+      );
+      await s.runtime.open();
+      // An attached part's label is the app's note ahead of the message, not the Educator's words.
+      expect(
+        s.runtime.attach({ kind: 'item', ids: { itemId: 'l1' }, label: `Lesson ${LINK}` }),
+      ).toBe(true);
+      expect(await s.runtime.send('Yes, add it.')).toBe(true);
+      expect(s.agent.send).toHaveBeenCalledWith('s1', expect.stringContaining(LINK));
+      expect(await s.call('add_block', video())).toEqual(refusedLink);
+      expect(s.state().work?.course.chapters[0]?.items[0]).toMatchObject({
+        blocks: expect.not.arrayContaining([expect.objectContaining({ type: 'video' })]),
+      });
+    });
+  });
+
   it('keeps the agent’s session fields (summary, goals, to-dos) from its tools', async () => {
     const s = await setup({ kind: 'new' });
     await s.runtime.open();
