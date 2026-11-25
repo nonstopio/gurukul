@@ -20,6 +20,8 @@ import type { SessionState, Tool, ToolContext, ToolResult } from './types';
  */
 
 export { defaultToolContext, lintWorkingCopy } from './context';
+export { linksIn } from './media';
+import { mediaAddresses } from './media';
 export { SourceRefusedError } from './types';
 export type {
   SessionSources,
@@ -66,7 +68,7 @@ const FAILED =
 /**
  * Runs one tool call from the agent against `state`, using the tools given. The input is parsed
  * with the tool's schema; a change is checked (course schema, size limit, the course's fixed
- * fields, the session's own fields) and refused as a whole when it fails, so the working copy is
+ * fields, media addresses the Educator did not give, the session's own fields) and refused as a whole when it fails, so the working copy is
  * never left half-changed or invalid. The base never changes.
  */
 export async function runToolIn(
@@ -93,7 +95,11 @@ export async function runToolIn(
   }
   if ('error' in result) return result;
   const next: SessionState = { ...result.state, base: state.base };
-  const problem = workProblem(state.work, next.work) ?? sessionProblem(next);
+  // The stored draft's own media count too: the agent may put back one removed in this session.
+  const links = state.base
+    ? new Set([...ctx.educatorLinks, ...mediaAddresses(state.base)])
+    : ctx.educatorLinks;
+  const problem = workProblem(state.work, next.work, links) ?? sessionProblem(next);
   if (problem !== null) return refuse(problem);
   return { state: next, text: result.text, ...(result.images && { images: result.images }) };
 }

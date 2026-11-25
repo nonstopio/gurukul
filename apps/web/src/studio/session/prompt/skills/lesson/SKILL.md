@@ -41,8 +41,10 @@ Educator instead.
   and file block with `{ "keep": "<block id>" }`; rewrite a text block in place by giving its id.
 - For a small change, use `update_block`, `add_block`, `move_block` or `remove_block`.
 - Set minutes, layout and how it is completed with `update_item`.
-- Every picture, video or file the lesson needs is a to-do: `add_todo` with the lesson and the
-  block it goes after.
+- Add a video, image or embed block for a link the Educator typed in the chat, copied exactly.
+  Give an image alt text that says what it shows.
+- Every other picture, video or file the lesson needs is a to-do: `add_todo` with the lesson and
+  the block it goes after. Never make up a link.
 - Then call `lint_writing` for this lesson. Fix each finding on text you wrote or changed before
   you start the next one.
 - Mark the goal this lesson serves with `set_summary` once it is done.

@@ -169,7 +169,13 @@ describe('the rules the prompt sets', () => {
     ['humanizes before writing text', /run `gurukul:humanize` on that text/],
     ['lints right after writing', /Right after the write, call\s+`lint_writing`/],
     ['uses add_todo instead of inventing media', /Never invent the address of a picture/],
-    ['asks for media with add_todo', /When the course needs one, call `add_todo`/],
+    ['asks for media with add_todo', /the Educator gave no link, call `add_todo`/],
+    ['uses a link the Educator typed', /takes only a\s+link the Educator typed in this session/],
+    [
+      'never takes a link from a source or its own reply',
+      /a link from your own reply do not count/,
+    ],
+    ['keeps files as to-dos', /Files\s+\(a PDF, a download\) are always a to-do/],
     ['keeps the summary and goals current', /Keep them\s+current with `set_summary`/],
     ['marks goals after each turn', /mark each goal done or not and update the summary/],
     ['never mentions tool names', /Never mention tool names/],
@@ -239,6 +245,12 @@ describe('the rules the prompt sets', () => {
   it('every skill that writes or plans lesson text sends media to add_todo', () => {
     for (const name of ['outline', 'lesson', 'humanize'])
       expect(skillMd(name)).toContain('`add_todo`');
+  });
+
+  it('the lesson and outline skills use only a link the Educator typed', () => {
+    expect(skillMd('lesson')).toMatch(/link the Educator typed in the chat, copied exactly/);
+    expect(skillMd('lesson')).toMatch(/Never make up a link/);
+    expect(skillMd('outline')).toMatch(/A link the Educator typed in the chat goes in its lesson/);
   });
 });
 

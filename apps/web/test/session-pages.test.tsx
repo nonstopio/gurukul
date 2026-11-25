@@ -62,6 +62,7 @@ describe('the Studio course list in a browser', () => {
     expect(screen.queryByRole('button', { name: 'New course with AI' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit with AI/ })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Build a course by chatting' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Sessions in progress' })).toBeNull();
   });
 });
 
@@ -152,7 +153,8 @@ describe('the Studio course list in the desktop app', () => {
   it('logs a clean-up that could not even list the sessions', async () => {
     const d = await desktopWith();
     const failure = new Error('store.list failed (EACCES)');
-    d.desktop.store.list.mockRejectedValueOnce(failure);
+    // Every listing fails: the clean-up and the Sessions in progress list each read it once.
+    d.desktop.store.list.mockRejectedValue(failure);
     await openApp('/studio', { roles: ['educator'], studio: studio() });
     await waitFor(() => expect(log.error).toHaveBeenCalledWith('Session clean-up failed', failure));
   });
@@ -275,6 +277,107 @@ describe('the Studio course list in the desktop app', () => {
     await openApp('/studio', { roles: ['educator'], studio: studio() });
     fireEvent.click(await screen.findByRole('button', { name: 'New course with AI' }));
     expect(await screen.findByLabelText('Checking the app')).toBeTruthy();
+  });
+});
+
+describe('sessions in progress on the Studio course list', () => {
+  const region = () => screen.findByRole('region', { name: 'Sessions in progress' });
+
+  it('lists each open session, a new course marked not created yet, and opens it', async () => {
+    const d = await desktopWith([{ kind: 'new' }, { kind: 'edit', courseId: 'git' }]);
+    const [fresh, edit] = d.made as [AuthoringSession, AuthoringSession];
+    const turn = {
+      id: 't1',
+      at: fresh.createdAt,
+      by: 'agent' as const,
+      summary: 'Added a lesson.',
+      checkpoint: 't1.json',
+      changes: 1,
+    };
+    await d.store.save({ ...fresh, title: 'Docker basics', turns: [turn] });
+    vi.clearAllMocks();
+    const app = await openApp('/studio', { roles: ['educator'], studio: studio() });
+    const list = await region();
+    const docker = within(list).getByRole('link', { name: 'Docker basics' });
+    expect(within(list).getByText('New course · not created yet')).toBeTruthy();
+    expect(within(list).getByText('1 turn')).toBeTruthy();
+    expect(within(list).getByText('Editing')).toBeTruthy();
+    expect(within(list).getByText('0 turns')).toBeTruthy();
+    expect(within(list).getByText(/Changes to Git reach its draft/)).toBeTruthy();
+    expect(within(list).getAllByText(/^Changed at \d\d:\d\d$/)).toHaveLength(2);
+    expect(within(list).getByRole('link', { name: 'Git' }).getAttribute('href')).toBe(
+      `/studio/sessions/${edit.id}`,
+    );
+    // Reads only the files on this computer: no Firestore read for the list.
+    expect(await axeViolations(document.body)).toEqual([]);
+    fireEvent.click(docker);
+    await waitFor(() =>
+      expect(app.router.state.location.pathname).toBe(`/studio/sessions/${fresh.id}`),
+    );
+  });
+
+  it('leaves out saved and discarded sessions, and shows nothing when none is open', async () => {
+    const d = await desktopWith([{ kind: 'new' }]);
+    await d.store.close(d.made[0] as AuthoringSession, 'discarded');
+    vi.clearAllMocks();
+    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    expect(await screen.findByRole('link', { name: 'Git' })).toBeTruthy();
+    await waitFor(() => expect(d.desktop.store.list).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('region', { name: 'Sessions in progress' })).toBeNull();
+  });
+
+  it('says so when the sessions cannot be read, logs it, and tries again', async () => {
+    const d = await desktopWith([{ kind: 'new' }]);
+    const failure = new Error('store.list failed (EACCES)');
+    d.desktop.store.list.mockRejectedValue(failure);
+    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    const list = await region();
+    expect(
+      await within(list).findByText('Your sessions on this computer could not be read'),
+    ).toBeTruthy();
+    expect(log.error).toHaveBeenCalledWith('Session list failed', failure);
+    d.desktop.store.list.mockRestore();
+    fireEvent.click(within(list).getByRole('button', { name: 'Try again' }));
+    expect(
+      await within(await region()).findByRole('link', { name: 'Untitled course' }),
+    ).toBeTruthy();
+  });
+
+  it('shows 25 sessions to a page', async () => {
+    const d = await desktopWith();
+    const turn = (at: string) => ({
+      id: 't1',
+      at,
+      by: 'agent' as const,
+      summary: 'Added a lesson.',
+      checkpoint: 't1.json',
+      changes: 1,
+    });
+    for (let i = 1; i <= 26; i += 1) {
+      const result = await d.store.start({ kind: 'new' }, async () => null);
+      if (result.status !== 'started') throw new Error('not started');
+      await d.store.save({
+        ...result.session,
+        title: `Course ${i}`,
+        turns: [turn(result.session.createdAt)],
+      });
+    }
+    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    const list = await region();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(25);
+    expect(within(list).getByText(/Showing 1–25 of 26/)).toBeTruthy();
+    fireEvent.click(within(list).getByRole('button', { name: /Next/ }));
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('shows nothing in a browser, or while the app is too old to answer', async () => {
+    await desktopWith([{ kind: 'new' }], async () => ({
+      ...DESKTOP_INFO,
+      bridgeVersion: REQUIRED_BRIDGE_VERSION - 1,
+    }));
+    await openApp('/studio', { roles: ['educator'], studio: studio() });
+    expect(await screen.findByRole('link', { name: 'Git' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Sessions in progress' })).toBeNull();
   });
 });
 

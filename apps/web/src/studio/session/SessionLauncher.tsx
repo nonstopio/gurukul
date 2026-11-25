@@ -93,7 +93,8 @@ function NotReady({ state }: { state: Exclude<DesktopState, { status: 'ready' }>
  * Starts the session once, then opens it. An edit of a course that already has an open session
  * opens that one (the store says `already_open`). A new course reuses an open new-course session
  * nothing has been done in yet (no turns), so clicking twice does not pile up empty sessions; one
- * with work in it is left in the course list's sessions and a fresh one starts.
+ * with work in it stays in the course list's Sessions in progress (`OpenSessions`) and a fresh one
+ * starts.
  */
 function Starter({
   start,

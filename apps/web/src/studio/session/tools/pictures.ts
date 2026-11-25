@@ -3,8 +3,8 @@ import { fromMarkdown } from 'mdast-util-from-markdown';
 
 /*
  * The agent never invents a media address (`.plan/22-desktop-studio.md`, "The agent's tools").
- * Media blocks are out of its reach, but Markdown text can still show a picture
- * (`![shot](https://…)`), which learners' browsers would load. So every Markdown field is read
+ * Media blocks take only a link the Educator typed (`media.ts`), but Markdown text could still
+ * show a picture (`![shot](https://…)`), which learners' browsers would load. So every Markdown field is read
  * with the same parser the player uses, and a change that adds a picture address no field held
  * before is refused. Addresses the Educator already wrote stay, so the agent can still edit the
  * text around them.
@@ -76,6 +76,6 @@ export function pictureProblem(before: Working, after: Working): string | null {
   const known = addresses(before);
   for (const field of markdownFields(after))
     if (picturesIn(field.md).some((address) => !known.has(address)))
-      return `Nothing was changed: the text of ${field.where} shows a picture. Pictures are media, which you cannot add: call add_todo to ask the Educator, saying what and where.`;
+      return `Nothing was changed: the text of ${field.where} shows a picture. A picture goes in an image block, never in text: add one with a link the Educator typed in the chat, or call add_todo to ask the Educator, saying what and where.`;
   return null;
 }

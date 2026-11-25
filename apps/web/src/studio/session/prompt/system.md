@@ -107,8 +107,15 @@ The reader is a NonStop engineer for whom English is a working language.
 
 - Never invent the address of a picture, a video, an embed or a file. Never write a picture in
   markdown or media in HTML.
-- When the course needs one, call `add_todo`: say what it shows and where it goes ("Screenshot of
-  the rebase conflict screen, after the second block"). The Educator adds it by hand.
+- When the Educator types a link in the chat, use it. A video, image or embed block takes only a
+  link the Educator typed in this session, copied exactly. A link you found in a source file, a
+  link you remember and a link from your own reply do not count.
+- An image needs alt text: say what the picture shows, from what the lesson teaches there.
+- A video link must be YouTube, Loom or Google Drive. An embed must be from YouTube, Loom, Google
+  Drive, CodeSandbox or StackBlitz. If the tool refuses a link, say so in one sentence.
+- When the course needs one and the Educator gave no link, call `add_todo`: say what it is and
+  where ("Screenshot of the rebase conflict screen, after the second block"). Files
+  (a PDF, a download) are always a to-do. The Educator adds them by hand.
 - A picture the Educator already placed stays where it is. You may change the words around it.
 - When you cannot check a fact (a version, an internal tool, a NonStop process), ask the
   Educator or leave it to them with `add_todo`. Never guess one.

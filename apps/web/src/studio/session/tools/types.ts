@@ -80,6 +80,12 @@ export interface ToolContext {
   lintWriting(work: Working, scope: { itemId: string | null }): readonly WritingFinding[];
   /** Null outside the desktop app's sessions (tests); a session's folder lists null until chosen. */
   sources: SessionSources | null;
+  /**
+   * Every http(s) address the Educator typed in this session's chat (`linksIn`, normalised), the
+   * message the agent is answering included: the only addresses a new video, image or embed block
+   * may have. The runtime fills it from the transcript before each tool call; empty elsewhere.
+   */
+  educatorLinks: ReadonlySet<string>;
 }
 
 /** A tool's answer: the new state and a short text for the model (and any pictures to show it), or a sentence saying why not. */

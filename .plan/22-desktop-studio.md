@@ -732,6 +732,13 @@ As built in `DSK-11` (`apps/web/src/studio/session/store.ts`, `SessionLauncher.t
 - **New course with AI reuses an open new-course session that has no turns yet** instead of piling
   up empty ones; if every open new-course session already has work in it, a fresh one starts. A
   start that fails shows a toast and stays on the course list; the next click starts again.
+- **Sessions in progress** (`OpenSessions.tsx`, lazy, desktop app only): above the courses, a
+  card lists every open session on this computer, newest change first, as `CourseTile`s that open
+  the workspace (title, "Editing" or "New course · not created yet", turns, last change; 25 to a
+  page). It replaced the start dialog's "Open sessions" list, which went with the dialog and left
+  a new course's session reachable only through search: an Educator who left it thought the course
+  was lost. Local files only, no Firestore read. Nothing is drawn while it loads, before the app
+  answers, or with no open session; a failed read shows a warning with Try again.
 - **`session_started` fires only when a session is actually created**, not when an open one is
   reused or opened.
 - **A new course's working copy** is `blankCourse` with the placeholder id `new-course`, the person
@@ -1468,7 +1475,7 @@ options are made by the app (`ids.ts`), never by the model.
 | Read | `get_course` (details and outline, no block text), `get_item`, `get_base_item` (as it was at the start), `search_course`, `list_changes`, `list_sources`, `read_source` |
 | Course | `set_course_details`, `set_landing` |
 | Structure | `add_chapter`, `update_chapter`, `move_chapter`, `remove_chapter`, `add_lesson`, `add_quiz`, `update_item`, `move_item`, `remove_item` |
-| Lesson blocks | `add_block`, `update_block`, `move_block`, `remove_block`, `set_blocks` (replace a lesson's blocks in one call) |
+| Lesson blocks | `add_block` (text, code, callout, check; a video, image or embed from a link the Educator typed), `update_block`, `move_block`, `remove_block`, `set_blocks` (replace a lesson's blocks in one call) |
 | Quiz | `update_quiz_settings`, `add_question`, `update_question` (prompt, options, correct options, explanation, lesson it revisits), `move_question`, `remove_question` |
 | Checks | `check_course` (schema, size, publish issues), `lint_writing` |
 | Session | `set_summary` (title, goals with done or not, summary), `add_todo`, `resolve_todo` |
@@ -1480,9 +1487,13 @@ Rules every tool follows:
   holds at most 60 blocks").
 - Write tools use Studio's edit helpers (`courseEdit.ts`, `lessonEdit.ts`, `questionEdit.ts`), so
   the agent and the editors cannot disagree about what a valid edit is.
-- **The agent never invents a media address.** For a picture, video or file it calls `add_todo`
+- **The agent never invents a media address.** It adds a video, image or embed block only when
+  the block's address appears in a message the Educator typed in this session ("Add this after
+  the intro: https://youtu.be/…"); Review shows it as an added block the Educator can undo. For
+  any other picture, video or embed, and for every file (a PDF, a download), it calls `add_todo`
   ("Screenshot of the rebase conflict screen, after block 3"). To-dos show in Review as
-  "Left for you" and the Educator adds the media by hand. Markdown text is held to the same rule:
+  "Left for you" and the Educator adds the media by hand. An address in a source file, in the
+  agent's own reply or in a note the app writes does not count. Markdown text is held to the same rule:
   a change that adds a picture (`![…](…)`, a reference picture, or raw media HTML) to a text or
   callout block, the course description, a check or a Quiz question is refused, read with the
   parser the player uses (`mdast-util-from-markdown`). A picture the Educator already wrote stays,
@@ -1515,12 +1526,33 @@ The writing lint and the Sources folder come in through `ctx` (`ctx.lintWriting`
   always has the answers True and False. Changing a multiple-choice question to single choice
   without saying which answer is right is refused, never trimmed to the first; so is turning a
   question into True or False without `correct`, since its old answers become True and False.
-- `add_block` and `set_blocks` write only text, code, callout and check blocks. `update_block`
+- `add_block` and `set_blocks` write text, code, callout and check blocks, and video, image and
+  embed blocks from a link the Educator typed (below); never a file block. `update_block`
   changes only the words of a media block (alt, caption, title, label), never an address or an
-  upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep
-  media), a block with an existing `id` to rewrite it in place (so Review shows Changed, not
+  upload. `set_blocks` takes `{ "keep": id }` to keep a block as it is (the only way to keep a
+  file), a block with an existing `id` to rewrite it in place (so Review shows Changed, not
   Removed and Added; every field the block needs is given, as for a new one, and `update_block`
   is for changing a few), or a block without one to add it.
+- As built (media from the Educator's links; `tools/media.ts`): the runtime reads every http(s)
+  address out of the Educator's own messages in the chat (`transcript.jsonl`'s `educator`
+  entries, which hold what they typed and nothing the app puts ahead of it: attached parts, files
+  added, hand edits, undone turns) and hands them to the tools as `ctx.educatorLinks`. `send`
+  adds the message to the chat before the agent sees it, and opening a session reads the chat
+  back, so a link counts in the turn it was sent in, in later turns and after the app restarts.
+  Punctuation after a link (`.`, `,`, `)` without its `(`, `>`, `]`, `*`) is not part of it, and
+  both sides are compared as `new URL(x).href`. `runTool` refuses any change that gives a video,
+  image, embed or file block an address the course did not hold and the Educator did not type;
+  an address already there (a block kept, moved or rewritten), or in the stored draft the session
+  started from (so the agent can put back a block removed earlier), is never new. A rewrite in place
+  keeps its address. The blocks pass the checks Studio's editors and publishing apply: a video's
+  host (YouTube, Loom, Google Drive) is worked out from its link with `videoEmbedUrl`, and a link
+  none of them plays is refused, pointing at an embed or a to-do; an embed must pass
+  `isEmbedAllowed`; an image must be https and needs alt text. The agent never sets an upload,
+  a video's length or an image's width and height. The trade-off: a linked image the agent adds
+  has no size, so the lesson can shift while it loads until the course is next opened in Studio's
+  own editor, which sizes it (a session's editor does not, `DSK-19`'s "Opening the editor changes
+  nothing by itself"). A picture in Markdown text stays refused even with the Educator's link:
+  an image block is the way to add one.
 - `update_question` keeps answers by id (`{ id, text }`) so a reworded answer stays the same
   answer, and keeps the right answers marked when `correct` is left out.
 - `read_source` reads only a plain file name that the Sources folder lists: a name with `/` or
@@ -2064,7 +2096,8 @@ Item by item: tracker section **Desktop Studio** (`DSK-01` to `DSK-25`).
 - Offline use. Review of a session by a second person (sessions are local; a shared session
   would need a Firestore collection and rules, and a cost review).
 - The agent in the browser. A model picker. Agents other than Claude Code.
-- Generating images, video or voice. Uploading media by the agent.
+- Generating images, video or voice. Uploading media by the agent, or finding a link for it
+  (the agent adds a video, image or embed only from a link the Educator typed; files never).
 - Linux installers (the shell runs there; nobody has asked).
 
 ## Open questions

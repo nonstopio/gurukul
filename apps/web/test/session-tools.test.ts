@@ -67,7 +67,12 @@ describe('the tool list', () => {
       expect(entry.inputSchema['additionalProperties']).toBe(false);
     }
     const addBlock = list.find((t) => t.name === 'add_block');
-    expect(JSON.stringify(addBlock?.inputSchema)).not.toContain('"url"');
+    // Videos, images and embeds take a link; never a file block, an upload or a picture's size.
+    const schema = JSON.stringify(addBlock?.inputSchema);
+    for (const type of ['video', 'image', 'embed']) expect(schema).toContain(`"const":"${type}"`);
+    expect(schema).not.toContain('"const":"file"');
+    for (const field of ['"upload"', '"width"', '"height"', '"provider"', '"durationSec"'])
+      expect(schema).not.toContain(field);
   });
 });
 

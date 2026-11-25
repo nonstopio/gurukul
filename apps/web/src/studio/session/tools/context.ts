@@ -13,11 +13,13 @@ export const lintWorkingCopy = (
 
 /**
  * The context the app runs the tools with: real randomness and clock, the writing lint, and the
- * session's Sources folder when the Educator chose one.
+ * session's Sources folder when the Educator chose one. `educatorLinks` starts empty; the runtime
+ * sets it from the chat before each call (`agent.ts`).
  */
 export const defaultToolContext = (sources: SessionSources | null = null): ToolContext => ({
   random: Math.random,
   now: () => new Date(),
   lintWriting: lintWorkingCopy,
   sources,
+  educatorLinks: new Set(),
 });
