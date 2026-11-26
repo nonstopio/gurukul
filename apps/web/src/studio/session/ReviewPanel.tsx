@@ -30,7 +30,8 @@ import { useTerms } from '../../labels/useTerms';
 import { log } from '../../log';
 import { BlockView } from '../../player/blocks';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { sessionItemPath } from '../editorPlace';
+import { sessionEditPath } from '../editorPlace';
+import type { SessionEditPath } from '../editorPlace';
 import { PreviewExam } from '../PreviewExam';
 import { useStudio } from '../StudioProvider';
 import type { Working } from '../types';
@@ -353,7 +354,7 @@ export function ReviewPanel({
               numbers={listNumbers}
               wide={wide}
               courseId={session.courseId}
-              sessionId={sessionId}
+              editPath={sessionEditPath(session)}
               open={open}
               toCheck={
                 selected.kind === 'quiz' && selected.after ? (toCheck.get(selected.id) ?? []) : []
@@ -679,7 +680,7 @@ function RowDetail({
   numbers,
   wide,
   courseId,
-  sessionId,
+  editPath,
   open,
   toCheck,
   viewed,
@@ -695,7 +696,8 @@ function RowDetail({
   numbers: Numbers;
   wide: boolean;
   courseId: string | null;
-  sessionId: string;
+  /** "Open in editor" (`sessionEditPath`): none for a discarded session. */
+  editPath: SessionEditPath | undefined;
   open: boolean;
   /** This Quiz's questions a second opinion disagreed with (`DSK-18`). */
   toCheck: readonly AnswerQuestion[];
@@ -786,8 +788,8 @@ function RowDetail({
             Ask for a change
           </Button>
         ) : null}
-        {open && item && !removed ? (
-          <Link className={buttonClass('secondary')} to={sessionItemPath(sessionId, item.id)}>
+        {editPath && item && !removed ? (
+          <Link className={buttonClass('secondary')} to={editPath(item)}>
             Open in editor
           </Link>
         ) : null}

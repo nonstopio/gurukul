@@ -1,4 +1,4 @@
-import type { Item } from '@gurukul/schema';
+import type { AuthoringSession, Item } from '@gurukul/schema';
 import type { BreadcrumbItem } from '@gurukul/ui';
 import { Link } from 'react-router';
 import { useTerms } from '../labels/useTerms';
@@ -28,6 +28,23 @@ export const sessionWorkspacePath = (sessionId: string, item?: string) =>
 /** Studio's lesson or Quiz editor over a session's working copy. Review links here too. */
 export const sessionItemPath = (sessionId: string, itemId: string) =>
   `/studio/sessions/${sessionId}/items/${encodeURIComponent(itemId)}`;
+
+/** Where a session's "Open in editor" goes for one lesson or Quiz. */
+export type SessionEditPath = (item: Pick<Item, 'id' | 'type'>) => string;
+
+/**
+ * "Open in editor" for a session's lessons and Quizzes: Studio's editor over the working copy while
+ * the session is open; once it is saved, Studio's own editor over the draft it was saved to, where
+ * the work goes on. A discarded session has nothing to open.
+ */
+export function sessionEditPath(
+  session: Pick<AuthoringSession, 'id' | 'status' | 'courseId'>,
+): SessionEditPath | undefined {
+  if (session.status === 'open') return (item) => sessionItemPath(session.id, item.id);
+  // Only an edit session is saved, so a saved one has its course.
+  const courseId = session.courseId as string;
+  return session.status === 'saved' ? (item) => itemEditorPath(courseId, item) : undefined;
+}
 
 /**
  * Why a new course's editor offers no uploads: a file is stored under its course, and the course

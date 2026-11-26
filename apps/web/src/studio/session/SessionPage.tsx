@@ -21,7 +21,7 @@ import { useUser } from '../../auth/AuthProvider';
 import { useDesktop } from '../../desktop/bridge';
 import type { GurukulDesktop } from '../../desktop/bridge';
 import { useTerms } from '../../labels/useTerms';
-import { sessionItemPath } from '../editorPlace';
+import { sessionEditPath } from '../editorPlace';
 import { ChatPanel, reviewPath } from './ChatPanel';
 import { HandEditor } from './HandEditor';
 import { PreviewPanel } from './PreviewPanel';
@@ -312,7 +312,7 @@ function Workspace({
                   ) : null
                 }
                 initialItem={shown}
-                editPath={open ? (id) => sessionItemPath(sessionId, id) : undefined}
+                editPath={sessionEditPath(session)}
               />
             </Card>
           </div>

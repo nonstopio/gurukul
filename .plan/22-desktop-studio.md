@@ -1027,7 +1027,9 @@ As built in `DSK-19` (Edit by hand; `apps/web/src/studio/session/HandEditor.tsx`
   unknown id showing the lesson editor's "Lesson not found". "Open in editor" is on the preview's
   item header and, as a pen icon link, on each Outline row; Review links to the same route
   (`sessionItemPath`). The back link ("Session") returns to the workspace opened on that item
-  (`?item=lesson:l2`). A saved or discarded session offers no link, and the route says it is closed.
+  (`?item=lesson:l2`). A saved session's link opens Studio's own editor over the draft it was saved
+  to (`/studio/courses/:courseId/lessons/:itemId` or `/quiz/:itemId`, `sessionEditPath`), where
+  the work goes on; a discarded session offers no link. The session route says either is closed.
 - **One `DraftApi`, two sources.** The editors take an `EditorPlace` (`draft` or `session`) for their
   links, and a `DraftApi`: `useDraft` in Studio, `useSessionDraft` in a session. In a session an
   edit changes the runtime's copy in memory at once and `session.json` a pause later
@@ -1244,7 +1246,7 @@ Each finding links to its row. Writing and Answers offer "Ask the agent to fix t
   course offer none; Undo this item covers them. A message already carrying ten parts gets the
   outline's sentence instead.
 - **Open in editor** links to `/studio/sessions/:sessionId/items/:itemId` (`DSK-19`) for a lesson
-  or Quiz still in the course.
+  or Quiz still in the course; once saved, to Studio's editor for it over the saved draft.
 - **Undo this item** (`revertRow`) puts back the course details or landing page field by field, a
   chapter's title and place (an added chapter only when empty; a removed one with its lessons that
   are not elsewhere now), or a lesson or Quiz whole with its answer keys, `answersChanged` marked as

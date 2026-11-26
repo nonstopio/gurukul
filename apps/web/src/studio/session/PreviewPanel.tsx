@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useTerms } from '../../labels/useTerms';
 import { BlockView } from '../../player/blocks';
+import type { SessionEditPath } from '../editorPlace';
 import { PreviewExam } from '../PreviewExam';
 import { nameOf } from '../studioModel';
 import type { Working } from '../types';
@@ -164,10 +165,10 @@ export function PreviewPanel({
   /** The item to open on (`lesson:l2`), when it is in the course. */
   initialItem?: string | null;
   /**
-   * Studio's editor for a lesson or Quiz of the working copy (`DSK-19`): "Open in editor" on the
-   * preview and on each Outline row. Undefined where the copy may not change (a closed session).
+   * "Open in editor" on the preview and on each Outline row (`sessionEditPath`): the working copy's
+   * editor while the session is open, the saved draft's once saved, none for a discarded session.
    */
-  editPath?: ((itemId: string) => string) | undefined;
+  editPath?: SessionEditPath | undefined;
 }) {
   const t = useTerms();
   const rows = useMemo(() => rowsByKey(changes), [changes]);
@@ -248,7 +249,7 @@ function ItemPreview({
   row: ChangeRow | undefined;
   work: Working;
   onPick: (key: string) => void;
-  editPath: ((itemId: string) => string) | undefined;
+  editPath: SessionEditPath | undefined;
 }) {
   const t = useTerms();
   const words = useAttachWords();
@@ -311,7 +312,7 @@ function ItemPreview({
           meta={entry.statuses.length > 0 ? <StatusChips statuses={entry.statuses} /> : undefined}
           actions={
             editPath ? (
-              <Link className={buttonClass('secondary')} to={editPath(item.id)}>
+              <Link className={buttonClass('secondary')} to={editPath(item)}>
                 Open in editor
               </Link>
             ) : undefined
@@ -377,7 +378,7 @@ function Outline({
   base: Working | null;
   changes: CourseChanges;
   onShow: (key: string) => void;
-  editPath: ((itemId: string) => string) | undefined;
+  editPath: SessionEditPath | undefined;
 }) {
   const t = useTerms();
   const words = useAttachWords();
@@ -464,7 +465,7 @@ function Outline({
                     {editPath && item.number !== null ? (
                       <Link
                         className={iconButtonClass()}
-                        to={editPath(item.id)}
+                        to={editPath(item)}
                         aria-label={`Open ${item.number} · ${nameOf(item.title, 'Untitled')} in the editor`}
                         data-tip="Open in editor"
                       >
