@@ -683,6 +683,17 @@ describe('Review', () => {
     expect(screen.queryByRole('button', { name: 'Edit summary' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Ask for a change' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^More for/ })).toBeNull();
+    // Saved: the work goes on in Studio's own editor, over the draft it was saved to.
+    pick(/^2\.2 · Quiz I/);
+    expect(
+      within(detail()).getByRole('link', { name: 'Open in editor' }).getAttribute('href'),
+    ).toBe('/studio/courses/git/quiz/q1');
+  });
+
+  it('offers no editor for a discarded session', async () => {
+    await open({ turns: [turnOne], edit: (x) => ({ ...x, status: 'discarded' }) });
+    expect(await screen.findByText('6 changes · 0 viewed')).toBeTruthy();
+    pick(/^2\.2 · Quiz I/);
     expect(screen.queryByRole('link', { name: 'Open in editor' })).toBeNull();
   });
 

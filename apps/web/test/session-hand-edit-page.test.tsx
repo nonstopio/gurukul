@@ -312,20 +312,35 @@ describe('when hand edits wait', () => {
     expect(await screen.findByLabelText('Lesson title')).toBeTruthy();
   });
 
-  it('shows a closed session to read, with no editor', async () => {
+  it('opens a saved session in Studio’s own editor, over the draft it was saved to', async () => {
     const closed = (session: AuthoringSession): AuthoringSession => ({
       ...session,
       status: 'saved',
     });
     await open({ edit: closed });
     await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
-    expect(screen.queryByRole('link', { name: 'Open in editor' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open in editor' }).getAttribute('href')).toBe(
+      '/studio/courses/git/lessons/l1',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    expect(
+      screen.getByRole('link', { name: 'Open 2.2 · Quiz I in the editor' }).getAttribute('href'),
+    ).toBe('/studio/courses/git/quiz/q1');
     uninstallDesktop();
 
+    // The session's own editor stays closed: the draft is where the work goes on.
     await open({ edit: closed, path: (id) => itemPath(id, 'l1') });
     expect(
       await screen.findByRole('heading', { level: 2, name: 'This session is closed' }),
     ).toBeTruthy();
+  });
+
+  it('offers no editor for a discarded session', async () => {
+    await open({ edit: (session) => ({ ...session, status: 'discarded' }) });
+    await screen.findByRole('heading', { level: 2, name: 'Lesson l1' });
+    expect(screen.queryByRole('link', { name: 'Open in editor' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    expect(screen.queryByRole('link', { name: /in the editor$/ })).toBeNull();
   });
 
   it('waits while hand edits the app closed on become a turn', async () => {
